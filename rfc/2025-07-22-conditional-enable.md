@@ -8,9 +8,9 @@ Issue: https://github.com/opentofu/opentofu/issues/1306
 > Every time we refer to *resources* in this RFC, we're talking about [managed resources](https://opentofu.org/docs/language/resources/), [data sources](https://opentofu.org/docs/language/data-sources/) and [ephemeral resources](https://github.com/opentofu/opentofu/issues/2834).
 
 Right now, OpenTofu supports conditional enable/disable of resources by using a workaround with `count`.
-This approach brings a few problems, like adding indexes to resources that would be a single instance, making it harder to manage using these indexes.
+This approach brings a few problems, such as adding indexes to resources that would be single instances, making it harder to manage using these indexes.
 
-This RFC proposes a new way to do a cleaner and semantic way by using a new field on the `lifecycle` block called `enabled`:
+This RFC proposes a new way to do this in a cleaner and more semantic manner by using a new field on the `lifecycle` block called `enabled`:
 
 ```
 resource "aws_instance" "example" {
@@ -22,7 +22,7 @@ resource "aws_instance" "example" {
 }
 ```
 
-This is available not only to resources, but to modules too:
+This is available not only for resources, but for modules too:
 
 ```
 module "modcall" {
@@ -36,23 +36,23 @@ module "modcall" {
 
 ## Proposed Solution
 
-1. Raise errors if a resource is used while being disabled;
-1. Support for conditional enabling on:
+1. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
+2. Support for conditional enabling on:
   1. Resources - Add a new field on the `lifecycle` block called `enabled`;
-  1. Modules - Add a new `lifecycle` block for Modules but only supporting the `enabled` field.
+  2. Modules - Add a new `lifecycle` block for modules but only supporting the new `enabled` field.
 
 
 ## Technical Approach
 
 ### `lifecycle` support on Modules
 
-Lifecycle block is currently not supported on `Modules`, but in our docs we're mentioning to users that it's reserved for future usage:
+The lifecycle block is currently not supported on `modules`, but in our docs we mention to users that it's reserved for future usage:
 
 > OpenTofu does not use the lifecycle argument. However, the lifecycle block is reserved for future versions.
 
 https://opentofu.org/docs/language/modules/syntax/#meta-arguments
 
-It would be the right timing to start to support it, but only for the `enabled` field.
+It would be the right timing to start supporting it, but only for the `enabled` field.
 
 ## Migration from existing resources
 
@@ -61,7 +61,7 @@ It would be the right timing to start to support it, but only for the `enabled` 
 As mentioned before, users were adding support for enabling/disabling resources by using `count = var.enabled ? 1 : 0` and this is the most common case where they want to use an `enabled` field.
 Luckily, this support is [in-place already](https://github.com/opentofu/opentofu/pull/3066#discussion_r2231518392). When using a `count` for this conditional dependency, if
 the resource is changed to use `enabled`, an implicit `move` will be done on the apply phase to remove the index and
-turn into a single instance.
+turn it into a single instance.
 
 ```
 OpenTofu will perform the following actions:
@@ -76,8 +76,8 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 
 ### Migration from `for_each` to `enabled`
 
-Different from `count`, implicit moves are not handled by OpenTofu. This means that the user should explicit
-tell to OpenTofu what needs to be moved:
+Unlike `count`, implicit moves are not handled by OpenTofu. This means that the user should explicitly
+tell OpenTofu what needs to be moved:
 
 ```
 moved {
@@ -86,7 +86,7 @@ moved {
 }
 ```
 
-So an complete example of that support would be:
+So a complete example of that support would be:
 
 ```
 # For_each before:
@@ -114,13 +114,13 @@ resource "aws_s3_bucket" "example" {
 ```
 
 It doesn't make a lot of sense in the example above to move from `for_each` to `enabled` if more than one resource is being used. `bucket-2` in the example above would be removed. This path of migration
-should be used *only* if a single-instance is being used and for_each is supporting that conditional.
+should be used *only* if a single instance is being used and for_each is supporting that conditional.
 
 ### Usage of `enabled` together with `for_each` and `count`.
 
 These three different arguments would behave similarly, but with different semantics.
-It could be argued the user wants to enable a resource with 4 instances, but on our current code,
-that conditional can be changed `count=0`.
+It could be argued that the user wants to enable a resource with 4 instances, but in our current code,
+that conditional can be changed to `count=0`.
 
 The proposal is that we do not support them together. Only one of them can be used, returning errors if we try to use the others together.
 
@@ -128,7 +128,7 @@ Semantically, this feature would be used for single-instance resources or module
 
 ### Errors when resource is not enabled
 
-There's some discussion about this [topic](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2398120132), and the better compromise we found is that a enabled 
+There's some discussion about this [topic](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2398120132), and the better compromise we found is that an enabled 
 resource can be `null` when it's disabled, but no errors are going to be shown statically,
 like when using `validate` or the language server, in an OpenTofu extension, like VSCode.
 Since we need to evaluate the `enabled` expression, these errors are going to be shown dynamically,
@@ -156,11 +156,11 @@ different errors.
 
 Discarded options:
 
-- In a Github thread, someone mentioned about using `?` to deal with disabled resources. Since this would be a HCL change, we discarded that option.
+- In a GitHub thread, someone mentioned using `?` to deal with disabled resources. Since this would be a HCL change, we discarded that option.
 
 ### What happens when it's disabled
 
-Let's suppose we have a created a resource using the `lifecycle -> enabled` field and then we want to disable it.
+Let's suppose we have created a resource using the `lifecycle -> enabled` field and then we want to disable it.
 The behavior is going to be the same as if a resource is being destroyed:
 
 ```
@@ -175,12 +175,12 @@ The behavior is going to be the same as if a resource is being destroyed:
 
 ### What types of variables are supported on the conditional
 
-There are a few types of values that cannot be used on this conditional:
+There are a few types of values that cannot be used in this conditional:
 
 1. Unknown values, since they cannot be used until the apply phase
-1. Sensitive values
-1. Null values
-1. Conditionals that do not evaluate to true/bool values
+2. Sensitive values
+3. Null values
+4. Conditionals that do not evaluate to true/bool values
 
 ## Future considerations
 
