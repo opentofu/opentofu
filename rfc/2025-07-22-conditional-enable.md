@@ -145,14 +145,22 @@ when running `plan` or `apply`:
 │ This value is null, so it does not have any attributes.
 ```
 
-The available data access patterns for possibly disabled resources are:
+The only available data access patterns for possibly disabled resources are:
 
 - `null_resource.example != null ? null_resource.example.id : "default value"`
 - `try(null_resource.example.id, "default_value")`
 - `can(null_resource.example.id) ? null_resource.example.id : "default value"`
 
+Notice this can be extended by using custom provider functions. Let's say if someone would like to
+create a function that add a warning instead of raising an error when trying to access the attribute,
+they could do:
+
+- `provider::custom::warning_enabled(null_resource.example.id, "default value")
+
+For now, we will be offering the three options above. 
 `try` is the most concise option, but it should be used carefully since it can silently mask
-different errors.
+different errors not caused by null values access. `can` and `!= null` are more verbose but 
+are more reliable on doing what you're trying to do.
 
 Discarded options:
 
