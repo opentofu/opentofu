@@ -54,10 +54,13 @@ https://opentofu.org/docs/language/modules/syntax/#meta-arguments
 
 It would be the right timing to start to support it, but only for the `enabled` field.
 
+## Migration from existing resources
+
 ### Migration from `count` to `enabled`
 
-Luckily, this support would be in-place already. When using a `count` for this conditional dependency, if
-the resource is changed to use `enabled`, a `move` will be done on the apply phase to remove the index and
+As mentioned before, users were adding support for enabling/disabling resources by using `count = var.enabled ? 1 : 0` and this is the most common case where they want to use an `enabled` field.
+Luckily, this support is [in-place already](https://github.com/opentofu/opentofu/pull/3066#discussion_r2231518392). When using a `count` for this conditional dependency, if
+the resource is changed to use `enabled`, an implicit `move` will be done on the apply phase to remove the index and
 turn into a single instance.
 
 ```
@@ -71,13 +74,55 @@ OpenTofu will perform the following actions:
 Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
+### Migration from `for_each` to `enabled`
+
+Different from `count`, implicit moves are not handled by OpenTofu. This means that the user should explicit
+tell to OpenTofu what needs to be moved:
+
+```
+moved {
+  from = aws_s3_bucket.example["for_each_key"]  # name of the key being used by for_each
+  to = aws_s3_bucket.example
+}
+```
+
+So an complete example of that support would be:
+
+```
+# For_each before:
+
+locals {
+  buckets = ["bucket-1", "bucket-2"]
+}
+
+moved {
+  from = aws_s3_bucket.example["bucket-1"]  # name of the key being used by for_each
+  to = aws_s3_bucket.example
+}
+
+resource "aws_s3_bucket" "example" {
+  for_each = var.enable ? toset(local.buckets) : []
+  bucket = each.key
+}
+
+# To:
+resource "aws_s3_bucket" "example" {
+  lifecycle {
+    enabled = var.enable
+  }
+}
+```
+
+It doesn't make a lot of sense in the example above to move from `for_each` to `enabled` if more than one resource is being used. `bucket-2` in the example above would be removed. This path of migration
+should be used *only* if a single-instance is being used and for_each is supporting that conditional.
+
 ### Usage of `enabled` together with `for_each` and `count`.
 
 These three different arguments would behave similarly, but with different semantics.
-It could be argued that you want to enable a resource with 4 instances, but on our current code,
-you can already change that conditional by setting `count` to 0.
+It could be argued the user wants to enable a resource with 4 instances, but on our current code,
+that conditional can be changed `count=0`.
 
-I propose that we do not support them together. You can only use one of them, returning errors if we try to use the others together.
+The proposal is that we do not support them together. Only one of them can be used, returning errors if we try to use the others together.
 
 Semantically, this feature would be used for single-instance resources or modules.
 
@@ -116,7 +161,7 @@ Discarded options:
 ### What happens when it's disabled
 
 Let's suppose we have a created a resource using the `lifecycle -> enabled` field and then we want to disable it.
-The behavior is going to be the same as if you wanted to destroy a resource:
+The behavior is going to be the same as if a resource is being destroyed:
 
 ```
 # aws_instance.demo_vm_2 will be destroyed
