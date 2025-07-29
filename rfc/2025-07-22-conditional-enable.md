@@ -4,6 +4,9 @@
 
 Issue: https://github.com/opentofu/opentofu/issues/1306
 
+> [!NOTE]
+> Every time we refer to *resources* in this RFC, we're talking about [managed resources](https://opentofu.org/docs/language/resources/), [data sources](https://opentofu.org/docs/language/data-sources/) and [ephemeral resources](https://github.com/opentofu/opentofu/issues/2834).
+
 Right now, OpenTofu supports conditional enable/disable of resources by using a workaround with `count`.
 This approach brings a few problems, like adding indexes to resources that would be a single instance, making it harder to manage using these indexes.
 
