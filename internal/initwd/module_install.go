@@ -465,17 +465,21 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 // public hashicorp/go-version API.
 var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
 
-func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+func (i *ModuleInstaller) ResolveRegistryModule(ctx context.Context, sourceAddr addrs.ModuleSourceRegistry, versionConstraints version.Constraints) (addrs.ModuleSourceRemote, *version.Version, tfdiags.Diagnostics) {
+	return i.resolveRegistryModule(ctx, sourceAddr, versionConstraints, i.reg, nil)
+}
 
-	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module",
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, req.VersionConstraint.Required.String())),
+func (i *ModuleInstaller) resolveRegistryModule(ctx context.Context, sourceAddr addrs.ModuleSourceRegistry, versionConstraints version.Constraints, regClient *registry.Client, callRange *hcl.Range) (addrs.ModuleSourceRemote, *version.Version, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var ret addrs.ModuleSourceRemote
+
+	ctx, span := tracing.Tracer().Start(ctx, "Resolve Registry Module Version",
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, sourceAddr.String())),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, versionConstraints.String())),
 	)
 	defer span.End()
 
-	if i.reg == nil || fetcher == nil {
+	if i.reg == nil {
 		// Only local package sources are available when we have no registry
 		// client or no fetcher, since both would be needed for successful install.
 		// (This special situation is primarily for use in tests.)
@@ -483,13 +487,13 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Severity: hcl.DiagError,
 			Summary:  "Registry-style module sources not supported",
 			Detail:   "Only local module sources are supported in this context.",
-			Subject:  req.CallRange.Ptr(),
+			Subject:  callRange,
 		})
 		tracing.SetSpanError(span, diags)
-		return nil, nil, diags
+		return ret, nil, diags
 	}
 
-	hostname := addr.Package.Host
+	hostname := sourceAddr.Package.Host
 	reg := i.reg
 	var resp *response.ModuleVersions
 	var exists bool
@@ -497,7 +501,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// A registry entry isn't _really_ a module package, but we'll pretend it's
 	// one for the sake of this reporting by just trimming off any source
 	// directory.
-	packageAddr := addr.Package
+	packageAddr := sourceAddr.Package
 
 	// Our registry client is still using the legacy model of addresses, so
 	// we'll shim it here for now.
@@ -505,10 +509,10 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 
 	// check if we've already looked up this module from the registry
 	if resp, exists = i.registryPackageVersions[packageAddr]; exists {
-		log.Printf("[TRACE] %s using already found available versions of %s at %s", key, addr, hostname)
+		log.Printf("[TRACE] using already found available versions of %s at %s", sourceAddr, hostname)
 	} else {
 		var err error
-		log.Printf("[DEBUG] %s listing available versions of %s at %s", key, addr, hostname)
+		log.Printf("[DEBUG] listing available versions of %s at %s", sourceAddr, hostname)
 		resp, err = reg.ModuleVersions(ctx, regsrcAddr)
 		if err != nil {
 			if registry.IsModuleNotFound(err) {
@@ -520,25 +524,25 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Module not found",
-					Detail:   fmt.Sprintf("Module %s (%q from %s:%d) cannot be found in the module registry at %s.%s", addr.Package.ForRegistryProtocol(), req.Name, req.CallRange.Filename, req.CallRange.Start.Line, hostname, suggestion),
-					Subject:  req.CallRange.Ptr(),
+					Detail:   fmt.Sprintf("Module %q cannot be found in the module registry at %s.%s", sourceAddr.Package.ForRegistryProtocol(), sourceAddr.ForDisplay(), hostname, suggestion),
+					Subject:  callRange,
 				})
 			} else if errors.Is(err, context.Canceled) {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Module installation was interrupted",
-					Detail:   fmt.Sprintf("Received interrupt signal while retrieving available versions for module %q.", req.Name),
+					Detail:   fmt.Sprintf("Received interrupt signal while retrieving available versions for module %q.", sourceAddr.Package),
 				})
 			} else {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Error accessing remote module registry",
-					Detail:   fmt.Sprintf("Failed to retrieve available versions for module %q (%s:%d) from %s: %s.", req.Name, req.CallRange.Filename, req.CallRange.Start.Line, hostname, err),
-					Subject:  req.CallRange.Ptr(),
+					Detail:   fmt.Sprintf("Failed to retrieve available versions for module %q: %s.", sourceAddr, err),
+					Subject:  callRange,
 				})
 			}
 			tracing.SetSpanError(span, diags)
-			return nil, nil, diags
+			return ret, nil, diags
 		}
 		i.registryPackageVersions[packageAddr] = resp
 	}
@@ -553,10 +557,10 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid response from remote module registry",
-			Detail:   fmt.Sprintf("The registry at %s returned an invalid response when OpenTofu requested available versions for module %q (%s:%d).", hostname, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
-			Subject:  req.CallRange.Ptr(),
+			Detail:   fmt.Sprintf("The registry at %s returned an invalid response when OpenTofu requested available versions for module %q.", hostname, sourceAddr.ForDisplay()),
+			Subject:  callRange,
 		})
-		return nil, nil, diags
+		return ret, nil, diags
 	}
 
 	modMeta := resp.Modules[0]
@@ -572,8 +576,8 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  "Invalid response from remote module registry",
-				Detail:   fmt.Sprintf("The registry at %s returned an invalid version string %q for module %q (%s:%d), which OpenTofu ignored.", hostname, mv.Version, req.Name, req.CallRange.Filename, req.CallRange.Start.Line),
-				Subject:  req.CallRange.Ptr(),
+				Detail:   fmt.Sprintf("The registry at %s returned an invalid version string %q for module %q, which OpenTofu ignored.", hostname, mv.Version, sourceAddr.ForDisplay()),
+				Subject:  callRange,
 			})
 			continue
 		}
@@ -607,7 +611,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// cause all prerelease versions to be excluded from the selection.
 			// For more information:
 			//     https://github.com/opentofu/opentofu/issues/2117
-			constraint := req.VersionConstraint.Required.String()
+			constraint := versionConstraints.String()
 			acceptableVersions, err := versions.MeetingConstraintsString(constraint)
 			if err != nil {
 				// apparentlymart/go-versions purposely doesn't accept "v" prefixes.
@@ -629,10 +633,10 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 					return match
 				}))
 				if strippedConstraint != constraint {
-					log.Printf("[WARN] ModuleInstaller: %s (while evaluating %q) failed parsing, so will retry with 'v' prefixes removed (%s)\n    before: %s\n    after:  %s", key, v, err.Error(), constraint, strippedConstraint)
+					log.Printf("[WARN] ModuleInstaller: (while evaluating %q) failed parsing, so will retry with 'v' prefixes removed (%s)\n    before: %s\n    after:  %s", v, err.Error(), constraint, strippedConstraint)
 					acceptableVersions, err = versions.MeetingConstraintsString(strippedConstraint)
 					if err != nil {
-						log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the stripped version constraints (%q) could not be parsed either: %s", key, v, strippedConstraint, err.Error())
+						log.Printf("[WARN] ModuleInstaller: ignoring %q because the stripped version constraints (%q) could not be parsed either: %s", v, strippedConstraint, err.Error())
 						continue
 					}
 				} else {
@@ -640,7 +644,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 					// then that's an expected (though highly unfortunate) consequence of the
 					// incorrect use of MeetingConstraintsString above. Refer to the earlier FIXME
 					// comment for more information.
-					log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the version constraints (%q) could not be parsed: %s", key, v, strippedConstraint, err.Error())
+					log.Printf("[WARN] ModuleInstaller: ignoring %q because the version constraints (%q) could not be parsed: %s", v, strippedConstraint, err.Error())
 					continue
 				}
 			}
@@ -649,7 +653,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// library.
 			version, err := versions.ParseVersion(v.String())
 			if err != nil {
-				log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version (%s) reported by the module could not be parsed: %s", key, v, v.String(), err.Error())
+				log.Printf("[WARN] ModuleInstaller: ignoring %s because the version (%s) reported by the module could not be parsed: %s", v, v.String(), err.Error())
 				continue
 			}
 
@@ -658,10 +662,10 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// apparentlymart/go-versions library handles prerelease constraints
 			// in the approach we want to.
 			if !acceptableVersions.Has(version) {
-				log.Printf("[TRACE] ModuleInstaller: %s ignoring %s because it is a pre-release and was not requested exactly", key, v)
+				log.Printf("[TRACE] ModuleInstaller: ignoring %s because it is a pre-release and was not requested exactly", v)
 				continue
 			}
-			log.Printf("[TRACE] ModuleInstaller: %s accepting %s because it is a pre-release that was requested exactly", key, v)
+			log.Printf("[TRACE] ModuleInstaller: accepting %s because it is a pre-release that was requested exactly", v)
 
 			// If we reach here, it means this prerelease version was exactly
 			// requested according to the extra constraints of this library.
@@ -673,7 +677,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			latestVersion = v
 		}
 
-		if req.VersionConstraint.Required.Check(v) {
+		if versionConstraints.Check(v) {
 			if latestMatch == nil || v.GreaterThan(latestMatch) {
 				latestMatch = v
 			}
@@ -684,26 +688,23 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module has no versions",
-			Detail:   fmt.Sprintf("Module %q (%s:%d) has no versions available on %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, hostname),
-			Subject:  req.CallRange.Ptr(),
+			Detail:   fmt.Sprintf("Module %q has no versions available on %s.", sourceAddr.ForDisplay(), hostname),
+			Subject:  callRange,
 		})
 		tracing.SetSpanError(span, diags)
-		return nil, nil, diags
+		return ret, nil, diags
 	}
 
 	if latestMatch == nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unresolvable module version constraint",
-			Detail:   fmt.Sprintf("There is no available version of module %q (%s:%d) which matches the given version constraint. The newest available version is %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, latestVersion),
-			Subject:  req.CallRange.Ptr(),
+			Detail:   fmt.Sprintf("There is no available version of module %q which matches the given version constraint. The newest available version is %s.", sourceAddr.ForDisplay(), latestVersion),
+			Subject:  callRange,
 		})
 		tracing.SetSpanError(span, diags)
-		return nil, nil, diags
+		return ret, nil, diags
 	}
-
-	// Report up to the caller that we're about to start downloading.
-	hooks.Download(key, packageAddr.String(), latestMatch)
 
 	// If we manage to get down here then we've found a suitable version to
 	// install, so we need to ask the registry where we should download it from.
@@ -714,26 +715,29 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	if _, exists := i.registryPackageSources[moduleAddr]; !exists {
 		realAddrRaw, err := reg.ModuleLocation(ctx, regsrcAddr, latestMatch.String())
 		if err != nil {
-			log.Printf("[ERROR] %s from %s %s: %s", key, addr, latestMatch, err)
+			log.Printf("[ERROR] from %s %s: %s", sourceAddr, latestMatch, err)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Error accessing remote module registry",
-				Detail:   fmt.Sprintf("Failed to retrieve a download URL for %s %s from %s: %s", addr, latestMatch, hostname, err),
+				Detail:   fmt.Sprintf("Failed to retrieve a download URL for %q %s from %s: %s", sourceAddr.ForDisplay(), latestMatch, hostname, err),
 			})
 			tracing.SetSpanError(span, diags)
-			return nil, nil, diags
+			return ret, nil, diags
 		}
 		realAddr, err := addrs.ParseModuleSource(realAddrRaw)
 		if err != nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid package location from module registry",
-				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: %s.", hostname, realAddrRaw, addr, latestMatch, err),
+				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %q %s: %s.", hostname, realAddrRaw, sourceAddr, latestMatch, err),
 			})
 			tracing.SetSpanError(span, diags)
-			return nil, nil, diags
+			return ret, nil, diags
 		}
 
+		// FIXME: This is setting the same attribute name as we already set
+		// when creating the span, but now using the remote source address
+		// instead of the registry package address.
 		span.SetAttributes(otelAttr.String(traceattrs.ModuleSource, realAddr.String()))
 
 		switch realAddr := realAddr.(type) {
@@ -747,25 +751,48 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid package location from module registry",
-				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: must be a direct remote package address.", hostname, realAddrRaw, addr, latestMatch),
+				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %q %s: must be a direct remote package address.", hostname, realAddrRaw, sourceAddr, latestMatch),
 			})
 			tracing.SetSpanError(span, diags)
-			return nil, nil, diags
+			return ret, nil, diags
 		}
 	}
 
-	dlAddr := i.registryPackageSources[moduleAddr]
+	ret = i.registryPackageSources[moduleAddr]
+	return ret, latestMatch, diags
+}
 
-	log.Printf("[TRACE] ModuleInstaller: %s %s %s is available at %q", key, packageAddr, latestMatch, dlAddr.Package)
+func (i *ModuleInstaller) FetchRemoteModule(ctx context.Context, sourceAddr addrs.ModuleSourceRemote, targetDir string) (string, tfdiags.Diagnostics) {
+	return i.fetchRemoteModule(ctx, sourceAddr, targetDir, i.fetcher, nil)
+}
 
-	err := fetcher.FetchPackage(ctx, instPath, dlAddr.Package.String())
+func (i *ModuleInstaller) fetchRemoteModule(ctx context.Context, sourceAddr addrs.ModuleSourceRemote, targetDir string, fetcher *getmodules.PackageFetcher, callRange *hcl.Range) (string, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Fetch Remote Module Package",
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, sourceAddr.String())),
+	)
+	defer span.End()
+
+	if fetcher == nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Remote module sources not supported",
+			Detail:   "Only local module sources are supported in this context.",
+			Subject:  callRange,
+		})
+		tracing.SetSpanError(span, diags)
+		return "", diags
+	}
+
+	err := fetcher.FetchPackage(ctx, targetDir, sourceAddr.Package.String())
 	if errors.Is(err, context.Canceled) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Module download was interrupted",
-			Detail:   fmt.Sprintf("Interrupt signal received when downloading module %s.", addr),
+			Detail:   fmt.Sprintf("Interrupt signal received when downloading %q.", sourceAddr.Package),
 		})
-		return nil, nil, diags
+		return "", diags
 	}
 	if err != nil {
 		// Errors returned by go-getter have very inconsistent quality as
@@ -776,11 +803,34 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Failed to download module",
-			Detail:   fmt.Sprintf("Could not download module %q (%s:%d) source code from %q: %s.", req.Name, req.CallRange.Filename, req.CallRange.Start.Line, dlAddr, err),
-			Subject:  req.CallRange.Ptr(),
+			Detail:   fmt.Sprintf("Could not download module package from %q: %s.", sourceAddr, err),
+			Subject:  callRange,
 		})
+		return "", diags
+	}
+
+}
+
+func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module",
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, req.VersionConstraint.Required.String())),
+	)
+	defer span.End()
+
+	dlAddr, latestMatch, moreDiags := i.resolveRegistryModule(ctx, addr, req.VersionConstraint.Required, i.reg, fetcher, &req.CallRange)
+	diags = append(diags, moreDiags.ToHCL()...)
+	if moreDiags.HasErrors() {
 		return nil, nil, diags
 	}
+
+	// Report up to the caller that we're about to start downloading.
+	hooks.Download(key, addr.Package.String(), latestMatch)
+
+	/// ...
 
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, dlAddr.Package, instPath)
 

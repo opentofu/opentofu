@@ -239,6 +239,12 @@ func initCommands(
 			}, nil
 		},
 
+		"modules get-package": func() (cli.Command, error) {
+			return &command.ModulesGetPackageCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"output": func() (cli.Command, error) {
 			return &command.OutputCommand{
 				Meta: meta,
@@ -465,6 +471,7 @@ func initCommands(
 		"env":             {},
 		"internal-plugin": {},
 		"push":            {},
+		"modules":         {},
 	}
 }
 
