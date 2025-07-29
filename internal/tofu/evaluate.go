@@ -834,7 +834,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			}
 
 			afterMarks := change.AfterValMarks
-			if schema.ContainsSensitive() || schema.Ephemeral {
+			if schema.ContainsMarks() {
 				if schema.Ephemeral {
 					// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 					// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
@@ -866,7 +866,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 		val := instanceObjectSrc.Value
 
-		if schema.ContainsSensitive() || schema.Ephemeral {
+		if schema.ContainsMarks() {
 			var valMarks []cty.PathValueMarks
 			// Now that we know that the schema contains sensitive and/or ephemeral marks,
 			// Combine those marks together to ensure that the value is marked correctly but not double marked

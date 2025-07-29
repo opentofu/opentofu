@@ -220,3 +220,20 @@ func RemoveDeepDeprecated(val cty.Value) cty.Value {
 	val, _ = unmarkDeepWithPathsDeprecated(val)
 	return val
 }
+
+// CheckEphemeralMarks checks all the given paths for the Ephemeral mark.
+// If there is at least one path marked as such, this method will return
+// an error containing the marked paths.
+func CheckEphemeralMarks(pvms []cty.PathValueMarks) error {
+	var res []string
+	for _, pvm := range pvms {
+		if _, ok := pvm.Marks[Ephemeral]; ok {
+			res = append(res, tfdiags.FormatCtyPath(pvm.Path))
+		}
+	}
+
+	if len(res) > 0 {
+		return fmt.Errorf("ephemeral marks found at the following paths: \n%s", strings.Join(res, "\n"))
+	}
+	return nil
+}
