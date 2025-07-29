@@ -71,7 +71,8 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 ### Usage of `enabled` together with `for_each` and `count`.
 
 These three different arguments would behave similarly, but with different semantics.
-It could be argued that you want to enable a resource with 4 instances, but on our current code, you can already change that conditional by setting `count` to 0.
+It could be argued that you want to enable a resource with 4 instances, but on our current code,
+you can already change that conditional by setting `count` to 0.
 
 I propose that we do not support them together. You can only use one of them, returning errors if we try to use the others together.
 
@@ -79,27 +80,35 @@ Semantically, this feature would be used for single-instance resources or module
 
 ### Errors when resource is not enabled
 
-If a resource is disabled, it shouldn't be possible to access the attributes since the resource
-is not on the graph. We prefer to loudly tell the user they're trying to access something that is not
-available. In order to have a good user experience while they want to enable/disable stuff, we
-offer a way to silently fail while trying to access that, by using the `try` function.
-
 There's some discussion about this [topic](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2398120132), and the better compromise we found is that a enabled 
-resource can be `null` when it's disabled, but no errors are going to be shown if they use the
-resource as `enabled=true` first, since we need to evaluate the `enabled` expression. In the opposite side,
-if the resource is `disabled`, and a reference is trying to access it, an error is going to be shown:
+resource can be `null` when it's disabled, but no errors are going to be shown statically,
+like when using `validate` or the language server, in an OpenTofu extension, like VSCode.
+Since we need to evaluate the `enabled` expression, these errors are going to be shown dynamically,
+when running `plan` or `apply`:
 
 ```
-╷
-│ Error: Reference to disabled resource
+│ Error: Attempt to get attribute from null value
 │
-│   on main.tf line 15, in output "test":
-│   15:   value = null_resource.example1.id
+│   on main.tf line 19, in output "enabled_output":
+│   19:     value = null_resource.example.id
+│     ├────────────────
+│     │ null_resource.example is null
 │
-│ A managed resource "null_resource" "example1" is not enabled 
-│ for usage.
-╵
+│ This value is null, so it does not have any attributes.
 ```
+
+The available data access patterns for possibly disabled resources are:
+
+- `null_resource.example != null ? null_resource.example.id : "default value"`
+- `try(null_resource.example.id, "default_value")`
+- `can(null_resource.example.id) ? null_resource.example.id : "default value"`
+
+`try` is the most concise option, but it should be used carefully since it can silently mask
+different errors.
+
+Discarded options:
+
+- In a Github thread, someone mentioned about using `?` to deal with disabled resources. Since this would be a HCL change, we discarded that option.
 
 ### What happens when it's disabled
 
