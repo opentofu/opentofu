@@ -32,7 +32,10 @@ func main() {
 	ctx := context.Background()
 
 	// Initialize client.
-	client := github.NewClient(nil).WithAuthToken(os.Getenv("GITHUB_TOKEN"))
+	client := github.NewClient(nil)
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		client = client.WithAuthToken(token)
+	}
 
 	// List all open issues.
 	listOpts := &github.IssueListByRepoOptions{
@@ -72,11 +75,9 @@ func main() {
 	templateParams := struct {
 		EnhancementIssues []*github.Issue
 		BugIssues         []*github.Issue
-		RFCIssues         []*github.Issue
 	}{
 		getTopIssuesByLabel("enhancement", issues),
 		getTopIssuesByLabel("bug", issues),
-		getTopIssuesByLabel("rfc", issues),
 	}
 
 	// Render template for issue body.
