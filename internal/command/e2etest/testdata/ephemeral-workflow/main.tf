@@ -34,8 +34,9 @@ resource "simple_resource" "test_res" {
     command = "echo \"visible ${self.value}\""
   }
   provisioner "local-exec" {
-    command = "echo \"not visible ${self.value_wo}\""
+    command = "echo \"not visible ${ephemeral.simple_resource.test_ephemeral[0].value}\""
   }
+  // NOTE: value_wo cannot be used in a provisioner because it is returned as null by the provider so the interpolation fails
 }
 
 data "simple_resource" "test_data2" {
