@@ -446,14 +446,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if schema.ContainsMarks() {
 				valMarks = append(valMarks, schema.ValueMarks(changeV.Before, nil)...)
 			}
-			// NOTE: Even though at this point, the resources that are processed here
-			// should have no ephemeral mark, we want to validate that before having
-			// these written to the plan.
-			// The only schema that is allowed here to have the ephemeral mark is the schema
-			// for actual ephemeral resources.
-			ephemeralResource := addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
-			if err := marks.CheckEphemeralMarks(valMarks); !ephemeralResource && err != nil {
-				return nil, fmt.Errorf("%s: %w", addr, err)
+			if err := marksContainEphemeral(addr, valMarks); err != nil {
+				return nil, err
 			}
 			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, valMarks)
 			beforeSensitive, err = ctyjson.Marshal(bs, bs.Type())
@@ -484,14 +478,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if schema.ContainsMarks() {
 				valMarks = append(valMarks, schema.ValueMarks(changeV.After, nil)...)
 			}
-			// NOTE: Even though at this point, the resources that are processed here
-			// should have no ephemeral mark, we want to validate that before having
-			// these written to the plan.
-			// The only schema that is allowed here to have the ephemeral mark is the schema
-			// for actual ephemeral resources.
-			ephemeralResource := addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
-			if err := marks.CheckEphemeralMarks(valMarks); !ephemeralResource && err != nil {
-				return nil, fmt.Errorf("%s: %w", addr, err)
+			if err := marksContainEphemeral(addr, valMarks); err != nil {
+				return nil, err
 			}
 			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, valMarks)
 			afterSensitive, err = ctyjson.Marshal(as, as.Type())
@@ -591,6 +579,18 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 	}
 
 	return ret, nil
+}
+
+func marksContainEphemeral(addr addrs.AbsResourceInstance, valMarks []cty.PathValueMarks) error {
+	// ephemeral resources will have the ephemeral mark at the root of the value, got from schema.ValueMarks
+	// so we don't want to error for those particular ones
+	if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		return nil
+	}
+	if err := marks.CheckEphemeralMarks(valMarks); err != nil {
+		return fmt.Errorf("%s: %w", addr, err)
+	}
+	return nil
 }
 
 // GenerateChange is used to receive two values and calculate the difference

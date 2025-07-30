@@ -567,6 +567,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 		return fmt.Errorf("failed to encode %s in state: no resource type schema available", absAddr)
 	}
 
+	obj.Value = schema.RemoveEphemeralFromWriteOnly(obj.Value)
 	src, err := obj.Encode(schema.ImpliedType(), currentVersion)
 	if err != nil {
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
@@ -749,6 +750,8 @@ func (n *NodeAbstractResourceInstance) writeChange(ctx context.Context, evalCtx 
 		return fmt.Errorf("provider does not support resource type %q", ri.Resource.Type)
 	}
 
+	change.Before = schema.RemoveEphemeralFromWriteOnly(change.Before)
+	change.After = schema.RemoveEphemeralFromWriteOnly(change.After)
 	csrc, err := change.Encode(schema.ImpliedType())
 	if err != nil {
 		return fmt.Errorf("failed to encode planned changes for %s: %w", n.Addr, err)

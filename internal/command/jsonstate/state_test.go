@@ -414,7 +414,7 @@ func TestMarshalResources(t *testing.T) {
 			},
 			testSchemas(),
 			nil,
-			"test_thing.bar: ephemeral marks found at the following paths: \n.foozles",
+			"test_thing.bar: ephemeral marks found at the following paths:\n.foozles",
 		},
 		"single resource wrong schema": {
 			map[string]*states.Resource{

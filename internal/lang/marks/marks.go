@@ -233,7 +233,7 @@ func CheckEphemeralMarks(pvms []cty.PathValueMarks) error {
 	}
 
 	if len(res) > 0 {
-		return fmt.Errorf("ephemeral marks found at the following paths: \n%s", strings.Join(res, "\n"))
+		return fmt.Errorf("ephemeral marks found at the following paths:\n%s", strings.Join(res, "\n"))
 	}
 	return nil
 }

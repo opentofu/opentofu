@@ -2358,7 +2358,7 @@ func TestResourceChange_primitiveSet(t *testing.T) {
 			},
 			RequiredReplace: cty.NewPathSet(),
 			ExpectedOutput:  ``,
-			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths: \n.set_field[0]"),
+			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths:\n.set_field[0]"),
 		},
 		"fails when ephemeral in the before marks": {
 			Action: plans.Update,
@@ -2392,7 +2392,7 @@ func TestResourceChange_primitiveSet(t *testing.T) {
 			},
 			RequiredReplace: cty.NewPathSet(),
 			ExpectedOutput:  ``,
-			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths: \n.set_field[0]"),
+			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths:\n.set_field[0]"),
 		},
 		"in-place update - first insertion": {
 			Action: plans.Update,
