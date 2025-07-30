@@ -494,7 +494,8 @@ func (c *StateMvCommand) sourceObjectAddrs(state *states.State, matched addrs.Ta
 func (c *StateMvCommand) validateResourceMove(addrFrom, addrTo addrs.AbsResource) tfdiags.Diagnostics {
 	const msgInvalidRequest = "Invalid state move request"
 	var diags tfdiags.Diagnostics
-
+	// NOTE: ephemeral type intentionally not handled here since this validation should
+	// not be reached since there is already a validation while loading the config.
 	if addrFrom.Resource.Mode != addrTo.Resource.Mode {
 		switch addrFrom.Resource.Mode {
 		case addrs.ManagedResourceMode:
