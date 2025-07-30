@@ -29,7 +29,7 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -62,7 +62,7 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -98,7 +98,7 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -136,7 +136,7 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -173,7 +173,7 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -220,7 +220,7 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -275,7 +275,7 @@ func TestPutMaintainsMetaData(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -312,9 +312,10 @@ func TestPutMaintainsMetaData(t *testing.T) {
 
 	// update the metadata using the Backend
 	remoteClient := RemoteClient{
-		keyName:       res.storageKeyName,
-		containerName: res.storageContainerName,
-		accountName:   res.storageAccountName,
+		keyName:        res.storageKeyName,
+		containerName:  res.storageContainerName,
+		accountName:    res.storageAccountName,
+		timeoutSeconds: defaultTimeout,
 
 		giovanniBlobClient: *client,
 	}
