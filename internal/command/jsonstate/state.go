@@ -426,7 +426,7 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having
 				// these written to the state.
-				if err := marks.CheckEphemeralMarks(valMarks); err != nil {
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
 					return nil, fmt.Errorf("%s: %w", instAddr, err)
 				}
 
@@ -484,7 +484,7 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having
 				// these written to the state.
-				if err := marks.CheckEphemeralMarks(valMarks); err != nil {
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
 					return nil, fmt.Errorf("%s: %w", instAddr, err)
 				}
 				s := SensitiveAsBool(value.MarkWithPaths(valMarks))
