@@ -78,9 +78,8 @@ const (
 	uiResourceDestroy
 	uiResourceRead
 	uiResourceNoOp
-	uiResourceOpen
-	// NOTE: Renew and Close do not have a specific operation identifier here
-	// since those have their own hook methods.
+	// NOTE: Ephemeral hooks are implemented separately,
+	// so there are no uiResource entries for Open/Renew/Close actions.
 )
 
 func (h *UiHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
@@ -105,9 +104,6 @@ func (h *UiHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation,
 	case plans.Read:
 		operation = "Reading..."
 		op = uiResourceRead
-	case plans.Open:
-		operation = "Opening..."
-		op = uiResourceOpen
 	case plans.NoOp:
 		op = uiResourceNoOp
 	default:
@@ -180,9 +176,6 @@ func (h *UiHook) stillApplying(state uiResourceState) {
 			msg = "Still creating..."
 		case uiResourceRead:
 			msg = "Still reading..."
-		case uiResourceOpen:
-			msg = "Still opening..."
-			// NOTE: For Renew and Close check the dedicated hooks.
 		case uiResourceUnknown:
 			return
 		}
@@ -229,9 +222,6 @@ func (h *UiHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation
 		msg = "Creation complete"
 	case uiResourceRead:
 		msg = "Read complete"
-	case uiResourceOpen:
-		msg = "Open complete"
-		// NOTE: For Renew and Close check the dedicated hooks.
 	case uiResourceNoOp:
 		// We don't make any announcements about no-op changes
 		return tofu.HookActionContinue, nil
@@ -364,11 +354,19 @@ func (h *UiHook) Deferred(addr addrs.AbsResourceInstance, reason string) (tofu.H
 	return tofu.HookActionContinue, nil
 }
 
+func (h *UiHook) PreOpen(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	return h.preEphemeral(addr, "Opening...", "Still opening...")
+}
+
+func (h *UiHook) PostOpen(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	return h.postEphemeral(addr, "Open complete")
+}
+
 func (h *UiHook) PreRenew(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
 	return h.preEphemeral(addr, "Renewing...", "Still renewing...")
 }
 
-func (h *UiHook) PostRenew(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+func (h *UiHook) PostRenew(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
 	return h.postEphemeral(addr, "Renew complete")
 }
 
@@ -376,7 +374,7 @@ func (h *UiHook) PreClose(addr addrs.AbsResourceInstance) (tofu.HookAction, erro
 	return h.preEphemeral(addr, "Closing...", "Still closing...")
 }
 
-func (h *UiHook) PostClose(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+func (h *UiHook) PostClose(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
 	return h.postEphemeral(addr, "Close complete")
 }
 

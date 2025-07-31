@@ -1867,7 +1867,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	log.Printf("[TRACE] openEphemeralResource: %s configuration is complete, so calling the provider", n.Addr)
 
 	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PreApply(n.Addr, states.CurrentGen, plans.Open, cty.NullVal(configVal.Type()), configVal)
+		return h.PreOpen(n.Addr)
 	}))
 	if diags.HasErrors() {
 		return newVal, providers.DeferredReasonUnknown, diags
@@ -1930,7 +1930,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		newVal = newVal.MarkWithPaths(pvm)
 	}
 	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
+		return h.PostOpen(n.Addr, diags.Err())
 	}))
 
 	// Initialize the closing channel and the channel that sends diagnostics back to the
@@ -3281,7 +3281,7 @@ func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Contex
 	diags = diags.Append(resp.Diagnostics)
 
 	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PostClose(n.Addr)
+		return h.PostClose(n.Addr, diags.Err())
 	}))
 	return diags.Append(diags)
 }
@@ -3312,7 +3312,7 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 		}
 		resp := provider.RenewEphemeralResource(ctx, req)
 		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-			return h.PostRenew(n.Addr)
+			return h.PostRenew(n.Addr, diags.Err())
 		}))
 		diags = diags.Append(resp.Diagnostics)
 		renewAt = resp.RenewAt

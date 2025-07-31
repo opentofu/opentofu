@@ -304,8 +304,56 @@ func NewRefreshComplete(addr addrs.AbsResourceInstance, idKey, idValue string) H
 	}
 }
 
+// EphemeralStart: triggered by PreOpen, PreRenew and PreClose hooks
+type ephemeralStart struct {
+	Resource jsonentities.ResourceAddr `json:"resource"`
+	Msg      string
+}
+
+var _ Hook = (*ephemeralStart)(nil)
+
+func (h *ephemeralStart) HookType() MessageType {
+	return MessageEphemeralActionStart
+}
+
+func (h *ephemeralStart) String() string {
+	return fmt.Sprintf("%s: %s", h.Resource.Addr, h.Msg)
+}
+
+func NewEphemeralStart(addr addrs.AbsResourceInstance, startMsg string) Hook {
+	return &ephemeralStart{
+		Resource: jsonentities.NewResourceAddr(addr),
+		Msg:      startMsg,
+	}
+}
+
+// EphemeralStop: triggered by PostOpen, PostRenew and PostClose hooks
+type ephemeralStop struct {
+	Resource jsonentities.ResourceAddr `json:"resource"`
+	Msg      string
+}
+
+var _ Hook = (*ephemeralStop)(nil)
+
+func (h *ephemeralStop) HookType() MessageType {
+	return MessageEphemeralActionComplete
+}
+
+func (h *ephemeralStop) String() string {
+	return fmt.Sprintf("%s: %s", h.Resource.Addr, h.Msg)
+}
+
+func NewEphemeralStop(addr addrs.AbsResourceInstance, startMsg string) Hook {
+	return &ephemeralStop{
+		Resource: jsonentities.NewResourceAddr(addr),
+		Msg:      startMsg,
+	}
+}
+
 // Convert the subset of plans.Action values we expect to receive into a
 // present-tense verb for the applyStart hook message.
+//
+// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
 func startActionVerb(action plans.Action) string {
 	switch action {
 	case plans.Create:
@@ -322,9 +370,6 @@ func startActionVerb(action plans.Action) string {
 		return "Replacing"
 	case plans.Forget:
 		return "Removing"
-	case plans.Open:
-		return "Opening"
-		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "Applying".
@@ -337,6 +382,8 @@ func startActionVerb(action plans.Action) string {
 // Convert the subset of plans.Action values we expect to receive into a
 // present-tense verb for the applyProgress hook message. This will be
 // prefixed with "Still ", so it is lower-case.
+//
+// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
 func progressActionVerb(action plans.Action) string {
 	switch action {
 	case plans.Create:
@@ -353,9 +400,6 @@ func progressActionVerb(action plans.Action) string {
 		return "replacing"
 	case plans.Forget:
 		return "removing"
-	case plans.Open:
-		return "opening"
-		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "applying".
@@ -368,6 +412,8 @@ func progressActionVerb(action plans.Action) string {
 // Convert the subset of plans.Action values we expect to receive into a
 // noun for the applyComplete and applyErrored hook messages. This will be
 // combined into a phrase like "Creation complete after 1m4s".
+//
+// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
 func actionNoun(action plans.Action) string {
 	switch action {
 	case plans.Create:
@@ -384,9 +430,6 @@ func actionNoun(action plans.Action) string {
 		return "Replacement"
 	case plans.Forget:
 		return "Removal"
-	case plans.Open:
-		return "Open"
-		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "Apply".
