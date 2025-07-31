@@ -4,12 +4,14 @@
 package plugintofu
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"os"
+	"log"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -21,7 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ProviderClient implements providers.Interface for MessagePack-based providers
+// ProviderClient implements providers.Interface for opentofu messagepack-based providers
 type ProviderClient struct {
 	addr        addrs.Provider
 	cmd         *exec.Cmd
@@ -31,12 +33,16 @@ type ProviderClient struct {
 	nextID      uint64
 	mu          sync.Mutex
 	initialized bool
+
+	// Schema caching
+	schemaCache *providers.GetProviderSchemaResponse
+	schemaMu    sync.RWMutex
 }
 
 // Verify interface compliance at compile time
 var _ providers.Interface = (*ProviderClient)(nil)
 
-// NewProviderClient creates a new client for a MessagePack provider
+// NewProviderClient creates a new client for an opentofu messagepack-based provider
 // If args is empty, command is treated as a single executable path
 // If args is provided, command is the executable and args are the arguments
 func NewProviderClient(addr addrs.Provider, command string, args ...string) (*ProviderClient, error) {
@@ -105,15 +111,35 @@ func (c *ProviderClient) Close(_ context.Context) error {
 	return nil
 }
 
+// TODO: Clean up the log mapping, this is hacky right now, but we haven't defined log formats that may be "expected" over stderr.
+// it may be that we decide to not require any format and that the stderr is purely for human consumption
+// during testing, and its not the responsibility of tofu to map that.
 func (c *ProviderClient) logStderr() {
-	buf := make([]byte, 1024)
-	for {
-		n, err := c.stderr.Read(buf)
-		if err != nil {
-			break
+	scanner := bufio.NewScanner(c.stderr)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
 		}
-		// Log to our stderr (this will show up in OpenTofu logs)
-		os.Stderr.Write(buf[:n])
+
+		// parse log level from provider output
+		level := "DEBUG"
+		message := line
+
+		// Check if line starts with a log level like [DEBUG], [INFO], [ERROR]
+		if strings.HasPrefix(line, "[") {
+			if end := strings.Index(line, "]"); end > 0 {
+				possibleLevel := line[1:end]
+				switch possibleLevel {
+				case "DEBUG", "INFO", "WARN", "ERROR", "TRACE":
+					level = possibleLevel
+					message = strings.TrimSpace(line[end+1:])
+				}
+			}
+		}
+
+		// Format as OpenTofu log with provider identifier
+		log.Printf("[%s] Provider %s: %s", level, c.addr, message)
 	}
 }
 
@@ -158,9 +184,15 @@ func (c *ProviderClient) sendRequest(req *Request) (*Response, error) {
 	return &resp, nil
 }
 
-// Implement providers.Interface methods
-
 func (c *ProviderClient) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
+	c.schemaMu.Lock()
+	defer c.schemaMu.Unlock()
+
+	// Return cached schema if available
+	if c.schemaCache != nil {
+		return *c.schemaCache
+	}
+
 	if !c.initialized {
 		// Initialize first
 		// TODO: Extract out to full protocol
@@ -264,9 +296,14 @@ func (c *ProviderClient) GetProviderSchema(_ context.Context) providers.GetProvi
 		functions[funcName] = spec
 	}
 
-	return providers.GetProviderSchemaResponse{
+	response := providers.GetProviderSchemaResponse{
 		Functions: functions,
 	}
+
+	// Cache the response
+	c.schemaCache = &response
+
+	return response
 }
 
 func (c *ProviderClient) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
@@ -321,20 +358,20 @@ func (c *ProviderClient) CallFunction(_ context.Context, funcReq providers.CallF
 			Error: fmt.Errorf("failed to get function schema: %s", schemaResp.Diagnostics.Err()),
 		}
 	}
-	
+
 	funcSpec, ok := schemaResp.Functions[funcReq.Name]
 	if !ok {
 		return providers.CallFunctionResponse{
 			Error: fmt.Errorf("function %s not found", funcReq.Name),
 		}
 	}
-	
+
 	// Extract parameter names from function spec
 	paramNames := make([]string, len(funcSpec.Parameters))
 	for i, param := range funcSpec.Parameters {
 		paramNames[i] = param.Name
 	}
-	
+
 	// Convert cty arguments to map[string]interface{}
 	args, err := convertCtyArgsToMap(funcReq.Arguments, paramNames)
 	if err != nil {
@@ -371,7 +408,7 @@ func (c *ProviderClient) CallFunction(_ context.Context, funcReq providers.CallF
 			Result: cty.NullVal(funcSpec.Return),
 		}
 	}
-	
+
 	// Extract the actual result from the response
 	var resultData interface{}
 	if resultMap, ok := resp.Result.(map[string]interface{}); ok {
@@ -379,7 +416,7 @@ func (c *ProviderClient) CallFunction(_ context.Context, funcReq providers.CallF
 	} else {
 		resultData = resp.Result // Direct result
 	}
-	
+
 	result, err := convertInterfaceToCty(resultData, funcSpec.Return)
 	if err != nil {
 		return providers.CallFunctionResponse{
