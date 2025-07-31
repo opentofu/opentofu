@@ -146,18 +146,18 @@ We propose that there are three phases of execution, which are chained into each
 flowchart LR
     Config("InputConfig") --> Validate["Validate"]
 
-    Validate --> ConfigReferences("ValidateGraph")
+    Validate --> ConfigReferences("ConfigAnalysis")
     Validate --> ConfigValidate("ValidateConfig")
 
     ConfigReferences --> Plan
     ConfigValidate --> Plan
-    InputState["InputState"] --> Plan
+    InputState("InputState") --> Plan
 
     Plan --> ExpectedState("ExpectedState")
     Plan --> RefreshedState("RefreshedState")
     Plan --> ChangesToResources("ResourceChanges")
     Plan --> ConfigPlan("PlanConfig")
-    Plan --> PlanGraph["PlanGraph"]
+    Plan --> PlanGraph("ExecutionGraph")
 
     PlanGraph --> Apply["Apply"]
     ConfigPlan --> Apply
@@ -165,6 +165,11 @@ flowchart LR
     ChangesToResources --> Apply
 
     Apply --> OutputState("OutputState")
+
+classDef green fill:#cfb,stroke:#ccc
+class Config,ConfigReferences,ConfigValidate,InputState green
+class ExpectedState,PlanGraph,ConfigPlan,RefreshedState,ChangesToResources green
+class OutputState green
 ```
 
 The main conceptual difference between this model and what exists today is that each operation bases it's execution primarily on the prior operation's output, instead of trying to replicate similar logic that's been twisted for the current operation.
