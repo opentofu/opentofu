@@ -2,6 +2,7 @@
 
 BUG FIXES:
 - Fixed incorrect approach to mocking provider "ReadResource" calls in test. ([#3068](https://github.com/opentofu/opentofu/pull/3068))
+- Reduced calls to  ListKeys in azure backend (for rate limiting). ([#3083](https://github.com/opentofu/opentofu/pull/3083))
 
 ## 1.8.10
 
