@@ -110,6 +110,11 @@ func (b *Local) opApply(
 	}
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
+	if lr.InputState == nil {
+		stateHook.workingCopy = states.NewState()
+	} else {
+		stateHook.workingCopy = lr.InputState.DeepCopy()
+	}
 	stateHook.Schemas = schemas
 	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
 	if persistInterval < defaultPersistInterval {

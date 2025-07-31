@@ -102,7 +102,7 @@ func (h *stopHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, err
 
 func (h *stopHook) Stopping() {}
 
-func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *stopHook) PostStateUpdate(addr addrs.AbsResourceInstance, resource *states.ResourceInstance, provider addrs.AbsProviderConfig) (HookAction, error) {
 	return h.hook()
 }
 

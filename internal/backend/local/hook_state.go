@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -22,7 +23,8 @@ type StateHook struct {
 	tofu.NilHook
 	sync.Mutex
 
-	StateMgr statemgr.Writer
+	StateMgr    statemgr.Writer
+	workingCopy *states.State
 
 	// If PersistInterval is nonzero then for any new state update after
 	// the duration has elapsed we'll try to persist a state snapshot
@@ -64,7 +66,7 @@ type IntermediateStatePersistInfo struct {
 
 var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) {
+func (h *StateHook) PostStateUpdate(addr addrs.AbsResourceInstance, new *states.ResourceInstance, provider addrs.AbsProviderConfig) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -77,7 +79,19 @@ func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) 
 	}
 
 	if h.StateMgr != nil {
-		if err := h.StateMgr.WriteState(new); err != nil {
+		mod := h.workingCopy.EnsureModule(addr.Module)
+		if new == nil {
+			mod.ForgetResourceInstanceAll(addr.Resource)
+		} else {
+			res := mod.Resource(addr.Resource.Resource)
+			if res == nil {
+				mod.SetResourceProvider(addr.Resource.Resource, provider)
+				res = mod.Resource(addr.Resource.Resource)
+			}
+			res.Instances[addr.Resource.Key] = new
+		}
+
+		if err := h.StateMgr.WriteState(h.workingCopy); err != nil {
 			return tofu.HookActionHalt, err
 		}
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
