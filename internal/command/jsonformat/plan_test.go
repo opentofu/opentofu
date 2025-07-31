@@ -7370,6 +7370,19 @@ func TestOutputChanges(t *testing.T) {
   ~ b = (sensitive value)
   ~ c = false -> true`,
 		},
+		"change in output sensitivity": {
+			[]*plans.OutputChangeSrc{
+				outputChange(
+					"d",
+					cty.StringVal("wasSensitive").Mark(marks.Sensitive),
+					cty.StringVal("afterInsensitive").Mark(nil),
+					false,
+				),
+			},
+			` Warning: this output value will no longer be marked as sensitive
+  after applying this change.
+  ~ d = (sensitive value)`,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -7402,7 +7415,8 @@ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.O
 	}
 
 	change := &plans.OutputChange{
-		Addr: addr, Change: plans.Change{
+		Addr: addr,
+		Change: plans.Change{
 			Before: before,
 			After:  after,
 		},
