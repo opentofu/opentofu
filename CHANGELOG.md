@@ -1,6 +1,6 @@
-## 1.10.4 (unreleased)
+## 1.10.5 (unreleased)
 
-## 1.10.3
+## 1.10.4
 
 BUG FIXES:
 
