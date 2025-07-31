@@ -4,6 +4,7 @@ BUG FIXES:
 
 - Fixed crash where sensitive set values used in for_each could cause a panic. ([#3070](https://github.com/opentofu/opentofu/pull/3070))
 - Fixed incorrect approach to mocking provider "ReadResource" calls in test. ([#3068](https://github.com/opentofu/opentofu/pull/3068))
+- Reduced calls to  ListKeys in azure backend (for rate limiting). ([#3083](https://github.com/opentofu/opentofu/pull/3083))
 
 ## 1.10.3
 
