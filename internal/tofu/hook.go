@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 )
 
 // HookAction is an enum of actions that can be taken as a result of a hook
@@ -116,6 +117,10 @@ type Hook interface {
 	// a deep copy of the state, which it may therefore access freely without
 	// any need for locks to protect from concurrent writes from the caller.
 	PostStateUpdate(new *states.State) (HookAction, error)
+
+	// StateValueChanged is called when the value associated with a state
+	// entry has changed.
+	StateValueChanged(key statekeys.Key, state *states.State) error
 }
 
 // NilHook is a Hook implementation that does nothing. It exists only to
@@ -206,4 +211,8 @@ func (*NilHook) Stopping() {
 
 func (*NilHook) PostStateUpdate(new *states.State) (HookAction, error) {
 	return HookActionContinue, nil
+}
+
+func (h *NilHook) StateValueChanged(key statekeys.Key, state *states.State) error {
+	return nil
 }

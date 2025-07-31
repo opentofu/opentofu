@@ -64,6 +64,27 @@ func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config,
 	return config, diags
 }
 
+func (m *Meta) loadConfigWithSnapshot(ctx context.Context, rootDir string) (*configs.Config, *configload.Snapshot, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	rootDir = m.normalizePath(rootDir)
+
+	loader, err := m.initConfigLoader()
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, nil, diags
+	}
+
+	call, callDiags := m.rootModuleCall(ctx, rootDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	config, snap, hclDiags := loader.LoadConfigWithSnapshot(ctx, rootDir, call)
+	diags = diags.Append(hclDiags)
+	return config, snap, diags
+}
+
 // loadConfigWithTests matches loadConfig, except it also loads any test files
 // into the config alongside the main configuration.
 func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string) (*configs.Config, tfdiags.Diagnostics) {
