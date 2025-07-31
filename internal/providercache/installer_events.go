@@ -58,6 +58,12 @@ type InstallerEvents struct {
 	BuiltInProviderAvailable func(provider addrs.Provider)
 	BuiltInProviderFailure   func(provider addrs.Provider, err error)
 
+	// CommandProviderAvailable is called for any provider that is configured
+	// to be executed as a local command instead of downloaded from a registry.
+	// This event reports that the provider will be executed locally using
+	// the specified command and arguments.
+	CommandProviderAvailable func(provider addrs.Provider, spec CommandSpec)
+
 	// The QueryPackages... family of events delimit the operation of querying
 	// a provider source for information about available packages matching
 	// a particular version constraint, prior to selecting a single version

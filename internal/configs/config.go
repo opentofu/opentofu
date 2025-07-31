@@ -12,9 +12,11 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -307,6 +309,17 @@ func (c *Config) ProviderRequirements() (getproviders.Requirements, *getprovider
 	diags := c.addProviderRequirements(reqs, qualifs, true, true)
 
 	return reqs, qualifs, diags
+}
+
+// CommandProviderRequirements searches the full tree of modules under the receiver
+// for providers that should be executed as local commands instead of downloaded.
+//
+// The method returns a map of provider addresses to their command specifications.
+func (c *Config) CommandProviderRequirements() (map[addrs.Provider]providercache.CommandSpec, hcl.Diagnostics) {
+	cmdProviders := make(map[addrs.Provider]providercache.CommandSpec)
+	diags := c.addCommandProviderRequirements(cmdProviders)
+
+	return cmdProviders, diags
 }
 
 // ProviderRequirementsShallow searches only the direct receiver for explicit
@@ -1249,4 +1262,31 @@ func (c *Config) IsModuleCallFromRemoteModule(callName string) bool {
 		parent = parent.Parent
 	}
 	return false
+}
+
+// addCommandProviderRequirements
+// TODO: Document
+func (c *Config) addCommandProviderRequirements(cmdProviders map[addrs.Provider]providercache.CommandSpec) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	// Collect command providers from our module's required_providers
+	if c.Module.ProviderRequirements != nil {
+		for _, providerReqs := range c.Module.ProviderRequirements.RequiredProviders {
+			if providerReqs.Cmd != "" {
+				fqn := providerReqs.Type
+				cmdProviders[fqn] = providercache.CommandSpec{
+					Command: providerReqs.Cmd,
+					Args:    providerReqs.Args,
+				}
+			}
+		}
+	}
+
+	// recurse down
+	for _, childConfig := range c.Children {
+		moreDiags := childConfig.addCommandProviderRequirements(cmdProviders)
+		diags = append(diags, moreDiags...)
+	}
+
+	return diags
 }

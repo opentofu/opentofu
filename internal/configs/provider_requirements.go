@@ -10,8 +10,9 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // RequiredProvider represents a declaration of a dependency on a particular
@@ -25,6 +26,11 @@ type RequiredProvider struct {
 	Requirement VersionConstraint
 	DeclRange   hcl.Range
 	Aliases     []addrs.LocalProviderConfig
+
+	// Cmd and Args specify a local command to run instead of downloading
+	// a provider. When these are set, version constraints cannot be used.
+	Cmd  string
+	Args []string
 }
 
 type RequiredProviders struct {
@@ -214,16 +220,84 @@ func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Dia
 					rp.Aliases = append(rp.Aliases, addr)
 				}
 
+			case "cmd":
+				cmd, err := kv.Value.Value(nil)
+				if err != nil || !cmd.Type().Equals(cty.String) {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid cmd",
+						Detail:   "Command must be specified as a string.",
+						Subject:  kv.Value.Range().Ptr(),
+					})
+					continue
+				}
+				rp.Cmd = cmd.AsString()
+
+			case "args":
+				// Args can be either a single string or a list of strings
+				val, err := kv.Value.Value(nil)
+				if err != nil {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid args",
+						Detail:   "Arguments must be specified as a string or list of strings.",
+						Subject:  kv.Value.Range().Ptr(),
+					})
+					continue
+				}
+
+				switch {
+				case val.Type().Equals(cty.String):
+					// Single string argument
+					rp.Args = []string{val.AsString()}
+				case val.Type().IsTupleType() || val.Type().IsListType():
+					// List of strings
+					var args []string
+					it := val.ElementIterator()
+					for it.Next() {
+						_, elem := it.Element()
+						if !elem.Type().Equals(cty.String) {
+							diags = append(diags, &hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Invalid args",
+								Detail:   "All arguments must be strings.",
+								Subject:  kv.Value.Range().Ptr(),
+							})
+							continue LOOP
+						}
+						args = append(args, elem.AsString())
+					}
+					rp.Args = args
+				default:
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid args",
+						Detail:   "Arguments must be specified as a string or list of strings.",
+						Subject:  kv.Value.Range().Ptr(),
+					})
+					continue
+				}
+
 			default:
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid required_providers object",
-					Detail:   `required_providers objects can only contain "version", "source" and "configuration_aliases" attributes. To configure a provider, use a "provider" block.`,
+					Detail:   `required_providers objects can only contain "version", "source", "configuration_aliases", "cmd", and "args" attributes. To configure a provider, use a "provider" block.`,
 					Subject:  kv.Key.Range().Ptr(),
 				})
 				break LOOP
 			}
 
+		}
+
+		// Validate that version and cmd/args are mutually exclusive
+		if rp.Cmd != "" && rp.Requirement.Required != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration",
+				Detail:   "Cannot specify both version constraints and cmd. When using cmd to run a local provider, version constraints are not supported.",
+				Subject:  attr.Expr.Range().Ptr(),
+			})
 		}
 
 		if diags.HasErrors() {

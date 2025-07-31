@@ -25,6 +25,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
+// CommandSpec represents a provider that should be executed as a command
+// instead of being downloaded from a registry.
+type CommandSpec struct {
+	Command string
+	Args    []string
+}
+
 // Installer is the main type in this package, representing a provider installer
 // with a particular configuration-specific cache directory and an optional
 // global cache directory.
@@ -64,6 +71,10 @@ type Installer struct {
 	// lifecycle for, and therefore does not need to worry about the
 	// installation of.
 	unmanagedProviderTypes map[addrs.Provider]struct{}
+
+	// commandProviderTypes is a set of provider addresses that should be
+	// executed as local commands instead of being downloaded from a registry.
+	commandProviderTypes map[addrs.Provider]CommandSpec
 }
 
 // NewInstaller constructs and returns a new installer with the given target
@@ -165,6 +176,14 @@ func (i *Installer) SetBuiltInProviderTypes(types []string) {
 // or versioning of these binaries.
 func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{}) {
 	i.unmanagedProviderTypes = types
+}
+
+// SetCommandProviderTypes instructs the receiver to treat the providers
+// in the passed in map as command-based providers. OpenTofu should not
+// download these providers from a registry, but will instead execute them
+// as local commands using the specified command and arguments.
+func (i *Installer) SetCommandProviderTypes(types map[addrs.Provider]CommandSpec) {
+	i.commandProviderTypes = types
 }
 
 // EnsureProviderVersions compares the given provider requirements with what
@@ -320,6 +339,13 @@ func (i *Installer) ensureProviderVersionsMightNeed(
 		}
 		if _, ok := i.unmanagedProviderTypes[provider]; ok {
 			// unmanaged providers do not require installation
+			continue
+		}
+		if spec, ok := i.commandProviderTypes[provider]; ok {
+			// command providers do not require installation
+			if cb := evts.CommandProviderAvailable; cb != nil {
+				cb(provider, spec)
+			}
 			continue
 		}
 		acceptableVersions := versions.MeetingConstraints(versionConstraints)

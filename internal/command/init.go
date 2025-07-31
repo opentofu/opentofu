@@ -673,6 +673,14 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				fmt.Sprintf("Cannot use %s: %s.", provider.ForDisplay(), err),
 			))
 		},
+		CommandProviderAvailable: func(provider addrs.Provider, spec providercache.CommandSpec) {
+			if len(spec.Args) > 0 {
+				// TODO: Improve the logging in this area, its a bit janky
+				c.Ui.Info(fmt.Sprintf("- %s will be executed as: %s %s", provider.ForDisplay(), spec.Command, strings.Join(spec.Args, " ")))
+			} else {
+				c.Ui.Info(fmt.Sprintf("- %s will be executed as: %s", provider.ForDisplay(), spec.Command))
+			}
+		},
 		QueryPackagesBegin: func(provider addrs.Provider, versionConstraints getproviders.VersionConstraints, locked bool) {
 			if locked {
 				c.Ui.Info(fmt.Sprintf("- Reusing previous version of %s from the dependency lock file", provider.ForDisplay()))
@@ -966,6 +974,14 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 		mode = providercache.InstallUpgrades
 	}
+
+	// Configure command providers that should be executed locally instead of downloaded
+	cmdProviders, cmdDiags := config.CommandProviderRequirements()
+	diags = diags.Append(cmdDiags)
+	if len(cmdProviders) > 0 {
+		inst.SetCommandProviderTypes(cmdProviders)
+	}
+
 	newLocks, err := inst.EnsureProviderVersions(ctx, previousLocks, reqs, mode)
 	if ctx.Err() == context.Canceled {
 		c.showDiagnostics(diags)
