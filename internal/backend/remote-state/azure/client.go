@@ -42,7 +42,7 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	defer ctxCancel()
 	blob, err := c.giovanniBlobClient.Get(ctx, c.accountName, c.containerName, c.keyName, blobs.GetInput{LeaseID: c.leaseID})
 	if err != nil {
-		if blob.Response.IsHTTPStatus(http.StatusNotFound) {
+		if blob.IsHTTPStatus(http.StatusNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -73,7 +73,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 
 	properties, err := c.getBlobProperties(ctx)
 	if err != nil {
-		if properties.StatusCode != http.StatusNotFound {
+		if !properties.IsHTTPStatus(http.StatusNotFound) {
 			return err
 		}
 	}
@@ -134,7 +134,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	properties, err := c.getBlobProperties(ctx)
 	if err != nil {
 		// error if we had issues getting the blob
-		if !properties.Response.IsHTTPStatus(http.StatusNotFound) {
+		if !properties.IsHTTPStatus(http.StatusNotFound) {
 			return "", getLockInfoErr(err)
 		}
 		// if we don't find the blob, we need to build it

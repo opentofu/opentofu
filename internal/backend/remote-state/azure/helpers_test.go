@@ -89,6 +89,7 @@ func buildTestClient(t *testing.T, res resourceNames) *ArmClient {
 		StorageAccountName:            res.storageAccountName,
 		UseMsi:                        msiEnabled,
 		UseAzureADAuthentication:      res.useAzureADAuth,
+		TimeoutSeconds:                defaultTimeout,
 	})
 	if err != nil {
 		t.Fatalf("Failed to build ArmClient: %+v", err)
@@ -208,7 +209,9 @@ func (c *ArmClient) buildTestResources(t *testing.T, ctx context.Context, names 
 	return nil
 }
 
-func (c ArmClient) destroyTestResources(t *testing.T, ctx context.Context, resources resourceNames) error {
+func (c ArmClient) destroyTestResources(t *testing.T, resources resourceNames) error {
+	ctx := context.Background() // t.Context() is invalid during t.Cleanup
+
 	t.Helper()
 	t.Logf("[DEBUG] Deleting Resource Group %q..", resources.resourceGroup)
 	future, err := c.groupsClient.Delete(ctx, resources.resourceGroup)

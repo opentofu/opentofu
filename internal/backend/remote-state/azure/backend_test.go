@@ -114,7 +114,7 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -142,7 +142,7 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -175,7 +175,7 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -206,7 +206,7 @@ func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -244,7 +244,7 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -277,7 +277,7 @@ func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -316,7 +316,7 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -348,7 +348,7 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
@@ -389,7 +389,7 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 
 	err := armClient.buildTestResources(t, t.Context(), &res)
 	t.Cleanup(func() {
-		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+		if err := armClient.destroyTestResources(t, res); err != nil {
 			t.Fatalf("error when destroying resources: %q", err)
 		}
 	})
