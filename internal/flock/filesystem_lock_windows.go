@@ -9,6 +9,7 @@
 package flock
 
 import (
+	"context"
 	"math"
 	"os"
 	"syscall"
@@ -52,36 +53,37 @@ func Lock(f *os.File) error {
 // This is a poor implementation of blocking locks, but it a somewhat function patch for the moment.
 // This should eventually be tweaked to use native windows locking.
 // See https://github.com/opentofu/opentofu/issues/3089 for more details.
-func LockBlocking(f *os.File) (chan error, func()) {
+func LockBlocking(ctx context.Context, f *os.File) error {
 	resultChan := make(chan error)
-	cancelChan := make(chan struct{})
 
 	go func() {
-		var err error
 		for {
-			err = Lock(f)
+			err := Lock(f)
 			if err == nil {
 				// Lock succeeded
-				resultChan <- err
+				resultChan <- nil
 				return
 			}
 
 			select {
-			case <-cancelChan:
-				// Lock cancelled, return latest error
-				resultChan <- err
+			case <-ctx.Done():
+				// Lock cancelled, so return cancellation error
+				resultChan <- ctx.Err()
 				return
 			default:
-				// Chill for a bit before trying again
-				time.Sleep(100 * time.Millisecond)
+				// LockFileEx returns this error when the lock is contended.
+				if err == syscall.ERROR_IO_PENDING {
+					// Chill for a bit before trying again
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				// All other errors are fatal.
+				resultChan <- err
 			}
-
 		}
 	}()
 
-	return resultChan, func() {
-		cancelChan <- struct{}{}
-	}
+	return <-resultChan
 }
 
 func Unlock(*os.File) error {

@@ -151,26 +151,24 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 		return nil, err
 	}
 
-	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
-	timeout := time.After(time.Second * 60)
+	// If the callers InstallerEvents has a hook function for
+	// CacheDirLockContended then we'll notify it if we take more than five
+	// seconds to acquire the lock, to give some feedback about what's causing
+	// delay here. 2 seconds is an arbitrary amount that's short enough to
+	// give relatively prompt feedback but long enough to be reasonably
+	// confident that a delay here is caused by lock contention.
+	evts := installerEventsForContext(ctx)
+	if evts.CacheDirLockContended != nil {
+		cancelWhenSlow := whenSlow(2*time.Second, func() {
+			evts.CacheDirLockContended(d.BasePath())
+		})
+		defer cancelWhenSlow()
+	}
 
-	acquire, cancel := flock.LockBlocking(f)
-	select {
-	case <-timeout:
-		f.Close()
-		cancel()
-		return nil, fmt.Errorf("timeout exceeded, unable to acquire file lock on %q: %w", lockFile, <-acquire)
-	case <-ctx.Done():
-		f.Close()
-		cancel()
-		return nil, ctx.Err()
-	case err := <-acquire:
-		if err != nil {
-			// Ensure that we are not in a partially failed state
-			cancel()
-			return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
-		}
-		log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
+	err = flock.LockBlocking(ctx, f)
+	if err != nil {
+		// Ensure that we are not in a partially failed state
+		return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
 	}
 
 	return func() error {
@@ -185,4 +183,18 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 		}
 		return unlockErr
 	}, nil
+}
+
+func whenSlow(dur time.Duration, f func()) (cancel func()) {
+	cancelCh := make(chan struct{})
+	go func() {
+		select {
+		case <-cancelCh:
+		case <-time.After(dur):
+			f()
+		}
+	}()
+	return func() {
+		close(cancelCh)
+	}
 }
