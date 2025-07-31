@@ -1,4 +1,6 @@
-## 1.9.3 (Unreleased)
+## 1.9.4 (Unreleased)
+
+## 1.9.3
 
 BUG FIXES:
 - Fixed incorrect approach to mocking provider "ReadResource" calls in test. ([#3068](https://github.com/opentofu/opentofu/pull/3068))
