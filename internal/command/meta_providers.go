@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/logging"
 	tfplugin "github.com/opentofu/opentofu/internal/plugin"
+	plugintofu "github.com/opentofu/opentofu/internal/plugin-tofu"
 	tfplugin6 "github.com/opentofu/opentofu/internal/plugin6"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -348,6 +349,11 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 	}
 }
 
+// isNotTerraformProvider detects if a provider binary is not a grpc-style provider
+func isNotTerraformProvider(execFile string) bool {
+	return strings.Contains(execFile, "terraform-provider")
+}
+
 // providerFactory produces a provider factory that runs up the executable
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
@@ -358,6 +364,13 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			return nil, err
 		}
 
+		// Check if this is a MessagePack-based tofu provider
+		if isNotTerraformProvider(execFile) {
+			log.Printf("[DEBUG] Detected OpenTofu MessagePack provider: %s", meta.Provider)
+			return plugintofu.NewProviderClient(meta.Provider, execFile)
+		}
+
+		// Fall back to traditional gRPC providers
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
 			Logger:           logging.NewProviderLogger(""),
@@ -394,6 +407,9 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
 func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+	// TODO(tofu-providers): Implement this correctly
+	// Right now this is a hack to just test the approach to a new provider
+
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
