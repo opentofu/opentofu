@@ -152,33 +152,26 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 	}
 
 	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
-	for timeout := time.After(time.Second * 60); ; {
-		// We have a valid file handle, let's try to lock it (nonblocking)
-		err := flock.Lock(f)
-		if err == nil {
-			// Lock succeeded
-			break
-		}
+	timeout := time.After(time.Second * 60)
 
-		select {
-		case <-timeout:
-			if f != nil {
-				f.Close()
-			}
+	acquire, cancel := flock.LockBlocking(f)
+	select {
+	case <-timeout:
+		f.Close()
+		cancel()
+		return nil, fmt.Errorf("timeout exceeded, unable to acquire file lock on %q: %w", lockFile, <-acquire)
+	case <-ctx.Done():
+		f.Close()
+		cancel()
+		return nil, ctx.Err()
+	case err := <-acquire:
+		if err != nil {
+			// Ensure that we are not in a partially failed state
+			cancel()
 			return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
-		case <-ctx.Done():
-			if f != nil {
-				f.Close()
-			}
-			return nil, ctx.Err()
-		default:
-			// Chill for a bit before trying again
-			time.Sleep(100 * time.Millisecond)
 		}
-
+		log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
 	}
-
-	log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
 
 	return func() error {
 		log.Printf("[TRACE] Releasing global provider lock %s", lockFile)

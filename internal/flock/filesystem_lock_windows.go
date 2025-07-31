@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -46,6 +47,41 @@ func Lock(f *os.File) error {
 		math.MaxUint32, // bytes high
 		ol,
 	)
+}
+
+// This is a poor implementation of blocking locks, but it a somewhat function patch for the moment.
+// This should eventually be tweaked to use native windows locking.
+// See https://github.com/opentofu/opentofu/issues/3089 for more details.
+func LockBlocking(f *os.File) (chan error, func()) {
+	resultChan := make(chan error)
+	cancelChan := make(chan struct{})
+
+	go func() {
+		var err error
+		for {
+			err = Lock(f)
+			if err == nil {
+				// Lock succeeded
+				resultChan <- err
+				return
+			}
+
+			select {
+			case <-cancelChan:
+				// Lock cancelled, return latest error
+				resultChan <- err
+				return
+			default:
+				// Chill for a bit before trying again
+				time.Sleep(100 * time.Millisecond)
+			}
+
+		}
+	}()
+
+	return resultChan, func() {
+		cancelChan <- struct{}{}
+	}
 }
 
 func Unlock(*os.File) error {
