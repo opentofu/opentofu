@@ -576,6 +576,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	if hclDiags.HasErrors() {
 		return false, true, diags
 	}
+	
+	// Debug: show what requirements we found
+	log.Printf("[DEBUG] Provider requirements found: %d providers", len(reqs))
+	for provider, constraints := range reqs {
+		log.Printf("[DEBUG] Requirement: %s -> %v", provider, constraints)
+	}
 	if state != nil {
 		stateReqs := state.ProviderRequirements()
 		reqs = reqs.Merge(stateReqs)

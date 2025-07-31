@@ -277,7 +277,13 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	devOverrideProviders := m.ProviderDevOverrides
 	unmanagedProviders := m.UnmanagedProviders
 
-	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders))
+	// Load command providers from configuration
+	var commandProviders map[addrs.Provider]providercache.CommandSpec
+	if config, diags := m.loadConfig(context.Background(), "."); diags == nil || !diags.HasErrors() {
+		commandProviders, _ = config.CommandProviderRequirements()
+	}
+
+	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders)+len(commandProviders))
 	for name, factory := range internalFactories {
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
@@ -332,6 +338,9 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	}
 	for provider, reattach := range unmanagedProviders {
 		factories[provider] = unmanagedProviderFactory(provider, reattach)
+	}
+	for provider, commandSpec := range commandProviders {
+		factories[provider] = commandProviderFactory(provider, commandSpec)
 	}
 
 	var err error
@@ -494,6 +503,16 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 		}
 
 		return initializeProviderInstance(raw, protoVer, client, provider)
+	}
+}
+
+// commandProviderFactory produces a provider factory that runs the specified
+// command for a command-based provider using MessagePack-RPC over stdio.
+func commandProviderFactory(provider addrs.Provider, commandSpec providercache.CommandSpec) providers.Factory {
+	return func() (providers.Interface, error) {
+		log.Printf("[DEBUG] Creating MessagePack command provider: %s, cmd: %s, args: %v", provider, commandSpec.Command, commandSpec.Args)
+		
+		return plugintofu.NewProviderClient(provider, commandSpec.Command, commandSpec.Args...)
 	}
 }
 

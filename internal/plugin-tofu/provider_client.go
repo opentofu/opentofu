@@ -37,8 +37,15 @@ type ProviderClient struct {
 var _ providers.Interface = (*ProviderClient)(nil)
 
 // NewProviderClient creates a new client for a MessagePack provider
-func NewProviderClient(addr addrs.Provider, execPath string) (*ProviderClient, error) {
-	cmd := exec.Command(execPath)
+// If args is empty, command is treated as a single executable path
+// If args is provided, command is the executable and args are the arguments
+func NewProviderClient(addr addrs.Provider, command string, args ...string) (*ProviderClient, error) {
+	var cmd *exec.Cmd
+	if len(args) == 0 {
+		cmd = exec.Command(command)
+	} else {
+		cmd = exec.Command(command, args...)
+	}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

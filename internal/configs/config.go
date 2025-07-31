@@ -401,6 +401,12 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	if c.Module.ProviderRequirements != nil {
 		for _, providerReqs := range c.Module.ProviderRequirements.RequiredProviders {
 			fqn := providerReqs.Type
+			
+			// Skip providers that have cmd specified - they don't need installation
+			if providerReqs.Cmd != "" {
+				continue
+			}
+			
 			if _, ok := reqs[fqn]; !ok {
 				// We'll at least have an unconstrained dependency then, but might
 				// add to this in the loop below.
@@ -434,6 +440,12 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	// an explicit dependency on the same provider.
 	for _, rc := range c.Module.ManagedResources {
 		fqn := rc.Provider
+		
+		// Skip command providers for implicit dependencies too
+		if c.isCommandProvider(fqn) {
+			continue
+		}
+		
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
@@ -454,6 +466,12 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	}
 	for _, rc := range c.Module.DataResources {
 		fqn := rc.Provider
+		
+		// Skip command providers for implicit dependencies too
+		if c.isCommandProvider(fqn) {
+			continue
+		}
+		
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
@@ -590,6 +608,12 @@ func (c *Config) addProviderRequirementsFromProviderBlock(reqs getproviders.Requ
 	var diags hcl.Diagnostics
 
 	fqn := c.Module.ProviderForLocalConfig(addrs.LocalProviderConfig{LocalName: provider.Name})
+	
+	// Skip command providers - they don't need installation
+	if c.isCommandProvider(fqn) {
+		return diags
+	}
+	
 	if _, ok := reqs[fqn]; !ok {
 		// We'll at least have an unconstrained dependency then, but might
 		// add to this in the loop below.
@@ -1289,4 +1313,19 @@ func (c *Config) addCommandProviderRequirements(cmdProviders map[addrs.Provider]
 	}
 
 	return diags
+}
+
+// isCommandProvider checks if the given provider address corresponds to a 
+// provider configured with a local command in this module's required_providers.
+func (c *Config) isCommandProvider(provider addrs.Provider) bool {
+	if c.Module.ProviderRequirements == nil {
+		return false
+	}
+	
+	for _, providerReqs := range c.Module.ProviderRequirements.RequiredProviders {
+		if providerReqs.Type.Equals(provider) && providerReqs.Cmd != "" {
+			return true
+		}
+	}
+	return false
 }
