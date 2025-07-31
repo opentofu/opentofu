@@ -173,6 +173,15 @@ For example, today Apply builds a similar graph to Plan.  The graphs differ in s
 
 With this change in mind, the above proposal allows each reference graph to be more independent of each other.  The ConfigurationReferences would represent the Validate -> Plan data.  The State and Plan References would be subsumed by PlanActions.
 
+## How do these changes solve the stated problem?
+
+By separating opentofu's execution into compartmentalized and distinct concerns:
+  - We reduce unintentional side effects when modifying distinct portions of the codebase
+  - We are able to test components individually and thoroughly, in a more focused manner
+  - With structures and logic tailored to the given operation (as opposed to the more general purpose approach), measuring and improving performance can happen with less overhead and less risk
+
+It does not try to constrain or reduce the complexity of what OpenTofu can do in a given operation, and instead should allow for easier expansion in the future.
+
 ## Implementation Path
 
 As mentioned above, the implementation of these concepts is to large of a topic to cover in a single RFC.  However we set a goal of incremental changes to the architecture.
