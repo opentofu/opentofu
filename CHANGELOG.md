@@ -1,4 +1,6 @@
-## 1.7.10 (Unreleased)
+## 1.7.11 (Unreleased)
+
+## 1.7.10
 
 BUG FIXES:
 - Reduced calls to  ListKeys in azure backend (for rate limiting). ([#3083](https://github.com/opentofu/opentofu/pull/3083))
