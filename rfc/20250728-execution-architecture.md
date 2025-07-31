@@ -118,25 +118,20 @@ With this in mind, we propose that the concept of "references" within the codeba
 
 One potential shape of this could look like the following:
 ```mermaid
-classDiagram
-        Operation <|-- ReferenceGraph
-        ReferenceGraph <|-- ConfigReferences
-        ReferenceGraph <|-- StateReferences
-        ReferenceGraph <|-- PlanReferences
-        ReferenceGraph: DependsOn(Reference)
-        ReferenceGraph: DependedOn(Reference)
+flowchart LR
+    ConfigData --> ConfigReferences
+    StateData --> StateReferences
+    PlanData --> PlanReferences
 
-        ConfigReferences <|-- ConfigData
-        ConfigReferences: Non-instanced -> Non-instanced
+    ConfigReferences --> ReferenceGraph
+    StateReferences --> ReferenceGraph
+    PlanReferences --> ReferenceGraph
 
-        StateReferences <|-- StateData
-        StateReferences: Instances -> Non-instanced
-
-        PlanReferences <|-- PlanData
-        PlanReferences: Instances -> Non-instanced
+    ReferenceGraph --> OperationGraph
+    Operation --> OperationGraph
 ```
 
-In that sort of scenario, the ReferenceGraph would be passed to the constructor/builder of the Operation.  The Operation would then "execute", informed by the references.
+In that sort of scenario, the ReferenceGraph would be passed to the constructor/builder of the OperationGraph.  The OperationGraph would then "execute", informed by the references.
 
 There is already some precedence for building these sort of reference only graphs in the OpenTofu codebase:
 https://pkg.go.dev/github.com/opentofu/opentofu@v1.10.3/internal/lang/globalref
@@ -149,21 +144,25 @@ Operations today re-use a lot of the same concepts and code throughout their exe
 We propose that there are three phases of execution, which are chained into each other: Validate, Plan, and Apply.
 ```mermaid
 flowchart LR
-    Config("Config") --> Validate["Validate"]
-    Config --> Plan["Plan"]
+    Config("InputConfig") --> Validate["Validate"]
 
-    Validate --> ConfigReferences("ConfigReferences")
+    Validate --> ConfigReferences("ValidateGraph")
+    Validate --> ConfigValidate("ValidateConfig")
 
     ConfigReferences --> Plan
+    ConfigValidate --> Plan
     InputState["InputState"] --> Plan
 
     Plan --> ExpectedState("ExpectedState")
+    Plan --> RefreshedState("RefreshedState")
     Plan --> ChangesToResources("ResourceChanges")
-    Plan --> RefreshedState("RefreshedState") & PlanGraph["PlanActions"]
+    Plan --> ConfigPlan("PlanConfig")
+    Plan --> PlanGraph["PlanGraph"]
 
     PlanGraph --> Apply["Apply"]
-    ChangesToResources --> Apply
+    ConfigPlan --> Apply
     RefreshedState --> Apply
+    ChangesToResources --> Apply
 
     Apply --> OutputState("OutputState")
 ```
