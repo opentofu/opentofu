@@ -9,6 +9,11 @@ description: >-
 The `tofu console` command provides an interactive console for
 evaluating [expressions](../../language/expressions/index.mdx).
 
+:::warning
+The `tofu console` command is not designed for use in scripts. You can use it, but
+you may find that some functions don't work as intended.
+:::
+
 ## Usage
 
 Usage: `tofu console [options]`
@@ -28,6 +33,14 @@ For configurations using
 `tofu console` accepts the legacy command line option
 [`-state`](../../language/settings/backends/local.mdx#command-line-arguments).
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu console`.
+:::
+
 This command also accepts the following options for tofu console:
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
@@ -42,22 +55,9 @@ This command also accepts the following options for tofu console:
   ["tfvars" file](/docs/language/values/variables#variable-definitions-tfvars-files).
   Use this option multiple times to include values from more than one file.
 
-## Scripting
-
-The `tofu console` command can be used in non-interactive scripts
-by piping newline-separated commands to it. Only the output from the
-final command is printed unless an error occurs earlier.
-
-For example:
-
-```shell
-$ echo 'split(",", "foo,bar,baz")' | tofu console
-tolist([
-  "foo",
-  "bar",
-  "baz",
-])
-```
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ## Remote State
 

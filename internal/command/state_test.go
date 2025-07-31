@@ -31,9 +31,9 @@ func testStateBackups(t *testing.T, dir string) []string {
 }
 
 func TestStateDefaultBackupExtension(t *testing.T) {
-	testCwd(t)
+	testCwdTemp(t)
 
-	s, err := (&StateMeta{}).State(encryption.Disabled())
+	s, err := (&StateMeta{}).State(t.Context(), encryption.Disabled())
 	if err != nil {
 		t.Fatal(err)
 	}

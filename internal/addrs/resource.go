@@ -8,6 +8,9 @@ package addrs
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Resource is an address for a resource block within configuration, which
@@ -60,7 +63,7 @@ func (r Resource) UniqueKey() UniqueKey {
 func (r Resource) uniqueKeySigil() {}
 
 // Instance produces the address for a specific instance of the receiver
-// that is idenfied by the given key.
+// that is identified by the given key.
 func (r Resource) Instance(key InstanceKey) ResourceInstance {
 	return ResourceInstance{
 		Resource: r,
@@ -168,7 +171,7 @@ func (m ModuleInstance) Resource(mode ResourceMode, typeName string, name string
 }
 
 // Instance produces the address for a specific instance of the receiver
-// that is idenfied by the given key.
+// that is identified by the given key.
 func (r AbsResource) Instance(key InstanceKey) AbsResourceInstance {
 	return AbsResourceInstance{
 		Module:   r.Module,
@@ -276,7 +279,7 @@ func (m ModuleInstance) ResourceInstance(mode ResourceMode, typeName string, nam
 }
 
 // ContainingResource returns the address of the resource that contains the
-// receving resource instance. In other words, it discards the key portion
+// receiving resource instance. In other words, it discards the key portion
 // of the address to produce an AbsResource value.
 func (r AbsResourceInstance) ContainingResource() AbsResource {
 	return AbsResource{
@@ -389,6 +392,29 @@ type ConfigResource struct {
 	targetable
 	Module   Module
 	Resource Resource
+}
+
+// ParseConfigResource parses the module address from the given traversal
+// and then parses the resource address from the leftover. Returning ConfigResource
+// contains both module and resource addresses. ParseConfigResource doesn't support
+// instance keys and will return an error if it encounters one.
+func ParseConfigResource(traversal hcl.Traversal) (ConfigResource, tfdiags.Diagnostics) {
+	modulePath, remainTraversal, diags := parseModulePrefix(traversal)
+	if diags.HasErrors() {
+		return ConfigResource{}, diags
+	}
+
+	if len(remainTraversal) == 0 {
+		return ConfigResource{}, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Module address is not allowed",
+			Detail:   "Expected reference to either resource or data block. Provided reference appears to be a module.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+	}
+
+	configRes, moreDiags := parseResourceUnderModule(modulePath, remainTraversal)
+	return configRes, diags.Append(moreDiags)
 }
 
 // Resource returns the address of a particular resource within the module.

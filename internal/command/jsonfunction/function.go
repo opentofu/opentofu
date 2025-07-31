@@ -58,11 +58,12 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 	signatures := newFunctions()
 
 	for name, v := range f {
-		if name == "can" || name == lang.CoreNamespace+"can" {
+		switch name {
+		case "can", lang.CoreNamespace + "can":
 			signatures.Signatures[name] = marshalCan(v)
-		} else if name == "try" || name == lang.CoreNamespace+"try" {
+		case "try", lang.CoreNamespace + "try":
 			signatures.Signatures[name] = marshalTry(v)
-		} else {
+		default:
 			signature, err := marshalFunction(v)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(

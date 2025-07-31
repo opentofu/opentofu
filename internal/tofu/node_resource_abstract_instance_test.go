@@ -9,11 +9,15 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
@@ -130,9 +134,11 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				// function. (This would not be valid for some other functions.)
 				Addr: test.Addr,
 				NodeAbstractResource: NodeAbstractResource{
-					Addr:                 test.Addr.ConfigResource(),
-					Config:               test.Config,
-					storedProviderConfig: test.StoredProviderConfig,
+					Addr:   test.Addr.ConfigResource(),
+					Config: test.Config,
+					storedProviderConfig: ResolvedProvider{
+						ProviderConfig: test.StoredProviderConfig,
+					},
 				},
 			}
 			got := node.Provider()
@@ -145,9 +151,9 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 
 func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	state := states.NewState()
-	ctx := new(MockEvalContext)
-	ctx.StateState = state.SyncWrapper()
-	ctx.PathPath = addrs.RootModuleInstance
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = state.SyncWrapper()
+	evalCtx.PathPath = addrs.RootModuleInstance
 
 	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -169,13 +175,13 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
-	ctx.ProviderProvider = mockProvider
-	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	evalCtx.ProviderProvider = mockProvider
+	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
-	err := node.writeResourceInstanceState(ctx, obj, workingState)
+	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj, workingState)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -185,4 +191,149 @@ aws_instance.foo:
   ID = i-abc123
   provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
+}
+
+func TestFilterResourceProvisioners(t *testing.T) {
+	tests := map[string]struct {
+		when               configs.ProvisionerWhen
+		cfg                *configs.Resource
+		removedBlocksProvs []*configs.Provisioner
+		wantProvs          []*configs.Provisioner
+	}{
+		"config and provisioners nil": {
+			when:               configs.ProvisionerWhenDestroy,
+			cfg:                nil,
+			removedBlocksProvs: nil,
+			wantProvs:          []*configs.Provisioner{},
+		},
+		"config nil and provisioners contains targeted provisioners": {
+			when: configs.ProvisionerWhenDestroy,
+			cfg:  nil,
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenDestroy},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenDestroy},
+			},
+		},
+		"config.managed nil and provisioners contains no targeted provisioners": {
+			when: configs.ProvisionerWhenDestroy,
+			cfg:  &configs.Resource{},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{},
+		},
+		// This is expecting an empty result because we want to use the resource defined provisioners when
+		// config.managed exists
+		"config.managed not nil and provisioners contains targeted provisioners": {
+			when: configs.ProvisionerWhenCreate,
+			cfg: &configs.Resource{
+				Managed: &configs.ManagedResource{},
+			},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: nil,
+		},
+		"config.managed is having provisioners therefore removed blocks provisioners are ignored": {
+			when: configs.ProvisionerWhenCreate,
+			cfg: &configs.Resource{
+				Managed: &configs.ManagedResource{
+					Provisioners: []*configs.Provisioner{
+						{Type: "local-exec3", When: configs.ProvisionerWhenCreate},
+						{Type: "local-exec4", When: configs.ProvisionerWhenCreate},
+					},
+				},
+			},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{
+				{Type: "local-exec3", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec4", When: configs.ProvisionerWhenCreate},
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%s-%s", test.when, name), func(t *testing.T) {
+			res := filterResourceProvisioners(test.cfg, test.removedBlocksProvs, test.when)
+			if diff := cmp.Diff(test.wantProvs, res); diff != "" {
+				t.Errorf("expected provisioners different than what we got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestMaybeImproveResourceInstanceDiagnostics(t *testing.T) {
+	// This test is focused mainly on whether
+	// maybeImproveResourceInstanceDiagnostics is able to correctly identify
+	// deferral-related diagnostics and transform them, while keeping
+	// other unrelated diagnostics intact and unmodified.
+	// TestContext2Plan_providerDefersPlanning tests that the effect of
+	// this function is exposed externally when a provider's PlanResourceChange
+	// method returns a suitable diagnostic.
+
+	var input tfdiags.Diagnostics
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	input = input.Append(providers.NewDeferralDiagnostic(providers.DeferredBecauseProviderConfigUnknown))
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	input = input.Append(providers.NewDeferralDiagnostic(providers.DeferredBecauseResourceConfigUnknown))
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic either",
+		"Leave this one alone too.",
+	))
+
+	// We'll use ForRPC here just to make the diagnostics easier to compare,
+	// since we care primarily about their description test here.
+	got := maybeImproveResourceInstanceDiagnostics(input, mustAbsResourceAddr("foo.bar").Instance(addrs.IntKey(1))).ForRPC()
+	var want tfdiags.Diagnostics
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Provider configuration is incomplete",
+		`The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="foo.bar[1]" to first apply without this object, and then apply normally to converge.`,
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Resource configuration is incomplete",
+		`The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="foo.bar[1]" to first apply without this object, and then apply normally to converge.`,
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic either",
+		"Leave this one alone too.",
+	))
+	want = want.ForRPC()
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result\n" + diff)
+	}
+
 }

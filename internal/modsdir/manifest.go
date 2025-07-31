@@ -180,5 +180,7 @@ func (m Manifest) WriteSnapshotToDir(dir string) error {
 	if err != nil {
 		return err
 	}
+	defer w.Close()
+
 	return m.WriteSnapshot(w)
 }

@@ -12,16 +12,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/initwd"
 )
 
 func TestChecksHappyPath(t *testing.T) {
 	const fixtureDir = "testdata/happypath"
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil)
-	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{})
+	loader := configload.NewLoaderForTests(t)
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil, nil)
+	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
@@ -31,7 +31,7 @@ func TestChecksHappyPath(t *testing.T) {
 
 	/////////////////////////////////////////////////////////////////////////
 
-	cfg, hclDiags := loader.LoadConfig(fixtureDir)
+	cfg, hclDiags := loader.LoadConfig(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	if hclDiags.HasErrors() {
 		t.Fatalf("invalid configuration: %s", hclDiags.Error())
 	}

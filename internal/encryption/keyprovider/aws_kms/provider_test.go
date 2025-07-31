@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package aws_kms
 
 import (
@@ -57,7 +62,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 
 	t.Log("Continue to meta -> decryption key")
 
-	// Now that we have a encyption key and it's meta, let's get the decryption key
+	// Now that we have a encryption key and it's meta, let's get the decryption key
 	output, meta, err = provider.Provide(meta)
 	if err != nil {
 		t.Fatalf("Error providing keys: %s", err)

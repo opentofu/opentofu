@@ -20,14 +20,14 @@ import (
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
 	secrets, err := secretClient.List(
-		context.Background(),
+		ctx,
 		metav1.ListOptions{
 			LabelSelector: tfstateKey + "=true",
 		},
@@ -65,7 +65,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return states, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -75,10 +75,10 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return err
 	}
 
-	return client.Delete()
+	return client.Delete(ctx)
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	c, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	stateMgr := remote.NewState(c, b.encryption)
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := stateMgr.Lock(lockInfo)
+		lockID, err := stateMgr.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := stateMgr.Unlock(lockID); err != nil {
+			if err := stateMgr.Unlock(context.TODO(), lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 
@@ -128,7 +128,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		if err := stateMgr.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := stateMgr.PersistState(nil); err != nil {
+		if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 			return nil, unlock(err)
 		}
 

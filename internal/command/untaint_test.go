@@ -32,6 +32,7 @@ func TestUntaint(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -77,6 +78,7 @@ func TestUntaint_lockedState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -111,7 +113,7 @@ func TestUntaint_lockedState(t *testing.T) {
 
 func TestUntaint_backup(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -129,6 +131,7 @@ func TestUntaint_backup(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -166,7 +169,7 @@ test_instance.foo:
 
 func TestUntaint_backupDisable(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -184,6 +187,7 @@ func TestUntaint_backupDisable(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -237,7 +241,7 @@ func TestUntaint_badState(t *testing.T) {
 
 func TestUntaint_defaultState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -255,6 +259,7 @@ func TestUntaint_defaultState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -284,7 +289,7 @@ test_instance.foo:
 
 func TestUntaint_defaultWorkspaceState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -302,6 +307,7 @@ func TestUntaint_defaultWorkspaceState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testWorkspace := "development"
@@ -310,7 +316,9 @@ func TestUntaint_defaultWorkspaceState(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	meta := Meta{Ui: ui, View: view}
-	meta.SetWorkspace(testWorkspace)
+	if err := meta.SetWorkspace(testWorkspace); err != nil {
+		t.Fatal(err)
+	}
 	c := &UntaintCommand{
 		Meta: meta,
 	}
@@ -345,6 +353,7 @@ func TestUntaint_missing(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -383,6 +392,7 @@ func TestUntaint_missingAllow(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -421,7 +431,7 @@ because -allow-missing was set.
 
 func TestUntaint_stateOut(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -439,6 +449,7 @@ func TestUntaint_stateOut(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -488,6 +499,7 @@ func TestUntaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -503,6 +515,7 @@ func TestUntaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)

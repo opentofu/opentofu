@@ -14,15 +14,14 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 func TestRemote(t *testing.T) {
@@ -164,87 +163,9 @@ func TestRemote_config(t *testing.T) {
 		}
 
 		// Configure
-		confDiags := b.Configure(tc.config)
+		confDiags := b.Configure(t.Context(), tc.config)
 		if (confDiags.Err() != nil || tc.confErr != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
-			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
-		}
-	}
-}
-
-func TestRemote_versionConstraints(t *testing.T) {
-	cases := map[string]struct {
-		config     cty.Value
-		prerelease string
-		version    string
-		result     string
-	}{
-		"compatible version": {
-			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal(mockedBackendHost),
-				"organization": cty.StringVal("hashicorp"),
-				"token":        cty.NullVal(cty.String),
-				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":   cty.StringVal("prod"),
-					"prefix": cty.NullVal(cty.String),
-				}),
-			}),
-			version: "0.11.1",
-		},
-		"version too old": {
-			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal(mockedBackendHost),
-				"organization": cty.StringVal("hashicorp"),
-				"token":        cty.NullVal(cty.String),
-				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":   cty.StringVal("prod"),
-					"prefix": cty.NullVal(cty.String),
-				}),
-			}),
-			version: "0.0.1",
-			result:  "upgrade OpenTofu to >= 0.1.0",
-		},
-		"version too new": {
-			config: cty.ObjectVal(map[string]cty.Value{
-				"hostname":     cty.StringVal(mockedBackendHost),
-				"organization": cty.StringVal("hashicorp"),
-				"token":        cty.NullVal(cty.String),
-				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":   cty.StringVal("prod"),
-					"prefix": cty.NullVal(cty.String),
-				}),
-			}),
-			version: "10.0.1",
-			result:  "downgrade OpenTofu to <= 10.0.0",
-		},
-	}
-
-	// Save and restore the actual version.
-	p := tfversion.Prerelease
-	v := tfversion.Version
-	defer func() {
-		tfversion.Prerelease = p
-		tfversion.Version = v
-	}()
-
-	for name, tc := range cases {
-		s := testServer(t)
-		b := New(testDisco(s), encryption.StateEncryptionDisabled())
-
-		// Set the version for this test.
-		tfversion.Prerelease = tc.prerelease
-		tfversion.Version = tc.version
-
-		// Validate
-		_, valDiags := b.PrepareConfig(tc.config)
-		if valDiags.HasErrors() {
-			t.Fatalf("%s: unexpected validation result: %v", name, valDiags.Err())
-		}
-
-		// Configure
-		confDiags := b.Configure(tc.config)
-		if (confDiags.Err() != nil || tc.result != "") &&
-			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
 		}
 	}
@@ -269,23 +190,23 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	if _, err := b.Workspaces(); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.Workspaces(t.Context()); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(t.Context(), backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if _, err := b.StateMgr("prod"); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.StateMgr(t.Context(), "prod"); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != nil {
+	if err := b.DeleteWorkspace(t.Context(), backend.DefaultStateName, true); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if err := b.DeleteWorkspace("prod", true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace(t.Context(), "prod", true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 }
@@ -294,7 +215,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	b, bCleanup := testBackendNoDefault(t)
 	defer bCleanup()
 
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,16 +225,16 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected states %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if _, err := b.StateMgr(backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
+	if _, err := b.StateMgr(t.Context(), backend.DefaultStateName); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
 	expectedA := "test_A"
-	if _, err := b.StateMgr(expectedA); err != nil {
+	if _, err := b.StateMgr(t.Context(), expectedA); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,11 +245,11 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	}
 
 	expectedB := "test_B"
-	if _, err := b.StateMgr(expectedB); err != nil {
+	if _, err := b.StateMgr(t.Context(), expectedB); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,15 +259,15 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v, got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
+	if err := b.DeleteWorkspace(t.Context(), backend.DefaultStateName, true); err != backend.ErrDefaultWorkspaceNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrDefaultWorkspaceNotSupported, err)
 	}
 
-	if err := b.DeleteWorkspace(expectedA, true); err != nil {
+	if err := b.DeleteWorkspace(t.Context(), expectedA, true); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -356,11 +277,11 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatalf("expected %#+v got %#+v", expectedWorkspaces, states)
 	}
 
-	if err := b.DeleteWorkspace(expectedB, true); err != nil {
+	if err := b.DeleteWorkspace(t.Context(), expectedB, true); err != nil {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,108 +289,6 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	expectedWorkspaces = []string(nil)
 	if !reflect.DeepEqual(states, expectedWorkspaces) {
 		t.Fatalf("expected %#+v, got %#+v", expectedWorkspaces, states)
-	}
-}
-
-func TestRemote_checkConstraints(t *testing.T) {
-	b, bCleanup := testBackendDefault(t)
-	defer bCleanup()
-
-	cases := map[string]struct {
-		constraints *disco.Constraints
-		prerelease  string
-		version     string
-		result      string
-	}{
-		"compatible version": {
-			constraints: &disco.Constraints{
-				Minimum: "0.11.0",
-				Maximum: "0.11.11",
-			},
-			version: "0.11.1",
-			result:  "",
-		},
-		"version too old": {
-			constraints: &disco.Constraints{
-				Minimum: "0.11.0",
-				Maximum: "0.11.11",
-			},
-			version: "0.10.1",
-			result:  "upgrade OpenTofu to >= 0.11.0",
-		},
-		"version too new": {
-			constraints: &disco.Constraints{
-				Minimum: "0.11.0",
-				Maximum: "0.11.11",
-			},
-			version: "0.12.0",
-			result:  "downgrade OpenTofu to <= 0.11.11",
-		},
-		"version excluded - ordered": {
-			constraints: &disco.Constraints{
-				Minimum:   "0.11.0",
-				Excluding: []string{"0.11.7", "0.11.8"},
-				Maximum:   "0.11.11",
-			},
-			version: "0.11.7",
-			result:  "upgrade OpenTofu to > 0.11.8",
-		},
-		"version excluded - unordered": {
-			constraints: &disco.Constraints{
-				Minimum:   "0.11.0",
-				Excluding: []string{"0.11.8", "0.11.6"},
-				Maximum:   "0.11.11",
-			},
-			version: "0.11.6",
-			result:  "upgrade OpenTofu to > 0.11.8",
-		},
-		"list versions": {
-			constraints: &disco.Constraints{
-				Minimum: "0.11.0",
-				Maximum: "0.11.11",
-			},
-			version: "0.10.1",
-			result:  "versions >= 0.11.0, <= 0.11.11.",
-		},
-		"list exclusion": {
-			constraints: &disco.Constraints{
-				Minimum:   "0.11.0",
-				Excluding: []string{"0.11.6"},
-				Maximum:   "0.11.11",
-			},
-			version: "0.11.6",
-			result:  "excluding version 0.11.6.",
-		},
-		"list exclusions": {
-			constraints: &disco.Constraints{
-				Minimum:   "0.11.0",
-				Excluding: []string{"0.11.8", "0.11.6"},
-				Maximum:   "0.11.11",
-			},
-			version: "0.11.6",
-			result:  "excluding versions 0.11.6, 0.11.8.",
-		},
-	}
-
-	// Save and restore the actual version.
-	p := tfversion.Prerelease
-	v := tfversion.Version
-	defer func() {
-		tfversion.Prerelease = p
-		tfversion.Version = v
-	}()
-
-	for name, tc := range cases {
-		// Set the version for this test.
-		tfversion.Prerelease = tc.prerelease
-		tfversion.Version = tc.version
-
-		// Check the constraints.
-		diags := b.checkConstraints(tc.constraints)
-		if (diags.Err() != nil || tc.result != "") &&
-			(diags.Err() == nil || !strings.Contains(diags.Err().Error(), tc.result)) {
-			t.Fatalf("%s: unexpected constraints result: %v", name, diags.Err())
-		}
 	}
 }
 
@@ -511,7 +330,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should succeed
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(t.Context(), backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -529,7 +348,7 @@ func TestRemote_StateMgr_versionCheck(t *testing.T) {
 
 	// This should fail
 	want := `Remote workspace OpenTofu version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(backend.DefaultStateName); err.Error() != want {
+	if _, err := b.StateMgr(t.Context(), backend.DefaultStateName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
 }
@@ -558,18 +377,18 @@ func TestRemote_Unlock_ignoreVersion(t *testing.T) {
 	tfversion.Version = v111.String()
 	tfversion.SemVer = v111
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
 
-	lockID, err := state.Lock(statemgr.NewLockInfo())
+	lockID, err := state.Lock(t.Context(), statemgr.NewLockInfo())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
 
 	// this should succeed since the version conflict is ignored
-	if err = state.Unlock(lockID); err != nil {
+	if err = state.Unlock(t.Context(), lockID); err != nil {
 		t.Fatalf("error: %v", err)
 	}
 }
@@ -608,7 +427,7 @@ func TestRemote_StateMgr_versionCheckLatest(t *testing.T) {
 	}
 
 	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(backend.DefaultStateName); err != nil {
+	if _, err := b.StateMgr(t.Context(), backend.DefaultStateName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
@@ -786,7 +605,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(t.Context(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

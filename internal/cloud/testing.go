@@ -21,36 +21,29 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-)
-
-const (
-	testCred = "test-auth-token"
 )
 
 var (
 	tfeHost  = "app.terraform.io"
-	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(tfeHost): {"token": testCred},
+	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(tfeHost): svcauth.HostCredentialsToken("testCred"),
 	})
 	testBackendSingleWorkspaceName = "app-prod"
 	defaultTFCPing                 = map[string]func(http.ResponseWriter, *http.Request){
@@ -165,7 +158,7 @@ func testCloudState(t *testing.T) *State {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	raw, err := b.StateMgr(testBackendSingleWorkspaceName)
+	raw, err := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -252,7 +245,7 @@ func testBackend(t *testing.T, obj cty.Value, handlers map[string]func(http.Resp
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		t.Fatalf("testBackend: backend.Configure() failed: %s", confDiags.ErrWithWarnings())
 	}
@@ -427,12 +420,18 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 			fakeState := states.NewState()
 			fakeStateFile := statefile.New(fakeState, "boop", 1)
 			var buf bytes.Buffer
-			statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
+			err := statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
+			if err != nil {
+				t.Fatal(err)
+			}
 			respBody := buf.Bytes()
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("content-length", strconv.FormatInt(int64(len(respBody)), 10))
 			w.WriteHeader(http.StatusOK)
-			w.Write(respBody)
+			_, err = w.Write(respBody)
+			if err != nil {
+				t.Fatal(err)
+			}
 			return
 		}
 
@@ -480,7 +479,10 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write(fakeBodyRaw)
+		_, err = w.Write(fakeBodyRaw)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	serverURL = server.URL
 	return server
@@ -493,20 +495,26 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
 	// Respond to service discovery calls.
 	"/well-known/terraform.json": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "tfe.v2": "/api/v2/",
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to service version constraints calls.
 	"/v1/versions/": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, fmt.Sprintf(`{
+		_, err := io.WriteString(w, fmt.Sprintf(`{
   "service": "%s",
   "product": "terraform",
   "minimum": "0.1.0",
   "maximum": "10.0.0"
 }`, path.Base(r.URL.Path)))
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to pings to get the API version header.
@@ -518,7 +526,7 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
 	// Respond to the initial query to read the hashicorp org entitlements.
 	"/api/v2/organizations/hashicorp/entitlement-set": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-GExadygjSbKP8hsY",
     "type": "entitlement-sets",
@@ -532,12 +540,15 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to the initial query to read the no-operations org entitlements.
 	"/api/v2/organizations/no-operations/entitlement-set": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-ufxa3y8jSbKP8hsT",
     "type": "entitlement-sets",
@@ -551,13 +562,16 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// All tests that are assumed to pass will use the hashicorp organization,
 	// so for all other organization requests we will return a 404.
 	"/api/v2/organizations/": func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "errors": [
     {
       "status": "404",
@@ -565,6 +579,9 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   ]
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 }
 
@@ -598,8 +615,10 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
 		"tfe.v2": fmt.Sprintf("%s/api/v2/", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname(tfeHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

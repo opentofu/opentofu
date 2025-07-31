@@ -24,9 +24,10 @@ type Providers struct {
 }
 
 type Provider struct {
-	Provider          *Schema            `json:"provider,omitempty"`
-	ResourceSchemas   map[string]*Schema `json:"resource_schemas,omitempty"`
-	DataSourceSchemas map[string]*Schema `json:"data_source_schemas,omitempty"`
+	Provider          *Schema              `json:"provider,omitempty"`
+	ResourceSchemas   map[string]*Schema   `json:"resource_schemas,omitempty"`
+	DataSourceSchemas map[string]*Schema   `json:"data_source_schemas,omitempty"`
+	Functions         map[string]*Function `json:"functions,omitempty"`
 }
 
 func newProviders() *Providers {
@@ -37,7 +38,7 @@ func newProviders() *Providers {
 	}
 }
 
-// MarshalForRenderer converts the provided internation representation of the
+// MarshalForRenderer converts the provided internal representation of the
 // schema into the public structured JSON versions.
 //
 // This is a format that can be read by the structured plan renderer.
@@ -61,5 +62,6 @@ func marshalProvider(tps providers.ProviderSchema) *Provider {
 		Provider:          marshalSchema(tps.Provider),
 		ResourceSchemas:   marshalSchemas(tps.ResourceTypes),
 		DataSourceSchemas: marshalSchemas(tps.DataSources),
+		Functions:         marshalFunctions(tps.Functions),
 	}
 }

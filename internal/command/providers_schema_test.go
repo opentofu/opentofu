@@ -51,7 +51,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			td := t.TempDir()
 			inputDir := filepath.Join(fixtureDir, entry.Name())
 			testCopyDir(t, inputDir, td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			providerSource, close := newMockProviderSource(t, map[string][]string{
 				"test": {"1.2.3"},
@@ -66,7 +66,7 @@ func TestProvidersSchema_output(t *testing.T) {
 				ProviderSource:   providerSource,
 			}
 
-			// `terrafrom init`
+			// `terraform init`
 			ic := &InitCommand{
 				Meta: m,
 			}
@@ -85,7 +85,9 @@ func TestProvidersSchema_output(t *testing.T) {
 			var got, want providerSchemas
 
 			gotString := ui.OutputWriter.String()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			wantFile, err := os.Open("output.json")
 			if err != nil {
@@ -96,7 +98,9 @@ func TestProvidersSchema_output(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			if !cmp.Equal(got, want) {
 				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
@@ -114,6 +118,7 @@ type providerSchema struct {
 	Provider          interface{}            `json:"provider,omitempty"`
 	ResourceSchemas   map[string]interface{} `json:"resource_schemas,omitempty"`
 	DataSourceSchemas map[string]interface{} `json:"data_source_schemas,omitempty"`
+	Functions         map[string]interface{} `json:"functions,omitempty"`
 }
 
 // testProvider returns a mock provider that is configured for basic
@@ -152,6 +157,21 @@ func providersSchemaFixtureSchema() *providers.GetProviderSchemaResponse {
 							Optional: true,
 						},
 					},
+				},
+			},
+		},
+		Functions: map[string]providers.FunctionSpec{
+			"test_func": {
+				Description: "a basic string function",
+				Return:      cty.String,
+				Summary:     "test",
+				Parameters: []providers.FunctionParameterSpec{{
+					Name: "input",
+					Type: cty.Number,
+				}},
+				VariadicParameter: &providers.FunctionParameterSpec{
+					Name: "variadic_input",
+					Type: cty.List(cty.Bool),
 				},
 			},
 		},

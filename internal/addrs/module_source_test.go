@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 )
 
 func TestParseModuleSource(t *testing.T) {
@@ -138,6 +138,27 @@ func TestParseModuleSource(t *testing.T) {
 				Subdir:  "example/foo",
 			},
 		},
+		"github.com with branch and subdir": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?ref=bar",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git?ref=bar"),
+				Subdir:  "example/foo",
+			},
+		},
+		"github.com with subdir and malformed query params": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git"),
+				Subdir:  "example/foo",
+			},
+		},
+		"github.com subdir from a branch containing slash in the name": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?ref=bar/baz",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git?ref=bar/baz"),
+				Subdir:  "example/foo",
+			},
+		},
 		"git protocol, URL-style": {
 			input: "git://example.com/code/baz.git",
 			want: ModuleSourceRemote{
@@ -201,7 +222,7 @@ func TestParseModuleSource(t *testing.T) {
 		},
 
 		// NOTE: We intentionally don't test the bitbucket.org shorthands
-		// here, because that detector makes direct HTTP tequests to the
+		// here, because that detector makes direct HTTP requests to the
 		// Bitbucket API and thus isn't appropriate for unit testing.
 
 		"Google Cloud Storage bucket implied, path prefix": {
@@ -368,7 +389,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "foo" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "bar" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")
@@ -387,7 +408,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "foo" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")
@@ -406,7 +427,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "bar" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")

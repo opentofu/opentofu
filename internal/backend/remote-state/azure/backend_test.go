@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
+	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/containers"
 )
 
 func TestBackend_impl(t *testing.T) {
@@ -45,17 +46,79 @@ func TestBackendConfig(t *testing.T) {
 	}
 }
 
+func TestBackendConfig_Timeout(t *testing.T) {
+	config := map[string]any{
+		"storage_account_name": "tfaccount",
+		"container_name":       "tfcontainer",
+		"key":                  "state",
+		"snapshot":             false,
+		// Access Key must be Base64
+		"access_key": "QUNDRVNTX0tFWQ0K",
+	}
+	testCases := []struct {
+		name           string
+		timeoutSeconds any
+		expectError    bool
+	}{
+		{
+			name:           "string timeout",
+			timeoutSeconds: "Nonsense",
+			expectError:    true,
+		},
+		{
+			name:           "negative timeout",
+			timeoutSeconds: -10,
+			expectError:    true,
+		},
+		{
+			// 0 is a valid timeout value, it disables the timeout
+			name:           "zero timeout",
+			timeoutSeconds: 0,
+		},
+		{
+			name:           "positive timeout",
+			timeoutSeconds: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config["timeout_seconds"] = tc.timeoutSeconds
+			b, _, errors := backend.TestBackendConfigWarningsAndErrors(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
+			if tc.expectError {
+				if len(errors) == 0 {
+					t.Fatalf("Expected an error")
+				}
+				return
+			}
+			if !tc.expectError && len(errors) > 0 {
+				t.Fatalf("Expected no errors, got: %v", errors)
+			}
+			be, ok := b.(*Backend)
+			if !ok || be == nil {
+				t.Fatalf("Expected initialized Backend, got %T", b)
+			}
+			if be.armClient.timeoutSeconds != tc.timeoutSeconds {
+				t.Fatalf("Expected timeoutSeconds to be %d, got %d", tc.timeoutSeconds, be.armClient.timeoutSeconds)
+			}
+		})
+	}
+}
+
+// TestAccBackendAccessKeyBasic tests if resources are created using basic access key.
+// The call to backend.TestBackendStates tests workspace creation, list and deletion.
 func TestAccBackendAccessKeyBasic(t *testing.T) {
 	testAccAzureBackend(t)
 	rs := acctest.RandString(4)
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
-		armClient.destroyTestResources(ctx, res)
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
@@ -77,9 +140,12 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -107,9 +173,12 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -135,9 +204,12 @@ func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -170,9 +242,12 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -200,9 +275,12 @@ func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -236,9 +314,12 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -265,9 +346,12 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -303,9 +387,12 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -341,4 +428,44 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 
 	backend.TestBackendStateLocksInWS(t, b1, b2, "foo")
 	backend.TestBackendStateForceUnlockInWS(t, b1, b2, "foo")
+}
+
+type mockClient struct {
+}
+
+func (p mockClient) ListBlobs(ctx context.Context, accountName, containerName string, params containers.ListBlobsInput) (containers.ListBlobsResult, error) {
+	blobDetails := make([]containers.BlobDetails, 5000)
+	for i := range blobDetails {
+		blobDetails[i].Name = "env-name"
+	}
+
+	returnMarker := "next-token"
+
+	// This function will be called first with an empty parameter, putting the returnMarker as "next-token".
+	// On the second call, the returnMarker won't be empty, then finishing the pagination function;
+	if *params.Marker != "" {
+		returnMarker = ""
+	}
+
+	listBlobsResult := containers.ListBlobsResult{
+		Blobs: containers.Blobs{
+			Blobs: blobDetails,
+		},
+		NextMarker: &returnMarker,
+	}
+	return listBlobsResult, nil
+}
+
+func TestBackendPagination(t *testing.T) {
+	ctx := context.Background()
+	client := &mockClient{}
+	result, err := getPaginatedResults(ctx, client, "env", "acc-name", "storage-name")
+	if err != nil {
+		t.Fatalf("error getting paginated results %q", err)
+	}
+
+	// default is always on the list + 10k generated blobs from the mocked ListBlobs
+	if len(result) != 10001 {
+		t.Fatalf("expected len 10001, got %d instead", len(result))
+	}
 }

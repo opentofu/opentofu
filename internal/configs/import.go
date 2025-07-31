@@ -8,7 +8,9 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -66,8 +68,25 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["to"]; exists {
-		imp.To = attr.Expr
-		staticAddress, addressDiags := staticImportAddress(attr.Expr)
+		toExpr := attr.Expr
+		// Since we are manually parsing the 'to' argument, we need to specially
+		// handle json configs, in which case the values will be json strings
+		// rather than hcl
+		isJSON := hcljson.IsJSONExpression(attr.Expr)
+
+		if isJSON {
+			convertedExpr, convertDiags := hcl2shim.ConvertJSONExpressionToHCL(toExpr)
+			diags = append(diags, convertDiags...)
+
+			if diags.HasErrors() {
+				return imp, diags
+			}
+
+			toExpr = convertedExpr
+		}
+
+		imp.To = toExpr
+		staticAddress, addressDiags := staticImportAddress(toExpr)
 		diags = append(diags, addressDiags.ToHCL()...)
 
 		// Exit early if there are issues resolving the static address part. We wouldn't be able to validate the provider in such a case
@@ -127,7 +146,7 @@ var importBlockSchema = &hcl.BodySchema{
 // but we don't really care about the key part of it. We just want a traversal that could be converted to an address
 // of a resource, so we could determine the module + resource + provider
 //
-// Currently, there are 4 types of HCL epressions that support AsTraversal:
+// Currently, there are 4 types of HCL expressions that support AsTraversal:
 // - hclsyntax.ScopeTraversalExpr - Simply returns the Traversal. Same for our use-case here
 // - hclsyntax.RelativeTraversalExpr - Calculates hcl.AbsTraversalForExpr for the Source, and adds the Traversal to it. Same here, with absTraversalForImportToExpr instead
 // - hclsyntax.LiteralValueExpr - Mainly for null/false/true values. Not relevant in our use-case, as it's could not really be part of a reference (unless it is inside of an index, which is irrelevant here anyway)

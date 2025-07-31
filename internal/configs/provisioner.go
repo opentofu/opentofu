@@ -100,7 +100,7 @@ func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
 					Severity: hcl.DiagError,
 					Summary:  "Duplicate escaping block",
 					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as provisioner-typpe-specific rather than as meta-arguments, but each provisioner block can have only one such block. The first escaping block was at %s.",
+						"The special block type \"_\" can be used to force particular arguments to be interpreted as provisioner-type-specific rather than as meta-arguments, but each provisioner block can have only one such block. The first escaping block was at %s.",
 						seenEscapeBlock.DefRange,
 					),
 					Subject: &block.DefRange,
@@ -163,7 +163,7 @@ func onlySelfRefs(body hcl.Body) hcl.Diagnostics {
 		for _, v := range attr.Expr.Variables() {
 			valid := false
 			switch v.RootName() {
-			case "self", "path", "terraform":
+			case "self", "path", "terraform", "tofu":
 				valid = true
 			case "count":
 				// count must use "index"

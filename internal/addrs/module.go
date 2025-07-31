@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -142,9 +144,9 @@ func (m Module) Parent() Module {
 // on the root module address.
 //
 // In practice, this just turns the last element of the receiver into a
-// ModuleCall and then returns a slice of the receiever that excludes that
+// ModuleCall and then returns a slice of the receiver that excludes that
 // last part. This is just a convenience for situations where a call address
-// is required, such as when dealing with *Reference and Referencable values.
+// is required, such as when dealing with *Reference and Referenceable values.
 func (m Module) Call() (Module, ModuleCall) {
 	if len(m) == 0 {
 		panic("cannot produce ModuleCall for root module")
@@ -175,6 +177,41 @@ func (m Module) configMoveableSigil() {
 }
 func (m Module) configRemovableSigil() {
 	// Empty function so Module will fulfill the requirements of the removable interface
+}
+
+// ParseModule parses a module address from the given traversal,
+// which has to contain only the module address with no resource/data/variable/etc.
+// This function only supports module addresses without instance keys (as the
+// returned Module struct doesn't support instance keys) and will return an
+// error if it encounters one.
+func ParseModule(traversal hcl.Traversal) (Module, tfdiags.Diagnostics) {
+	mod, remain, diags := parseModulePrefix(traversal)
+	if !diags.HasErrors() && len(remain) != 0 {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Module address expected",
+			Detail:   "It's not allowed to reference anything other than module here.",
+			Subject:  remain[0].SourceRange().Ptr(),
+		})
+	}
+
+	return mod, diags
+}
+
+// ParseModuleStr is a helper wrapper around [ParseModule] that first tries
+// to parse the given string as HCL traversal syntax.
+func ParseModuleStr(str string) (Module, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return nil, diags
+	}
+
+	addr, addrDiags := ParseModule(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
 }
 
 // parseModulePrefix parses a module address from the given traversal,

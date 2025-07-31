@@ -8,26 +8,38 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"time"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	disco "github.com/hashicorp/terraform-svchost/disco"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opentofu/svchost"
+	disco "github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/httpclient"
 )
 
 // RegistrySource is a Source that knows how to find and install providers from
 // their originating provider registries.
 type RegistrySource struct {
-	services *disco.Disco
+	services   *disco.Disco
+	httpClient *retryablehttp.Client
 }
 
 var _ Source = (*RegistrySource)(nil)
 
 // NewRegistrySource creates and returns a new source that will install
 // providers from their originating provider registries.
-func NewRegistrySource(services *disco.Disco) *RegistrySource {
+func NewRegistrySource(ctx context.Context, services *disco.Disco, httpClient *retryablehttp.Client) *RegistrySource {
+	if httpClient == nil {
+		// As an aid to our tests that don't really care that much about
+		// the HTTP client configuration, we'll provide some reasonable
+		// defaults if no custom client is provided.
+		httpClient = httpclient.NewForRegistryRequests(ctx, 1, 10*time.Second)
+	}
+
 	return &RegistrySource{
-		services: services,
+		services:   services,
+		httpClient: httpClient,
 	}
 }
 
@@ -39,7 +51,7 @@ func NewRegistrySource(services *disco.Disco) *RegistrySource {
 // ErrProviderNotKnown, or ErrQueryFailed. Callers must be defensive and
 // expect errors of other types too, to allow for future expansion.
 func (s *RegistrySource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
-	client, err := s.registryClient(provider.Hostname)
+	client, err := s.registryClient(ctx, provider.Hostname)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,7 +113,7 @@ func (s *RegistrySource) AvailableVersions(ctx context.Context, provider addrs.P
 // ErrPlatformNotSupported, or ErrQueryFailed. Callers must be defensive and
 // expect errors of other types too, to allow for future expansion.
 func (s *RegistrySource) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
-	client, err := s.registryClient(provider.Hostname)
+	client, err := s.registryClient(ctx, provider.Hostname)
 	if err != nil {
 		return PackageMeta{}, err
 	}
@@ -109,8 +121,8 @@ func (s *RegistrySource) PackageMeta(ctx context.Context, provider addrs.Provide
 	return client.PackageMeta(ctx, provider, version, target)
 }
 
-func (s *RegistrySource) registryClient(hostname svchost.Hostname) (*registryClient, error) {
-	host, err := s.services.Discover(hostname)
+func (s *RegistrySource) registryClient(ctx context.Context, hostname svchost.Hostname) (*registryClient, error) {
+	host, err := s.services.Discover(ctx, hostname)
 	if err != nil {
 		return nil, ErrHostUnreachable{
 			Hostname: hostname,
@@ -139,7 +151,7 @@ func (s *RegistrySource) registryClient(hostname svchost.Hostname) (*registryCli
 	}
 
 	// Check if we have credentials configured for this hostname.
-	creds, err := s.services.CredentialsForHost(hostname)
+	creds, err := s.services.CredentialsForHost(ctx, hostname)
 	if err != nil {
 		// This indicates that a credentials helper failed, which means we
 		// can't do anything better than just pass through the helper's
@@ -147,7 +159,7 @@ func (s *RegistrySource) registryClient(hostname svchost.Hostname) (*registryCli
 		return nil, fmt.Errorf("failed to retrieve credentials for %s: %w", hostname, err)
 	}
 
-	return newRegistryClient(url, creds), nil
+	return newRegistryClient(ctx, url, creds, s.httpClient), nil
 }
 
 func (s *RegistrySource) ForDisplay(provider addrs.Provider) string {

@@ -6,7 +6,6 @@
 package s3
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,8 +17,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/aws-sdk-go-base/v2/mockdata"
 	"github.com/hashicorp/aws-sdk-go-base/v2/servicemocks"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -52,7 +51,7 @@ func ExpectDiagsEqual(expected tfdiags.Diagnostics) diagsValidator {
 
 type diagsValidator func(*testing.T, tfdiags.Diagnostics)
 
-// ExpectDiagsMatching returns a validator expeceting a single Diagnostic with fields matching the expectation
+// ExpectDiagsMatching returns a validator expecting a single Diagnostic with fields matching the expectation
 func ExpectDiagsMatching(severity tfdiags.Severity, summary matcher, detail matcher) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
 		for _, d := range diags {
@@ -224,34 +223,6 @@ aws_access_key_id = ProfileSharedCredentialsAccessKey
 aws_secret_access_key = ProfileSharedCredentialsSecretKey
 `,
 			ValidateDiags: ExpectNoDiags,
-		},
-
-		"environment AWS_ACCESS_KEY_ID overrides config Profile": { // Legacy behavior
-			config: map[string]any{
-				"profile":             "SharedCredentialsProfile",
-				"use_legacy_workflow": true,
-			},
-			EnvironmentVariables: map[string]string{
-				"AWS_ACCESS_KEY_ID":     servicemocks.MockEnvAccessKey,
-				"AWS_SECRET_ACCESS_KEY": servicemocks.MockEnvSecretKey,
-			},
-			ExpectedCredentialsValue: mockdata.MockEnvCredentials,
-			MockStsEndpoints: []*servicemocks.MockEndpoint{
-				servicemocks.MockStsGetCallerIdentityValidEndpoint,
-			},
-			SharedCredentialsFile: `
-[default]
-aws_access_key_id = DefaultSharedCredentialsAccessKey
-aws_secret_access_key = DefaultSharedCredentialsSecretKey
-[SharedCredentialsProfile]
-aws_access_key_id = ProfileSharedCredentialsAccessKey
-aws_secret_access_key = ProfileSharedCredentialsSecretKey
-`,
-			ValidateDiags: ExpectDiagsMatching(
-				tfdiags.Warning,
-				equalsMatcher("Deprecated Parameter"),
-				noopMatcher{},
-			),
 		},
 
 		"environment AWS_ACCESS_KEY_ID does not override config Profile": {
@@ -770,7 +741,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(context.TODO())
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1128,8 +1099,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1209,7 +1178,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1530,8 +1499,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1613,7 +1580,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1803,8 +1770,6 @@ web_identity_token_file = no-such-file
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1891,7 +1856,7 @@ web_identity_token_file = no-such-file
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -2216,7 +2181,7 @@ func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Di
 		return b, diags
 	}
 
-	confDiags := b.Configure(configSchema)
+	confDiags := b.Configure(t.Context(), configSchema)
 	diags = diags.Append(confDiags)
 
 	return b, diags

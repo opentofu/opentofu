@@ -6,11 +6,13 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/hashicorp/hcl/v2"
@@ -32,7 +34,7 @@ type ModuleVariableTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ModuleVariableTransformer) Transform(g *Graph) error {
+func (t *ModuleVariableTransformer) Transform(_ context.Context, g *Graph) error {
 	return t.transform(g, nil, t.Config)
 }
 
@@ -102,9 +104,10 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			expr = attr.Expr
 		}
 
-		// Add a plannable node, as the variable may expand
+		// Add a plannable input, as the variable may expand
 		// during module expansion
-		node := &nodeExpandModuleVariable{
+		// It is evaluated in the "parent" module
+		input := &nodeExpandModuleVariable{
 			Addr: addrs.InputVariable{
 				Name: v.Name,
 			},
@@ -112,7 +115,23 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Config: v,
 			Expr:   expr,
 		}
-		g.Add(node)
+		g.Add(input)
+
+		// It is evaluated in the "child" module
+		ref := &nodeVariableReference{
+			Addr: addrs.InputVariable{
+				Name: v.Name,
+			},
+			Module: c.Path,
+			Config: v,
+			Expr:   expr,
+
+			VariableFromRemoteModule: c.IsModuleCallFromRemoteModule(callConfig.Name),
+		}
+		g.Add(ref)
+
+		// Input must be available before reference is valid
+		g.Connect(dag.BasicEdge(ref, input))
 	}
 
 	return nil

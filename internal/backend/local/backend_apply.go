@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -27,6 +29,22 @@ import (
 // test hook called between plan+apply during opApply
 var testHookStopPlanApply func()
 
+const (
+	defaultPersistInterval                 = 20 // arbitrary interval that's hopefully a sweet spot
+	persistIntervalEnvironmentVariableName = "TF_STATE_PERSIST_INTERVAL"
+)
+
+func getEnvAsInt(envName string, defaultValue int) int {
+	if val, exists := os.LookupEnv(envName); exists {
+		parsedVal, err := strconv.Atoi(val)
+		if err == nil {
+			return parsedVal
+		}
+		panic(fmt.Sprintf("Can't parse value '%s' of environment variable '%s'", val, envName))
+	}
+	return defaultValue
+}
+
 func (b *Local) opApply(
 	stopCtx context.Context,
 	cancelCtx context.Context,
@@ -35,6 +53,15 @@ func (b *Local) opApply(
 	log.Printf("[INFO] backend/local: starting Apply operation")
 
 	var diags, moreDiags tfdiags.Diagnostics
+
+	// For the moment we have a bit of a tangled mess of context.Context here, for
+	// historical reasons. Hopefully we'll clean this up one day, but here's the
+	// guide for now:
+	// - ctx is used only for its values, and should be connected to the top-level ctx
+	//   from "package main" so that we can obtain telemetry objects, etc from it.
+	// - stopCtx is cancelled to trigger a graceful shutdown.
+	// - cancelCtx is cancelled for a graceless shutdown.
+	ctx := context.WithoutCancel(stopCtx)
 
 	// If we have a nil module at this point, then set it to an empty tree
 	// to avoid any potential crashes.
@@ -54,7 +81,7 @@ func (b *Local) opApply(
 	op.Hooks = append(op.Hooks, stateHook)
 
 	// Get our context
-	lr, _, opState, contextDiags := b.localRun(op)
+	lr, _, opState, contextDiags := b.localRun(ctx, op)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -75,7 +102,7 @@ func (b *Local) opApply(
 	// operation.
 	runningOp.State = lr.InputState
 
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -84,14 +111,19 @@ func (b *Local) opApply(
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas
-	stateHook.PersistInterval = 20 * time.Second // arbitrary interval that's hopefully a sweet spot
+	persistInterval := getEnvAsInt(persistIntervalEnvironmentVariableName, defaultPersistInterval)
+	if persistInterval < defaultPersistInterval {
+		panic(fmt.Sprintf("Can't use value lower than %d for env variable %s, got %d",
+			defaultPersistInterval, persistIntervalEnvironmentVariableName, persistInterval))
+	}
+	stateHook.PersistInterval = time.Duration(persistInterval) * time.Second
 
 	var plan *plans.Plan
 	// If we weren't given a plan, then we refresh/plan
 	if op.PlanFile == nil {
 		// Perform the plan
 		log.Printf("[INFO] backend/local: apply calling Plan")
-		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
+		plan, moreDiags = lr.Core.Plan(ctx, lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			// If OpenTofu Core generated a partial plan despite the errors
@@ -238,7 +270,7 @@ func (b *Local) opApply(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
-		applyState, applyDiags = lr.Core.Apply(plan, lr.Config)
+		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {
@@ -256,7 +288,7 @@ func (b *Local) opApply(
 
 	// Store the final state
 	runningOp.State = applyState
-	err := statemgr.WriteAndPersist(opState, applyState, schemas)
+	err := statemgr.WriteAndPersist(context.TODO(), opState, applyState, schemas)
 	if err != nil {
 		// Export the state file from the state manager and assign the new
 		// state. This is needed to preserve the existing serial and lineage.

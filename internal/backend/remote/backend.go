@@ -19,11 +19,15 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -33,9 +37,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	tfversion "github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 const (
@@ -227,7 +228,7 @@ func (b *Remote) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Remote) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -272,15 +273,18 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 
 	// Discover the service URL for this host to confirm that it provides
 	// a remote backend API and to get the version constraints.
-	service, constraints, err := b.discover(serviceID)
+	service, err := b.discover(serviceID)
 
-	// First check any constraints we might have received.
-	if constraints != nil {
-		diags = diags.Append(b.checkConstraints(constraints))
-		if diags.HasErrors() {
-			return diags
-		}
-	}
+	// Historical note: in OpenTofu's predecessor project there was an
+	// extra step here of checking some metadata returned by the remote
+	// API describing which versions of the predecessor's CLI it considers
+	// itself to be compatible with. Since OpenTofu's version numbers have
+	// little relationship with those of its predecessor, and since this
+	// API is intended for interacting with the commercial service offered
+	// by the predecessor's vendor (so highly unlikely to be set with
+	// OpenTofu's releases in mind) we just skip that here and let the
+	// subsequent requests fail if the remote API isn't compatible with
+	// the current implementation.
 
 	// When we don't have any constraints errors, also check for discovery
 	// errors before we continue.
@@ -388,127 +392,24 @@ func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
 }
 
 // discover the remote backend API service URL and version constraints.
-func (b *Remote) discover(serviceID string) (*url.URL, *disco.Constraints, error) {
+func (b *Remote) discover(serviceID string) (*url.URL, error) {
 	hostname, err := svchost.ForComparison(b.hostname)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	host, err := b.services.Discover(hostname)
+	host, err := b.services.Discover(context.TODO(), hostname)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	service, err := host.ServiceURL(serviceID)
 	// Return the error, unless its a disco.ErrVersionNotSupported error.
 	if _, ok := err.(*disco.ErrVersionNotSupported); !ok && err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// We purposefully ignore the error and return the previous error, as
-	// checking for version constraints is considered optional.
-	constraints, _ := host.VersionConstraints(serviceID, "terraform")
-
-	return service, constraints, err
-}
-
-// checkConstraints checks service version constrains against our own
-// version and returns rich and informational diagnostics in case any
-// incompatibilities are detected.
-func (b *Remote) checkConstraints(c *disco.Constraints) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	if c == nil || c.Minimum == "" || c.Maximum == "" {
-		return diags
-	}
-
-	// Generate a parsable constraints string.
-	excluding := ""
-	if len(c.Excluding) > 0 {
-		excluding = fmt.Sprintf(", != %s", strings.Join(c.Excluding, ", != "))
-	}
-	constStr := fmt.Sprintf(">= %s%s, <= %s", c.Minimum, excluding, c.Maximum)
-
-	// Create the constraints to check against.
-	constraints, err := version.NewConstraint(constStr)
-	if err != nil {
-		return diags.Append(checkConstraintsWarning(err))
-	}
-
-	// Create the version to check.
-	v, err := version.NewVersion(tfversion.Version)
-	if err != nil {
-		return diags.Append(checkConstraintsWarning(err))
-	}
-
-	// Return if we satisfy all constraints.
-	if constraints.Check(v) {
-		return diags
-	}
-
-	// Find out what action (upgrade/downgrade) we should advice.
-	minimum, err := version.NewVersion(c.Minimum)
-	if err != nil {
-		return diags.Append(checkConstraintsWarning(err))
-	}
-
-	maximum, err := version.NewVersion(c.Maximum)
-	if err != nil {
-		return diags.Append(checkConstraintsWarning(err))
-	}
-
-	var excludes []*version.Version
-	for _, exclude := range c.Excluding {
-		v, err := version.NewVersion(exclude)
-		if err != nil {
-			return diags.Append(checkConstraintsWarning(err))
-		}
-		excludes = append(excludes, v)
-	}
-
-	// Sort all the excludes.
-	sort.Sort(version.Collection(excludes))
-
-	var action, toVersion string
-	switch {
-	case minimum.GreaterThan(v):
-		action = "upgrade"
-		toVersion = ">= " + minimum.String()
-	case maximum.LessThan(v):
-		action = "downgrade"
-		toVersion = "<= " + maximum.String()
-	case len(excludes) > 0:
-		// Get the latest excluded version.
-		action = "upgrade"
-		toVersion = "> " + excludes[len(excludes)-1].String()
-	}
-
-	switch {
-	case len(excludes) == 1:
-		excluding = fmt.Sprintf(", excluding version %s", excludes[0].String())
-	case len(excludes) > 1:
-		var vs []string
-		for _, v := range excludes {
-			vs = append(vs, v.String())
-		}
-		excluding = fmt.Sprintf(", excluding versions %s", strings.Join(vs, ", "))
-	default:
-		excluding = ""
-	}
-
-	summary := fmt.Sprintf("Incompatible OpenTofu version v%s", v.String())
-	details := fmt.Sprintf(
-		"The configured remote backend is compatible with OpenTofu "+
-			"versions >= %s, <= %s%s.", c.Minimum, c.Maximum, excluding,
-	)
-
-	if action != "" && toVersion != "" {
-		summary = fmt.Sprintf("Please %s OpenTofu to %s", action, toVersion)
-		details += fmt.Sprintf(" Please %s to a supported version and try again.", action)
-	}
-
-	// Return the customized and informational error message.
-	return diags.Append(tfdiags.Sourceless(tfdiags.Error, summary, details))
+	return service, nil
 }
 
 // token returns the token for this host as configured in the credentials
@@ -519,12 +420,24 @@ func (b *Remote) token() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	creds, err := b.services.CredentialsForHost(hostname)
+	creds, err := b.services.CredentialsForHost(context.TODO(), hostname)
 	if err != nil {
 		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", b.hostname, err)
 		return "", nil
 	}
-	if creds != nil {
+
+	// HostCredentialsWithToken is a variant of [svcauth.HostCredentials]
+	// that also offers direct access to a stored token. This is a weird
+	// need that applies only to this legacy cloud backend since it uses
+	// a client library for a particular vendor's API that isn't designed
+	// to integrate with svcauth. This is a surgical patch to keep this
+	// working similarly to how it did in our predecessor project until
+	// we decide on a more definite future for this backend.
+	type HostCredentialsWithToken interface {
+		svcauth.HostCredentials
+		Token() string
+	}
+	if creds, ok := creds.(HostCredentialsWithToken); ok {
 		return creds.Token(), nil
 	}
 	return "", nil
@@ -556,7 +469,7 @@ func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
 }
 
 // Workspaces implements backend.Enhanced.
-func (b *Remote) Workspaces() ([]string, error) {
+func (b *Remote) Workspaces(context.Context) ([]string, error) {
 	if b.prefix == "" {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
@@ -619,7 +532,7 @@ func (b *Remote) WorkspaceNamePattern() string {
 }
 
 // DeleteWorkspace implements backend.Enhanced.
-func (b *Remote) DeleteWorkspace(name string, _ bool) error {
+func (b *Remote) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -644,11 +557,11 @@ func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 		encryption: b.encryption,
 	}
 
-	return client.Delete()
+	return client.Delete(context.TODO())
 }
 
 // StateMgr implements backend.Enhanced.
-func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
+func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return nil, backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -664,7 +577,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		name = b.prefix + name
 	}
 
-	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
+	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
@@ -680,7 +593,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 			options.TerraformVersion = tfe.String(tfversion.String())
 		}
 
-		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, options)
+		workspace, err = b.client.Workspaces.Create(ctx, b.organization, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating workspace %s: %w", name, err)
 		}
@@ -789,7 +702,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 	op.Workspace = w.Name
 
 	// Determine the function to call for our operation
-	var f func(context.Context, context.Context, *backend.Operation, *tfe.Workspace) (*tfe.Run, error)
+	var f func(context.Context, context.Context, context.Context, *backend.Operation, *tfe.Workspace) (*tfe.Run, error)
 	switch op.Type {
 	case backend.OperationTypePlan:
 		f = b.opPlan
@@ -808,7 +721,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 	b.opLock.Lock()
 
 	// Build our running operation
-	// the runninCtx is only used to block until the operation returns.
+	// the runningCtx is only used to block until the operation returns.
 	runningCtx, done := context.WithCancel(context.Background())
 	runningOp := &backend.RunningOperation{
 		Context:   runningCtx,
@@ -835,7 +748,7 @@ func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend
 
 		defer b.opLock.Unlock()
 
-		r, opErr := f(stopCtx, cancelCtx, op, w)
+		r, opErr := f(ctx, stopCtx, cancelCtx, op, w)
 		if opErr != nil && opErr != context.Canceled {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(opErr)
@@ -901,7 +814,7 @@ func (b *Remote) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe
 			}
 		} else {
 			if b.CLI != nil {
-				// Insert a blank line to separate the ouputs.
+				// Insert a blank line to separate the outputs.
 				b.CLI.Output("")
 			}
 		}
@@ -1068,15 +981,6 @@ func generalError(msg string, err error) error {
 		))
 		return diags.Err()
 	}
-}
-
-func checkConstraintsWarning(err error) tfdiags.Diagnostic {
-	return tfdiags.Sourceless(
-		tfdiags.Warning,
-		fmt.Sprintf("Failed to check version constraints: %v", err),
-		"Checking version constraints is considered optional, but this is an"+
-			"unexpected error which should be reported.",
-	)
 }
 
 // The newline in this error is to make it look good in the CLI!

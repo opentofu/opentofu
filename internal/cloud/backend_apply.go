@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -22,7 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	log.Printf("[INFO] cloud: starting Apply operation")
 
 	var diags tfdiags.Diagnostics
@@ -78,6 +79,14 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 		))
 	}
 
+	if len(op.Excludes) != 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"-exclude option is not supported",
+			"The -exclude option is not currently supported for remote plans.",
+		))
+	}
+
 	// Return if there are any errors.
 	if diags.HasErrors() {
 		return nil, diags.Err()
@@ -129,7 +138,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 	} else {
 		log.Printf("[TRACE] Running new cloud plan for apply")
 		// Run the plan phase.
-		r, err = b.plan(stopCtx, cancelCtx, op, w)
+		r, err = b.plan(ctx, stopCtx, cancelCtx, op, w)
 
 		if err != nil {
 			return r, err
@@ -176,7 +185,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 			return r, errApplyNeedsUIConfirmation
 		} else {
 			// If we don't need to ask for confirmation, insert a blank
-			// line to separate the ouputs.
+			// line to separate the outputs.
 			if b.CLI != nil {
 				b.CLI.Output("")
 			}

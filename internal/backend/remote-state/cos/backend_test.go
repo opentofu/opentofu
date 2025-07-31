@@ -66,7 +66,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestRemoteClientWithPrefix(t *testing.T) {
 	be := setupBackend(t, bucket, prefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -109,7 +109,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, true)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -131,7 +131,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be)
 
 	remoteClient := func() (remote.Client, error) {
-		ss, err := be.StateMgr(backend.DefaultStateName)
+		ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +234,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.putBucket()
+	err = c.putBucket(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -250,7 +250,7 @@ func teardownBackend(t *testing.T, b backend.Backend) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.deleteBucket(true)
+	err = c.deleteBucket(t.Context(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

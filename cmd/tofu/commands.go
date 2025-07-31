@@ -11,16 +11,18 @@ import (
 	"os/signal"
 
 	"github.com/hashicorp/go-plugin"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -60,6 +62,7 @@ func initCommands(
 	streams *terminal.Streams,
 	config *cliconfig.Config,
 	services *disco.Disco,
+	modulePkgFetcher *getmodules.PackageFetcher,
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
@@ -107,6 +110,13 @@ func initCommands(
 		ShutdownCh:    makeShutdownCh(),
 		CallerContext: ctx,
 
+		MakeRegistryHTTPClient: func() *retryablehttp.Client {
+			// This ctx is used only to choose global configuration settings
+			// for the client, and is not retained as part of the result for
+			// making individual HTTP requests.
+			return newRegistryHTTPClient(ctx)
+		},
+		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
@@ -443,14 +453,6 @@ func initCommands(
 		},
 	}
 
-	if meta.AllowExperimentalFeatures {
-		commands["cloud"] = func() (cli.Command, error) {
-			return &command.CloudCommand{
-				Meta: meta,
-			}, nil
-		}
-	}
-
 	primaryCommands = []string{
 		"init",
 		"validate",
@@ -484,7 +486,7 @@ func makeShutdownCh() <-chan struct{} {
 	return resultCh
 }
 
-func credentialsSource(config *cliconfig.Config) (auth.CredentialsSource, error) {
+func credentialsSource(config *cliconfig.Config) (svcauth.CredentialsSource, error) {
 	helperPlugins := pluginDiscovery.FindPlugins("credentials", globalPluginDirs())
 	return config.CredentialsSource(helperPlugins)
 }

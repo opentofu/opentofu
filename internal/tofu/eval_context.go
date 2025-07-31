@@ -6,7 +6,11 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,7 +23,6 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // EvalContext is the interface that is given to eval nodes to execute.
@@ -44,7 +47,7 @@ type EvalContext interface {
 	// It is an error to initialize the same provider more than once. This
 	// method will panic if the module instance address of the given provider
 	// configuration does not match the Path() of the EvalContext.
-	InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error)
+	InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) (providers.Interface, error)
 
 	// Provider gets the provider instance with the given address (already
 	// initialized) or returns nil if the provider isn't initialized.
@@ -53,20 +56,20 @@ type EvalContext interface {
 	// resources in one module are able to use providers from other modules.
 	// InitProvider must've been called on the EvalContext of the module
 	// that owns the given provider before calling this method.
-	Provider(addrs.AbsProviderConfig) providers.Interface
+	Provider(context.Context, addrs.AbsProviderConfig, addrs.InstanceKey) providers.Interface
 
 	// ProviderSchema retrieves the schema for a particular provider, which
 	// must have already been initialized with InitProvider.
 	//
 	// This method expects an _absolute_ provider configuration address, since
 	// resources in one module are able to use providers from other modules.
-	ProviderSchema(addrs.AbsProviderConfig) (providers.ProviderSchema, error)
+	ProviderSchema(context.Context, addrs.AbsProviderConfig) (providers.ProviderSchema, error)
 
 	// CloseProvider closes provider connections that aren't needed anymore.
 	//
 	// This method will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	CloseProvider(addrs.AbsProviderConfig) error
+	CloseProvider(context.Context, addrs.AbsProviderConfig) error
 
 	// ConfigureProvider configures the provider with the given
 	// configuration. This is a separate context call because this call
@@ -75,15 +78,15 @@ type EvalContext interface {
 	//
 	// This method will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	ConfigureProvider(addrs.AbsProviderConfig, cty.Value) tfdiags.Diagnostics
+	ConfigureProvider(context.Context, addrs.AbsProviderConfig, addrs.InstanceKey, cty.Value) tfdiags.Diagnostics
 
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
 	//
 	// These methods will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	ProviderInput(addrs.AbsProviderConfig) map[string]cty.Value
-	SetProviderInput(addrs.AbsProviderConfig, map[string]cty.Value)
+	ProviderInput(context.Context, addrs.AbsProviderConfig) map[string]cty.Value
+	SetProviderInput(context.Context, addrs.AbsProviderConfig, map[string]cty.Value)
 
 	// Provisioner gets the provisioner instance with the given name.
 	Provisioner(string) (provisioners.Interface, error)
@@ -114,7 +117,7 @@ type EvalContext interface {
 	// "dynamic" blocks replaced with zero or more static blocks. This can be
 	// used to extract correct source location information about attributes of
 	// the returned object value.
-	EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics)
+	EvaluateBlock(ctx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics)
 
 	// EvaluateExpr takes the given HCL expression and evaluates it to produce
 	// a value.
@@ -122,16 +125,12 @@ type EvalContext interface {
 	// The "self" argument is optional. If given, it is the referenceable
 	// address that the name "self" should behave as an alias for when
 	// evaluating. Set this to nil if the "self" object should not be available.
-	EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics)
+	EvaluateExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics)
 
 	// EvaluateReplaceTriggeredBy takes the raw reference expression from the
 	// config, and returns the evaluated *addrs.Reference along with a boolean
 	// indicating if that reference forces replacement.
-	EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
-
-	// EvaluateImportAddress takes the raw reference expression of the import address
-	// from the config, and returns the evaluated address addrs.AbsResourceInstance
-	EvaluateImportAddress(expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics)
+	EvaluateReplaceTriggeredBy(ctx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics)
 
 	// EvaluationScope returns a scope that can be used to evaluate reference
 	// addresses in this context.

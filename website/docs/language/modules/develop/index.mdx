@@ -11,9 +11,9 @@ You can use modules to create lightweight abstractions, so that you can
 describe your infrastructure in terms of its architecture, rather than
 directly in terms of physical objects.
 
-The `.tf` files in your working directory when you run [`tofu plan`](../../../cli/commands/plan.mdx)
-or [`tofu apply`](../../../cli/commands/apply.mdx) together form the _root_
-module. That module may [call other modules](../../../language/modules/syntax.mdx#calling-a-child-module)
+The `.tf` and/or `.tofu` files in your working directory when you run
+[`tofu plan`](../../../cli/commands/plan.mdx) or [`tofu apply`](../../../cli/commands/apply.mdx)
+together form the _root_ module. That module may [call other modules](../../../language/modules/syntax.mdx#calling-a-child-module)
 and connect them together by passing output values from one to input values
 of another.
 

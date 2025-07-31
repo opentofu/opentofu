@@ -91,7 +91,7 @@ var currentExperiments = make(Set)
 //
 // After an experiment has been concluded for a whole major release span it can
 // be removed, since we expect users to perform upgrades one major release at
-// at time without skipping and thus they will see the concludedness error
+// a time without skipping and thus they will see the concludedness error
 // message as they upgrade through a prior major version.
 //
 // Members of this map are registered in the init function above.

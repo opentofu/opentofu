@@ -16,7 +16,7 @@ import (
 //
 // See the documentation of MockLauncher itself for more information.
 func NewMockLauncher(ctx context.Context) *MockLauncher {
-	client := httpclient.New()
+	client := httpclient.New(ctx)
 	return &MockLauncher{
 		Client:  client,
 		Context: ctx,
@@ -61,7 +61,7 @@ type MockLauncher struct {
 	// would naturally complete.
 	Context context.Context
 
-	// Responses is a log of all of the responses recieved from the launcher's
+	// Responses is a log of all of the responses received from the launcher's
 	// requests, in the order requested.
 	Responses []*http.Response
 

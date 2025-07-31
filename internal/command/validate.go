@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,8 @@ type ValidateCommand struct {
 }
 
 func (c *ValidateCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
+
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -56,7 +59,10 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 		return view.Results(diags)
 	}
 
-	validateDiags := c.validate(dir, args.TestDirectory, args.NoTests)
+	// Inject variables from args into meta for static evaluation
+	c.GatherVariables(args.Vars)
+
+	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 
 	// Validating with dev overrides in effect means that the result might
@@ -68,14 +74,31 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	return view.Results(diags)
 }
 
-func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Diagnostics {
+func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]rawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = rawFlags{items: &items}
+}
+
+func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var cfg *configs.Config
 
 	if noTests {
-		cfg, diags = c.loadConfig(dir)
+		cfg, diags = c.loadConfig(ctx, dir)
 	} else {
-		cfg, diags = c.loadConfigWithTests(dir, testDir)
+		cfg, diags = c.loadConfigWithTests(ctx, dir, testDir)
 	}
 	if diags.HasErrors() {
 		return diags
@@ -84,7 +107,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 	validate := func(cfg *configs.Config) tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
-		opts, err := c.contextOpts()
+		opts, err := c.contextOpts(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return diags
@@ -96,7 +119,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 			return diags
 		}
 
-		return diags.Append(tfCtx.Validate(cfg))
+		return diags.Append(tfCtx.Validate(ctx, cfg))
 	}
 
 	diags = diags.Append(validate(cfg))
@@ -110,6 +133,9 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 	// We'll also do a quick validation of the OpenTofu test files. These live
 	// outside the OpenTofu graph so we have to do this separately.
 	for _, file := range cfg.Module.Tests {
+
+		diags = diags.Append(file.Validate())
+
 		for _, run := range file.Runs {
 
 			if run.Module != nil {
@@ -173,6 +199,18 @@ Usage: tofu [global options] validate [options]
 
 Options:
 
+  -compact-warnings     If OpenTofu produces any warnings that are not
+                        accompanied by errors, show them in a more compact
+                        form that includes only the summary messages.
+
+  -consolidate-warnings If OpenTofu produces any warnings, no consolidation
+                        will be performed. All locations, for all warnings
+                        will be listed. Enabled by default.
+
+  -consolidate-errors   If OpenTofu produces any errors, no consolidation
+                        will be performed. All locations, for all errors
+                        will be listed. Disabled by default
+
   -json                 Produce output in a machine-readable JSON format, 
                         suitable for use in text editor integrations and other 
                         automated systems. Always disables color.
@@ -184,6 +222,15 @@ Options:
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
                         test command will search for test files in the current directory and
                         in the one specified by the flag.
+
+  -var 'foo=bar'        Set a value for one of the input variables in the root
+                        module of the configuration. Use this option more than
+                        once to set more than one variable.
+
+  -var-file=filename    Load variable values from the given file, in addition
+                        to the default files terraform.tfvars and *.auto.tfvars.
+                        Use this option more than once to include more than one
+                        variables file.
 `
 	return strings.TrimSpace(helpText)
 }

@@ -6,16 +6,20 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Apply performs the actions described by the given Plan object and returns
@@ -26,13 +30,22 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
+	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Apply phase",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.plan.mode", plan.UIMode.UIName()),
+		),
+	)
+	defer span.End()
+
 	if plan.Errored {
-		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Cannot apply failed plan",
@@ -46,21 +59,43 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		// like to show some helpful output that mirrors the way we show other changes.
 		if rc.Importing != nil {
 			for _, h := range c.hooks {
-				// In future, we may need to call PostApplyImport separately elsewhere in the apply
+				// In the future, we may need to call PostApplyImport separately elsewhere in the apply
 				// operation. For now, though, we'll call Pre and Post hooks together.
-				h.PreApplyImport(rc.Addr, *rc.Importing)
-				h.PostApplyImport(rc.Addr, *rc.Importing)
+				_, err := h.PreApplyImport(rc.Addr, *rc.Importing)
+				if err != nil {
+					return nil, diags.Append(err)
+				}
+				_, err = h.PostApplyImport(rc.Addr, *rc.Importing)
+				if err != nil {
+					return nil, diags.Append(err)
+				}
+			}
+		}
+
+		// Following the same logic, we want to show helpful output for forget operations as well.
+		if rc.Action == plans.Forget {
+			for _, h := range c.hooks {
+				_, err := h.PreApplyForget(rc.Addr)
+				if err != nil {
+					return nil, diags.Append(err)
+				}
+				_, err = h.PostApplyForget(rc.Addr)
+				if err != nil {
+					return nil, diags.Append(err)
+				}
 			}
 		}
 	}
 
-	graph, operation, diags := c.applyGraph(plan, config, true)
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
+	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	workingState := plan.PriorState.DeepCopy()
-	walker, walkDiags := c.walk(graph, operation, &graphWalkOpts{
+	walker, walkDiags := c.walk(ctx, graph, operation, &graphWalkOpts{
 		Config:     config,
 		InputState: workingState,
 		Changes:    plan.Changes,
@@ -71,7 +106,8 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		PlanTimeCheckResults: plan.Checks,
 
 		// We also want to propagate the timestamp from the plan file.
-		PlanTimeTimestamp: plan.Timestamp,
+		PlanTimeTimestamp:       plan.Timestamp,
+		ProviderFunctionTracker: providerFunctionTracker,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -90,14 +126,14 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		newState.PruneResourceHusks()
 	}
 
-	if len(plan.TargetAddrs) > 0 {
+	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
 			"Applied changes may be incomplete",
-			`The plan was created with the -target option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
+			`The plan was created with the -target or the -exclude option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
     tofu plan
 	
-Note that the -target option is not suitable for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+Note that the -target and -exclude options are not suitable for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 		))
 	}
 
@@ -119,7 +155,7 @@ Note that the -target option is not suitable for routine use, and is provided on
 	return newState, diags
 }
 
-func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate bool) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables := InputValues{}
@@ -171,16 +207,18 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 	}
 
 	graph, moreDiags := (&ApplyGraphBuilder{
-		Config:             config,
-		Changes:            plan.Changes,
-		State:              plan.PriorState,
-		RootVariableValues: variables,
-		Plugins:            c.plugins,
-		Targets:            plan.TargetAddrs,
-		ForceReplace:       plan.ForceReplaceAddrs,
-		Operation:          operation,
-		ExternalReferences: plan.ExternalReferences,
-	}).Build(addrs.RootModuleInstance)
+		Config:                  config,
+		Changes:                 plan.Changes,
+		State:                   plan.PriorState,
+		RootVariableValues:      variables,
+		Plugins:                 c.plugins,
+		Targets:                 plan.TargetAddrs,
+		Excludes:                plan.ExcludeAddrs,
+		ForceReplace:            plan.ForceReplaceAddrs,
+		Operation:               operation,
+		ExternalReferences:      plan.ExternalReferences,
+		ProviderFunctionTracker: providerFunctionTracker,
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, walkApply, diags
@@ -189,7 +227,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 	return graph, operation, diags
 }
 
-// ApplyGraphForUI is a last vestage of graphs in the public interface of
+// ApplyGraphForUI is a last vestige of graphs in the public interface of
 // Context (as opposed to graphs as an implementation detail) intended only for
 // use by the "tofu graph" command when asked to render an apply-time
 // graph.
@@ -204,7 +242,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(plan, config, false)
+	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, make(ProviderFunctionMapping))
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

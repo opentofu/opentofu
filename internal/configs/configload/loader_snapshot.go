@@ -6,6 +6,7 @@
 package configload
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -15,16 +16,17 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/spf13/afero"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/modsdir"
-	"github.com/spf13/afero"
 )
 
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
-func (l *Loader) LoadConfigWithSnapshot(rootDir string) (*configs.Config, *Snapshot, hcl.Diagnostics) {
-	rootMod, diags := l.parser.LoadConfigDir(rootDir)
+func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
+	rootMod, diags := l.parser.LoadConfigDir(rootDir, call)
 	if rootMod == nil {
 		return nil, nil, diags
 	}
@@ -33,7 +35,7 @@ func (l *Loader) LoadConfigWithSnapshot(rootDir string) (*configs.Config, *Snaps
 		Modules: map[string]*SnapshotModule{},
 	}
 	walker := l.makeModuleWalkerSnapshot(snap)
-	cfg, cDiags := configs.BuildConfig(rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
 	diags = append(diags, cDiags...)
 
 	addDiags := l.addModuleToSnapshot(snap, "", rootDir, "", nil)
@@ -53,7 +55,7 @@ func (l *Loader) LoadConfigWithSnapshot(rootDir string) (*configs.Config, *Snaps
 // filesystem, such as values files. For those, either use a normal loader
 // (created by NewLoader) or use the configs.Parser API directly.
 func NewLoaderFromSnapshot(snap *Snapshot) *Loader {
-	fs := snapshotFS{snap}
+	fs := newSnapshotFS(snap)
 	parser := configs.NewParser(fs)
 
 	ret := &Loader{
@@ -135,8 +137,8 @@ func (s *Snapshot) moduleManifest() modsdir.Manifest {
 // source files from the referenced modules into the given snapshot.
 func (l *Loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
-		func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
-			mod, v, diags := l.moduleWalkerLoad(req)
+		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+			mod, v, diags := l.moduleWalkerLoad(ctx, req)
 			if diags.HasErrors() {
 				return mod, v, diags
 			}
@@ -196,7 +198,7 @@ func (l *Loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sou
 			})
 			continue
 		}
-		snapMod.Files[filepath.Clean(filename)] = src
+		snapMod.Files[filepath.Clean(filename)] = src.Bytes
 	}
 
 	snap.Modules[key] = snapMod
@@ -211,10 +213,27 @@ func (l *Loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sou
 // configuration loader and parser as an implementation detail of creating
 // a loader from a snapshot.
 type snapshotFS struct {
-	snap *Snapshot
+	snap  *Snapshot
+	byDir map[string]*SnapshotModule
 }
 
 var _ afero.Fs = snapshotFS{}
+
+func newSnapshotFS(snap *Snapshot) snapshotFS {
+	// Create an index of directory to module to make Open() constant time
+	// with respect to the number of modules. Previously, Open() would iterate
+	// over every SnapshotModule looking for a matching Dir.
+	// Since we call Open() for every Module, this was quadratic.
+	byDir := make(map[string]*SnapshotModule, len(snap.Modules))
+	for _, candidate := range snap.Modules {
+		byDir[filepath.Clean(candidate.Dir)] = candidate
+	}
+
+	return snapshotFS{
+		snap:  snap,
+		byDir: byDir,
+	}
+}
 
 func (fs snapshotFS) Create(name string) (afero.File, error) {
 	return nil, fmt.Errorf("cannot create file inside configuration snapshot")
@@ -254,33 +273,23 @@ func (fs snapshotFS) Open(name string) (afero.File, error) {
 	// We need to do this first (rather than as part of the next loop below)
 	// because a module in a child directory of another module can otherwise
 	// appear to be a file in that parent directory.
-	for _, candidate := range fs.snap.Modules {
-		modDir := filepath.Clean(candidate.Dir)
-		if modDir == directDir {
-			// We've matched the module directory itself
-			filenames := make([]string, 0, len(candidate.Files))
-			for n := range candidate.Files {
-				filenames = append(filenames, n)
-			}
-			sort.Strings(filenames)
-			return &snapshotDir{
-				filenames: filenames,
-			}, nil
+	if candidate, ok := fs.byDir[directDir]; ok {
+		// We've matched the module directory itself
+		filenames := make([]string, 0, len(candidate.Files))
+		for n := range candidate.Files {
+			filenames = append(filenames, n)
 		}
+		sort.Strings(filenames)
+		return &snapshotDir{
+			filenames: filenames,
+		}, nil
 	}
 
 	// If we get here then the given path isn't a module directory exactly, so
 	// we'll treat it as a file path and try to find a module directory it
 	// could be located in.
-	var modSnap *SnapshotModule
-	for _, candidate := range fs.snap.Modules {
-		modDir := filepath.Clean(candidate.Dir)
-		if modDir == dir {
-			modSnap = candidate
-			break
-		}
-	}
-	if modSnap == nil {
+	modSnap, ok := fs.byDir[dir]
+	if !ok {
 		return nil, os.ErrNotExist
 	}
 

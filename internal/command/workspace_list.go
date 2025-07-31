@@ -21,10 +21,12 @@ type WorkspaceListCommand struct {
 }
 
 func (c *WorkspaceListCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
 	cmdFlags := c.Meta.defaultFlagSet("workspace list")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -39,7 +41,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -47,7 +49,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -55,7 +57,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -67,13 +69,13 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	env, isOverridden := c.WorkspaceOverridden()
+	env, isOverridden := c.WorkspaceOverridden(ctx)
 
 	var out bytes.Buffer
 	for _, s := range states {
@@ -104,10 +106,20 @@ func (c *WorkspaceListCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceListCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] workspace list
+Usage: tofu [global options] workspace list [options]
 
   List OpenTofu workspaces.
 
+Options:
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 	return strings.TrimSpace(helpText)
 }

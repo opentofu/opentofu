@@ -6,6 +6,11 @@
 package refactoring
 
 import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 
@@ -16,7 +21,54 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// Changes line endings from Windows-style ('\r\n') to Unix-style ('\n').
+func normaliseLineEndings(filename string) ([]byte, error) {
+	originalContent, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file %s: %w", filename, err)
+	}
+
+	// Replace all occurrences of '\r\n' with '\n'
+	normalisedContent := bytes.ReplaceAll(originalContent, []byte("\r\n"), []byte("\n"))
+
+	if !bytes.Equal(originalContent, normalisedContent) {
+		err = os.WriteFile(filename, normalisedContent, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("error writing file %s: %w", filename, err)
+		}
+	}
+
+	return originalContent, nil
+}
+
 func TestImpliedMoveStatements(t *testing.T) {
+	// Normalise file content for cross-platform compatibility
+	if runtime.GOOS == "windows" {
+		file1 := "testdata/move-statement-implied/move-statement-implied.tf"
+		file2 := "testdata/move-statement-implied/child/move-statement-implied.tf"
+		originalContent, err := normaliseLineEndings(file1)
+		if err != nil {
+			t.Errorf("Error normalising line endings %v", err)
+		}
+		originalContentChild, err := normaliseLineEndings(file2)
+		if err != nil {
+			t.Errorf("Error normalising line endings %v", err)
+		}
+
+		// Restore original file content after test completion
+		t.Cleanup(func() {
+			err1 := os.WriteFile(file1, originalContent, 0600)
+			if err1 != nil {
+				t.Error()
+			}
+			err = os.WriteFile(file2, originalContentChild, 0600)
+			if err != nil {
+				t.Error()
+			}
+		},
+		)
+	}
+
 	resourceAddr := func(name string) addrs.AbsResource {
 		return addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -47,41 +99,49 @@ func TestImpliedMoveStatements(t *testing.T) {
 			resourceAddr("formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count").Instance(addrs.IntKey(1)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count_explicit").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count_explicit").Instance(addrs.IntKey(1)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_count_explicit").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_for_each_formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_for_each_formerly_no_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 
 		// This "ambiguous" resource is representing a rare but possible
@@ -95,11 +155,13 @@ func TestImpliedMoveStatements(t *testing.T) {
 			resourceAddr("ambiguous").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("ambiguous").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 
 		// Add two resource nested in a module to ensure we find these
@@ -108,11 +170,13 @@ func TestImpliedMoveStatements(t *testing.T) {
 			nestedResourceAddr("child", "formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			nestedResourceAddr("child", "now_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 	})
 
@@ -124,7 +188,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("formerly_count").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: filepath.Join("testdata", "move-statement-implied", "move-statement-implied.tf"),
 				Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 180},
 				End:      tfdiags.SourcePos{Line: 5, Column: 32, Byte: 211},
 			},
@@ -136,7 +200,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(nestedResourceAddr("child", "formerly_count").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/child/move-statement-implied.tf",
+				Filename: filepath.Join("testdata", "move-statement-implied", "child", "move-statement-implied.tf"),
 				Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 180},
 				End:      tfdiags.SourcePos{Line: 5, Column: 32, Byte: 211},
 			},
@@ -147,7 +211,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("now_count").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: filepath.Join("testdata", "move-statement-implied", "move-statement-implied.tf"),
 				Start:    tfdiags.SourcePos{Line: 10, Column: 11, Byte: 282},
 				End:      tfdiags.SourcePos{Line: 10, Column: 12, Byte: 283},
 			},
@@ -159,7 +223,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(nestedResourceAddr("child", "now_count").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/child/move-statement-implied.tf",
+				Filename: filepath.Join("testdata", "move-statement-implied", "child", "move-statement-implied.tf"),
 				Start:    tfdiags.SourcePos{Line: 10, Column: 11, Byte: 282},
 				End:      tfdiags.SourcePos{Line: 10, Column: 12, Byte: 283},
 			},
@@ -175,7 +239,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 			To:      addrs.ImpliedMoveStatementEndpoint(resourceAddr("ambiguous").Instance(addrs.NoKey), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
-				Filename: "testdata/move-statement-implied/move-statement-implied.tf",
+				Filename: filepath.Join("testdata", "move-statement-implied", "move-statement-implied.tf"),
 				Start:    tfdiags.SourcePos{Line: 46, Column: 1, Byte: 806},
 				End:      tfdiags.SourcePos{Line: 46, Column: 27, Byte: 832},
 			},

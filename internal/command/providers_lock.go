@@ -10,11 +10,14 @@ import (
 	"net/url"
 	"os"
 
+	otelAttr "go.opentelemetry.io/otel/attribute"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type providersLockChangeType string
@@ -39,8 +42,13 @@ func (c *ProvidersLockCommand) Synopsis() string {
 }
 
 func (c *ProvidersLockCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
+	defer span.End()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers lock")
+	c.Meta.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	var fsMirrorDir string
 	var netMirrorURL string
@@ -53,6 +61,14 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		return 1
 	}
 
+	span.SetAttributes(otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
+	if fsMirrorDir != "" {
+		span.SetAttributes(otelAttr.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
+	}
+	if netMirrorURL != "" {
+		span.SetAttributes(otelAttr.String("opentofu.provider.lock.netmirror", netMirrorURL))
+	}
+
 	var diags tfdiags.Diagnostics
 
 	if fsMirrorDir != "" && netMirrorURL != "" {
@@ -62,6 +78,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			"The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
 		))
 		c.showDiagnostics(diags)
+		tracing.SetSpanError(span, diags)
 		return 1
 	}
 
@@ -70,6 +87,9 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	var platforms []getproviders.Platform
 	if len(optPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
+		span.SetAttributes(
+			otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
+		)
 	} else {
 		platforms = make([]getproviders.Platform, 0, len(optPlatforms))
 		for _, platformStr := range optPlatforms {
@@ -87,7 +107,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	}
 
 	// Installation steps can be cancelled by SIGINT and similar.
-	ctx, done := c.InterruptibleContext(c.CommandContext())
+	ctx, done := c.InterruptibleContext(ctx)
 	defer done()
 
 	// Unlike other commands, this command ignores the installation methods
@@ -101,7 +121,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	var source getproviders.Source
 	switch {
 	case fsMirrorDir != "":
-		source = getproviders.NewFilesystemMirrorSource(fsMirrorDir)
+		source = getproviders.NewFilesystemMirrorSource(ctx, fsMirrorDir)
 	case netMirrorURL != "":
 		u, err := url.Parse(netMirrorURL)
 		if err != nil || u.Scheme != "https" {
@@ -110,20 +130,26 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				"Invalid network mirror URL",
 				"The -net-mirror option requires a valid https: URL as the mirror base URL.",
 			))
+			tracing.SetSpanError(span, diags)
 			c.showDiagnostics(diags)
 			return 1
 		}
-		source = getproviders.NewHTTPMirrorSource(u, c.Services.CredentialsSource())
+		// For historical reasons, we use the registry client timeout for this
+		// even though this isn't actually a registry. The other behavior of
+		// this client is not suitable for the HTTP mirror source, so we
+		// don't use this client directly.
+		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
+		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout)
 	default:
 		// With no special options we consult upstream registries directly,
 		// because that gives us the most information to produce as complete
 		// and portable as possible a lock entry.
-		source = getproviders.NewRegistrySource(c.Services)
+		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx))
 	}
 
-	config, confDiags := c.loadConfig(".")
+	config, confDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(confDiags)
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, _, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 
 	// If we have explicit provider selections on the command line then
@@ -167,11 +193,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// We'll start our work with whatever locks we already have, so that
 	// we'll honor any existing version selections and just add additional
 	// hashes for them.
-	oldLocks, moreDiags := c.lockedDependencies()
+	oldLocks, moreDiags := c.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(moreDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -205,7 +232,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		evts := &providercache.InstallerEvents{
 			// Our output from this command is minimal just to show that
 			// we're making progress, rather than just silently hanging.
-			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation) {
+			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation, inCacheDirectory bool) {
 				c.Ui.Output(fmt.Sprintf("- Fetching %s %s for %s...", provider.ForDisplay(), version, platform))
 				if prevVersion, exists := selectedVersions[provider]; exists && version != prevVersion {
 					// This indicates a weird situation where we ended up
@@ -234,7 +261,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, auth *getproviders.PackageAuthenticationResult) {
 				var keyID string
 				if auth != nil && auth.Signed() {
-					keyID = auth.KeyID
+					keyID = auth.GPGKeyIDsString()
 				}
 				if keyID != "" {
 					keyID = c.Colorize().Color(fmt.Sprintf(", key ID [reset][bold]%s[reset]", keyID))
@@ -330,7 +357,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		newLocks.SetProvider(provider, version, constraints, hashes)
 	}
 
-	moreDiags = c.replaceLockedDependencies(newLocks)
+	moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 	diags = diags.Append(moreDiags)
 
 	c.showDiagnostics(diags)
@@ -403,6 +430,15 @@ Options:
                      Linux operating system running on an AMD64 or x86_64
                      CPU. Each provider is available only for a limited
                      set of target platforms.
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 }
 

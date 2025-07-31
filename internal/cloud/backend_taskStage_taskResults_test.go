@@ -61,8 +61,7 @@ func newMockIntegrationContext(b *Cloud, t *testing.T) (*IntegrationContext, *te
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	integrationContext := &IntegrationContext{
@@ -156,7 +155,7 @@ func TestCloud_runTasksWithTaskResults(t *testing.T) {
 		trs := taskResultSummarizer{
 			cloud: b,
 		}
-		c.context.Poll(0, 0, func(i int) (bool, error) {
+		err := c.context.Poll(0, 0, func(i int) (bool, error) {
 			cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
 			if cont {
 				return true, nil
@@ -170,5 +169,8 @@ func TestCloud_runTasksWithTaskResults(t *testing.T) {
 			}
 			return false, nil
 		})
+		if err != nil {
+			t.Fatalf("Error while polling: %v", err)
+		}
 	}
 }

@@ -6,12 +6,14 @@
 package remote
 
 import (
+	"context"
 	"log"
 	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/version"
-	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestState_impl(t *testing.T) {
@@ -43,9 +44,15 @@ func TestStateRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.WriteState(current)
-			s.PersistState(nil)
-			s.RefreshState()
+			if err := s.WriteState(current); err != nil {
+				panic(err)
+			}
+			if err := s.PersistState(t.Context(), nil); err != nil {
+				panic(err)
+			}
+			if err := s.RefreshState(t.Context()); err != nil {
+				panic(err)
+			}
 		}()
 	}
 	wg.Wait()
@@ -97,8 +104,9 @@ func TestStatePersist(t *testing.T) {
 						Status: states.ObjectReady,
 					},
 					addrs.AbsProviderConfig{
-						Provider: tfaddr.Provider{Namespace: "local"},
+						Provider: regaddr.Provider{Namespace: "local"},
 					},
+					addrs.NoKey,
 				)
 				return s, func() {}
 			},
@@ -234,7 +242,7 @@ func TestStatePersist(t *testing.T) {
 			name: "add output to state",
 			mutationFunc: func(mgr *State) (*states.State, func()) {
 				s := mgr.State()
-				s.RootModule().SetOutputValue("foo", cty.StringVal("bar"), false)
+				s.RootModule().SetOutputValue("foo", cty.StringVal("bar"), false, "")
 				return s, func() {}
 			},
 			expectedRequests: []mockClientRequest{
@@ -262,7 +270,7 @@ func TestStatePersist(t *testing.T) {
 			name: "mutate state bar -> baz",
 			mutationFunc: func(mgr *State) (*states.State, func()) {
 				s := mgr.State()
-				s.RootModule().SetOutputValue("foo", cty.StringVal("baz"), false)
+				s.RootModule().SetOutputValue("foo", cty.StringVal("baz"), false, "")
 				return s, func() {}
 			},
 			expectedRequests: []mockClientRequest{
@@ -335,7 +343,7 @@ func TestStatePersist(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -356,7 +364,7 @@ func TestStatePersist(t *testing.T) {
 			if err := mgr.WriteState(s); err != nil {
 				t.Fatalf("failed to WriteState for %q: %s", tc.name, err)
 			}
-			if err := mgr.PersistState(nil); err != nil {
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
 				t.Fatalf("failed to PersistState for %q: %s", tc.name, err)
 			}
 
@@ -405,7 +413,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 		encryption.StateEncryptionDisabled(),
 	)
 
-	outputs, err := mgr.GetRootOutputValues()
+	outputs, err := mgr.GetRootOutputValues(t.Context())
 	if err != nil {
 		t.Errorf("Expected GetRootOutputValues to not return an error, but it returned %v", err)
 	}
@@ -521,7 +529,7 @@ func TestWriteStateForMigration(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -560,8 +568,12 @@ func TestWriteStateForMigration(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			if err := mgr.WriteState(mgr.State()); err != nil {
+				t.Fatal(err)
+			}
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
+				t.Fatal(err)
+			}
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))
@@ -678,7 +690,7 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -727,8 +739,12 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			if err := mgr.WriteState(mgr.State()); err != nil {
+				t.Fatal(err)
+			}
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
+				t.Fatal(err)
+			}
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))
@@ -744,5 +760,106 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 	logCnt := len(mockClient.log)
 	if logIdx != logCnt {
 		log.Fatalf("not all requests were read. Expected logIdx to be %d but got %d", logCnt, logIdx)
+	}
+}
+
+// mockOptionalClientLocker is a mock implementation of a client that supports optional locking.
+type mockOptionalClientLocker struct {
+	*mockClient         // Embedded mock client that simulates basic client behavior.
+	lockingEnabled bool // A flag indicating whether locking is enabled or disabled.
+}
+
+type mockClientLocker struct {
+	*mockClient // Embedded mock client that simulates basic client behavior.
+}
+
+// Implement the mock Lock method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) Lock(_ context.Context, _ *statemgr.LockInfo) (string, error) {
+	return "", nil
+}
+
+// Implement the mock Unlock method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) Unlock(_ context.Context, _ string) error {
+	// Provide a simple implementation
+	return nil
+}
+
+// Implement the mock IsLockingEnabled method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) IsLockingEnabled() bool {
+	return c.lockingEnabled
+}
+
+// Implement the mock Lock method for mockClientLocker
+func (c *mockClientLocker) Lock(_ context.Context, _ *statemgr.LockInfo) (string, error) {
+	return "", nil
+}
+
+// Implement the mock Unlock method for mockClientLocker
+func (c *mockClientLocker) Unlock(_ context.Context, _ string) error {
+	return nil
+}
+
+// Check for interface compliance
+var _ OptionalClientLocker = &mockOptionalClientLocker{}
+var _ ClientLocker = &mockClientLocker{}
+
+// Tests whether the IsLockingEnabled method returns the expected values based on the backend.
+func TestState_IsLockingEnabled(t *testing.T) {
+	tests := []struct {
+		name         string
+		disableLocks bool
+		client       Client
+		wantResult   bool
+	}{
+		{
+			name:         "disableLocks is true",
+			disableLocks: true,
+			client:       &mockClient{},
+			wantResult:   false,
+		},
+		{
+			name:         "OptionalClientLocker with IsLockingEnabled() == true",
+			disableLocks: false,
+			client: &mockOptionalClientLocker{
+				mockClient:     &mockClient{},
+				lockingEnabled: true,
+			},
+			wantResult: true,
+		},
+		{
+			name:         "OptionalClientLocker with IsLockingEnabled() == false",
+			disableLocks: false,
+			client: &mockOptionalClientLocker{
+				mockClient:     &mockClient{},
+				lockingEnabled: false,
+			},
+			wantResult: false,
+		},
+		{
+			name:         "ClientLocker without OptionalClientLocker",
+			disableLocks: false,
+			client: &mockClientLocker{
+				mockClient: &mockClient{},
+			},
+			wantResult: true,
+		},
+		{
+			name:         "Client without any locking",
+			disableLocks: false,
+			client:       &mockClient{},
+			wantResult:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewState(tt.client, encryption.StateEncryptionDisabled())
+			s.disableLocks = tt.disableLocks
+
+			gotResult := s.IsLockingEnabled()
+			if gotResult != tt.wantResult {
+				t.Errorf("IsLockingEnabled() = %v; want %v", gotResult, tt.wantResult)
+			}
+		})
 	}
 }

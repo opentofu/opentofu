@@ -6,7 +6,6 @@
 package providercache
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -44,7 +43,7 @@ func TestInstallPackage(t *testing.T) {
 		Location: getproviders.PackageLocalArchive("testdata/provider-null_2.1.0_linux_amd64.zip"),
 	}
 
-	result, err := tmpDir.InstallPackage(context.TODO(), meta, nil)
+	result, err := tmpDir.InstallPackage(t.Context(), meta, nil, false)
 	if err != nil {
 		t.Fatalf("InstallPackage failed: %s", err)
 	}
@@ -122,7 +121,7 @@ func TestLinkFromOtherCache(t *testing.T) {
 		t.Fatalf("null provider has no latest version in source directory")
 	}
 
-	err = tmpDir.LinkFromOtherCache(cacheEntry, nil)
+	err = tmpDir.LinkFromOtherCache(t.Context(), cacheEntry, nil)
 	if err != nil {
 		t.Fatalf("LinkFromOtherCache failed: %s", err)
 	}

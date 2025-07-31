@@ -84,7 +84,7 @@ type connectionInfo struct {
 }
 
 // decodeConnInfo decodes the given cty.Value using the same behavior as the
-// lgeacy mapstructure decoder in order to preserve as much of the existing
+// legacy mapstructure decoder in order to preserve as much of the existing
 // logic as possible for compatibility.
 func decodeConnInfo(v cty.Value) (*connectionInfo, error) {
 	connInfo := &connectionInfo{}
@@ -345,10 +345,12 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 		// we mark this as a CA as well, but the host key fallback will still
 		// use it as a direct match if the remote host doesn't return a
 		// certificate.
-		if _, err := tf.WriteString(fmt.Sprintf("@cert-authority %s %s\n", opts.host, opts.hostKey)); err != nil {
+		if _, err := fmt.Fprintf(tf, "@cert-authority %s %s\n", opts.host, opts.hostKey); err != nil {
 			return nil, fmt.Errorf("failed to write temp known_hosts file: %w", err)
 		}
-		tf.Sync()
+		if err := tf.Sync(); err != nil {
+			return nil, err
+		}
 
 		hkCallback, err = knownhosts.New(tf.Name())
 		if err != nil {

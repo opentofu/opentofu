@@ -47,20 +47,17 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func testModule(t *testing.T, name string) *configs.Config {
+func testModule(t testing.TB, name string) *configs.Config {
 	t.Helper()
 	c, _ := testModuleWithSnapshot(t, name)
 	return c
 }
 
-func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *configload.Snapshot) {
+func testModuleWithSnapshot(t testing.TB, name string) (*configs.Config, *configload.Snapshot) {
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// We need to be able to exercise experimental features in our integration tests.
 	loader.AllowLanguageExperiments(true)
@@ -68,8 +65,8 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
-	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{})
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
+	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
@@ -80,7 +77,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir)
+	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -90,7 +87,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 
 // testModuleInline takes a map of path -> config strings and yields a config
 // structure with those files loaded from disk
-func testModuleInline(t *testing.T, sources map[string]string) *configs.Config {
+func testModuleInline(t testing.TB, sources map[string]string) *configs.Config {
 	t.Helper()
 
 	cfgPath := t.TempDir()
@@ -116,8 +113,7 @@ func testModuleInline(t *testing.T, sources map[string]string) *configs.Config {
 		}
 	}
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 
 	// We need to be able to exercise experimental features in our integration tests.
 	loader.AllowLanguageExperiments(true)
@@ -125,8 +121,8 @@ func testModuleInline(t *testing.T, sources map[string]string) *configs.Config {
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
-	_, instDiags := inst.InstallModules(context.Background(), cfgPath, "tests", true, false, initwd.ModuleInstallHooksImpl{})
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
+	_, instDiags := inst.InstallModules(context.Background(), cfgPath, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
@@ -137,7 +133,7 @@ func testModuleInline(t *testing.T, sources map[string]string) *configs.Config {
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, diags := loader.LoadConfigWithTests(cfgPath, "tests")
+	config, diags := loader.LoadConfigWithTests(t.Context(), cfgPath, "tests", configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -155,6 +151,7 @@ func testSetResourceInstanceCurrent(module *states.Module, resource, attrsJson, 
 			AttrsJSON: []byte(attrsJson),
 		},
 		mustProviderConfig(provider),
+		addrs.NoKey,
 	)
 }
 
@@ -168,6 +165,7 @@ func testSetResourceInstanceTainted(module *states.Module, resource, attrsJson, 
 			AttrsJSON: []byte(attrsJson),
 		},
 		mustProviderConfig(provider),
+		addrs.NoKey,
 	)
 }
 

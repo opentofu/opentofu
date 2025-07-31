@@ -39,7 +39,7 @@ type InputValue struct {
 	//
 	// If a particular variable declared in the root module is _not_ set by
 	// the user then the caller must still provide an InputValue for it but
-	// must set Value to cty.NilVal to represent the absense of a value.
+	// must set Value to cty.NilVal to represent the absence of a value.
 	// This requirement is to help detect situations where the caller isn't
 	// correctly detecting and handling all of the declared variables.
 	//
@@ -117,13 +117,13 @@ func (v *InputValue) GoString() string {
 	}
 }
 
-// HasSourceRange returns true if the reciever has a source type for which
+// HasSourceRange returns true if the receiver has a source type for which
 // we expect the SourceRange field to be populated with a valid range.
 func (v *InputValue) HasSourceRange() bool {
 	return v.SourceType.HasSourceRange()
 }
 
-// HasSourceRange returns true if the reciever is one of the source types
+// HasSourceRange returns true if the receiver is one of the source types
 // that is used along with a valid SourceRange field when appearing inside an
 // InputValue object.
 func (v ValueSourceType) HasSourceRange() bool {
@@ -191,7 +191,7 @@ func (vv InputValues) JustValues() map[string]cty.Value {
 }
 
 // SameValues returns true if the given InputValues has the same values as
-// the receiever, disregarding the source types and source ranges.
+// the receiver, disregarding the source types and source ranges.
 //
 // Values are compared using the cty "RawEquals" method, which means that
 // unknown values can be considered equal to one another if they are of the
@@ -214,7 +214,7 @@ func (vv InputValues) SameValues(other InputValues) bool {
 	return true
 }
 
-// HasValues returns true if the reciever has the same values as in the given
+// HasValues returns true if the receiver has the same values as in the given
 // map, disregarding the source types and source ranges.
 //
 // Values are compared using the cty "RawEquals" method, which means that

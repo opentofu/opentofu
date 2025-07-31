@@ -1576,7 +1576,68 @@ func TestValue_Outputs(t *testing.T) {
 	}
 
 	for name, tc := range tcs {
+		// Let's set some default values on the input.
+		if tc.input.RelevantAttributes == nil {
+			tc.input.RelevantAttributes = attribute_path.AlwaysMatcher()
+		}
+		if tc.input.ReplacePaths == nil {
+			tc.input.ReplacePaths = &attribute_path.PathMatcher{}
+		}
 
+		t.Run(name, func(t *testing.T) {
+			tc.validateDiff(t, ComputeDiffForOutput(tc.input))
+		})
+	}
+}
+
+func TestValue_MultilineStringsInList(t *testing.T) {
+	// This function tests that multiline strings in lists are handled correctly
+	// by the diff renderer.
+
+	tcs := map[string]struct {
+		input        structured.Change
+		validateDiff renderers.ValidateDiffFunction
+	}{
+		"multiline_string_list_update": {
+			input: structured.Change{
+				Before: []interface{}{
+					"line1\nline2",
+					"line1",
+				},
+				After: []interface{}{
+					"line1\nline2+",
+					"line1\nline2",
+				},
+			},
+			validateDiff: renderers.ValidateList([]renderers.ValidateDiffFunction{
+				renderers.ValidatePrimitive("line1\nline2", "line1\nline2+", plans.Update, false),
+				renderers.ValidatePrimitive("line1", "line1\nline2", plans.Update, false),
+			}, plans.Update, false),
+		},
+		"multiline_string_list_update_2": {
+			input: structured.Change{
+				Before: []interface{}{
+					"unchanged line",
+					"deleted line",
+					"line1\nline2",
+					"line1",
+				},
+				After: []interface{}{
+					"unchanged line",
+					"line1\nline2+",
+					"line1\nline2",
+				},
+			},
+			validateDiff: renderers.ValidateList([]renderers.ValidateDiffFunction{
+				renderers.ValidatePrimitive("unchanged line", "unchanged line", plans.NoOp, false),
+				renderers.ValidatePrimitive("deleted line", nil, plans.Delete, false),
+				renderers.ValidatePrimitive("line1\nline2", "line1\nline2+", plans.Update, false),
+				renderers.ValidatePrimitive("line1", "line1\nline2", plans.Update, false),
+			}, plans.Update, false),
+		},
+	}
+
+	for name, tc := range tcs {
 		// Let's set some default values on the input.
 		if tc.input.RelevantAttributes == nil {
 			tc.input.RelevantAttributes = attribute_path.AlwaysMatcher()
@@ -2191,7 +2252,6 @@ func TestValue_CollectionAttributes(t *testing.T) {
 	}
 
 	for name, tc := range tcs {
-
 		// Let's set some default values on the input.
 		if tc.input.RelevantAttributes == nil {
 			tc.input.RelevantAttributes = attribute_path.AlwaysMatcher()
@@ -2853,6 +2913,90 @@ func TestSpecificCases(t *testing.T) {
 				}, plans.Update, false),
 			}, nil, nil, nil, nil, plans.Update, false),
 		},
+		// Following tests are from issue 1805. https://github.com/opentofu/opentofu/issues/1805.
+		// The issue is about handling unknown dynamic nested blocks. In these cases unknown nested blocks are
+		// not shown at all but they should be listed as unknown in the diff.
+		"issues/1805/create_with_unknown_dynamic_nested_block": {
+			input: structured.Change{
+				Before: nil,
+				After: map[string]interface{}{
+					"attribute_one": "test",
+				},
+				Unknown: map[string]interface{}{
+					"nested_unknown_block": true,
+				},
+				ReplacePaths:       &attribute_path.PathMatcher{},
+				RelevantAttributes: attribute_path.AlwaysMatcher(),
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"attribute_one": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_unknown_block": {
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"attribute_two": {
+									AttributeType: unmarshalType(t, cty.String),
+								},
+							},
+						},
+						NestingMode: "single",
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"attribute_one": renderers.ValidatePrimitive(nil, "test", plans.Create, false),
+			}, map[string]renderers.ValidateDiffFunction{
+				"nested_unknown_block": renderers.ValidateUnknown(nil, plans.Create, false),
+			}, nil, nil, nil, plans.Create, false),
+		},
+		"issues/1805/update_with_unknown_dynamic_nested_block": {
+			input: structured.Change{
+				Before: map[string]interface{}{
+					"attribute_one": "before_value_attr_1",
+					"attribute_two": "before_value_attr_2",
+				},
+				After: map[string]interface{}{
+					"attribute_one": "after_value_attr_1",
+				},
+				Unknown: map[string]interface{}{
+					"nested_unknown_block": true,
+				},
+				ReplacePaths:       &attribute_path.PathMatcher{},
+				RelevantAttributes: attribute_path.AlwaysMatcher(),
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"attribute_one": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+					"attribute_two": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_unknown_block": {
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"attribute_two": {
+									AttributeType: unmarshalType(t, cty.String),
+								},
+							},
+						},
+						NestingMode: "single",
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"attribute_one": renderers.ValidatePrimitive("before_value_attr_1", "after_value_attr_1", plans.Update, false),
+				"attribute_two": renderers.ValidatePrimitive("before_value_attr_2", nil, plans.Delete, false),
+			}, map[string]renderers.ValidateDiffFunction{
+				"nested_unknown_block": renderers.ValidateUnknown(nil, plans.Create, false),
+			}, nil, nil, nil, plans.Update, false),
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -2880,7 +3024,6 @@ func wrapChangeInSlice(input structured.Change) structured.Change {
 		case nil:
 			if set, ok := unknown.(bool); (set && ok) || explicit {
 				return []interface{}{nil}
-
 			}
 			return []interface{}{}
 		default:
@@ -2911,7 +3054,6 @@ func wrapChangeInMap(input structured.Change) structured.Change {
 }
 
 func wrapChange(input structured.Change, step interface{}, wrap func(interface{}, interface{}, bool) interface{}) structured.Change {
-
 	replacePaths := &attribute_path.PathMatcher{}
 	for _, path := range input.ReplacePaths.(*attribute_path.PathMatcher).Paths {
 		var updated []interface{}
@@ -2925,7 +3067,6 @@ func wrapChange(input structured.Change, step interface{}, wrap func(interface{}
 	// those as well.
 	relevantAttributes := input.RelevantAttributes
 	if concrete, ok := relevantAttributes.(*attribute_path.PathMatcher); ok {
-
 		newRelevantAttributes := &attribute_path.PathMatcher{}
 		for _, path := range concrete.Paths {
 			var updated []interface{}

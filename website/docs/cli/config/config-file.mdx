@@ -20,14 +20,14 @@ on the host operating system:
   in the relevant user's `%APPDATA%` directory. The physical location
   of this directory depends on your Windows version and system configuration;
   use `$env:APPDATA` in PowerShell to find its location on your system.
-  The `terraform.rc` is supported for backward-compatability purposes.
+  The `terraform.rc` is supported for backward-compatibility purposes.
   If both `terraform.rc` and `tofu.rc` files exists, the later would take precedence.
 * On all other systems, the file must be named `.tofurc` (note
   the leading period) and placed directly in the home directory
   of the relevant user or be named `tofurc` and placed in a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   config directory such as `$XDG_CONFIG_HOME/opentofu`.
-  The `.terraformrc` is supported for backward-compatability purposes.
+  The `.terraformrc` is supported for backward-compatibility purposes.
   If both `.terraformrc` and `.tofurc` files exists, the latter would take precedence.
   When using an XDG config directory `.terraformrc` and `terraformrc` are ignored.
 
@@ -43,8 +43,8 @@ Any such file should follow the naming pattern `*.tfrc`.
 
 ## Configuration File Syntax
 
-The configuration file uses the same _HCL_ syntax as `.tf` files, but with
-different attributes and blocks. The following example illustrates the
+The configuration file uses the same _HCL_ syntax as `.tf` and `.tofu` files,
+but with different attributes and blocks. The following example illustrates the
 general syntax; see the following section for information on the meaning
 of each of these settings:
 
@@ -62,6 +62,10 @@ The following settings can be set in the CLI configuration file:
 * `credentials_helper` - configures an external helper program for the storage
   and retrieval of credentials for cloud backends.
   See [Credentials Helpers](#credentials-helpers) below for more information.
+
+* `oci_credentials` and `default_oci_credentials` - configures credentials for
+  interacting with an OCI Registry. Refer to
+  [OCI Registry Credentials](../oci_registries/credentials.mdx) for more information.
 
 * `plugin_cache_dir` — enables
   [plugin caching](#provider-plugin-cache)
@@ -94,6 +98,10 @@ giving the API token to use for that host.
 The credentials hostname must match the hostname in your module
 sources and/or backend configuration.
 :::
+
+`credentials` blocks are used only for OpenTofu-specific protocols. You can
+configure credentials for OCI Registries using `oci_credentials` blocks,
+as described in [OCI Registry Credentials](../oci_registries/credentials.mdx).
 
 ### Environment Variable Credentials
 
@@ -248,6 +256,16 @@ The following are the supported installation method types:
   which is designed to be relatively easy to implement using typical static
   website hosting mechanisms.
 
+* `oci_mirror`: map provider source addresses into OCI repository addresses,
+  regardless of which registry host they belong to, and then retrieve them
+  using the OCI Distribution protocol.
+
+  This is similar to `network_mirror`, but uses the industry-standard OCI
+  registry protocol instead of the OpenTofu-specific provider network
+  mirror protocol to allow you to reuse a pre-existing OCI registry service.
+
+  For more information, refer to [Provider Mirrors in OCI Registries](../oci_registries/provider-mirror.mdx).
+
 :::warning
 Don't configure `network_mirror` URLs that you do not trust.
 Provider mirror servers are subject to TLS certificate checks to verify
@@ -357,9 +375,9 @@ been placed there. Over time, as plugins are upgraded, the cache directory may
 grow to contain several unused versions which you must delete manually.
 
 :::note
-The plugin cache directory is not guaranteed to be concurrency
-safe. The provider installer's behavior in environments with multiple `tofu
-init` calls is undefined.
+The plugin cache directory makes a best effort to be concurrency
+safe. It uses standard file locking practices (fnctl flock or LockFileEx),
+which have different guarantees depending on Operating System and filesystem.
 :::
 
 ### Allowing the Provider Plugin Cache to break the dependency lock file

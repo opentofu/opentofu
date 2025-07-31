@@ -44,15 +44,6 @@ func testAccAzureBackendRunningInAzure(t *testing.T) {
 	}
 }
 
-// these kind of tests can only run when within GitHub Actions (e.g. OIDC)
-func testAccAzureBackendRunningInGitHubActions(t *testing.T) {
-	testAccAzureBackend(t)
-
-	if os.Getenv("TF_RUNNING_IN_GITHUB_ACTIONS") == "" {
-		t.Skip("Skipping test since not running in GitHub Actions")
-	}
-}
-
 func buildTestClient(t *testing.T, res resourceNames) *ArmClient {
 	subscriptionID := os.Getenv("ARM_SUBSCRIPTION_ID")
 	tenantID := os.Getenv("ARM_TENANT_ID")
@@ -87,7 +78,7 @@ func buildTestClient(t *testing.T, res resourceNames) *ArmClient {
 	// Endpoint is optional (only for Stack)
 	endpoint := os.Getenv("ARM_ENDPOINT")
 
-	armClient, err := buildArmClient(context.TODO(), BackendConfig{
+	armClient, err := buildArmClient(t.Context(), BackendConfig{
 		SubscriptionID:                subscriptionID,
 		TenantID:                      tenantID,
 		ClientID:                      clientID,
@@ -154,14 +145,15 @@ func testResourceNames(rString string, keyName string) resourceNames {
 	}
 }
 
-func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames) error {
-	log.Printf("Creating Resource Group %q", names.resourceGroup)
+func (c *ArmClient) buildTestResources(t *testing.T, ctx context.Context, names *resourceNames) error {
+	t.Helper()
+	t.Logf("Creating Resource Group %q", names.resourceGroup)
 	_, err := c.groupsClient.CreateOrUpdate(ctx, names.resourceGroup, resources.Group{Location: &names.location})
 	if err != nil {
 		return fmt.Errorf("failed to create test resource group: %w", err)
 	}
 
-	log.Printf("Creating Storage Account %q in Resource Group %q", names.storageAccountName, names.resourceGroup)
+	t.Logf("Creating Storage Account %q in Resource Group %q", names.storageAccountName, names.resourceGroup)
 	storageProps := armStorage.AccountCreateParameters{
 		Sku: &armStorage.Sku{
 			Name: armStorage.StandardLRS,
@@ -189,7 +181,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 	if names.useAzureADAuth {
 		containersClient.Client.Authorizer = *c.azureAdStorageAuth
 	} else {
-		log.Printf("fetching access key for storage account")
+		t.Logf("fetching access key for storage account")
 		resp, err := c.storageAccountsClient.ListKeys(ctx, names.resourceGroup, names.storageAccountName, "")
 		if err != nil {
 			return fmt.Errorf("failed to list storage account keys %w:", err)
@@ -207,7 +199,7 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 		containersClient.Client.Authorizer = storageAuth
 	}
 
-	log.Printf("Creating Container %q in Storage Account %q (Resource Group %q)", names.storageContainerName, names.storageAccountName, names.resourceGroup)
+	t.Logf("Creating Container %q in Storage Account %q (Resource Group %q)", names.storageContainerName, names.storageAccountName, names.resourceGroup)
 	_, err = containersClient.Create(ctx, names.storageAccountName, names.storageContainerName, containers.CreateInput{})
 	if err != nil {
 		return fmt.Errorf("failed to create storage container: %w", err)
@@ -216,14 +208,15 @@ func (c *ArmClient) buildTestResources(ctx context.Context, names *resourceNames
 	return nil
 }
 
-func (c ArmClient) destroyTestResources(ctx context.Context, resources resourceNames) error {
-	log.Printf("[DEBUG] Deleting Resource Group %q..", resources.resourceGroup)
+func (c ArmClient) destroyTestResources(t *testing.T, ctx context.Context, resources resourceNames) error {
+	t.Helper()
+	t.Logf("[DEBUG] Deleting Resource Group %q..", resources.resourceGroup)
 	future, err := c.groupsClient.Delete(ctx, resources.resourceGroup)
 	if err != nil {
 		return fmt.Errorf("Error deleting Resource Group: %w", err)
 	}
 
-	log.Printf("[DEBUG] Waiting for deletion of Resource Group %q..", resources.resourceGroup)
+	t.Logf("[DEBUG] Waiting for deletion of Resource Group %q..", resources.resourceGroup)
 	err = future.WaitForCompletionRef(ctx, c.groupsClient.Client)
 	if err != nil {
 		return fmt.Errorf("Error waiting for the deletion of Resource Group: %w", err)

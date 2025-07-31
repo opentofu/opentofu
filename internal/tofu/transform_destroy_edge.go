@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -46,7 +47,7 @@ type GraphNodeCreator interface {
 type DestroyEdgeTransformer struct {
 	// FIXME: GraphNodeCreators are not always applying changes, and should not
 	// participate in the destroy graph if there are no operations which could
-	// interract with destroy nodes. We need Changes for now to detect the
+	// interact with destroy nodes. We need Changes for now to detect the
 	// action type, but perhaps this should be indicated somehow by the
 	// DiffTransformer which was intended to be the only transformer operating
 	// from the change set.
@@ -101,19 +102,14 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// description of the provider being used to help determine if 2 nodes are
 	// from the same provider instance.
 	getComparableProvider := func(pc GraphNodeProviderConsumer) string {
-		ps := pc.Provider().String()
-
-		// we don't care about `exact` here, since we're only looking for any
-		// clue that the providers may differ.
-		p, _ := pc.ProvidedBy()
-		switch p := p.(type) {
+		p := pc.ProvidedBy()
+		switch p := p.ProviderConfig.(type) {
 		case addrs.AbsProviderConfig:
-			ps = p.String()
+			return p.String()
 		case addrs.LocalProviderConfig:
-			ps = p.String()
+			return p.String()
 		}
-
-		return ps
+		return pc.Provider().String()
 	}
 
 	pc, ok := from.(GraphNodeProviderConsumer)
@@ -138,7 +134,7 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	}
 }
 
-func (t *DestroyEdgeTransformer) Transform(g *Graph) error {
+func (t *DestroyEdgeTransformer) Transform(_ context.Context, g *Graph) error {
 	// Build a map of what is being destroyed (by address string) to
 	// the list of destroyers.
 	destroyers := make(map[string][]GraphNodeDestroyer)
@@ -288,7 +284,7 @@ type pruneUnusedNodesTransformer struct {
 	skip bool
 }
 
-func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
+func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.skip {
 		return nil
 	}
@@ -331,8 +327,8 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 					// instances may need to be evaluated.
 					for _, v := range g.UpEdges(n) {
 						switch v.(type) {
-						case graphNodeExpandsInstances:
-							// Root module output values (which the following
+						case graphNodeExpandsInstances, GraphNodeDynamicExpandable:
+							// Root module output values or checks (which the following
 							// condition matches) are exempt because we know
 							// there is only ever exactly one instance of the
 							// root module, and so it's not actually important
@@ -359,10 +355,14 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 					// earlier, however there may be more to prune now based on
 					// targeting or a destroy with no related instances in the
 					// state.
+					// TODO: consider replacing this with an actual "references" check instead of the simple type check below.
+					// Due to provider functions, many provider references through GraphNodeReferencer still are required.
 					des, _ := g.Descendents(n)
 					for _, v := range des {
 						switch v.(type) {
 						case GraphNodeProviderConsumer:
+							return
+						case GraphNodeReferencer:
 							return
 						}
 					}
@@ -379,6 +379,10 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 				last := len(nodes) - 1
 				nodes[i], nodes[last] = nodes[last], nodes[i]
 				nodes = nodes[:last]
+
+				// Now that we have shifted the next element into the i'th position, we need to re-inspect
+				// the value at index i
+				i -= 1
 			}()
 		}
 	}

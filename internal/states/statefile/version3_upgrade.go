@@ -22,7 +22,6 @@ import (
 )
 
 func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
-
 	if old.Serial < 0 {
 		// The new format is using uint64 here, which should be fine for any
 		// real state (we only used positive integers in practice) but we'll
@@ -177,12 +176,12 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				}
 
 				rs = &resourceStateV4{
-					Module:         moduleAddr.String(),
-					Mode:           modeStr,
-					Type:           resAddr.Type,
-					Name:           resAddr.Name,
-					Instances:      []instanceObjectStateV4{},
-					ProviderConfig: providerAddr.LegacyString(),
+					Module:           moduleAddr.String(),
+					Mode:             modeStr,
+					Type:             resAddr.Type,
+					Name:             resAddr.Name,
+					Instances:        []instanceObjectStateV4{},
+					ProviderInstance: providerAddr.LegacyString(),
 				}
 				resourceStates[resAddr.String()] = rs
 			}
@@ -272,8 +271,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 	return new, nil
 }
 
-func upgradeInstanceObjectV3ToV4(rsOld *resourceStateV2, isOld *instanceStateV2, instKey addrs.InstanceKey, deposedKey states.DeposedKey) (*instanceObjectStateV4, error) {
-
+func upgradeInstanceObjectV3ToV4(_ *resourceStateV2, isOld *instanceStateV2, instKey addrs.InstanceKey, deposedKey states.DeposedKey) (*instanceObjectStateV4, error) {
 	// Schema versions were, in prior formats, a private concern of the provider
 	// SDK, and not a first-class concept in the state format. Here we're
 	// sniffing for the pre-0.12 SDK's way of representing schema versions

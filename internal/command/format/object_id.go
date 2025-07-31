@@ -78,7 +78,7 @@ func ObjectValueID(obj cty.Value) (k, v string) {
 //
 // Callers that use both ObjectValueName and ObjectValueID at the same time
 // should be prepared to get the same attribute key and value from both in
-// some cases, since there is overlap betweek the id-extraction and
+// some cases, since there is overlap between the id-extraction and
 // name-extraction heuristics.
 //
 // This function will panic if the given value is not of an object type.

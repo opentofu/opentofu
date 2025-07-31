@@ -6,6 +6,8 @@
 package statemgr
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -19,30 +21,32 @@ type LockDisabled struct {
 	Inner Full
 }
 
+var _ Full = (*LockDisabled)(nil)
+
 func (s *LockDisabled) State() *states.State {
 	return s.Inner.State()
 }
 
-func (s *LockDisabled) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	return s.Inner.GetRootOutputValues()
+func (s *LockDisabled) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+	return s.Inner.GetRootOutputValues(ctx)
 }
 
 func (s *LockDisabled) WriteState(v *states.State) error {
 	return s.Inner.WriteState(v)
 }
 
-func (s *LockDisabled) RefreshState() error {
-	return s.Inner.RefreshState()
+func (s *LockDisabled) RefreshState(ctx context.Context) error {
+	return s.Inner.RefreshState(ctx)
 }
 
-func (s *LockDisabled) PersistState(schemas *tofu.Schemas) error {
-	return s.Inner.PersistState(schemas)
+func (s *LockDisabled) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
+	return s.Inner.PersistState(ctx, schemas)
 }
 
-func (s *LockDisabled) Lock(info *LockInfo) (string, error) {
+func (s *LockDisabled) Lock(_ context.Context, info *LockInfo) (string, error) {
 	return "", nil
 }
 
-func (s *LockDisabled) Unlock(id string) error {
+func (s *LockDisabled) Unlock(_ context.Context, id string) error {
 	return nil
 }

@@ -430,7 +430,7 @@ func TestCoerceValue(t *testing.T) {
 				"foo": cty.False,
 			}),
 			cty.DynamicVal,
-			`.foo: number required`,
+			`.foo: number required, but have bool`,
 		},
 		"unset computed value": {
 			&Block{
@@ -612,7 +612,7 @@ func TestCoerceValue(t *testing.T) {
 
 			if gotErrObj == nil {
 				if test.WantErr != "" {
-					t.Fatalf("coersion succeeded; want error: %q", test.WantErr)
+					t.Fatalf("coercion succeeded; want error: %q", test.WantErr)
 				}
 			} else {
 				gotErr := tfdiags.FormatError(gotErrObj)

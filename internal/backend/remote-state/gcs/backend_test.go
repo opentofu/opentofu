@@ -16,6 +16,7 @@ import (
 	"time"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"cloud.google.com/go/storage"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -23,7 +24,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/version"
 	"google.golang.org/api/option"
-	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
 const (
@@ -82,7 +82,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, noEncryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -101,7 +101,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, encryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -122,7 +122,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be, noPrefix)
 
 	remoteClient := func() (remote.Client, error) {
-		ss, err := be.StateMgr(backend.DefaultStateName)
+		ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -244,7 +244,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 
 	// create the bucket if it doesn't exist
 	bkt := be.storageClient.Bucket(bucket)
-	_, err := bkt.Attrs(be.storageContext)
+	_, err := bkt.Attrs(t.Context())
 	if err != nil {
 		if err != storage.ErrBucketNotExist {
 			t.Fatal(err)
@@ -253,7 +253,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 		attrs := &storage.BucketAttrs{
 			Location: os.Getenv("GOOGLE_REGION"),
 		}
-		err := bkt.Create(be.storageContext, projectID, attrs)
+		err := bkt.Create(t.Context(), projectID, attrs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -383,7 +383,7 @@ func teardownBackend(t *testing.T, be backend.Backend, prefix string) {
 	if !ok {
 		t.Fatalf("be is a %T, want a *gcsBackend", be)
 	}
-	ctx := gcsBE.storageContext
+	ctx := t.Context()
 
 	bucket := gcsBE.storageClient.Bucket(gcsBE.bucketName)
 	objs := bucket.Objects(ctx, nil)

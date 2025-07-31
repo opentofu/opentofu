@@ -6,11 +6,14 @@
 package states
 
 import (
+	"bytes"
+	"reflect"
+
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 )
 
 // ResourceInstanceObjectSrc is a not-fully-decoded version of
@@ -58,12 +61,107 @@ type ResourceInstanceObjectSrc struct {
 	// state, or to save as sensitive paths when saving state
 	AttrSensitivePaths []cty.PathValueMarks
 
+	// TransientPathValueMarks helps propagate all the marks (including
+	// non-sensitive ones) through the internal representation of a state,
+	// without being serialized into the final state file.
+	TransientPathValueMarks []cty.PathValueMarks
+
 	// These fields all correspond to the fields of the same name on
 	// ResourceInstanceObject.
 	Private             []byte
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+}
+
+// Compare two lists using an given element equal function, ignoring order and duplicates
+func equalSlicesIgnoreOrder[S ~[]E, E any](a, b S, fn func(E, E) bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Not sure if this is the most efficient approach, but it works
+	// First check if all elements in a existing in b
+	for _, v := range a {
+		found := false
+		for _, o := range b {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	// Now check if all elements in b exist in a
+	// This is necessary just in case there are duplicate entries (there should not be).
+	for _, v := range b {
+		found := false
+		for _, o := range a {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) bool {
+	if os == other {
+		return true
+	}
+	if os == nil || other == nil {
+		return false
+	}
+
+	if os.SchemaVersion != other.SchemaVersion {
+		return false
+	}
+
+	if !bytes.Equal(os.AttrsJSON, other.AttrsJSON) {
+		return false
+	}
+
+	if !reflect.DeepEqual(os.AttrsFlat, other.AttrsFlat) {
+		return false
+	}
+
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
+	if !equalSlicesIgnoreOrder(os.AttrSensitivePaths, other.AttrSensitivePaths, cty.PathValueMarks.Equal) {
+		return false
+	}
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
+	if !equalSlicesIgnoreOrder(os.TransientPathValueMarks, other.TransientPathValueMarks, cty.PathValueMarks.Equal) {
+		return false
+	}
+
+	if !bytes.Equal(os.Private, other.Private) {
+		return false
+	}
+
+	if os.Status != other.Status {
+		return false
+	}
+
+	// This represents a set of dependencies.  They must all be resolved before executing and therefore the order does not matter.
+	if !equalSlicesIgnoreOrder(os.Dependencies, other.Dependencies, addrs.ConfigResource.Equal) {
+		return false
+	}
+
+	if os.CreateBeforeDestroy != other.CreateBeforeDestroy {
+		return false
+	}
+
+	return true
 }
 
 // Decode unmarshals the raw representation of the object attributes. Pass the
@@ -81,12 +179,23 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 	var err error
 	if os.AttrsFlat != nil {
 		// Legacy mode. We'll do our best to unpick this from the flatmap.
+		//
+		// Note that we can only get here in unusual cases like when running
+		// "tofu show" or "tofu console" against a very old state snapshot
+		// created with Terraform v0.11 or earlier; in the normal plan/apply
+		// path we use the provider function "UpgradeResourceState" to ask
+		// the _provider_ to translate from flatmap to JSON, which can therefore
+		// give better results because the provider can have awareness of its
+		// own legacy encoding quirks.
 		val, err = hcl2shim.HCL2ValueFromFlatmap(os.AttrsFlat, ty)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		val, err = ctyjson.Unmarshal(os.AttrsJSON, ty)
+		if os.TransientPathValueMarks != nil {
+			val = val.MarkWithPaths(os.TransientPathValueMarks)
+		}
 		// Mark the value with paths if applicable
 		if os.AttrSensitivePaths != nil {
 			val = val.MarkWithPaths(os.AttrSensitivePaths)

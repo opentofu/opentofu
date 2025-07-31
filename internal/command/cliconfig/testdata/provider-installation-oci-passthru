@@ -1,0 +1,8 @@
+provider_installation {
+  oci_mirror {
+    # This one is an intentionally-simple template intended to be used
+    # as a general way to test arbitrary mappings, whether successful
+    # or not.
+    repository_template = "example.org/${hostname}/${namespace}/${type}"
+  }
+}

@@ -20,6 +20,7 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -28,7 +29,7 @@ import (
 
 var planConfigurationVersionsPollInterval = 500 * time.Millisecond
 
-func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Remote) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	log.Printf("[INFO] backend/remote: starting Plan operation")
 
 	var diags tfdiags.Diagnostics
@@ -79,7 +80,7 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 		))
 	}
 
-	if b.hasExplicitVariableValues(op) {
+	if b.hasExplicitVariableValues(ctx, op) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Run variables are currently not supported",
@@ -126,6 +127,14 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 				),
 			))
 		}
+	}
+
+	if len(op.Excludes) != 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"-exclude option is not supported",
+			"The -exclude option is not currently supported for remote plans.",
+		))
 	}
 
 	if !op.PlanRefresh {
@@ -355,7 +364,7 @@ in order to capture the filesystem context the remote workspace expects:
 						b.CLI.Output(b.Colorize().Color(strings.TrimSpace(lockTimeoutErr)))
 					}
 
-					// We abuse the auto aprove flag to indicate that we do not
+					// We abuse the auto approve flag to indicate that we do not
 					// want to ask if the remote operation should be canceled.
 					op.AutoApprove = true
 
@@ -364,7 +373,9 @@ in order to capture the filesystem context the remote workspace expects:
 						log.Printf("[ERROR] error searching process ID: %v", err)
 						return
 					}
-					p.Signal(syscall.SIGINT)
+					if err := p.Signal(syscall.SIGINT); err != nil {
+						log.Printf("[ERROR] error sending interrupt signal: %v", err)
+					}
 				}
 			}
 		}()

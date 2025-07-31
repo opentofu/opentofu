@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -16,12 +17,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config, walkOp walkOperation) GraphTransformer {
 	return GraphTransformMulti(
 		// Add providers from the config
 		&ProviderConfigTransformer{
-			Config:   config,
-			Concrete: concrete,
+			Config:    config,
+			Concrete:  concrete,
+			Operation: walkOp,
 		},
 		// Add any remaining missing providers
 		&MissingProviderTransformer{
@@ -61,6 +63,22 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
+type RequestedProvider struct {
+	ProviderConfig addrs.ProviderConfig
+	KeyExpression  hcl.Expression
+	KeyModule      addrs.Module
+	KeyResource    bool
+	KeyExact       addrs.InstanceKey
+}
+
+type ResolvedProvider struct {
+	ProviderConfig addrs.AbsProviderConfig
+	KeyExpression  hcl.Expression
+	KeyModule      addrs.Module
+	KeyResource    bool
+	KeyExact       addrs.InstanceKey
+}
+
 // GraphNodeProviderConsumer is an interface that nodes that require
 // a provider must implement. ProvidedBy must return the address of the provider
 // to use, which will be resolved to a configuration either in the same module
@@ -70,21 +88,22 @@ type GraphNodeProviderConsumer interface {
 	GraphNodeModulePath
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available. The following value types may be returned:
-	//
-	//   nil + exact true: the node does not require a provider
-	// * addrs.LocalProviderConfig: the provider was set in the resource config
-	// * addrs.AbsProviderConfig + exact true: the provider configuration was
-	//   taken from the instance state.
-	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
-	//   value is a default provider configuration address for the resource's
-	//   Provider
-	ProvidedBy() (addr addrs.ProviderConfig, exact bool)
+	//   nil: the node does not require a provider
+	// * addrs.LocalProviderConfig: the provider should be looked up in
+	//   the current module path. Only the Alias field is used, the LocalName
+	//   is ignored and Provider() is preferred instead.
+	//   Examples: config, default
+	// * addrs.AbsProviderConfig: the exact provider configuration has been
+	//   resolved elsewhere and must be referenced directly. No inheritence
+	//   logic is allowed.
+	//   Examples: state, resource instance (resolved),
+	ProvidedBy() RequestedProvider
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
-	SetProvider(addrs.AbsProviderConfig)
+	SetProvider(ResolvedProvider)
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -94,7 +113,7 @@ type ProviderTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ProviderTransformer) Transform(g *Graph) error {
+func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// We need to find a provider configuration address for each resource
 	// either directly represented by a node or referenced by a node in
 	// the graph, and then create graph edges from provider to provider user
@@ -102,97 +121,86 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 	var diags tfdiags.Diagnostics
 
-	// To start, we'll collect the _requested_ provider addresses for each
-	// node, which we'll then resolve (handling provider inheritence, etc) in
-	// the next step.
-	// Our "requested" map is from graph vertices to string representations of
-	// provider config addresses (for deduping) to requests.
-	type ProviderRequest struct {
-		Addr  addrs.AbsProviderConfig
-		Exact bool // If true, inheritence from parent modules is not attempted
-	}
-	requested := map[dag.Vertex]map[string]ProviderRequest{}
-	needConfigured := map[string]addrs.AbsProviderConfig{}
-	for _, v := range g.Vertices() {
-		// Does the vertex _directly_ use a provider?
-		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddr, exact := pv.ProvidedBy()
-			if providerAddr == nil && exact {
-				// no provider is required
-				continue
-			}
-
-			requested[v] = make(map[string]ProviderRequest)
-
-			var absPc addrs.AbsProviderConfig
-
-			switch p := providerAddr.(type) {
-			case addrs.AbsProviderConfig:
-				// ProvidedBy() returns an AbsProviderConfig when the provider
-				// configuration is set in state, so we do not need to verify
-				// the FQN matches.
-				absPc = p
-
-				if exact {
-					log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-				}
-
-			case addrs.LocalProviderConfig:
-				// ProvidedBy() return a LocalProviderConfig when the resource
-				// contains a `provider` attribute
-				absPc.Provider = pv.Provider()
-				modPath := pv.ModulePath()
-				if t.Config == nil {
-					absPc.Module = modPath
-					absPc.Alias = p.Alias
-					break
-				}
-
-				absPc.Module = modPath
-				absPc.Alias = p.Alias
-
-			default:
-				// This should never happen; the case statements are meant to be exhaustive
-				panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
-			}
-
-			requested[v][absPc.String()] = ProviderRequest{
-				Addr:  absPc,
-				Exact: exact,
-			}
-
-			// Direct references need the provider configured as well as initialized
-			needConfigured[absPc.String()] = absPc
-		}
-	}
-
 	// Now we'll go through all the requested addresses we just collected and
 	// figure out which _actual_ config address each belongs to, after resolving
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
-	for v, reqs := range requested {
-		for key, req := range reqs {
-			p := req.Addr
-			target := m[key]
-
-			_, ok := v.(GraphNodeModulePath)
-			if !ok && target == nil {
-				// No target and no path to traverse up from
-				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), p))
+	for _, v := range g.Vertices() {
+		pv, isProviderConsumer := v.(GraphNodeProviderConsumer)
+		if !isProviderConsumer {
+			continue
+		}
+		req := pv.ProvidedBy()
+		if req.ProviderConfig == nil {
+			// no provider is required
+			continue
+		}
+		switch providerAddr := req.ProviderConfig.(type) {
+		case addrs.AbsProviderConfig:
+			target := m[providerAddr.String()]
+			if target == nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider configuration not present",
+					fmt.Sprintf(
+						"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
+						dag.VertexName(v), providerAddr, dag.VertexName(v),
+					),
+				))
 				continue
 			}
 
-			if target != nil {
-				// Providers with configuration will already exist within the graph and can be directly referenced
-				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
+			// This is a pretty odd edge case.
+			// The only way in which this can be triggered (as far as I understand) is
+			// by removing a resource and provider from a module, where the resource
+			// uses the provider in that module, then altering the module's provider
+			// block to supply a *different* provider configuration to perform
+			// the deletion. Effectively swapping out the explicit provider that a
+			// resource needs by manipulating the provider graph.
+			// The resource in the module should be deleted before removing the provider
+			// configuration in that module as the state has explicitly said that the
+			// exact provider configuration is required to manipulate the resource.
+			//
+			// We may want to consider removing this option and replace it with an
+			// error instead.
+			if p, ok := target.(*graphNodeProxyProvider); ok {
+				target = p.Target()
+				// We are ignoring p.keyExpr here for now
 			}
 
-			// if we don't have a provider at this level, walk up the path looking for one,
-			// unless we were told to be exact.
-			if target == nil && !req.Exact {
-				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
-					key := pp.String()
-					target = m[key]
+			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
+			pv.SetProvider(ResolvedProvider{
+				ProviderConfig: target.ProviderAddr(),
+				// Pass through key data
+				KeyExpression: req.KeyExpression,
+				KeyModule:     req.KeyModule,
+				KeyResource:   req.KeyResource,
+				KeyExact:      req.KeyExact,
+			})
+			g.Connect(dag.BasicEdge(v, target))
+		case addrs.LocalProviderConfig:
+			// We assume that the value returned from Provider() has already been
+			// properly checked during the provider validation logic in the
+			// config package and can use that Provider Type directly instead
+			// of duplicating provider LocalNames logic.
+			fullProviderAddr := addrs.AbsProviderConfig{
+				Provider: pv.Provider(),
+				Module:   pv.ModulePath(),
+				Alias:    providerAddr.Alias,
+			}
+
+			target := m[fullProviderAddr.String()]
+
+			if target != nil {
+				// Providers with configuration will already exist within the graph and can be directly referenced
+				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", fullProviderAddr, dag.VertexName(v))
+			} else {
+				// if we don't have a provider at this level, walk up the path looking for one,
+				// This assumes that the provider has the same LocalName in the module tree
+				// If there is ever a desire to support differing local names down the module tree, this will
+				// need to be rewritten
+				for pp, ok := fullProviderAddr.Inherited(); ok; pp, ok = pp.Inherited() {
+					target = m[pp.String()]
 					if target != nil {
 						log.Printf("[TRACE] ProviderTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
 						break
@@ -201,61 +209,91 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				}
 			}
 
-			// If this provider doesn't need to be configured then we can just
-			// stub it out with an init-only provider node, which will just
-			// start up the provider and fetch its schema.
-			if _, exists := needConfigured[key]; target == nil && !exists {
-				stubAddr := addrs.AbsProviderConfig{
-					Module:   addrs.RootModule,
-					Provider: p.Provider,
-				}
-				stub := &NodeEvalableProvider{
-					&NodeAbstractProvider{
-						Addr: stubAddr,
-					},
-				}
-				m[stubAddr.String()] = stub
-				log.Printf("[TRACE] ProviderTransformer: creating init-only node for %s", stubAddr)
-				target = stub
-				g.Add(target)
-			}
-
 			if target == nil {
+				// This error message is possibly misleading?
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Provider configuration not present",
 					fmt.Sprintf(
 						"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
-						dag.VertexName(v), p, dag.VertexName(v),
+						dag.VertexName(v), fullProviderAddr, dag.VertexName(v),
 					),
 				))
-				break
+				continue
+			}
+
+			resolved := ResolvedProvider{
+				KeyResource:   req.KeyResource,
+				KeyExpression: req.KeyExpression,
 			}
 
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
-				g.Remove(p)
 				target = p.Target()
+
+				targetExpr, targetPath := p.TargetExpr()
+				if targetExpr != nil {
+					if resolved.KeyResource {
+						// Module key and resource key are both required. This is not allowed!
+						diags = diags.Append(fmt.Errorf("provider instance key provided for both resource and module at %q, this is a bug and should be reported", dag.VertexName(v)))
+						continue
+					}
+					resolved.KeyExpression = targetExpr
+					resolved.KeyModule = targetPath
+				}
 			}
+			resolved.ProviderConfig = target.ProviderAddr()
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				pv.SetProvider(target.ProviderAddr())
-			}
+			pv.SetProvider(resolved)
 			g.Connect(dag.BasicEdge(v, target))
+		default:
+			panic(fmt.Sprintf("BUG: Invalid provider address type %T for %#v", req, req))
 		}
 	}
 
 	return diags.Err()
 }
 
+// ProviderFunctionReference is all the information needed to identify
+// the provider required in a given module path. Alternatively, this
+// could be seen as a Module path + addrs.LocalProviderConfig.
+type ProviderFunctionReference struct {
+	ModulePath    string
+	ProviderName  string
+	ProviderAlias string
+}
+
+type FunctionProvidedBy struct {
+	Provider      addrs.AbsProviderConfig
+	KeyModule     addrs.Module
+	KeyExpression hcl.Expression
+}
+
+// ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
+// that's required. This is due to the provider inheritence logic and proxy logic in the below
+// transformer needing to be known in other parts of the application.
+// Ideally, this would not be needed and be built like the ProviderTransformer. Unfortunately, it's
+// a significant refactor to get to that point which adds a lot of complexity.
+type ProviderFunctionMapping map[ProviderFunctionReference]FunctionProvidedBy
+
+func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFunction) (FunctionProvidedBy, bool) {
+	providedBy, ok := m[ProviderFunctionReference{
+		ModulePath:    module.String(),
+		ProviderName:  pf.ProviderName,
+		ProviderAlias: pf.ProviderAlias,
+	}]
+	return providedBy, ok
+}
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
-	Config *configs.Config
+	Config                  *configs.Config
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
-func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
+func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) error {
 	var diags tfdiags.Diagnostics
 
 	if t.Config == nil {
@@ -264,26 +302,26 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 		return nil
 	}
 
-	// Locate all providers in the graph
-	providers := providerVertexMap(g)
-
-	type providerReference struct {
-		path  string
-		name  string
-		alias string
-	}
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
 	// LuT of provider reference -> provider vertex
-	providerReferences := make(map[providerReference]dag.Vertex)
+	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
 
 	for _, v := range g.Vertices() {
 		// Provider function references
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					key := providerReference{
-						path:  nr.ModulePath().String(),
-						name:  pf.ProviderName,
-						alias: pf.ProviderAlias,
+					refPath := nr.ModulePath()
+
+					if outside, isOutside := v.(GraphNodeReferenceOutside); isOutside {
+						_, refPath = outside.ReferenceOutside()
+					}
+
+					key := ProviderFunctionReference{
+						ModulePath:    refPath.String(),
+						ProviderName:  pf.ProviderName,
+						ProviderAlias: pf.ProviderAlias,
 					}
 
 					// We already know about this provider and can link directly
@@ -294,13 +332,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					}
 
 					// Find the config that this node belongs to
-					mc := t.Config.Descendent(nr.ModulePath())
+					mc := t.Config.Descendent(refPath)
 					if mc == nil {
 						// I don't think this is possible
 						diags = diags.Append(&hcl.Diagnostic{
 							Severity: hcl.DiagError,
 							Summary:  "Unknown Descendent Module",
-							Detail:   nr.ModulePath().String(),
+							Detail:   refPath.String(),
 							Subject:  ref.SourceRange.ToHCL().Ptr(),
 						})
 						continue
@@ -321,43 +359,48 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					// Build fully qualified provider address
 					absPc := addrs.AbsProviderConfig{
 						Provider: pr.Type,
-						Module:   nr.ModulePath(),
+						Module:   refPath,
 						Alias:    pf.ProviderAlias,
 					}
 
 					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
 
 					// Lookup provider via full address
-					provider := providers[absPc.String()]
+					provider := providerVerts[absPc.String()]
 
 					if provider != nil {
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
-						// If this provider doesn't need to be configured then we can just
-						// stub it out with an init-only provider node, which will just
-						// start up the provider and fetch its schema.
+						// If this provider doesn't exist, stub it out with an init-only provider node
+						// This works for unconfigured functions only, but that validation is elsewhere
 						stubAddr := addrs.AbsProviderConfig{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
 						}
-						if provider, ok = providers[stubAddr.String()]; !ok {
-							stub := &NodeEvalableProvider{
+						// Try to look up an existing stub
+						provider, ok = providerVerts[stubAddr.String()]
+						// If it does not exist, create it
+						if !ok {
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+
+							provider = &NodeEvalableProvider{
 								&NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
-							providers[stubAddr.String()] = stub
-							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-							provider = stub
+							providerVerts[stubAddr.String()] = provider
 							g.Add(provider)
 						}
 					}
 
+					var targetExpr hcl.Expression
+					var targetPath addrs.Module
+
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
-						g.Remove(p)
 						provider = p.Target()
+						targetExpr, targetPath = p.TargetExpr()
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
@@ -365,6 +408,11 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					// Save for future lookups
 					providerReferences[key] = provider
+					t.ProviderFunctionTracker[key] = FunctionProvidedBy{
+						Provider:      provider.ProviderAddr(),
+						KeyModule:     targetPath,
+						KeyExpression: targetExpr,
+					}
 				}
 			}
 		}
@@ -379,7 +427,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 // in the graph are evaluated.
 type CloseProviderTransformer struct{}
 
-func (t *CloseProviderTransformer) Transform(g *Graph) error {
+func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	pm := providerVertexMap(g)
 	cpm := make(map[string]*graphNodeCloseProvider)
 	var err error
@@ -387,7 +435,7 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 	for _, p := range pm {
 		key := p.ProviderAddr().String()
 
-		// get the close provider of this type if we alread created it
+		// get the close provider of this type if we already created it
 		closer := cpm[key]
 
 		if closer == nil {
@@ -429,7 +477,7 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 // This transformer may create extra nodes that are not needed in practice,
 // due to overriding provider configurations in child modules.
 // PruneProviderTransformer can then remove these once ProviderTransformer
-// has resolved all of the inheritence, etc.
+// has resolved all of the inheritance, etc.
 type MissingProviderTransformer struct {
 	// MissingProviderTransformer needs the config to rule out _implied_ default providers
 	Config *configs.Config
@@ -438,7 +486,7 @@ type MissingProviderTransformer struct {
 	Concrete ConcreteProviderNodeFunc
 }
 
-func (t *MissingProviderTransformer) Transform(g *Graph) error {
+func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// Initialize factory
 	if t.Concrete == nil {
 		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
@@ -491,7 +539,7 @@ func (t *MissingProviderTransformer) Transform(g *Graph) error {
 // configuration may imply initialization which may require auth.
 type PruneProviderTransformer struct{}
 
-func (t *PruneProviderTransformer) Transform(g *Graph) error {
+func (t *PruneProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		// We only care about providers
 		_, ok := v.(GraphNodeProvider)
@@ -503,6 +551,7 @@ func (t *PruneProviderTransformer) Transform(g *Graph) error {
 		if _, ok := v.(*graphNodeProxyProvider); ok {
 			log.Printf("[DEBUG] pruning proxy %s", dag.VertexName(v))
 			g.Remove(v)
+			continue
 		}
 
 		// Remove providers with no dependencies.
@@ -546,8 +595,8 @@ func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeCloseProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(ctx.CloseProvider(n.Addr))
+func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
@@ -574,8 +623,9 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 // configurations, and are removed after all the resources have been connected
 // to their providers.
 type graphNodeProxyProvider struct {
-	addr   addrs.AbsProviderConfig
-	target GraphNodeProvider
+	addr    addrs.AbsProviderConfig
+	target  GraphNodeProvider
+	keyExpr hcl.Expression
 }
 
 var (
@@ -605,6 +655,25 @@ func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
 	}
 }
 
+// Find the *single* keyExpression that is used in the provider
+// chain.  This is not ideal, but it works with current constraints on this feature
+func (n *graphNodeProxyProvider) TargetExpr() (hcl.Expression, addrs.Module) {
+	switch t := n.target.(type) {
+	case *graphNodeProxyProvider:
+		targetExpr, targetPath := t.TargetExpr()
+		if targetExpr != nil && n.keyExpr != nil {
+			// This should have already been handled during provider validation
+			panic(fmt.Sprintf("BUG: Only one key expression allowed in module provider chain: %q", n.Name()))
+		}
+		if n.keyExpr != nil {
+			return n.keyExpr, n.ModulePath()
+		}
+		return targetExpr, targetPath
+	default:
+		return n.keyExpr, n.ModulePath()
+	}
+}
+
 // ProviderConfigTransformer adds all provider nodes from the configuration and
 // attaches the configs.
 type ProviderConfigTransformer struct {
@@ -613,14 +682,17 @@ type ProviderConfigTransformer struct {
 	// each provider node is stored here so that the proxy nodes can look up
 	// their targets by name.
 	providers map[string]GraphNodeProvider
-	// record providers that can be overriden with a proxy
+	// record providers that can be overridden with a proxy
 	proxiable map[string]bool
 
 	// Config is the root node of the configuration tree to add providers from.
 	Config *configs.Config
+
+	// Operation is needed to add workarounds for validate
+	Operation walkOperation
 }
 
-func (t *ProviderConfigTransformer) Transform(g *Graph) error {
+func (t *ProviderConfigTransformer) Transform(_ context.Context, g *Graph) error {
 	// If no configuration is given, we don't do anything
 	if t.Config == nil {
 		return nil
@@ -685,19 +757,35 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 				continue
 			}
 
-			abstract := &NodeAbstractProvider{
-				Addr: addr,
-			}
+			addNode := func(alias string) {
+				abstract := &NodeAbstractProvider{
+					Addr: addrs.AbsProviderConfig{
+						Provider: addr.Provider,
+						Module:   addr.Module,
+						Alias:    alias,
+					},
+				}
 
-			var v dag.Vertex
-			if t.Concrete != nil {
-				v = t.Concrete(abstract)
-			} else {
-				v = abstract
-			}
+				var v dag.Vertex
+				if t.Concrete != nil {
+					v = t.Concrete(abstract)
+				} else {
+					v = abstract
+				}
 
-			g.Add(v)
-			t.providers[addr.String()] = v.(GraphNodeProvider)
+				g.Add(v)
+				t.providers[abstract.Addr.String()] = v.(GraphNodeProvider)
+			}
+			// Add unaliased instance for the provider in the root
+			addNode("")
+
+			if t.Operation == walkValidate {
+				// Add a workaround for validating modules by running them as a root module in `tofu validate`
+				// See the discussion in https://github.com/opentofu/opentofu/issues/2862 for more details
+				for _, alias := range p.Aliases {
+					addNode(alias.Alias)
+				}
+			}
 		}
 	}
 
@@ -805,8 +893,9 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		}
 
 		proxy := &graphNodeProxyProvider{
-			addr:   fullAddr,
-			target: parentProvider,
+			addr:    fullAddr,
+			target:  parentProvider,
+			keyExpr: pair.InParent.KeyExpression,
 		}
 
 		concreteProvider := t.providers[fullName]

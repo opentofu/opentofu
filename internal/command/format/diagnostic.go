@@ -12,7 +12,12 @@ import (
 	"sort"
 	"strings"
 
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/mitchellh/colorstring"
@@ -31,11 +36,11 @@ var disabledColorize = &colorstring.Colorize{
 // at all. Although the long-form text parts of the message are wrapped,
 // not all aspects of the message are guaranteed to fit within the specified
 // terminal width.
-func Diagnostic(diag tfdiags.Diagnostic, sources map[string][]byte, color *colorstring.Colorize, width int) string {
-	return DiagnosticFromJSON(viewsjson.NewDiagnostic(diag, sources), color, width)
+func Diagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File, color *colorstring.Colorize, width int) string {
+	return DiagnosticFromJSON(jsonentities.NewDiagnostic(diag, sources), color, width)
 }
 
-func DiagnosticFromJSON(diag *viewsjson.Diagnostic, color *colorstring.Colorize, width int) string {
+func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colorize, width int) string {
 	if diag == nil {
 		// No good reason to pass a nil diagnostic in here...
 		return ""
@@ -56,13 +61,13 @@ func DiagnosticFromJSON(diag *viewsjson.Diagnostic, color *colorstring.Colorize,
 	var leftRuleWidth int // in visual character cells
 
 	switch diag.Severity {
-	case viewsjson.DiagnosticSeverityError:
+	case jsonentities.DiagnosticSeverityError:
 		buf.WriteString(color.Color("[bold][red]Error: [reset]"))
 		leftRuleLine = color.Color("[red]│[reset] ")
 		leftRuleStart = color.Color("[red]╷[reset]")
 		leftRuleEnd = color.Color("[red]╵[reset]")
 		leftRuleWidth = 2
-	case viewsjson.DiagnosticSeverityWarning:
+	case jsonentities.DiagnosticSeverityWarning:
 		buf.WriteString(color.Color("[bold][yellow]Warning: [reset]"))
 		leftRuleLine = color.Color("[yellow]│[reset] ")
 		leftRuleStart = color.Color("[yellow]╷[reset]")
@@ -122,16 +127,41 @@ func DiagnosticFromJSON(diag *viewsjson.Diagnostic, color *colorstring.Colorize,
 	return ruleBuf.String()
 }
 
+// appendDifferenceOutput is used to create colored and aligned lines to be used
+// on the test suite assertions
+func appendDifferenceOutput(buf *bytes.Buffer, diag *jsonentities.Diagnostic, color *colorstring.Colorize) {
+	if diag.Difference == nil {
+		return
+	}
+
+	change := structured.FromJsonChange(*diag.Difference, attribute_path.AlwaysMatcher())
+	differed := differ.ComputeDiffForOutput(change)
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
+	// The next line is needed in order to make the output aligned, since the first line
+	// rendered by RenderHuman is on column 0, but all the subsequent lines are having 4 spaces before
+	// the actual content.
+	out = fmt.Sprintf("    %s", out)
+
+	fmt.Fprint(buf, color.Color("    [dark_gray]├────────────────[reset]\n"))
+	fmt.Fprint(buf, color.Color("    [dark_gray]│[reset] [bold]Diff: [reset]"))
+	lines := strings.Split(out, "\n")
+	for line := range lines {
+		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
+		buf.WriteString(lines[line])
+	}
+	buf.WriteByte('\n')
+}
+
 // DiagnosticPlain is an alternative to Diagnostic which minimises the use of
 // virtual terminal formatting sequences.
 //
 // It is intended for use in automation and other contexts in which diagnostic
 // messages are parsed from the OpenTofu output.
-func DiagnosticPlain(diag tfdiags.Diagnostic, sources map[string][]byte, width int) string {
-	return DiagnosticPlainFromJSON(viewsjson.NewDiagnostic(diag, sources), width)
+func DiagnosticPlain(diag tfdiags.Diagnostic, sources map[string]*hcl.File, width int) string {
+	return DiagnosticPlainFromJSON(jsonentities.NewDiagnostic(diag, sources), width)
 }
 
-func DiagnosticPlainFromJSON(diag *viewsjson.Diagnostic, width int) string {
+func DiagnosticPlainFromJSON(diag *jsonentities.Diagnostic, width int) string {
 	if diag == nil {
 		// No good reason to pass a nil diagnostic in here...
 		return ""
@@ -140,9 +170,9 @@ func DiagnosticPlainFromJSON(diag *viewsjson.Diagnostic, width int) string {
 	var buf bytes.Buffer
 
 	switch diag.Severity {
-	case viewsjson.DiagnosticSeverityError:
+	case jsonentities.DiagnosticSeverityError:
 		buf.WriteString("\nError: ")
-	case viewsjson.DiagnosticSeverityWarning:
+	case jsonentities.DiagnosticSeverityWarning:
 		buf.WriteString("\nWarning: ")
 	default:
 		buf.WriteString("\n")
@@ -186,7 +216,7 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 	var b strings.Builder
 	b.WriteString(color.Color("[bold][yellow]Warnings:[reset]\n\n"))
 	for _, diag := range diags {
-		sources := tfdiags.WarningGroupSourceRanges(diag)
+		sources := tfdiags.ConsolidatedGroupSourceRanges(diag)
 		b.WriteString(fmt.Sprintf("- %s\n", diag.Description().Summary))
 		if len(sources) > 0 {
 			mainSource := sources[0]
@@ -207,7 +237,7 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 				}
 			} else if len(sources) > 1 {
 				b.WriteString(fmt.Sprintf(
-					"  (%d occurences of this warning)\n",
+					"  (%d occurrences of this warning)\n",
 					len(sources),
 				))
 			}
@@ -217,7 +247,7 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 	return b.String()
 }
 
-func appendSourceSnippets(buf *bytes.Buffer, diag *viewsjson.Diagnostic, color *colorstring.Colorize) {
+func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, color *colorstring.Colorize) {
 	if diag.Address != "" {
 		fmt.Fprintf(buf, "  with %s,\n", diag.Address)
 	}
@@ -289,7 +319,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *viewsjson.Diagnostic, color *
 			// This is particularly useful for expressions that get evaluated
 			// multiple times with different values, such as blocks using
 			// "count" and "for_each", or within "for" expressions.
-			values := make([]viewsjson.DiagnosticExpressionValue, len(snippet.Values))
+			values := make([]jsonentities.DiagnosticExpressionValue, len(snippet.Values))
 			copy(values, snippet.Values)
 			sort.Slice(values, func(i, j int) bool {
 				return values[i].Traversal < values[j].Traversal
@@ -318,7 +348,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *viewsjson.Diagnostic, color *
 				fmt.Fprintf(buf, color.Color("    [dark_gray]│[reset] [bold]%s[reset] %s\n"), value.Traversal, value.Statement)
 			}
 		}
+		appendDifferenceOutput(buf, diag, color)
 	}
-
 	buf.WriteByte('\n')
 }

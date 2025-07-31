@@ -5,7 +5,6 @@
 
 # This docker-compose file tests the installation instructions with all operating systems. See #
 # test-install-instructions.sh for details.
-version: '3.2'
 services:
   alpine-convenience:
     image: alpine
@@ -24,7 +23,7 @@ services:
     command: /data/alpine.sh
     working_dir: /data
   debian-convenience:
-    image: debian:buster
+    image: debian:stable
     volumes:
       - source: ./
         target: /data
@@ -32,7 +31,7 @@ services:
     command: /data/deb.sh --convenience
     working_dir: /data
   debian-manual:
-    image: debian:buster
+    image: debian:stable
     volumes:
       - source: ./
         target: /data

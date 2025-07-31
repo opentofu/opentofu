@@ -16,6 +16,8 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 var LengthFunc = function.New(&function.Spec{
@@ -190,7 +192,7 @@ var IndexFunc = function.New(&function.Spec{
 	Type:         function.StaticReturnType(cty.Number),
 	RefineResult: refineNotNull,
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
-		if !(args[0].Type().IsListType() || args[0].Type().IsTupleType()) {
+		if !args[0].Type().IsListType() && !args[0].Type().IsTupleType() {
 			return cty.NilVal, errors.New("argument must be a list or tuple")
 		}
 
@@ -288,29 +290,29 @@ var LookupFunc = function.New(&function.Spec{
 		}
 
 		// keep track of marks from the collection and key
-		var markses []cty.ValueMarks
+		var marks []cty.ValueMarks
 
 		// unmark collection, retain marks to reapply later
 		mapVar, mapMarks := args[0].Unmark()
-		markses = append(markses, mapMarks)
+		marks = append(marks, mapMarks)
 
 		// include marks on the key in the result
 		keyVal, keyMarks := args[1].Unmark()
 		if len(keyMarks) > 0 {
-			markses = append(markses, keyMarks)
+			marks = append(marks, keyMarks)
 		}
 		lookupKey := keyVal.AsString()
 
 		if !mapVar.IsKnown() {
-			return cty.UnknownVal(retType).WithMarks(markses...), nil
+			return cty.UnknownVal(retType).WithMarks(marks...), nil
 		}
 
 		if mapVar.Type().IsObjectType() {
 			if mapVar.Type().HasAttribute(lookupKey) {
-				return mapVar.GetAttr(lookupKey).WithMarks(markses...), nil
+				return mapVar.GetAttr(lookupKey).WithMarks(marks...), nil
 			}
 		} else if mapVar.HasIndex(cty.StringVal(lookupKey)) == cty.True {
-			return mapVar.Index(cty.StringVal(lookupKey)).WithMarks(markses...), nil
+			return mapVar.Index(cty.StringVal(lookupKey)).WithMarks(marks...), nil
 		}
 
 		if defaultValueSet {
@@ -318,7 +320,7 @@ var LookupFunc = function.New(&function.Spec{
 			if err != nil {
 				return cty.NilVal, err
 			}
-			return defaultVal.WithMarks(markses...), nil
+			return defaultVal.WithMarks(marks...), nil
 		}
 
 		return cty.UnknownVal(cty.DynamicPseudoType), fmt.Errorf(
@@ -513,7 +515,7 @@ var SumFunc = function.New(&function.Spec{
 		ty := args[0].Type()
 
 		if !ty.IsListType() && !ty.IsSetType() && !ty.IsTupleType() {
-			return cty.NilVal, function.NewArgErrorf(0, fmt.Sprintf("argument must be list, set, or tuple. Received %s", ty.FriendlyName()))
+			return cty.NilVal, function.NewArgErrorf(0, "argument must be list, set, or tuple. Received %s", ty.FriendlyName())
 		}
 
 		if !args[0].IsWhollyKnown() {
@@ -578,12 +580,21 @@ var TransposeFunc = function.New(&function.Spec{
 		outputMap := make(map[string]cty.Value)
 		tmpMap := make(map[string][]string)
 
+		path := make(cty.Path, 0, 2) // we'll append a maximum of two path steps in the loop below
 		for it := inputMap.ElementIterator(); it.Next(); {
 			inKey, inVal := it.Element()
+			keyPath := path.Index(inKey)
+			if inVal.IsNull() {
+				return cty.DynamicVal, function.NewArgErrorf(0, "cannot use null list for %s", tfdiags.FormatCtyPath(keyPath))
+			}
 			for iter := inVal.ElementIterator(); iter.Next(); {
-				_, val := iter.Element()
+				idx, val := iter.Element()
+				idxPath := keyPath.Index(idx)
 				if !val.Type().Equals(cty.String) {
 					return cty.MapValEmpty(cty.List(cty.String)), errors.New("input must be a map of lists of strings")
+				}
+				if val.IsNull() {
+					return cty.DynamicVal, function.NewArgErrorf(0, "cannot use null string for %s", tfdiags.FormatCtyPath(idxPath))
 				}
 
 				outKey := val.AsString()

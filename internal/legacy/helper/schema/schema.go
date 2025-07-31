@@ -29,7 +29,7 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/mitchellh/copystructure"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
@@ -856,7 +856,7 @@ func isValidFieldName(name string) bool {
 }
 
 // resourceDiffer is an interface that is used by the private diff functions.
-// This helps facilitate diff logic for both ResourceData and ResoureDiff with
+// This helps facilitate diff logic for both ResourceData and ResourceDiff with
 // minimal divergence in code.
 type resourceDiffer interface {
 	diffChange(string) (interface{}, interface{}, bool, bool, bool)
@@ -874,24 +874,24 @@ func (m schemaMap) diff(
 	d resourceDiffer,
 	all bool) error {
 
-	unsupressedDiff := new(tofu.InstanceDiff)
-	unsupressedDiff.Attributes = make(map[string]*tofu.ResourceAttrDiff)
+	unsuppressedDiff := new(tofu.InstanceDiff)
+	unsuppressedDiff.Attributes = make(map[string]*tofu.ResourceAttrDiff)
 
 	var err error
 	switch schema.Type {
 	case TypeBool, TypeInt, TypeFloat, TypeString:
-		err = m.diffString(k, schema, unsupressedDiff, d, all)
+		err = m.diffString(k, schema, unsuppressedDiff, d, all)
 	case TypeList:
-		err = m.diffList(k, schema, unsupressedDiff, d, all)
+		err = m.diffList(k, schema, unsuppressedDiff, d, all)
 	case TypeMap:
-		err = m.diffMap(k, schema, unsupressedDiff, d, all)
+		err = m.diffMap(k, schema, unsuppressedDiff, d, all)
 	case TypeSet:
-		err = m.diffSet(k, schema, unsupressedDiff, d, all)
+		err = m.diffSet(k, schema, unsuppressedDiff, d, all)
 	default:
 		err = fmt.Errorf("%s: unknown type %#v", k, schema.Type)
 	}
 
-	for attrK, attrV := range unsupressedDiff.Attributes {
+	for attrK, attrV := range unsuppressedDiff.Attributes {
 		switch rd := d.(type) {
 		case *ResourceData:
 			if schema.DiffSuppressFunc != nil && attrV != nil &&

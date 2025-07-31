@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package aws_kms
 
 import (
@@ -12,8 +17,8 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/gohcl"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/version"
 )
@@ -128,20 +133,22 @@ func TestConfig_asAWSBase(t *testing.T) {
 				EC2MetadataServiceEndpointMode: "my-emde-mode",
 				SharedCredentialsFiles:         []string{"my-scredf"},
 				SharedConfigFiles:              []string{"my-sconff"},
-				AssumeRole: &awsbase.AssumeRole{
-					RoleARN:    "ar_arn",
-					Duration:   time.Hour * 4,
-					ExternalID: "ar_extid",
-					Policy:     "ar_policy",
-					PolicyARNs: []string{
-						"arn:aws:iam::123456789012:policy/AR",
-					},
-					SessionName: "ar_session_name",
-					Tags: map[string]string{
-						"foo": "bar",
-					},
-					TransitiveTagKeys: []string{
-						"ar_tags",
+				AssumeRole: []awsbase.AssumeRole{
+					{
+						RoleARN:    "ar_arn",
+						Duration:   time.Hour * 4,
+						ExternalID: "ar_extid",
+						Policy:     "ar_policy",
+						PolicyARNs: []string{
+							"arn:aws:iam::123456789012:policy/AR",
+						},
+						SessionName: "ar_session_name",
+						Tags: map[string]string{
+							"foo": "bar",
+						},
+						TransitiveTagKeys: []string{
+							"ar_tags",
+						},
 					},
 				},
 				AssumeRoleWithWebIdentity: &awsbase.AssumeRoleWithWebIdentity{

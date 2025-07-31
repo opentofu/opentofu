@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package e2etest
 
 import (
@@ -8,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
@@ -40,10 +46,30 @@ func (r tofuResult) Failure() tofuResult {
 	return r
 }
 
+func SanitizeStderr(msg string) string {
+	// ANSI escape sequence regex for removing terminal color codes and control characters
+	msg = stripAnsi(msg)
+	// Pipe and carriage return replacement in order to correctly sanitze the stderr output
+	msg = strings.ReplaceAll(
+		strings.ReplaceAll(msg, "│", ""),
+		"\n", "",
+	)
+	return msg
+}
+
 func (r tofuResult) StderrContains(msg string) tofuResult {
-	if !strings.Contains(r.stderr, msg) {
+	stdErrSanitized := SanitizeStderr(r.stderr)
+	if !strings.Contains(stdErrSanitized, msg) {
 		debug.PrintStack()
-		r.t.Fatalf("expected stderr output %q:\n%s", msg, r.stderr)
+		r.t.Fatalf("expected stderr output %q:\n%s", msg, stdErrSanitized)
+	}
+	return r
+}
+
+func (r tofuResult) Contains(msg string) tofuResult {
+	if !strings.Contains(r.stdout, msg) {
+		debug.PrintStack()
+		r.t.Fatalf("expected output %q:\n%s", msg, r.stdout)
 	}
 	return r
 }
@@ -77,17 +103,27 @@ func TestEncryptionFlow(t *testing.T) {
 		stdout, stderr, err := tf.Run(args...)
 		return tofuResult{t, stdout, stderr, err}
 	}
-	apply := func() tofuResult {
+	apply := func(args ...string) tofuResult {
 		iter += 1
-		return run("apply", fmt.Sprintf("-var=iter=%v", iter), "-auto-approve")
+		finalArgs := []string{"apply"}
+		finalArgs = append(finalArgs, fmt.Sprintf("-var=iter=%v", iter), "-auto-approve")
+		finalArgs = append(finalArgs, args...)
+		return run(finalArgs...)
 	}
 
-	createPlan := func(planfile string) tofuResult {
+	createPlan := func(planfile string, args ...string) tofuResult {
 		iter += 1
-		return run("plan", fmt.Sprintf("-var=iter=%v", iter), "-out="+planfile)
+		args = append([]string{"plan", fmt.Sprintf("-var=iter=%v", iter), "-out=" + planfile}, args...)
+		return run(args...)
 	}
-	applyPlan := func(planfile string) tofuResult {
-		return run("apply", "-auto-approve", planfile)
+	applyPlan := func(planfile string, args ...string) tofuResult {
+		finalArgs := []string{"apply", "-auto-approve"}
+		finalArgs = append(finalArgs, args...)
+		finalArgs = append(finalArgs, planfile)
+		return run(finalArgs...)
+	}
+	withVarArg := func(key, value string) string {
+		return fmt.Sprintf(`-var=%s=%s`, key, value)
 	}
 
 	requireUnencryptedState := func() {
@@ -109,14 +145,14 @@ func TestEncryptionFlow(t *testing.T) {
 
 		err := os.Rename(src, dst)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatalf("%s", err.Error())
 		}
 
 		fn()
 
 		err = os.Rename(dst, src)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatalf("%s", err.Error())
 		}
 	}
 
@@ -125,102 +161,107 @@ func TestEncryptionFlow(t *testing.T) {
 
 	unencryptedPlan := "unencrypted.tfplan"
 	encryptedPlan := "encrypted.tfplan"
-
+	correctPassphrase := uuid.NewString()
 	{
 		// Everything works before adding encryption configuration
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 		// Check read/write of state file
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 
 		// Save an unencrypted plan
-		createPlan(unencryptedPlan).Success()
+		createPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).Success()
+		// Validate that OpenTofu does not allow different -var value for a variable between creation of the plan and its execution.
+		applyPlan(unencryptedPlan, withVarArg("passphrase", "different-value-than-the-one-saved-in-the-planfile")).
+			StderrContains(`Value saved in the plan file for variable "passphrase" is different from the one given to the current command`)
 		// Validate unencrypted plan
-		applyPlan(unencryptedPlan).Success()
+		applyPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 	}
 
 	with("required.tf", func() {
 		// Can't switch directly to encryption, need to migrate
-		apply().Failure().StderrContains("encountered unencrypted payload without unencrypted method")
+		apply(withVarArg("passphrase", correctPassphrase)).Failure().StderrContains("encountered unencrypted payload without unencrypted method")
 		requireUnencryptedState()
 	})
 
 	with("migrateto.tf", func() {
 		// Migrate to using encryption
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireEncryptedState()
 		// Make changes and confirm it's still encrypted (even with migration enabled)
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireEncryptedState()
 
 		// Save an encrypted plan
-		createPlan(encryptedPlan).Success()
+		createPlan(encryptedPlan, withVarArg("passphrase", correctPassphrase)).Success()
 
 		// Apply encrypted plan (with migration active)
-		applyPlan(encryptedPlan).Success()
+		applyPlan(encryptedPlan, withVarArg("passphrase", correctPassphrase)).Success()
 		requireEncryptedState()
 		// Apply unencrypted plan (with migration active)
-		applyPlan(unencryptedPlan).StderrContains("Saved plan is stale")
+		applyPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).StderrContains("Saved plan is stale")
 		requireEncryptedState()
 	})
 
 	{
 		// Unconfigured encryption clearly fails on encrypted state
-		apply().Failure().StderrContains("can not be read without an encryption configuration")
+		apply(withVarArg("passphrase", correctPassphrase)).Failure().StderrContains("can not be read without an encryption configuration")
 	}
 
 	with("required.tf", func() {
 		// Encryption works with fallback removed
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireEncryptedState()
 
 		// Can't apply unencrypted plan
-		applyPlan(unencryptedPlan).Failure().StderrContains("encountered unencrypted payload without unencrypted method")
+		applyPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).Failure().StderrContains("encountered unencrypted payload without unencrypted method")
 		requireEncryptedState()
 
 		// Apply encrypted plan
-		applyPlan(encryptedPlan).StderrContains("Saved plan is stale")
+		applyPlan(encryptedPlan, withVarArg("passphrase", correctPassphrase)).StderrContains("Saved plan is stale")
 		requireEncryptedState()
 	})
 
-	with("broken.tf", func() {
+	with("required.tf", func() { // But with the wrong passphrase
+		incorrectPassphrase := uuid.NewString()
 		// Make sure changes to encryption keys notify the user correctly
-		apply().Failure().StderrContains("decryption failed for state")
+		apply(withVarArg("passphrase", incorrectPassphrase)).Failure().StderrContains("decryption failed for state")
 		requireEncryptedState()
 
-		applyPlan(encryptedPlan).Failure().StderrContains("decryption failed: cipher: message authentication failed")
+		applyPlan(encryptedPlan, withVarArg("passphrase", incorrectPassphrase)).Failure().StderrContains("decryption failed: cipher: message authentication failed")
+
 		requireEncryptedState()
 	})
 
 	with("migratefrom.tf", func() {
 		// Apply migration from encrypted state
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 		// Make changes and confirm it's still encrypted (even with migration enabled)
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 
 		// Apply unencrypted plan (with migration active)
-		applyPlan(unencryptedPlan).StderrContains("Saved plan is stale")
+		applyPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).StderrContains("Saved plan is stale")
 		requireUnencryptedState()
 
 		// Apply encrypted plan (with migration active)
-		applyPlan(encryptedPlan).StderrContains("Saved plan is stale")
+		applyPlan(encryptedPlan, withVarArg("passphrase", correctPassphrase)).StderrContains("Saved plan is stale")
 		requireUnencryptedState()
 	})
 
 	{
 		// Back to no encryption configuration with unencrypted state
-		apply().Success()
+		apply(withVarArg("passphrase", correctPassphrase)).Success()
 		requireUnencryptedState()
 
 		// Apply unencrypted plan
-		applyPlan(unencryptedPlan).StderrContains("Saved plan is stale")
+		applyPlan(unencryptedPlan, withVarArg("passphrase", correctPassphrase)).StderrContains("Saved plan is stale")
 		requireUnencryptedState()
 		// Can't apply encrypted plan
-		applyPlan(encryptedPlan).Failure().StderrContains("the given plan file is encrypted and requires a valid encryption")
+		applyPlan(encryptedPlan, withVarArg("passphrase", correctPassphrase)).Failure().StderrContains("the given plan file is encrypted and requires a valid encryption")
 		requireUnencryptedState()
 	}
 }

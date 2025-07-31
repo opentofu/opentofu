@@ -29,8 +29,6 @@ type ArmClient struct {
 	// These Clients are only initialized if an Access Key isn't provided
 	groupsClient          *resources.GroupsClient
 	storageAccountsClient *armStorage.AccountsClient
-	containersClient      *containers.Client
-	blobsClient           *blobs.Client
 
 	// azureAdStorageAuth is only here if we're using AzureAD Authentication but is an Authorizer for Storage
 	azureAdStorageAuth *autorest.Authorizer
@@ -40,6 +38,7 @@ type ArmClient struct {
 	resourceGroupName  string
 	storageAccountName string
 	sasToken           string
+	timeoutSeconds     int
 }
 
 func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, error) {
@@ -52,6 +51,7 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		environment:        *env,
 		resourceGroupName:  config.ResourceGroupName,
 		storageAccountName: config.StorageAccountName,
+		timeoutSeconds:     config.TimeoutSeconds,
 	}
 
 	// if we have an Access Key - we don't need the other clients
@@ -163,7 +163,9 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 	accessKey := c.accessKey
 	if accessKey == "" {
 		log.Printf("[DEBUG] Building the Blob Client from an Access Token (using user credentials)")
-		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
+		defer cancel()
+		keys, err := c.storageAccountsClient.ListKeys(timeoutCtx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
 			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}
@@ -208,7 +210,9 @@ func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client,
 	accessKey := c.accessKey
 	if accessKey == "" {
 		log.Printf("[DEBUG] Building the Container Client from an Access Token (using user credentials)")
-		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
+		defer cancel()
+		keys, err := c.storageAccountsClient.ListKeys(timeoutCtx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
 			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}

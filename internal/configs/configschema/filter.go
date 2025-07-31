@@ -50,12 +50,15 @@ func (b *Block) Filter(filterAttribute FilterT[*Attribute], filterBlock FilterT[
 		ret.Attributes = make(map[string]*Attribute, len(b.Attributes))
 	}
 	for name, attrS := range b.Attributes {
-		if filterAttribute == nil || !filterAttribute(name, attrS) {
-			ret.Attributes[name] = attrS
+		// Copy the attributes of the block. Otherwise, if the filterNestedType is filtering out some attributes,
+		// the underlying schema is getting altered too, rendering the providers.SchemaCache invalid.
+		attr := *attrS
+		if filterAttribute == nil || !filterAttribute(name, &attr) {
+			ret.Attributes[name] = &attr
 		}
 
-		if attrS.NestedType != nil {
-			ret.Attributes[name].NestedType = filterNestedType(attrS.NestedType, filterAttribute)
+		if attr.NestedType != nil {
+			ret.Attributes[name].NestedType = filterNestedType((&attr).NestedType, filterAttribute)
 		}
 	}
 
@@ -88,10 +91,13 @@ func filterNestedType(obj *Object, filterAttribute FilterT[*Attribute]) *Object 
 	}
 
 	for name, attrS := range obj.Attributes {
-		if filterAttribute == nil || !filterAttribute(name, attrS) {
-			ret.Attributes[name] = attrS
-			if attrS.NestedType != nil {
-				ret.Attributes[name].NestedType = filterNestedType(attrS.NestedType, filterAttribute)
+		// Copy the attributes of the block. Otherwise, if the filterNestedType is filtering out some attributes,
+		// the underlying schema is getting altered too, rendering the providers.SchemaCache invalid.
+		attr := *attrS
+		if filterAttribute == nil || !filterAttribute(name, &attr) {
+			ret.Attributes[name] = &attr
+			if attr.NestedType != nil {
+				ret.Attributes[name].NestedType = filterNestedType(attr.NestedType, filterAttribute)
 			}
 		}
 	}

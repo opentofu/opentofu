@@ -27,7 +27,7 @@ import (
 func TestFull(t *testing.T, s Full) {
 	t.Helper()
 
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -50,7 +50,7 @@ func TestFull(t *testing.T, s Full) {
 	current := s.State()
 
 	// Write a new state and verify that we have it
-	current.RootModule().SetOutputValue("bar", cty.StringVal("baz"), false)
+	current.RootModule().SetOutputValue("bar", cty.StringVal("baz"), false, "")
 
 	if err := s.WriteState(current); err != nil {
 		t.Fatalf("err: %s", err)
@@ -61,12 +61,12 @@ func TestFull(t *testing.T, s Full) {
 	}
 
 	// Test persistence
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	// Refresh if we got it
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -86,7 +86,7 @@ func TestFull(t *testing.T, s Full) {
 	if err := s.WriteState(current); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -104,12 +104,12 @@ func TestFull(t *testing.T, s Full) {
 	// Change the serial
 	current = current.DeepCopy()
 	current.EnsureModule(addrs.RootModuleInstance).SetOutputValue(
-		"serialCheck", cty.StringVal("true"), false,
+		"serialCheck", cty.StringVal("true"), false, "",
 	)
 	if err := s.WriteState(current); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -161,8 +161,8 @@ func TestFullInitialState() *states.State {
 	}
 	childMod.SetResourceProvider(rAddr, providerAddr)
 
-	state.RootModule().SetOutputValue("sensitive_output", cty.StringVal("it's a secret"), true)
-	state.RootModule().SetOutputValue("nonsensitive_output", cty.StringVal("hello, world!"), false)
+	state.RootModule().SetOutputValue("sensitive_output", cty.StringVal("it's a secret"), true, "")
+	state.RootModule().SetOutputValue("nonsensitive_output", cty.StringVal("hello, world!"), false, "")
 
 	return state
 }

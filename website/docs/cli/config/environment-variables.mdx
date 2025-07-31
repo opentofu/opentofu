@@ -162,6 +162,8 @@ If `TF_IGNORE` is set to "trace", OpenTofu will output debug messages to display
 export TF_IGNORE=trace
 ```
 
+For more details on `.terraformignore`, please see [Excluding Files from Upload with .terraformignore](../../language/settings/backends/remote.mdx#excluding-files-from-upload-with-terraformignore).
+
 ## TF_PROVIDER_DOWNLOAD_RETRY
 
 Set `TF_PROVIDER_DOWNLOAD_RETRY` to configure the max number of request retries
@@ -172,7 +174,13 @@ the remote provider client will attempt for client connection errors or
 export TF_PROVIDER_DOWNLOAD_RETRY=3
 ```
 
-For more details on `.terraformignore`, please see [Excluding Files from Upload with .terraformignore](../../language/settings/backends/remote.mdx#excluding-files-from-upload-with-terraformignore).
+## TF_STATE_PERSIST_INTERVAL
+
+Set `TF_STATE_PERSIST_INTERVAL` to configure the interval (in seconds) between state persistence.  Increased interval could be useful when working with huge states (> 100k resources) where upload to a cloud service could take a significant amount of time.  Default persistence interval is 20 seconds (it also the lowest possible value for this parameter).  The following command sets persistence interval to 5 minutes (300 seconds):
+
+```shell
+export TF_STATE_PERSIST_INTERVAL=300
+```
 
 ## Cloud Backend CLI Integration
 
@@ -187,4 +195,19 @@ The `TF_ENCRYPTION` environment variable is an alternate method of specifying th
 ```shell
 # Add/Override encryption key_provider.static.mykp
 export TF_ENCRYPTION='key_provider "static" "mykp" { key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169" }'
+```
+
+:::warning
+If the key (or similar) has non-alphanumeric characters in it, beware that your shell may not interpret them literally. Special characters are shell dependent, but some common examples are dollar signs for variable interpolation or backslashes for character escaping.
+
+Make sure your secret doesn't get changed by your shell without you realizing. This is also shell dependent, but common ways of avoiding this are using single quotes or escaping special characters with a backslash.
+:::
+
+## TOFU_CPU_PROFILE
+
+Set `TOFU_CPU_PROFILE` to instruct OpenTofu to write a [Go pprof file](https://pkg.go.dev/runtime/pprof). These profiles can be used to help developers identify hot-spots in OpenTofu's codebase that slow down execution.  It pairs well with the more granular and well structured OpenTelemetry tracing (available in OpenTofu 1.10.0). For more information on profiling in Go, see https://go.dev/blog/pprof.  As this uses the go runtime's pprof tooling directly, is not covered under the compatibility promise and is subject to change / removal at any time.
+
+```shell
+TOFU_CPU_PROFILE=./tofu.pprof tofu plan
+go tool pprof -http ./tofu.pprof
 ```

@@ -36,16 +36,16 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationPlanWithTimeout(t, configDir, 0)
 }
 
-func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -65,15 +65,14 @@ func testOperationPlanWithTimeout(t *testing.T, configDir string, timeout time.D
 		Type:            backend.OperationTypePlan,
 		View:            operationView,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 func TestCloud_planBasic(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -99,9 +98,9 @@ func TestCloud_planBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -117,8 +116,7 @@ func TestCloud_planJSONBasic(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-json-basic")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-json-basic")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -145,9 +143,9 @@ func TestCloud_planJSONBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -156,8 +154,7 @@ func TestCloud_planCanceled(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -175,9 +172,9 @@ func TestCloud_planCanceled(t *testing.T) {
 		t.Fatal("expected plan operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelled plan: %s", err.Error())
 	}
 }
@@ -186,8 +183,7 @@ func TestCloud_planLongLine(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-long-line")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-long-line")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -225,8 +221,7 @@ func TestCloud_planJSONFull(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-json-full")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-json-full")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -257,9 +252,9 @@ func TestCloud_planJSONFull(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -281,8 +276,7 @@ func TestCloud_planWithoutPermissions(t *testing.T) {
 	}
 	w.Permissions.CanQueueRun = false
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 
 	op.Workspace = "prod"
 
@@ -307,8 +301,7 @@ func TestCloud_planWithParallelism(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}
@@ -337,8 +330,7 @@ func TestCloud_planWithPlan(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 
 	op.PlanFile = planfile.NewWrappedLocal(&planfile.Reader{})
 	op.Workspace = testBackendSingleWorkspaceName
@@ -367,8 +359,7 @@ func TestCloud_planWithPath(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	tmpDir := t.TempDir()
@@ -426,8 +417,7 @@ func TestCloud_planWithoutRefresh(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.PlanRefresh = false
@@ -463,8 +453,7 @@ func TestCloud_planWithRefreshOnly(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.PlanMode = plans.RefreshOnlyMode
@@ -523,8 +512,7 @@ func TestCloud_planWithTarget(t *testing.T) {
 		}
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
@@ -565,12 +553,43 @@ func TestCloud_planWithTarget(t *testing.T) {
 	}
 }
 
+// Planning with an exclude flag should error
+func TestCloud_planWithExclude(t *testing.T) {
+	b, bCleanup := testBackendWithName(t)
+	defer bCleanup()
+
+	op, done := testOperationPlan(t, "./testdata/plan")
+
+	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
+
+	op.Workspace = testBackendSingleWorkspaceName
+	op.Excludes = []addrs.Targetable{addr}
+
+	run, err := b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("error starting operation: %v", err)
+	}
+
+	<-run.Done()
+	output := done(t)
+	if run.Result == backend.OperationSuccess {
+		t.Fatal("expected apply operation to fail")
+	}
+	if !run.PlanEmpty {
+		t.Fatalf("expected plan to be empty")
+	}
+
+	errOutput := output.Stderr()
+	if !strings.Contains(errOutput, "-exclude option is not supported") {
+		t.Fatalf("expected -exclude option is not supported error, got: %v", errOutput)
+	}
+}
+
 func TestCloud_planWithReplace(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceInstanceStr("null_resource.foo")
@@ -608,8 +627,7 @@ func TestCloud_planWithRequiredVariables(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-variables")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-variables")
 	defer done(t)
 
 	op.Variables = testVariables(tofu.ValueFromCLIArg, "foo") // "bar" variable defined in config is  missing
@@ -637,8 +655,7 @@ func TestCloud_planNoConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/empty")
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -666,8 +683,7 @@ func TestCloud_planNoChanges(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-no-changes")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-no-changes")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -702,8 +718,7 @@ func TestCloud_planForceLocal(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -738,8 +753,7 @@ func TestCloud_planWithoutOperationsEntitlement(t *testing.T) {
 	b, bCleanup := testBackendNoOperations(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -788,8 +802,7 @@ func TestCloud_planWorkspaceWithoutOperations(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = "no-operations"
@@ -847,8 +860,7 @@ func TestCloud_planLockTimeout(t *testing.T) {
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
-	defer configCleanup()
+	op, done := testOperationPlanWithTimeout(t, "./testdata/plan", 50)
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -884,7 +896,7 @@ func TestCloud_planLockTimeout(t *testing.T) {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Lock timeout exceeded") {
-		t.Fatalf("expected lock timout error in output: %s", output)
+		t.Fatalf("expected lock timeout error in output: %s", output)
 	}
 	if strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("unexpected plan summary in output: %s", output)
@@ -895,8 +907,7 @@ func TestCloud_planDestroy(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.PlanMode = plans.DestroyMode
@@ -920,8 +931,7 @@ func TestCloud_planDestroyNoConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/empty")
 	defer done(t)
 
 	op.PlanMode = plans.DestroyMode
@@ -955,8 +965,7 @@ func TestCloud_planWithWorkingDirectory(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-with-working-directory/tofu")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1000,22 +1009,13 @@ func TestCloud_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("error getting current working directory: %v", err)
-	}
-
 	// We need to change into the configuration directory to make sure
 	// the logic to upload the correct slug is working as expected.
-	if err := os.Chdir("./testdata/plan-with-working-directory/tofu"); err != nil {
-		t.Fatalf("error changing directory: %v", err)
-	}
-	defer os.Chdir(wd) // Make sure we change back again when were done.
+	t.Chdir("./testdata/plan-with-working-directory/tofu")
 
 	// For this test we need to give our current directory instead of the
 	// full path to the configuration as we already changed directories.
-	op, configCleanup, done := testOperationPlan(t, ".")
-	defer configCleanup()
+	op, done := testOperationPlan(t, ".")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1046,8 +1046,7 @@ func TestCloud_planCostEstimation(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-cost-estimation")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1081,8 +1080,7 @@ func TestCloud_planPolicyPass(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-policy-passed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-policy-passed")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1116,8 +1114,7 @@ func TestCloud_planPolicyHardFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-policy-hard-failed")
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1156,8 +1153,7 @@ func TestCloud_planPolicySoftFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-policy-soft-failed")
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -1196,8 +1192,7 @@ func TestCloud_planWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-with-error")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-with-error")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1236,8 +1231,7 @@ func TestCloud_planJSONWithRemoteError(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-json-error")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-json-error")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1269,8 +1263,7 @@ func TestCloud_planOtherError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	defer done(t)
 
 	op.Workspace = "network-error" // custom error response in backend_mock.go
@@ -1297,8 +1290,7 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-import-config-gen")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen")
 	defer done(t)
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
@@ -1328,9 +1320,9 @@ func TestCloud_planImportConfigGeneration(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 
@@ -1348,8 +1340,7 @@ func TestCloud_planImportGenerateInvalidConfig(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-import-config-gen-validation-error")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen-validation-error")
 	defer done(t)
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
@@ -1387,8 +1378,7 @@ func TestCloud_planInvalidGenConfigOutPath(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-import-config-gen-exists")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-import-config-gen-exists")
 
 	genPath := filepath.Join(op.ConfigDir, "generated.tf")
 	op.GenerateConfigOut = genPath

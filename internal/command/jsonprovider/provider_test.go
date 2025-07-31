@@ -28,6 +28,7 @@ func TestMarshalProvider(t *testing.T) {
 				Provider:          &Schema{},
 				ResourceSchemas:   map[string]*Schema{},
 				DataSourceSchemas: map[string]*Schema{},
+				Functions:         map[string]*Function{},
 			},
 		},
 		{
@@ -146,6 +147,7 @@ func TestMarshalProvider(t *testing.T) {
 						},
 					},
 				},
+				Functions: map[string]*Function{},
 			},
 		},
 	}
@@ -223,5 +225,6 @@ func testProvider() providers.ProviderSchema {
 				},
 			},
 		},
+		Functions: map[string]providers.FunctionSpec{},
 	}
 }

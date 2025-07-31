@@ -1,99 +1,34 @@
-run:
-  timeout: 30m
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-
-  exhaustive:
-    check:
-      - switch
-      - map
-
-  funlen:
-    lines: 100
-    statements: 50
-    ignore-comments: true
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment # rule is too strict
-
-  nolintlint:
-    require-explanation: true
-    require-specific: true
-
-  cyclop:
-    max-complexity: 15
-
+version: "2"
 issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - funlen
-        - dupl
-
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
-  disable-all: true
-  enable:
-    - asasalint
-    - asciicheck
-    - bidichk
-    - bodyclose
-    - cyclop
-    - dupl
-    - durationcheck
-    - errcheck
-    - errname
-    - errorlint
-    - exhaustive
-    - exportloopref
-    - forbidigo
-    - funlen
-    - gocheckcompilerdirectives
-    - gochecknoglobals
-    - gochecknoinits
-    - gocognit
-    - goconst
-    - gocritic
-    - gocyclo
-    - goimports
-    - gomoddirectives
-    - gomodguard
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - loggercheck
-    - makezero
-    - mirror
-    - mnd
-    - musttag
-    - nakedret
-    - nestif
-    - nilerr
-    - nilnil
-    - noctx
-    - nolintlint
-    - nonamedreturns
-    - nosprintfhostport
-    - predeclared
-    - promlinter
-    - reassign
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - stylecheck
-    - tenv
-    - testableexamples
-    - tparallel
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - usestdlibvars
-    - wastedassign
-    - whitespace
+  settings:
+    staticcheck:
+      # For now, we will disable some static checks to match golang-ci-lint@v1 functionality.
+      # These should be addressed once the --new-from-rev work is taken care of.
+      checks: ["all", "-QF1008", "-ST1003", "-ST1005", "-ST1012", "-ST1016"]
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      # We have a few patterns that are excluded from linting completely because
+      # they contain effectively-frozen code that we're preserving for backward
+      # compatibility, where changes would be risky and that risk isn't warranted
+      # since we don't expect to be doing any significant maintenence on these.
+      - ^internal/ipaddr/
+      - ^internal/legacy/
+      - ^internal/states/statefile/version\d+_upgrade\.go$
+      - ^website/
+formatters:
+  exclusions:
+    generated: lax

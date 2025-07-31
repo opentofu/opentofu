@@ -6,12 +6,14 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -19,6 +21,21 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// traceNameValidateResource is a standardized trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNameValidateResource = "Validate resource configuration"
+
+// traceAttrConfigResourceAddr is a standardized trace span attribute name that we
+// use for recording the address of the main resource that a particular span is
+// concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.ConfigResource]. DO NOT use this with results from
+// [addrs.AbsResourceInstance]; use [traceAttrResourceInstanceAddr] instead
+// for that address type.
+const traceAttrConfigResourceAddr = "opentofu.resource.address"
 
 // ConcreteResourceNodeFunc is a callback type used to convert an
 // abstract resource to a concrete one of some type.
@@ -69,16 +86,20 @@ type NodeAbstractResource struct {
 	// Set from GraphNodeTargetable
 	Targets []addrs.Targetable
 
+	// Set from GraphNodeTargetable
+	Excludes []addrs.Targetable
+
 	// Set from AttachDataResourceDependsOn
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
 	// The address of the provider this resource will use
-	ResolvedProvider addrs.AbsProviderConfig
+	ResolvedProvider ResolvedProvider
+
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
-	storedProviderConfig addrs.AbsProviderConfig
+	storedProviderConfig ResolvedProvider
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -86,6 +107,11 @@ type NodeAbstractResource struct {
 	// generateConfigPath tells this node which file to write generated config
 	// into. If empty, then config should not be generated.
 	generateConfigPath string
+
+	// removedBlockProvisioners holds any possibly existing configs.Provisioner configs that could be defined by using
+	// removed.provisioner configuration. If the field "Config.Managed.Provisioners" is having no provisioners, then
+	// these provisioners should be used instead.
+	removedBlockProvisioners []*configs.Provisioner
 }
 
 var (
@@ -161,6 +187,11 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
 
+		if c.ProviderConfigRef != nil && c.ProviderConfigRef.KeyExpression != nil {
+			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.ProviderConfigRef.KeyExpression)
+			result = append(result, providerRefs...)
+		}
+
 		for _, expr := range c.TriggersReplacement {
 			refs, _ = lang.ReferencesInExpr(addrs.ParseRef, expr)
 			result = append(result, refs...)
@@ -174,7 +205,7 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 
 		if c.Managed != nil {
 			if c.Managed.Connection != nil {
-				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, connectionBlockSupersetSchema)
+				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, shared.ConnectionBlockSupersetSchema)
 				result = append(result, refs...)
 			}
 
@@ -183,7 +214,7 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 					continue
 				}
 				if p.Connection != nil {
-					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, connectionBlockSupersetSchema)
+					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 					result = append(result, refs...)
 				}
 
@@ -290,32 +321,48 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
-	n.ResolvedProvider = p
+// GraphNodeProviderConsumer
+func (n *NodeAbstractResource) SetProvider(resolved ResolvedProvider) {
+	n.ResolvedProvider = resolved
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedBy() RequestedProvider {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider, true
+	if n.ResolvedProvider.ProviderConfig.Provider.Type != "" {
+		return RequestedProvider{
+			ProviderConfig: n.ResolvedProvider.ProviderConfig,
+			KeyExpression:  n.ResolvedProvider.KeyExpression,
+			KeyModule:      n.ResolvedProvider.KeyModule,
+			KeyResource:    n.ResolvedProvider.KeyResource,
+			KeyExact:       n.ResolvedProvider.KeyExact,
+		}
 	}
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		relAddr := n.Config.ProviderConfigAddr()
-		return addrs.LocalProviderConfig{
-			LocalName: relAddr.LocalName,
-			Alias:     relAddr.Alias,
-		}, false
+		result := RequestedProvider{
+			ProviderConfig: n.Config.ProviderConfigAddr(),
+		}
+		if n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
+			result.KeyResource = true
+			result.KeyExpression = n.Config.ProviderConfigRef.KeyExpression
+		}
+		return result
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.Provider.Type != "" {
+	if n.storedProviderConfig.ProviderConfig.Provider.Type != "" {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return n.storedProviderConfig, true
+		return RequestedProvider{
+			ProviderConfig: n.storedProviderConfig.ProviderConfig,
+			KeyExpression:  n.storedProviderConfig.KeyExpression,
+			KeyModule:      n.storedProviderConfig.KeyModule,
+			KeyResource:    n.storedProviderConfig.KeyResource,
+			KeyExact:       n.storedProviderConfig.KeyExact,
+		}
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -326,27 +373,34 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderConfig{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}, false
+			return RequestedProvider{
+				ProviderConfig: addrs.LocalProviderConfig{
+					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
+				},
+				// This is where we would specify a key expression if that was supported for import blocks
+			}
 		}
 	}
 
 	// No provider configuration found; return a default address
-	return addrs.AbsProviderConfig{
-		Provider: n.Provider(),
-		Module:   n.ModulePath(),
-	}, false
+	return RequestedProvider{
+		ProviderConfig: addrs.LocalProviderConfig{
+			LocalName: n.Addr.Resource.ImpliedProvider(), // Unused, see ProviderTransformer
+		},
+	}
 }
 
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) Provider() addrs.Provider {
+	if n.ResolvedProvider.ProviderConfig.Provider.Type != "" {
+		return n.ResolvedProvider.ProviderConfig.Provider
+	}
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.Provider.Type != "" {
-		return n.storedProviderConfig.Provider
+	if n.storedProviderConfig.ProviderConfig.Provider.Type != "" {
+		return n.storedProviderConfig.ProviderConfig.Provider
 	}
 
 	if len(n.importTargets) > 0 {
@@ -396,6 +450,11 @@ func (n *NodeAbstractResource) SetTargets(targets []addrs.Targetable) {
 	n.Targets = targets
 }
 
+// GraphNodeTargetable
+func (n *NodeAbstractResource) SetExcludes(excludes []addrs.Targetable) {
+	n.Excludes = excludes
+}
+
 // graphNodeAttachDataResourceDependsOn
 func (n *NodeAbstractResource) AttachDataResourceDependsOn(deps []addrs.ConfigResource, force bool) {
 	n.dependsOn = deps
@@ -437,28 +496,28 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // eval is the only change we get to set the resource "each mode" to list
 // in that case, allowing expression evaluation to see it as a zero-element list
 // rather than as not set at all.
-func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
+	state := evalCtx.State()
 
 	// We'll record our expansion decision in the shared "expander" object
 	// so that later operations (i.e. DynamicExpand and expression evaluation)
 	// can refer to it. Since this node represents the abstract module, we need
 	// to expand the module here to create all resources.
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 
 	switch {
 	case n.Config != nil && n.Config.Count != nil:
-		count, countDiags := evaluateCountExpression(n.Config.Count, ctx)
+		count, countDiags := evaluateCountExpression(ctx, n.Config.Count, evalCtx, addr)
 		diags = diags.Append(countDiags)
 		if countDiags.HasErrors() {
 			return diags
 		}
 
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
-		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, ctx)
+		forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, addr)
 		diags = diags.Append(forEachDiags)
 		if forEachDiags.HasErrors() {
 			return diags
@@ -466,30 +525,33 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 
 	return diags
 }
 
+func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) bool {
+	return newAddr.Resource.Resource.Type != oldAddr.Resource.Resource.Type
+}
+
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
-		diags = diags.Append(err)
-		return nil, diags
+		return nil, diags.Append(err)
 	}
 
 	log.Printf("[TRACE] readResourceInstanceState: reading state for %s", addr)
 
-	src := ctx.State().ResourceInstanceObject(addr, states.CurrentGen)
+	src := evalCtx.State().ResourceInstanceObject(addr, states.CurrentGen)
 	if src == nil {
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceState: no state present for %s", addr)
@@ -501,11 +563,26 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 		// Shouldn't happen since we should've failed long ago if no schema is present
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
-	src, upgradeDiags := upgradeResourceState(addr, provider, src, schema, currentVersion)
-	if n.Config != nil {
-		upgradeDiags = upgradeDiags.InConfigBody(n.Config.Config, addr.String())
+
+	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
+	prevAddr := n.prevRunAddr(evalCtx)
+	transformArgs := stateTransformArgs{
+		currentAddr:          addr,
+		prevAddr:             prevAddr,
+		provider:             provider,
+		objectSrc:            src,
+		currentSchema:        schema,
+		currentSchemaVersion: currentVersion,
 	}
-	diags = diags.Append(upgradeDiags)
+	if isResourceMovedToDifferentType(addr, prevAddr) {
+		src, diags = moveResourceState(transformArgs)
+	} else {
+		src, diags = upgradeResourceState(transformArgs)
+	}
+
+	if n.Config != nil {
+		diags = diags.InConfigBody(n.Config.Config, addr.String())
+	}
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -520,9 +597,9 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -534,7 +611,7 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext,
 
 	log.Printf("[TRACE] readResourceInstanceStateDeposed: reading state for %s deposed object %s", addr, key)
 
-	src := ctx.State().ResourceInstanceObject(addr, key)
+	src := evalCtx.State().ResourceInstanceObject(addr, key)
 	if src == nil {
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceStateDeposed: no state present for %s deposed object %s", addr, key)
@@ -545,14 +622,26 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext,
 	if schema == nil {
 		// Shouldn't happen since we should've failed long ago if no schema is present
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
-
+	}
+	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
+	prevAddr := n.prevRunAddr(evalCtx)
+	transformArgs := stateTransformArgs{
+		currentAddr:          addr,
+		prevAddr:             prevAddr,
+		provider:             provider,
+		objectSrc:            src,
+		currentSchema:        schema,
+		currentSchemaVersion: currentVersion,
+	}
+	if isResourceMovedToDifferentType(addr, prevAddr) {
+		src, diags = moveResourceState(transformArgs)
+	} else {
+		src, diags = upgradeResourceState(transformArgs)
 	}
 
-	src, upgradeDiags := upgradeResourceState(addr, provider, src, schema, currentVersion)
 	if n.Config != nil {
-		upgradeDiags = upgradeDiags.InConfigBody(n.Config.Config, addr.String())
+		diags = diags.InConfigBody(n.Config.Config, addr.String())
 	}
-	diags = diags.Append(upgradeDiags)
 	if diags.HasErrors() {
 		// Note that we don't have any channel to return warnings here. We'll
 		// accept that for now since warnings during a schema upgrade would
@@ -590,14 +679,12 @@ func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext,
 func graphNodesAreResourceInstancesInDifferentInstancesOfSameModule(a, b dag.Vertex) bool {
 	aRI, aOK := a.(GraphNodeResourceInstance)
 	bRI, bOK := b.(GraphNodeResourceInstance)
-	if !(aOK && bOK) {
+	if !aOK || !bOK {
 		return false
 	}
 	aModInst := aRI.ResourceInstanceAddr().Module
 	bModInst := bRI.ResourceInstanceAddr().Module
-	aMod := aModInst.Module()
-	bMod := bModInst.Module()
-	if !aMod.Equal(bMod) {
+	if !aModInst.HasSameModule(bModInst) {
 		return false
 	}
 	return !aModInst.Equal(bModInst)

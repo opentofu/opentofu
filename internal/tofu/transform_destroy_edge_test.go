@@ -33,6 +33,7 @@ func TestDestroyEdgeTransformer_basic(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -42,13 +43,14 @@ func TestDestroyEdgeTransformer_basic(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -74,6 +76,7 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -83,6 +86,7 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.C").Resource,
@@ -95,14 +99,15 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -117,7 +122,7 @@ func TestDestroyEdgeTransformer_selfRef(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	g.Add(testDestroyNode("test_object.A"))
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -143,6 +148,7 @@ func TestDestroyEdgeTransformer_module(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.b")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.b").Resource,
@@ -151,14 +157,15 @@ func TestDestroyEdgeTransformer_module(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"b","test_string":"x"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -186,6 +193,7 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"a"}`),
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		child.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr("test_object.b").Resource,
@@ -197,6 +205,7 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 				},
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		child.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr("test_object.c").Resource,
@@ -209,15 +218,16 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 				},
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	}
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -269,6 +279,7 @@ func TestDestroyEdgeTransformer_destroyThenUpdate(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A","test_string":"old"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -278,14 +289,15 @@ func TestDestroyEdgeTransformer_destroyThenUpdate(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -367,6 +379,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 				AttrsJSON: []byte(`{}`),
 			},
 			providerCfgAddr,
+			addrs.NoKey,
 		)
 	})
 	changes := plans.NewChanges()
@@ -394,6 +407,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 				Concrete: concreteResourceInstance,
 				State:    state,
 				Changes:  changes,
+				Config:   config,
 			},
 			&ReferenceTransformer{},
 			&AttachDependenciesTransformer{},
@@ -401,7 +415,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 			&CloseRootModuleTransformer{},
 		},
 	}
-	graph, diags := builder.Build(addrs.RootModuleInstance)
+	graph, diags := builder.Build(t.Context(), addrs.RootModuleInstance)
 	assertNoDiagnostics(t, diags)
 
 	// At this point, thanks to pruneUnusedNodesTransformer, we should still
@@ -461,6 +475,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -470,6 +485,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.C").Resource,
@@ -480,9 +496,10 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 				mustConfigResourceAddr("test_object.B")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
@@ -498,7 +515,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -540,14 +557,15 @@ func TestDestroyEdgeTransformer_dataDependsOn(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	if err := (&AttachStateTransformer{State: state}).Transform(&g); err != nil {
+	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
 		t.Fatal(err)
 	}
 
 	tf := &DestroyEdgeTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

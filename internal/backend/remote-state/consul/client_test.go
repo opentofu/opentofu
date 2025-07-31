@@ -47,7 +47,7 @@ func TestRemoteClient(t *testing.T) {
 			}))
 
 			// Grab the client
-			state, err := b.StateMgr(backend.DefaultStateName)
+			state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -72,7 +72,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	}))
 
 	// Grab the client
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	}))
 
 	// Grab the client
-	state, err = b.StateMgr(backend.DefaultStateName)
+	state, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -111,7 +111,7 @@ func TestConsul_largeState(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,12 +141,12 @@ func TestConsul_largeState(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = c.Put(payload)
+		err = c.Put(t.Context(), payload)
 		if err != nil {
 			t.Fatal("could not put payload", err)
 		}
 
-		remote, err := c.Get()
+		remote, err := c.Get(t.Context())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -198,7 +198,7 @@ func TestConsul_largeState(t *testing.T) {
 		"gzip":    true,
 	}))
 
-	s, err = b.StateMgr(backend.DefaultStateName)
+	s, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,9 +207,9 @@ func TestConsul_largeState(t *testing.T) {
 	c.Path = path
 
 	// We need a long random string so it results in multiple chunks even after
-	// being gziped
+	// being gzipped
 
-	// We use a fixed seed so the test can be reproductible
+	// We use a fixed seed so the test can be reproducible
 	randomizer := rand.New(rand.NewSource(1234))
 	RandStringRunes := func(n int) string {
 		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -235,7 +235,7 @@ func TestConsul_largeState(t *testing.T) {
 	)
 
 	// Deleting the state should remove all chunks
-	err = c.Delete()
+	err = c.Delete(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestConsul_stateLock(t *testing.T) {
 			sA, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -265,7 +265,7 @@ func TestConsul_stateLock(t *testing.T) {
 			sB, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -304,7 +304,7 @@ func TestConsul_destroyLock(t *testing.T) {
 			}))
 
 			// Grab the client
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -312,14 +312,14 @@ func TestConsul_destroyLock(t *testing.T) {
 			clientA := s.(*remote.State).Client.(*RemoteClient)
 
 			info := statemgr.NewLockInfo()
-			id, err := clientA.Lock(info)
+			id, err := clientA.Lock(t.Context(), info)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			lockPath := clientA.Path + lockSuffix
 
-			if err := clientA.Unlock(id); err != nil {
+			if err := clientA.Unlock(t.Context(), id); err != nil {
 				t.Fatal(err)
 			}
 
@@ -327,7 +327,7 @@ func TestConsul_destroyLock(t *testing.T) {
 
 			// The release the lock from a second client to test the
 			// `tofu force-unlock <lock_id>` functionality
-			s, err = b.StateMgr(backend.DefaultStateName)
+			s, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -335,18 +335,18 @@ func TestConsul_destroyLock(t *testing.T) {
 			clientB := s.(*remote.State).Client.(*RemoteClient)
 
 			info = statemgr.NewLockInfo()
-			id, err = clientA.Lock(info)
+			id, err = clientA.Lock(t.Context(), info)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if err := clientB.Unlock(id); err != nil {
+			if err := clientB.Unlock(t.Context(), id); err != nil {
 				t.Fatal(err)
 			}
 
 			testLock(clientA, lockPath)
 
-			err = clientA.Unlock(id)
+			err = clientA.Unlock(t.Context(), id)
 
 			if err == nil {
 				t.Fatal("consul lock should have been lost")
@@ -368,7 +368,7 @@ func TestConsul_lostLock(t *testing.T) {
 	sA, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,14 +376,14 @@ func TestConsul_lostLock(t *testing.T) {
 	sB, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path + "-not-used",
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	info := statemgr.NewLockInfo()
 	info.Operation = "test-lost-lock"
-	id, err := sA.Lock(info)
+	id, err := sA.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +403,7 @@ func TestConsul_lostLock(t *testing.T) {
 
 	<-reLocked
 
-	if err := sA.Unlock(id); err != nil {
+	if err := sA.Unlock(t.Context(), id); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -428,14 +428,14 @@ func TestConsul_lostLockConnection(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	info := statemgr.NewLockInfo()
 	info.Operation = "test-lost-lock-connection"
-	id, err := s.Lock(info)
+	id, err := s.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,12 +444,12 @@ func TestConsul_lostLockConnection(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		dialed := conns.dialedDone()
 		// kill any open connections
-		conns.Kill()
+		conns.Kill(t)
 		// wait for a new connection to be dialed, and kill it again
 		<-dialed
 	}
 
-	if err := s.Unlock(id); err != nil {
+	if err := s.Unlock(t.Context(), id); err != nil {
 		t.Fatal("unlock error:", err)
 	}
 }
@@ -493,12 +493,15 @@ func (u *unreliableConns) dialedDone() chan struct{} {
 
 // Kill these with a deadline, just to make sure we don't end up with any EOFs
 // that get ignored.
-func (u *unreliableConns) Kill() {
+func (u *unreliableConns) Kill(t *testing.T) {
 	u.Lock()
 	defer u.Unlock()
 
 	for _, conn := range u.conns {
-		conn.(*net.TCPConn).SetDeadline(time.Now())
+		err := conn.(*net.TCPConn).SetDeadline(time.Now())
+		if err != nil {
+			t.Fatal("failed to kill connection:", err)
+		}
 	}
 	u.conns = nil
 }

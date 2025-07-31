@@ -28,6 +28,8 @@ type ConsoleCommand struct {
 }
 
 func (c *ConsoleCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
@@ -53,14 +55,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -68,7 +70,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -89,7 +91,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.AllowUnsetVariables = true // we'll just evaluate them as unknown
@@ -100,9 +102,11 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	{
-		var moreDiags tfdiags.Diagnostics
+		// Setup required variables/call for operation (usually done in Meta.RunOperation)
+		var moreDiags, callDiags tfdiags.Diagnostics
 		opReq.Variables, moreDiags = c.collectVariableValues()
-		diags = diags.Append(moreDiags)
+		opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
+		diags = diags.Append(moreDiags).Append(callDiags)
 		if moreDiags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
@@ -110,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -142,7 +146,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Before we can evaluate expressions, we must compute and populate any
 	// derived values (input variables, local values, output values)
 	// that are not stored in the persistent state.
-	scope, scopeDiags := lr.Core.Eval(lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+	scope, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
 	diags = diags.Append(scopeDiags)
 	if scope == nil {
 		// scope is nil if there are errors so bad that we can't even build a scope.
@@ -177,25 +181,30 @@ func (c *ConsoleCommand) Run(args []string) int {
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
-	var lastResult string
 	scanner := bufio.NewScanner(os.Stdin)
+
+	var consoleState consoleBracketState
+
 	for scanner.Scan() {
-		result, exit, diags := session.Handle(strings.TrimSpace(scanner.Text()))
-		if diags.HasErrors() {
-			// In piped mode we'll exit immediately on error.
-			c.showDiagnostics(diags)
-			return 1
-		}
-		if exit {
-			return 0
-		}
+		line := strings.TrimSpace(scanner.Text())
 
-		// Store the last result
-		lastResult = result
+		// we check if there is no escaped new line at the end, or any open brackets
+		// if we have neither, then we can execute
+		fullCommand, bracketState := consoleState.UpdateState(line)
+		if bracketState <= 0 {
+			result, exit, diags := session.Handle(fullCommand)
+			if diags.HasErrors() {
+				// We're in piped mode, so we'll exit immediately on error.
+				c.showDiagnostics(diags)
+				return 1
+			}
+			if exit {
+				return 0
+			}
+			// Output the result
+			ui.Output(result)
+		}
 	}
-
-	// Output the final result
-	ui.Output(lastResult)
 
 	return 0
 }
@@ -216,15 +225,27 @@ Usage: tofu [global options] console [options]
 
 Options:
 
-  -state=path       Legacy option for the local backend only. See the local
-                    backend's documentation for more information.
+  -compact-warnings      If OpenTofu produces any warnings that are not
+                         accompanied by errors, show them in a more compact
+                         form that includes only the summary messages.
 
-  -var 'foo=bar'    Set a variable in the OpenTofu configuration. This
-                    flag can be set multiple times.
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
 
-  -var-file=foo     Set variables in the OpenTofu configuration from
-                    a file. If "terraform.tfvars" or any ".auto.tfvars"
-                    files are present, they will be automatically loaded.
+  -consolidate-errors    If OpenTofu produces any errors, no consolidation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
+
+  -state=path            Legacy option for the local backend only. See the local
+                         backend's documentation for more information.
+
+  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
+                         flag can be set multiple times.
+
+  -var-file=foo          Set variables in the OpenTofu configuration from
+                         a file. If "terraform.tfvars" or any ".auto.tfvars"
+                         files are present, they will be automatically loaded.
 `
 	return strings.TrimSpace(helpText)
 }

@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package openbao
 
 import (
@@ -8,7 +13,7 @@ import (
 	"net/url"
 	"path"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 )
 
 type client interface {

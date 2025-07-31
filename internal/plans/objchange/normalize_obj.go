@@ -57,51 +57,63 @@ func normalizeObjectFromLegacySDK(val cty.Value, schema *configschema.Block) cty
 
 		switch blockS.Nesting {
 		case configschema.NestingSingle, configschema.NestingGroup:
-			if lv.IsKnown() {
-				if lv.IsNull() && blockS.Nesting == configschema.NestingGroup {
-					vals[name] = blockS.EmptyValue()
-				} else {
-					vals[name] = normalizeObjectFromLegacySDK(lv, &blockS.Block)
-				}
-			} else {
-				vals[name] = unknownBlockStub(&blockS.Block)
-			}
+			vals[name] = normalizeNestedBlockFromLegacySDKSingle(lv, blockS)
 		case configschema.NestingList:
-			switch {
-			case !lv.IsKnown():
-				vals[name] = cty.ListVal([]cty.Value{unknownBlockStub(&blockS.Block)})
-			case lv.IsNull() || lv.LengthInt() == 0:
-				vals[name] = cty.ListValEmpty(blockS.Block.ImpliedType())
-			default:
-				subVals := make([]cty.Value, 0, lv.LengthInt())
-				for it := lv.ElementIterator(); it.Next(); {
-					_, subVal := it.Element()
-					subVals = append(subVals, normalizeObjectFromLegacySDK(subVal, &blockS.Block))
-				}
-				vals[name] = cty.ListVal(subVals)
-			}
+			vals[name] = normalizeNestedBlockFromLegacySDKList(lv, blockS)
 		case configschema.NestingSet:
-			switch {
-			case !lv.IsKnown():
-				vals[name] = cty.SetVal([]cty.Value{unknownBlockStub(&blockS.Block)})
-			case lv.IsNull() || lv.LengthInt() == 0:
-				vals[name] = cty.SetValEmpty(blockS.Block.ImpliedType())
-			default:
-				subVals := make([]cty.Value, 0, lv.LengthInt())
-				for it := lv.ElementIterator(); it.Next(); {
-					_, subVal := it.Element()
-					subVals = append(subVals, normalizeObjectFromLegacySDK(subVal, &blockS.Block))
-				}
-				vals[name] = cty.SetVal(subVals)
-			}
-		default:
+			vals[name] = normalizeNestedBlockFromLegacySDKSet(lv, blockS)
+		case configschema.NestingMap:
 			// The legacy SDK doesn't support NestingMap, so we just assume
 			// maps are always okay. (If not, we would've detected and returned
 			// an error to the user before we got here.)
+			fallthrough
+		default:
 			vals[name] = lv
 		}
 	}
 	return cty.ObjectVal(vals)
+}
+
+func normalizeNestedBlockFromLegacySDKSingle(val cty.Value, blockS *configschema.NestedBlock) cty.Value {
+	if !val.IsKnown() {
+		return unknownBlockStub(&blockS.Block)
+	}
+	if val.IsNull() && blockS.Nesting == configschema.NestingGroup {
+		return blockS.EmptyValue()
+	}
+	return normalizeObjectFromLegacySDK(val, &blockS.Block)
+}
+
+func normalizeNestedBlockFromLegacySDKList(val cty.Value, blockS *configschema.NestedBlock) cty.Value {
+	switch {
+	case !val.IsKnown():
+		return cty.ListVal([]cty.Value{unknownBlockStub(&blockS.Block)})
+	case val.IsNull() || val.LengthInt() == 0:
+		return cty.ListValEmpty(blockS.Block.ImpliedType())
+	default:
+		subVals := make([]cty.Value, 0, val.LengthInt())
+		for it := val.ElementIterator(); it.Next(); {
+			_, subVal := it.Element()
+			subVals = append(subVals, normalizeObjectFromLegacySDK(subVal, &blockS.Block))
+		}
+		return cty.ListVal(subVals)
+	}
+}
+
+func normalizeNestedBlockFromLegacySDKSet(val cty.Value, blockS *configschema.NestedBlock) cty.Value {
+	switch {
+	case !val.IsKnown():
+		return cty.SetVal([]cty.Value{unknownBlockStub(&blockS.Block)})
+	case val.IsNull() || val.LengthInt() == 0:
+		return cty.SetValEmpty(blockS.Block.ImpliedType())
+	default:
+		subVals := make([]cty.Value, 0, val.LengthInt())
+		for it := val.ElementIterator(); it.Next(); {
+			_, subVal := it.Element()
+			subVals = append(subVals, normalizeObjectFromLegacySDK(subVal, &blockS.Block))
+		}
+		return cty.SetVal(subVals)
+	}
 }
 
 // unknownBlockStub constructs an object value that approximates an unknown

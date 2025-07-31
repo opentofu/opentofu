@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	testing_command "github.com/opentofu/opentofu/internal/command/testing"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/terminal"
 )
@@ -29,6 +30,10 @@ func TestTest(t *testing.T) {
 		code     int
 		skip     bool
 	}{
+		"function_call_in_variables": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
 		"simple_pass": {
 			expected: "1 passed, 0 failed.",
 			code:     0,
@@ -169,6 +174,10 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		// New variables introduced in the test file should error out
+		"local_variables_in_provider_block": {
+			code: 1,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -183,7 +192,7 @@ func TestTest(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -272,7 +281,7 @@ func TestTest_Full_Output(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -305,7 +314,7 @@ func TestTest_Full_Output(t *testing.T) {
 func TestTest_Interrupt(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_interrupt")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -337,7 +346,7 @@ func TestTest_Interrupt(t *testing.T) {
 func TestTest_DoubleInterrupt(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_double_interrupt")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -386,7 +395,7 @@ test:
 func TestTest_ProviderAlias(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_provider_alias")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 
@@ -441,7 +450,7 @@ func TestTest_ProviderAlias(t *testing.T) {
 func TestTest_ModuleDependencies(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_setup_module")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Our two providers will share a common set of values to make things
 	// easier.
@@ -526,7 +535,7 @@ func TestTest_ModuleDependencies(t *testing.T) {
 func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "invalid_default_state")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -581,7 +590,7 @@ variable.
 func TestTest_Verbose(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "plan_then_apply")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -735,7 +744,7 @@ can remove the provider configuration again.
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 
@@ -795,9 +804,10 @@ can remove the provider configuration again.
 
 func TestTest_Modules(t *testing.T) {
 	tcs := map[string]struct {
-		expected string
-		code     int
-		skip     bool
+		expected                      string
+		code                          int
+		skip                          bool
+		expectedProviderConfigRequest *providers.ConfigureProviderRequest
 	}{
 		"pass_module_with_no_resource": {
 			expected: "main.tftest.hcl... pass\n  run \"run\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
@@ -819,6 +829,58 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"test\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
+		"destroyed_mod_outputs": {
+			expected: "main.tftest.hcl... pass\n  run \"first_apply\"... pass\n  run \"second_apply\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+		},
+		"run_mod_output_in_provider": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_complex": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("Password"),
+					"username":        cty.StringVal("test_user@d"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_with_blocks": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.ObjectVal(map[string]cty.Value{
+						"string_attr": cty.StringVal("r"),
+					}),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_undefined_ref": {
+			code: 1,
+		},
 	}
 
 	for name, tc := range tcs {
@@ -831,7 +893,7 @@ func TestTest_Modules(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -871,10 +933,18 @@ func TestTest_Modules(t *testing.T) {
 				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
 			}
 
-			actual := output.All()
+			// If we're not expecting a failure, we can compare the output.
+			if code != 1 {
+				actual := output.All()
+				if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
+					t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+				}
+			}
 
-			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
-				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			if tc.expectedProviderConfigRequest != nil {
+				if !provider.Provider.ConfigureProviderRequest.Config.Equals(tc.expectedProviderConfigRequest.Config).True() {
+					t.Errorf("expected provider config request to equal %+v but got %+v", tc.expectedProviderConfigRequest.Config, provider.Provider.ConfigureProviderRequest.Config)
+				}
 			}
 
 			if provider.ResourceCount() > 0 {
@@ -899,7 +969,7 @@ func TestTest_Modules(t *testing.T) {
 func TestTest_StatePropagation(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "state_propagation")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 
@@ -1024,25 +1094,26 @@ func TestTest_PartialUpdates(t *testing.T) {
 
 Warning: Resource targeting is in effect
 
-You are creating a plan with the -target option, which means that the result
-of this plan may not represent all of the changes requested by the current
-configuration.
+You are creating a plan with either the -target option or the -exclude
+option, which means that the result of this plan may not represent all of the
+changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for
-exceptional situations such as recovering from errors or mistakes, or when
-OpenTofu specifically suggests to use it as part of an error message.
+The -target and -exclude options are not for routine use, and are provided
+only for exceptional situations such as recovering from errors or mistakes,
+or when OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
-The plan was created with the -target option in effect, so some changes
-requested in the configuration may have been ignored and the output values
-may not be fully updated. Run the following command to verify that no other
-changes are pending:
+The plan was created with the -target or the -exclude option in effect, so
+some changes requested in the configuration may have been ignored and the
+output values may not be fully updated. Run the following command to verify
+that no other changes are pending:
     tofu plan
 	
-Note that the -target option is not suitable for routine use, and is provided
-only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTofu specifically suggests to use it as part of an error message.
+Note that the -target and -exclude options are not suitable for routine use,
+and are provided only for exceptional situations such as recovering from
+errors or mistakes, or when OpenTofu specifically suggests to use it as part
+of an error message.
   run "second"... pass
 
 Success! 2 passed, 0 failed.
@@ -1055,25 +1126,26 @@ Success! 2 passed, 0 failed.
 
 Warning: Resource targeting is in effect
 
-You are creating a plan with the -target option, which means that the result
-of this plan may not represent all of the changes requested by the current
-configuration.
+You are creating a plan with either the -target option or the -exclude
+option, which means that the result of this plan may not represent all of the
+changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for
-exceptional situations such as recovering from errors or mistakes, or when
-OpenTofu specifically suggests to use it as part of an error message.
+The -target and -exclude options are not for routine use, and are provided
+only for exceptional situations such as recovering from errors or mistakes,
+or when OpenTofu specifically suggests to use it as part of an error message.
 
 Warning: Applied changes may be incomplete
 
-The plan was created with the -target option in effect, so some changes
-requested in the configuration may have been ignored and the output values
-may not be fully updated. Run the following command to verify that no other
-changes are pending:
+The plan was created with the -target or the -exclude option in effect, so
+some changes requested in the configuration may have been ignored and the
+output values may not be fully updated. Run the following command to verify
+that no other changes are pending:
     tofu plan
 	
-Note that the -target option is not suitable for routine use, and is provided
-only for exceptional situations such as recovering from errors or mistakes,
-or when OpenTofu specifically suggests to use it as part of an error message.
+Note that the -target and -exclude options are not suitable for routine use,
+and are provided only for exceptional situations such as recovering from
+errors or mistakes, or when OpenTofu specifically suggests to use it as part
+of an error message.
 
 Failure! 0 passed, 1 failed.
 `,
@@ -1093,7 +1165,7 @@ Condition expression could not be evaluated at this time.
 		t.Run(file, func(t *testing.T) {
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -1132,48 +1204,13 @@ Condition expression could not be evaluated at this time.
 }
 
 func TestTest_LocalVariables(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath(path.Join("test", "pass_with_local_variable")), td)
-	defer testChdir(t, td)()
-
-	provider := testing_command.NewProvider(nil)
-
-	providerSource, close := newMockProviderSource(t, map[string][]string{
-		"test": {"1.0.0"},
-	})
-	defer close()
-
-	streams, done := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
-	ui := new(cli.MockUi)
-
-	meta := Meta{
-		testingOverrides: metaOverridesForProvider(provider.Provider),
-		Ui:               ui,
-		View:             view,
-		Streams:          streams,
-		ProviderSource:   providerSource,
-	}
-
-	init := &InitCommand{
-		Meta: meta,
-	}
-
-	if code := init.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
-	}
-
-	c := &TestCommand{
-		Meta: meta,
-	}
-	code := c.Run([]string{"-verbose", "-no-color"})
-	output := done(t)
-
-	if code != 0 {
-		t.Errorf("expected status code 0 but got %d", code)
-	}
-
-	expected := `tests/test.tftest.hcl... pass
+	tcs := map[string]struct {
+		expected string
+		code     int
+		skip     bool
+	}{
+		"pass_with_local_variable": {
+			expected: `tests/test.tftest.hcl... pass
   run "first"... pass
 
 
@@ -1188,16 +1225,185 @@ OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 
 Success! 2 passed, 0 failed.
-`
+`,
+			code: 0,
+		},
+		"pass_var_inside_variables": {
+			expected: `main.tftest.hcl... pass
+  run "first"... pass
 
-	actual := output.All()
 
-	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
-		t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
+Outputs:
+
+sss = "false"
+
+Success! 1 passed, 0 failed.
+`,
+			code: 0,
+		},
+		"pass_var_with_default_value_inside_variables": {
+			expected: `main.tftest.hcl... pass
+  run "first"... pass
+
+
+Outputs:
+
+sss = "true"
+
+Success! 1 passed, 0 failed.
+`,
+			code: 0,
+		},
 	}
 
-	if provider.ResourceCount() > 0 {
-		t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			t.Chdir(td)
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer providerClose()
+
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+
+			command := &TestCommand{
+				Meta: meta,
+			}
+
+			code := command.Run([]string{"-verbose", "-no-color"})
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+			}
+
+			actual := output.All()
+
+			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
+				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			}
+		})
+	}
+}
+
+func TestTest_InvalidLocalVariables(t *testing.T) {
+	tcs := map[string]struct {
+		contains    []string
+		notContains []string
+		code        int
+		skip        bool
+	}{
+		"invalid_variable_warning_expected": {
+			contains: []string{
+				"Warning: Invalid Variable in test file",
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			code: 1,
+		},
+		"invalid_variable_warning_no_expected": {
+			contains: []string{
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			notContains: []string{
+				"Warning: Invalid Variable in test file",
+			},
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			t.Chdir(td)
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer providerClose()
+
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+
+			command := &TestCommand{
+				Meta: meta,
+			}
+
+			code := command.Run([]string{"-verbose", "-no-color"})
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+			}
+
+			actual := output.All()
+
+			for _, containsString := range tc.contains {
+				if !strings.Contains(actual, containsString) {
+					t.Errorf("expected '%s' in output but didn't find it: \n%s", containsString, output.All())
+				}
+			}
+
+			for _, notContainsString := range tc.notContains {
+				if strings.Contains(actual, notContainsString) {
+					t.Errorf("expected not to find '%s' in output: \n%s", notContainsString, output.All())
+				}
+			}
+		})
 	}
 }
 
@@ -1231,7 +1437,7 @@ digits, underscores, and dashes.
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -1258,5 +1464,80 @@ digits, underscores, and dashes.
 				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
 			}
 		})
+	}
+}
+
+// TestTest_MockProviderValidation checks if tofu test runs proper validation for
+// mock_provider. Even if provider schema has required fields, tofu test should
+// ignore it completely, because the provider is mocked.
+func TestTest_MockProviderValidation(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/mock_provider_validation"), td)
+	t.Chdir(td)
+
+	provider := testing_command.NewProvider(nil)
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer closePS()
+
+	provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"required_field": {
+						Type:     cty.String,
+						Required: true,
+					},
+				},
+			},
+		},
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"value": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"object_attr": {
+							Computed: true,
+							NestedType: &configschema.Object{
+								Nesting: configschema.NestingSingle,
+								Attributes: map[string]*configschema.Attribute{
+									"string_attr": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
+						"computed_value": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	view, done := testView(t)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		Ui:               ui,
+		View:             view,
+		ProviderSource:   providerSource,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }

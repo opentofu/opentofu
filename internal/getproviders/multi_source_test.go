@@ -358,7 +358,7 @@ func TestMultiSourcePackageMeta(t *testing.T) {
 		)
 		// This case reports "platform not supported" because it assumes that
 		// a caller would only pass to it package versions that were returned
-		// by a previousc all to AvailableVersions, and therefore a missing
+		// by a previous call to AvailableVersions, and therefore a missing
 		// object ought to be valid provider/version but an unsupported
 		// platform.
 		if want, ok := err.(ErrPlatformNotSupported); !ok {

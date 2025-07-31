@@ -56,6 +56,54 @@ func upgradeDataStoreResourceState(req providers.UpgradeResourceStateRequest) (r
 	return resp
 }
 
+// nullResourceSchema returns a schema for a null_resource with relevant attributes for type migration.
+func nullResourceSchema() providers.Schema {
+	return providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"triggers": {Type: cty.Map(cty.String), Optional: true},
+				"id":       {Type: cty.String, Computed: true},
+			},
+		},
+	}
+
+}
+
+func moveDataStoreResourceState(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
+	if req.SourceTypeName != "null_resource" || req.TargetTypeName != "terraform_data" {
+		resp.Diagnostics = resp.Diagnostics.Append(
+			fmt.Errorf("unsupported move: %s -> %s; only move from null_resource to terraform_data is supported",
+				req.SourceTypeName, req.TargetTypeName))
+		return resp
+	}
+	nullTy := nullResourceSchema().Block.ImpliedType()
+	oldState, err := ctyjson.Unmarshal(req.SourceStateJSON, nullTy)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+	oldStateMap := oldState.AsValueMap()
+	newStateMap := map[string]cty.Value{}
+
+	if trigger, ok := oldStateMap["triggers"]; ok && !trigger.IsNull() {
+		newStateMap["triggers_replace"] = cty.ObjectVal(trigger.AsValueMap())
+	}
+	if id, ok := oldStateMap["id"]; ok && !id.IsNull() {
+		newStateMap["id"] = id
+	}
+
+	currentSchema := dataStoreResourceSchema()
+	newState, err := currentSchema.Block.CoerceValue(cty.ObjectVal(newStateMap))
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+	resp.TargetState = newState
+	resp.TargetPrivate = req.SourcePrivate
+	return resp
+}
+
 func readDataStoreResourceState(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 	resp.NewState = req.PriorState
 	return resp

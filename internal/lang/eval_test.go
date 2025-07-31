@@ -8,6 +8,7 @@ package lang
 import (
 	"bytes"
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -347,6 +349,20 @@ func TestScopeEvalContext(t *testing.T) {
 				"terraform": cty.ObjectVal(map[string]cty.Value{
 					"workspace": cty.StringVal("default"),
 				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+			},
+		},
+		{
+			`tofu.workspace`,
+			map[string]cty.Value{
+				"terraform": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
 			},
 		},
 		{
@@ -390,7 +406,7 @@ func TestScopeEvalContext(t *testing.T) {
 					Key: addrs.IntKey(1),
 				},
 			}
-			ctx, ctxDiags := scope.EvalContext(refs)
+			ctx, ctxDiags := scope.EvalContext(t.Context(), refs)
 			if ctxDiags.HasErrors() {
 				t.Fatal(ctxDiags.Err())
 			}
@@ -419,6 +435,76 @@ func TestScopeEvalContext(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestScopeEvalContextWithParent tests if the resulting EvalCtx has correct parent.
+func TestScopeEvalContextWithParent(t *testing.T) {
+	t.Run("with-parent", func(t *testing.T) {
+		barStr, barFunc := cty.StringVal("bar"), function.New(&function.Spec{
+			Impl: func(_ []cty.Value, _ cty.Type) (cty.Value, error) {
+				return cty.NilVal, nil
+			},
+		})
+
+		scope, parent := &Scope{}, &hcl.EvalContext{
+			Variables: map[string]cty.Value{
+				"foo": barStr,
+			},
+			Functions: map[string]function.Function{
+				"foo": barFunc,
+			},
+		}
+
+		child, diags := scope.EvalContextWithParent(t.Context(), parent, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if child.Parent() == nil {
+			t.Fatalf("Child EvalCtx has no parent")
+		}
+
+		if child.Parent() != parent {
+			t.Fatalf("Child EvalCtx has different parent:\n GOT:%v\nWANT:%v", child.Parent(), parent)
+		}
+
+		if ln := len(child.Parent().Variables); ln != 1 {
+			t.Fatalf("EvalContextWithParent modified parent's variables: incorrect length: %d", ln)
+		}
+
+		if v := child.Parent().Variables["foo"]; !v.RawEquals(barStr) {
+			t.Fatalf("EvalContextWithParent modified parent's variables:\n GOT:%v\nWANT:%v", v, barStr)
+		}
+
+		if ln := len(child.Parent().Functions); ln != 1 {
+			t.Fatalf("EvalContextWithParent modified parent's functions: incorrect length: %d", ln)
+		}
+
+		if v := child.Parent().Functions["foo"]; !reflect.DeepEqual(v, barFunc) {
+			t.Fatalf("EvalContextWithParent modified parent's functions:\n GOT:%v\nWANT:%v", v, barFunc)
+		}
+	})
+
+	t.Run("zero-parent", func(t *testing.T) {
+		scope := &Scope{}
+
+		root, diags := scope.EvalContextWithParent(t.Context(), nil, nil)
+		if len(diags) != 0 {
+			t.Errorf("Unexpected diagnostics:")
+			for _, diag := range diags {
+				t.Errorf("- %s", diag)
+			}
+			return
+		}
+
+		if root.Parent() != nil {
+			t.Fatalf("Resulting EvalCtx has unexpected parent: %v", root.Parent())
+		}
+	})
 }
 
 func TestScopeExpandEvalBlock(t *testing.T) {
@@ -688,12 +774,12 @@ func TestScopeExpandEvalBlock(t *testing.T) {
 				ParseRef: addrs.ParseRef,
 			}
 
-			body, expandDiags := scope.ExpandBlock(body, schema)
+			body, expandDiags := scope.ExpandBlock(t.Context(), body, schema)
 			if expandDiags.HasErrors() {
 				t.Fatal(expandDiags.Err())
 			}
 
-			got, valDiags := scope.EvalBlock(body, schema)
+			got, valDiags := scope.EvalBlock(t.Context(), body, schema)
 			if valDiags.HasErrors() {
 				t.Fatal(valDiags.Err())
 			}
@@ -712,7 +798,6 @@ func TestScopeExpandEvalBlock(t *testing.T) {
 
 		})
 	}
-
 }
 
 func formattedJSONValue(val cty.Value) string {
@@ -722,7 +807,9 @@ func formattedJSONValue(val cty.Value) string {
 		panic(err)
 	}
 	var buf bytes.Buffer
-	json.Indent(&buf, j, "", "  ")
+	if err := json.Indent(&buf, j, "", "  "); err != nil {
+		panic(err)
+	}
 	return buf.String()
 }
 
@@ -815,6 +902,13 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 				"num":  cty.NullVal(cty.Number),
 			},
 		},
+		{
+			Config: `attr = tofu.workspace`,
+			Want: map[string]cty.Value{
+				"attr": cty.StringVal("default"),
+				"num":  cty.NullVal(cty.Number),
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -835,7 +929,7 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 				ParseRef: addrs.ParseRef,
 			}
 
-			gotVal, ctxDiags := scope.EvalSelfBlock(body, test.Self, schema, test.KeyData)
+			gotVal, ctxDiags := scope.EvalSelfBlock(t.Context(), body, test.Self, schema, test.KeyData)
 			if ctxDiags.HasErrors() {
 				t.Fatal(ctxDiags.Err())
 			}
@@ -909,13 +1003,13 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 
 			scope := &Scope{}
 
-			ctx, ctxDiags := scope.EvalContext(nil)
+			ctx, ctxDiags := scope.EvalContext(t.Context(), nil)
 			if ctxDiags.HasErrors() {
 				t.Fatalf("Unexpected ctxDiags, %#v", ctxDiags)
 			}
 
 			_, evalDiags := hcldec.Decode(body, spec, ctx)
-			diags := scope.enhanceFunctionDiags(evalDiags)
+			diags := enhanceFunctionDiags(evalDiags)
 			if len(diags) != 1 {
 				t.Fatalf("Expected 1 diag, got %d", len(diags))
 			}

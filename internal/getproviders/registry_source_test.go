@@ -12,11 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	tfaddr "github.com/opentofu/registry-address"
-
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
+	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -60,7 +59,7 @@ func TestSourceAvailableVersions(t *testing.T) {
 		{
 			"fails.example.com/foo/bar",
 			nil,
-			`could not query provider registry for fails.example.com/foo/bar: the request failed after 2 attempts, please try again later: Get "` + baseURL + `/fails-immediately/foo/bar/versions": EOF`,
+			`could not query provider registry for fails.example.com/foo/bar: request failed after 2 attempts: Get "` + baseURL + `/fails-immediately/foo/bar/versions": EOF`,
 		},
 	}
 
@@ -142,17 +141,16 @@ func TestSourcePackageMeta(t *testing.T) {
 			[]SigningKey{
 				{ASCIIArmor: TestingPublicKey},
 			},
-			&tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
+			regaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
 		),
 	)
 
 	tests := []struct {
-		provider   string
-		version    string
-		os, arch   string
-		want       PackageMeta
-		wantHashes []Hash
-		wantErr    string
+		provider string
+		version  string
+		os, arch string
+		want     PackageMeta
+		wantErr  string
 	}{
 		// These test cases are relying on behaviors of the fake provider
 		// registry server implemented in registry_client_test.go.
@@ -161,10 +159,6 @@ func TestSourcePackageMeta(t *testing.T) {
 			"1.2.0",
 			"linux", "amd64",
 			validMeta,
-			[]Hash{
-				"zh:000000000000000000000000000000000000000000000000000000000000f00d",
-				"zh:000000000000000000000000000000000000000000000000000000000000face",
-			},
 			``,
 		},
 		{
@@ -172,7 +166,6 @@ func TestSourcePackageMeta(t *testing.T) {
 			"1.2.0",
 			"nonexist", "amd64",
 			PackageMeta{},
-			nil,
 			`provider example.com/awesomesauce/happycloud 1.2.0 is not available for nonexist_amd64`,
 		},
 		{
@@ -180,7 +173,6 @@ func TestSourcePackageMeta(t *testing.T) {
 			"1.2.0",
 			"linux", "amd64",
 			PackageMeta{},
-			nil,
 			`host not.example.com does not offer a OpenTofu provider registry`,
 		},
 		{
@@ -188,7 +180,6 @@ func TestSourcePackageMeta(t *testing.T) {
 			"1.2.0",
 			"linux", "amd64",
 			PackageMeta{},
-			nil,
 			`host too-new.example.com does not support the provider registry protocol required by this OpenTofu version, but may be compatible with a different OpenTofu version`,
 		},
 		{
@@ -196,8 +187,7 @@ func TestSourcePackageMeta(t *testing.T) {
 			"1.2.0",
 			"linux", "amd64",
 			PackageMeta{},
-			nil,
-			`could not query provider registry for fails.example.com/awesomesauce/happycloud: the request failed after 2 attempts, please try again later: Get "http://placeholder-origin/fails-immediately/awesomesauce/happycloud/1.2.0/download/linux/amd64": EOF`,
+			`could not query provider registry for fails.example.com/awesomesauce/happycloud: request failed after 2 attempts: Get "http://placeholder-origin/fails-immediately/awesomesauce/happycloud/1.2.0/download/linux/amd64": EOF`,
 		},
 	}
 
@@ -240,9 +230,6 @@ func TestSourcePackageMeta(t *testing.T) {
 
 			if diff := cmp.Diff(got, test.want, cmpOpts); diff != "" {
 				t.Errorf("wrong result\n%s", diff)
-			}
-			if diff := cmp.Diff(test.wantHashes, got.AcceptableHashes()); diff != "" {
-				t.Errorf("wrong AcceptableHashes result\n%s", diff)
 			}
 		})
 	}

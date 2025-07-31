@@ -6,6 +6,7 @@
 package repl
 
 import (
+	"context"
 	"flag"
 	"os"
 	"strings"
@@ -45,6 +46,7 @@ func TestSession_basicState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -60,6 +62,7 @@ func TestSession_basicState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -276,8 +279,7 @@ func testSession(t *testing.T, test testSessionTest) {
 		},
 	}
 
-	config, _, cleanup, configDiags := initwd.LoadConfigForTests(t, "testdata/config-fixture", "tests")
-	defer cleanup()
+	config, _, configDiags := initwd.LoadConfigForTests(t, "testdata/config-fixture", "tests")
 	if configDiags.HasErrors() {
 		t.Fatalf("unexpected problems loading config: %s", configDiags.Err())
 	}
@@ -296,7 +298,7 @@ func testSession(t *testing.T, test testSessionTest) {
 	if state == nil {
 		state = states.NewState()
 	}
-	scope, diags := ctx.Eval(config, state, addrs.RootModuleInstance, &tofu.EvalOpts{})
+	scope, diags := ctx.Eval(context.Background(), config, state, addrs.RootModuleInstance, &tofu.EvalOpts{})
 	if diags.HasErrors() {
 		t.Fatalf("failed to create scope: %s", diags.Err())
 	}
@@ -371,7 +373,7 @@ func TestTypeString(t *testing.T) {
 		Input cty.Value
 		Want  string
 	}{
-		// Primititves
+		// Primitives
 		{
 			cty.StringVal("a"),
 			"string",

@@ -7,20 +7,23 @@ description: >-
 
 # Backend Type: remote
 
+Most of the available backends provide different ways of storing state snapshots remotely. Therefore, they are often called remote state backends.
+This page describes a special `remote` backend, not to be confused with the simpler remote state backends.
+
 :::note
-**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of the `remote` backend. The `cloud` option includes an improved user experience and more features.
 :::
 
-The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software (TACOS) backends. It used to be called an "enhanced" backend.
+The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software ([TACOS](../../../intro/tacos.mdx)) backends. It used to be called an "enhanced" backend.
 
-If your TACOS provider enables full remote operations, you can execute commands such as `tofu plan` or `tofu apply` within the TACOS runtime environment, with log output streaming directly to your local terminal. Remote plans and applies use variable values from the associated remote workspace.
+If your [TACOS](../../../intro/tacos.mdx) provider enables full remote operations, you can execute commands such as `tofu plan` or `tofu apply` within the [TACOS](../../../intro/tacos.mdx) runtime environment, with log output streaming directly to your local terminal. Remote plans and applies use variable values from the associated remote workspace.
 
-You can also use TACOS with local operations, where only state is stored in the TACOS remote backend.
+You can also use [TACOS](../../../intro/tacos.mdx) with local operations, where only state is stored in the [TACOS](../../../intro/tacos.mdx) remote backend.
 
 ## Command Support
 
 :::note
-Features implementation might vary between different TACOS.
+Features implementation might vary between different [TACOS](../../../intro/tacos.mdx).
 :::
 
 The remote backend supports the following OpenTofu commands:
@@ -66,7 +69,7 @@ setting both results in a configuration error.
 If previous state is present when you run `tofu init` and the corresponding
 remote workspaces are empty or absent, OpenTofu will create workspaces and
 update the remote state accordingly. However, if your workspace requires variables or a specific version of OpenTofu for remote operations, we
-recommend that you create your remote workspaces on TACOS before
+recommend that you create your remote workspaces on [TACOS](../../../intro/tacos.mdx) before
 running any remote operations against them.
 
 ### Workspace Names
@@ -179,7 +182,7 @@ The following configuration options are supported:
     only the default workspace can be used. This option conflicts with `prefix`.
   - `prefix` - (Optional) A prefix used in the names of one or more remote
     workspaces, all of which can be used with this configuration. The full
-    workspace names are used in TACOS, and the short names
+    workspace names are used in [TACOS](../../../intro/tacos.mdx), and the short names
     (minus the prefix) are used on the command line for OpenTofu CLI workspaces.
     If omitted, only the default workspace can be used. This option conflicts with `name`.
 
@@ -212,7 +215,7 @@ the remote workspace accept the following option to modify that behavior:
 ## Excluding Files from Upload with .terraformignore
 
 When executing a remote `plan` or `apply` in a CLI-driven run,
-an archive of your configuration directory is uploaded to TACOS. You can define
+an archive of your configuration directory is uploaded to [TACOS](../../../intro/tacos.mdx). You can define
 paths to ignore from upload via a `.terraformignore` file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:
 
 - `.git/` directories

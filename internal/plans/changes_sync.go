@@ -126,9 +126,8 @@ func (cs *ChangesSync) RemoveResourceInstanceChange(addr addrs.AbsResourceInstan
 		dk = realDK
 	}
 
-	addrStr := addr.String()
 	for i, r := range cs.changes.Resources {
-		if r.Addr.String() != addrStr || r.DeposedKey != dk {
+		if !r.Addr.Equal(addr) || r.DeposedKey != dk {
 			continue
 		}
 		copy(cs.changes.Resources[i:], cs.changes.Resources[i+1:])
@@ -214,10 +213,8 @@ func (cs *ChangesSync) RemoveOutputChange(addr addrs.AbsOutputValue) {
 	cs.lock.Lock()
 	defer cs.lock.Unlock()
 
-	addrStr := addr.String()
-
 	for i, o := range cs.changes.Outputs {
-		if o.Addr.String() != addrStr {
+		if !o.Addr.Equal(addr) {
 			continue
 		}
 		copy(cs.changes.Outputs[i:], cs.changes.Outputs[i+1:])

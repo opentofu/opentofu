@@ -84,7 +84,7 @@ func TestRoundtrip(t *testing.T) {
 func TestRoundtripEncryption(t *testing.T) {
 	const path = "testdata/roundtrip/v4-modules.out.tfstate"
 
-	enc := enctest.EncryptionWithFallback().State()
+	enc := enctest.EncryptionWithFallback(t).State()
 
 	unencryptedInput, err := os.Open(path)
 	if err != nil {
@@ -96,6 +96,10 @@ func TestRoundtripEncryption(t *testing.T) {
 	originalState, err := Read(unencryptedInput, enc)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
+	}
+	// Check status
+	if originalState.EncryptionStatus != encryption.StatusMigration {
+		t.Fatal("wrong status")
 	}
 
 	// Write encrypted
@@ -117,6 +121,13 @@ func TestRoundtripEncryption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	// Check status
+	if newState.EncryptionStatus != encryption.StatusSatisfied {
+		t.Fatal("wrong status")
+	}
+
+	// Overwrite status for deep comparison
+	originalState.EncryptionStatus = newState.EncryptionStatus
 
 	// Compare before/after encryption workflow
 	problems := deep.Equal(newState, originalState)

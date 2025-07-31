@@ -7,12 +7,14 @@ package depsfile
 
 import (
 	"bufio"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -227,14 +229,14 @@ func TestSaveLocksToFile(t *testing.T) {
 	dir := t.TempDir()
 
 	filename := filepath.Join(dir, LockFilePath)
-	diags := SaveLocksToFile(locks, filename)
+	diags := SaveLocksToFile(context.Background(), locks, filename)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
 
 	fileInfo, err := os.Stat(filename)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	if mode := fileInfo.Mode(); mode&0111 != 0 {
 		t.Fatalf("Expected lock file to be non-executable: %o", mode)
@@ -242,7 +244,7 @@ func TestSaveLocksToFile(t *testing.T) {
 
 	gotContentBytes, err := os.ReadFile(filename)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s", err.Error())
 	}
 	gotContent := string(gotContentBytes)
 	wantContent := `# This file is maintained automatically by "tofu init".

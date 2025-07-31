@@ -115,6 +115,17 @@ In addition to alternate [planning modes](#planning-modes), there are several op
 - `-replace=ADDRESS` - Instructs OpenTofu to plan to replace the
   resource instance with the given address. This is helpful when one or more remote objects have become degraded, and you can use replacement objects with the same configuration to align with immutable infrastructure patterns. OpenTofu will use a "replace" action if the specified resource would normally cause an "update" action or no action at all. Include this option multiple times to replace several objects at once. You cannot use `-replace` with the `-destroy` option.
 
+- `-exclude=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
+  on resource instances which do not match the given excluded address, and that
+  do not depend on any such resources or modules that were excluded.
+
+  :::note
+  Use `-exclude=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
+  :::
+
+- `-exclude-file=FILENAME` - Similar to `-exclude` but with multiple addresses
+  specified in a separate file rather than directly on the command line.
+
 - `-target=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
   on resource instances which match the given address and on any objects that
   those instances depend on.
@@ -122,6 +133,9 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   :::note
   Use `-target=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
   :::
+
+- `-target-file=FILENAME` - Similar to `-target` but with multiple addresses
+  specified in a separate file rather than directly on the command line.
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
   [input variable](../../language/values/variables.mdx) declared in the
@@ -217,15 +231,44 @@ input variables, see
 
 ### Resource Targeting
 
-You can use the `-target` option to focus OpenTofu's attention on only a
-subset of resources.
-You can use [resource address syntax](../../cli/state/resource-addressing.mdx)
-to specify the constraint. OpenTofu interprets the resource address as follows:
+You can use the `-target`, `-target-file`, `-exclude`, and `-exclude-file` options
+to activate resource targeting, which focuses OpenTofu's attention on only a
+subset of the resource instances that are declared in the configuration or tracked
+in the current state.
+
+Using `-target` or `-target-file` focuses OpenTofu's attention only on resource
+instances that match the given target addresses and resource instances that
+are dependencies of those.
+
+Using `-exclude` or `-exclude-file` instead focuses OpenTofu's attention on
+resource instances _other than_ those that match and anything that depends
+on those.
+
+Positive targeting using `-target` and `-target-file` is mutually exclusive with
+negative targeting using `-exclude` and `-exclude-file`. You cannot use both
+the target options and the exclude options together in a single command.
+
+Specify the resource instances to target using [resource address syntax](../../cli/state/resource-addressing.mdx).
+For `-target` and `-exclude`, refer to
+[Resource Addresses on the Command Line](../../cli/state/resource-addressing.mdx#resource-addresses-on-the-command-line).
+For `-target-file` and `-exclude-file`, refer to
+[Resource Addresses in Targeting Files](../../cli/state/resource-addressing.mdx#resource-addresses-in-targeting-files).
+
+OpenTofu matches resource instances with the given resource addresses as
+follows:
 
 * If the given address identifies one specific resource instance, OpenTofu
-  will select that instance alone. For resources with either `count` or
-  `for_each` set, a resource instance address must include the instance index
-  part, like `aws_instance.example[0]`.
+  will select that instance alone.
+
+  For resources with either `count` or `for_each` set, a resource instance
+  address must include the instance index part, like `aws_instance.example[0]`.
+
+  Your shell may assign special meaning to some punctuation characters used
+  in a resource instance address, such as quotes and brackets, so it's
+  important to properly quote or escape resource instance addresses written
+  directly on the command line in `-target` or `-exclude` options as
+  described in
+  [Resource Addresses on the Command Line](../../cli/state/resource-addressing.mdx#resource-addresses-on-the-command-line).
 
 * If the given address identifies a resource as a whole, OpenTofu will select
   all of the instances of that resource. For resources with either `count`
@@ -238,21 +281,17 @@ to specify the constraint. OpenTofu interprets the resource address as follows:
   select all instances of all resources that belong to that module instance
   and all of its child module instances.
 
-Once OpenTofu has selected one or more resource instances that you've directly
-targeted, it will also then extend the selection to include all other objects
-that those selections depend on either directly or indirectly.
-
 This targeting capability is provided for exceptional circumstances, such
 as recovering from mistakes or working around OpenTofu limitations. It
-is _not recommended_ to use `-target` for routine operations, since this can
-lead to undetected configuration drift and confusion about how the true state
-of resources relates to configuration.
+is _not recommended_ to use these options for routine operations, because
+that can lead to undetected configuration drift and confusion about how the
+true state of resources relates to configuration.
 
-Instead of using `-target` as a means to operate on isolated portions of very
-large configurations, prefer instead to break large configurations into
+Instead of using resource targeting to operate on isolated portions
+of very large configurations, prefer to break large configurations into
 several smaller configurations that can each be independently applied.
-[Data sources](../../language/data-sources/index.mdx) can be used to access
-information about resources created in other configurations, allowing
+You can use [data sources](../../language/data-sources/index.mdx) to access
+information about resources declared in other configurations, allowing
 a complex system architecture to be broken down into more manageable parts
 that can be updated independently.
 
@@ -270,6 +309,13 @@ The available options are:
   includes only the summary messages, unless the warnings are accompanied by
   at least one error and thus the warning text might be useful context for
   the errors.
+
+* `-consolidate-warnings=false` - If OpenTofu produces any warnings, no
+  consolidation will be performed. All locations, for all warnings will
+  be listed. Enabled by default.
+
+* `-consolidate-errors` - If OpenTofu produces any errors, attempt to
+  consolidate similar messages into a single item.
 
 * `-detailed-exitcode` - Returns a detailed exit code when the command exits.
   When provided, this argument changes the exit codes and their meanings to
@@ -304,8 +350,7 @@ The available options are:
   if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
   
-* `-concise` - Displays plan output in a concise way. It skips showing the 
-  refreshing log lines.
+* `-concise` - Disables progress-related messages in the output.
 
 * `-out=FILENAME` - Writes the generated plan to the given filename in an
   opaque file format that you can later pass to `tofu apply` to execute
@@ -314,9 +359,10 @@ The available options are:
 
   OpenTofu will allow any filename for the plan file, but a typical
   convention is to name it `tfplan`. **Do not** name the file with a suffix
-  that OpenTofu recognizes as another file format; if you use a `.tf` suffix
-  then OpenTofu will try to interpret the file as a configuration source
-  file, which will then cause syntax errors for subsequent commands.
+  that OpenTofu recognizes as another file format; if you use a `.tf` or
+  `.tofu` suffix then OpenTofu will try to interpret the file as a
+  configuration source file, which will then cause syntax errors for subsequent
+  commands.
 
   The generated file is not in any standard format intended for consumption
   by other software, but the file _does_ contain your full configuration,
@@ -329,6 +375,21 @@ The available options are:
 * `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
   to 10.
+
+* `-state=statefile` - A legacy option used for the local backend only.
+  Refer to the local backend's documentation for more information.
+
+* `-show-sensitive` - If specified, sensitive values will not be
+  redacted in te UI output.
+
+* `-json` - Produce output in a machine-readable JSON format, suitable for
+  use in text editor integrations and other automated systems.
+
+* `-deprecation` - Specify what type of warnings are shown.
+  Accepted values: "module:all", "module:local", "module:none". Default: "module:all". When "module:all" is selected,
+  OpenTofu will show the deprecation warnings for all modules. When "module:local" is selected,
+  the warnings will be shown only for the modules that are imported with a relative
+  path. When "module:none" is selected, all the deprecation warnings will be dropped.
 
 For configurations using
 [the `local` backend](../../language/settings/backends/local.mdx) only,

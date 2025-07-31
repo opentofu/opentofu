@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -45,12 +46,12 @@ func testParser(files map[string]string) *Parser {
 
 // testModuleConfigFrom File reads a single file from the given path as a
 // module and returns its configuration. This is a helper for use in unit tests.
-func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
+func testModuleConfigFromFile(ctx context.Context, filename string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	f, diags := parser.LoadConfigFile(filename)
-	mod, modDiags := NewModule([]*File{f}, nil)
+	mod, modDiags := NewModule([]*File{f}, nil, RootModuleCallForTesting(), filename, SelectiveLoadAll)
 	diags = append(diags, modDiags...)
-	cfg, moreDiags := BuildConfig(mod, nil)
+	cfg, moreDiags := BuildConfig(ctx, mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -58,15 +59,15 @@ func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
 // a module and returns it. This is a helper for use in unit tests.
 func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 	parser := NewParser(nil)
-	return parser.LoadConfigDir(path)
+	return parser.LoadConfigDir(path, RootModuleCallForTesting())
 }
 
 // testModuleFromDir reads configuration from the given directory path as a
 // module and returns its configuration. This is a helper for use in unit tests.
-func testModuleConfigFromDir(path string) (*Config, hcl.Diagnostics) {
+func testModuleConfigFromDir(ctx context.Context, path string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir(path)
-	cfg, moreDiags := BuildConfig(mod, nil)
+	mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
+	cfg, moreDiags := BuildConfig(ctx, mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -76,12 +77,12 @@ func testNestedModuleConfigFromDirWithTests(t *testing.T, path string) (*Config,
 	t.Helper()
 
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDirWithTests(path, "tests")
+	mod, diags := parser.LoadConfigDirWithTests(path, "tests", RootModuleCallForTesting())
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, nestedDiags := buildNestedModuleConfig(mod, path, parser)
+	cfg, nestedDiags := buildNestedModuleConfig(t.Context(), mod, path, parser)
 
 	diags = append(diags, nestedDiags...)
 	return cfg, diags
@@ -94,21 +95,21 @@ func testNestedModuleConfigFromDir(t *testing.T, path string) (*Config, hcl.Diag
 	t.Helper()
 
 	parser := NewParser(nil)
-	mod, diags := parser.LoadConfigDir(path)
+	mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
 	if mod == nil {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, nestedDiags := buildNestedModuleConfig(mod, path, parser)
+	cfg, nestedDiags := buildNestedModuleConfig(t.Context(), mod, path, parser)
 
 	diags = append(diags, nestedDiags...)
 	return cfg, diags
 }
 
-func buildNestedModuleConfig(mod *Module, path string, parser *Parser) (*Config, hcl.Diagnostics) {
+func buildNestedModuleConfig(ctx context.Context, mod *Module, path string, parser *Parser) (*Config, hcl.Diagnostics) {
 	versionI := 0
-	return BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	return BuildConfig(ctx, mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to the calling module.
 			// A "real" implementation of ModuleWalker should accept the
@@ -123,7 +124,7 @@ func buildNestedModuleConfig(mod *Module, path string, parser *Parser) (*Config,
 			paths = append([]string{path}, paths...)
 			sourcePath := filepath.Join(paths...)
 
-			mod, diags := parser.LoadConfigDir(sourcePath)
+			mod, diags := parser.LoadConfigDir(sourcePath, RootModuleCallForTesting())
 			version, _ := version.NewVersion(fmt.Sprintf("1.0.%d", versionI))
 			versionI++
 			return mod, version, diags
@@ -180,13 +181,13 @@ func assertExactDiagnostics(t *testing.T, diags hcl.Diagnostics, want []string) 
 	bad := false
 	for got := range gotDiags {
 		if _, exists := wantDiags[got]; !exists {
-			t.Errorf("unexpected diagnostic: %s", got)
+			t.Errorf("unexpected diagnostic: \n%s", got)
 			bad = true
 		}
 	}
 	for want := range wantDiags {
 		if _, exists := gotDiags[want]; !exists {
-			t.Errorf("missing expected diagnostic: %s", want)
+			t.Errorf("missing expected diagnostic: \n%s", want)
 			bad = true
 		}
 	}

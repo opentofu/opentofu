@@ -11,6 +11,18 @@ from some other OpenTofu configuration.
 
 You can use the `terraform_remote_state` data source without requiring or configuring a provider. It is always available through a built-in provider with the [source address](../../language/providers/requirements.mdx#source-addresses) `terraform.io/builtin/terraform`. That provider does not include any other resources or data sources.
 
+:::warning
+
+`terraform_remote_state` does not respect the sensitivity of source state snapshots. Use caution when referencing state with sensitive root module output values.
+
+:::
+
+:::warning
+
+Be careful when using [state encryption](./encryption.mdx)! Sharing encrypted state between projects requires careful coordination of metadata keys. Please read the [Remote state data sources](./encryption.mdx#remote-state-data-sources) section of the state encryption guide for details.
+
+:::
+
 ## Alternative Ways to Share Data Between Configurations
 
 Sharing data with root module outputs is convenient, but it has drawbacks.

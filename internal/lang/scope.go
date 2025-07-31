@@ -6,6 +6,7 @@
 package lang
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -75,7 +76,7 @@ type Scope struct {
 	ProviderFunctions ProviderFunction
 }
 
-type ProviderFunction func(addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)
+type ProviderFunction func(context.Context, addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)
 
 // SetActiveExperiments allows a caller to declare that a set of experiments
 // is active for the module that the receiving Scope belongs to, which might

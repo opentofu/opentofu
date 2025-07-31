@@ -35,6 +35,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		// The orphan
@@ -54,6 +55,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		// A deposed orphan should not be handled by this transformer
@@ -74,13 +76,14 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -91,7 +94,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -123,6 +126,7 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -140,13 +144,14 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -157,7 +162,7 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -188,6 +193,7 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -205,13 +211,14 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -222,7 +229,7 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -253,6 +260,7 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -270,13 +278,14 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -287,7 +296,7 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 			State:    state,
 			Config:   mod,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

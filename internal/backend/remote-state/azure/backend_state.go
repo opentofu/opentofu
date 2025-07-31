@@ -8,8 +8,10 @@ package azure
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
@@ -25,50 +27,36 @@ const (
 	keyEnvPrefix = "env:"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
-	prefix := b.keyName + keyEnvPrefix
-	params := containers.ListBlobsInput{
-		Prefix: &prefix,
-	}
+// getContextWithTimeout returns a context with timeout based on the timeoutSeconds
+func (b *Backend) getContextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, time.Duration(b.armClient.timeoutSeconds)*time.Second)
+}
 
-	ctx := context.TODO()
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+	ctx, cancel := b.getContextWithTimeout(ctx)
+	defer cancel()
+
 	client, err := b.armClient.getContainersClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
+
+	prefix := b.keyName + keyEnvPrefix
+	result, err := getPaginatedResults(ctx, client, prefix, b.armClient.storageAccountName, b.containerName)
 	if err != nil {
 		return nil, err
 	}
 
-	envs := map[string]struct{}{}
-	for _, obj := range resp.Blobs.Blobs {
-		key := obj.Name
-		if strings.HasPrefix(key, prefix) {
-			name := strings.TrimPrefix(key, prefix)
-			// we store the state in a key, not a directory
-			if strings.Contains(name, "/") {
-				continue
-			}
-
-			envs[name] = struct{}{}
-		}
-	}
-
-	result := []string{backend.DefaultStateName}
-	for name := range envs {
-		result = append(result, name)
-	}
-	sort.Strings(result[1:])
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
 
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout(ctx)
+	defer cancel()
 	client, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return err
@@ -83,8 +71,10 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
-	ctx := context.TODO()
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+	ctx, cancel := b.getContextWithTimeout(ctx)
+	defer cancel()
+
 	blobClient, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return nil, err
@@ -96,12 +86,13 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		keyName:            b.path(name),
 		accountName:        b.accountName,
 		snapshot:           b.snapshot,
+		timeoutSeconds:     b.armClient.timeoutSeconds,
 	}
 
 	stateMgr := remote.NewState(client, b.encryption)
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		return nil, err
 	}
 	//if this isn't the default state name, we need to create the object so
@@ -110,21 +101,21 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := client.Lock(lockInfo)
+		lockId, err := client.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock azure state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockId, err)
 			}
 			return parent
 		}
 
 		// Grab the value
-		if err := stateMgr.RefreshState(); err != nil {
+		if err := stateMgr.RefreshState(context.TODO()); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -136,7 +127,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(nil); err != nil {
+			if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}
@@ -149,10 +140,6 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 
 	return stateMgr, nil
-}
-
-func (b *Backend) client() *RemoteClient {
-	return &RemoteClient{}
 }
 
 func (b *Backend) path(name string) string {
@@ -170,3 +157,50 @@ Error: %w
 
 You may have to force-unlock this state in order to use it again.
 `
+
+type azureClient interface {
+	ListBlobs(ctx context.Context, accountName, containerName string, input containers.ListBlobsInput) (result containers.ListBlobsResult, err error)
+}
+
+func getPaginatedResults(ctx context.Context, client azureClient, prefix, accName, containerName string) ([]string, error) {
+	count := 1
+	initialMarker := ""
+
+	params := containers.ListBlobsInput{
+		Prefix: &prefix,
+		Marker: &initialMarker,
+	}
+	result := []string{backend.DefaultStateName}
+
+	for {
+		log.Printf("[TRACE] Getting page %d of blob results", count)
+		resp, err := client.ListBlobs(ctx, accName, containerName, params)
+		if err != nil {
+			return nil, err
+		}
+
+		// Used to paginate blobs, saving the NextMarker result from ListBlobs
+		params.Marker = resp.NextMarker
+		for _, obj := range resp.Blobs.Blobs {
+			key := obj.Name
+			if !strings.HasPrefix(key, prefix) {
+				continue
+			}
+
+			name := strings.TrimPrefix(key, prefix)
+			// we store the state in a key, not a directory
+			if strings.Contains(name, "/") {
+				continue
+			}
+			result = append(result, name)
+		}
+
+		count++
+		if params.Marker == nil || *params.Marker == "" {
+			break
+		}
+	}
+
+	sort.Strings(result[1:])
+	return result, nil
+}

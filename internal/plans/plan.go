@@ -9,9 +9,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/states"
@@ -46,6 +48,7 @@ type Plan struct {
 	Changes           *Changes
 	DriftedResources  []*ResourceInstanceChangeSrc
 	TargetAddrs       []addrs.Targetable
+	ExcludeAddrs      []addrs.Targetable
 	ForceReplaceAddrs []addrs.AbsResourceInstance
 	Backend           Backend
 
@@ -118,7 +121,7 @@ type Plan struct {
 	Timestamp time.Time
 }
 
-// CanApply returns true if and only if the recieving plan includes content
+// CanApply returns true if and only if the receiving plan includes content
 // that would make sense to apply. If it returns false, the plan operation
 // should indicate that there's nothing to do and OpenTofu should exit
 // without prompting the user to confirm the changes.
@@ -195,6 +198,35 @@ func (p *Plan) ProviderAddrs() []addrs.AbsProviderConfig {
 	}
 
 	return ret
+}
+
+// VariableMapper checks that all the provided variables match what has been provided while building the plan.
+func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
+	return func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		name := variable.Name
+		v, ok := plan.VariableValues[name]
+		if !ok {
+			if variable.Required() {
+				// This should not happen...
+				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing plan variable " + variable.Name,
+				})
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
+		if parsedErr != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  parsedErr.Error(),
+			})
+		}
+		return parsed, diags
+	}
 }
 
 // Backend represents the backend-related configuration and other data as it

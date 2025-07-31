@@ -22,7 +22,7 @@
         }
       },
       "snippet": {
-        "context": "variable \"vairable_with_interpolation\"",
+        "context": "variable \"variable_with_interpolation\"",
         "code": "  default = \"${var.otherresourcename}\"",
         "start_line": 6,
         "highlight_start_offset": 15,

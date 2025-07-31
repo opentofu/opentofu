@@ -20,11 +20,11 @@ func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
 
 	g := &Graph{Path: addrs.RootModuleInstance}
 	ct := &ConfigTransformer{Config: cfg}
-	if err := ct.Transform(g); err != nil {
+	if err := ct.Transform(t.Context(), g); err != nil {
 		t.Fatal(err)
 	}
 	arct := &AttachResourceConfigTransformer{Config: cfg}
-	if err := arct.Transform(g); err != nil {
+	if err := arct.Transform(t.Context(), g); err != nil {
 		t.Fatal(err)
 	}
 
@@ -61,13 +61,13 @@ func TestProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	transform := &ProviderTransformer{}
-	if err := transform.Transform(g); err != nil {
+	if err := transform.Transform(t.Context(), g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -86,13 +86,13 @@ func TestProviderTransformer_fqns(t *testing.T) {
 		g := testProviderTransformerGraph(t, mod)
 		{
 			transform := &MissingProviderTransformer{Config: mod}
-			if err := transform.Transform(g); err != nil {
+			if err := transform.Transform(t.Context(), g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		transform := &ProviderTransformer{Config: mod}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 
@@ -110,21 +110,21 @@ func TestCloseProviderTransformer(t *testing.T) {
 
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -144,7 +144,7 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 		&MissingProviderTransformer{},
 		&ProviderTransformer{},
 		&CloseProviderTransformer{},
-		&TargetsTransformer{
+		&TargetingTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
 					addrs.ManagedResourceMode, "something", "else",
@@ -154,7 +154,37 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 	}
 
 	for _, tr := range transforms {
-		if err := tr.Transform(g); err != nil {
+		if err := tr.Transform(t.Context(), g); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	}
+
+	actual := strings.TrimSpace(g.String())
+	expected := strings.TrimSpace(``)
+	if actual != expected {
+		t.Fatalf("expected:%s\n\ngot:\n\n%s", expected, actual)
+	}
+}
+
+func TestCloseProviderTransformer_withExcludes(t *testing.T) {
+	mod := testModule(t, "transform-provider-basic")
+
+	g := testProviderTransformerGraph(t, mod)
+	transforms := []GraphTransformer{
+		&MissingProviderTransformer{},
+		&ProviderTransformer{},
+		&CloseProviderTransformer{},
+		&TargetingTransformer{
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Resource(
+					addrs.ManagedResourceMode, "aws_instance", "web",
+				),
+			},
+		},
+	}
+
+	for _, tr := range transforms {
+		if err := tr.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -172,21 +202,21 @@ func TestMissingProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -206,13 +236,13 @@ func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := testTransformProviders(concrete, mod)
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 	{
 		transform := &TransitiveReductionTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -230,28 +260,28 @@ func TestPruneProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &PruneProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -271,7 +301,7 @@ func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -291,7 +321,7 @@ func TestProviderConfigTransformer_grandparentProviders(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -325,7 +355,7 @@ resource "test_object" "a" {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -403,7 +433,7 @@ resource "test_object" "a" {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -447,7 +477,7 @@ provider "test" {
 		Config:   mod,
 		Concrete: concrete,
 	}
-	if err := tf.Transform(g); err != nil {
+	if err := tf.Transform(t.Context(), g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 

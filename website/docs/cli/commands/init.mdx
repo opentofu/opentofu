@@ -25,6 +25,11 @@ directory up to date with changes in the configuration. Though subsequent runs
 may give errors, this command will never delete your existing configuration or
 state.
 
+This command requires value assignment for variables used in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation)
+and [backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals)
+blocks. Refer to [Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+for more information.
+
 ## General Options
 
 The following options apply to all of (or several of) the initialization steps:
@@ -45,6 +50,22 @@ The following options apply to all of (or several of) the initialization steps:
 
 * `-json` Produce output in a machine-readable JSON format, suitable for use
   in text editor integrations and other automated systems. Always disables color.
+
+* `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](plan.mdx#input-variables-on-the-command-line) for more information.
+
+* `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ## Copy a Source Module
 
@@ -76,6 +97,12 @@ activating credentials) before running `tofu init`.
 During init, the root configuration directory is consulted for
 [backend configuration](../../language/settings/backends/configuration.mdx) and the chosen backend
 is initialized using the given configuration settings.
+
+:::note
+Use of [variables in the backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals)
+block requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu init`.
+:::
 
 Re-running init with an already-initialized backend will update the working
 directory to use the new backend settings. Either `-reconfigure` or

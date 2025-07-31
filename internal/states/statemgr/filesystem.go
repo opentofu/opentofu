@@ -7,6 +7,7 @@ package statemgr
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -95,7 +97,7 @@ func NewFilesystemBetweenPaths(readPath, writePath string, enc encryption.StateE
 	}
 }
 
-// SetBackupPath configures the receiever so that it will create a local
+// SetBackupPath configures the receiver so that it will create a local
 // backup file of the next state snapshot it reads (in State) if a different
 // snapshot is subsequently written (in WriteState). Only one backup is
 // written for the lifetime of the object, unless reset as described below.
@@ -157,7 +159,7 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 }
 
 // PersistState writes state to a tfstate file.
-func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
+func (s *Filesystem) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	defer s.mutex()()
 
 	return s.persistState(schemas)
@@ -172,7 +174,11 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+	defer func() {
+		if err := s.stateFileOut.Sync(); err != nil {
+			log.Printf("[ERROR] Unable to sync statefile %s: %s", s.path, err.Error())
+		}
+	}()
 
 	if s.file == nil {
 		s.file = NewStateFile()
@@ -244,13 +250,13 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 }
 
 // RefreshState is an implementation of Refresher.
-func (s *Filesystem) RefreshState() error {
+func (s *Filesystem) RefreshState(_ context.Context) error {
 	defer s.mutex()()
 	return s.refreshState()
 }
 
-func (s *Filesystem) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	err := s.RefreshState()
+func (s *Filesystem) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+	err := s.RefreshState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +332,7 @@ func (s *Filesystem) refreshState() error {
 }
 
 // Lock implements Locker using filesystem discretionary locks.
-func (s *Filesystem) Lock(info *LockInfo) (string, error) {
+func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 	defer s.mutex()()
 
 	if s.stateFileOut == nil {
@@ -339,7 +345,8 @@ func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 		return "", fmt.Errorf("state %q already locked", s.stateFileOut.Name())
 	}
 
-	if err := s.lock(); err != nil {
+	log.Printf("[TRACE] statemgr.Filesystem: locking %s", s.path)
+	if err := flock.Lock(s.stateFileOut); err != nil {
 		info, infoErr := s.lockInfo()
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
@@ -357,8 +364,8 @@ func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-// Unlock is the companion to Lock, completing the implemention of Locker.
-func (s *Filesystem) Unlock(id string) error {
+// Unlock is the companion to Lock, completing the implementation of Locker.
+func (s *Filesystem) Unlock(_ context.Context, id string) error {
 	defer s.mutex()()
 
 	if s.lockID == "" {
@@ -391,7 +398,8 @@ func (s *Filesystem) Unlock(id string) error {
 	}
 	fileName := s.stateFileOut.Name()
 
-	unlockErr := s.unlock()
+	log.Printf("[TRACE] statemgr.Filesystem: unlocking %s", s.path)
+	unlockErr := flock.Unlock(s.stateFileOut)
 
 	s.stateFileOut.Close()
 	s.stateFileOut = nil

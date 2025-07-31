@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package aws_kms
 
 import (
@@ -87,6 +92,10 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	var roles []awsbase.AssumeRole
+	if assumeRole != nil {
+		roles = append(roles, *assumeRole)
+	}
 
 	// Get assume role with web identity
 	assumeRoleWithWebIdentity, err := c.AssumeRoleWithWebIdentity.asAWSBase()
@@ -163,7 +172,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 
 		SharedCredentialsFiles:    stringArrayAttrEnvFallback(c.SharedCredentialsFiles, "AWS_SHARED_CREDENTIALS_FILE"),
 		SharedConfigFiles:         stringArrayAttrEnvFallback(c.SharedConfigFiles, "AWS_SHARED_CONFIG_FILE"),
-		AssumeRole:                assumeRole,
+		AssumeRole:                roles,
 		AssumeRoleWithWebIdentity: assumeRoleWithWebIdentity,
 		AllowedAccountIds:         c.AllowedAccountIds,
 		ForbiddenAccountIds:       c.ForbiddenAccountIds,
@@ -193,7 +202,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 			out += "\n" + diag.Summary() + " : " + diag.Detail()
 		}
 
-		return nil, nil, fmt.Errorf(out)
+		return nil, nil, fmt.Errorf("%s", out)
 	}
 
 	return &keyProvider{

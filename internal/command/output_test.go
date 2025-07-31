@@ -23,6 +23,7 @@ func TestOutput(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -58,6 +59,7 @@ func TestOutput_json(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -122,6 +124,7 @@ func TestOutput_badVar(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -151,11 +154,13 @@ func TestOutput_blank(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "name"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("john-doe"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -275,12 +280,13 @@ func TestOutput_stateDefault(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
 	// Write the state file in a temporary directory with the
 	// default filename.
-	td := testTempDir(t)
+	td := testTempDirRealpath(t)
 	statePath := filepath.Join(td, DefaultStateFilename)
 
 	f, err := os.Create(statePath)
@@ -294,14 +300,7 @@ func TestOutput_stateDefault(t *testing.T) {
 	}
 
 	// Change to that directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &OutputCommand{
@@ -324,4 +323,75 @@ func TestOutput_stateDefault(t *testing.T) {
 	if actual != `"bar"` {
 		t.Fatalf("bad: %#v", actual)
 	}
+}
+
+func TestOutput_showSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForOutput()
+
+	statePath := testStateFile(t, originalState)
+
+	view, done := testView(t)
+	c := &OutputCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	if actual != "foo = \"bar\"" {
+		t.Fatalf("bad: %#v", actual)
+	}
+}
+
+func TestOutput_withoutShowSensitiveArg(t *testing.T) {
+	originalState := stateWithSensitiveValueForOutput()
+
+	statePath := testStateFile(t, originalState)
+
+	view, done := testView(t)
+	c := &OutputCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	if actual != "foo = <sensitive>" {
+		t.Fatalf("bad: %#v", actual)
+	}
+}
+
+// stateWithSensitiveValueForOutput return a state with an output value
+// marked as sensitive.
+func stateWithSensitiveValueForOutput() *states.State {
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetOutputValue(
+			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			cty.StringVal("bar"),
+			true,
+			"",
+		)
+	})
+	return state
 }

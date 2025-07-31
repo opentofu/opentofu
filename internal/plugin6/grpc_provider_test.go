@@ -10,17 +10,17 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-
-	"github.com/golang/mock/gomock"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/zclconf/go-cty/cty"
+	"go.uber.org/mock/gomock"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
+	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-
-	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
@@ -130,7 +130,7 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 		client: mockProviderClient(t),
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -150,7 +150,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -181,7 +181,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -214,7 +214,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -225,7 +225,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -261,7 +261,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -272,7 +272,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -292,7 +292,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 	).Return(&proto.ValidateProviderConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateProviderConfig(providers.ValidateProviderConfigRequest{Config: cfg})
+	resp := p.ValidateProviderConfig(t.Context(), providers.ValidateProviderConfigRequest{Config: cfg})
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -308,7 +308,7 @@ func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateResourceConfig(providers.ValidateResourceConfigRequest{
+	resp := p.ValidateResourceConfig(t.Context(), providers.ValidateResourceConfigRequest{
 		TypeName: "resource",
 		Config:   cfg,
 	})
@@ -327,7 +327,7 @@ func TestGRPCProvider_ValidateDataResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateDataResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateDataResourceConfig(providers.ValidateDataResourceConfigRequest{
+	resp := p.ValidateDataResourceConfig(t.Context(), providers.ValidateDataResourceConfigRequest{
 		TypeName: "data",
 		Config:   cfg,
 	})
@@ -349,7 +349,7 @@ func TestGRPCProvider_UpgradeResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -380,7 +380,7 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -396,6 +396,41 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_MoveResourceState(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().MoveResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.MoveResourceState_Response{
+		TargetState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		TargetPrivate: []byte(`{"meta": "data"}`),
+	}, nil)
+
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
+		SourceTypeName:      "resource_old",
+		SourceSchemaVersion: 0,
+		TargetTypeName:      "resource",
+	})
+	checkDiags(t, resp.Diagnostics)
+
+	expectedState := cty.ObjectVal(map[string]cty.Value{
+		"attr": cty.StringVal("bar"),
+	})
+	expectedPrivate := []byte(`{"meta": "data"}`)
+
+	if !cmp.Equal(expectedState, resp.TargetState, typeComparer, valueComparer, equateEmpty) {
+		t.Fatal(cmp.Diff(expectedState, resp.TargetState, typeComparer, valueComparer, equateEmpty))
+	}
+	if !bytes.Equal(expectedPrivate, resp.TargetPrivate) {
+		t.Fatalf("expected %q, got %q", expectedPrivate, resp.TargetPrivate)
+	}
+}
 func TestGRPCProvider_Configure(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -407,7 +442,7 @@ func TestGRPCProvider_Configure(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ConfigureProvider_Response{}, nil)
 
-	resp := p.ConfigureProvider(providers.ConfigureProviderRequest{
+	resp := p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
 		}),
@@ -427,7 +462,7 @@ func TestGRPCProvider_Stop(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.StopProvider_Response{}, nil)
 
-	err := p.Stop()
+	err := p.Stop(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +483,7 @@ func TestGRPCProvider_ReadResource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -481,7 +516,7 @@ func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -517,7 +552,7 @@ func TestGRPCProvider_ReadEmptyJSON(t *testing.T) {
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"attr": cty.StringVal("foo"),
 	})
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName:   "resource",
 		PriorState: obj,
 	})
@@ -560,7 +595,7 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -594,6 +629,52 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_PlanResourceChange_deferred(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().PlanResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.PlanResourceChange_Response{
+		PlannedState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		Deferred: &proto.Deferred{
+			Reason: proto.Deferred_PROVIDER_CONFIG_UNKNOWN,
+		},
+	}, nil)
+
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("foo"),
+		}),
+		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+	})
+
+	if len(resp.Diagnostics) != 1 {
+		t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(resp.Diagnostics))
+	}
+	desc := resp.Diagnostics[0].Description()
+	if got, want := desc.Summary, `Provider configuration is incomplete`; got != want {
+		t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := desc.Detail, `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.`; got != want {
+		t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
+	}
+	if !providers.IsDeferralDiagnostic(resp.Diagnostics[0]) {
+		t.Errorf("diagnostic is not marked as being a \"deferral diagnostic\"")
+	}
+}
+
 func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -623,7 +704,7 @@ func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -675,7 +756,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -721,7 +802,7 @@ func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -773,7 +854,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -816,7 +897,7 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -852,7 +933,7 @@ func TestGRPCProvider_ReadDataSource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -885,7 +966,7 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -916,7 +997,7 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 		Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
 	}, nil)
 
-	resp := p.CallFunction(providers.CallFunctionRequest{
+	resp := p.CallFunction(t.Context(), providers.CallFunctionRequest{
 		Name:      "fn",
 		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
 	})

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -110,6 +111,9 @@ type evaluationStateData struct {
 	Operation walkOperation
 }
 
+// evaluationStateData must implement lang.Data
+var _ lang.Data = (*evaluationStateData)(nil)
+
 // InstanceKeyEvalData is the old name for instances.RepetitionData, aliased
 // here for compatibility. In new code, use instances.RepetitionData instead.
 type InstanceKeyEvalData = instances.RepetitionData
@@ -143,10 +147,7 @@ func EvalDataForInstanceKey(key addrs.InstanceKey, forEachMap map[string]cty.Val
 // is relevant.
 var EvalDataForNoInstanceKey = InstanceKeyEvalData{}
 
-// evaluationStateData must implement lang.Data
-var _ lang.Data = (*evaluationStateData)(nil)
-
-func (d *evaluationStateData) GetCountAttr(addr addrs.CountAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetCountAttr(_ context.Context, addr addrs.CountAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
 
@@ -174,7 +175,7 @@ func (d *evaluationStateData) GetCountAttr(addr addrs.CountAttr, rng tfdiags.Sou
 	}
 }
 
-func (d *evaluationStateData) GetForEachAttr(addr addrs.ForEachAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetForEachAttr(_ context.Context, addr addrs.ForEachAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var returnVal cty.Value
 	switch addr.Name {
@@ -215,7 +216,7 @@ func (d *evaluationStateData) GetForEachAttr(addr addrs.ForEachAttr, rng tfdiags
 	return returnVal, diags
 }
 
-func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -311,7 +312,7 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 	return val, diags
 }
 
-func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetLocalValue(_ context.Context, addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -352,9 +353,8 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 	return val, diags
 }
 
-func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
 	// Output results live in the module that declares them, which is one of
 	// the child module instances of our current module path.
 	moduleAddr := d.ModulePath.Module().Child(addr.Name)
@@ -390,6 +390,10 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		val := output.Value
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
+		}
+
+		if output.Deprecated != "" {
+			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 		}
 
 		_, callInstance := output.Addr.Module.CallInstance()
@@ -471,6 +475,10 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 
 			if change.Sensitive {
 				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
+			}
+
+			if cfg.Deprecated != "" {
+				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 			}
 		}
 	}
@@ -573,7 +581,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 	return ret, diags
 }
 
-func (d *evaluationStateData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetPathAttr(_ context.Context, addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
 
@@ -642,7 +650,7 @@ func (d *evaluationStateData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.Sourc
 	}
 }
 
-func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	// First we'll consult the configuration to see if an resource of this
 	// name is declared at all.
@@ -669,7 +677,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	// state available in all cases.
 	// We need to build an abs provider address, but we can use a default
 	// instance since we're only interested in the schema.
-	schema := d.getResourceSchema(addr, config.Provider)
+	schema := d.getResourceSchema(ctx, addr, config.Provider)
 	if schema == nil {
 		// This shouldn't happen, since validation before we get here should've
 		// taken care of it, but we'll show a reasonable error message anyway.
@@ -739,11 +747,22 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 		}
 	}
 
+	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
+	// each loop iteration which caused n^2 locking contention.  This is especially problematic for
+	// resources with large count/for_each.
+	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
+	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
+	for _, rc := range instChanges {
+		if rc.DeposedKey == states.NotDeposed {
+			instMap[rc.Addr.String()] = rc
+		}
+	}
+
 	// Decode all instances in the current state
 	instances := map[addrs.InstanceKey]cty.Value{}
 	pendingDestroy := d.Operation == walkDestroy
-	for key, is := range rs.Instances {
-		if is == nil || is.Current == nil {
+	for key, instance := range rs.Instances {
+		if instance == nil || instance.Current == nil {
 			// Assume we're dealing with an instance that hasn't been created yet.
 			instances[key] = cty.UnknownVal(ty)
 			continue
@@ -751,7 +770,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
-		change := d.Evaluator.Changes.GetResourceInstanceChange(instAddr, states.CurrentGen)
+		change := instMap[instAddr.String()]
 		if change != nil {
 			// Don't take any resources that are yet to be deleted into account.
 			// If the referenced resource is CreateBeforeDestroy, then orphaned
@@ -766,7 +785,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		// Planned resources are temporarily stored in state with empty values,
 		// and need to be replaced by the planned value here.
-		if is.Current.Status == states.ObjectPlanned {
+		if instance.Current.Status == states.ObjectPlanned {
 			if change == nil {
 				// If the object is in planned status then we should not get
 				// here, since we should have found a pending value in the plan
@@ -790,17 +809,20 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 				continue
 			}
 
-			// If our provider schema contains sensitive values, mark those as sensitive
 			afterMarks := change.AfterValMarks
 			if schema.ContainsSensitive() {
-				afterMarks = append(afterMarks, schema.ValueMarks(val, nil)...)
+				// Now that we know that the schema contains sensitive marks,
+				// Combine those marks together to ensure that the value is marked correctly but not double marked
+				schemaMarks := schema.ValueMarks(val, nil)
+				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
 			instances[key] = val.MarkWithPaths(afterMarks)
+
 			continue
 		}
 
-		ios, err := is.Current.Decode(ty)
+		instanceObjectSrc, err := instance.Current.Decode(ty)
 		if err != nil {
 			// This shouldn't happen, since by the time we get here we
 			// should have upgraded the state data already.
@@ -813,17 +835,17 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 			continue
 		}
 
-		val := ios.Value
+		val := instanceObjectSrc.Value
 
-		// If our schema contains sensitive values, mark those as sensitive.
-		// Since decoding the instance object can also apply sensitivity marks,
-		// we must remove and combine those before remarking to avoid a double-
-		// mark error.
 		if schema.ContainsSensitive() {
 			var marks []cty.PathValueMarks
+			// Now that we know that the schema contains sensitive marks,
+			// Combine those marks together to ensure that the value is marked correctly but not double marked
 			val, marks = val.UnmarkDeepWithPaths()
-			marks = append(marks, schema.ValueMarks(val, nil)...)
-			val = val.MarkWithPaths(marks)
+			schemaMarks := schema.ValueMarks(val, nil)
+
+			combined := combinePathValueMarks(marks, schemaMarks)
+			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val
 	}
@@ -902,10 +924,11 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	return ret, diags
 }
 
-func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerAddr, addr.Mode, addr.Type)
+func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
+	// TODO: Plumb a useful context.Context through to here.
+	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
 	if err != nil {
-		// We have plently other codepaths that will detect and report
+		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
 		// treat a failure here the same as having no schema.
 		return nil
@@ -913,10 +936,9 @@ func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAdd
 	return schema
 }
 
-func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetTerraformAttr(_ context.Context, addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
-
 	case "workspace":
 		workspaceName := d.Evaluator.Meta.Env
 		return cty.StringVal(workspaceName), diags
@@ -927,8 +949,8 @@ func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfd
 		// removed.
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid "terraform" attribute`,
-			Detail:   `The terraform.env attribute was deprecated in v0.10 and removed in v0.12. The "state environment" concept was renamed to "workspace" in v0.12, and so the workspace name can now be accessed using the terraform.workspace attribute.`,
+			Summary:  fmt.Sprintf("Invalid %q attribute", addr.Alias),
+			Detail:   fmt.Sprintf(`The %s.env attribute was deprecated in v0.10 and removed in v0.12. The "state environment" concept was renamed to "workspace" in v0.12, and so the workspace name can now be accessed using the %s.workspace attribute.`, addr.Alias, addr.Alias),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
@@ -936,15 +958,15 @@ func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfd
 	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid "terraform" attribute`,
-			Detail:   fmt.Sprintf(`The "terraform" object does not have an attribute named %q. The only supported attribute is terraform.workspace, the name of the currently-selected workspace.`, addr.Name),
+			Summary:  fmt.Sprintf("Invalid %q attribute", addr.Alias),
+			Detail:   fmt.Sprintf(`The %q object does not have an attribute named %q. The only supported attribute is %s.workspace, the name of the currently-selected workspace.`, addr.Alias, addr.Name, addr.Alias),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
 	}
 }
 
-func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetOutput(_ context.Context, addr addrs.OutputValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -994,15 +1016,24 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 			val = val.Mark(marks.Sensitive)
 		}
 
+		if config.Deprecated != "" {
+			isRemote := false
+			if p := moduleConfig.Path; p != nil && !p.IsRoot() {
+				_, call := p.Call()
+				isRemote = moduleConfig.IsModuleCallFromRemoteModule(call.Name)
+			}
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote)
+		}
+
 		return val, diags
 	}
 }
 
-func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetCheckBlock(_ context.Context, addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// For now, check blocks don't contain any meaningful data and can only
 	// be referenced from the testing scope within an expect_failures attribute.
 	//
-	// We've added them into the scope explicitly since they are referencable,
+	// We've added them into the scope explicitly since they are referenceable,
 	// but we'll actually just return an error message saying they can't be
 	// referenced in this context.
 	var diags tfdiags.Diagnostics

@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -27,6 +28,7 @@ type StateMvCommand struct {
 }
 
 func (c *StateMvCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	// We create two metas to track the two states
 	var backupPathOut, statePathOut string
@@ -50,7 +52,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -70,14 +72,14 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(&BackendOpts{}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{}, enc.State())
 		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
@@ -100,7 +102,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(enc)
+	stateFromMgr, err := c.State(ctx, enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -119,7 +121,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateFromMgr.RefreshState(); err != nil {
+	if err := stateFromMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh source state: %s", err))
 		return 1
 	}
@@ -138,7 +140,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		c.statePath = statePathOut
 		c.backupPath = backupPathOut
 
-		stateToMgr, err = c.State(enc)
+		stateToMgr, err = c.State(ctx, enc)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 			return 1
@@ -157,7 +159,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			}()
 		}
 
-		if err := stateToMgr.RefreshState(); err != nil {
+		if err := stateToMgr.RefreshState(context.TODO()); err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to refresh destination state: %s", err))
 			return 1
 		}
@@ -399,7 +401,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -410,7 +412,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(stateTo, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, stateTo, nil)
 		diags = diags.Append(schemaDiags)
 	}
 
@@ -419,7 +421,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
-	if err := stateToMgr.PersistState(schemas); err != nil {
+	if err := stateToMgr.PersistState(context.TODO(), schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
@@ -430,7 +432,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 			return 1
 		}
-		if err := stateFromMgr.PersistState(schemas); err != nil {
+		if err := stateFromMgr.PersistState(context.TODO(), schemas); err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 			return 1
 		}
@@ -559,6 +561,15 @@ Options:
 
   -ignore-remote-version  A rare option used for the remote backend only. See
                           the remote backend documentation for more information.
+
+  -var 'foo=bar'          Set a value for one of the input variables in the root
+                          module of the configuration. Use this option more than
+                          once to set more than one variable.
+
+  -var-file=filename      Load variable values from the given file, in addition
+                          to the default files terraform.tfvars and *.auto.tfvars.
+                          Use this option more than once to include more than one
+                          variables file.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -13,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type EvalOpts struct {
@@ -37,13 +39,18 @@ type EvalOpts struct {
 // the returned scope may be nil. If it is not nil then it may still be used
 // to attempt expression evaluation or other analysis, but some expressions
 // may not behave as expected.
-func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
 	// This is intended for external callers such as the "tofu console"
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
 
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("eval")()
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Evaluation phase",
+	)
+	defer span.End()
 
 	// Start with a copy of state so that we don't affect the instance that
 	// the caller is holding.
@@ -64,23 +71,27 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 
 	log.Printf("[DEBUG] Building and walking 'eval' graph")
 
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
 	graph, moreDiags := (&EvalGraphBuilder{
-		Config:             config,
-		State:              state,
-		RootVariableValues: variables,
-		Plugins:            c.plugins,
-	}).Build(addrs.RootModuleInstance)
+		Config:                  config,
+		State:                   state,
+		RootVariableValues:      variables,
+		Plugins:                 c.plugins,
+		ProviderFunctionTracker: providerFunctionTracker,
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
 
 	walkOpts := &graphWalkOpts{
-		InputState: state,
-		Config:     config,
+		InputState:              state,
+		Config:                  config,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}
 
-	walker, moreDiags = c.walk(graph, walkEval, walkOpts)
+	walker, moreDiags = c.walk(ctx, graph, walkEval, walkOpts)
 	diags = diags.Append(moreDiags)
 	if walker != nil {
 		diags = diags.Append(walker.NonFatalDiagnostics)

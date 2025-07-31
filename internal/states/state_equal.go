@@ -25,7 +25,7 @@ func (s *State) Equal(other *State) bool {
 }
 
 // ManagedResourcesEqual returns true if all of the managed resources tracked
-// in the reciever are functionally equivalent to the same tracked in the
+// in the receiver are functionally equivalent to the same tracked in the
 // other given state.
 //
 // This is a more constrained version of Equal that disregards other
@@ -62,7 +62,7 @@ func sameManagedResources(s1, s2 *State) bool {
 				continue
 			}
 			otherRS := s2.Resource(addr)
-			if !reflect.DeepEqual(rs, otherRS) {
+			if !rs.Equal(otherRS) {
 				return false
 			}
 		}

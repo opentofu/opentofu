@@ -6,7 +6,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -21,7 +20,7 @@ import (
 func TestGraph(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("graph"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
@@ -63,7 +62,7 @@ func TestGraph_multipleArgs(t *testing.T) {
 func TestGraph_noArgs(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("graph"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
@@ -86,8 +85,7 @@ func TestGraph_noArgs(t *testing.T) {
 
 func TestGraph_noConfig(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
@@ -106,7 +104,7 @@ func TestGraph_noConfig(t *testing.T) {
 }
 
 func TestGraph_plan(t *testing.T) {
-	testCwd(t)
+	testCwdTemp(t)
 
 	plan := &plans.Plan{
 		Changes: plans.NewChanges(),
@@ -127,15 +125,16 @@ func TestGraph_plan(t *testing.T) {
 			Module:   addrs.RootModule,
 		},
 	})
-	emptyConfig, err := plans.NewDynamicValue(cty.EmptyObjectVal, cty.EmptyObject)
+	beConfig := cty.ObjectVal(map[string]cty.Value{
+		"path":          cty.NilVal,
+		"workspace_dir": cty.NilVal,
+	})
+	emptyConfig, err := plans.NewDynamicValue(beConfig, beConfig.Type())
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan.Backend = plans.Backend{
-		// Doesn't actually matter since we aren't going to activate the backend
-		// for this command anyway, but we need something here for the plan
-		// file writer to succeed.
-		Type:   "placeholder",
+		Type:   "local",
 		Config: emptyConfig,
 	}
 	_, configSnap := testModuleWithSnapshot(t, "graph")

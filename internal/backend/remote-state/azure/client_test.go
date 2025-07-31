@@ -6,7 +6,6 @@
 package azure
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -28,9 +27,12 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -44,7 +46,7 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,9 +60,12 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -77,7 +82,7 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,9 +96,12 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -112,7 +120,7 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,9 +134,12 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -146,7 +157,7 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,9 +171,12 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -185,12 +199,12 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,9 +218,12 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -237,12 +254,12 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 		"endpoint":             os.Getenv("ARM_ENDPOINT"),
 	})).(*Backend)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,9 +273,12 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	res := testResourceNames(rs, "testState")
 	armClient := buildTestClient(t, res)
 
-	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, t.Context(), &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, t.Context(), res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -266,17 +286,17 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	headerName := "acceptancetest"
 	expectedValue := "f3b56bad-33ad-4b93-a600-7a66e9cbd1eb"
 
-	client, err := armClient.getBlobClient(ctx)
+	client, err := armClient.getBlobClient(t.Context())
 	if err != nil {
 		t.Fatalf("Error building Blob Client: %+v", err)
 	}
 
-	_, err = client.PutBlockBlob(ctx, res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.PutBlockBlobInput{})
+	_, err = client.PutBlockBlob(t.Context(), res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.PutBlockBlobInput{})
 	if err != nil {
 		t.Fatalf("Error Creating Block Blob: %+v", err)
 	}
 
-	blobReference, err := client.GetProperties(ctx, res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.GetPropertiesInput{})
+	blobReference, err := client.GetProperties(t.Context(), res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.GetPropertiesInput{})
 	if err != nil {
 		t.Fatalf("Error loading MetaData: %+v", err)
 	}
@@ -285,7 +305,7 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	opts := blobs.SetMetaDataInput{
 		MetaData: blobReference.MetaData,
 	}
-	_, err = client.SetMetaData(ctx, res.storageAccountName, res.storageContainerName, res.storageKeyName, opts)
+	_, err = client.SetMetaData(t.Context(), res.storageAccountName, res.storageContainerName, res.storageKeyName, opts)
 	if err != nil {
 		t.Fatalf("Error setting MetaData: %+v", err)
 	}
@@ -300,13 +320,13 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	}
 
 	bytes := []byte(acctest.RandString(20))
-	err = remoteClient.Put(bytes)
+	err = remoteClient.Put(t.Context(), bytes)
 	if err != nil {
 		t.Fatalf("Error putting data: %+v", err)
 	}
 
 	// Verify it still exists
-	blobReference, err = client.GetProperties(ctx, res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.GetPropertiesInput{})
+	blobReference, err = client.GetProperties(t.Context(), res.storageAccountName, res.storageContainerName, res.storageKeyName, blobs.GetPropertiesInput{})
 	if err != nil {
 		t.Fatalf("Error loading MetaData: %+v", err)
 	}

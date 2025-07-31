@@ -73,7 +73,7 @@ type RemoteClient struct {
 	sessionCancel context.CancelFunc
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(_ context.Context) (*remote.Payload, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -125,12 +125,12 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	// The state can be stored in 4 different ways, based on the payload size
 	// and whether the user enabled gzip:
 	//  - single entry mode with plain JSON: a single JSON is stored at
 	//	  "tfstate/my_project"
-	//  - single entry mode gzip: the JSON payload is first gziped and stored at
+	//  - single entry mode gzip: the JSON payload is first gzipped and stored at
 	//    "tfstate/my_project"
 	//  - chunked mode with plain JSON: the JSON payload is split in pieces and
 	//    stored like so:
@@ -147,10 +147,10 @@ func (c *RemoteClient) Put(data []byte) error {
 	//       - "tfstate/my_project/tfstate.abcdef1234/0" -> The first chunk
 	//       - "tfstate/my_project/tfstate.abcdef1234/1" -> The next one
 	//       - ...
-	//  - chunked mode with gzip: the same system but we gziped the JSON payload
+	//  - chunked mode with gzip: the same system but we gzipped the JSON payload
 	//    before splitting it in chunks
 	//
-	// When overwritting the current state, we need to clean the old chunks if
+	// When overwriting the current state, we need to clean the old chunks if
 	// we were in chunked mode (no matter whether we need to use chunks for the
 	// new one). To do so based on the 4 possibilities above we look at the
 	// value at "tfstate/my_project" and if it is:
@@ -181,7 +181,7 @@ func (c *RemoteClient) Put(data []byte) error {
 			// the user. We may end up with dangling chunks but there is no way
 			// to be sure we won't.
 			path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-			kv.DeleteTree(path, nil)
+			_, _ = kv.DeleteTree(path, nil)
 		}
 	}
 
@@ -295,7 +295,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return store(payload)
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(_ context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -307,11 +307,17 @@ func (c *RemoteClient) Delete() error {
 	}
 
 	_, err = kv.Delete(c.Path, nil)
+	if err != nil {
+		return err
+	}
 
 	// If there were chunks we need to remove them
 	if chunked {
 		path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-		kv.DeleteTree(path, nil)
+		_, err = kv.DeleteTree(path, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
@@ -355,7 +361,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return li, nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -539,12 +545,13 @@ func (c *RemoteClient) createSession() (string, error) {
 	log.Println("[INFO] created consul lock session", id)
 
 	// keep the session renewed
-	go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done())
+	// there's not really any good way of propagating errors from this function, so we ignore them
+	go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done()) //nolint:errcheck
 
 	return id, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -574,8 +581,14 @@ func (c *RemoteClient) unlock(id string) error {
 		}
 		// We ignore the errors that may happen during cleanup
 		kv := c.Client.KV()
-		kv.Delete(c.lockPath()+lockSuffix, nil)
-		kv.Delete(c.lockPath()+lockInfoSuffix, nil)
+		_, err = kv.Delete(c.lockPath()+lockSuffix, nil)
+		if err != nil {
+			log.Printf("[ERROR] could not delete lock @ %s: %s\n", c.lockPath()+lockSuffix, err)
+		}
+		_, err = kv.Delete(c.lockPath()+lockInfoSuffix, nil)
+		if err != nil {
+			log.Printf("[ERROR] could not delete lock info @ %s: %s\n", c.lockPath()+lockInfoSuffix, err)
+		}
 
 		return nil
 	}
@@ -618,7 +631,10 @@ func (c *RemoteClient) unlock(id string) error {
 
 	// This is only cleanup, and will fail if the lock was immediately taken by
 	// another client, so we don't report an error to the user here.
-	c.consulLock.Destroy()
+	err := c.consulLock.Destroy()
+	if err != nil {
+		log.Printf("[ERROR] could not destroy consul lock: %s\n", err)
+	}
 
 	return errs
 }
@@ -644,7 +660,10 @@ func uncompressState(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b.ReadFrom(gz)
+	_, err = b.ReadFrom(gz)
+	if err != nil {
+		return nil, err
+	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}
@@ -674,7 +693,7 @@ func (c *RemoteClient) chunkedMode() (bool, string, []string, *consulapi.KVPair,
 		var d map[string]interface{}
 		err = json.Unmarshal(pair.Value, &d)
 		// If there is an error when unmarshaling the payload, the state has
-		// probably been gziped in single entry mode.
+		// probably been gzipped in single entry mode.
 		if err == nil {
 			// If we find the "current-hash" key we were in chunked mode
 			hash, ok := d["current-hash"]

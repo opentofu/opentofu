@@ -48,10 +48,8 @@ func TestSensitive(t *testing.T) {
 			``,
 		},
 		{
-			// A value with some non-standard mark gets "fixed" to be marked
-			// with the standard "sensitive" mark. (This situation occurring
-			// would imply an inconsistency/bug elsewhere, so we're just
-			// being robust about it here.)
+			// Any non-sensitive marks must be propagated alongside
+			// with a sensitive one.
 			cty.NumberIntVal(1).Mark("bloop"),
 			``,
 		},
@@ -83,15 +81,11 @@ func TestSensitive(t *testing.T) {
 				t.Errorf("result is not marked sensitive")
 			}
 
+			inputMarks := test.Input.Marks()
+			delete(inputMarks, marks.Sensitive)
+
 			gotRaw, gotMarks := got.Unmark()
-			if len(gotMarks) != 1 {
-				// We're only expecting to have the "sensitive" mark we checked
-				// above. Any others are an error, even if they happen to
-				// appear alongside "sensitive". (We might change this rule
-				// if someday we decide to use marks for some additional
-				// unrelated thing in OpenTofu, but currently we assume that
-				// _all_ marks imply sensitive, and so returning any other
-				// marks would be confusing.)
+			if len(gotMarks) != len(inputMarks)+1 {
 				t.Errorf("extraneous marks %#v", gotMarks)
 			}
 
@@ -186,39 +180,47 @@ func TestNonsensitive(t *testing.T) {
 func TestIsSensitive(t *testing.T) {
 	tests := []struct {
 		Input       cty.Value
-		IsSensitive bool
+		IsSensitive cty.Value
 	}{
 		{
 			cty.NumberIntVal(1).Mark(marks.Sensitive),
-			true,
+			cty.True,
 		},
 		{
 			cty.NumberIntVal(1),
-			false,
+			cty.False,
 		},
 		{
 			cty.DynamicVal.Mark(marks.Sensitive),
-			true,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.DynamicVal,
-			false,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
-			true,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.UnknownVal(cty.String),
-			false,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.NullVal(cty.EmptyObject).Mark(marks.Sensitive),
-			true,
+			cty.True,
 		},
 		{
 			cty.NullVal(cty.EmptyObject),
-			false,
+			cty.False,
+		},
+		{
+			cty.NullVal(cty.DynamicPseudoType).Mark(marks.Sensitive),
+			cty.True,
+		},
+		{
+			cty.NullVal(cty.DynamicPseudoType),
+			cty.False,
 		},
 	}
 
@@ -230,8 +232,8 @@ func TestIsSensitive(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
-			if got.Equals(cty.BoolVal(test.IsSensitive)).False() {
-				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, cty.BoolVal(test.IsSensitive))
+			if !got.RawEquals(test.IsSensitive) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.IsSensitive)
 			}
 		})
 	}

@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -13,7 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/experiments"
-
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -60,6 +60,20 @@ type Module struct {
 	Checks map[string]*Check
 
 	Tests map[string]*TestFile
+
+	// IsOverridden indicates if the module is being overridden. It's used in
+	// testing framework to not call the underlying module.
+	IsOverridden bool
+
+	// StaticEvaluator is used to evaluate static expressions in the scope of the Module.
+	StaticEvaluator *StaticEvaluator
+}
+
+// GetProviderConfig uses name and alias to find the respective Provider configuration.
+func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
+	tp := &Provider{Name: name, Alias: alias}
+	p, ok := m.ProviderConfigs[tp.moduleUniqueKey()]
+	return p, ok
 }
 
 // File describes the contents of a single configuration file.
@@ -101,10 +115,44 @@ type File struct {
 	Checks []*Check
 }
 
+// SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
+type SelectiveLoader int
+
+const (
+	SelectiveLoadAll        SelectiveLoader = 0
+	SelectiveLoadBackend    SelectiveLoader = 1
+	SelectiveLoadEncryption SelectiveLoader = 2
+)
+
+// Apply the selective filter to the input files
+func (s SelectiveLoader) filter(input []*File) []*File {
+	if s == SelectiveLoadAll {
+		return input
+	}
+
+	out := make([]*File, len(input))
+	for i, inFile := range input {
+		outFile := &File{
+			Variables: inFile.Variables,
+			Locals:    inFile.Locals,
+		}
+
+		switch s {
+		case SelectiveLoadBackend:
+			outFile.Backends = inFile.Backends
+			outFile.CloudConfigs = inFile.CloudConfigs
+		case SelectiveLoadEncryption:
+			outFile.Encryptions = inFile.Encryptions
+		}
+		out[i] = outFile
+	}
+	return out
+}
+
 // NewModuleWithTests matches NewModule except it will also load in the provided
 // test files.
-func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile) (*Module, hcl.Diagnostics) {
-	mod, diags := NewModule(primaryFiles, overrideFiles)
+func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[string]*TestFile, call StaticModuleCall, sourceDir string) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModule(primaryFiles, overrideFiles, call, sourceDir, SelectiveLoadAll)
 	if mod != nil {
 		mod.Tests = testFiles
 	}
@@ -119,7 +167,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // will be incomplete and error diagnostics will be returned. Careful static
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -133,7 +181,12 @@ func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
+		SourceDir:          sourceDir,
 	}
+
+	// Apply selective load rules
+	primaryFiles = load.filter(primaryFiles)
+	overrideFiles = load.filter(overrideFiles)
 
 	// Process the required_providers blocks first, to ensure that all
 	// resources have access to the correct provider FQNs
@@ -178,6 +231,29 @@ func NewModule(primaryFiles, overrideFiles []*File) (*Module, hcl.Diagnostics) {
 	for _, file := range overrideFiles {
 		fileDiags := mod.mergeFile(file)
 		diags = append(diags, fileDiags...)
+	}
+
+	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
+	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
+
+	// If we have a backend, it may have fields that require locals/vars
+	if mod.Backend != nil {
+		// We don't know the backend type / loader at this point so we save the context for later use
+		mod.Backend.Eval = mod.StaticEvaluator
+	}
+	if mod.CloudConfig != nil {
+		mod.CloudConfig.eval = mod.StaticEvaluator
+	}
+
+	// Process all module calls now that we have the static context
+	for _, mc := range mod.ModuleCalls {
+		mDiags := mc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
+		diags = append(diags, mDiags...)
+	}
+
+	for _, pc := range mod.ProviderConfigs {
+		pDiags := pc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
+		diags = append(diags, pDiags...)
 	}
 
 	diags = append(diags, checkModuleExperiments(mod)...)

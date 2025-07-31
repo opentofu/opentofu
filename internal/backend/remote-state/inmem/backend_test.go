@@ -39,7 +39,7 @@ func TestBackendConfig(t *testing.T) {
 
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestBackendLocked(t *testing.T) {
 	backend.TestBackendStateLocks(t, b1, b2)
 }
 
-// use the this backen to test the remote.State implementation
+// use this backend to test the remote.State implementation
 func TestRemoteState(t *testing.T) {
 	defer Reset()
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), hcl.EmptyBody())
@@ -76,7 +76,7 @@ func TestRemoteState(t *testing.T) {
 	workspace := "workspace"
 
 	// create a new workspace in this backend
-	s, err := b.StateMgr(workspace)
+	s, err := b.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,11 +88,11 @@ func TestRemoteState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }

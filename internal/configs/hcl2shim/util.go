@@ -6,8 +6,11 @@
 package hcl2shim
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // exprIsNativeQuotedString determines whether the given expression looks like
@@ -65,4 +68,40 @@ func schemaWithDynamic(schema *hcl.BodySchema) *hcl.BodySchema {
 	})
 
 	return ret
+}
+
+// ConvertJSONExpressionToHCL is used to convert HCL *json.expression into
+// regular hcl syntax.
+// Sometimes, we manually parse an expression instead of using the hcl library
+// for parsing. In this case we need to handle json configs specially, as the
+// values will be json strings rather than hcl.
+func ConvertJSONExpressionToHCL(expr hcl.Expression) (hcl.Expression, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	// We can abuse the hcl json api and rely on the fact that calling
+	// Value on a json expression with no EvalContext will return the
+	// raw string. We can then parse that as normal hcl syntax, and
+	// continue with the decoding.
+	value, ds := expr.Value(nil)
+	diags = append(diags, ds...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	if value.Type() != cty.String || value.IsNull() {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Expected string expression",
+			Detail:   fmt.Sprintf("This value must be a string, but got %s.", value.Type().FriendlyName()),
+			Subject:  expr.Range().Ptr(),
+		})
+		return nil, diags
+	}
+
+	expr, ds = hclsyntax.ParseExpression([]byte(value.AsString()), expr.Range().Filename, expr.Range().Start)
+	diags = append(diags, ds...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return expr, diags
 }

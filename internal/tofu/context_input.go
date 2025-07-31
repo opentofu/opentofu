@@ -17,13 +17,14 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Input asks for input to fill unset required arguments in provider
 // configurations.
 //
 // Unlike the other better-behaved operation methods, this one actually
-// modifies some internal state inside the receving context so that the
+// modifies some internal state inside the receiving context so that the
 // captured values will be implicitly available to a subsequent call to Plan,
 // or to some other operation entry point. Hopefully a future iteration of
 // this will change design to make that data flow more explicit.
@@ -36,7 +37,7 @@ import (
 // any other Context method with a different config, because the aforementioned
 // modified internal state won't match. Again, this is an architectural wart
 // that we'll hopefully resolve in future.
-func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnostics {
+func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputMode) tfdiags.Diagnostics {
 	// This function used to be responsible for more than it is now, so its
 	// interface is more general than its current functionality requires.
 	// It now exists only to handle interactive prompts for provider
@@ -50,7 +51,12 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()
 
-	schemas, moreDiags := c.Schemas(config, nil)
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Gather input",
+	)
+	defer span.End()
+
+	schemas, moreDiags := c.Schemas(ctx, config, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags
@@ -60,8 +66,6 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 		log.Printf("[TRACE] Context.Input: uiInput is nil, so skipping")
 		return diags
 	}
-
-	ctx := context.Background()
 
 	if mode&InputModeProvider != 0 {
 		log.Printf("[TRACE] Context.Input: Prompting for provider arguments")
@@ -127,7 +131,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 				continue
 			}
 
-			// For our purposes here we just want to detect if attrbutes are
+			// For our purposes here we just want to detect if attributes are
 			// set in config at all, so rather than doing a full decode
 			// (which would require us to prepare an evalcontext, etc) we'll
 			// use the low-level HCL API to process only the top-level
@@ -165,7 +169,15 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 				}
 
 				log.Printf("[TRACE] Context.Input: Prompting for %s argument %s", pa, key)
-				rawVal, err := input.Input(ctx, &InputOpts{
+				// NOTE: Historically we were just passing a context.Background into
+				// this, because we didn't have any other context.Context to use.
+				// We're now passing in our given context but intentionally ignoring
+				// its cancellation because the main UIInput implementation (in
+				// package command) already/ had direct SIGINT handling and we want to
+				// preserve that behavior.
+				// FIXME: Remove the UIInput's own SIGINT handling and rely on the
+				// cancellation of ctx instead.
+				rawVal, err := input.Input(context.WithoutCancel(ctx), &InputOpts{
 					Id:          key,
 					Query:       key,
 					Description: attrS.Description,

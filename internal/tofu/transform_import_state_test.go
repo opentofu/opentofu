@@ -29,9 +29,9 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 			},
 		},
 	}
-	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
+	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
 		ProviderProvider: provider,
 	}
@@ -46,13 +46,13 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 		ID: "bar",
-		ResolvedProvider: addrs.AbsProviderConfig{
+		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		},
+		}},
 	}
 
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -70,8 +70,8 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	state := states.NewState()
 	provider := testProvider("aws")
-	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
-	ctx := &MockEvalContext{
+	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
+	evalCtx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
 		ProviderProvider: provider,
 		ProviderSchemaSchema: providers.ProviderSchema{
@@ -102,12 +102,12 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 		State: importedResource,
-		ResolvedProvider: addrs.AbsProviderConfig{
+		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		},
+		}},
 	}
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -133,7 +133,7 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 		return resp
 	}
 
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
 		ProviderProvider: provider,
 		ProviderSchemaSchema: providers.ProviderSchema{
@@ -164,12 +164,12 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 		State: importedResource,
-		ResolvedProvider: addrs.AbsProviderConfig{
+		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		},
+		}},
 	}
-	diags := node.Execute(ctx, walkImport)
+	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if !diags.HasErrors() {
 		t.Fatal("expected error for non-existent resource")
 	}

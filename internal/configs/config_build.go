@@ -6,8 +6,9 @@
 package configs
 
 import (
+	"context"
 	"fmt"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -24,14 +25,14 @@ import (
 // file-level invariants validated. If the returned diagnostics contains errors,
 // the returned module tree may be incomplete but can still be used carefully
 // for static analysis.
-func BuildConfig(root *Module, walker ModuleWalker) (*Config, hcl.Diagnostics) {
+func BuildConfig(ctx context.Context, root *Module, walker ModuleWalker) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	cfg := &Config{
 		Module: root,
 	}
 	cfg.Root = cfg // Root module is self-referential.
-	cfg.Children, diags = buildChildModules(cfg, walker)
-	diags = append(diags, buildTestModules(cfg, walker)...)
+	cfg.Children, diags = buildChildModules(ctx, cfg, walker)
+	diags = append(diags, buildTestModules(ctx, cfg, walker)...)
 
 	// Skip provider resolution if there are any errors, since the provider
 	// configurations themselves may not be valid.
@@ -48,7 +49,7 @@ func BuildConfig(root *Module, walker ModuleWalker) (*Config, hcl.Diagnostics) {
 	return cfg, diags
 }
 
-func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
+func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	for name, file := range root.Module.Tests {
@@ -64,8 +65,8 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 			//    - file: main.tftest.hcl, run: setup - test.main.setup
 			//    - file: tests/main.tftest.hcl, run: setup - test.tests.main.setup
 
-			dir := path.Dir(name)
-			base := path.Base(name)
+			dir := filepath.Dir(name)
+			base := filepath.Base(name)
 
 			path := addrs.Module{}
 			path = append(path, "test")
@@ -73,7 +74,6 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 				path = append(path, strings.Split(dir, "/")...)
 			}
 			path = append(path, strings.TrimSuffix(base, ".tftest.hcl"), run.Name)
-
 			req := ModuleRequest{
 				Name:              run.Name,
 				Path:              path,
@@ -84,7 +84,7 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 				CallRange:         run.Module.DeclRange,
 			}
 
-			cfg, modDiags := loadModule(root, &req, walker)
+			cfg, modDiags := loadModule(ctx, root, &req, walker)
 			diags = append(diags, modDiags...)
 
 			if cfg != nil {
@@ -115,7 +115,7 @@ func buildTestModules(root *Config, walker ModuleWalker) hcl.Diagnostics {
 	return diags
 }
 
-func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config, hcl.Diagnostics) {
+func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker) (map[string]*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	ret := map[string]*Config{}
 
@@ -139,12 +139,16 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 			Name:              call.Name,
 			Path:              path,
 			SourceAddr:        call.SourceAddr,
-			SourceAddrRange:   call.SourceAddrRange,
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
+			Call:              NewStaticModuleCall(path, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
 		}
-		child, modDiags := loadModule(parent.Root, &req, walker)
+		if call.Source != nil {
+			// Invalid modules sometimes have a nil source field which is handled through loadModule below
+			req.SourceAddrRange = call.Source.Range()
+		}
+		child, modDiags := loadModule(ctx, parent.Root, &req, walker)
 		diags = append(diags, modDiags...)
 		if child == nil {
 			// This means an error occurred, there should be diagnostics within
@@ -158,10 +162,10 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 	return ret, diags
 }
 
-func loadModule(root *Config, req *ModuleRequest, walker ModuleWalker) (*Config, hcl.Diagnostics) {
+func loadModule(ctx context.Context, root *Config, req *ModuleRequest, walker ModuleWalker) (*Config, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	mod, ver, modDiags := walker.LoadModule(req)
+	mod, ver, modDiags := walker.LoadModule(ctx, req)
 	diags = append(diags, modDiags...)
 	if mod == nil {
 		// nil can be returned if the source address was invalid and so
@@ -181,7 +185,7 @@ func loadModule(root *Config, req *ModuleRequest, walker ModuleWalker) (*Config,
 		Version:         ver,
 	}
 
-	cfg.Children, modDiags = buildChildModules(cfg, walker)
+	cfg.Children, modDiags = buildChildModules(ctx, cfg, walker)
 	diags = append(diags, modDiags...)
 
 	if mod.Backend != nil {
@@ -241,16 +245,16 @@ type ModuleWalker interface {
 	// ensure that the basic file- and module-validations performed by the
 	// LoadConfigDir function (valid syntax, no namespace collisions, etc) have
 	// been performed before returning a module.
-	LoadModule(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
+	LoadModule(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
 }
 
 // ModuleWalkerFunc is an implementation of ModuleWalker that directly wraps
 // a callback function, for more convenient use of that interface.
-type ModuleWalkerFunc func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
+type ModuleWalkerFunc func(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics)
 
 // LoadModule implements ModuleWalker.
-func (f ModuleWalkerFunc) LoadModule(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
-	return f(req)
+func (f ModuleWalkerFunc) LoadModule(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	return f(ctx, req)
 }
 
 // ModuleRequest is used with the ModuleWalker interface to describe a child
@@ -299,6 +303,10 @@ type ModuleRequest struct {
 	// subject of an error diagnostic that relates to the module call itself,
 	// rather than to either its source address or its version number.
 	CallRange hcl.Range
+
+	// This is where variables and other information from the calling module
+	// are propagated to the child module for use in the static evaluator
+	Call StaticModuleCall
 }
 
 // DisabledModuleWalker is a ModuleWalker that doesn't support
@@ -309,7 +317,7 @@ type ModuleRequest struct {
 var DisabledModuleWalker ModuleWalker
 
 func init() {
-	DisabledModuleWalker = ModuleWalkerFunc(func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	DisabledModuleWalker = ModuleWalkerFunc(func(ctx context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 		return nil, nil, hcl.Diagnostics{
 			{
 				Severity: hcl.DiagError,

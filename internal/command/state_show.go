@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
@@ -30,9 +32,16 @@ type StateShowCommand struct {
 }
 
 func (c *StateShowCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
+
+	showSensitive := false
+	cmdFlags.BoolVar(&showSensitive, "show-sensitive", false, "displays sensitive values")
+
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1
@@ -51,14 +60,14 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -89,9 +98,15 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
+	var callDiags tfdiags.Diagnostics
+	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
+	if callDiags.HasErrors() {
+		c.showDiagnostics(callDiags)
+		return 1
+	}
 
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
@@ -100,31 +115,31 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Get the context (required to get the schemas)
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	if ctxDiags.HasErrors() {
 		c.View.Diagnostics(ctxDiags)
 		return 1
 	}
 
 	// Get the schemas from the context
-	schemas, diags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, diags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		return 1
 	}
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Streams.Eprintf("Error selecting workspace: %s\n", err)
 		return 1
 	}
-	stateMgr, err := b.StateMgr(env)
+	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
 		c.Streams.Eprintln(fmt.Sprintf(errStateLoadingState, err))
 		return 1
 	}
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Streams.Eprintf("Failed to refresh state: %s\n", err)
 		return 1
 	}
@@ -160,6 +175,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		addr.Resource,
 		is.Current,
 		absPc,
+		addrs.NoKey,
 	)
 
 	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)
@@ -179,6 +195,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		Streams:             c.Streams,
 		Colorize:            c.Colorize(),
 		RunningInAutomation: c.RunningInAutomation,
+		ShowSensitive:       showSensitive,
 	}
 
 	renderer.RenderHumanState(jstate)
@@ -200,6 +217,17 @@ Options:
   -state=statefile    Path to a OpenTofu state file to use to look
                       up OpenTofu-managed resources. By default it will
                       use the state "terraform.tfstate" if it exists.
+
+  -show-sensitive     If specified, sensitive values will be displayed.
+
+  -var 'foo=bar'      Set a value for one of the input variables in the root
+                      module of the configuration. Use this option more than
+                      once to set more than one variable.
+
+  -var-file=filename  Load variable values from the given file, in addition
+                      to the default files terraform.tfvars and *.auto.tfvars.
+                      Use this option more than once to include more than one
+                      variables file.
 
 `
 	return strings.TrimSpace(helpText)

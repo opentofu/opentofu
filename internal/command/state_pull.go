@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 
@@ -22,27 +23,30 @@ type StatePullCommand struct {
 }
 
 func (c *StatePullCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state pull")
+	c.Meta.varFlagSet(cmdFlags)
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
 		return 1
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -52,17 +56,17 @@ func (c *StatePullCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state manager for the current workspace
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
 	}
-	stateMgr, err := b.StateMgr(env)
+	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
 	}
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
 		return 1
 	}
@@ -98,6 +102,16 @@ Usage: tofu [global options] state pull [options]
   The primary use of this is for state stored remotely. This command
   will still work with local state but is less useful for this.
 
+Options:
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 	return strings.TrimSpace(helpText)
 }

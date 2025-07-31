@@ -10,13 +10,12 @@ import (
 	"regexp"
 	"strings"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
+
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
-	tfversion "github.com/opentofu/opentofu/version"
 )
 
 // Disco return a *disco.Disco mapping registry.opentofu.org, localhost,
@@ -28,8 +27,10 @@ func Disco(s *httptest.Server) *disco.Disco {
 		"modules.v1":   fmt.Sprintf("%s/v1/modules", s.URL),
 		"providers.v1": fmt.Sprintf("%s/v1/providers", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname("registry.opentofu.org"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
@@ -58,12 +59,12 @@ const (
 
 var (
 	regHost  = svchost.Hostname(regsrc.PublicRegistryHost.Normalized())
-	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		regHost: {"token": testCred},
+	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		regHost: svcauth.HostCredentialsToken(testCred),
 	})
 )
 
-// All the locationes from the mockRegistry start with a file:// scheme. If
+// All the locations from the mockRegistry start with a file:// scheme. If
 // the location string here doesn't have a scheme, the mockRegistry will
 // find the absolute path and return a complete URL.
 var testMods = map[string][]testMod{
@@ -213,7 +214,7 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 		}
 
 		// only adding the single requested module for now
-		// this is the minimal that any regisry is epected to support
+		// this is the minimal that any registry is expected to support
 		mpvs := &response.ModuleProviderVersions{
 			Source: name,
 		}
@@ -235,7 +236,11 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(js)
+		_, err = w.Write(js)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	mux.Handle("/v1/modules/",
@@ -256,7 +261,10 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 
 	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"modules.v1":"http://localhost/v1/modules/", "providers.v1":"http://localhost/v1/providers/"}`)
+		_, err := io.WriteString(w, `{"modules.v1":"http://localhost/v1/modules/", "providers.v1":"http://localhost/v1/providers/"}`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 	return mux
 }

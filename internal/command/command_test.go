@@ -26,8 +26,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -124,7 +124,7 @@ func tempWorkingDir(t *testing.T) *workdir.Dir {
 func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 	t.Helper()
 
-	dirPath := testTempDir(t)
+	dirPath := testTempDirRealpath(t)
 	t.Logf("temporary directory %s with fixture %q", dirPath, fixtureName)
 
 	fixturePath := testFixturePath(fixtureName)
@@ -153,21 +153,18 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
-	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{})
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
+	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir)
+	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -311,6 +308,7 @@ func testState() *states.State {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		// DeepCopy is used here to ensure our synthetic state matches exactly
 		// with a state that will have been copied during the command
@@ -356,7 +354,7 @@ func testStateMgrCurrentLineage(mgr statemgr.Persistent) string {
 //	// (do stuff to the state)
 //	assertStateHasMarker(state, mark)
 func markStateForMatching(state *states.State, mark string) string {
-	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false)
+	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false, "")
 	return mark
 }
 
@@ -543,62 +541,29 @@ func testProvider() *tofu.MockProvider {
 func testTempFile(t *testing.T) string {
 	t.Helper()
 
-	return filepath.Join(testTempDir(t), "state.tfstate")
+	return filepath.Join(testTempDirRealpath(t), "state.tfstate")
 }
 
-func testTempDir(t *testing.T) string {
+// testTempDirRealpath is like [testing.T.TempDir] but takes the
+// extra step of ensuring that the result is a path that does not
+// include any symlinks.
+func testTempDirRealpath(t *testing.T) string {
 	t.Helper()
 	d, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	return d
 }
 
-// testChdir changes the directory and returns a function to defer to
-// revert the old cwd.
-func testChdir(t *testing.T, new string) func() {
-	t.Helper()
-
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if err := os.Chdir(new); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	return func() {
-		// Re-run the function ignoring the defer result
-		testChdir(t, old)
-	}
-}
-
-// testCwd is used to change the current working directory into a temporary
+// testCwdTemp is used to change the current working directory into a temporary
 // directory. The cleanup is performed automatically after the test and all its
 // subtests complete.
-func testCwd(t *testing.T) string {
+func testCwdTemp(t testing.TB) string {
 	t.Helper()
 
 	tmp := t.TempDir()
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(cwd); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
+	t.Chdir(tmp)
 	return tmp
 }
 
@@ -622,7 +587,9 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 	// Copy the data from the reader to the pipe
 	go func() {
 		defer w.Close()
-		io.Copy(w, src)
+		if _, err := io.Copy(w, src); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
@@ -653,14 +620,21 @@ func testStdoutCapture(t *testing.T, dst io.Writer) func() {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		defer r.Close()
-		io.Copy(dst, r)
+		if _, err := io.Copy(dst, r); err != nil {
+			panic(err)
+		}
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close the writer end of the pipe
-		w.Sync()
-		w.Close()
+		// This test code is racey
+		_ = w.Sync()
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
 
 		// Reset stdout
 		os.Stdout = old
@@ -755,7 +729,9 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// If a state was given, make sure we calculate the proper b64md5
@@ -773,10 +749,11 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	backendConfig := &configs.Backend{
 		Type:   "http",
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
+		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
 	}
 	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
-	hash := backendConfig.Hash(configSchema)
+	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 
 	state := legacy.NewState()
 	state.Backend = &legacy.BackendState{
@@ -811,7 +788,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	retState := legacy.NewState()
@@ -820,7 +799,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	b := &legacy.BackendState{
 		Type: "http",
 	}
-	b.SetConfig(cty.ObjectVal(map[string]cty.Value{
+	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
 		"address": cty.StringVal(srv.URL),
 	}), &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -829,7 +808,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 				Required: true,
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	retState.Backend = b
 
 	if s != nil {
@@ -842,9 +823,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	return retState, srv
 }
 
-// testlockState calls a separate process to the lock the state file at path.
+// testLockState calls a separate process to the lock the state file at path.
 // deferFunc should be called in the caller to properly unlock the file.
-// Since many tests change the working directory, the sourcedir argument must be
+// Since many tests change the working directory, the sourceDir argument must be
 // supplied to locate the statelocker.go source.
 func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	// build and run the binary ourselves so we can quickly terminate it for cleanup
@@ -875,8 +856,13 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		return nil, err
 	}
 	deferFunc := func() {
-		locker.Process.Signal(syscall.SIGTERM)
-		locker.Wait()
+		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		// Assume the sigterm above succeeds. The error here may represent
+		// the signal sent above, but is difficult to check in a platform
+		// agostic way
+		_ = locker.Wait()
 	}
 
 	// wait for the process to lock
@@ -1019,16 +1005,22 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, cleanup func()) {
 	services, close := testServices(t)
-	source = getproviders.NewRegistrySource(services)
+	source = getproviders.NewRegistrySource(t.Context(), services, nil)
 	return source, close
 }
 
 func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	path := req.URL.EscapedPath()
 
+	write := func(data string) {
+		if _, err := resp.Write([]byte(data)); err != nil {
+			panic(err)
+		}
+	}
+
 	if !strings.HasPrefix(path, "/providers/v1/") {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
+		write(`not a provider registry endpoint`)
 		return
 	}
 
@@ -1036,13 +1028,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if len(pathParts) != 3 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unrecognized path scheme`))
+		write(`unrecognized path scheme`)
 		return
 	}
 
 	if pathParts[2] != "versions" {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`this registry only supports legacy namespace lookup requests`))
+		write(`this registry only supports legacy namespace lookup requests`)
 		return
 	}
 
@@ -1054,13 +1046,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			if movedNamespace, ok := movedProviderNamespaces[name]; ok {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)
 			} else {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 			}
 		} else {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`provider not found`))
+			write(`provider not found`)
 		}
 		return
 	}
@@ -1069,10 +1061,10 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
 		resp.Header().Set("Content-Type", "application/json")
 		resp.WriteHeader(200)
-		resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+		fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 	} else {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`provider not found`))
+		write(`provider not found`)
 	}
 }
 
@@ -1151,9 +1143,11 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if _, ok := gotMap["@timestamp"]; !ok {
 			t.Errorf("missing @timestamp field in log: %s", gotLines[index])
 		}
+		gotMap = deleteMapField(gotMap, "hook", "elapsed_seconds")
 		delete(gotMap, "@timestamp")
 		gotLineMaps = append(gotLineMaps, gotMap)
 	}
+
 	var wantLineMaps []map[string]interface{}
 	for i, line := range wantLines[1:] {
 		index := i + 1
@@ -1161,11 +1155,92 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
 			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
 		}
+		wantMap = deleteMapField(wantMap, "hook", "elapsed_seconds")
 		wantLineMaps = append(wantLineMaps, wantMap)
 	}
+
 	if diff := cmp.Diff(wantLineMaps, gotLineMaps); diff != "" {
 		t.Errorf("wrong output lines\n%s\n"+
 			"NOTE: This failure may indicate a UI change affecting the behavior of structured run output on TFC.\n"+
 			"Please communicate with Terraform Cloud team before resolving", diff)
 	}
+}
+
+func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
+	rootMap, ok := fieldMap[rootField].(map[string]interface{})
+	if !ok {
+		return fieldMap
+	}
+
+	delete(rootMap, field)
+	return rootMap
+}
+
+// testHangServer starts a local HTTP server that accepts incoming requests
+// but then intentionally leaves the connection hanging without responding,
+// writing the request to the returned channel so that the caller can then
+// trigger some mechanism for cancelling that hung request.
+//
+// This is intended for testing anything that needs to be able to cancel
+// slow requests to remote HTTP servers, so that the test can be sure that
+// the request definitely will be "slow enough" that cancellation is
+// definitely the only way the request could've halted.
+//
+// The returned server is automatically closed when the calling test
+// is complete, but the caller is also allowed to optionally call Close
+// directly itself. Note that the Close method alone will not close
+// any active requests, but testHangServer guarantees that it will
+// eventually terminate active requests once the calling test is
+// complete.
+func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Request) {
+	t.Helper()
+
+	// We'll use this channel to signal any active requests to terminate
+	// during test cleanup, so that the active requests can't remain
+	// running indefinitely.
+	cleanupCh := make(chan struct{})
+
+	// This channel is how we'll notify the caller when we get a request.
+	// This has a buffer so that in the assumed-typical case where the
+	// test server will only start serving a few requests before they
+	// get cancelled the server's handler can be decoupled from the
+	// channel reads in the caller.
+	reqsCh := make(chan *http.Request, 8)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// We intentionally don't take any action on this request until
+		// the test cleanup function runs, but we will notify our
+		// caller that the request was started.
+		//
+		// We'll also accept getting told to clean up before the
+		// channel write succeeds just in case the calling test exits
+		// before it reads from reqsCh.
+		select {
+		case reqsCh <- req:
+		case <-cleanupCh:
+		}
+		// If we managed to send req to reqsCh above then we still
+		// need to wait for cleanupCh to close. The following is
+		// no-op if the channel is already closed.
+		<-cleanupCh
+		// If any client is still connected by the time we get here then
+		// we'll respond quickly just to get their connection closed.
+		// This is unlikely but could potentially happen if a new client
+		// connects in the narrow time window between us closing the
+		// existing client connections and fully closing the server,
+		// after cleanupCh is already closed: in that case the new client
+		// will get a 500 Internal Server Error response immediately.
+		w.WriteHeader(500)
+	}))
+	t.Logf("testHangServer is running at %s", server.URL)
+
+	t.Cleanup(func() {
+		t.Helper()
+		t.Log("shutting down testHangServer")
+		close(cleanupCh)                // terminate any active handlers
+		close(reqsCh)                   // unblock any test that's awaiting a request notification
+		server.CloseClientConnections() // force any active clients to disconnect
+		server.Close()                  // stop accepting new requests and wait for existing ones to stop
+	})
+	return server, reqsCh
 }

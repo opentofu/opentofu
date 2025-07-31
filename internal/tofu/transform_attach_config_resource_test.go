@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package tofu
 
 import (
@@ -13,12 +18,12 @@ func TestModuleTransformAttachConfigTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	module := testModule(t, "transform-attach-config")
 
-	err := (&ConfigTransformer{Config: module}).Transform(&g)
+	err := (&ConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = (&AttachResourceConfigTransformer{Config: module}).Transform(&g)
+	err = (&AttachResourceConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +58,9 @@ func TestModuleTransformAttachConfigTransformer(t *testing.T) {
 		for _, attr := range attrs {
 			val, _ := attr.Expr.Value(nil)
 			var target int
-			gocty.FromCtyValue(val, &target)
+			if err := gocty.FromCtyValue(val, &target); err != nil {
+				t.Fatal(err)
+			}
 			values[attr.Name] = target
 		}
 

@@ -51,8 +51,8 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 	}
 
 	var subject Targetable
-	switch {
-	case riAddr.Resource.Key == NoKey:
+	switch riAddr.Resource.Key {
+	case NoKey:
 		// We always assume that a no-key instance is meant to
 		// be referring to the whole resource, because the distinction
 		// doesn't really matter for targets anyway.
@@ -68,9 +68,8 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 }
 
 func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Traversal) (AbsResourceInstance, tfdiags.Diagnostics) {
-	// Note that this helper is used as part of both ParseTarget and
-	// ParseMoveEndpoint, so its error messages should be generic
-	// enough to suit both situations.
+	// Note that this helper is used as part of multiple public functions
+	// so its error messages should be generic enough to suit all the situations.
 
 	var diags tfdiags.Diagnostics
 
@@ -406,7 +405,7 @@ func ParseAbsResourceInstanceStr(str string) (AbsResourceInstance, tfdiags.Diagn
 }
 
 // ModuleAddr returns the module address portion of the subject of
-// the recieving target.
+// the receiving target.
 //
 // Regardless of specific address type, all targets always include
 // a module address. They might also include something in that

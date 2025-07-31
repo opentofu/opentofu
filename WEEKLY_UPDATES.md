@@ -1,12 +1,112 @@
 # Weekly Updates
 
+## 2024-10-11
+
+Hey folks, the last week we've been impacted by several sicknesses and out of office colleagues. Nevertheless, we have made progress with several issues related to static evaluation. Specifically:
+
+- We have released [OpenTofu 1.8.3](https://github.com/opentofu/opentofu/releases/tag/v1.8.3), a security update related to early static evaluation. We highly recommend setting the `TOFU_ENABLE_STATIC_SENSITIVE=1` environment variable to enable the secure behavior.
+- We have expended significant effort on Dynamic Provider Configuration Assignment ([#300](https://github.com/opentofu/opentofu/issues/300)).
+- We started the full indexing of the [OpenTofu Registry Search](https://search.opentofu.org), which means that all providers and modules should be available within the next week. We have also published the [full documentation for the registry](https://search.opentofu.org/docs), including a guide for writing providers and modules.
+- How you can help:
+  - If you are experienced in TypeScript/HTML/CSS, please take a look at the [Registry Search](https://github.com/opentofu/registry-ui/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) repository! There are several issues related to accessibility we like to resolve but currently don't have the capacity for.
+  - Keep an eye out for issues labeled with `help wanted`. These are issues open for a community member to contribute a PR and we'd love to review it.
+  - [Report and upvote issues](https://github.com/opentofu/opentofu/issues/1496) that are important to you. We are a community-driven organization and prioritize issues that are affecting a lot of people.
+  - Take the [OpenTofu Registry Docs API](https://api.opentofu.org/) for a spin and build something cool with it.
+
+## 2024-09-20
+
+Well hello there! We have a week of housekeeping behind us, but also a few important changes:
+
+- Starting with OpenTofu 1.10, the `ghcr.io/opentofu/opentofu` will no longer be usable as a base image for custom container builds due to security reasons and will only be available as a CLI image. See [the pull request for details](https://github.com/opentofu/opentofu/pull/1993).
+- We are moving into the testing and documentation phase with passing providers to modules and resources using `for_each`, as well as `-exclude`.
+- We are expanding the scope of the [Registry Search](https://search.opentofu.org) indexing and will hopefully have the entire registry indexed soon. We also continued working on providing a user documentation for the OpenTofu Registry.
+- How you can help:
+  - If you are experienced in TypeScript/HTML/CSS, please take a look at the [Registry Search](https://github.com/opentofu/registry-ui/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) repository! There are several issues related to accessibility we like to resolve but currently don't have the capacity for.
+  - Keep an eye out for issues labeled with `help wanted`. These are issues open for a community member to contribute a PR and we'd love to review it.
+  - [Report and upvote issues](https://github.com/opentofu/opentofu/issues/1496) that are important to you. We are a community-driven organization and prioritize issues that are affecting a lot of people.
+  - Take the [OpenTofu Registry Docs API](https://api.opentofu.org/) for a spin and build something cool with it.
+
+## 2024-09-13
+
+Hi there! It's been a busy month since the last "Weekly Update". Here are the latest updates:
+- [OpenTofu 1.8.2](https://github.com/opentofu/opentofu/releases/tag/v1.8.2) is out and fixes a known bug and a security issue.
+- [The beta version of the registry UI is now live!](https://search.opentofu.org/) You are welcome to go and check it out. Keep in mind that because this is a beta, not all providers are available at this time.
+- Recent developments:
+  - We are almost done implementing passing providers to modules and resources using `for_each` (this is part of the effort to extend the features related to the 1.8.0 early evaluation). We are working diligently to include these updates in the 1.9.0 release.
+  - We are making great progress with supporting the `-exclude` flag [RFC](https://github.com/opentofu/opentofu/pull/1900) and almost done with implementing it for the upcoming release.
+- How can I help?
+  - Update OpenTofu to version 1.8.2 and report any issues you encounter. 
+  - Try our new [registry UI](https://search.opentofu.org/) and share with us any feedback you have.
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them! We opened a few in our registry-ui repository [here](https://github.com/opentofu/registry-ui/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22).
+
+## 2024-08-09
+
+Here's what happened since the last update:
+
+- [OpenTofu 1.8.0](https://opentofu.org/blog/opentofu-1-8-0/) is out with a lot of long-requested functionality, such as early evaluation for variables and locals, support for `.tofu` files with an override functionality, and enhancements to `tofu test` with provider mocking and resource overrides.
+- [OpenTofu 1.8.1](https://github.com/opentofu/opentofu/releases/tag/v1.8.1) is available and fixes a small bug in the previous version.
+- Recent developments:
+  - We have started extending the features related to the 1.8.0 early evaluation, such as passing providers to modules and resources using `for_each`. Our goal is to include these updates in the 1.9.0 release.
+  - We have accepted the [RFC](https://github.com/opentofu/opentofu/pull/1900) about supporting the `-exclude` flag and started working on it. We aim to release it as part of the 1.9.0 release.
+  - We are still working on a user interface for the registry. This includes creating a general-purpose library for working with the registry data in Go. We are making great progress in that area.
+  - We started investigating global provider cache locking and have a [draft PR](https://github.com/opentofu/opentofu/pull/1878) with a potential solution. More updates on this coming soon.
+- How can I help?
+  - Update OpenTofu to version 1.8.0 and report any issues you encounter. Also, please share with us the feedback about the new features we released.
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
+## 2024-07-18
+
+Hey folks, sorry for the sporadic updates, we'll try to make these more frequent. Here's what happened since the last update:
+
+- [OpenTofu 1.8.0-beta2](https://opentofu.org/blog/opentofu-1-8-0-beta1/) is now here with a lot of long-requested functionality, such as early evaluation for variables and locals, as well as support for `.tofu` files with an override functionality. We are currently working towards a 1.8.0 release candidate.
+- [OpenTofu 1.7.3](https://github.com/opentofu/opentofu/releases/tag/v1.7.3) and [1.6.3](https://github.com/opentofu/opentofu/releases/tag/v1.6.3) are also available with some bugfixes.
+- Recent developments:
+  - We are currently planning the 1.9.0 release to add on top of the 1.8.0 early evaluation features. The new improvements include passing providers to modules in loops.
+  - We are working with the community and vendors to provide better OpenTofu support in Visual Studio Code and other IDEs.
+  - We are working on a user interface for the registry. This includes creating a general-purpose library for working with the registry data in Go. If you would like to build on top of the registry data set, stay tuned for more news on this.
+  - [tofudl](https://github.com/opentofu/tofudl) is a new standalone Go library that makes it easier to download and run OpenTofu from Go programs securely. If yo uare a tool vendor, check it out.
+  - Last but not least, for the 1.9.0 we are aiming to bring some much-needed improvements in terms of testing the OpenTofu codebase and merging performance improvements.
+- How can I help?
+  - Please test the 1.8.0 preview releases. Early community feedback on the functionality and potential edge cases we may have missed is critical for releases.
+  - If you are experienced in TypeScript/React, please stay tuned as we may be putting out `help-wanted` issues on GitHub and Slack related to the registry UI.
+  - If you are a tool author, please keep an eye out of the libraries we release on GitHub and Slack. We would like to make OpenTofu more modular and your early feedback on these libraries helps us make them better. If you have feedback, please use the GitHub review functionality to provide it.
+
+## 2024-06-14
+
+Hello! It's been a busy month since the last "Weekly Update" and there is a lot to cover!
+
+- [OpenTofu 1.7.2](https://github.com/opentofu/opentofu/releases/tag/v1.7.2) was released!
+  - This release contained a few bugfixes for new functionality introduced in the 1.7 release cycle
+- Recent Developments:
+  - A new [RFC Process](https://github.com/opentofu/opentofu/blob/main/rfc/20240524-OpenTofu-RFC-Process.md) has been adopted!
+    - This will help define larger proposals and enable more in-depth converations.
+    - Existing accepted RFCs have been backfilled to preserve history.
+  - Static Evaluation work has begun!
+    - [RFC was accepted!](https://github.com/opentofu/opentofu/pull/1649)
+    - The [first PR](https://github.com/opentofu/opentofu/pull/1718) has been opened to implement the RFC
+  - Performance improvements:
+    - [Write state using compact JSON representation](https://github.com/opentofu/opentofu/pull/1647)
+    - [Make persist interval for remote state backend configurable](https://github.com/opentofu/opentofu/pull/1591)
+  - [Support for overrides](https://github.com/opentofu/opentofu/pull/1499) in `tofu test`
+  - [Allow variable to pass inside `variables` block](https://github.com/opentofu/opentofu/pull/1488)
+- Upcoming 1.8.0-alpha1, as early as next week!
+  - Enables use of variables in backends and module sources!
+  - New [.tofu file extension](https://github.com/opentofu/opentofu/pull/1699/files)!
+  - Introduce `tofu {}` block as alternative to `terraform {}` and [change understanding of required_version](https://github.com/opentofu/opentofu/pull/1716)
+  - Full list in the [CHANGELOG](https://github.com/opentofu/opentofu/blob/568ff66/CHANGELOG.md)
+- How can I help?
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
 ## 2024-05-17
 
 Hello there! After the 1.7.1 release last week, the core team has been focusing on a few remaining issues for 1.7.2 and starting to look forward to 1.8!
 
 - Current Status
   - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
-    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC proces
+    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC process
   - [Registry UI](https://github.com/opentofu/registry/issues/450)
     - Designs and prototyping are in progress!
   - [Releases page with direct links to artifacts](https://github.com/opentofu/get.opentofu.org/pull/25) is now live https://get.opentofu.org/tofu/api.json
@@ -65,7 +165,7 @@ Hello there!  We've had a fairly quiet couple days after KubeCon last week, but 
 
 - Current Status:
   - Large numbers are no longer truncated in plans [#1382](https://github.com/opentofu/opentofu/pull/1382)
-  - Debugging crashes is now much easer with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
+  - Debugging crashes is now much easier with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
   - State Encryption
     - Integration testing with TACOS identified some issues that have been fixed with remote and cloud backends [#1431](https://github.com/opentofu/opentofu/pull/1431)
     - Dumping state during a crash is more resilient [#1421](https://github.com/opentofu/opentofu/pull/1421)

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -51,7 +52,7 @@ type ConfigTransformer struct {
 	generateConfigPathForImportTargets string
 }
 
-func (t *ConfigTransformer) Transform(g *Graph) error {
+func (t *ConfigTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.skip {
 		return nil
 	}
@@ -68,6 +69,12 @@ func (t *ConfigTransformer) Transform(g *Graph) error {
 func (t *ConfigTransformer) transform(g *Graph, config *configs.Config, generateConfigPath string) error {
 	// If no config, do nothing
 	if config == nil {
+		return nil
+	}
+
+	// If the module is being overridden, do nothing. We don't want to create anything
+	// from the underlying module.
+	if config.Module.IsOverridden {
 		return nil
 	}
 

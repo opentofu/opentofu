@@ -10,12 +10,10 @@ package init
 import (
 	"sync"
 
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/backend"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	backendRemote "github.com/opentofu/opentofu/internal/backend/remote"
 	backendAzure "github.com/opentofu/opentofu/internal/backend/remote-state/azure"
@@ -29,6 +27,8 @@ import (
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
 	backendCloud "github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // backends is the list of available backends. This is a global variable
@@ -53,6 +53,10 @@ var RemovedBackends map[string]string
 func Init(services *disco.Disco) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
+
+	// NOTE: Underscore-prefixed named are reserved for unit testing use via
+	// the RegisterTemp function. Do not add any underscore-prefixed names
+	// to the following table.
 
 	backends = map[string]backend.InitFn{
 		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(enc) },
@@ -100,6 +104,10 @@ func Backend(name string) backend.InitFn {
 // This method sets this backend globally and care should be taken to do
 // this only before OpenTofu is executing to prevent odd behavior of backends
 // changing mid-execution.
+//
+// NOTE: Underscore-prefixed named are reserved for unit testing use via
+// the RegisterTemp function. Do not add any underscore-prefixed names
+// using this function.
 func Set(name string, f backend.InitFn) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
@@ -126,7 +134,7 @@ func (b deprecatedBackendShim) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.
 	return newObj, diags.Append(tfdiags.SimpleWarning(b.Message))
 }
 
-// DeprecateBackend can be used to wrap a backend to retrun a deprecation
+// DeprecateBackend can be used to wrap a backend to return a deprecation
 // warning during validation.
 func deprecateBackend(b backend.Backend, message string) backend.Backend {
 	// Since a Backend wrapped by deprecatedBackendShim can no longer be

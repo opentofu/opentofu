@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -93,11 +94,11 @@ func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *provid
 //
 // If the given list of directories is empty then the resulting source will
 // have no providers available for installation at all.
-func (m *Meta) providerCustomLocalDirectorySource(dirs []string) getproviders.Source {
+func (m *Meta) providerCustomLocalDirectorySource(ctx context.Context, dirs []string) getproviders.Source {
 	var ret getproviders.MultiSource
 	for _, dir := range dirs {
 		ret = append(ret, getproviders.MultiSourceSelector{
-			Source: getproviders.NewFilesystemMirrorSource(dir),
+			Source: getproviders.NewFilesystemMirrorSource(ctx, dir),
 		})
 	}
 	return ret

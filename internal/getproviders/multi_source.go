@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -185,7 +185,7 @@ func ParseMultiSourceMatchingPatterns(strs []string) (MultiSourceMatchingPattern
 			Type:      pType,
 		}
 
-		if ret[i].Hostname == svchost.Hostname(Wildcard) && !(ret[i].Namespace == Wildcard && ret[i].Type == Wildcard) {
+		if ret[i].Hostname == svchost.Hostname(Wildcard) && (ret[i].Namespace != Wildcard || ret[i].Type != Wildcard) {
 			return nil, fmt.Errorf("invalid provider matching pattern %q: hostname can be a wildcard only if both namespace and provider type are also wildcards", str)
 		}
 		if ret[i].Namespace == Wildcard && ret[i].Type != Wildcard {
@@ -199,7 +199,7 @@ func ParseMultiSourceMatchingPatterns(strs []string) (MultiSourceMatchingPattern
 // is both included by the selector's include patterns and _not_ excluded
 // by its exclude patterns.
 //
-// The absense of any include patterns is treated the same as a pattern
+// The absence of any include patterns is treated the same as a pattern
 // that matches all addresses. Exclusions take priority over inclusions.
 func (s MultiSourceSelector) CanHandleProvider(addr addrs.Provider) bool {
 	switch {

@@ -33,6 +33,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -48,6 +49,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -63,6 +65,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -303,7 +306,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("command-check-required-version"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -320,6 +323,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -335,6 +339,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -350,6 +355,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 

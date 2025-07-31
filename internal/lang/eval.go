@@ -6,7 +6,10 @@
 package lang
 
 import (
+	"context"
 	"fmt"
+	"maps"
+	"reflect"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -15,11 +18,13 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -29,16 +34,16 @@ import (
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
+func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
 	refs, diags := References(s.ParseRef, traversals)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 
-	return dynblock.Expand(body, ctx), diags
+	return dynblock.Expand(body, hclCtx), diags
 }
 
 // EvalBlock evaluates the given body using the given block schema and returns
@@ -51,12 +56,12 @@ func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	refs, diags := ReferencesInBlock(s.ParseRef, body, schema)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -72,8 +77,11 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	// whose type is the attribute name.
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
-	val, evalDiags := hcldec.Decode(body, spec, ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
+	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
+	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
+	diags = diags.Append(depDiags)
 
 	return val, diags
 }
@@ -82,7 +90,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 // object and instance key data. References to the object must use self, and the
 // key data will only contain count.index or each.key. The static values for
 // terraform and path will also be available in this context.
-func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	spec := schema.DecoderSpec()
@@ -118,12 +126,12 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 		switch subj := ref.Subject.(type) {
 		case addrs.PathAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			pathAttrs[subj.Name] = val
 
 		case addrs.TerraformAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			terraformAttrs[subj.Name] = val
 
@@ -144,14 +152,16 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 	vals["path"] = cty.ObjectVal(pathAttrs)
 	vals["terraform"] = cty.ObjectVal(terraformAttrs)
+	vals["tofu"] = cty.ObjectVal(terraformAttrs)
 
-	ctx := &hcl.EvalContext{
+	hclCtx := &hcl.EvalContext{
 		Variables: vals,
+		// TODO consider if any provider functions make sense here
 		Functions: s.Functions(),
 	}
 
-	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(decDiags))
+	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), hclCtx)
+	diags = diags.Append(enhanceFunctionDiags(decDiags))
 	return val, diags
 }
 
@@ -165,10 +175,10 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	refs, diags := ReferencesInExpr(s.ParseRef, expr)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -176,8 +186,8 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 		return cty.UnknownVal(wantType), diags
 	}
 
-	val, evalDiags := expr.Value(ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
+	val, evalDiags := expr.Value(hclCtx)
+	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
 		var convErr error
@@ -190,56 +200,67 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 				Detail:      fmt.Sprintf("Invalid expression value: %s.", tfdiags.FormatError(convErr)),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
-				EvalContext: ctx,
+				EvalContext: hclCtx,
 			})
 		}
 	}
+
+	val, depDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(val, expr)
+	diags = diags.Append(depDiags)
 
 	return val, diags
 }
 
 // Identify and enhance any function related dialogs produced by a hcl.EvalContext
-func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
+func enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 	out := make(hcl.Diagnostics, len(diags))
 	for i, diag := range diags {
 		out[i] = diag
 
 		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
-			funcName := funcExtra.CalledFunctionName()
-			// prefix::stuff::
-			fullNamespace := funcExtra.CalledFunctionNamespace()
-
-			if len(fullNamespace) == 0 {
-				// Not a namespaced function, no enhancements nessesary
-				continue
-			}
-
-			// Insert the enhanced copy of diag into diags
-			enhanced := *diag
-			out[i] = &enhanced
-
-			// Update enhanced with additional details
-
-			fn := addrs.ParseFunction(fullNamespace + funcName)
-
-			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
-				// Error is in core namespace, mirror non-core equivalent
-				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
-			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
-				if _, err := fn.AsProviderFunction(); err != nil {
-					// complete mismatch or invalid prefix
-					enhanced.Summary = "Invalid function format"
-					enhanced.Detail = err.Error()
-				}
-			} else {
-				enhanced.Summary = "Unknown function namespace"
-				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
-			}
-			// Function / Provider not found handled by eval_context_builtin.go
+			out[i] = enhanceFunctionDiag(diag, funcExtra)
 		}
 	}
 	return out
+}
+
+// enhanceFunctionDiag returns a potentially-improved version of the given diagnostic
+// based on the information in funcExtra.
+func enhanceFunctionDiag(diag *hcl.Diagnostic, funcExtra hclsyntax.FunctionCallUnknownDiagExtra) *hcl.Diagnostic {
+	funcName := funcExtra.CalledFunctionName()
+	// prefix::stuff::
+	fullNamespace := funcExtra.CalledFunctionNamespace()
+
+	if len(fullNamespace) == 0 {
+		// Not a namespaced function, no enhancements necessary
+		return diag
+	}
+
+	// Shallow copy of the given diagnostic so that we can modify it without affecting
+	// anyone else that might be holding a pointer to it.
+	enhanced := *diag
+
+	// Update enhanced with additional details
+
+	fn := addrs.ParseFunction(fullNamespace + funcName)
+
+	if fn.IsNamespace(addrs.FunctionNamespaceCore) {
+		// Error is in core namespace, mirror non-core equivalent
+		enhanced.Summary = "Call to unknown function"
+		enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+	} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+		if _, err := fn.AsProviderFunction(); err != nil {
+			// complete mismatch or invalid prefix
+			enhanced.Summary = "Invalid function format"
+			enhanced.Detail = err.Error()
+		}
+	} else {
+		enhanced.Summary = "Unknown function namespace"
+		enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
+	}
+	// Function / Provider not found handled by eval_context_builtin.go
+
+	return &enhanced
 }
 
 // EvalReference evaluates the given reference in the receiving scope and
@@ -252,15 +273,15 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalReference(ctx context.Context, ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We cheat a bit here and just build an EvalContext for our requested
 	// reference with the "self" address overridden, and then pull the "self"
 	// result out of it to return.
-	ctx, ctxDiags := s.evalContext([]*addrs.Reference{ref}, ref.Subject)
+	hclCtx, ctxDiags := s.evalContext(ctx, nil, []*addrs.Reference{ref}, ref.Subject)
 	diags = diags.Append(ctxDiags)
-	val := ctx.Variables["self"]
+	val := hclCtx.Variables["self"]
 	if val == cty.NilVal {
 		val = cty.DynamicVal
 	}
@@ -286,35 +307,54 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 // Most callers should prefer to use the evaluation helper methods that
 // this type offers, but this is here for less common situations where the
 // caller will handle the evaluation calls itself.
-func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(refs, s.SelfAddr)
+//
+// The [context.Context] passed to this function is the one that will be used
+// when making requests to providers if any of the references are to
+// provider-defined functions, and so callers should typically use
+// the resulting evaluation context immediately after the call and not
+// share it with other parts of the system where a different [context.Context]
+// would be more appropriate to use.
+func (s *Scope) EvalContext(ctx context.Context, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, nil, refs, s.SelfAddr)
 }
 
-func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
+// EvalContextWithParent is exactly the same as EvalContext except the resulting hcl.EvalContext
+// will be derived from the given parental hcl.EvalContext. It will enable different hcl mechanisms
+// to iteratively lookup target functions and variables in EvalContext's parent.
+// See Traversal.TraverseAbs (hcl) or FunctionCallExpr.Value (hcl/hclsyntax) for more details.
+func (s *Scope) EvalContextWithParent(ctx context.Context, p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, p, refs, s.SelfAddr)
+}
+
+func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
 	}
 
 	var diags tfdiags.Diagnostics
-	vals := make(map[string]cty.Value)
-	funcs := s.Functions()
-	ctx := &hcl.EvalContext{
-		Variables: vals,
-		Functions: funcs,
-	}
 
+	// Calling NewChild() on a nil parent will
+	// produce an EvalContext with no parent.
+	hclCtx := parent.NewChild()
+	hclCtx.Functions = make(map[string]function.Function)
+	hclCtx.Variables = make(map[string]cty.Value)
+
+	// The built-in functions are our starting point, but we might add extra
+	// provider-defined functions below.
+	maps.Copy(hclCtx.Functions, s.Functions())
+
+	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
-		// Easy path for common case where there are no references at all.
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// First we'll do static validation of the references. This catches things
 	// early that might otherwise not get caught due to unknown values being
 	// present in the scope during planning.
-	staticDiags := s.Data.StaticValidateReferences(refs, selfAddr, s.SourceAddr)
+	staticDiags := s.Data.StaticValidateReferences(ctx, refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// The reference set we are given has not been de-duped, and so there can
@@ -325,196 +365,240 @@ func (s *Scope) evalContext(refs []*addrs.Reference, selfAddr addrs.Referenceabl
 	// it, since that allows us to gather a full set of any errors and
 	// warnings, but once we've gathered all the data we'll then skip anything
 	// that's redundant in the process of populating our values map.
-	dataResources := map[string]map[string]cty.Value{}
-	managedResources := map[string]map[string]cty.Value{}
-	wholeModules := map[string]cty.Value{}
-	inputVariables := map[string]cty.Value{}
-	localValues := map[string]cty.Value{}
-	outputValues := map[string]cty.Value{}
-	pathAttrs := map[string]cty.Value{}
-	terraformAttrs := map[string]cty.Value{}
-	countAttrs := map[string]cty.Value{}
-	forEachAttrs := map[string]cty.Value{}
-	checkBlocks := map[string]cty.Value{}
-	var self cty.Value
+	varBuilder := s.newEvalVarBuilder()
 
 	for _, ref := range refs {
-		rng := ref.SourceRange
-
-		rawSubj := ref.Subject
-		if rawSubj == addrs.Self {
-			if selfAddr == nil {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  `Invalid "self" reference`,
-					// This detail message mentions some current practice that
-					// this codepath doesn't really "know about". If the "self"
-					// object starts being supported in more contexts later then
-					// we'll need to adjust this message.
-					Detail:  `The "self" object is not available in this context. This object can be used only in resource provisioner, connection, and postcondition blocks.`,
-					Subject: ref.SourceRange.ToHCL().Ptr(),
-				})
-				continue
-			}
-
-			if selfAddr == addrs.Self {
-				// Programming error: the self address cannot alias itself.
-				panic("scope SelfAddr attempting to alias itself")
-			}
-
-			// self can only be used within a resource instance
-			subj := selfAddr.(addrs.ResourceInstance)
-
-			val, valDiags := normalizeRefValue(s.Data.GetResource(subj.ContainingResource(), rng))
-
-			diags = diags.Append(valDiags)
-
-			// Self is an exception in that it must always resolve to a
-			// particular instance. We will still insert the full resource into
-			// the context below.
-			var hclDiags hcl.Diagnostics
-			// We should always have a valid self index by this point, but in
-			// the case of an error, self may end up as a cty.DynamicValue.
-			switch k := subj.Key.(type) {
-			case addrs.IntKey:
-				self, hclDiags = hcl.Index(val, cty.NumberIntVal(int64(k)), ref.SourceRange.ToHCL().Ptr())
-				diags = diags.Append(hclDiags)
-			case addrs.StringKey:
-				self, hclDiags = hcl.Index(val, cty.StringVal(string(k)), ref.SourceRange.ToHCL().Ptr())
-				diags = diags.Append(hclDiags)
-			default:
-				self = val
-			}
+		if ref.Subject == addrs.Self {
+			diags.Append(varBuilder.putSelfValue(ctx, selfAddr, ref))
 			continue
 		}
 
-		// This type switch must cover all of the "Referenceable" implementations
-		// in package addrs, however we are removing the possibility of
-		// Instances beforehand.
-		switch addr := rawSubj.(type) {
-		case addrs.ResourceInstance:
-			rawSubj = addr.ContainingResource()
-		case addrs.ModuleCallInstance:
-			rawSubj = addr.Call
-		case addrs.ModuleCallInstanceOutput:
-			rawSubj = addr.Call.Call
-		}
-
-		switch subj := rawSubj.(type) {
-		case addrs.Resource:
-			var into map[string]map[string]cty.Value
-			switch subj.Mode {
-			case addrs.ManagedResourceMode:
-				into = managedResources
-			case addrs.DataResourceMode:
-				into = dataResources
-			default:
-				panic(fmt.Errorf("unsupported ResourceMode %s", subj.Mode))
-			}
-
-			val, valDiags := normalizeRefValue(s.Data.GetResource(subj, rng))
-			diags = diags.Append(valDiags)
-
-			r := subj
-			if into[r.Type] == nil {
-				into[r.Type] = make(map[string]cty.Value)
-			}
-			into[r.Type][r.Name] = val
-
-		case addrs.ModuleCall:
-			val, valDiags := normalizeRefValue(s.Data.GetModule(subj, rng))
-			diags = diags.Append(valDiags)
-			wholeModules[subj.Name] = val
-
-		case addrs.InputVariable:
-			val, valDiags := normalizeRefValue(s.Data.GetInputVariable(subj, rng))
-			diags = diags.Append(valDiags)
-			inputVariables[subj.Name] = val
-
-		case addrs.LocalValue:
-			val, valDiags := normalizeRefValue(s.Data.GetLocalValue(subj, rng))
-			diags = diags.Append(valDiags)
-			localValues[subj.Name] = val
-
-		case addrs.PathAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(subj, rng))
-			diags = diags.Append(valDiags)
-			pathAttrs[subj.Name] = val
-
-		case addrs.TerraformAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(subj, rng))
-			diags = diags.Append(valDiags)
-			terraformAttrs[subj.Name] = val
-
-		case addrs.CountAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetCountAttr(subj, rng))
-			diags = diags.Append(valDiags)
-			countAttrs[subj.Name] = val
-
-		case addrs.ForEachAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetForEachAttr(subj, rng))
-			diags = diags.Append(valDiags)
-			forEachAttrs[subj.Name] = val
-
-		case addrs.OutputValue:
-			val, valDiags := normalizeRefValue(s.Data.GetOutput(subj, rng))
-			diags = diags.Append(valDiags)
-			outputValues[subj.Name] = val
-
-		case addrs.Check:
-			val, valDiags := normalizeRefValue(s.Data.GetCheckBlock(subj, rng))
-			diags = diags.Append(valDiags)
-			outputValues[subj.Name] = val
-		case addrs.ProviderFunction:
+		if subj, ok := ref.Subject.(addrs.ProviderFunction); ok {
 			// Inject function directly into context
-			if _, ok := ctx.Functions[subj.String()]; !ok {
-				fn, fnDiags := s.ProviderFunctions(subj, rng)
+			if _, ok := hclCtx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(ctx, subj, ref.SourceRange)
 				diags = diags.Append(fnDiags)
 
 				if !fnDiags.HasErrors() {
-					ctx.Functions[subj.String()] = *fn
+					hclCtx.Functions[subj.String()] = *fn
 				}
 			}
-		default:
-			// Should never happen
-			panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))
+
+			continue
 		}
+
+		diags = diags.Append(varBuilder.putValueBySubject(ctx, ref))
 	}
 
+	varBuilder.buildAllVariablesInto(hclCtx.Variables)
+
+	return hclCtx, diags
+}
+
+type evalVarBuilder struct {
+	s *Scope
+
+	dataResources    map[string]map[string]cty.Value
+	managedResources map[string]map[string]cty.Value
+	wholeModules     map[string]cty.Value
+	inputVariables   map[string]cty.Value
+	localValues      map[string]cty.Value
+	outputValues     map[string]cty.Value
+	pathAttrs        map[string]cty.Value
+	terraformAttrs   map[string]cty.Value
+	countAttrs       map[string]cty.Value
+	forEachAttrs     map[string]cty.Value
+	checkBlocks      map[string]cty.Value
+	self             cty.Value
+}
+
+func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
+	return &evalVarBuilder{
+		s: s,
+
+		dataResources:    map[string]map[string]cty.Value{},
+		managedResources: map[string]map[string]cty.Value{},
+		wholeModules:     map[string]cty.Value{},
+		inputVariables:   map[string]cty.Value{},
+		localValues:      map[string]cty.Value{},
+		outputValues:     map[string]cty.Value{},
+		pathAttrs:        map[string]cty.Value{},
+		terraformAttrs:   map[string]cty.Value{},
+		countAttrs:       map[string]cty.Value{},
+		forEachAttrs:     map[string]cty.Value{},
+		checkBlocks:      map[string]cty.Value{},
+	}
+}
+
+func (b *evalVarBuilder) putSelfValue(ctx context.Context, selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	if selfAddr == nil {
+		return diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "self" reference`,
+			// This detail message mentions some current practice that
+			// this codepath doesn't really "know about". If the "self"
+			// object starts being supported in more contexts later then
+			// we'll need to adjust this message.
+			Detail:  `The "self" object is not available in this context. This object can be used only in resource provisioner, connection, and postcondition blocks.`,
+			Subject: ref.SourceRange.ToHCL().Ptr(),
+		})
+	}
+
+	if selfAddr == addrs.Self {
+		// Programming error: the self address cannot alias itself.
+		panic("scope SelfAddr attempting to alias itself")
+	}
+
+	// self can only be used within a resource instance
+	subj, ok := selfAddr.(addrs.ResourceInstance)
+	if !ok {
+		panic("BUG: self addr must be a resource instance, got " + reflect.TypeOf(selfAddr).String())
+	}
+
+	val, valDiags := normalizeRefValue(b.s.Data.GetResource(ctx, subj.ContainingResource(), ref.SourceRange))
+
+	diags = diags.Append(valDiags)
+
+	// Self is an exception in that it must always resolve to a
+	// particular instance. We will still insert the full resource into
+	// the context below.
+	var hclDiags hcl.Diagnostics
+	// We should always have a valid self index by this point, but in
+	// the case of an error, self may end up as a cty.DynamicValue.
+	switch k := subj.Key.(type) {
+	case addrs.IntKey:
+		b.self, hclDiags = hcl.Index(val, cty.NumberIntVal(int64(k)), ref.SourceRange.ToHCL().Ptr())
+	case addrs.StringKey:
+		b.self, hclDiags = hcl.Index(val, cty.StringVal(string(k)), ref.SourceRange.ToHCL().Ptr())
+	default:
+		b.self = val
+	}
+	diags = diags.Append(hclDiags)
+
+	return diags
+}
+
+func (b *evalVarBuilder) putValueBySubject(ctx context.Context, ref *addrs.Reference) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	rawSubj := ref.Subject
+	rng := ref.SourceRange
+
+	// This type switch must cover all of the "Referenceable" implementations
+	// in package addrs, however we are removing the possibility of
+	// Instances beforehand.
+	switch addr := rawSubj.(type) {
+	case addrs.ResourceInstance:
+		rawSubj = addr.ContainingResource()
+	case addrs.ModuleCallInstance:
+		rawSubj = addr.Call
+	case addrs.ModuleCallInstanceOutput:
+		rawSubj = addr.Call.Call
+	}
+
+	var normDiags tfdiags.Diagnostics
+
+	switch subj := rawSubj.(type) {
+	case addrs.Resource:
+		diags = diags.Append(b.putResourceValue(ctx, subj, rng))
+
+	case addrs.ModuleCall:
+		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(ctx, subj, rng))
+
+	case addrs.InputVariable:
+		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(ctx, subj, rng))
+
+	case addrs.LocalValue:
+		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(ctx, subj, rng))
+
+	case addrs.PathAttr:
+		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(ctx, subj, rng))
+
+	case addrs.TerraformAttr:
+		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(ctx, subj, rng))
+
+	case addrs.CountAttr:
+		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(ctx, subj, rng))
+
+	case addrs.ForEachAttr:
+		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(ctx, subj, rng))
+
+	case addrs.OutputValue:
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(ctx, subj, rng))
+
+	case addrs.Check:
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(ctx, subj, rng))
+
+	default:
+		// Should never happen
+		panic(fmt.Errorf("Scope.buildEvalContext cannot handle address type %T", rawSubj))
+	}
+
+	diags = diags.Append(normDiags)
+
+	return diags
+}
+
+func (b *evalVarBuilder) putResourceValue(ctx context.Context, res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+	var into map[string]map[string]cty.Value
+
+	switch res.Mode {
+	case addrs.ManagedResourceMode:
+		into = b.managedResources
+	case addrs.DataResourceMode:
+		into = b.dataResources
+	case addrs.InvalidResourceMode:
+		panic("BUG: got invalid resource mode")
+	default:
+		panic(fmt.Errorf("BUG: got undefined ResourceMode %s", res.Mode))
+	}
+
+	val, diags := normalizeRefValue(b.s.Data.GetResource(ctx, res, rng))
+
+	if into[res.Type] == nil {
+		into[res.Type] = make(map[string]cty.Value)
+	}
+	into[res.Type][res.Name] = val
+
+	return diags
+}
+
+func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	// Managed resources are exposed in two different locations. The primary
 	// is at the top level where the resource type name is the root of the
 	// traversal, but we also expose them under "resource" as an escaping
 	// technique if we add a reserved name in a future language edition which
 	// conflicts with someone's existing provider.
-	for k, v := range buildResourceObjects(managedResources) {
+	for k, v := range buildResourceObjects(b.managedResources) {
 		vals[k] = v
 	}
-	vals["resource"] = cty.ObjectVal(buildResourceObjects(managedResources))
+	vals["resource"] = cty.ObjectVal(buildResourceObjects(b.managedResources))
 
-	vals["data"] = cty.ObjectVal(buildResourceObjects(dataResources))
-	vals["module"] = cty.ObjectVal(wholeModules)
-	vals["var"] = cty.ObjectVal(inputVariables)
-	vals["local"] = cty.ObjectVal(localValues)
-	vals["path"] = cty.ObjectVal(pathAttrs)
-	vals["terraform"] = cty.ObjectVal(terraformAttrs)
-	vals["count"] = cty.ObjectVal(countAttrs)
-	vals["each"] = cty.ObjectVal(forEachAttrs)
+	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
+	vals["module"] = cty.ObjectVal(b.wholeModules)
+	vals["var"] = cty.ObjectVal(b.inputVariables)
+	vals["local"] = cty.ObjectVal(b.localValues)
+	vals["path"] = cty.ObjectVal(b.pathAttrs)
+	vals["terraform"] = cty.ObjectVal(b.terraformAttrs)
+	vals["tofu"] = cty.ObjectVal(b.terraformAttrs)
+	vals["count"] = cty.ObjectVal(b.countAttrs)
+	vals["each"] = cty.ObjectVal(b.forEachAttrs)
 
 	// Checks and outputs are conditionally included in the available scope, so
 	// we'll only write out their values if we actually have something for them.
-	if len(checkBlocks) > 0 {
-		vals["check"] = cty.ObjectVal(checkBlocks)
+	if len(b.checkBlocks) > 0 {
+		vals["check"] = cty.ObjectVal(b.checkBlocks)
 	}
 
-	if len(outputValues) > 0 {
-		vals["output"] = cty.ObjectVal(outputValues)
+	if len(b.outputValues) > 0 {
+		vals["output"] = cty.ObjectVal(b.outputValues)
 	}
 
-	if self != cty.NilVal {
-		vals["self"] = self
+	if b.self != cty.NilVal {
+		vals["self"] = b.self
 	}
-
-	return ctx, diags
 }
 
 func buildResourceObjects(resources map[string]map[string]cty.Value) map[string]cty.Value {

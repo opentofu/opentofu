@@ -20,9 +20,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/tfdiags"
+
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -36,7 +38,7 @@ func TestConfigProviderTypes(t *testing.T) {
 		t.Fatal("expected empty result from empty config")
 	}
 
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -81,7 +83,7 @@ func TestConfigProviderTypes_nested(t *testing.T) {
 }
 
 func TestConfigResolveAbsProviderAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/providers-explicit-fqn")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/providers-explicit-fqn")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -149,26 +151,83 @@ func TestConfigProviderRequirements(t *testing.T) {
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
 	impliedProvider := addrs.NewDefaultProvider("implied")
+	importimpliedProvider := addrs.NewDefaultProvider("importimplied")
+	importexplicitProvider := addrs.NewDefaultProvider("importexplicit")
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 	grandchildProvider := addrs.NewDefaultProvider("grandchild")
 
-	got, diags := cfg.ProviderRequirements()
+	got, qualifs, diags := cfg.ProviderRequirements()
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraints from the two modules are merged
-		nullProvider:       getproviders.MustParseVersionConstraints("~> 2.0.0, 2.0.1"),
-		randomProvider:     getproviders.MustParseVersionConstraints("~> 1.2.0"),
-		tlsProvider:        getproviders.MustParseVersionConstraints("~> 3.0"),
-		configuredProvider: getproviders.MustParseVersionConstraints("~> 1.4"),
-		impliedProvider:    nil,
-		happycloudProvider: nil,
-		terraformProvider:  nil,
-		grandchildProvider: nil,
+		nullProvider:           getproviders.MustParseVersionConstraints("~> 2.0.0, 2.0.1"),
+		randomProvider:         getproviders.MustParseVersionConstraints("~> 1.2.0"),
+		tlsProvider:            getproviders.MustParseVersionConstraints("~> 3.0"),
+		configuredProvider:     getproviders.MustParseVersionConstraints("~> 1.4"),
+		impliedProvider:        nil,
+		importimpliedProvider:  nil,
+		importexplicitProvider: nil,
+		happycloudProvider:     nil,
+		terraformProvider:      nil,
+		grandchildProvider:     nil,
+	}
+	wantQualifs := &getproviders.ProvidersQualification{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
+			grandchildProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Module: []string{"kinder", "nested"}, Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "grandchild_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf", Start: tfdiags.SourcePos{Line: 3, Column: 1, Byte: 136}, End: tfdiags.SourcePos{Line: 3, Column: 32, Byte: 167}},
+				},
+			},
+			impliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 16, Column: 1, Byte: 317}, End: tfdiags.SourcePos{Line: 16, Column: 29, Byte: 345}},
+				},
+			},
+			importexplicitProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetB"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 42, Column: 1, Byte: 939}, End: tfdiags.SourcePos{Line: 42, Column: 7, Byte: 945}},
+				},
+			},
+			importimpliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetA"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 37, Column: 1, Byte: 886}, End: tfdiags.SourcePos{Line: 37, Column: 7, Byte: 892}},
+				},
+			},
+			terraformProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 27, Column: 1, Byte: 628}, End: tfdiags.SourcePos{Line: 27, Column: 36, Byte: 663}},
+				},
+			},
+		},
+		Explicit: map[addrs.Provider]struct{}{
+			happycloudProvider: {},
+			nullProvider:       {},
+			randomProvider:     {},
+			tlsProvider:        {},
+		},
+	}
+	// These 2 assertions are strictly to ensure that later the "provider" blocks are not registered into the qualifications.
+	// Technically speaking, provider blocks are indeed implicit references, but the current warning message
+	// on implicitly referenced providers could be misleading for the "provider" blocks.
+	if _, okExpl := qualifs.Explicit[configuredProvider]; okExpl {
+		t.Errorf("provider blocks shouldn't be added into the explicit qualifications")
+	}
+	if _, okImpl := qualifs.Implicit[configuredProvider]; okImpl {
+		t.Errorf("provider blocks shouldn't be added into the implicit qualifications")
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("wrong result\n%s", diff)
+		t.Errorf("wrong reqs result\n%s", diff)
+	}
+
+	if diff := cmp.Diff(wantQualifs, qualifs); diff != "" {
+		t.Errorf("wrong qualifs result\n%s", diff)
 	}
 }
 
@@ -191,7 +250,7 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 
-	got, diags := cfg.ProviderRequirements()
+	got, qualifs, diags := cfg.ProviderRequirements()
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraints from the two modules are merged
@@ -203,8 +262,34 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 		terraformProvider:  nil,
 	}
 
+	wantQualifs := &getproviders.ProvidersQualification{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
+			impliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 12, Column: 1, Byte: 247}, End: tfdiags.SourcePos{Line: 12, Column: 29, Byte: 275}},
+				},
+			},
+			terraformProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 19, Column: 1, Byte: 516}, End: tfdiags.SourcePos{Line: 19, Column: 36, Byte: 551}},
+				},
+			},
+		},
+		Explicit: map[addrs.Provider]struct{}{
+			nullProvider:   {},
+			randomProvider: {},
+			tlsProvider:    {},
+		},
+	}
+
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("wrong result\n%s", diff)
+	}
+
+	if diff := cmp.Diff(wantQualifs, qualifs); diff != "" {
+		t.Errorf("wrong qualifs result\n%s", diff)
 	}
 }
 
@@ -212,6 +297,56 @@ func TestConfigProviderRequirementsDuplicate(t *testing.T) {
 	_, diags := testNestedModuleConfigFromDir(t, "testdata/duplicate-local-name")
 	assertDiagnosticCount(t, diags, 3)
 	assertDiagnosticSummary(t, diags, "Duplicate required provider")
+}
+
+func TestConfigProviderForEach(t *testing.T) {
+	_, diags := testNestedModuleConfigFromDir(t, "testdata/provider_for_each")
+	assertDiagnosticCount(t, diags, 4)
+
+	want := hcl.Diagnostics{
+		{
+			Summary: "Provider configuration for_each matches module",
+			Detail:  "This provider configuration uses the same for_each expression as a module, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Provider configuration for_each matches resource",
+			Detail:  "This provider configuration uses the same for_each expression as a resource, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Invalid module provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		}, {
+			Summary: "Invalid resource provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		},
+	}
+
+	for _, wd := range want {
+		found := false
+		for _, gd := range diags {
+			if gd.Summary == wd.Summary && strings.HasPrefix(gd.Detail, wd.Detail) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Expected Diagnostic %s", wd)
+		}
+	}
+}
+
+func TestConfigProviderFromJSON(t *testing.T) {
+	cfg, diags := testNestedModuleConfigFromDir(t, "testdata/provider_from_json")
+	assertNoDiagnostics(t, diags)
+
+	got, diags := cfg.ProviderRequirementsShallow()
+	assertNoDiagnostics(t, diags)
+
+	nullProvider := addrs.NewDefaultProvider("null")
+	want := getproviders.Requirements{
+		nullProvider: nil,
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("wrong result\n%s", diff)
+	}
 }
 
 func TestConfigProviderRequirementsShallow(t *testing.T) {
@@ -230,6 +365,8 @@ func TestConfigProviderRequirementsShallow(t *testing.T) {
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
 	impliedProvider := addrs.NewDefaultProvider("implied")
+	importimpliedProvider := addrs.NewDefaultProvider("importimplied")
+	importexplicitProvider := addrs.NewDefaultProvider("importexplicit")
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 
@@ -237,12 +374,14 @@ func TestConfigProviderRequirementsShallow(t *testing.T) {
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraint is only from the root module
-		nullProvider:       getproviders.MustParseVersionConstraints("~> 2.0.0"),
-		randomProvider:     getproviders.MustParseVersionConstraints("~> 1.2.0"),
-		tlsProvider:        getproviders.MustParseVersionConstraints("~> 3.0"),
-		configuredProvider: getproviders.MustParseVersionConstraints("~> 1.4"),
-		impliedProvider:    nil,
-		terraformProvider:  nil,
+		nullProvider:           getproviders.MustParseVersionConstraints("~> 2.0.0"),
+		randomProvider:         getproviders.MustParseVersionConstraints("~> 1.2.0"),
+		tlsProvider:            getproviders.MustParseVersionConstraints("~> 3.0"),
+		configuredProvider:     getproviders.MustParseVersionConstraints("~> 1.4"),
+		impliedProvider:        nil,
+		importimpliedProvider:  nil,
+		importexplicitProvider: nil,
+		terraformProvider:      nil,
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
@@ -301,6 +440,8 @@ func TestConfigProviderRequirementsByModule(t *testing.T) {
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
 	impliedProvider := addrs.NewDefaultProvider("implied")
+	importimpliedProvider := addrs.NewDefaultProvider("importimplied")
+	importexplicitProvider := addrs.NewDefaultProvider("importexplicit")
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 	grandchildProvider := addrs.NewDefaultProvider("grandchild")
@@ -313,12 +454,14 @@ func TestConfigProviderRequirementsByModule(t *testing.T) {
 		SourceDir:  "testdata/provider-reqs",
 		Requirements: getproviders.Requirements{
 			// Only the root module's version is present here
-			nullProvider:       getproviders.MustParseVersionConstraints("~> 2.0.0"),
-			randomProvider:     getproviders.MustParseVersionConstraints("~> 1.2.0"),
-			tlsProvider:        getproviders.MustParseVersionConstraints("~> 3.0"),
-			configuredProvider: getproviders.MustParseVersionConstraints("~> 1.4"),
-			impliedProvider:    nil,
-			terraformProvider:  nil,
+			nullProvider:           getproviders.MustParseVersionConstraints("~> 2.0.0"),
+			randomProvider:         getproviders.MustParseVersionConstraints("~> 1.2.0"),
+			tlsProvider:            getproviders.MustParseVersionConstraints("~> 3.0"),
+			configuredProvider:     getproviders.MustParseVersionConstraints("~> 1.4"),
+			impliedProvider:        nil,
+			importimpliedProvider:  nil,
+			importexplicitProvider: nil,
+			terraformProvider:      nil,
 		},
 		Children: map[string]*ModuleRequirements{
 			"kinder": {
@@ -433,6 +576,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 	nullProvider := addrs.NewDefaultProvider("null")
 	randomProvider := addrs.NewDefaultProvider("random")
 	impliedProvider := addrs.NewDefaultProvider("implied")
+	importimpliedProvider := addrs.NewDefaultProvider("importimplied")
+	importexplicitProvider := addrs.NewDefaultProvider("importexplicit")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 	grandchildProvider := addrs.NewDefaultProvider("grandchild")
 
@@ -448,6 +593,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 				`provider registry.opentofu.org/hashicorp/configured: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/grandchild: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/implied: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/importexplicit: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/importimplied: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/random: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/tls: required by this configuration but no version is selected`,
@@ -459,6 +606,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 				locks.SetProvider(configuredProvider, getproviders.MustParseVersion("1.4.0"), nil, nil)
 				locks.SetProvider(grandchildProvider, getproviders.MustParseVersion("0.1.0"), nil, nil)
 				locks.SetProvider(impliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importimpliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importexplicitProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
 				locks.SetProvider(nullProvider, getproviders.MustParseVersion("2.0.1"), nil, nil)
 				locks.SetProvider(randomProvider, getproviders.MustParseVersion("1.2.2"), nil, nil)
 				locks.SetProvider(tlsProvider, getproviders.MustParseVersion("3.0.1"), nil, nil)
@@ -471,6 +620,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 				locks.SetProvider(configuredProvider, getproviders.MustParseVersion("1.4.0"), nil, nil)
 				locks.SetProvider(grandchildProvider, getproviders.MustParseVersion("0.1.0"), nil, nil)
 				locks.SetProvider(impliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importimpliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importexplicitProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
 				locks.SetProvider(nullProvider, getproviders.MustParseVersion("3.0.0"), nil, nil)
 				locks.SetProvider(randomProvider, getproviders.MustParseVersion("1.2.2"), nil, nil)
 				locks.SetProvider(tlsProvider, getproviders.MustParseVersion("3.0.1"), nil, nil)
@@ -490,6 +641,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 				locks.SetProvider(configuredProvider, getproviders.MustParseVersion("1.4.0"), nil, nil)
 				locks.SetProvider(grandchildProvider, getproviders.MustParseVersion("0.1.0"), nil, nil)
 				locks.SetProvider(impliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importimpliedProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
+				locks.SetProvider(importexplicitProvider, getproviders.MustParseVersion("0.2.0"), nil, nil)
 				locks.SetProvider(randomProvider, getproviders.MustParseVersion("1.2.2"), nil, nil)
 				locks.SetProvider(tlsProvider, getproviders.MustParseVersion("3.0.1"), nil, nil)
 				locks.SetProvider(happycloudProvider, getproviders.MustParseVersion("0.0.1"), nil, nil)
@@ -507,6 +660,8 @@ func TestVerifyDependencySelections(t *testing.T) {
 				`provider registry.opentofu.org/hashicorp/configured: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/grandchild: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/implied: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/importexplicit: required by this configuration but no version is selected`,
+				`provider registry.opentofu.org/hashicorp/importimplied: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/null: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/random: required by this configuration but no version is selected`,
 				`provider registry.opentofu.org/hashicorp/tls: required by this configuration but no version is selected`,
@@ -536,7 +691,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 }
 
 func TestConfigProviderForConfigAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/valid-modules/providers-fqns")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/valid-modules/providers-fqns")
 	assertNoDiagnostics(t, diags)
 
 	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderConfig("foo-test"))
@@ -554,13 +709,14 @@ func TestConfigProviderForConfigAddr(t *testing.T) {
 }
 
 func TestConfigAddProviderRequirements(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	assertNoDiagnostics(t, diags)
 
 	reqs := getproviders.Requirements{
 		addrs.NewDefaultProvider("null"): nil,
 	}
-	diags = cfg.addProviderRequirements(reqs, true, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags = cfg.addProviderRequirements(reqs, qualifs, true, false)
 	assertNoDiagnostics(t, diags)
 }
 
@@ -583,26 +739,43 @@ Use the providers argument within the module block to configure providers for al
 }
 
 func TestConfigImportProviderClashesWithResources(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-resource-clash.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-resource-clash.tf")
 	assertNoDiagnostics(t, diags)
+	qualifs := new(getproviders.ProvidersQualification)
 
-	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
+	diags = cfg.addProviderRequirements(getproviders.Requirements{}, qualifs, true, false)
 	assertExactDiagnostics(t, diags, []string{
-		`testdata/invalid-import-files/import-and-resource-clash.tf:9,3-19: Invalid import provider argument; The provider argument can only be specified in import blocks that will generate configuration.
-
-Use the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.`,
+		`testdata/invalid-import-files/import-and-resource-clash.tf:9,3-19: Invalid import provider argument; The provider argument in the target resource block must match the import block.`,
 	})
 }
 
 func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-no-resource.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-no-resource.tf")
 	assertNoDiagnostics(t, diags)
 
-	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags = cfg.addProviderRequirements(getproviders.Requirements{}, qualifs, true, false)
 	assertExactDiagnostics(t, diags, []string{
-		`testdata/invalid-import-files/import-and-no-resource.tf:5,3-19: Invalid import provider argument; The provider argument can only be specified in import blocks that will generate configuration.
+		`testdata/invalid-import-files/import-and-no-resource.tf:5,3-19: Invalid import provider argument; The provider argument in the target resource block must be specified and match the import block.`,
+	})
+}
 
-Use the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.`,
+func TestConfigWithDeprecatedVariables(t *testing.T) {
+	src, err := os.ReadFile("testdata/variable-empty-deprecated/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parser := testParser(map[string]string{
+		"main.tf": string(src),
+	})
+
+	_, diags := parser.LoadConfigFile("main.tf")
+	// The lack of a diagnostic for the "without_deprecated" variable validates also that a variable without any "deprecated" field specified
+	// is parsed correctly
+	assertExactDiagnostics(t, diags, []string{
+		"main.tf:1,10-33: Invalid `deprecated` value; The \"deprecated\" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated variable.",
+		"main.tf:7,10-39: Invalid `deprecated` value; The \"deprecated\" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated variable.",
 	})
 }
 
@@ -813,7 +986,13 @@ func TestTransformForTest(t *testing.T) {
 				Providers: tc.runProviders,
 			}
 
-			reset, diags := config.TransformForTest(run, file)
+			evalCtx := &hcl.EvalContext{
+				Variables: map[string]cty.Value{
+					"run": cty.ObjectVal(map[string]cty.Value{}),
+					"var": cty.ObjectVal(map[string]cty.Value{}),
+				},
+			}
+			reset, diags := config.TransformForTest(run, file, evalCtx)
 
 			var actualErrs []string
 			for _, err := range diags.Errs() {
@@ -829,4 +1008,85 @@ func TestTransformForTest(t *testing.T) {
 
 		})
 	}
+}
+
+// This test is checking that by giving the outermost called module, the method called is
+// returning correctly that is a remote module relatively to the root module.
+// This is because root module is calling the child module from a remote source
+// but all the other calls are done from local modules.
+// Eg: Root module is calling a module from a git repo in a particular directory,
+// but that module is calling other modules from the same repo by referencing those
+// with a relative path.
+func TestIsCallFromRemote(t *testing.T) {
+	childName := "call-to-child"
+	gchildName := "call-to-gchild"
+	ggchildName := "call-to-ggchild"
+	gggchildName := "call-to-gggchild"
+	parseModuleSource := func(t *testing.T, source string) addrs.ModuleSource {
+		s, err := addrs.ParseModuleSource(source)
+		if err != nil {
+			t.Fatalf("failed to parse module source %q: %s", source, err)
+		}
+		return s
+	}
+	tests := map[string]struct {
+		childModulePath string
+		expectedRes     bool
+	}{
+		"from git repo": {
+			childModulePath: "git::https://github.com/user/repo//child",
+			expectedRes:     true,
+		},
+		"from registry": {
+			childModulePath: "registry.example.com/foo/bar/baz",
+			expectedRes:     true,
+		},
+		"from local": {
+			childModulePath: "../mod",
+			expectedRes:     false,
+		},
+	}
+	for ttn, tt := range tests {
+		t.Run(ttn, func(t *testing.T) {
+			root := &Config{
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						childName: {SourceAddr: parseModuleSource(t, tt.childModulePath)},
+					},
+				},
+			}
+			child := &Config{
+				Parent: root,
+				Path:   []string{childName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
+					},
+				},
+			}
+			gchild := &Config{
+				Parent: child,
+				Path:   []string{gchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
+					},
+				},
+			}
+			ggchild := &Config{
+				Parent: gchild,
+				Path:   []string{ggchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
+					},
+				},
+			}
+
+			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(ggchildName); want != got {
+				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
+			}
+		})
+	}
+
 }

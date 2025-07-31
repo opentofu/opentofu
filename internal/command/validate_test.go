@@ -75,7 +75,7 @@ func TestValidateCommandWithTfvarsFile(t *testing.T) {
 	// requires scanning the current working directory by validate command.
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("validate-valid/with-tfvars-file"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	view, done := testView(t)
 	c := &ValidateCommand{
@@ -122,7 +122,7 @@ func TestValidateFailingCommandMissingVariable(t *testing.T) {
 	}
 }
 
-func TestSameProviderMutipleTimesShouldFail(t *testing.T) {
+func TestSameProviderMultipleTimesShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/multiple_providers")
 	if code != 1 {
 		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
@@ -166,6 +166,32 @@ func TestSameImportTargetMultipleTimesShouldFail(t *testing.T) {
 	}
 }
 
+func TestUndefinedVariableAsImportIDShouldFail(t *testing.T) {
+	output, code := setupTest(t, "validate-invalid/import_undefined_var")
+	if code != 1 {
+		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
+	}
+	wantError := `Error: Reference to undeclared input variable`
+	if !strings.Contains(output.Stderr(), wantError) {
+		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
+	}
+}
+
+func TestUndefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
+	// -generate-config-out is the reason we can have undefined resources as targets
+	output, code := setupTest(t, "validate-valid/import_undefined_resource")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
+
+func TestDefinedVarAsImportIDShouldSucceed(t *testing.T) {
+	output, code := setupTest(t, "validate-valid/import_id_defined_var")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
+
 func TestOutputWithoutValueShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/outputs")
 	if code != 1 {
@@ -188,10 +214,6 @@ func TestModuleWithIncorrectNameShouldFail(t *testing.T) {
 	}
 
 	wantError := `Error: Invalid module instance name`
-	if !strings.Contains(output.Stderr(), wantError) {
-		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
-	}
-	wantError = `Error: Variables not allowed`
 	if !strings.Contains(output.Stderr(), wantError) {
 		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
 	}
@@ -225,7 +247,7 @@ func TestMissingDefinedVar(t *testing.T) {
 func TestValidateWithInvalidTestFile(t *testing.T) {
 
 	// We're reusing some testing configs that were written for testing the
-	// test command here, so we have to initalise things slightly differently
+	// test command here, so we have to initialise things slightly differently
 	// to the other tests.
 
 	view, done := testView(t)
@@ -257,12 +279,12 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 func TestValidateWithInvalidTestModule(t *testing.T) {
 
 	// We're reusing some testing configs that were written for testing the
-	// test command here, so we have to initalise things slightly differently
+	// test command here, so we have to initialise things slightly differently
 	// to the other tests.
 
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "invalid-module")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)

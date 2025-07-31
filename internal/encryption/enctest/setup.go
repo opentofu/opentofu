@@ -8,7 +8,10 @@ package enctest
 // This package is used for supplying a fully configured encryption instance for use in unit and integration tests
 
 import (
+	"testing"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
@@ -19,7 +22,7 @@ import (
 
 // TODO docstrings once this stabilizes
 
-func EncryptionDirect(configData string) encryption.Encryption {
+func EncryptionDirect(t testing.TB, configData string) encryption.Encryption {
 	reg := lockingencryptionregistry.New()
 	if err := reg.RegisterKeyProvider(static.New()); err != nil {
 		panic(err)
@@ -35,14 +38,16 @@ func EncryptionDirect(configData string) encryption.Encryption {
 
 	handleDiags(diags)
 
-	enc, diags := encryption.New(reg, cfg)
+	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+
+	enc, diags := encryption.New(t.Context(), reg, cfg, staticEval)
 	handleDiags(diags)
 
 	return enc
 }
 
-func EncryptionRequired() encryption.Encryption {
-	return EncryptionDirect(`
+func EncryptionRequired(t testing.TB) encryption.Encryption {
+	return EncryptionDirect(t, `
 		key_provider "static" "basic" {
 			key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 		}
@@ -63,8 +68,8 @@ func EncryptionRequired() encryption.Encryption {
 	`)
 }
 
-func EncryptionWithFallback() encryption.Encryption {
-	return EncryptionDirect(`
+func EncryptionWithFallback(t testing.TB) encryption.Encryption {
+	return EncryptionDirect(t, `
 		key_provider "static" "basic" {
 			key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
 		}

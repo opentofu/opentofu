@@ -13,12 +13,15 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -29,12 +32,15 @@ import (
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 type ModuleInstaller struct {
 	modsDir string
 	loader  *configload.Loader
 	reg     *registry.Client
+	fetcher *getmodules.PackageFetcher
 
 	// The keys in moduleVersions are resolved and trimmed registry source
 	// addresses and the values are the registry response.
@@ -50,11 +56,30 @@ type moduleVersion struct {
 	version string
 }
 
-func NewModuleInstaller(modsDir string, loader *configload.Loader, reg *registry.Client) *ModuleInstaller {
+// NewModuleInstaller constructs a new [ModuleInstaller] object whose methods
+// will make use of the given dependencies.
+//
+// "loader" is the configuration loader to use to traverse the module tree
+// of the configuration whose modules are being installed.
+//
+// "registryClient" is the client for the OpenTofu module registry protocol,
+// used to fetch package metadata when installing remote modules indirectly
+// through a registry-style module source address. This may be nil only if
+// "remotePackageFetcher" is also nil, since registry source addresses are
+// only resolvable when remote module packages are available.
+//
+// "remotePackageFetcher" is the client used for fetching actual module packages
+// from concrete physical source locations, which can be either specified
+// directly in the configuration or returned dynamically as part of the metadata
+// fetched from an OpenTofu module registry. This argument can be nil, in which
+// case no remote package sources are supported; this facility is included
+// primarily for unit testing where only local modules are needed.
+func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
 	return &ModuleInstaller{
 		modsDir:                 modsDir,
 		loader:                  loader,
-		reg:                     reg,
+		reg:                     registryClient,
+		fetcher:                 remotePackageFetcher,
 		registryPackageVersions: make(map[addrs.ModuleRegistryPackage]*response.ModuleVersions),
 		registryPackageSources:  make(map[moduleVersion]addrs.ModuleSourceRemote),
 	}
@@ -94,11 +119,11 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, reg *registry
 // If successful (the returned diagnostics contains no errors) then the
 // first return value is the early configuration tree that was constructed by
 // the installation process.
-func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks ModuleInstallHooks) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks ModuleInstallHooks, call configs.StaticModuleCall) (*configs.Config, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] ModuleInstaller: installing child modules for %s into %s", rootDir, i.modsDir)
 	var diags tfdiags.Diagnostics
 
-	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir)
+	rootMod, mDiags := i.loader.Parser().LoadConfigDirWithTests(rootDir, testsDir, call)
 	if rootMod == nil {
 		// We drop the diagnostics here because we only want to report module
 		// loading errors after checking the core version constraints, which we
@@ -123,7 +148,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 		return nil, diags
 	}
 
-	fetcher := getmodules.NewPackageFetcher()
+	fetcher := i.fetcher
 
 	if hooks == nil {
 		// Use our no-op implementation as a placeholder
@@ -138,15 +163,15 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	}
 	walker := i.moduleInstallWalker(ctx, manifest, upgrade, hooks, fetcher)
 
-	cfg, instDiags := i.installDescendentModules(rootMod, manifest, walker, installErrsOnly)
+	cfg, instDiags := i.installDescendentModules(ctx, rootMod, manifest, walker, installErrsOnly)
 	diags = append(diags, instDiags...)
 
 	return cfg, diags
 }
 
-func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest modsdir.Manifest, upgrade bool, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) configs.ModuleWalker {
+func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdir.Manifest, upgrade bool, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
-		func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
 			var diags hcl.Diagnostics
 
 			if req.SourceAddr == nil {
@@ -175,6 +200,14 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 			key := manifest.ModuleKey(req.Path)
 			instPath := i.packageInstallPath(req.Path)
 
+			ctx, span := tracing.Tracer().Start(ctx,
+				fmt.Sprintf("Install Module %q", req.Name),
+				trace.WithAttributes(
+					otelAttr.String(traceattrs.ModuleCallName, req.Name),
+					otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String()),
+				))
+			defer span.End()
+
 			log.Printf("[DEBUG] Module installer: begin %s", key)
 
 			// First we'll check if we need to upgrade/replace an existing
@@ -185,12 +218,15 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 				switch {
 				case !recorded:
 					log.Printf("[TRACE] ModuleInstaller: %s is not yet installed", key)
+					span.AddEvent("Module not yet installed")
 					replace = true
 				case record.SourceAddr != req.SourceAddr.String():
 					log.Printf("[TRACE] ModuleInstaller: %s source address has changed from %q to %q", key, record.SourceAddr, req.SourceAddr)
+					span.AddEvent("Module source address changed")
 					replace = true
 				case record.Version != nil && !req.VersionConstraint.Required.Check(record.Version):
 					log.Printf("[TRACE] ModuleInstaller: %s version %s no longer compatible with constraints %s", key, record.Version, req.VersionConstraint.Required)
+					span.AddEvent("Module version constraint changed")
 					replace = true
 				}
 			}
@@ -240,7 +276,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 				// keep our existing record.
 				info, err := os.Stat(record.Dir)
 				if err == nil && info.IsDir() {
-					mod, mDiags := i.loader.Parser().LoadConfigDir(record.Dir)
+					mod, mDiags := i.loader.Parser().LoadConfigDir(record.Dir, req.Call)
 					if mod == nil {
 						// nil indicates an unreadable module, which should never happen,
 						// so we return the full loader diagnostics here.
@@ -267,13 +303,15 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 
 			case addrs.ModuleSourceLocal:
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, addr.String())
-				mod, mDiags := i.installLocalModule(req, key, manifest, hooks)
+				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "local"))
+				mod, mDiags := i.installLocalModule(ctx, req, key, manifest, hooks)
 				mDiags = maybeImproveLocalInstallError(req, mDiags)
 				diags = append(diags, mDiags...)
 				return mod, nil, diags
 
 			case addrs.ModuleSourceRegistry:
 				log.Printf("[TRACE] ModuleInstaller: %s is a registry module at %s", key, addr.String())
+				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "registry"))
 				mod, v, mDiags := i.installRegistryModule(ctx, req, key, instPath, addr, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, v, diags
@@ -293,7 +331,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 	)
 }
 
-func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// When attempting to initialize the current directory with a module
@@ -306,14 +344,14 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	var instDiags hcl.Diagnostics
 	walker := installWalker
 	if installErrsOnly {
-		walker = configs.ModuleWalkerFunc(func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
-			mod, version, diags := installWalker.LoadModule(req)
+		walker = configs.ModuleWalkerFunc(func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+			mod, version, diags := installWalker.LoadModule(ctx, req)
 			instDiags = instDiags.Extend(diags)
 			return mod, version, diags
 		})
 	}
 
-	cfg, cDiags := configs.BuildConfig(rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
 	diags = diags.Append(cDiags)
 	if installErrsOnly {
 		// We can't continue if there was an error during installation, but
@@ -345,8 +383,14 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	return cfg, diags
 }
 
-func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
+func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	_, span := tracing.Tracer().Start(ctx, "Install Local Module",
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
+	)
+	defer span.End()
 
 	parentKey := manifest.ModuleKey(req.Parent.Path)
 	parentRecord, recorded := manifest[parentKey]
@@ -381,7 +425,7 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	}
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(newDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(newDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -400,6 +444,10 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 		diags = diags.Extend(mDiags)
 	}
 
+	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
+	}
+
 	// Note the local location in our manifest.
 	manifest[key] = modsdir.Record{
 		Key:        key,
@@ -412,8 +460,34 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	return mod, diags
 }
 
+// versionRegexp is used to handle edge cases around prerelease version constraints
+// when installing registry modules, its usage is discouraged in favor of the
+// public hashicorp/go-version API.
+var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
+
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module",
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, req.VersionConstraint.Required.String())),
+	)
+	defer span.End()
+
+	if i.reg == nil || fetcher == nil {
+		// Only local package sources are available when we have no registry
+		// client or no fetcher, since both would be needed for successful install.
+		// (This special situation is primarily for use in tests.)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Registry-style module sources not supported",
+			Detail:   "Only local module sources are supported in this context.",
+			Subject:  req.CallRange.Ptr(),
+		})
+		tracing.SetSpanError(span, diags)
+		return nil, nil, diags
+	}
 
 	hostname := addr.Package.Host
 	reg := i.reg
@@ -440,7 +514,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			if registry.IsModuleNotFound(err) {
 				suggestion := ""
 				if hostname == addrs.DefaultModuleRegistryHost {
-					suggestion = "\n\nIf you believe this module is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"
+					suggestion = "\n\nIf you believe this module is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/new/choose"
 				}
 
 				diags = diags.Append(&hcl.Diagnostic{
@@ -463,6 +537,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 					Subject:  req.CallRange.Ptr(),
 				})
 			}
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 		i.registryPackageVersions[packageAddr] = resp
@@ -517,10 +592,57 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// prerelease metadata will be checked. Users may not have even
 			// requested this prerelease so don't print lots of unnecessary #
 			// warnings.
-			acceptableVersions, err := versions.MeetingConstraintsString(req.VersionConstraint.Required.String())
+			//
+			// FIXME: Due to a historical implementation error, this is using the
+			// wrong version constraint parser: it's expecting npm/cargo-style
+			// syntax rather than the Ruby-style syntax OpenTofu otherwise
+			// uses. This should have been written to use
+			// versions.MeetingConstraintsStringRuby instead, but changing it
+			// now risks having OpenTofu select a prerelease in more situations
+			// than it did before, and so we need to understand the implications
+			// of that better before we improve this. For now that means that
+			// it's effectively disallowed to use anything other than a single
+			// exact version constraint to select a prerelease version: any attempt
+			// to combine a prerelease selection with another constraint will
+			// cause all prerelease versions to be excluded from the selection.
+			// For more information:
+			//     https://github.com/opentofu/opentofu/issues/2117
+			constraint := req.VersionConstraint.Required.String()
+			acceptableVersions, err := versions.MeetingConstraintsString(constraint)
 			if err != nil {
-				log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, req.VersionConstraint.Required.String(), err.Error())
-				continue
+				// apparentlymart/go-versions purposely doesn't accept "v" prefixes.
+				// However, hashicorp/go-version does, which leads to inconsistent
+				// errors when specifying constraints that contain prerelease
+				// versions with "v" prefixes. This creates a semantically equivalent
+				// constraint with all prefixes stripped so it can be checked
+				// against apparentlymart/go-versions. This is definitely a hack but
+				// one we've accepted to minimize the risk of regressing the handling
+				// of any other version constraint input until we have developed a
+				// better understanding of what syntax is currently allowed for version
+				// constraints and how different constraints are handled.
+				//
+				// strippedConstraint should not live beyond this scope.
+				strippedConstraint := string(versionRegexp.ReplaceAllFunc([]byte(constraint), func(match []byte) []byte {
+					if match[0] == 'v' {
+						return match[1:]
+					}
+					return match
+				}))
+				if strippedConstraint != constraint {
+					log.Printf("[WARN] ModuleInstaller: %s (while evaluating %q) failed parsing, so will retry with 'v' prefixes removed (%s)\n    before: %s\n    after:  %s", key, v, err.Error(), constraint, strippedConstraint)
+					acceptableVersions, err = versions.MeetingConstraintsString(strippedConstraint)
+					if err != nil {
+						log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the stripped version constraints (%q) could not be parsed either: %s", key, v, strippedConstraint, err.Error())
+						continue
+					}
+				} else {
+					// If the error here is "commas are not needed to separate version selections"
+					// then that's an expected (though highly unfortunate) consequence of the
+					// incorrect use of MeetingConstraintsString above. Refer to the earlier FIXME
+					// comment for more information.
+					log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the version constraints (%q) could not be parsed: %s", key, v, strippedConstraint, err.Error())
+					continue
+				}
 			}
 
 			// Validate the version is also readable by the other versions
@@ -534,11 +656,12 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// Finally, check if the prerelease is acceptable to version. As
 			// highlighted previously, we go through all of this because the
 			// apparentlymart/go-versions library handles prerelease constraints
-			// in the apporach we want to.
+			// in the approach we want to.
 			if !acceptableVersions.Has(version) {
 				log.Printf("[TRACE] ModuleInstaller: %s ignoring %s because it is a pre-release and was not requested exactly", key, v)
 				continue
 			}
+			log.Printf("[TRACE] ModuleInstaller: %s accepting %s because it is a pre-release that was requested exactly", key, v)
 
 			// If we reach here, it means this prerelease version was exactly
 			// requested according to the extra constraints of this library.
@@ -564,6 +687,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Detail:   fmt.Sprintf("Module %q (%s:%d) has no versions available on %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, hostname),
 			Subject:  req.CallRange.Ptr(),
 		})
+		tracing.SetSpanError(span, diags)
 		return nil, nil, diags
 	}
 
@@ -574,6 +698,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Detail:   fmt.Sprintf("There is no available version of module %q (%s:%d) which matches the given version constraint. The newest available version is %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, latestVersion),
 			Subject:  req.CallRange.Ptr(),
 		})
+		tracing.SetSpanError(span, diags)
 		return nil, nil, diags
 	}
 
@@ -595,6 +720,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Error accessing remote module registry",
 				Detail:   fmt.Sprintf("Failed to retrieve a download URL for %s %s from %s: %s", addr, latestMatch, hostname, err),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 		realAddr, err := addrs.ParseModuleSource(realAddrRaw)
@@ -604,8 +730,12 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Invalid package location from module registry",
 				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: %s.", hostname, realAddrRaw, addr, latestMatch, err),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
+
+		span.SetAttributes(otelAttr.String(traceattrs.ModuleSource, realAddr.String()))
+
 		switch realAddr := realAddr.(type) {
 		// Only a remote source address is allowed here: a registry isn't
 		// allowed to return a local path (because it doesn't know what
@@ -619,6 +749,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Invalid package location from module registry",
 				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: must be a direct remote package address.", hostname, realAddrRaw, addr, latestMatch),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 	}
@@ -663,7 +794,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s should now be at %s", key, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
@@ -699,6 +830,18 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 
 func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	if fetcher == nil {
+		// Only local package sources are available when we have no fetcher.
+		// (This special situation is primarily for use in tests.)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Remote module sources not supported",
+			Detail:   "Only local module sources are supported in this context.",
+			Subject:  req.CallRange.Ptr(),
+		})
+		return nil, diags
+	}
 
 	// Report up to the caller that we're about to start downloading.
 	addr := req.SourceAddr.(addrs.ModuleSourceRemote)
@@ -764,7 +907,7 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	log.Printf("[TRACE] ModuleInstaller: %s %q was downloaded to %s", key, addr, modDir)
 
 	// Finally we are ready to try actually loading the module.
-	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir)
+	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific

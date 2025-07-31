@@ -19,13 +19,13 @@ func TestCheckValidImport(t *testing.T) {
 	barState := states.BuildState(func(s *states.SyncState) {
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
-			cty.StringVal("bar"), false,
+			cty.StringVal("bar"), false, "",
 		)
 	})
 	notBarState := states.BuildState(func(s *states.SyncState) {
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
-			cty.StringVal("not bar"), false,
+			cty.StringVal("not bar"), false, "",
 		)
 	})
 	emptyState := states.NewState()

@@ -6,12 +6,14 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -26,10 +28,15 @@ import (
 // such as root module input variables. However, the Plan function includes
 // all of the same checks as Validate, in addition to the other work it does
 // to consider the previous run state and the planning options.
-func (c *Context) Validate(config *configs.Config) tfdiags.Diagnostics {
+func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.Diagnostics {
 	defer c.acquireRun("validate")()
 
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Validation phase",
+	)
+	defer span.End()
 
 	moreDiags := c.checkConfigDependencies(config)
 	diags = diags.Append(moreDiags)
@@ -60,20 +67,30 @@ func (c *Context) Validate(config *configs.Config) tfdiags.Diagnostics {
 		}
 	}
 
+	importTargets := c.findImportTargets(config)
+
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
 	graph, moreDiags := (&PlanGraphBuilder{
-		Config:             config,
-		Plugins:            c.plugins,
-		State:              states.NewState(),
-		RootVariableValues: varValues,
-		Operation:          walkValidate,
-	}).Build(addrs.RootModuleInstance)
+		Config:                  config,
+		Plugins:                 c.plugins,
+		State:                   states.NewState(),
+		RootVariableValues:      varValues,
+		Operation:               walkValidate,
+		ProviderFunctionTracker: providerFunctionTracker,
+		ImportTargets:           importTargets,
+		// Setting GenerateConfigPath is required to correctly validate cases where the users would use '-generate-config-out' during the plan phase
+		// and generate config on the fly. Otherwise, we hit false positive at https://github.com/opentofu/opentofu/blob/f8900fdc757fee3eace8c57013d411a0398369b1/internal/tofu/transform_config.go#L178
+		GenerateConfigPath: ".validate_config_path",
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags
 	}
 
-	walker, walkDiags := c.walk(graph, walkValidate, &graphWalkOpts{
-		Config: config,
+	walker, walkDiags := c.walk(ctx, graph, walkValidate, &graphWalkOpts{
+		Config:                  config,
+		ProviderFunctionTracker: providerFunctionTracker,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)

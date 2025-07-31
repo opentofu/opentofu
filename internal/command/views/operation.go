@@ -13,10 +13,11 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
-	"github.com/opentofu/opentofu/internal/command/views/json"
+	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statefile"
@@ -105,6 +106,7 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.inAutomation,
+		ShowSensitive:       v.view.showSensitive,
 	}
 
 	jplan := jsonformat.Plan{
@@ -145,11 +147,12 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 	v.view.outputHorizRule()
 
 	if genConfigPath != "" {
-		v.view.streams.Printf(
+		v.view.streams.Print(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(fmt.Sprintf(planHeaderGenConfig, genConfigPath)),
 				v.view.outputColumns(),
-			) + "\n")
+			) + "\n",
+		)
 	}
 
 	if planPath == "" {
@@ -160,7 +163,7 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 			) + "\n",
 		)
 	} else {
-		v.view.streams.Printf(
+		v.view.streams.Print(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(fmt.Sprintf(planHeaderYesOutput, planPath, planPath)),
 				v.view.outputColumns(),
@@ -219,12 +222,12 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		// modes, move-only changes will be included in the planned changes, so
 		// we skip them here.
 		if dr.Action != plans.NoOp || plan.UIMode == plans.RefreshOnlyMode {
-			v.view.ResourceDrift(json.NewResourceInstanceChange(dr))
+			v.view.ResourceDrift(jsonentities.NewResourceInstanceChange(dr))
 		}
 	}
 
-	cs := &json.ChangeSummary{
-		Operation: json.OperationPlanned,
+	cs := &viewsjson.ChangeSummary{
+		Operation: viewsjson.OperationPlanned,
 	}
 	for _, change := range plan.Changes.Resources {
 		if change.Action == plans.Delete && change.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
@@ -246,10 +249,12 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		case plans.CreateThenDelete, plans.DeleteThenCreate:
 			cs.Add++
 			cs.Remove++
+		case plans.Forget:
+			cs.Forget++
 		}
 
 		if change.Action != plans.NoOp || !change.Addr.Equal(change.PrevRunAddr) || change.Importing != nil {
-			v.view.PlannedChange(json.NewResourceInstanceChange(change))
+			v.view.PlannedChange(jsonentities.NewResourceInstanceChange(change))
 		}
 	}
 
@@ -263,7 +268,7 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		rootModuleOutputs = append(rootModuleOutputs, output)
 	}
 	if len(rootModuleOutputs) > 0 {
-		v.view.Outputs(json.OutputsFromChanges(rootModuleOutputs))
+		v.view.Outputs(viewsjson.OutputsFromChanges(rootModuleOutputs))
 	}
 }
 
@@ -272,7 +277,7 @@ func (v *OperationJSON) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
 		// Avoid rendering data sources on deletion
 		return
 	}
-	v.view.PlannedChange(json.NewResourceInstanceChange(change))
+	v.view.PlannedChange(jsonentities.NewResourceInstanceChange(change))
 }
 
 // PlanNextStep does nothing for the JSON view as it is a hook for user-facing

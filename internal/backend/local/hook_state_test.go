@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -66,14 +67,20 @@ func TestStateHookStopping(t *testing.T) {
 	// We'll now force lastPersist to be long enough ago that persisting
 	// should be due on the next call.
 	hook.intermediatePersist.LastPersist = time.Now().Add(-5 * time.Hour)
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
@@ -108,12 +115,18 @@ func TestStateHookStopping(t *testing.T) {
 	}
 
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
@@ -165,14 +178,20 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	// We'll now force lastPersist to be long enough ago that persisting
 	// should be due on the next call.
 	hook.intermediatePersist.LastPersist = time.Now().Add(-5 * time.Hour)
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
 	if is.Persisted != nil {
 		t.Fatalf("has a persisted state, but shouldn't")
 	}
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
@@ -212,12 +231,18 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	}
 
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(s)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
@@ -257,7 +282,7 @@ func (sm *testPersistentState) WriteState(state *states.State) error {
 	return nil
 }
 
-func (sm *testPersistentState) PersistState(schemas *tofu.Schemas) error {
+func (sm *testPersistentState) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	if schemas == nil {
 		return fmt.Errorf("no schemas")
 	}
@@ -283,7 +308,7 @@ func (sm *testPersistentStateThatRefusesToPersist) WriteState(state *states.Stat
 	return nil
 }
 
-func (sm *testPersistentStateThatRefusesToPersist) PersistState(schemas *tofu.Schemas) error {
+func (sm *testPersistentStateThatRefusesToPersist) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	if schemas == nil {
 		return fmt.Errorf("no schemas")
 	}

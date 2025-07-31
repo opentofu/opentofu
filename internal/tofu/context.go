@@ -12,6 +12,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -20,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // InputMode defines what sort of input will be asked for when Input
@@ -153,10 +154,10 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
+func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret, err := loadSchemas(config, state, c.plugins)
+	ret, err := loadSchemas(ctx, config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -294,17 +295,21 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			// Copy the providers so that a misbehaved blocking Stop doesn't
 			// completely hang OpenTofu.
 			walker.providerLock.Lock()
-			ps := make([]providers.Interface, 0, len(walker.providerCache))
-			for _, p := range walker.providerCache {
-				ps = append(ps, p)
+			toStop := make([]providers.Interface, 0, len(walker.providerCache))
+			for _, providerMap := range walker.providerCache {
+				for _, provider := range providerMap {
+					toStop = append(toStop, provider)
+				}
 			}
 			defer walker.providerLock.Unlock()
 
-			for _, p := range ps {
+			for _, p := range toStop {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				// The providers.Interface API contract requires that the
+				// context passed to Stop is never canceled and has no deadline.
+				_ = p.Stop(context.WithoutCancel(context.TODO()))
 			}
 		}
 
@@ -321,7 +326,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				_ = p.Stop()
 			}
 		}
 	}()
@@ -329,7 +334,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 	return stop, wait
 }
 
-// checkConfigDependencies checks whether the recieving context is able to
+// checkConfigDependencies checks whether the receiving context is able to
 // support the given configuration, returning error diagnostics if not.
 //
 // Currently this function checks whether the current OpenTofu CLI version
@@ -356,7 +361,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// We only check that we have a factory for each required provider, and
 	// assume the caller already assured that any separately-installed
 	// plugins are of a suitable version, match expected checksums, etc.
-	providerReqs, hclDiags := config.ProviderRequirements()
+	providerReqs, _, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return diags
@@ -426,7 +431,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// so they are at least always consistent alone. This ordering is
 	// arbitrary and not a compatibility constraint.
 	sort.Slice(diags, func(i, j int) bool {
-		// Because these are sourcelss diagnostics and we know they are all
+		// Because these are sourceless diagnostics and we know they are all
 		// errors, we know they'll only differ in their description fields.
 		descI := diags[i].Description()
 		descJ := diags[j].Description()

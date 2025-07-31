@@ -6,8 +6,11 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/dag"
 )
 
 // RootVariableTransformer is a GraphTransformer that adds all the root
@@ -22,7 +25,7 @@ type RootVariableTransformer struct {
 	RawValues InputValues
 }
 
-func (t *RootVariableTransformer) Transform(g *Graph) error {
+func (t *RootVariableTransformer) Transform(_ context.Context, g *Graph) error {
 	// We can have no variables if we have no config.
 	if t.Config == nil {
 		return nil
@@ -42,6 +45,17 @@ func (t *RootVariableTransformer) Transform(g *Graph) error {
 			RawValue: t.RawValues[v.Name],
 		}
 		g.Add(node)
+
+		ref := &nodeVariableReference{
+			Addr: addrs.InputVariable{
+				Name: v.Name,
+			},
+			Config: v,
+		}
+		g.Add(ref)
+
+		// Input must be available before reference is valid
+		g.Connect(dag.BasicEdge(ref, node))
 	}
 
 	return nil

@@ -15,6 +15,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -194,7 +195,7 @@ func TestJSONView_PlannedChange(t *testing.T) {
 			Action: plans.Create,
 		},
 	}
-	jv.PlannedChange(viewsjson.NewResourceInstanceChange(cs))
+	jv.PlannedChange(jsonentities.NewResourceInstanceChange(cs))
 
 	want := []map[string]interface{}{
 		{
@@ -235,7 +236,7 @@ func TestJSONView_ResourceDrift(t *testing.T) {
 			Action: plans.Update,
 		},
 	}
-	jv.ResourceDrift(viewsjson.NewResourceInstanceChange(cs))
+	jv.ResourceDrift(jsonentities.NewResourceInstanceChange(cs))
 
 	want := []map[string]interface{}{
 		{
@@ -282,6 +283,7 @@ func TestJSONView_ChangeSummary(t *testing.T) {
 				"import":    float64(0),
 				"change":    float64(2),
 				"remove":    float64(3),
+				"forget":    float64(0),
 				"operation": "apply",
 			},
 		},
@@ -312,6 +314,38 @@ func TestJSONView_ChangeSummaryWithImport(t *testing.T) {
 				"change":    float64(2),
 				"remove":    float64(3),
 				"import":    float64(1),
+				"forget":    float64(0),
+				"operation": "apply",
+			},
+		},
+	}
+	testJSONViewOutputEquals(t, done(t).Stdout(), want)
+}
+
+func TestJSONView_ChangeSummaryWithForget(t *testing.T) {
+	streams, done := terminal.StreamsForTesting(t)
+	jv := NewJSONView(NewView(streams))
+
+	jv.ChangeSummary(&viewsjson.ChangeSummary{
+		Add:       1,
+		Change:    2,
+		Remove:    3,
+		Forget:    1,
+		Operation: viewsjson.OperationApplied,
+	})
+
+	want := []map[string]interface{}{
+		{
+			"@level":   "info",
+			"@message": "Apply complete! Resources: 1 added, 2 changed, 3 destroyed, 1 forgotten.",
+			"@module":  "tofu.ui",
+			"type":     "change_summary",
+			"changes": map[string]interface{}{
+				"add":       float64(1),
+				"change":    float64(2),
+				"remove":    float64(3),
+				"import":    float64(0),
+				"forget":    float64(1),
 				"operation": "apply",
 			},
 		},
@@ -363,7 +397,7 @@ func TestJSONView_Outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	jv := NewJSONView(NewView(streams))
 
-	jv.Outputs(viewsjson.Outputs{
+	jv.Outputs(jsonentities.Outputs{
 		"boop_count": {
 			Sensitive: false,
 			Value:     json.RawMessage(`92`),

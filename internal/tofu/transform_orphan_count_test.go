@@ -23,6 +23,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -31,6 +32,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -39,6 +41,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	g := Graph{Path: addrs.RootModuleInstance}
@@ -52,7 +55,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -74,6 +77,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -82,6 +86,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -90,6 +95,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	g := Graph{Path: addrs.RootModuleInstance}
@@ -103,7 +109,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -125,6 +131,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -133,6 +140,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -141,6 +149,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	g := Graph{Path: addrs.RootModuleInstance}
@@ -154,7 +163,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -176,6 +185,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -184,6 +194,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -192,6 +203,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -201,6 +213,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	g := Graph{Path: addrs.RootModuleInstance}
@@ -214,7 +227,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -246,6 +259,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				Status: states.ObjectReady,
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			addrs.NoKey,
 		)
 
 		// NoKey'd resource
@@ -262,6 +276,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				Status: states.ObjectReady,
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -276,7 +291,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

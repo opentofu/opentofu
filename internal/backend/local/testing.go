@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -120,20 +121,20 @@ func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
-func (b *TestLocalSingleState) Workspaces() ([]string, error) {
+func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 
-func (b *TestLocalSingleState) DeleteWorkspace(string, bool) error {
+func (b *TestLocalSingleState) DeleteWorkspace(context.Context, string, bool) error {
 	return backend.ErrWorkspacesNotSupported
 }
 
-func (b *TestLocalSingleState) StateMgr(name string) (statemgr.Full, error) {
+func (b *TestLocalSingleState) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	if name != backend.DefaultStateName {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	return b.Local.StateMgr(name)
+	return b.Local.StateMgr(ctx, name)
 }
 
 // TestLocalNoDefaultState is a backend implementation that wraps
@@ -150,8 +151,8 @@ func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
-func (b *TestLocalNoDefaultState) Workspaces() ([]string, error) {
-	workspaces, err := b.Local.Workspaces()
+func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {
+	workspaces, err := b.Local.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -166,24 +167,24 @@ func (b *TestLocalNoDefaultState) Workspaces() ([]string, error) {
 	return filtered, nil
 }
 
-func (b *TestLocalNoDefaultState) DeleteWorkspace(name string, force bool) error {
+func (b *TestLocalNoDefaultState) DeleteWorkspace(ctx context.Context, name string, force bool) error {
 	if name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
-	return b.Local.DeleteWorkspace(name, force)
+	return b.Local.DeleteWorkspace(ctx, name, force)
 }
 
-func (b *TestLocalNoDefaultState) StateMgr(name string) (statemgr.Full, error) {
+func (b *TestLocalNoDefaultState) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	if name == backend.DefaultStateName {
 		return nil, backend.ErrDefaultWorkspaceNotSupported
 	}
-	return b.Local.StateMgr(name)
+	return b.Local.StateMgr(ctx, name)
 }
 
 func testStateFile(t *testing.T, path string, s *states.State) {
 	t.Helper()
 
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -209,8 +210,8 @@ func mustResourceInstanceAddr(s string) addrs.AbsResourceInstance {
 // True is returned if a lock was obtained.
 func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	t.Helper()
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Errorf("state is already locked: %s", err.Error())
 		// lock was obtained
 		return false
@@ -224,8 +225,8 @@ func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 // True is returned if a lock was not obtained.
 func assertBackendStateLocked(t *testing.T, b *Local) bool {
 	t.Helper()
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		// lock was not obtained
 		return true
 	}

@@ -75,7 +75,7 @@ func TestShow_noArgsNoState(t *testing.T) {
 
 func TestShow_noArgsWithState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 	// Create the default state
 	testStateFileDefault(t, testState())
 
@@ -104,9 +104,7 @@ func TestShow_noArgsWithState(t *testing.T) {
 func TestShow_argsWithState(t *testing.T) {
 	// Create the default state
 	statePath := testStateFile(t, testState())
-	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
-	defer testChdir(t, stateDir)()
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -148,13 +146,12 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{},
 			},
 			addrs.RootModuleInstance.ProviderConfigAliased(addrs.NewDefaultProvider("test"), "alias"),
+			addrs.NoKey,
 		)
 	})
 
 	statePath := testStateFile(t, testState)
-	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
-	defer testChdir(t, stateDir)()
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -184,33 +181,38 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 }
 
 func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=doesNotExist.tfplan", "-no-color"},
+		"legacy": {"doesNotExist.tfplan", "-no-color"},
 	}
 
-	args := []string{
-		"doesNotExist.tfplan",
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	if code != 1 {
-		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
-	}
+			code := c.Run(args)
+			output := done(t)
 
-	got := output.Stderr()
-	want1 := `Plan read error: couldn't load the provided path`
-	want2 := `open doesNotExist.tfplan: no such file or directory`
-	if !strings.Contains(got, want1) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
-	}
-	if !strings.Contains(got, want2) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			if code != 1 {
+				t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+			}
+
+			got := output.Stderr()
+			want1 := `couldn't load the provided path`
+			want2 := `open doesNotExist.tfplan: no such file or directory`
+			if !strings.Contains(got, want1) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
+			}
+			if !strings.Contains(got, want2) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			}
+		})
 	}
 }
 
@@ -242,34 +244,37 @@ func TestShow_argsStatefileDoesNotExist(t *testing.T) {
 }
 
 func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=doesNotExist.tfplan", "-json", "-no-color"},
+		"legacy": {"-json", "doesNotExist.tfplan", "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		"-json",
-		"doesNotExist.tfplan",
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 1 {
-		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
-	}
+			if code != 1 {
+				t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+			}
 
-	got := output.Stderr()
-	want1 := `Plan read error: couldn't load the provided path`
-	want2 := `open doesNotExist.tfplan: no such file or directory`
-	if !strings.Contains(got, want1) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
-	}
-	if !strings.Contains(got, want2) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			got := output.Stderr()
+			want1 := `couldn't load the provided path`
+			want2 := `open doesNotExist.tfplan: no such file or directory`
+			if !strings.Contains(got, want1) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
+			}
+			if !strings.Contains(got, want2) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			}
+		})
 	}
 }
 
@@ -303,59 +308,65 @@ func TestShow_json_argsStatefileDoesNotExist(t *testing.T) {
 
 func TestShow_planNoop(t *testing.T) {
 	planPath := testPlanFileNoop(t)
-
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=" + planPath, "-no-color"},
+		"legacy": {planPath, "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		planPath,
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 0 {
-		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
-	}
+			if code != 0 {
+				t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+			}
 
-	got := output.Stdout()
-	want := `No changes. Your infrastructure matches the configuration.`
-	if !strings.Contains(got, want) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+			got := output.Stdout()
+			want := `No changes. Your infrastructure matches the configuration.`
+			if !strings.Contains(got, want) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+			}
+		})
 	}
 }
 
 func TestShow_planWithChanges(t *testing.T) {
 	planPathWithChanges := showFixturePlanFile(t, plans.DeleteThenCreate)
-
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=" + planPathWithChanges, "-no-color"},
+		"legacy": {planPathWithChanges, "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		planPathWithChanges,
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 0 {
-		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
-	}
+			if code != 0 {
+				t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+			}
 
-	got := output.Stdout()
-	want := `test_instance.foo must be replaced`
-	if !strings.Contains(got, want) {
-		t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
+			got := output.Stdout()
+			want := `test_instance.foo must be replaced`
+			if !strings.Contains(got, want) {
+				t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
+			}
+		})
 	}
 }
 
@@ -412,7 +423,7 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 	}
 
 	args := []string{
-		planFilePath,
+		"-plan=" + planFilePath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -454,7 +465,7 @@ func TestShow_planErrored(t *testing.T) {
 	}
 
 	args := []string{
-		planFilePath,
+		"-plan=" + planFilePath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -483,8 +494,8 @@ func TestShow_plan_json(t *testing.T) {
 	}
 
 	args := []string{
+		"-plan=" + planPath,
 		"-json",
-		planPath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -502,7 +513,7 @@ func TestShow_state(t *testing.T) {
 		"attr": cty.NullVal(cty.DynamicPseudoType),
 		"null": cty.NullVal(cty.String),
 		"list": cty.ListVal([]cty.Value{cty.NullVal(cty.Number)}),
-	}), false)
+	}), false, "")
 
 	statePath := testStateFile(t, originalState)
 	defer os.RemoveAll(filepath.Dir(statePath))
@@ -543,7 +554,7 @@ func TestShow_json_output(t *testing.T) {
 			td := t.TempDir()
 			inputDir := filepath.Join(fixtureDir, entry.Name())
 			testCopyDir(t, inputDir, td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			expectError := strings.Contains(entry.Name(), "error")
 
@@ -584,7 +595,9 @@ func TestShow_json_output(t *testing.T) {
 			}
 
 			var want plan
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			// plan
 			planView, planDone := testView(t)
@@ -640,13 +653,15 @@ func TestShow_json_output(t *testing.T) {
 			var got plan
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			// Disregard format version to reduce needless test fixture churn
 			want.FormatVersion = got.FormatVersion
 
-			if !cmp.Equal(got, want) {
-				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatal("wrong result:\n" + diff)
 			}
 		})
 	}
@@ -656,7 +671,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-json-sensitive"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{"test": {"1.2.3"}})
 	defer close()
@@ -708,7 +723,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"tofu.plan",
+		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
@@ -722,7 +737,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output.json")
 	if err != nil {
@@ -733,7 +750,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
@@ -749,7 +768,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-json/conditions"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{"test": {"1.2.3"}})
 	defer close()
@@ -804,7 +823,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"tofu.plan",
+		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
@@ -818,7 +837,9 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output-refresh-only.json")
 	if err != nil {
@@ -829,13 +850,15 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
 
-	if !cmp.Equal(got, want) {
-		t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatal("wrong result:\n" + diff)
 	}
 }
 
@@ -856,7 +879,7 @@ func TestShow_json_output_state(t *testing.T) {
 			td := t.TempDir()
 			inputDir := filepath.Join(fixtureDir, entry.Name())
 			testCopyDir(t, inputDir, td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			providerSource, close := newMockProviderSource(t, map[string][]string{
 				"test": {"1.2.3"},
@@ -888,7 +911,7 @@ func TestShow_json_output_state(t *testing.T) {
 				},
 			}
 
-			code := sc.Run([]string{"-json"})
+			code := sc.Run([]string{"-state", "-json"})
 			showOutput := showDone(t)
 
 			if code != 0 {
@@ -905,7 +928,10 @@ func TestShow_json_output_state(t *testing.T) {
 			var got, want state
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			err := json.Unmarshal([]byte(gotString), &got)
+			if err != nil {
+				t.Fatalf("invalid JSON output: %s\n%s", err, gotString)
+			}
 
 			wantFile, err := os.Open("output.json")
 			if err != nil {
@@ -916,7 +942,9 @@ func TestShow_json_output_state(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			if !cmp.Equal(got, want) {
 				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
@@ -929,7 +957,7 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("show"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Write default state file with a testing lineage ("fake-for-testing")
 	testStateFileDefault(t, testState())
@@ -955,7 +983,7 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	}
 
 	args := []string{
-		planPath,
+		"-plan=" + planPath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -976,7 +1004,7 @@ func TestShow_corruptStatefile(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-corrupt-statefile"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -998,6 +1026,81 @@ func TestShow_corruptStatefile(t *testing.T) {
 	if !strings.Contains(got, want) {
 		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
 	}
+}
+
+func TestShow_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	originalState := stateWithSensitiveValueForShow()
+
+	testStateFileDefault(t, originalState)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-show-sensitive",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "Outputs:\n\nfoo = \"bar\""
+	if actual != expected {
+		t.Fatalf("got incorrect output: %#v", actual)
+	}
+}
+
+func TestShow_withoutShowSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	originalState := stateWithSensitiveValueForShow()
+
+	testStateFileDefault(t, originalState)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
+	}
+
+	actual := strings.TrimSpace(output.Stdout())
+	expected := "Outputs:\n\nfoo = (sensitive value)"
+	if actual != expected {
+		t.Fatalf("got incorrect output: %#v", actual)
+	}
+}
+
+// stateWithSensitiveValueForShow return a state with an output value
+// marked as sensitive.
+func stateWithSensitiveValueForShow() *states.State {
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetOutputValue(
+			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			cty.StringVal("bar"),
+			true,
+			"",
+		)
+	})
+	return state
 }
 
 // showFixtureSchema returns a schema suitable for processing the configuration
@@ -1214,4 +1317,374 @@ type priorState struct {
 	FormatVersion   string                 `json:"format_version,omitempty"`
 	Values          map[string]interface{} `json:"values,omitempty"`
 	SensitiveValues map[string]bool        `json:"sensitive_values,omitempty"`
+}
+
+func TestShow_config(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("show-config-module"), td)
+	t.Chdir(td)
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
+
+	// Initialize the module
+	ui := new(cli.MockUi)
+	ic := &InitCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			Ui:               ui,
+			ProviderSource:   providerSource,
+		},
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+			ProviderSource:   providerSource,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	// Verify that the output is valid JSON
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+
+	// Verify the basic structure of the configuration output
+	if _, ok := got["root_module"]; !ok {
+		t.Errorf("missing root_module in configuration output. Actual output: %v", got)
+	}
+
+	// Verify that module_calls (and its child entry) are included
+	rootModule, ok := got["root_module"].(map[string]interface{})
+	if !ok {
+		t.Fatal("root_module is not a map")
+	}
+	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
+	if !ok || len(moduleCalls) == 0 {
+		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
+	}
+}
+
+func TestShow_config_noArgs(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stderr())
+	}
+
+	got := output.Stderr()
+	want := "This directory contains no OpenTofu configuration files."
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_withModule(t *testing.T) {
+	// Create a temporary working directory
+	td := t.TempDir()
+	testCopyDir(t, "testdata/show-config-module", td)
+	t.Chdir(td)
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
+
+	// Initialize the module
+	ui := new(cli.MockUi)
+	ic := &InitCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			Ui:               ui,
+			ProviderSource:   providerSource,
+		},
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+			ProviderSource:   providerSource,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	// Verify that the output is valid JSON
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+
+	// Verify the basic structure of the configuration output
+	if _, ok := got["root_module"]; !ok {
+		t.Error("missing root_module in configuration output")
+	}
+
+	// Verify that module_calls (and its child entry) are included
+	rootModule, ok := got["root_module"].(map[string]interface{})
+	if !ok {
+		t.Fatal("root_module is not a map")
+	}
+	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
+	if !ok || len(moduleCalls) == 0 {
+		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
+	}
+}
+
+func TestShow_config_badArgs(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"bad",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for configuration"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_noJson(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for configuration"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_conflictingOptions(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-state",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "Conflicting object types to show"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_module(t *testing.T) {
+	// We intentionally don't cause the effect of a "tofu init" for this one,
+	// because the single-module mode is required to work without any
+	// dependencies installed and without a backend initialized so it can
+	// be used by the OpenTofu module registry indexing process.
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			View: view,
+		},
+	}
+
+	args := []string{
+		"-module=testdata/show-config-single-module",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("wrong exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+	want := map[string]any{
+		"provider_config": map[string]any{
+			"test": map[string]any{
+				"full_name":          "example.com/bar/test",
+				"name":               "test",
+				"version_constraint": "~> 2.0.0",
+				// "expressions" intentionally omitted in single-module mode
+			},
+		},
+		"root_module": map[string]any{
+			"module_calls": map[string]any{
+				"child": map[string]any{
+					"source":             "example.com/not/actually/used",
+					"version_constraint": "~> 1.0.0",
+					// "module" intentionally omitted in single-module mode
+					// "expressions" intentionally omitted in single-module mode
+				},
+			},
+			"outputs": map[string]any{
+				"foo": map[string]any{
+					// "expression" intentionally omitted in single-module mode
+					"sensitive": true,
+				},
+			},
+			"resources": []any{
+				map[string]any{
+					"address":             "test_instance.foo",
+					"mode":                "managed",
+					"type":                "test_instance",
+					"name":                "foo",
+					"provider_config_key": "test",
+					// "expressions" intentionally omitted in single-module mode
+					// "schema_version" intentionally omitted in single-module mode (because we're not including anything that's schema-sensitive)
+					// "for_each_expression" intentionally omitted in single-module mode
+
+					"provisioners": []any{
+						map[string]any{
+							"type": "local-exec",
+							// "expressions" intentionally omitted in single-module mode
+						},
+					},
+				},
+			},
+			"variables": map[string]any{
+				"foo": map[string]any{
+					"type":      "string",
+					"required":  true,
+					"sensitive": true,
+				},
+			},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result\n" + diff)
+	}
+}
+
+func TestShow_module_noJson(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			View: view,
+		},
+	}
+
+	args := []string{
+		"-module=testdata/show-config-module",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for module"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
 }

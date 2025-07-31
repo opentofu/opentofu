@@ -59,6 +59,33 @@ func (rs *Resource) EnsureInstance(key addrs.InstanceKey) *ResourceInstance {
 	return ret
 }
 
+func (rs *Resource) Equal(other *Resource) bool {
+	if rs == other {
+		// Handles both pointers being nil
+		return true
+	}
+	if rs == nil || other == nil {
+		// Handles one pointer being nil
+		return false
+	}
+
+	if !rs.Addr.Equal(other.Addr) || rs.ProviderConfig.String() != other.ProviderConfig.String() {
+		return false
+	}
+
+	if len(rs.Instances) != len(other.Instances) {
+		return false
+	}
+
+	for key, inst := range rs.Instances {
+		if !inst.Equal(other.Instances[key]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // ResourceInstance represents the state of a particular instance of a resource.
 type ResourceInstance struct {
 	// Current, if non-nil, is the remote object that is currently represented
@@ -70,6 +97,11 @@ type ResourceInstance struct {
 	// replaced and are pending destruction due to the create_before_destroy
 	// lifecycle mode.
 	Deposed map[DeposedKey]*ResourceInstanceObjectSrc
+
+	// ProviderKey, in combination with Resource.ProviderConfig, represents
+	// the resource instance's provider configuration. This is only set
+	// when using provider iteration on resources or modules
+	ProviderKey addrs.InstanceKey
 }
 
 // NewResourceInstance constructs and returns a new ResourceInstance, ready to
@@ -98,6 +130,40 @@ func (i *ResourceInstance) HasDeposed(key DeposedKey) bool {
 // deposed objects.
 func (i *ResourceInstance) HasAnyDeposed() bool {
 	return i != nil && len(i.Deposed) > 0
+}
+
+func (i *ResourceInstance) Equal(other *ResourceInstance) bool {
+	if i == other {
+		// Handles both pointers being nil
+		return true
+	}
+	if i == nil || other == nil {
+		// Handles one pointer being nil
+		return false
+	}
+
+	if !i.Current.Equal(other.Current) {
+		return false
+	}
+
+	if (i.ProviderKey == nil) != (other.ProviderKey == nil) {
+		return false
+	}
+	if i.ProviderKey != nil && i.ProviderKey.Value().Equals(other.ProviderKey.Value()).False() {
+		return false
+	}
+
+	if len(i.Deposed) != len(other.Deposed) {
+		return false
+	}
+
+	for key, dep := range i.Deposed {
+		if !dep.Equal(other.Deposed[key]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // HasObjects returns true if this resource has any objects at all, whether
@@ -177,7 +243,7 @@ func (i *ResourceInstance) findUnusedDeposedKey() DeposedKey {
 type DeposedKey string
 
 // NotDeposed is a special invalid value of DeposedKey that is used to represent
-// the absense of a deposed key. It must not be used as an actual deposed key.
+// the absence of a deposed key. It must not be used as an actual deposed key.
 const NotDeposed = DeposedKey("")
 
 var deposedKeyRand = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -197,8 +263,8 @@ func (k DeposedKey) String() string {
 
 func (k DeposedKey) GoString() string {
 	ks := string(k)
-	switch {
-	case ks == "":
+	switch ks {
+	case "":
 		return "states.NotDeposed"
 	default:
 		return fmt.Sprintf("states.DeposedKey(%s)", ks)
@@ -206,7 +272,7 @@ func (k DeposedKey) GoString() string {
 }
 
 // Generation is a helper method to convert a DeposedKey into a Generation.
-// If the reciever is anything other than NotDeposed then the result is
+// If the receiver is anything other than NotDeposed then the result is
 // just the same value as a Generation. If the receiver is NotDeposed then
 // the result is CurrentGen.
 func (k DeposedKey) Generation() Generation {

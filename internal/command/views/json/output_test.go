@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -43,12 +44,18 @@ func TestOutputsFromMap(t *testing.T) {
 		"honk": {
 			Value: cty.NullVal(cty.Map(cty.Bool)),
 		},
+		// Deprecated string output
+		"bloompypoo": {
+			// DeprecationCause is irrelevant for this test
+			Value:      marks.Deprecated(cty.NumberIntVal(1234), marks.DeprecationCause{}),
+			Deprecated: "deprecated",
+		},
 	})
 	if len(diags) > 0 {
 		t.Fatal(diags.Err())
 	}
 
-	want := Outputs{
+	want := jsonentities.Outputs{
 		"boop": {
 			Sensitive: false,
 			Type:      json.RawMessage(`"number"`),
@@ -66,6 +73,12 @@ func TestOutputsFromMap(t *testing.T) {
 			Sensitive: false,
 			Type:      json.RawMessage(`["map","bool"]`),
 			Value:     json.RawMessage(`null`),
+		},
+		"bloompypoo": {
+			Sensitive:  false,
+			Type:       json.RawMessage(`"number"`),
+			Value:      json.RawMessage(`1234`),
+			Deprecated: "deprecated",
 		},
 	}
 
@@ -138,7 +151,7 @@ func TestOutputsFromChanges(t *testing.T) {
 		},
 	})
 
-	want := Outputs{
+	want := jsonentities.Outputs{
 		"boop": {
 			Action:    "noop",
 			Sensitive: false,
@@ -167,7 +180,7 @@ func TestOutputsFromChanges(t *testing.T) {
 }
 
 func TestOutputs_String(t *testing.T) {
-	outputs := Outputs{
+	outputs := jsonentities.Outputs{
 		"boop": {
 			Sensitive: false,
 			Type:      json.RawMessage(`"number"`),

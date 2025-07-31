@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -329,6 +330,20 @@ func TestInitProviders_pluginCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	extension := ""
+	if runtime.GOOS == "windows" {
+		extension = ".exe"
+
+		// Fix EXE path
+		target := path.Join(wantMachineDir, "terraform-provider-template_v2.1.0_x4")
+		err := os.Rename(target, target+extension)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// TODO add .exe entry to lockfile
+		t.Skip()
+	}
 
 	cmd := tf.Cmd("init")
 
@@ -340,7 +355,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH)) + extension
 	content, err := tf.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read installed plugin from %s: %s", path, err)
@@ -349,18 +364,12 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("template plugin was not installed from local cache")
 	}
 
-	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
-	if runtime.GOOS == "windows" {
-		nullLinkPath = nullLinkPath + ".exe"
-	}
+	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullLinkPath) {
 		t.Errorf("null plugin was not installed into %s", nullLinkPath)
 	}
 
-	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
-	if runtime.GOOS == "windows" {
-		nullCachePath = nullCachePath + ".exe"
-	}
+	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullCachePath) {
 		t.Errorf("null plugin is not in cache after install. expected in: %s", nullCachePath)
 	}
@@ -432,7 +441,7 @@ func TestInitProviderNotFound(t *testing.T) {
 		}
 
 		oneLineStdout := strings.ReplaceAll(stdout, "\n", " ")
-		if !strings.Contains(oneLineStdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/hashicorp/nonexist\n\nAll modules should specify their required_providers so that external consumers will get the correct providers when using a module. To see which modules are currently depending on hashicorp/nonexist, run the following command:\n    tofu providers\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/"},"type":"diagnostic"}`) {
+		if !strings.Contains(oneLineStdout, `"diagnostic":{"severity":"error","summary":"Failed to query available provider packages","detail":"Could not retrieve the list of available versions for provider hashicorp/nonexist: provider registry registry.opentofu.org does not have a provider named registry.opentofu.org/hashicorp/nonexist\n\nAll modules should specify their required_providers so that external consumers will get the correct providers when using a module. To see which modules are currently depending on hashicorp/nonexist, run the following command:\n    tofu providers\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/new/choose"},"type":"diagnostic"}`) {
 			t.Errorf("expected error message is missing from output:\n%s", stdout)
 		}
 	})
@@ -493,12 +502,75 @@ func TestInitProviderNotFound(t *testing.T) {
 │     tofu providers
 │ 
 │ If you believe this provider is missing from the registry, please submit a
-│ issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/
+│ issue on the OpenTofu Registry
+│ https://github.com/opentofu/registry/issues/new/choose
 ╵
 
 `
 		if stripAnsi(stderr) != expectedErr {
 			t.Errorf("wrong output:\n%s", cmp.Diff(stripAnsi(stderr), expectedErr))
+		}
+	})
+
+	t.Run("implicit provider resource and data not found", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/implicit-by-resource-and-data")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Testing that the warn wrote to the user is containing the resource address from where the provider
+		// was registered to be downloaded
+		expectedContentInOutput := []string{
+			`(and one more similar warning elsewhere)`,
+			`
+╷
+│ Warning: Automatically-inferred provider dependency
+│ 
+│   on main.tf line 2:
+│    2: resource "nonexistingProv_res" "test1" {
+│ 
+│ Due to the prefix of the resource type name OpenTofu guessed that you
+│ intended to associate nonexistingProv_res.test1 with a provider whose local
+│ name is "nonexistingprov", but that name is not declared in this module's
+│ required_providers block. OpenTofu therefore guessed that you intended to
+│ use hashicorp/nonexistingprov, but that provider does not exist.
+│ 
+│ Make at least one of the following changes to tell OpenTofu which provider
+│ to use:
+│ 
+│ - Add a declaration for local name "nonexistingprov" to this module's
+│ required_providers block, specifying the full source address for the
+│ provider you intended to use.
+│ - Verify that "nonexistingProv_res" is the correct resource type name to
+│ use. Did you omit a prefix which would imply the correct provider?
+│ - Use a "provider" argument within this resource block to override
+│ OpenTofu's automatic selection of the local name "nonexistingprov".
+│`}
+		for _, expectedOutput := range expectedContentInOutput {
+			if cleanOut := strings.TrimSpace(stripAnsi(stdout)); !strings.Contains(cleanOut, expectedOutput) {
+				t.Errorf("wrong output.\n\toutput:\n%s\n\n\tdoes not contain:\n%s", cleanOut, expectedOutput)
+			}
+		}
+	})
+
+	t.Run("resource pointing to a not configured provider does not warn on implicit reference", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/resource-with-provider-attribute")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Ensure that the output does not contain the warning since the resource is pointing already to a specific
+		// provider (even though it is misspelled)
+		expectedOutput := `Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of hashicorp/asw...`
+		if cleanOut := strings.TrimSpace(stripAnsi(stdout)); cleanOut != expectedOutput {
+			t.Errorf("wrong output:\n%s", cmp.Diff(cleanOut, expectedOutput))
 		}
 	})
 }

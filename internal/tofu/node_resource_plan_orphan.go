@@ -6,13 +6,20 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // NodePlannableResourceInstanceOrphan represents a resource that is "applyable":
@@ -27,11 +34,11 @@ type NodePlannableResourceInstanceOrphan struct {
 	// for any instances.
 	skipPlanChanges bool
 
-	// EndpointsToRemove are resource instance addresses where the user wants to
+	// RemoveStatements are resource instance addresses where the user wants to
 	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 }
 
 var (
@@ -51,46 +58,72 @@ func (n *NodePlannableResourceInstanceOrphan) Name() string {
 }
 
 // GraphNodeExecutable
-func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	addr := n.ResourceInstanceAddr()
 
+	ctx, span := tracing.Tracer().Start(
+		ctx, traceNamePlanResourceInstance,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
+			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+			otelAttr.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
+		),
+	)
+	defer span.End()
+
 	// Eval info is different depending on what kind of resource this is
+	var diags tfdiags.Diagnostics
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx)
+		resolveDiags := n.resolveProvider(ctx, evalCtx, true, states.NotDeposed)
+		diags = diags.Append(resolveDiags)
+		if resolveDiags.HasErrors() {
+			tracing.SetSpanError(span, diags)
+			return diags
+		}
+		span.SetAttributes(
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		)
+		diags = diags.Append(
+			n.managedResourceExecute(ctx, evalCtx),
+		)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		diags = diags.Append(
+			n.dataResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
+	tracing.SetSpanError(span, diags)
+	return diags
 }
 
-func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() (addr addrs.ProviderConfig, exact bool) {
+func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() RequestedProvider {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
-		return nil, true
+		return RequestedProvider{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
 
-func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(ctx EvalContext) tfdiags.Diagnostics {
+func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(_ context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	// A data source that is no longer in the config is removed from the state
 	log.Printf("[TRACE] NodePlannableResourceInstanceOrphan: removing state object for %s", n.Addr)
 
 	// we need to update both the refresh state to refresh the current data
 	// source, and the working state for plan-time evaluations.
-	refreshState := ctx.RefreshState()
-	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	refreshState := evalCtx.RefreshState()
+	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 
-	workingState := ctx.State()
-	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	workingState := evalCtx.State()
+	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	return nil
 }
 
-func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	oldState, readDiags := n.readResourceInstanceState(ctx, addr)
+	oldState, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -98,13 +131,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 
 	// Note any upgrades that readResourceInstanceState might've done in the
 	// prevRunState, so that it'll conform to current schema.
-	diags = diags.Append(n.writeResourceInstanceState(ctx, oldState, prevRunState))
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, prevRunState))
 	if diags.HasErrors() {
 		return diags
 	}
 	// Also the refreshState, because that should still reflect schema upgrades
 	// even if not refreshing.
-	diags = diags.Append(n.writeResourceInstanceState(ctx, oldState, refreshState))
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, refreshState))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -116,13 +149,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 		// plan before apply, and may not handle a missing resource during
 		// Delete correctly.  If this is a simple refresh, OpenTofu is
 		// expected to remove the missing resource from the state entirely
-		refreshedState, refreshDiags := n.refresh(ctx, states.NotDeposed, oldState)
+		refreshedState, refreshDiags := n.refresh(ctx, evalCtx, states.NotDeposed, oldState)
 		diags = diags.Append(refreshDiags)
 		if diags.HasErrors() {
 			return diags
 		}
 
-		diags = diags.Append(n.writeResourceInstanceState(ctx, refreshedState, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, refreshedState, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -137,24 +170,35 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 	// to plan because there is no longer any state and it doesn't exist in the
 	// config.
 	if n.skipPlanChanges || oldState == nil || oldState.Value.IsNull() {
-		return diags.Append(n.writeResourceInstanceState(ctx, oldState, workingState))
+		return diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, workingState))
 	}
 
 	var change *plans.ResourceInstanceChange
 	var planDiags tfdiags.Diagnostics
 
 	shouldForget := false
+	shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
 
-	for _, etf := range n.EndpointsToRemove {
-		if etf.TargetContains(n.Addr) {
+	for _, rs := range n.RemoveStatements {
+		if rs.From.TargetContains(n.Addr) {
 			shouldForget = true
+			shouldDestroy = rs.Destroy
 		}
 	}
 
 	if shouldForget {
-		change = n.planForget(ctx, oldState, "")
+		if shouldDestroy {
+			change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+			})
+			change = n.planForget(ctx, evalCtx, oldState, "")
+		}
 	} else {
-		change, planDiags = n.planDestroy(ctx, oldState, "")
+		change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
 	}
 
 	diags = diags.Append(planDiags)
@@ -165,9 +209,9 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 	// We might be able to offer an approximate reason for why we are
 	// planning to delete this object. (This is best-effort; we might
 	// sometimes not have a reason.)
-	change.ActionReason = n.deleteActionReason(ctx)
+	change.ActionReason = n.deleteActionReason(evalCtx)
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -177,13 +221,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 		return diags
 	}
 
-	return diags.Append(n.writeResourceInstanceState(ctx, nil, workingState))
+	return diags.Append(n.writeResourceInstanceState(ctx, evalCtx, nil, workingState))
 }
 
-func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext) plans.ResourceInstanceChangeActionReason {
+func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(evalCtx EvalContext) plans.ResourceInstanceChangeActionReason {
 	cfg := n.Config
 	if cfg == nil {
-		if !n.Addr.Equal(n.prevRunAddr(ctx)) {
+		if !n.Addr.Equal(n.prevRunAddr(evalCtx)) {
 			// This means the resource was moved - see also
 			// ResourceInstanceChange.Moved() which calculates
 			// this the same way.
@@ -197,7 +241,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 	// longer declared then we will have a config (because config isn't
 	// instance-specific) but the expander will know that our resource
 	// address's module path refers to an undeclared module instance.
-	if expander := ctx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
+	if expander := evalCtx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
 		validModuleAddr := expander.GetDeepestExistingModuleInstance(n.Addr.Module)
 		if len(validModuleAddr) != len(n.Addr.Module) {
 			// If we get here then at least one step in the resource's module
@@ -224,7 +268,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 			return plans.ResourceInstanceDeleteBecauseWrongRepetition
 		}
 
-		expander := ctx.InstanceExpander()
+		expander := evalCtx.InstanceExpander()
 		if expander == nil {
 			break // only for tests that produce an incomplete MockEvalContext
 		}
@@ -246,7 +290,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 			return plans.ResourceInstanceDeleteBecauseWrongRepetition
 		}
 
-		expander := ctx.InstanceExpander()
+		expander := evalCtx.InstanceExpander()
 		if expander == nil {
 			break // only for tests that produce an incomplete MockEvalContext
 		}
@@ -267,7 +311,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 	// If we get here then the instance key type matches the configured
 	// repetition mode, and so we need to consider whether the key itself
 	// is within the range of the repetition construct.
-	if expander := ctx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
+	if expander := evalCtx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
 		// First we'll check whether our containing module instance still
 		// exists, so we can talk about that differently in the reason.
 		declared := false

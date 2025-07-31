@@ -1,7 +1,7 @@
 ---
 title: Dependency Lock File
 description: >-
-  OpenTofu uses the dependency lock file .teraform.lock.hcl to track and select
+  OpenTofu uses the dependency lock file .terraform.lock.hcl to track and select
   provider versions. Learn about dependency installation and lock file changes.
 ---
 
@@ -39,8 +39,8 @@ to ensure that OpenTofu will always select the same module version.
 The dependency lock file is a file that belongs to the configuration as a
 whole, rather than to each separate module in the configuration. For that reason
 OpenTofu creates it and expects to find it in your current working directory
-when you run OpenTofu, which is also the directory containing the `.tf` files
-for the root module of your configuration.
+when you run OpenTofu, which is also the directory containing the `.tf` or
+`.tofu` files for the root module of your configuration.
 
 The lock file is always named `.terraform.lock.hcl`, and this name is intended
 to signify that it is a lock file for various items that OpenTofu caches in
@@ -54,8 +54,8 @@ would discuss potential changes to your configuration itself.
 
 The dependency lock file uses the same low-level syntax as the main OpenTofu
 language, but the dependency lock file is not itself an OpenTofu language
-configuration file. It is named with the suffix `.hcl` instead of `.tf` in
-order to signify that difference.
+configuration file. It is named with the suffix `.hcl` instead of `.tf` or
+`.tofu` in order to signify that difference.
 
 ## Dependency Installation Behavior
 

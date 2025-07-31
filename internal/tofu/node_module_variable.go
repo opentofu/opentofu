@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -47,22 +48,9 @@ func (n *nodeExpandModuleVariable) temporaryValue() bool {
 func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	var g Graph
 
-	// If this variable has preconditions, we need to report these checks now.
-	//
-	// We should only do this during planning as the apply phase starts with
-	// all the same checkable objects that were registered during the plan.
-	var checkableAddrs addrs.Set[addrs.Checkable]
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
-		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
-	}
-
 	expander := ctx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		addr := n.Addr.Absolute(module)
-		if checkableAddrs != nil {
-			checkableAddrs.Add(addr)
-		}
-
 		o := &nodeModuleVariable{
 			Addr:           addr,
 			Config:         n.Config,
@@ -73,15 +61,11 @@ func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error
 	}
 	addRootNodeToGraph(&g)
 
-	if checkableAddrs != nil {
-		ctx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
-	}
-
 	return &g, nil
 }
 
 func (n *nodeExpandModuleVariable) Name() string {
-	return fmt.Sprintf("%s.%s (expand)", n.Module, n.Addr.String())
+	return fmt.Sprintf("%s.%s (expand, input)", n.Module, n.Addr.String())
 }
 
 // GraphNodeModulePath
@@ -91,7 +75,6 @@ func (n *nodeExpandModuleVariable) ModulePath() addrs.Module {
 
 // GraphNodeReferencer
 func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
-
 	// If we have no value expression, we cannot depend on anything.
 	if n.Expr == nil {
 		return nil
@@ -152,7 +135,7 @@ func (n *nodeModuleVariable) temporaryValue() bool {
 }
 
 func (n *nodeModuleVariable) Name() string {
-	return n.Addr.String()
+	return n.Addr.String() + "(input)"
 }
 
 // GraphNodeModuleInstance
@@ -168,20 +151,11 @@ func (n *nodeModuleVariable) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeModuleVariable) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
 
-	var val cty.Value
-	var err error
-
-	switch op {
-	case walkValidate:
-		val, err = n.evalModuleVariable(ctx, true)
-		diags = diags.Append(err)
-	default:
-		val, err = n.evalModuleVariable(ctx, false)
-		diags = diags.Append(err)
-	}
+	val, err := n.evalModuleVariable(ctx, evalCtx, op == walkValidate)
+	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -189,9 +163,8 @@ func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags t
 	// Set values for arguments of a child module call, for later retrieval
 	// during expression evaluation.
 	_, call := n.Addr.Module.CallInstance()
-	ctx.SetModuleCallArgument(call, n.Addr.Variable, val)
-
-	return evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+	evalCtx.SetModuleCallArgument(call, n.Addr.Variable, val)
+	return diags
 }
 
 // dag.GraphNodeDotter impl.
@@ -217,7 +190,7 @@ func (n *nodeModuleVariable) DotNode(name string, opts *dag.DotOpts) *dag.DotNod
 // validateOnly indicates that this evaluation is only for config
 // validation, and we will not have any expansion module instance
 // repetition data.
-func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bool) (cty.Value, error) {
+func (n *nodeModuleVariable) evalModuleVariable(ctx context.Context, evalCtx EvalContext, validateOnly bool) (cty.Value, error) {
 	var diags tfdiags.Diagnostics
 	var givenVal cty.Value
 	var errSourceRange tfdiags.SourceRange
@@ -237,11 +210,11 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bo
 		default:
 			// Get the repetition data for this module instance,
 			// so we can create the appropriate scope for evaluating our expression
-			moduleInstanceRepetitionData = ctx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
+			moduleInstanceRepetitionData = evalCtx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
 		}
 
-		scope := ctx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+		scope := evalCtx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
+		val, moreDiags := scope.EvalExpr(ctx, expr, cty.DynamicPseudoType)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.DynamicVal, diags.ErrWithWarnings()

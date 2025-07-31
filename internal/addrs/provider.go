@@ -7,23 +7,32 @@ package addrs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	svchost "github.com/hashicorp/terraform-svchost"
+	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/opentofu/svchost"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	tfaddr "github.com/opentofu/registry-address"
 )
 
 // Provider encapsulates a single provider type. In the future this will be
 // extended to include additional fields including Namespace and SourceHost
-type Provider = tfaddr.Provider
+type Provider = regaddr.Provider
 
 // DefaultProviderRegistryHost is the hostname used for provider addresses that do
 // not have an explicit hostname.
-const DefaultProviderRegistryHost = tfaddr.DefaultProviderRegistryHost
+const DefaultProviderRegistryHost = regaddr.DefaultProviderRegistryHost
 
 // BuiltInProviderHost is the pseudo-hostname used for the "built-in" provider
 // namespace. Built-in provider addresses must also have their namespace set
 // to BuiltInProviderNamespace in order to be considered as built-in.
-const BuiltInProviderHost = tfaddr.BuiltInProviderHost
+//
+// Since we currently only have one built-in provider and it was inherited
+// from OpenTofu's predecessor, we currently exclusively use the "transitional"
+// builtin provider host that matches what the predecessor used, thereby
+// helping with cross-compatibility. If we introduce any OpenTofu-specific
+// built-in providers in future then we should consider using
+// [regaddr.BuiltInProviderHost] for those ones instead, since that one
+// uses a hostname that belongs to the OpenTofu project.
+const BuiltInProviderHost = regaddr.TransitionalBuiltInProviderHost
 
 // BuiltInProviderNamespace is the provider namespace used for "built-in"
 // providers. Built-in provider addresses must also have their hostname
@@ -32,14 +41,14 @@ const BuiltInProviderHost = tfaddr.BuiltInProviderHost
 // The this namespace is literally named "builtin", in the hope that users
 // who see FQNs containing this will be able to infer the way in which they are
 // special, even if they haven't encountered the concept formally yet.
-const BuiltInProviderNamespace = tfaddr.BuiltInProviderNamespace
+const BuiltInProviderNamespace = regaddr.BuiltInProviderNamespace
 
 // LegacyProviderNamespace is the special string used in the Namespace field
 // of type Provider to mark a legacy provider address. This special namespace
 // value would normally be invalid, and can be used only when the hostname is
 // DefaultRegistryHost because that host owns the mapping from legacy name to
 // FQN.
-const LegacyProviderNamespace = tfaddr.LegacyProviderNamespace
+const LegacyProviderNamespace = regaddr.LegacyProviderNamespace
 
 func IsDefaultProvider(addr Provider) bool {
 	return addr.Hostname == DefaultProviderRegistryHost && addr.Namespace == "hashicorp"
@@ -57,7 +66,7 @@ func IsDefaultProvider(addr Provider) bool {
 // When accepting namespace or type values from outside the program, use
 // ParseProviderPart first to check that the given value is valid.
 func NewProvider(hostname svchost.Hostname, namespace, typeName string) Provider {
-	return tfaddr.NewProvider(hostname, namespace, typeName)
+	return regaddr.NewProvider(hostname, namespace, typeName)
 }
 
 // ImpliedProviderForUnqualifiedType represents the rules for inferring what
@@ -87,7 +96,7 @@ func ImpliedProviderForUnqualifiedType(typeName string) Provider {
 // NewDefaultProvider returns the default address of a HashiCorp-maintained,
 // Registry-hosted provider.
 func NewDefaultProvider(name string) Provider {
-	return tfaddr.Provider{
+	return regaddr.Provider{
 		Type:      MustParseProviderPart(name),
 		Namespace: "hashicorp",
 		Hostname:  DefaultProviderRegistryHost,
@@ -97,7 +106,7 @@ func NewDefaultProvider(name string) Provider {
 // NewBuiltInProvider returns the address of a "built-in" provider. See
 // the docs for Provider.IsBuiltIn for more information.
 func NewBuiltInProvider(name string) Provider {
-	return tfaddr.Provider{
+	return regaddr.Provider{
 		Type:      MustParseProviderPart(name),
 		Namespace: BuiltInProviderNamespace,
 		Hostname:  BuiltInProviderHost,
@@ -127,11 +136,11 @@ func NewLegacyProvider(name string) Provider {
 //   - name
 //   - namespace/name
 //   - hostname/namespace/name
-func ParseProviderSourceString(str string) (tfaddr.Provider, tfdiags.Diagnostics) {
+func ParseProviderSourceString(str string) (regaddr.Provider, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret, err := tfaddr.ParseProviderSource(str)
-	if pe, ok := err.(*tfaddr.ParserError); ok {
+	ret, err := regaddr.ParseProviderSource(str)
+	if pe, ok := err.(*regaddr.ParserError); ok {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  pe.Summary,
@@ -184,7 +193,7 @@ func MustParseProviderSourceString(str string) Provider {
 // It's valid to pass the result of this function as the argument to a
 // subsequent call, in which case the result will be identical.
 func ParseProviderPart(given string) (string, error) {
-	return tfaddr.ParseProviderPart(given)
+	return regaddr.ParseProviderPart(given)
 }
 
 // MustParseProviderPart is a wrapper around ParseProviderPart that panics if

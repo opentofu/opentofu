@@ -11,7 +11,20 @@ body:
     attributes:
       value: |
         # Thank you for opening a feature request.
-
+        
+        In order to make your feature request a success, here are some simple tips to follow:
+        
+        1. Try to describe what you need to achieve rather than how you would like to change OpenTofu to change.
+        2. Be as specific as possible. Overarching large changes to OpenTofu have a lower chance of getting accepted than specific changes.
+        3. Describe how it affects your current project specifically. Try to support it with specific code and describe why the current situation is unsatisfactory.
+  - type: textarea
+    id: community-note
+    attributes:
+      label: Community note
+      description: Please leave this note unchanged.
+      value: |
+        > [!TIP]
+        > 👋 Hi there, OpenTofu community! The OpenTofu team prioritizes issues based on upvotes. Please make sure to upvote this issue and describe how it affects you in detail in the comments to show your support.
   - type: textarea
     id: tf-version
     attributes:
@@ -26,11 +39,9 @@ body:
   - type: textarea
     id: tf-use-case
     attributes:
-      label: Use Cases
+      label: The problem in your OpenTofu project
       description: |
-        In order to properly evaluate a feature request, it is necessary to understand the use cases for it.
-        Please describe below the _end goal_ you are trying to achieve that has led you to request this feature.
-        Please keep this section focused on the problem and not on the suggested solution. We'll get to that in a moment, below!
+        **Please describe the problem you are trying to solve in your project.** This field should contain a description of what you are trying to achieve in your project using OpenTofu that is difficult today.
       placeholder:
       value:
     validations:
@@ -62,6 +73,16 @@ body:
     validations:
       required: false
 
+  - type: textarea
+    id: tf-workarounds
+    attributes:
+      label: Workarounds and Alternatives
+      description: |
+        What workarounds and alternatives have you tried? What worked and what didn't? How would this proposal make life easier compared to these solutions?
+      placeholder:
+      value:
+    validations:
+      required: true
   - type: textarea
     id: tf-references
     attributes:

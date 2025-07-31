@@ -18,14 +18,14 @@ func TestModuleVariableTransformer(t *testing.T) {
 
 	{
 		tf := &RootVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		tf := &ModuleVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -43,14 +43,14 @@ func TestModuleVariableTransformer_nested(t *testing.T) {
 
 	{
 		tf := &RootVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		tf := &ModuleVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -63,10 +63,16 @@ func TestModuleVariableTransformer_nested(t *testing.T) {
 }
 
 const testTransformModuleVarBasicStr = `
-module.child.var.value (expand)
+module.child.var.value (expand, input)
+module.child.var.value (expand, reference)
+  module.child.var.value (expand, input)
 `
 
 const testTransformModuleVarNestedStr = `
-module.child.module.child.var.value (expand)
-module.child.var.value (expand)
+module.child.module.child.var.value (expand, input)
+module.child.module.child.var.value (expand, reference)
+  module.child.module.child.var.value (expand, input)
+module.child.var.value (expand, input)
+module.child.var.value (expand, reference)
+  module.child.var.value (expand, input)
 `

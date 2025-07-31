@@ -8,20 +8,23 @@ package command
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -40,7 +43,7 @@ func (m *Meta) normalizePath(path string) string {
 // loadConfig reads a configuration from the given directory, which should
 // contain a root module and have already have any required descendent modules
 // installed.
-func (m *Meta) loadConfig(rootDir string) (*configs.Config, tfdiags.Diagnostics) {
+func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	rootDir = m.normalizePath(rootDir)
 
@@ -50,14 +53,20 @@ func (m *Meta) loadConfig(rootDir string) (*configs.Config, tfdiags.Diagnostics)
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir)
+	call, callDiags := m.rootModuleCall(ctx, rootDir)
+	diags = diags.Append(callDiags)
+	if callDiags.HasErrors() {
+		return nil, diags
+	}
+
+	config, hclDiags := loader.LoadConfig(ctx, rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
 
 // loadConfigWithTests matches loadConfig, except it also loads any test files
 // into the config alongside the main configuration.
-func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tfdiags.Diagnostics) {
+func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	rootDir = m.normalizePath(rootDir)
 
@@ -67,7 +76,13 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir)
+	call, vDiags := m.rootModuleCall(ctx, rootDir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	config, hclDiags := loader.LoadConfigWithTests(ctx, rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -80,7 +95,7 @@ func (m *Meta) loadConfigWithTests(rootDir, testDir string) (*configs.Config, tf
 // initialization use-cases where the root module must be inspected in order
 // to determine what else needs to be installed before the full configuration
 // can be used.
-func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostics) {
+func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.SelectiveLoader) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	dir = m.normalizePath(dir)
 
@@ -90,14 +105,83 @@ func (m *Meta) loadSingleModule(dir string) (*configs.Module, tfdiags.Diagnostic
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDir(dir)
+	call, vDiags := m.rootModuleCall(ctx, dir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	module, hclDiags := loader.Parser().LoadConfigDirSelective(dir, call, load)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
 
+func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.StaticModuleCall, tfdiags.Diagnostics) {
+	if m.rootModuleCallCache != nil {
+		return *m.rootModuleCallCache, nil
+	}
+	variables, diags := m.collectVariableValues()
+
+	workspace, err := m.Workspace(ctx)
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
+	call := configs.NewStaticModuleCall(addrs.RootModule, func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		name := variable.Name
+		v, ok := variables[name]
+		if !ok {
+			if variable.Required() {
+				// User prompts are best efforts, so we accept the input here
+				// and rely on downstream checks to validate it
+				rawVal, err := m.getInput(context.Background(), variable)
+				if err != nil {
+					return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Failed to request input from user for variable var.%s", variable.Name),
+						Subject:  variable.DeclRange.Ptr(),
+					}}
+				}
+				v = unparsedVariableValueString{
+					str:        rawVal,
+					name:       name,
+					sourceType: tofu.ValueFromInput,
+				}
+				m.updateInputVariableCache(name, v)
+			} else {
+				return variable.Default, nil
+			}
+		}
+
+		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
+		return parsed.Value, parsedDiags.ToHCL()
+	}, rootDir, workspace)
+	m.rootModuleCallCache = &call
+	return call, diags
+}
+
+func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string, error) {
+	if !m.Input() {
+		return "", fmt.Errorf("input is disabled")
+	}
+
+	uiInput := m.UIInput()
+	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
+		Id:          fmt.Sprintf("var.%s", variable.Name),
+		Query:       fmt.Sprintf("var.%s", variable.Name),
+		Description: variable.InputPrompt(),
+		Secret:      variable.Sensitive,
+	})
+	if err != nil {
+		log.Printf("[TRACE] Meta.getInput Failed to prompt for %s: %s", variable.Name, err)
+		return "", err
+	}
+	return rawValue, nil
+}
+
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any
 // tests for the target module.
-func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.Module, tfdiags.Diagnostics) {
+func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDir string) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	dir = m.normalizePath(dir)
 
@@ -107,7 +191,13 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 		return nil, diags
 	}
 
-	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir)
+	call, vDiags := m.rootModuleCall(ctx, dir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	module, hclDiags := loader.Parser().LoadConfigDirWithTests(dir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return module, diags
 }
@@ -116,7 +206,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 // least one OpenTofu configuration file (.tf or .tf.json), returning true
 // if so.
 //
-// In the unlikely event that the underlying config loader cannot be initalized,
+// In the unlikely event that the underlying config loader cannot be initialized,
 // this function optimistically returns true, assuming that the caller will
 // then do some other operation that requires the config loader and get an
 // error at that point.
@@ -143,8 +233,8 @@ func (m *Meta) dirIsConfigPath(dir string) bool {
 // change in future, so callers must not rely on it. (That is, they must expect
 // that a call to loadSingleModule or loadConfig could fail on the same
 // directory even if loadBackendConfig succeeded.)
-func (m *Meta) loadBackendConfig(rootDir string) (*configs.Backend, tfdiags.Diagnostics) {
-	mod, diags := m.loadSingleModule(rootDir)
+func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.Backend, tfdiags.Diagnostics) {
+	mod, diags := m.loadSingleModule(ctx, rootDir, configs.SelectiveLoadBackend)
 
 	// Only return error diagnostics at this point. Any warnings will be caught
 	// again later and duplicated in the output.
@@ -186,9 +276,6 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "install modules")
-	defer span.End()
-
 	rootDir = m.normalizePath(rootDir)
 
 	err := os.MkdirAll(m.modulesDir(), os.ModePerm)
@@ -203,9 +290,15 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
+	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
 
-	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks)
+	call, vDiags := m.rootModuleCall(ctx, rootDir)
+	diags = diags.Append(vDiags)
+	if diags.HasErrors() {
+		return true, diags
+	}
+
+	_, moreDiags := inst.InstallModules(ctx, rootDir, testsDir, upgrade, installErrsOnly, hooks, call)
 	diags = diags.Append(moreDiags)
 
 	if ctx.Err() == context.Canceled {
@@ -227,11 +320,6 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr string, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize directory from module", trace.WithAttributes(
-		attribute.String("source_addr", addr),
-	))
-	defer span.End()
-
 	loader, err := m.initConfigLoader()
 	if err != nil {
 		diags = diags.Append(err)
@@ -239,7 +327,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	}
 
 	targetDir = m.normalizePath(targetDir)
-	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(), hooks)
+	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
 		m.showDiagnostics(diags)
@@ -313,7 +401,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 //
 // If a config loader has not yet been instantiated then no files could have
 // been loaded already, so this method returns a nil map in that case.
-func (m *Meta) configSources() map[string][]byte {
+func (m *Meta) configSources() map[string]*hcl.File {
 	if m.configLoader == nil {
 		return nil
 	}
@@ -356,7 +444,6 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
 			ModulesDir: m.modulesDir(),
-			Services:   m.Services,
 		})
 		if err != nil {
 			return nil, err
@@ -371,8 +458,24 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 }
 
 // registryClient instantiates and returns a new Registry client.
-func (m *Meta) registryClient() *registry.Client {
-	return registry.NewClient(m.Services, nil)
+func (m *Meta) registryClient(ctx context.Context) *registry.Client {
+	httpClient := m.registryHTTPClient(ctx)
+	return registry.NewClient(ctx, m.Services, httpClient)
+}
+
+// registryHTTPClient returns a [retryablehttp.Client] intended for use in
+// any interactions with module or provider registries.
+//
+// This calls [Meta.MakeRegistryHTTPClient] if set, but provides a plausible
+// default client to use when that isn't set, since that's very common in
+// our test cases in this package.
+func (m *Meta) registryHTTPClient(ctx context.Context) *retryablehttp.Client {
+	if m.MakeRegistryHTTPClient != nil {
+		return m.MakeRegistryHTTPClient()
+	} else {
+		// Some reasonable default settings for most tests to use.
+		return httpclient.NewForRegistryRequests(ctx, 1, 10*time.Second)
+	}
 }
 
 // configValueFromCLI parses a configuration value that was provided in a

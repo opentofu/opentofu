@@ -27,10 +27,10 @@ func configFile() (string, error) {
 		return "", err
 	}
 
-	newConfigFile := filepath.Join(dir, "terraform.rc")
-	oldConfigFile := filepath.Join(dir, "tofu.rc")
+	newConfigFile := filepath.Join(dir, "tofu.rc")
+	legacyConfigFile := filepath.Join(dir, "terraform.rc")
 
-	return getNewOrLegacyPath(newConfigFile, oldConfigFile)
+	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
 }
 
 func configDir() (string, error) {

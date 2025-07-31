@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -43,14 +45,16 @@ type EvalGraphBuilder struct {
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.
 	Plugins *contextPlugins
+
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
-func (b *EvalGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *EvalGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "EvalGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -83,14 +87,14 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// Attach the state
 		&AttachStateTransformer{State: b.State},
 
-		transformProviders(concreteProvider, b.Config),
+		transformProviders(concreteProvider, b.Config, walkEval),
 
 		// Must attach schemas before ReferenceTransformer so that we can
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
@@ -109,7 +113,9 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		&CloseProviderTransformer{},
 
 		// Close root module
-		&CloseRootModuleTransformer{},
+		&CloseRootModuleTransformer{
+			RootConfig: b.Config,
+		},
 
 		// Remove redundant edges to simplify the graph.
 		&TransitiveReductionTransformer{},

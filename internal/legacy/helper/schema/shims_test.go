@@ -17,7 +17,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -72,7 +72,7 @@ func testApplyDiff(t *testing.T,
 		}
 	}
 
-	// Resource.Meta will be hanlded separately, so it's OK that we lose the
+	// Resource.Meta will be handled separately, so it's OK that we lose the
 	// timeout values here.
 	expectedState, err := StateValueFromInstanceState(expected, testSchema.Block.ImpliedType())
 	if err != nil {
@@ -80,7 +80,7 @@ func testApplyDiff(t *testing.T,
 	}
 
 	if !cmp.Equal(expectedState, newState, equateEmpty, typeComparer, valueComparer) {
-		t.Fatalf(cmp.Diff(expectedState, newState, equateEmpty, typeComparer, valueComparer))
+		t.Fatalf("state diff (-expected +got):\n%s", cmp.Diff(expectedState, newState, equateEmpty, typeComparer, valueComparer))
 	}
 }
 

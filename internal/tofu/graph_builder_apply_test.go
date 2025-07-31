@@ -59,7 +59,7 @@ func TestApplyGraphBuilder(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -104,6 +104,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -113,6 +114,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -122,7 +124,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -194,7 +196,7 @@ func TestApplyGraphBuilder_doubleCBD(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -270,6 +272,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -279,6 +282,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -288,7 +292,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 		Plugins: simpleMockPluginLibrary(),
 	}
 
-	g, diags := b.Build(addrs.RootModuleInstance)
+	g, diags := b.Build(t.Context(), addrs.RootModuleInstance)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -332,6 +336,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -341,6 +346,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{addrA.ContainingResource().Config()},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -350,7 +356,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -393,6 +399,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	modB := state.EnsureModule(addrs.RootModuleInstance.Child("B", addrs.NoKey))
 	modB.SetResourceInstanceCurrent(
@@ -403,6 +410,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.A.test_object.foo")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -412,7 +420,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -451,12 +459,47 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 		},
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	testGraphNotContains(t, g, "module.child1.output.instance_id")
+	testGraphNotContains(t, g, "test_object.foo")
+}
+
+func TestApplyGraphBuilder_excludeModule(t *testing.T) {
+	changes := &plans.Changes{
+		Resources: []*plans.ResourceInstanceChangeSrc{
+			{
+				Addr: mustResourceInstanceAddr("test_object.foo"),
+				ChangeSrc: plans.ChangeSrc{
+					Action: plans.Update,
+				},
+			},
+			{
+				Addr: mustResourceInstanceAddr("module.child2.test_object.foo"),
+				ChangeSrc: plans.ChangeSrc{
+					Action: plans.Update,
+				},
+			},
+		},
+	}
+
+	b := &ApplyGraphBuilder{
+		Config:  testModule(t, "graph-builder-apply-target-module"),
+		Changes: changes,
+		Plugins: simpleMockPluginLibrary(),
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
+		},
+	}
+
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	testGraphNotContains(t, g, "mod.child2.test_object.foo")
 }
 
 // Ensure that an update resulting from the removal of a resource happens after
@@ -511,6 +554,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -536,6 +580,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -545,7 +590,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -614,6 +659,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -636,6 +682,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -645,7 +692,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -686,6 +733,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].foo`),
+		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
@@ -695,7 +743,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 		State:   state,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -744,7 +792,7 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 		Operation: walkApply,
 	}
 
-	g, err := b.Build(addrs.RootModuleInstance)
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

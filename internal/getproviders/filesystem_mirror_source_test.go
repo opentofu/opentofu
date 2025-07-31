@@ -7,17 +7,18 @@ package getproviders
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/svchost"
 
-	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 	got, err := source.AllAvailablePackages()
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +102,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 // In this test the directory layout is invalid (missing the hostname
 // subdirectory). The provider installer should ignore the invalid directory.
 func TestFilesystemMirrorSourceAllAvailablePackages_invalid(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror-invalid")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror-invalid")
 	_, err := source.AllAvailablePackages()
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +110,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages_invalid(t *testing.T) {
 }
 
 func TestFilesystemMirrorSourceAvailableVersions(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 	got, _, err := source.AvailableVersions(context.Background(), nullProvider)
 	if err != nil {
 		t.Fatal(err)
@@ -125,9 +126,33 @@ func TestFilesystemMirrorSourceAvailableVersions(t *testing.T) {
 	}
 }
 
+func TestFilesystemMirrorSourceAvailableVersions_Unspecified(t *testing.T) {
+	unspecifiedProvider := addrs.Provider{
+		Hostname:  svchost.Hostname("registry.opentofu.org"),
+		Namespace: "testnamespace",
+		Type:      "unspecified",
+	}
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror-unspecified")
+	got, warn, err := source.AvailableVersions(context.Background(), unspecifiedProvider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Check that we got the unspecified version
+	if len(got) != 1 || got[0] != versions.Unspecified {
+		t.Fatalf("expected unspecified version, got %v", got)
+	}
+	// We should have unspecified (0.0.0) version warning
+	if len(warn) != 1 {
+		t.Fatalf("expected 1 warning, got %v", warn)
+	}
+	warningBit := "unspecified (0.0.0) version available in the filesystem mirror"
+	if !strings.Contains(warn[0], warningBit) {
+		t.Fatalf("expected warning to contain %q, got %q", warningBit, warn[0])
+	}
+}
 func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 	t.Run("available platform", func(t *testing.T) {
-		source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+		source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 		got, err := source.PackageMeta(
 			context.Background(),
 			nullProvider,
@@ -149,13 +174,9 @@ func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("incorrect result\n%s", diff)
 		}
-
-		if gotHashes := got.AcceptableHashes(); len(gotHashes) != 0 {
-			t.Errorf("wrong acceptable hashes\ngot:  %#v\nwant: none", gotHashes)
-		}
 	})
 	t.Run("unavailable platform", func(t *testing.T) {
-		source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+		source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 		// We'll request a version that does exist in the fixture directory,
 		// but for a platform that isn't supported.
 		_, err := source.PackageMeta(

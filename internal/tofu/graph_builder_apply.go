@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -46,6 +48,12 @@ type ApplyGraphBuilder struct {
 	// outputs should go into the diff so that this is unnecessary.
 	Targets []addrs.Targetable
 
+	// Excludes are resources to exclude. This is only required to make sure
+	// unnecessary outputs aren't included in the apply graph. The plan
+	// builder successfully handles targeting resources. In the future,
+	// outputs should go into the diff so that this is unnecessary.
+	Excludes []addrs.Targetable
+
 	// ForceReplace are the resource instance addresses that the user
 	// requested to force replacement for when creating the plan, if any.
 	// The apply step refers to these as part of verifying that the planned
@@ -59,14 +67,16 @@ type ApplyGraphBuilder struct {
 	// nodes that should not be pruned even if they are not referenced within
 	// the actual graph.
 	ExternalReferences []*addrs.Reference
+
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
-func (b *ApplyGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *ApplyGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "ApplyGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -137,7 +147,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&AttachResourceConfigTransformer{Config: b.Config},
 
 		// add providers
-		transformProviders(concreteProvider, b.Config),
+		transformProviders(concreteProvider, b.Config, b.Operation),
 
 		// Remove modules no longer present in the config
 		&RemovedModuleTransformer{Config: b.Config, State: b.State},
@@ -147,7 +157,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
@@ -179,10 +189,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 			Changes:   b.Changes,
 			Operation: b.Operation,
 		},
-		&CBDEdgeTransformer{
-			Config: b.Config,
-			State:  b.State,
-		},
+		&CBDEdgeTransformer{},
 
 		// We need to remove configuration nodes that are not used at all, as
 		// they may not be able to evaluate, especially during destroy.
@@ -190,13 +197,15 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&pruneUnusedNodesTransformer{},
 
 		// Target
-		&TargetsTransformer{Targets: b.Targets},
+		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
 		// Close opened plugin connections
 		&CloseProviderTransformer{},
 
 		// close the root module
-		&CloseRootModuleTransformer{},
+		&CloseRootModuleTransformer{
+			RootConfig: b.Config,
+		},
 
 		// Perform the transitive reduction to make our graph a bit
 		// more understandable if possible (it usually is possible).

@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -16,11 +17,10 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	"github.com/zclconf/go-cty/cty"
-
-	// "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/zclconf/go-cty/cty"
 
 	// "github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -80,7 +80,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"previous_run"}`),
 			Status:    states.ObjectTainted,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -89,7 +89,7 @@ resource "test_object" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.UpgradeResourceStateCalled {
@@ -209,6 +209,7 @@ data "test_data_source" "foo" {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -217,7 +218,7 @@ data "test_data_source" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	for _, res := range plan.Changes.Resources {
@@ -251,7 +252,7 @@ output "out" {
 		s.SetResourceInstanceCurrent(mustResourceInstanceAddr(`data.test_object.a["old"]`), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -260,7 +261,7 @@ output "out" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	change, err := plan.Changes.Outputs[0].Decode()
@@ -325,7 +326,7 @@ resource "test_object" "a" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 }
 
@@ -375,6 +376,7 @@ resource "test_resource" "b" {
 				AttrsJSON: []byte(`{"id":"a"}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr(`module.mod["old"].test_resource.b`),
@@ -382,6 +384,7 @@ resource "test_resource" "b" {
 				AttrsJSON: []byte(`{"id":"b","value":"d"}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			oldDataAddr,
@@ -389,6 +392,7 @@ resource "test_resource" "b" {
 				AttrsJSON: []byte(`{"id":"d"}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -398,7 +402,7 @@ resource "test_resource" "b" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	oldMod := oldDataAddr.Module
@@ -498,7 +502,7 @@ func TestContext2Plan_resourceChecksInExpandedModule(t *testing.T) {
 	})
 
 	priorState := states.NewState()
-	plan, diags := ctx.Plan(m, priorState, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, priorState, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	resourceInsts := []addrs.AbsResourceInstance{
@@ -674,6 +678,7 @@ data "test_data_source" "a" {
 				AttrsJSON: []byte(`{"id":"boop","valid":false}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -683,7 +688,7 @@ data "test_data_source" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, priorState, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, priorState, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if rc := plan.Changes.ResourceInstance(dataAddr); rc != nil {
@@ -711,7 +716,7 @@ data "test_data_source" "a" {
 	// This is primarily a plan-time test, since the special handling of
 	// data resources is a plan-time concern, but we'll still try applying the
 	// plan here just to make sure it's valid.
-	newState, diags := ctx.Apply(plan, m)
+	newState, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	if rs := newState.ResourceInstance(dataAddr); rs != nil {
@@ -886,6 +891,7 @@ resource "test_resource" "b" {
 				AttrsJSON: []byte(`{"id":"main","valid":false}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			managedAddrB,
@@ -893,6 +899,7 @@ resource "test_resource" "b" {
 				AttrsJSON: []byte(`{"id":"checker","valid":true}`),
 				Status:    states.ObjectReady,
 			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -902,7 +909,7 @@ resource "test_resource" "b" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, priorState, DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, priorState, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("unexpected successful plan; should've failed with non-passing precondition")
 	}
@@ -963,7 +970,7 @@ resource "test_object" "a" {
 		// In the destroy-with-refresh codepath we end up calling
 		// UpgradeResourceState twice, because we do so once during refreshing
 		// (as part making a normal plan) and then again during the plan-destroy
-		// walk. The second call recieves the result of the earlier refresh,
+		// walk. The second call receives the result of the earlier refresh,
 		// so we need to tolerate both "before" and "current" as possible
 		// inputs here.
 		if !bytes.Contains(req.RawStateJSON, []byte("before")) {
@@ -986,7 +993,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -995,7 +1002,7 @@ resource "test_object" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode:        plans.DestroyMode,
 		SkipRefresh: false, // the default
 	})
@@ -1035,6 +1042,80 @@ resource "test_object" "a" {
 		} else if got, want := instState.Current.AttrsJSON, `"current"`; !bytes.Contains(got, []byte(want)) {
 			t.Errorf("%s has wrong prior state after plan\ngot:\n%s\n\nwant substring: %s", addr, got, want)
 		}
+	}
+}
+
+func TestContext2Plan_destroyWithRefresh_skipImport(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+
+resource "test_object" "imported" {
+}
+
+import {
+  to   = test_object.imported
+  id   = "123"
+}
+`,
+	})
+
+	p := simpleMockProvider()
+
+	p.ReadResourceResponse = &providers.ReadResourceResponse{
+		NewState: cty.ObjectVal(map[string]cty.Value{
+			"test_string": cty.StringVal("foo"),
+		}),
+	}
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "test_object",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			},
+		},
+	}
+
+	expectedDestroyedAddr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(expectedDestroyedAddr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"arg":"before"}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode:        plans.DestroyMode,
+		SkipRefresh: false, // the default
+	})
+	assertNoErrors(t, diags)
+
+	if plan.PriorState == nil {
+		t.Fatal("missing plan state")
+	}
+
+	if len(plan.Changes.Resources) > 1 {
+		t.Fatal("only a single resource should be changed in the plan")
+	}
+
+	changedResource := plan.Changes.Resources[0]
+
+	if changedResource.Action != plans.Delete {
+		t.Errorf("unexpected %s change for %s", changedResource.Action, changedResource.Addr)
+	}
+
+	if !changedResource.Addr.Equal(expectedDestroyedAddr) {
+		t.Errorf("unexpected change for resource %s instead of %s", changedResource.Addr, expectedDestroyedAddr)
 	}
 }
 
@@ -1086,7 +1167,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1095,7 +1176,7 @@ resource "test_object" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode:        plans.DestroyMode,
 		SkipRefresh: true,
 	})
@@ -1188,7 +1269,7 @@ output "result" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	for _, res := range plan.Changes.Resources {
@@ -1226,7 +1307,7 @@ provider "test" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1235,7 +1316,7 @@ provider "test" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
@@ -1262,7 +1343,7 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1272,7 +1353,7 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrA,
@@ -1309,6 +1390,403 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 	})
 }
 
+func constructProviderSchemaForTesting(attrs map[string]*configschema.Attribute) providers.Schema {
+	return providers.Schema{
+		Block: &configschema.Block{Attributes: attrs},
+	}
+}
+
+func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
+	type test struct {
+		name          string
+		mockProvider  *MockProvider
+		providerAddr1 *addrs.AbsProviderConfig
+		providerAddr2 *addrs.AbsProviderConfig
+		oldSchema     providers.Schema
+		newSchema     providers.Schema
+		oldType       string
+		newType       string
+		config        map[string]string
+		attrsJSON     []byte
+		wantOp        plans.Action
+		wantErrStr    string
+	}
+
+	tests := []test{
+		{
+			name: "basic case",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+			wantOp:    plans.NoOp,
+		},
+		{
+			name: "attributes unchanged",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			wantOp:    plans.NoOp,
+		},
+		{
+			name: "attribute changed",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 2}`),
+			wantOp:    plans.Update,
+		},
+		{
+			name: "attribute removed provider doesn't remove the attribute",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+				"test_string": {
+					Type:     cty.String,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON:  []byte(`{"test_number": 1, "test_string": "foo"}`),
+			wantErrStr: `unsupported attribute "test_string"`,
+		},
+		{
+			name:    "provider failure",
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+						"test_object0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Optional: true,
+							},
+						}),
+					},
+				},
+				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+					Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "move failed", "")},
+				},
+			},
+			wantErrStr: "move failed",
+		},
+		{
+			name: "different provider with same schema",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "provider1_object",
+			newType: "provider2_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "provider2_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = provider1_object.old
+						to   = provider2_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			wantOp:    plans.NoOp,
+			providerAddr1: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider1"),
+				Module:   addrs.RootModule,
+			},
+			providerAddr2: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider2"),
+			},
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"provider2_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Required: true,
+							},
+						}),
+						"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Required: true,
+							},
+						}),
+					},
+				},
+				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+					TargetState: cty.ObjectVal(map[string]cty.Value{
+						"test_number": cty.NumberIntVal(1),
+					}),
+				},
+			},
+		},
+		{
+			name: "different provider with schema change",
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_string": {
+					Type:     cty.String,
+					Required: true,
+				},
+			}),
+			oldType: "provider1_object",
+			newType: "provider2_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "provider2_object" "new" {
+						test_string = "2"
+					}
+					moved {
+						from = provider1_object.old
+						to   = provider2_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			wantOp:    plans.Update,
+			providerAddr1: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider1"),
+				Module:   addrs.RootModule,
+			},
+			providerAddr2: &addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("provider2"),
+			},
+			mockProvider: &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"provider2_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_string": {
+								Type:     cty.String,
+								Required: true,
+							},
+						}),
+						"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+							"test_number": {
+								Type:     cty.Number,
+								Required: true,
+							},
+						}),
+					},
+				},
+				MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+					TargetState: cty.ObjectVal(map[string]cty.Value{
+						"test_string": cty.StringVal("1"),
+					}),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldAddr := mustResourceInstanceAddr(tt.oldType + ".old")
+			newAddr := mustResourceInstanceAddr(tt.newType + ".new")
+			m := testModuleInline(t, tt.config)
+
+			providerAddr := addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			}
+			if tt.providerAddr1 != nil {
+				providerAddr = *tt.providerAddr1
+			}
+
+			state := states.BuildState(
+				func(s *states.SyncState) {
+					s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr)
+					s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: tt.attrsJSON,
+					}, providerAddr, addrs.NoKey)
+				})
+
+			provider := &MockProvider{
+				// New provider should know about both resource types
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						tt.newType: tt.newSchema,
+						tt.oldType: tt.oldSchema,
+					},
+				},
+			}
+			if tt.mockProvider != nil {
+				provider = tt.mockProvider
+			}
+
+			providerFactory := map[addrs.Provider]providers.Factory{
+				providerAddr.Provider: testProviderFuncFixed(provider),
+			}
+			if tt.providerAddr2 != nil {
+				providerFactory[tt.providerAddr2.Provider] = testProviderFuncFixed(provider)
+			}
+
+			ctx := testContext2(t, &ContextOpts{
+				Providers: providerFactory,
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+				Mode: plans.NormalMode,
+			})
+
+			if tt.wantErrStr != "" {
+				if !diags.HasErrors() {
+					t.Fatalf("expected errors, got none")
+				}
+				if got, want := diags.Err().Error(), tt.wantErrStr; !strings.Contains(got, want) {
+					t.Fatalf("wrong error\ngot: %s\nwant substring: %s", got, want)
+				}
+				return
+			}
+
+			assertNoErrors(t, diags)
+
+			// Check that no plan was created for the old resource
+			instPlan := plan.Changes.ResourceInstance(oldAddr)
+			if instPlan != nil {
+				t.Fatalf("unexpected plan for %s; should've moved to %s", oldAddr, newAddr)
+			}
+
+			// Check that a plan was created for the new resource
+			instPlan = plan.Changes.ResourceInstance(newAddr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", newAddr)
+			}
+
+			if got, want := instPlan.Addr, newAddr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, oldAddr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, tt.wantOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
+	}
+}
+
 func TestContext2Plan_movedResourceCollision(t *testing.T) {
 	addrNoKey := mustResourceInstanceAddr("test_object.a")
 	addrZeroKey := mustResourceInstanceAddr("test_object.a[0]")
@@ -1326,11 +1804,11 @@ func TestContext2Plan_movedResourceCollision(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1340,7 +1818,7 @@ func TestContext2Plan_movedResourceCollision(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	if diags.HasErrors() {
@@ -1432,11 +1910,11 @@ func TestContext2Plan_movedResourceCollisionDestroy(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1446,7 +1924,7 @@ func TestContext2Plan_movedResourceCollisionDestroy(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -1544,7 +2022,7 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1555,7 +2033,7 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 	})
 
 	t.Run("without targeting instance A", func(t *testing.T) {
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Targets: []addrs.Targetable{
 				// NOTE: addrA isn't included here, but it's pending move to addrB
@@ -1574,9 +2052,9 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1595,7 +2073,7 @@ Note that adding these options may include further additional resource instances
 		}
 	})
 	t.Run("without targeting instance B", func(t *testing.T) {
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Targets: []addrs.Targetable{
 				addrA,
@@ -1614,9 +2092,9 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1635,7 +2113,7 @@ Note that adding these options may include further additional resource instances
 		}
 	})
 	t.Run("without targeting either instance", func(t *testing.T) {
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Targets: []addrs.Targetable{
 				mustResourceInstanceAddr("test_object.unrelated"),
@@ -1654,9 +2132,9 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1680,7 +2158,7 @@ Note that adding these options may include further additional resource instances
 		// addresses to the set of targets. This additional test makes sure that
 		// following that advice actually leads to a valid result.
 
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			Targets: []addrs.Targetable{
 				// This time we're including both addresses in the target,
@@ -1702,9 +2180,167 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			// ...but now we have no error about test_object.a
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding instance A", func(t *testing.T) {
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				// NOTE: addrA isn't excluded, and it's pending move to addrB
+				// and so this plan request is invalid.
+				addrA,
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.a"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding instance B", func(t *testing.T) {
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				addrB,
+				// NOTE: addrB is excluded here, and it's pending move from
+				// addrA and so this plan request is invalid.
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.b"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding both addresses", func(t *testing.T) {
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				// NOTE: both addrA nor addrB are excluded here, but there's
+				// a pending move between them and so this is invalid.
+				addrA,
+				addrB,
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.a"
+  -exclude="test_object.b"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("without excluding either instance", func(t *testing.T) {
+		// The error messages in the other subtests above suggest removing
+		// addresses to the set of excludes. This additional test makes sure that
+		// following that advice actually leads to a valid result.
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				mustResourceInstanceAddr("test_object.unrelated"),
+				// This time we're excluding neither address,
+				// to get the same effect an end-user would get if following
+				// the advice in our error message in the other subtests.
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			// Still get the warning about the -target option...
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			// ...but now we have no error about test_object.a
 		}.ForRPC()
@@ -1732,19 +2368,19 @@ resource "test_object" "b" {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
 			// old_list is no longer in the schema
 			AttrsJSON: []byte(`{"old_list":["used to be","a list here"]}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
 
 	// external changes trigger a "drift report", but because test_object.b was
 	// not targeted, the state was not fixed to match the schema and cannot be
-	// deocded for the report.
+	// decoded for the report.
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 		obj := req.PriorState.AsValueMap()
 		// test_number changed externally
@@ -1759,7 +2395,7 @@ resource "test_object" "b" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrA,
@@ -1767,6 +2403,79 @@ resource "test_object" "b" {
 	})
 	//
 	assertNoErrors(t, diags)
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatalf("expected 1 resource change, but got %d", len(plan.Changes.Resources))
+	}
+
+	instPlan := plan.Changes.ResourceInstance(addrA)
+	if instPlan == nil {
+		t.Fatalf("expected plan for %s; but got none", addrA)
+	}
+}
+
+func TestContext2Plan_excludedResourceSchemaChange(t *testing.T) {
+	// an excluded resource which requires a schema migration should not
+	// block planning due external changes in the plan.
+	addrA := mustResourceInstanceAddr("test_object.a")
+	addrB := mustResourceInstanceAddr("test_object.b")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+resource "test_object" "b" {
+}`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
+			// old_list is no longer in the schema
+			AttrsJSON: []byte(`{"old_list":["used to be","a list here"]}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	p := simpleMockProvider()
+
+	// external changes trigger a "drift report", but because test_object.b was
+	// excluded, the state was not fixed to match the schema and cannot be
+	// deocded for the report.
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		var resp providers.ReadResourceResponse
+		obj := req.PriorState.AsValueMap()
+		// test_number changed externally
+		obj["test_number"] = cty.NumberIntVal(1)
+		resp.NewState = cty.ObjectVal(obj)
+		return resp
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrB,
+		},
+	})
+	//
+	assertNoErrors(t, diags)
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatalf("expected 1 resource change, but got %d", len(plan.Changes.Resources))
+	}
+
+	instPlan := plan.Changes.ResourceInstance(addrA)
+	if instPlan == nil {
+		t.Fatalf("expected plan for %s; but got none", addrA)
+	}
 }
 
 func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
@@ -1790,7 +2499,7 @@ func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1800,7 +2509,7 @@ func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
 	if diags.HasErrors() {
@@ -1862,7 +2571,7 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -1915,7 +2624,7 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
 	if diags.HasErrors() {
@@ -1998,7 +2707,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 		s.SetResourceInstanceDeposed(addr, deposedKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -2051,7 +2760,7 @@ func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
 	if diags.HasErrors() {
@@ -2135,11 +2844,11 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr.Instance(addrs.IntKey(0)), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addr.Instance(addrs.IntKey(1)), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -2192,7 +2901,7 @@ func TestContext2Plan_refreshOnlyMode_orphan(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.RefreshOnlyMode,
 	})
 	if diags.HasErrors() {
@@ -2273,7 +2982,7 @@ output "root" {
 
 	ctx := testContext2(t, &ContextOpts{})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -2352,6 +3061,7 @@ data "test_data_source" "foo" {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.bar").Resource,
@@ -2366,6 +3076,7 @@ data "test_data_source" "foo" {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2374,7 +3085,7 @@ data "test_data_source" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	for _, res := range plan.Changes.Resources {
@@ -2409,11 +3120,11 @@ func TestContext2Plan_forceReplace(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -2423,7 +3134,7 @@ func TestContext2Plan_forceReplace(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrA,
@@ -2477,11 +3188,11 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr0, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addr1, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -2491,7 +3202,7 @@ func TestContext2Plan_forceReplaceIncompleteAddr(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrBare,
@@ -2597,6 +3308,7 @@ output "output" {
 			AttrsJSON: []byte(`{"id":"foo","value":"a"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	one.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`data.test_data_source.d`).Resource,
@@ -2605,6 +3317,7 @@ output "output" {
 			AttrsJSON: []byte(`{"id":"data"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	two.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`test_resource.x`).Resource,
@@ -2613,6 +3326,7 @@ output "output" {
 			AttrsJSON: []byte(`{"id":"foo","value":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	two.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr(`data.test_data_source.d`).Resource,
@@ -2621,6 +3335,7 @@ output "output" {
 			AttrsJSON: []byte(`{"id":"data"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2629,7 +3344,7 @@ output "output" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	for _, res := range plan.Changes.Resources {
@@ -2688,7 +3403,7 @@ func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -2698,7 +3413,7 @@ func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	if diags.HasErrors() {
@@ -2803,7 +3518,7 @@ resource "test_resource" "a" {
 			resp.LegacyTypeSystem = true
 			return resp
 		}
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -2832,7 +3547,7 @@ resource "test_resource" "a" {
 			},
 		})
 
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -2863,9 +3578,9 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		})
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -2901,7 +3616,7 @@ resource "test_resource" "a" {
 			resp.LegacyTypeSystem = true
 			return resp
 		}
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -2932,7 +3647,7 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		})
 		p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 			newVal, err := cty.Transform(req.PriorState, func(path cty.Path, v cty.Value) (cty.Value, error) {
@@ -2950,7 +3665,7 @@ resource "test_resource" "a" {
 				NewState: newVal,
 			}
 		}
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -2985,7 +3700,7 @@ resource "test_resource" "a" {
 			s.SetResourceInstanceCurrent(mustResourceInstanceAddr("test_resource.a"), &states.ResourceInstanceObjectSrc{
 				AttrsJSON: []byte(`{"value":"boop","output":"blorp"}`),
 				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		})
 		p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 			newVal, err := cty.Transform(req.PriorState, func(path cty.Path, v cty.Value) (cty.Value, error) {
@@ -3003,7 +3718,7 @@ resource "test_resource" "a" {
 				NewState: newVal,
 			}
 		}
-		_, diags := ctx.Plan(m, state, &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3102,7 +3817,7 @@ resource "test_resource" "a" {
 				"results": cty.ListVal([]cty.Value{cty.StringVal("boop")}),
 			}),
 		}
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3146,7 +3861,7 @@ resource "test_resource" "a" {
 				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 			},
 		})
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3172,7 +3887,7 @@ resource "test_resource" "a" {
 				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 			},
 		})
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3216,7 +3931,7 @@ resource "test_resource" "a" {
 				"results": cty.ListValEmpty(cty.String),
 			}),
 		}
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3248,7 +3963,7 @@ resource "test_resource" "a" {
 				"results": cty.ListValEmpty(cty.String),
 			}),
 		}
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3289,7 +4004,7 @@ resource "test_resource" "a" {
 				"results": cty.ListValEmpty(cty.String),
 			}),
 		}
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3341,7 +4056,7 @@ output "a" {
 	})
 
 	t.Run("condition pass", func(t *testing.T) {
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3375,7 +4090,7 @@ output "a" {
 	})
 
 	t.Run("condition fail", func(t *testing.T) {
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3393,7 +4108,7 @@ output "a" {
 	})
 
 	t.Run("condition fail refresh-only", func(t *testing.T) {
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -3497,11 +4212,14 @@ func TestContext2Plan_preconditionErrors(t *testing.T) {
 			`, tc.condition)
 			m := testModuleInline(t, map[string]string{"main.tf": main})
 
-			plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 			if !diags.HasErrors() {
 				t.Fatal("succeeded; want errors")
 			}
 
+			if plan == nil {
+				t.Fatal("result from plan is nil; expected a plan marked as errored")
+			}
 			if !plan.Errored {
 				t.Fatal("plan failed to record error")
 			}
@@ -3551,7 +4269,7 @@ output "a" {
 `,
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"boop": &InputValue{
@@ -3568,23 +4286,31 @@ output "a" {
 	}
 	for _, diag := range diags {
 		desc := diag.Description()
-		if desc.Summary == "Module output value precondition failed" {
+		switch desc.Summary {
+		case "Module output value precondition failed":
 			if got, want := desc.Detail, "This check failed, but has an invalid error message as described in the other accompanying messages."; !strings.Contains(got, want) {
 				t.Errorf("unexpected detail\ngot: %s\nwant to contain %q", got, want)
 			}
-		} else if desc.Summary == "Error message refers to sensitive values" {
+		case "Error message refers to sensitive values":
 			if got, want := desc.Detail, "The error expression used to explain this condition refers to sensitive values, so OpenTofu will not display the resulting message."; !strings.Contains(got, want) {
 				t.Errorf("unexpected detail\ngot: %s\nwant to contain %q", got, want)
 			}
-		} else {
+		default:
 			t.Errorf("unexpected summary\ngot: %s", desc.Summary)
 		}
 	}
 }
 
 func TestContext2Plan_triggeredBy(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
 resource "test_object" "a" {
   count = 1
   test_string = "new"
@@ -3598,7 +4324,41 @@ resource "test_object" "b" {
   }
 }
 `,
-	})
+			},
+		},
+		{
+			Description: "Json configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "resource": {
+        "test_object": {
+            "a": [
+                {
+                    "count": 1,
+                    "test_string": "new"
+                }
+            ],
+            "b": [
+                {
+                    "count": 1,
+                    "lifecycle": [
+                        {
+                            "replace_triggered_by": [
+                                "test_object.a[count.index].test_string"
+                            ]
+                        }
+                    ],
+                    "test_string": "test_object.a[count.index].test_string"
+                }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
 
 	p := simpleMockProvider()
 
@@ -3616,6 +4376,7 @@ resource "test_object" "b" {
 				Status:    states.ObjectReady,
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr("test_object.b[0]"),
@@ -3624,30 +4385,34 @@ resource "test_object" "b" {
 				Status:    states.ObjectReady,
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
+	for _, configuration := range configurations {
+		m := testModuleInline(t, configuration.inlineConfiguration)
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
-	for _, c := range plan.Changes.Resources {
-		switch c.Addr.String() {
-		case "test_object.a[0]":
-			if c.Action != plans.Update {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+		}
+		for _, c := range plan.Changes.Resources {
+			switch c.Addr.String() {
+			case "test_object.a[0]":
+				if c.Action != plans.Update {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+			case "test_object.b[0]":
+				if c.Action != plans.DeleteThenCreate {
+					t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
+				}
+				if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
+					t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
+				}
+			default:
+				t.Fatal("unexpected change", c.Addr, c.Action)
 			}
-		case "test_object.b[0]":
-			if c.Action != plans.DeleteThenCreate {
-				t.Fatalf("unexpected %s change for %s\n", c.Action, c.Addr)
-			}
-			if c.ActionReason != plans.ResourceInstanceReplaceByTriggers {
-				t.Fatalf("incorrect reason for change: %s\n", c.ActionReason)
-			}
-		default:
-			t.Fatal("unexpected change", c.Addr, c.Action)
 		}
 	}
 }
@@ -3702,7 +4467,7 @@ data "test_object" "a" {
 		s.SetResourceInstanceCurrent(mustResourceInstanceAddr(`data.test_object.a`), &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"id":"old","obj":[{"args":["string"]}]}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3711,7 +4476,7 @@ data "test_object" "a" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 }
 
@@ -3743,6 +4508,7 @@ resource "test_object" "b" {
 			Dependencies: []addrs.ConfigResource{mustResourceInstanceAddr("test_object.b").ContainingResource().Config()},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.b").Resource,
@@ -3751,6 +4517,7 @@ resource "test_object" "b" {
 			AttrsJSON: []byte(`{"test_string":"b"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3759,7 +4526,7 @@ resource "test_object" "b" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	if !diags.HasErrors() {
@@ -3806,7 +4573,7 @@ output "out" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 
@@ -3864,6 +4631,7 @@ resource "test_object" "b" {
 			Dependencies: []addrs.ConfigResource{},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.a[0]").Resource,
@@ -3873,6 +4641,7 @@ resource "test_object" "b" {
 			Dependencies: []addrs.ConfigResource{},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3881,7 +4650,7 @@ resource "test_object" "b" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -3946,9 +4715,9 @@ resource "test_object" "b" {
 
 	// plan+apply to create the initial state
 	opts := SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables))
-	plan, diags := ctx.Plan(m, states.NewState(), opts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// Resource changes which have dependencies across providers which
@@ -3962,7 +4731,7 @@ resource "test_object" "b" {
 	addrB := mustResourceInstanceAddr(`test_object.b`)
 	opts.ForceReplace = []addrs.AbsResourceInstance{addrA, addrB}
 
-	_, diags = ctx.Plan(m, state, opts)
+	_, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 }
 
@@ -4043,6 +4812,7 @@ output "out" {
 			Dependencies: []addrs.ConfigResource{},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	mod.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.a[1]").Resource,
@@ -4052,6 +4822,7 @@ output "out" {
 			Dependencies: []addrs.ConfigResource{},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4060,7 +4831,7 @@ output "out" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
@@ -4102,13 +4873,13 @@ output "out" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 }
 
-// Make sure the data sources in the prior state are serializeable even if
+// Make sure the data sources in the prior state are serializable even if
 // there were an error in the plan.
 func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	m, snap := testModuleWithSnapshot(t, "data-source-read-with-plan-error")
@@ -4130,15 +4901,109 @@ func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("expected plan error")
+	}
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a non-nil plan marked as errored")
 	}
 
 	// make sure we can serialize the plan even if there were an error
 	_, _, _, err := contextOptsForPlanViaFile(t, snap, plan)
 	if err != nil {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
+	}
+}
+
+func TestContext2Plan_providerDefersPlanning(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test" "test" {
+			}
+		`,
+	})
+
+	tests := []struct {
+		DeferralReason                  providers.DeferralReason
+		WantDiagSummary, WantDiagDetail string
+	}{
+		{
+			DeferralReason:  providers.DeferredBecauseProviderConfigUnknown,
+			WantDiagSummary: `Provider configuration is incomplete`,
+			WantDiagDetail: `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			DeferralReason:  providers.DeferredBecauseResourceConfigUnknown,
+			WantDiagSummary: `Resource configuration is incomplete`,
+			WantDiagDetail: `The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			// This one is currently a generic fallback message because it's
+			// unclear what this reason is intended to mean and no providers
+			// are using it yet at the time of writing.
+			DeferralReason:  providers.DeferredBecausePrereqAbsent,
+			WantDiagSummary: `Operation cannot be completed yet`,
+			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			// This special reason is the one we use if a provider returns
+			// a later-added reason that the current OpenTofu version doesn't
+			// know about.
+			DeferralReason:  providers.DeferredReasonUnknown,
+			WantDiagSummary: `Operation cannot be completed yet`,
+			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.DeferralReason.String(), func(t *testing.T) {
+			provider := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+				},
+				PlanResourceChangeFn: func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+					var diags tfdiags.Diagnostics
+					diags = diags.Append(providers.NewDeferralDiagnostic(
+						test.DeferralReason,
+					))
+					return providers.PlanResourceChangeResponse{
+						Diagnostics: diags,
+					}
+				},
+			}
+			tofuCtx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+				},
+			})
+			_, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+			if !diags.HasErrors() {
+				t.Fatal("plan succeeded; want an error")
+			}
+			if len(diags) != 1 {
+				t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(diags.ForRPC()))
+			}
+			desc := diags[0].Description()
+			if got, want := test.WantDiagSummary, desc.Summary; got != want {
+				t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := test.WantDiagDetail, desc.Detail; got != want {
+				t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
+			}
+		})
 	}
 }
 
@@ -4186,6 +5051,7 @@ resource "test_object" "a" {
 			Dependencies: []addrs.ConfigResource{},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -4195,7 +5061,7 @@ resource "test_object" "a" {
 
 	// plan+apply to create the initial state
 	opts := SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables))
-	plan, diags := ctx.Plan(m, state, opts)
+	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	for _, c := range plan.Changes.Resources {
@@ -4207,8 +5073,16 @@ resource "test_object" "a" {
 
 func TestContext2Plan_importResourceBasic(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
+
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
 resource "test_object" "a" {
   test_string = "foo"
 }
@@ -4218,7 +5092,33 @@ import {
   id   = "123"
 }
 `,
-	})
+			},
+		},
+		{
+			Description: "Json configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "import": [
+        {
+            "id": "123",
+            "to": "test_object.a"
+        }
+    ],
+    "resource": {
+        "test_object": {
+            "a": [
+		        {
+		            "test_string": "foo"
+		        }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
 
 	p := simpleMockProvider()
 	hook := new(MockHook)
@@ -4244,47 +5144,51 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	for _, configuration := range configurations {
+		m := testModuleInline(t, configuration.inlineConfiguration)
+
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+		}
+
+		t.Run(configuration.Description, func(t *testing.T) {
+			instPlan := plan.Changes.ResourceInstance(addr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", addr)
+			}
+
+			if got, want := instPlan.Addr, addr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, plans.NoOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+			if instPlan.Importing.ID != "123" {
+				t.Errorf("expected import change from \"123\", got non-import change")
+			}
+
+			if !hook.PrePlanImportCalled {
+				t.Fatalf("PostPlanImport hook not called")
+			}
+			if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+			}
+
+			if !hook.PostPlanImportCalled {
+				t.Fatalf("PostPlanImport hook not called")
+			}
+			if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
+				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
+			}
+		})
 	}
-
-	t.Run(addr.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addr)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addr)
-		}
-
-		if got, want := instPlan.Addr, addr; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-		if instPlan.Importing.ID != "123" {
-			t.Errorf("expected import change from \"123\", got non-import change")
-		}
-
-		if !hook.PrePlanImportCalled {
-			t.Fatalf("PostPlanImport hook not called")
-		}
-		if addr, wantAddr := hook.PrePlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-		}
-
-		if !hook.PostPlanImportCalled {
-			t.Fatalf("PostPlanImport hook not called")
-		}
-		if addr, wantAddr := hook.PostPlanImportAddr, instPlan.Addr; !addr.Equal(wantAddr) {
-			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
-		}
-	})
 }
 
 func TestContext2Plan_importToDynamicAddress(t *testing.T) {
@@ -4295,7 +5199,7 @@ func TestContext2Plan_importToDynamicAddress(t *testing.T) {
 	}
 	configurations := []TestConfiguration{
 		{
-			Description:     "To address includes a variable as index",
+			Description:     "To address includes a variable as index in TF configuration",
 			ResolvedAddress: "test_object.a[0]",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
@@ -4311,6 +5215,37 @@ resource "test_object" "a" {
 import {
   to   = test_object.a[var.index]
   id   = "%d"
+}
+`,
+			},
+		},
+		{
+			Description:     "To address includes a variable as index in JSON configuration",
+			ResolvedAddress: "test_object.a[0]",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+     "locals": [
+        {
+            "index": 0
+        }
+    ],
+    "import": [
+        {
+            "id": "%d",
+            "to": "test_object.a[local.index]"
+        }
+    ],
+    "resource": {
+        "test_object": {
+            "a": [
+		        {
+                    "count": 1,
+		            "test_string": "foo"
+		        }
+            ]
+        }
+    }
 }
 `,
 			},
@@ -4488,7 +5423,7 @@ import {
 				},
 			}
 
-			plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 			if diags.HasErrors() {
 				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 			}
@@ -4529,191 +5464,6 @@ import {
 					t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
 				}
 			})
-		})
-	}
-}
-
-func TestContext2Plan_importForEach(t *testing.T) {
-	type ImportResult struct {
-		ResolvedAddress string
-		ResolvedId      string
-	}
-	type TestConfiguration struct {
-		Description         string
-		ImportResults       []ImportResult
-		inlineConfiguration map[string]string
-	}
-	configurations := []TestConfiguration{
-		{
-			Description:   "valid map",
-			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["key1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["key2"]`, ResolvedId: "val2"}, {ResolvedAddress: `test_object.a["key3"]`, ResolvedId: "val3"}},
-			inlineConfiguration: map[string]string{
-				"main.tf": `
-locals {
-  map = {
-    "key1" = "val1"
-    "key2" = "val2"
-    "key3" = "val3"
-  }
-}
-
-resource "test_object" "a" {
-  for_each = local.map
-}
-
-import {
-  for_each = local.map
-  to = test_object.a[each.key]
-  id = each.value
-}
-`,
-			},
-		},
-		{
-			Description:   "valid set",
-			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["val0"]`, ResolvedId: "val0"}, {ResolvedAddress: `test_object.a["val1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["val2"]`, ResolvedId: "val2"}},
-			inlineConfiguration: map[string]string{
-				"main.tf": `
-variable "set" {
-	type = set(string)
-	default = ["val0", "val1", "val2"]
-}
-
-resource "test_object" "a" {
-  for_each = var.set
-}
-
-import {
-  for_each = var.set
-  to = test_object.a[each.key]
-  id = each.value
-}
-`,
-			},
-		},
-		{
-			Description:   "valid tuple",
-			ImportResults: []ImportResult{{ResolvedAddress: `module.mod[0].test_object.a["resKey1"]`, ResolvedId: "val1"}, {ResolvedAddress: `module.mod[0].test_object.a["resKey2"]`, ResolvedId: "val2"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey1"]`, ResolvedId: "val3"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey2"]`, ResolvedId: "val4"}},
-			inlineConfiguration: map[string]string{
-				"mod/main.tf": `
-variable "set" {
-	type = set(string)
-	default = ["resKey1", "resKey2"]
-}
-
-resource "test_object" "a" {
-  for_each = var.set
-}
-`,
-				"main.tf": `
-locals {
-  tuple = [
-    {
-      moduleKey = 0
-      resourceKey = "resKey1"
-      id = "val1"
-    },
-    {
-      moduleKey = 0
-      resourceKey = "resKey2"
-      id = "val2"
-    },
-    {
-      moduleKey = 1
-      resourceKey = "resKey1"
-      id = "val3"
-    },
-    {
-      moduleKey = 1
-      resourceKey = "resKey2"
-      id = "val4"
-    },
-  ]
-}
-
-module "mod" {
-  count = 2
-  source = "./mod"
-}
-
-import {
-  for_each = local.tuple
-  id = each.value.id
-  to = module.mod[each.value.moduleKey].test_object.a[each.value.resourceKey]
-}
-`,
-			},
-		},
-	}
-
-	for _, configuration := range configurations {
-		t.Run(configuration.Description, func(t *testing.T) {
-			m := testModuleInline(t, configuration.inlineConfiguration)
-			p := simpleMockProvider()
-
-			hook := new(MockHook)
-			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{hook},
-				Providers: map[addrs.Provider]providers.Factory{
-					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-				},
-			})
-			p.ReadResourceResponse = &providers.ReadResourceResponse{
-				NewState: cty.ObjectVal(map[string]cty.Value{}),
-			}
-
-			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
-				ImportedResources: []providers.ImportedResource{
-					{
-						TypeName: "test_object",
-						State:    cty.ObjectVal(map[string]cty.Value{}),
-					},
-				},
-			}
-
-			plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
-			if diags.HasErrors() {
-				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-			}
-
-			if len(plan.Changes.Resources) != len(configuration.ImportResults) {
-				t.Fatalf("excpected %d resource chnages in the plan, got %d instead", len(configuration.ImportResults), len(plan.Changes.Resources))
-			}
-
-			for _, importResult := range configuration.ImportResults {
-				addr := mustResourceInstanceAddr(importResult.ResolvedAddress)
-
-				t.Run(addr.String(), func(t *testing.T) {
-					instPlan := plan.Changes.ResourceInstance(addr)
-					if instPlan == nil {
-						t.Fatalf("no plan for %s at all", addr)
-					}
-
-					if got, want := instPlan.Addr, addr; !got.Equal(want) {
-						t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-					}
-					if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
-						t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-					}
-					if got, want := instPlan.Action, plans.NoOp; got != want {
-						t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-					}
-					if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-					}
-					if instPlan.Importing.ID != importResult.ResolvedId {
-						t.Errorf("expected import change from \"%s\", got non-import change", importResult.ResolvedId)
-					}
-
-					if !hook.PrePlanImportCalled {
-						t.Fatalf("PostPlanImport hook not called")
-					}
-
-					if !hook.PostPlanImportCalled {
-						t.Fatalf("PostPlanImport hook not called")
-					}
-				})
-			}
 		})
 	}
 }
@@ -4871,7 +5621,494 @@ import {
 				},
 			}
 
-			_, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+
+			if !diags.HasErrors() {
+				t.Fatal("succeeded; want errors")
+			}
+			if got, want := diags.Err().Error(), configuration.expectedError; !strings.Contains(got, want) {
+				t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+			}
+		})
+	}
+}
+
+func TestContext2Plan_importForEach(t *testing.T) {
+	type ImportResult struct {
+		ResolvedAddress string
+		ResolvedId      string
+	}
+	type TestConfiguration struct {
+		Description         string
+		ImportResults       []ImportResult
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:   "valid map",
+			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["key1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["key2"]`, ResolvedId: "val2"}, {ResolvedAddress: `test_object.a["key3"]`, ResolvedId: "val3"}},
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  map = {
+    "key1" = "val1"
+    "key2" = "val2"
+    "key3" = "val3"
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "valid set",
+			ImportResults: []ImportResult{{ResolvedAddress: `test_object.a["val0"]`, ResolvedId: "val0"}, {ResolvedAddress: `test_object.a["val1"]`, ResolvedId: "val1"}, {ResolvedAddress: `test_object.a["val2"]`, ResolvedId: "val2"}},
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "set" {
+	type = set(string)
+	default = ["val0", "val1", "val2"]
+}
+
+resource "test_object" "a" {
+  for_each = var.set
+}
+
+import {
+  for_each = var.set
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "valid tuple",
+			ImportResults: []ImportResult{{ResolvedAddress: `module.mod[0].test_object.a["resKey1"]`, ResolvedId: "val1"}, {ResolvedAddress: `module.mod[0].test_object.a["resKey2"]`, ResolvedId: "val2"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey1"]`, ResolvedId: "val3"}, {ResolvedAddress: `module.mod[1].test_object.a["resKey2"]`, ResolvedId: "val4"}},
+			inlineConfiguration: map[string]string{
+				"mod/main.tf": `
+variable "set" {
+	type = set(string)
+	default = ["resKey1", "resKey2"]
+}
+
+resource "test_object" "a" {
+  for_each = var.set
+}
+`,
+				"main.tf": `
+locals {
+  tuple = [
+    {
+      moduleKey = 0
+      resourceKey = "resKey1"
+      id = "val1"
+    },
+    {
+      moduleKey = 0
+      resourceKey = "resKey2"
+      id = "val2"
+    },
+    {
+      moduleKey = 1
+      resourceKey = "resKey1"
+      id = "val3"
+    },
+    {
+      moduleKey = 1
+      resourceKey = "resKey2"
+      id = "val4"
+    },
+  ]
+}
+
+module "mod" {
+  count = 2
+  source = "./mod"
+}
+
+import {
+  for_each = local.tuple
+  id = each.value.id
+  to = module.mod[each.value.moduleKey].test_object.a[each.value.resourceKey]
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+			p := simpleMockProvider()
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{}),
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State:    cty.ObjectVal(map[string]cty.Value{}),
+					},
+				},
+			}
+
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			if len(plan.Changes.Resources) != len(configuration.ImportResults) {
+				t.Fatalf("expected %d resource changes in the plan, got %d instead", len(configuration.ImportResults), len(plan.Changes.Resources))
+			}
+
+			for _, importResult := range configuration.ImportResults {
+				addr := mustResourceInstanceAddr(importResult.ResolvedAddress)
+
+				t.Run(addr.String(), func(t *testing.T) {
+					instPlan := plan.Changes.ResourceInstance(addr)
+					if instPlan == nil {
+						t.Fatalf("no plan for %s at all", addr)
+					}
+
+					if got, want := instPlan.Addr, addr; !got.Equal(want) {
+						t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.PrevRunAddr, addr; !got.Equal(want) {
+						t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.Action, plans.NoOp; got != want {
+						t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+					}
+					if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+						t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+					}
+					if instPlan.Importing.ID != importResult.ResolvedId {
+						t.Errorf("expected import change from \"%s\", got non-import change", importResult.ResolvedId)
+					}
+
+					if !hook.PrePlanImportCalled {
+						t.Fatalf("PostPlanImport hook not called")
+					}
+
+					if !hook.PostPlanImportCalled {
+						t.Fatalf("PostPlanImport hook not called")
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		expectedError       string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:   "for_each value is null",
+			expectedError: "Invalid import id argument: The import ID cannot be null",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  map = {
+    "key1" = null
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each key is null",
+			expectedError: "Null value as key: Can't use a null value as a key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "nil" {
+	default = null
+}
+
+locals {
+  map = {
+    (var.nil) = "val1"
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is null",
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "map" {
+  default = null
+}
+
+resource "test_object" "a" {
+}
+
+import {
+  for_each = var.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each key is unknown",
+			expectedError: `The "for_each" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = {
+    (test_object.reference.id) = "val1"
+  }
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each value is unknown",
+			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = {
+    "key1" = (test_object.reference.id)
+  }
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is unknown",
+			expectedError: `Invalid for_each argument: The "for_each" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  set = toset([test_object.reference.id])
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.set
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each value is sensitive",
+			expectedError: "Invalid import id argument: The import ID cannot be sensitive.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+  map = {
+    "key1" = local.index
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each key is sensitive",
+			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+  map = {
+    (local.index) = "val1"
+  }
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is sensitive",
+			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = sensitive({
+    "key1" = "val1"
+  })
+}
+
+resource "test_object" "a" {
+  count = 0
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			providerSchema := &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"test_string": {
+						Type:     cty.String,
+						Optional: true,
+					},
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			}
+
+			p := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{Block: providerSchema},
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": providers.Schema{Block: providerSchema},
+					},
+				},
+			}
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			}
+
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				testStringVal := req.ProposedNewState.GetAttr("test_string")
+				return providers.PlanResourceChangeResponse{
+					PlannedState: cty.ObjectVal(map[string]cty.Value{
+						"test_string": testStringVal,
+						"id":          cty.UnknownVal(cty.String),
+					}),
+				}
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"test_string": cty.StringVal("foo"),
+						}),
+					},
+				},
+			}
+
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 
 			if !diags.HasErrors() {
 				t.Fatal("succeeded; want errors")
@@ -4929,9 +6166,10 @@ import {
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
@@ -4997,7 +6235,7 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
@@ -5063,7 +6301,7 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -5139,7 +6377,7 @@ import {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -5174,7 +6412,7 @@ func TestContext2Plan_importIdVariable(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		SetVariables: InputValues{
 			"the_id": &InputValue{
 				// let var take its default value
@@ -5207,7 +6445,7 @@ func TestContext2Plan_importIdReference(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		SetVariables: InputValues{
 			"the_id": &InputValue{
 				// let var take its default value
@@ -5240,7 +6478,7 @@ func TestContext2Plan_importIdFunc(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -5303,7 +6541,7 @@ func TestContext2Plan_importIdDataSource(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -5341,7 +6579,7 @@ func TestContext2Plan_importIdModule(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -5356,7 +6594,7 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		SetVariables: InputValues{
 			"the_id": &InputValue{
 				Value: cty.NullVal(cty.String),
@@ -5409,7 +6647,7 @@ func TestContext2Plan_importIdInvalidUnknown(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -5475,7 +6713,7 @@ resource "test_object" "a" {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
 	})
@@ -5648,7 +6886,7 @@ resource "test_object" "a" {
 				},
 			})
 
-			_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 				Mode: plans.NormalMode,
 			})
 
@@ -5764,7 +7002,7 @@ import {
 				},
 			}
 
-			_, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 
 			if !diags.HasErrors() {
 				t.Fatalf("expected error")
@@ -5820,7 +7058,7 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
 	})
@@ -5902,7 +7140,7 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
 	})
@@ -6164,7 +7402,7 @@ resource "test_object" "a" {
 				},
 			})
 
-			_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 				Mode:               plans.NormalMode,
 				GenerateConfigPath: "generated.tf",
 			})
@@ -6222,7 +7460,7 @@ import {
 		},
 	}
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf",
 	})
@@ -6272,7 +7510,7 @@ import {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:               plans.NormalMode,
 		GenerateConfigPath: "generated.tf", // Actual value here doesn't matter, as long as it is not empty.
 	})
@@ -6280,6 +7518,9 @@ import {
 		t.Fatal("expected error")
 	}
 
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a plan marked as errored")
+	}
 	instPlan := plan.Changes.ResourceInstance(addr)
 	if instPlan == nil {
 		t.Fatalf("no plan for %s at all", addr)
@@ -6295,6 +7536,88 @@ import {
 	got := instPlan.GeneratedConfig
 	if diff := cmp.Diff(want, got); len(diff) > 0 {
 		t.Errorf("got:\n%s\nwant:\n%s\ndiff:\n%s", got, want, diff)
+	}
+}
+
+func TestContext2Plan_providerForEachWithOrphanResourceInstanceNotUsingForEach(t *testing.T) {
+	// This test is to cover the bug reported in this issue:
+	//    https://github.com/opentofu/opentofu/issues/2334
+	//
+	// The bug there was that OpenTofu was failing to evaluate the provider
+	// instance key expression for a graph node representing a "orphaned"
+	// resource instance, and was thus always treating them as belonging to
+	// the no-key instance of the given provider. Since a for_each provider
+	// has no instance without an instance key, that caused an error trying
+	// to use a non-existent provider instance.
+
+	instAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_thing",
+		Name: "a",
+	}.Instance(addrs.StringKey("orphaned")).Absolute(addrs.RootModuleInstance)
+	providerConfigAddr := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: addrs.NewBuiltInProvider("test"),
+		Alias:    "multi",
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			provider "test" {
+				alias    = "multi"
+				for_each = toset(["a"])
+			}
+
+			resource "test_thing" "a" {
+				for_each = toset([])
+				provider = test.multi["a"]
+			}
+		`,
+	})
+	s := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceInstanceCurrent(
+			instAddr,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{}`),
+			},
+			providerConfigAddr,
+			addrs.NoKey, // NOTE: The prior state object is associated with a no-key instance of provider.test
+		)
+	})
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{},
+		},
+		ResourceTypes: map[string]providers.Schema{
+			"test_thing": {
+				Block: &configschema.Block{},
+			},
+		},
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerConfigAddr.Provider: testProviderFuncFixed(p),
+		},
+	})
+	_, diags := tofuCtx.Plan(context.Background(), m, s, DefaultPlanOpts)
+	err := diags.Err()
+	if err == nil {
+		t.Fatalf("unexpected success; want an error about %s not being declared", providerConfigAddr.InstanceString(addrs.NoKey))
+	}
+	got := err.Error()
+	wantSubstring := `To proceed, return to your previous single-instance configuration for provider["terraform.io/builtin/test"].multi and ensure that test_thing.a["orphaned"] has been destroyed or forgotten before using for_each with this provider, or change the resource configuration to still declare an instance with the key ["orphaned"].`
+	if !strings.Contains(got, wantSubstring) {
+		t.Errorf("missing expected error message\ngot:\n%s\nwant substring: %s", got, wantSubstring)
 	}
 }
 
@@ -6320,7 +7643,7 @@ locals {
 	})
 
 	state := states.NewState()
-	plan, diags := ctx.Plan(m, state, nil)
+	plan, diags := ctx.Plan(context.Background(), m, state, nil)
 	if diags.HasErrors() {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
@@ -6334,6 +7657,10 @@ locals {
 
 	if len(module.Resources) > 0 {
 		t.Errorf("expected no resources in the state but found %d", len(module.LocalValues))
+	}
+
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a non-nil plan marked as errored")
 	}
 
 	// But, this makes it hard for the testing framework to valid things about
@@ -6366,7 +7693,7 @@ func TestContext2Plan_removedResourceBasic(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceDeposed(
 			mustResourceInstanceAddr(addr.String()),
 			desposedKey,
@@ -6376,6 +7703,7 @@ func TestContext2Plan_removedResourceBasic(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{},
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -6386,7 +7714,7 @@ func TestContext2Plan_removedResourceBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6446,7 +7774,7 @@ func TestContext2Plan_removedModuleBasic(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceDeposed(
 			mustResourceInstanceAddr(addr.String()),
 			desposedKey,
@@ -6456,6 +7784,7 @@ func TestContext2Plan_removedModuleBasic(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{},
 			},
 			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
 		)
 	})
 
@@ -6466,7 +7795,7 @@ func TestContext2Plan_removedModuleBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6528,11 +7857,11 @@ func TestContext2Plan_removedModuleForgetsAllInstances(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrFirst, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrSecond, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6542,7 +7871,7 @@ func TestContext2Plan_removedModuleForgetsAllInstances(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrFirst, addrSecond,
@@ -6594,11 +7923,11 @@ func TestContext2Plan_removedResourceForgetsAllInstances(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrFirst, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 		s.SetResourceInstanceCurrent(addrSecond, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6608,7 +7937,7 @@ func TestContext2Plan_removedResourceForgetsAllInstances(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrFirst, addrSecond,
@@ -6662,7 +7991,7 @@ func TestContext2Plan_removedResourceInChildModuleFromParentModule(t *testing.T)
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6672,7 +8001,7 @@ func TestContext2Plan_removedResourceInChildModuleFromParentModule(t *testing.T)
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6720,11 +8049,11 @@ func TestContext2Plan_removedResourceInChildModuleFromChildModule(t *testing.T) 
 
 	state := states.BuildState(func(s *states.SyncState) {
 		// The prior state tracks module.mod.test_object.a.a, which we should be
-		// removed from the state by the "removed" block in the child mofule config.
+		// removed from the state by the "removed" block in the child module config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6734,7 +8063,7 @@ func TestContext2Plan_removedResourceInChildModuleFromChildModule(t *testing.T) 
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6787,7 +8116,7 @@ func TestContext2Plan_removedResourceInGrandchildModuleFromRootModule(t *testing
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6797,7 +8126,7 @@ func TestContext2Plan_removedResourceInGrandchildModuleFromRootModule(t *testing
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6850,7 +8179,7 @@ func TestContext2Plan_removedChildModuleForgetsResourceInGrandchildModule(t *tes
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6860,7 +8189,7 @@ func TestContext2Plan_removedChildModuleForgetsResourceInGrandchildModule(t *tes
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -6918,7 +8247,7 @@ func TestContext2Plan_movedAndRemovedResourceAtTheSameTime(t *testing.T) {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6928,7 +8257,7 @@ func TestContext2Plan_movedAndRemovedResourceAtTheSameTime(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addrA,
@@ -6983,7 +8312,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExists(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -6993,7 +8322,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExists(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -7016,7 +8345,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t 
 			module "mod" {
 				source = "./mod"
 			}
-			
+
 			removed {
 				from = module.mod.test_object.a
 			}
@@ -7032,7 +8361,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t 
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -7042,7 +8371,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t 
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -7081,7 +8410,7 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	p := simpleMockProvider()
@@ -7091,7 +8420,7 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		ForceReplace: []addrs.AbsResourceInstance{
 			addr,
@@ -7172,7 +8501,7 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
@@ -7213,4 +8542,90 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 			t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
 		}
 	})
+}
+
+func TestContext2Plan_insufficient_block(t *testing.T) {
+	type testcase struct {
+		filename string
+		start    hcl.Pos
+		end      hcl.Pos
+	}
+
+	tests := map[string]testcase{
+		"insufficient-features-blocks-aliased-provider": {
+			filename: "provider[\"registry.opentofu.org/hashicorp/test\"] with no configuration",
+			start:    hcl.InitialPos,
+			end:      hcl.InitialPos,
+		},
+		"insufficient-features-blocks-nested_module": {
+			filename: "provider[\"registry.opentofu.org/hashicorp/test\"] with no configuration",
+			start:    hcl.InitialPos,
+			end:      hcl.InitialPos,
+		},
+		"insufficient-features-blocks-no-feats": {
+			filename: "testdata/insufficient-features-blocks-no-feats/main.tf",
+			start:    hcl.Pos{Line: 9, Column: 17, Byte: 146},
+			end:      hcl.Pos{Line: 9, Column: 17, Byte: 146},
+		},
+	}
+
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			m := testModule(t, testName)
+			p := mockProviderWithFeaturesBlock()
+
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+			var expectedDiags tfdiags.Diagnostics
+
+			expectedDiags = expectedDiags.Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Insufficient features blocks",
+					Detail:   "At least 1 \"features\" blocks are required.",
+					Subject: &hcl.Range{
+						Filename: tc.filename,
+						Start:    tc.start,
+						End:      tc.end,
+					},
+				},
+			)
+
+			assertDiagnosticsMatch(t, diags, expectedDiags)
+		})
+	}
+}
+
+func mockProviderWithFeaturesBlock() *MockProvider {
+	return &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: featuresBlockTestSchema()},
+			ResourceTypes: map[string]providers.Schema{
+				"test_object": {Block: simpleTestSchema()},
+			},
+		},
+	}
+}
+
+func featuresBlockTestSchema() *configschema.Block {
+	return &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"test_string": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+		BlockTypes: map[string]*configschema.NestedBlock{
+			"features": {
+				MinItems: 1,
+				MaxItems: 1,
+				Nesting:  configschema.NestingList,
+			},
+		},
+	}
 }

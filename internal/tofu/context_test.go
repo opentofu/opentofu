@@ -8,6 +8,7 @@ package tofu
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -18,11 +19,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-version"
+	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -30,8 +34,8 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
 )
 
 var (
@@ -106,7 +110,7 @@ func TestNewContextRequiredVersion(t *testing.T) {
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
 
-			diags = c.Validate(mod)
+			diags = c.Validate(context.Background(), mod)
 			if diags.HasErrors() != tc.Err {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -165,7 +169,7 @@ terraform {}
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
 
-			diags = c.Validate(mod)
+			diags = c.Validate(context.Background(), mod)
 			if diags.HasErrors() != tc.Err {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -210,8 +214,8 @@ resource "implicit_thing" "b" {
 	// require doing some pretty weird things that aren't common enough to
 	// be worth the complexity to check for them.
 
-	validateDiags := ctx.Validate(cfg)
-	_, planDiags := ctx.Plan(cfg, nil, DefaultPlanOpts)
+	validateDiags := ctx.Validate(context.Background(), cfg)
+	_, planDiags := ctx.Plan(context.Background(), cfg, nil, DefaultPlanOpts)
 
 	tests := map[string]tfdiags.Diagnostics{
 		"validate": validateDiags,
@@ -253,7 +257,72 @@ resource "implicit_thing" "b" {
 	}
 }
 
-func testContext2(t *testing.T, opts *ContextOpts) *Context {
+func TestContext_contextValuesPropagation(t *testing.T) {
+	// This test verifies that our code is propagating context.Context values
+	// through the system at least well enough that they can reach provider
+	// calls. It does so using [tracing.ContextProbe], which is a helper for
+	// probing to make sure that values (in this case, the probe itself)
+	// are able to reach calls to [tracing.ContextProbeReport] that are included
+	// in the [MockProvider] methods.
+
+	ctx, probe := tracing.NewContextProbe(t, t.Context())
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewBuiltInProvider("test"): providers.FactoryFixed(&MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{
+						Block: &configschema.Block{},
+					},
+					ResourceTypes: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+					DataSources: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+				},
+				ReadDataSourceResponse: &providers.ReadDataSourceResponse{
+					State: cty.EmptyObjectVal,
+				},
+			}),
+		},
+	})
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+			resource "test" "test" {}
+			data "test" "test" {}
+		`,
+	})
+
+	plan, diags := tofuCtx.Plan(ctx, m, states.NewState(), DefaultPlanOpts)
+	assertNoErrors(t, diags)
+	_, diags = tofuCtx.Apply(ctx, plan, m)
+	assertNoErrors(t, diags)
+
+	probe.ExpectReportsFrom(t,
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).GetProviderSchema",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateProviderConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateDataResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ConfigureProvider",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ReadDataSource",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).PlanResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ApplyResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).Close",
+	)
+}
+
+func testContext2(t testing.TB, opts *ContextOpts) *Context {
 	t.Helper()
 
 	ctx, diags := NewContext(opts)
@@ -367,7 +436,6 @@ func testDiffFn(req providers.PlanResourceChangeRequest) (resp providers.PlanRes
 	resp.PlannedState = cty.ObjectVal(planned)
 	return
 }
-
 func testProvider(prefix string) *MockProvider {
 	p := new(MockProvider)
 	p.GetProviderSchemaResponse = testProviderSchema(prefix)
@@ -742,7 +810,7 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 		return nil, nil, nil, err
 	}
 
-	config, diags := pr.ReadConfig()
+	config, diags := pr.ReadConfig(t.Context(), configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		return nil, nil, nil, diags.Err()
 	}
@@ -762,7 +830,7 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 }
 
 // legacyPlanComparisonString produces a string representation of the changes
-// from a plan and a given state togther, as was formerly produced by the
+// from a plan and a given state together, as was formerly produced by the
 // String method of tofu.Plan.
 //
 // This is here only for compatibility with existing tests that predate our
@@ -951,7 +1019,7 @@ func legacyDiffComparisonString(changes *plans.Changes) string {
 
 // assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
 // diagnostics is non-empty.
-func assertNoDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
+func assertNoDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	if len(diags) == 0 {
 		return
@@ -962,7 +1030,7 @@ func assertNoDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 
 // assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
 // diagnostics has any errors.
-func assertNoErrors(t *testing.T, diags tfdiags.Diagnostics) {
+func assertNoErrors(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	if !diags.HasErrors() {
 		return
@@ -979,7 +1047,7 @@ func assertNoErrors(t *testing.T, diags tfdiags.Diagnostics) {
 // assertDiagnosticsMatch sorts the two sets of diagnostics in the usual way
 // before comparing them, though diagnostics only have a partial order so that
 // will not totally normalize the ordering of all diagnostics sets.
-func assertDiagnosticsMatch(t *testing.T, got, want tfdiags.Diagnostics) {
+func assertDiagnosticsMatch(t testing.TB, got, want tfdiags.Diagnostics) {
 	got = got.ForRPC()
 	want = want.ForRPC()
 	got.Sort()
@@ -994,7 +1062,7 @@ func assertDiagnosticsMatch(t *testing.T, got, want tfdiags.Diagnostics) {
 // a test. It does not generate any errors or fail the test. See
 // assertNoDiagnostics and assertNoErrors for more specific helpers that can
 // also fail the test.
-func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
+func logDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	for _, diag := range diags {
 		desc := diag.Description()

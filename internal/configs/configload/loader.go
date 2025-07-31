@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/registry"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/spf13/afero"
+
+	"github.com/opentofu/opentofu/internal/configs"
 )
 
 // A Loader instance is the main entry-point for loading configurations via
@@ -38,12 +38,6 @@ type Config struct {
 	// .terraform/modules directory, in the common case where this package
 	// is being loaded from the main OpenTofu CLI package.)
 	ModulesDir string
-
-	// Services is the service discovery client to use when locating remote
-	// module registry endpoints. If this is nil then registry sources are
-	// not supported, which should be true only in specialized circumstances
-	// such as in tests.
-	Services *disco.Disco
 }
 
 // NewLoader creates and returns a loader that reads configuration from the
@@ -55,7 +49,6 @@ type Config struct {
 func NewLoader(config *Config) (*Loader, error) {
 	fs := afero.NewOsFs()
 	parser := configs.NewParser(fs)
-	reg := registry.NewClient(config.Services, nil)
 
 	ret := &Loader{
 		parser: parser,
@@ -63,8 +56,6 @@ func NewLoader(config *Config) (*Loader, error) {
 			FS:         afero.Afero{Fs: fs},
 			CanInstall: true,
 			Dir:        config.ModulesDir,
-			Services:   config.Services,
-			Registry:   reg,
 		},
 	}
 
@@ -111,7 +102,7 @@ func (l *Loader) Parser() *configs.Parser {
 
 // Sources returns the source code cache for the underlying parser of this
 // loader. This is a shorthand for l.Parser().Sources().
-func (l *Loader) Sources() map[string][]byte {
+func (l *Loader) Sources() map[string]*hcl.File {
 	return l.parser.Sources()
 }
 

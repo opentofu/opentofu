@@ -28,8 +28,9 @@ func TestNodeDataDestroyExecute(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		StateState: state.SyncWrapper(),
 	}
 
@@ -41,7 +42,7 @@ func TestNodeDataDestroyExecute(t *testing.T) {
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 	}}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %v", diags.Err())
 	}

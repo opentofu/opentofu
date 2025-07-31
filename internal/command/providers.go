@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -34,8 +35,11 @@ func (c *ProvidersCommand) Synopsis() string {
 func (c *ProvidersCommand) Run(args []string) int {
 	var testsDirectory string
 
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
@@ -75,7 +79,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(configPath, testsDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, configPath, testsDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -83,7 +87,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -91,7 +95,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -104,17 +108,17 @@ func (c *ProvidersCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
 	}
-	s, err := b.StateMgr(env)
+	s, err := b.StateMgr(ctx, env)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
@@ -199,4 +203,13 @@ Options:
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
                         test command will search for test files in the current directory and
                         in the one specified by the flag.
+
+  -var 'foo=bar'        Set a value for one of the input variables in the root
+                        module of the configuration. Use this option more than
+                        once to set more than one variable.
+
+  -var-file=filename    Load variable values from the given file, in addition
+                        to the default files terraform.tfvars and *.auto.tfvars.
+                        Use this option more than once to include more than one
+                        variables file.
 `

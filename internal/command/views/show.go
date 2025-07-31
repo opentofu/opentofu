@@ -7,11 +7,13 @@ package views
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonconfig"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
@@ -24,8 +26,26 @@ import (
 )
 
 type Show interface {
-	// Display renders the plan, if it is available. If plan is nil, it renders the statefile.
-	Display(config *configs.Config, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, stateFile *statefile.File, schemas *tofu.Schemas) int
+	// DisplayState renders the given state snapshot, returning a status code for "tofu show" to return.
+	DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int
+
+	// DisplayPlan renders the given plan, returning a status code for "tofu show" to return.
+	//
+	// Unfortunately there are two possible ways to represent a plan:
+	// - Locally-generated plans are loaded as *plans.Plan.
+	// - Remotely-generated plans (using remote operations) are loaded as *cloudplan.RemotePlanJSON.
+	//
+	// Therefore the implementation of this method must handle both cases,
+	// preferring planJSON if it is not nil and using plan otherwise.
+	DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int
+
+	// DisplayConfig renders the given configuration, returning a status code for "tofu show" to return.
+	DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int
+
+	// DisplaySingleModule renders just one module, in a format that's a subset
+	// of that used by [Show.DisplayConfig] which we can produce without
+	// schema or child module information.
+	DisplaySingleModule(module *configs.Module) int
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -48,11 +68,43 @@ type ShowHuman struct {
 
 var _ Show = (*ShowHuman)(nil)
 
-func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, stateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowHuman) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.view.runningInAutomation,
+		ShowSensitive:       v.view.showSensitive,
+	}
+
+	if stateFile == nil {
+		v.view.streams.Println("No state.")
+		return 0
+	}
+
+	root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
+		return 1
+	}
+
+	jstate := jsonformat.State{
+		StateFormatVersion:    jsonstate.FormatVersion,
+		ProviderFormatVersion: jsonprovider.FormatVersion,
+		RootModule:            root,
+		RootModuleOutputs:     outputs,
+		ProviderSchemas:       jsonprovider.MarshalForRenderer(schemas),
+	}
+
+	renderer.RenderHumanState(jstate)
+	return 0
+}
+
+func (v *ShowHuman) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
+	renderer := jsonformat.Renderer{
+		Colorize:            v.view.colorize,
+		Streams:             v.view.streams,
+		RunningInAutomation: v.view.runningInAutomation,
+		ShowSensitive:       v.view.showSensitive,
 	}
 
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back
@@ -99,28 +151,23 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 
 		renderer.RenderHumanPlan(jplan, plan.UIMode, opts...)
 	} else {
-		if stateFile == nil {
-			v.view.streams.Println("No state.")
-			return 0
-		}
-
-		root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
-		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
-			return 1
-		}
-
-		jstate := jsonformat.State{
-			StateFormatVersion:    jsonstate.FormatVersion,
-			ProviderFormatVersion: jsonprovider.FormatVersion,
-			RootModule:            root,
-			RootModuleOutputs:     outputs,
-			ProviderSchemas:       jsonprovider.MarshalForRenderer(schemas),
-		}
-
-		renderer.RenderHumanState(jstate)
+		v.view.streams.Println("No plan.")
 	}
 	return 0
+}
+
+func (v *ShowHuman) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
+	// The human view should never be called for configuration display
+	// since we require -json for -config
+	v.view.streams.Eprintf("Internal error: human view should not be used for configuration display")
+	return 1
+}
+
+func (v *ShowHuman) DisplaySingleModule(_ *configs.Module) int {
+	// The human view should never be called for module display
+	// since we require -json for -module=DIR.
+	v.view.streams.Eprintf("Internal error: human view should not be used for module display")
+	return 1
 }
 
 func (v *ShowHuman) Diagnostics(diags tfdiags.Diagnostics) {
@@ -133,7 +180,17 @@ type ShowJSON struct {
 
 var _ Show = (*ShowJSON)(nil)
 
-func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, stateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	jsonState, err := jsonstate.Marshal(stateFile, schemas)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
+		return 1
+	}
+	v.view.streams.Println(string(jsonState))
+	return 0
+}
+
+func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back
 	// to building one ourselves.
 	if planJSON != nil {
@@ -143,7 +200,7 @@ func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *c
 		}
 		v.view.streams.Println(string(planJSON.JSONBytes))
 	} else if plan != nil {
-		planJSON, err := jsonplan.Marshal(config, plan, stateFile, schemas)
+		planJSON, err := jsonplan.Marshal(config, plan, priorStateFile, schemas)
 
 		if err != nil {
 			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
@@ -151,15 +208,31 @@ func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *c
 		}
 		v.view.streams.Println(string(planJSON))
 	} else {
-		// It is possible that there is neither state nor a plan.
-		// That's ok, we'll just return an empty object.
-		jsonState, err := jsonstate.Marshal(stateFile, schemas)
-		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
-			return 1
-		}
-		v.view.streams.Println(string(jsonState))
+		// Should not get here because at least one of the two plan arguments
+		// should be present, but we'll tolerate this by just returning an
+		// empty JSON object.
+		v.view.streams.Println("{}")
 	}
+	return 0
+}
+
+func (v *ShowJSON) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
+	configJSON, err := jsonconfig.Marshal(config, schemas)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal configuration to JSON: %s", err)
+		return 1
+	}
+	v.view.streams.Println(string(configJSON))
+	return 0
+}
+
+func (v *ShowJSON) DisplaySingleModule(module *configs.Module) int {
+	moduleJSON, err := jsonconfig.MarshalSingleModule(module)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal module contents to JSON: %s", err)
+		return 1
+	}
+	v.view.streams.Println(string(moduleJSON))
 	return 0
 }
 

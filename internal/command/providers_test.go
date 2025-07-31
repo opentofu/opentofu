@@ -6,7 +6,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -14,14 +13,7 @@ import (
 )
 
 func TestProviders(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/basic")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(testFixturePath("providers/basic"))
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -50,14 +42,7 @@ func TestProviders(t *testing.T) {
 }
 
 func TestProviders_noConfigs(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(testFixturePath(""))
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -82,7 +67,7 @@ func TestProviders_noConfigs(t *testing.T) {
 func TestProviders_modules(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("providers/modules"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// first run init with mock provider sources to install the module
 	initUi := new(cli.MockUi)
@@ -133,14 +118,7 @@ func TestProviders_modules(t *testing.T) {
 }
 
 func TestProviders_state(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/state")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(testFixturePath("providers/state"))
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -158,7 +136,7 @@ func TestProviders_state(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
 		"provider[registry.opentofu.org/hashicorp/bar] 2.0.0", // from a provider config block
 		"Providers required by state",                         // header for state providers
-		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resouce in state (only)
+		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resource in state (only)
 	}
 
 	output := ui.OutputWriter.String()
@@ -170,14 +148,7 @@ func TestProviders_state(t *testing.T) {
 }
 
 func TestProviders_tests(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/tests")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(testFixturePath("providers/tests"))
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{

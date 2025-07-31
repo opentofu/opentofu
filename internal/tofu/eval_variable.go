@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -199,14 +202,14 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 // This must be used only after any side-effects that make the value of the
 // variable available for use in expression evaluation, such as
 // EvalModuleCallArgument for variables in descendent modules.
-func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) (diags tfdiags.Diagnostics) {
+func evalVariableValidations(ctx context.Context, addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	if config == nil || len(config.Validations) == 0 {
 		log.Printf("[TRACE] evalVariableValidations: no validation rules declared for %s, so skipping", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableValidations: validating %s", addr)
 
-	checkState := ctx.Checks()
+	checkState := evalCtx.Checks()
 	if !checkState.ConfigHasChecks(addr.ConfigCheckable()) {
 		// We have nothing to do if this object doesn't have any checks,
 		// but the "rules" slice should agree that we don't.
@@ -225,7 +228,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 	// bypass our usual evaluation machinery here and just produce a minimal
 	// evaluation context containing just the required value, and thus avoid
 	// the problem that ctx's evaluation functions refer to the wrong module.
-	val := ctx.GetVariableValue(addr)
+	val := evalCtx.GetVariableValue(addr)
 	if val == cty.NilVal {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -234,16 +237,42 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		})
 		return diags
 	}
-	hclCtx := &hcl.EvalContext{
-		Variables: map[string]cty.Value{
-			"var": cty.ObjectVal(map[string]cty.Value{
-				config.Name: val,
-			}),
-		},
-		Functions: ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey).Functions(),
+	if config.Sensitive {
+		// Normally this marking is handled automatically during construction
+		// of the HCL eval context the evaluation scope, but this codepath
+		// augments that scope with the not-yet-finalized input variable
+		// value, so we need to apply this mark separately.
+		val = val.Mark(marks.Sensitive)
 	}
-
 	for ix, validation := range config.Validations {
+		condRefs, condDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
+		diags = diags.Append(condDiags)
+		errRefs, errDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
+		diags = diags.Append(errDiags)
+
+		if diags.HasErrors() {
+			continue
+		}
+
+		hclCtx, ctxDiags := evalCtx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(ctx, append(condRefs, errRefs...))
+		diags = diags.Append(ctxDiags)
+		if diags.HasErrors() {
+			continue
+		}
+
+		// Inject known value into hclCtx as it's not technically available until the check status has been reported
+		if vars, ok := hclCtx.Variables["var"]; ok {
+			// Clone map
+			varMap := vars.AsValueMap() // explicit copy
+			varMap[config.Name] = val
+			hclCtx.Variables["var"] = cty.ObjectVal(varMap)
+		} else {
+			// new map
+			hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
+				config.Name: val,
+			})
+		}
+
 		result, ruleDiags := evalVariableValidation(validation, hclCtx, addr, config, expr, ix)
 		diags = diags.Append(ruleDiags)
 
@@ -265,6 +294,10 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 
 	result, moreDiags := validation.Condition.Value(hclCtx)
 	diags = diags.Append(moreDiags)
+
+	result, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(result, validation.Condition)
+	diags = diags.Append(deprDiags)
+
 	errorValue, errorDiags := validation.ErrorMessage.Value(hclCtx)
 
 	// The following error handling is a workaround to preserve backwards
@@ -318,6 +351,9 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 		diags = diags.Append(errorDiags)
 	}
 
+	errorValue, deprDiags = marks.ExtractDeprecatedDiagnosticsWithExpr(errorValue, validation.ErrorMessage)
+	diags = diags.Append(deprDiags)
+
 	if diags.HasErrors() {
 		log.Printf("[TRACE] evalVariableValidations: %s rule %s check rule evaluation failed: %s", addr, validation.DeclRange, diags.Err().Error())
 	}
@@ -362,6 +398,22 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	}
 
 	var errorMessage string
+	if !errorDiags.HasErrors() && !errorValue.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid error message",
+			Detail:      "Value used in error message is not known and can not be used in error_message until after apply.",
+			Subject:     validation.ErrorMessage.Range().Ptr(),
+			Expression:  validation.ErrorMessage,
+			EvalContext: hclCtx,
+			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+		})
+		// Return early
+		return checkResult{
+			Status:         status,
+			FailureMessage: errorMessage,
+		}, diags
+	}
 	if !errorDiags.HasErrors() && errorValue.IsKnown() && !errorValue.IsNull() {
 		var err error
 		errorValue, err = convert.Convert(errorValue, cty.String)
@@ -387,9 +439,13 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {
+				// errorValue could have deprecated marks as well,
+				// so we need to unmark to not get panic from AsString()
+				errorValue = marks.RemoveDeepDeprecated(errorValue)
 				errorMessage = strings.TrimSpace(errorValue.AsString())
 			}
 		}
@@ -431,4 +487,78 @@ You can correct this by removing references to sensitive values, or by carefully
 		Status:         status,
 		FailureMessage: errorMessage,
 	}, diags
+}
+
+// evalVariableDeprecation checks if a variable is deprecated and if so, it returns a warning diagnostic to be shown to the user
+func evalVariableDeprecation(
+	addr addrs.AbsInputVariableInstance,
+	config *configs.Variable,
+	expr hcl.Expression,
+	ctx EvalContext,
+	variableFromRemoteModule bool) tfdiags.Diagnostics {
+	if config.Deprecated == "" {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q does not have deprecation configured", addr)
+		return nil
+	}
+	// if the variable is not given in the module call, do not show a warning
+	if expr == nil {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but is not used", addr)
+		return nil
+	}
+	val := ctx.GetVariableValue(addr)
+	if val == cty.NilVal {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but no value given", addr)
+		return nil
+	}
+	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)
+	var diags tfdiags.Diagnostics
+	return diags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  `Variable marked as deprecated by the module author`,
+		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
+		Subject:  expr.Range().Ptr(),
+		Extra: VariableDeprecationCause{
+			// Used to identify the input on the consolidation diagnostics and
+			// make sure they are showed separately, by using the address of the
+			// module variable. Since these always be different, variables won't consolidate,
+			// but after we have a reliable way to get the address on remote modules, we can consolidate them.
+			Key:                fmt.Sprintf("%s\n%s", config.Name, config.Deprecated),
+			IsFromRemoteModule: variableFromRemoteModule,
+		},
+	})
+}
+
+// diagnosticExtraVariableDeprecationCause is defining the contract a struct needs to fulfill
+// to be able to mark a diagnostic as one carrying information about a deprecated variable.
+type diagnosticExtraVariableDeprecationCause interface {
+	diagnosticDeprecationCause() VariableDeprecationCause
+}
+
+// DiagnosticVariableDeprecationCause checks whether the given diagnostic is
+// a deprecation warning, and if so returns the deprecation cause and
+// true. If not, returns the zero value of DeprecationCause and false.
+func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprecationCause, bool) {
+	maybe := tfdiags.ExtraInfo[diagnosticExtraVariableDeprecationCause](diag)
+	if maybe == nil {
+		return VariableDeprecationCause{}, false
+	}
+	return maybe.diagnosticDeprecationCause(), true
+}
+
+// VariableDeprecationCause is just a container that it holds the flag that the deprecated variable was marked with.
+// This flag is going to be used later to decide on showing this diagnostic or not based on the level that the user
+// has provided in the CLI args.
+type VariableDeprecationCause struct {
+	IsFromRemoteModule bool
+	Key                string
+}
+
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+func (c VariableDeprecationCause) ExtraInfoKey() string {
+	return c.Key
+}
+
+// VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause
+func (c VariableDeprecationCause) diagnosticDeprecationCause() VariableDeprecationCause {
+	return c
 }

@@ -51,6 +51,9 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 		v.Sensitive = ov.Sensitive
 		v.SensitiveSet = ov.SensitiveSet
 	}
+	if ov.Deprecated != "" {
+		v.Deprecated = ov.Deprecated
+	}
 	if ov.Default != cty.NilVal {
 		v.Default = ov.Default
 	}
@@ -75,7 +78,7 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 	// but in particular might be user-observable in the edge case where the
 	// literal value in config could've been converted to the overridden type
 	// constraint but the converted value cannot. In practice, this situation
-	// should be rare since most of our conversions are interchangable.
+	// should be rare since most of our conversions are interchangeable.
 	if v.Default != cty.NilVal {
 		val, err := convert.Convert(v.Default, v.ConstraintType)
 		if err != nil {
@@ -150,6 +153,9 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 		o.Sensitive = oo.Sensitive
 		o.SensitiveSet = oo.SensitiveSet
 	}
+	if oo.Deprecated != "" {
+		o.Deprecated = oo.Deprecated
+	}
 
 	// We don't allow depends_on to be overridden because that is likely to
 	// cause confusing misbehavior.
@@ -169,9 +175,7 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if omc.SourceSet {
-		mc.SourceAddr = omc.SourceAddr
-		mc.SourceAddrRaw = omc.SourceAddrRaw
-		mc.SourceAddrRange = omc.SourceAddrRange
+		mc.Source = omc.Source
 		mc.SourceSet = omc.SourceSet
 	}
 
@@ -183,8 +187,8 @@ func (mc *ModuleCall) merge(omc *ModuleCall) hcl.Diagnostics {
 		mc.ForEach = omc.ForEach
 	}
 
-	if len(omc.Version.Required) != 0 {
-		mc.Version = omc.Version
+	if omc.VersionAttr != nil {
+		mc.VersionAttr = omc.VersionAttr
 	}
 
 	mc.Config = MergeBodies(mc.Config, omc.Config)

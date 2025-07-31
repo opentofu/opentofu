@@ -8,7 +8,7 @@ description: >-
 
 A backend defines where OpenTofu stores its [state](../../../language/state/index.mdx) data files.
 
-OpenTofu uses persisted state data to keep track of the resources it manages. Most non-trivial OpenTofu configurations either integrate with TACOS (TF Automation and Collaboration Software) or use a backend to store state remotely. This lets multiple people access the state data and work together on that collection of infrastructure resources.
+OpenTofu uses persisted state data to keep track of the resources it manages. Most non-trivial OpenTofu configurations either integrate with [TACOS](../../../intro/tacos.mdx) (TF Automation and Collaboration Software) or use a backend to store state remotely. This lets multiple people access the state data and work together on that collection of infrastructure resources.
 
 This page describes how to configure a backend by adding the [`backend` block](#using-a-backend-block) to your configuration.
 
@@ -20,7 +20,7 @@ Some of these backends act like plain remote disks for state files, while others
 
 ## Using a Backend Block
 
-You do not need to configure a backend when using TACOS (TF Automation and Collaboration Software) because
+You do not need to configure a backend when using [TACOS](../../../intro/tacos.mdx) (TF Automation and Collaboration Software) because
 it automatically manages state in the workspaces associated with your configuration. If your configuration includes a [`cloud` block](../../../language/settings/tf-cloud.mdx), it cannot include a `backend` block.
 
 To configure a backend, add a nested `backend` block within the top-level
@@ -41,7 +41,7 @@ terraform {
 There are some important limitations on backend configuration:
 
 - A configuration can only provide one backend block.
-- A backend block cannot refer to named values (like input variables, locals, or data source attributes).
+- A backend block cannot refer to values in the state or locals derived from the state (data source attributes).
 
 ### Credentials and Sensitive Data
 
@@ -79,7 +79,7 @@ or state operations.
 
 After you initialize, OpenTofu creates a `.terraform/` directory locally. This directory contains the most recent backend configuration, including any authentication parameters you provided to the OpenTofu CLI. Do not check this directory into Git, as it may contain sensitive credentials for your remote backend.
 
-The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](../../../language/state/index.mdx) about your real-world infrastruture. OpenTofu stores the `terraform.tfstate` file in your remote backend.
+The local backend configuration is different and entirely separate from the `terraform.tfstate` file that contains [state data](../../../language/state/index.mdx) about your real-world infrastructure. OpenTofu stores the `terraform.tfstate` file in your remote backend.
 
 When you change backends, OpenTofu gives you the option to migrate
 your state to the new backend. This lets you adopt backends without losing
@@ -173,6 +173,26 @@ the Consul token would be provided by setting either the `CONSUL_HTTP_TOKEN`
 or `CONSUL_HTTP_AUTH` environment variables. See the documentation of your
 chosen backend to learn how to provide credentials to it outside of its main
 configuration.
+
+## Variables and Locals
+
+You may use variables and locals in backend configurations (with restrictions). Backend configuration may not contain any references to data in the state or provider defined functions. All values must be able to be resolved during `tofu init` before the state is available.
+
+:::danger Warning
+We recommend against using variables to specify secrets or other sensitive data in your backend configuration. This can leak sensitive credentials if improperly configured.
+:::
+
+```hcl
+locals {
+	region = "us-east-1"
+}
+
+terraform {
+	backend "s3" {
+		region = local.region
+	}
+}
+```
 
 ## Changing Configuration
 

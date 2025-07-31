@@ -6,6 +6,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -19,7 +20,7 @@ const (
 	keyEnvPrefix = "-env:"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	// List our raw path
 	prefix := b.configData.Get("path").(string) + keyEnvPrefix
 	keys, _, err := b.client.KV().Keys(prefix, "/", nil)
@@ -47,14 +48,14 @@ func (b *Backend) Workspaces() ([]string, error) {
 
 	result := make([]string, 1, len(envs)+1)
 	result[0] = backend.DefaultStateName
-	for k, _ := range envs {
+	for k := range envs {
 		result = append(result, k)
 	}
 
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -68,7 +69,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return err
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	// Determine the path of the data
 	path := b.path(name)
 
@@ -100,14 +101,14 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// so States() knows it exists.
 	lockInfo := statemgr.NewLockInfo()
 	lockInfo.Operation = "init"
-	lockId, err := stateMgr.Lock(lockInfo)
+	lockId, err := stateMgr.Lock(context.TODO(), lockInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lock state in Consul: %w", err)
 	}
 
 	// Local helper function so we can call it multiple places
 	lockUnlock := func(parent error) error {
-		if err := stateMgr.Unlock(lockId); err != nil {
+		if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 			return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockId, err)
 		}
 
@@ -115,7 +116,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		err = lockUnlock(err)
 		return nil, err
 	}
@@ -126,7 +127,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			err = lockUnlock(err)
 			return nil, err
 		}
-		if err := stateMgr.PersistState(nil); err != nil {
+		if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}

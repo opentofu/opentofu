@@ -6,15 +6,13 @@
 package command
 
 import (
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestPluginPath(t *testing.T) {
-	td := testTempDir(t)
-	defer os.RemoveAll(td)
-	defer testChdir(t, td)()
+	td := testTempDirRealpath(t)
+	t.Chdir(td)
 
 	pluginPath := []string{"a", "b", "c"}
 
@@ -41,7 +39,7 @@ func TestInternalProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	schema := tfProvider.GetProviderSchema()
+	schema := tfProvider.GetProviderSchema(t.Context())
 	_, found := schema.DataSources["terraform_remote_state"]
 	if !found {
 		t.Errorf("didn't find terraform_remote_state in internal \"terraform\" provider")

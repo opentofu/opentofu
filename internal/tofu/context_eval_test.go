@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -49,7 +50,7 @@ func TestContextEval(t *testing.T) {
 		},
 	}
 
-	// This module has a little bit of everything (and if it is missing somehitng, add to it):
+	// This module has a little bit of everything (and if it is missing something, add to it):
 	// resources, variables, locals, modules, output
 	m := testModule(t, "eval-context-basic")
 	p := testProvider("test")
@@ -59,7 +60,7 @@ func TestContextEval(t *testing.T) {
 		},
 	})
 
-	scope, diags := ctx.Eval(m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	scope, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	if diags.HasErrors() {
@@ -76,7 +77,7 @@ func TestContextEval(t *testing.T) {
 		t.Run(test.Input, func(t *testing.T) {
 			// Parse the test input as an expression
 			expr, _ := hclsyntax.ParseExpression([]byte(test.Input), "<test-input>", hcl.Pos{Line: 1, Column: 1})
-			got, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+			got, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 
 			if diags.HasErrors() {
 				t.Fatalf("unexpected error: %s", diags.Err())
@@ -128,7 +129,7 @@ output "out" {
 		},
 	})
 
-	_, diags := ctx.Eval(m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	_, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	assertNoErrors(t, diags)

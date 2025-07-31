@@ -11,10 +11,6 @@ change is something as trivial as a typo fix).
 <!-- If your PR resolves an issue, please add it here. -->
 Resolves # 
 
-## Target Release
-
-1.8.0
-
 ## Checklist
 
 <!-- Please check of ALL items in this list for all PRs: -->
@@ -23,6 +19,7 @@ Resolves #
 - [ ] I have added a [CHANGELOG](https://github.com/opentofu/opentofu/blob/main/CHANGELOG.md) entry if needed.
 - [ ] I have not used an AI coding assistant to create this PR.
 - [ ] I have written all code in this PR myself OR I have marked all code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
+- [ ] I (and other contributors to this PR) have not looked at the Terraform source code while implementing this PR.
 
 ### Go checklist
 

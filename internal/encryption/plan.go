@@ -6,9 +6,11 @@
 package encryption
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -49,8 +51,8 @@ type planEncryption struct {
 	base *baseEncryption
 }
 
-func newPlanEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (PlanEncryption, hcl.Diagnostics) {
-	base, diags := newBaseEncryption(enc, target, enforced, name)
+func newPlanEncryption(ctx context.Context, enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (PlanEncryption, hcl.Diagnostics) {
+	base, diags := newBaseEncryption(ctx, enc, target, enforced, name, staticEval)
 	return &planEncryption{base}, diags
 }
 
@@ -59,13 +61,14 @@ func (p planEncryption) EncryptPlan(data []byte) ([]byte, error) {
 }
 
 func (p planEncryption) DecryptPlan(data []byte) ([]byte, error) {
-	return p.base.decrypt(data, func(data []byte) error {
+	data, _, err := p.base.decrypt(context.TODO(), data, func(data []byte) error {
 		// Check magic bytes
 		if len(data) < 2 || string(data[:2]) != "PK" {
 			return fmt.Errorf("Invalid plan file %v", string(data[:2]))
 		}
 		return nil
 	})
+	return data, err
 }
 
 func PlanEncryptionDisabled() PlanEncryption {

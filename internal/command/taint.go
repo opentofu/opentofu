@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -25,6 +26,7 @@ type TaintCommand struct {
 }
 
 func (c *TaintCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	var allowMissing bool
 	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("taint")
@@ -62,20 +64,20 @@ func (c *TaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -83,7 +85,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Determine the workspace name
-	workspace, err := c.Workspace()
+	workspace, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
@@ -98,7 +100,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Get the state
-	stateMgr, err := b.StateMgr(workspace)
+	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
@@ -117,7 +119,7 @@ func (c *TaintCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
@@ -142,7 +144,7 @@ func (c *TaintCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, state, nil)
 		diags = diags.Append(schemaDiags)
 	}
 
@@ -186,13 +188,13 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	obj.Status = states.ObjectTainted
-	ss.SetResourceInstanceCurrent(addr, obj, rs.ProviderConfig)
+	ss.SetResourceInstanceCurrent(addr, obj, rs.ProviderConfig, is.ProviderKey)
 
 	if err := stateMgr.WriteState(state); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}
-	if err := stateMgr.PersistState(schemas); err != nil {
+	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1
 	}
@@ -240,6 +242,15 @@ Options:
 
   -ignore-remote-version  A rare option used for the remote backend only. See
                           the remote backend documentation for more information.
+
+  -var 'foo=bar'          Set a value for one of the input variables in the root
+                          module of the configuration. Use this option more than
+                          once to set more than one variable.
+
+  -var-file=filename      Load variable values from the given file, in addition
+                          to the default files terraform.tfvars and *.auto.tfvars.
+                          Use this option more than once to include more than one
+                          variables file.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

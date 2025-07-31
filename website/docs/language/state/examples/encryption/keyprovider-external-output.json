@@ -1,0 +1,12 @@
+{
+  "key": {
+    "encryption_key": "newly generated base64-encoded encryption key",
+    "decryption_key": "base64-encoded decryption key, if input meta was present, omitted otherwise"
+  },
+  "meta": {
+    "external_data": {
+      "key1": "value1",
+      "key2": "value2"
+    }
+  }
+}

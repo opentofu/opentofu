@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
@@ -22,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -49,7 +52,7 @@ const initFromModuleRootKeyPrefix = initFromModuleRootCallName + "."
 // references using ../ from that module to be unresolvable. Error diagnostics
 // are produced in that case, to prompt the user to rewrite the source strings
 // to be absolute references to the original remote module.
-func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, hooks ModuleInstallHooks) tfdiags.Diagnostics {
+func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, remoteFetcher *getmodules.PackageFetcher, hooks ModuleInstallHooks) tfdiags.Diagnostics {
 
 	var diags tfdiags.Diagnostics
 
@@ -95,7 +98,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	}
 
 	instDir := filepath.Join(rootDir, ".terraform/init-from-module")
-	inst := NewModuleInstaller(instDir, loader, reg)
+	inst := NewModuleInstaller(instDir, loader, reg, remoteFetcher)
 	log.Printf("[DEBUG] installing modules in %s to initialize working directory from %q", instDir, sourceAddrStr)
 	os.RemoveAll(instDir) // if this fails then we'll fail on MkdirAll below too
 	err := os.MkdirAll(instDir, os.ModePerm)
@@ -138,16 +141,18 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			fmt.Sprintf("Failed to parse module source address: %s", err),
 		))
 	}
+	rng := hcl.Range{
+		Filename: initFromModuleRootFilename,
+		Start:    hcl.InitialPos,
+		End:      hcl.InitialPos,
+	}
 	fakeRootModule := &configs.Module{
 		ModuleCalls: map[string]*configs.ModuleCall{
 			initFromModuleRootCallName: {
 				Name:       initFromModuleRootCallName,
 				SourceAddr: sourceAddr,
-				DeclRange: hcl.Range{
-					Filename: initFromModuleRootFilename,
-					Start:    hcl.InitialPos,
-					End:      hcl.InitialPos,
-				},
+				Source:     hcl.StaticExpr(cty.StringVal(sourceAddrStr), rng),
+				DeclRange:  rng,
 			},
 		},
 		ProviderRequirements: &configs.RequiredProviders{},
@@ -165,10 +170,9 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		Key: "",
 		Dir: rootDir,
 	}
-	fetcher := getmodules.NewPackageFetcher()
 
-	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, fetcher)
-	_, cDiags := inst.installDescendentModules(fakeRootModule, instManifest, walker, true)
+	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, remoteFetcher)
+	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, instManifest, walker, true)
 	if cDiags.HasErrors() {
 		return diags.Append(cDiags)
 	}
@@ -213,7 +217,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			// and must thus be rewritten to be absolute addresses again.
 			// For now we can't do this rewriting automatically, but we'll
 			// generate an error to help the user do it manually.
-			mod, _ := loader.Parser().LoadConfigDir(rootDir) // ignore diagnostics since we're just doing value-add here anyway
+			mod, _ := loader.Parser().LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, nil, rootDir, "")) // ignore diagnostics since we're just doing value-add here anyway
 			if mod != nil {
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {
@@ -336,7 +340,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			continue
 		}
 
-		err = os.MkdirAll(instPath, os.ModePerm)
+		err := os.MkdirAll(instPath, os.ModePerm)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -349,7 +353,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		// We copy rather than "rename" here because renaming between directories
 		// can be tricky in edge-cases like network filesystems, etc.
 		log.Printf("[TRACE] copying new module %s from %s to %s", newKey, record.Dir, instPath)
-		err := copy.CopyDir(instPath, tempPath)
+		err = copy.CopyDir(instPath, tempPath)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -373,7 +377,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		hooks.Install(newRecord.Key, newRecord.Version, newRecord.Dir)
 	}
 
-	retManifest.WriteSnapshotToDir(modulesDir)
+	err = retManifest.WriteSnapshotToDir(modulesDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

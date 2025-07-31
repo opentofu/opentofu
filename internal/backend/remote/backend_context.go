@@ -14,21 +14,26 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
-// Context implements backend.Local.
-func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
+// Ensure that remote.Remote implements the backend.Local interface.
+var _ backend.Local = (*Remote)(nil)
+
+// LocalRun implements backend.Local.
+func (b *Remote) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
 		PlanOpts: &tofu.PlanOpts{
-			Mode:    op.PlanMode,
-			Targets: op.Targets,
+			Mode:     op.PlanMode,
+			Targets:  op.Targets,
+			Excludes: op.Excludes,
 		},
 	}
 
@@ -39,7 +44,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 
 	// Get the latest state.
 	log.Printf("[TRACE] backend/remote: requesting state manager for workspace %q", remoteWorkspaceName)
-	stateMgr, err := b.StateMgr(op.Workspace)
+	stateMgr, err := b.StateMgr(ctx, op.Workspace)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags
@@ -59,7 +64,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 	}()
 
 	log.Printf("[TRACE] backend/remote: reading remote state for workspace %q", remoteWorkspaceName)
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, diags
 	}
@@ -81,7 +86,7 @@ func (b *Remote) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Fu
 	ret.InputState = stateMgr.State()
 
 	log.Printf("[TRACE] backend/remote: loading configuration for the current working directory")
-	config, configDiags := op.ConfigLoader.LoadConfig(op.ConfigDir)
+	config, configDiags := op.ConfigLoader.LoadConfig(ctx, op.ConfigDir, op.RootCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, diags
@@ -294,7 +299,7 @@ func (v *remoteStoredVariableValue) ParseVariableValue(mode configs.VariablePars
 		// We mark these as "from input" with the rationale that entering
 		// variable values into the Terraform Cloud or Enterprise UI is,
 		// roughly speaking, a similar idea to entering variable values at
-		// the interactive CLI prompts. It's not a perfect correspondance,
+		// the interactive CLI prompts. It's not a perfect correspondence,
 		// but it's closer than the other options.
 		SourceType: tofu.ValueFromInput,
 	}, diags

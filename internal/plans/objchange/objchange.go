@@ -405,7 +405,8 @@ func optionalValueNotComputable(schema *configschema.Attribute, val cty.Value) b
 	}
 
 	foundNonComputedAttr := false
-	cty.Walk(val, func(path cty.Path, v cty.Value) (bool, error) {
+	// err is always nil
+	_ = cty.Walk(val, func(path cty.Path, v cty.Value) (bool, error) {
 		if v.IsNull() {
 			return true, nil
 		}
@@ -439,7 +440,8 @@ func validPriorFromConfig(schema nestedSchema, prior, config cty.Value) bool {
 	stop := errors.New("stop")
 
 	valid := true
-	cty.Walk(prior, func(path cty.Path, priorV cty.Value) (bool, error) {
+	// err is always nil or `stop`
+	_ = cty.Walk(prior, func(path cty.Path, priorV cty.Value) (bool, error) {
 		configV, err := path.Apply(config)
 		if err != nil {
 			// most likely dynamic objects with different types

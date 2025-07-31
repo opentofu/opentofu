@@ -1,9 +1,14 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package openbao
 
 import (
 	"fmt"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 

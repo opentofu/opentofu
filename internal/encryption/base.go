@@ -6,9 +6,12 @@
 package encryption
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -23,21 +26,27 @@ const (
 
 type baseEncryption struct {
 	enc        *encryption
-	target     *config.TargetConfig
-	enforced   bool
 	name       string
-	encMethods []method.Method
-	encMeta    map[keyprovider.Addr][]byte
+	methods    []config.MethodConfig
+	encMethod  method.Method
+	encMeta    keyProviderMetadata
+	staticEval *configs.StaticEvaluator
 }
 
-func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string) (*baseEncryption, hcl.Diagnostics) {
-	base := &baseEncryption{
-		enc:      enc,
-		target:   target,
-		enforced: enforced,
-		name:     name,
-		encMeta:  make(map[keyprovider.Addr][]byte),
+type keyProviderMetamap map[keyprovider.MetaStorageKey][]byte
+
+type keyProviderMetadata struct {
+	input  keyProviderMetamap
+	output keyProviderMetamap
+}
+
+func newBaseEncryption(ctx context.Context, enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
+	// Lookup method configs for the target, ordered by fallback precedence
+	methods, diags := methodConfigsFromTarget(enc.cfg, target, name, enforced)
+	if diags.HasErrors() {
+		return nil, diags
 	}
+
 	// Setup the encryptor
 	//
 	//     Instead of creating new encryption key data for each call to encrypt, we use the same encryptor for the given application (statefile or planfile).
@@ -61,21 +70,41 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	//   extremely large state file (100MB) it would take an apply of over 5 hours to come close to the 64GB limit of pbkdf2 with some malicious actor recording
 	//   every single change to the filesystem (or inspecting deleted blocks).
 	//
-	// What other benfits does this provide?
+	// What other benefits does this provide?
 	//
-	//   This performs a e2e validation run of the config -> methods flow. It serves as a validation step and allows us to return detailed
-	//   diagnostics here and simple errors in the decrypt function below.
+	//   This performs a e2e validation run of the config -> primary method flow. It serves as a validation step and allows us to return detailed
+	//   diagnostics here and simple errors in the decrypt function below (as long as fallback is not used).
 	//
-	methods, diags := base.buildTargetMethods(base.encMeta)
-	base.encMethods = methods
+
+	encMeta := keyProviderMetadata{
+		input:  make(keyProviderMetamap),
+		output: make(keyProviderMetamap),
+	}
+
+	// methodConfigsFromTarget guarantees that there will be at least one encryption method.  They are not optional in the common target
+	// block, which is required to get to this code.
+	encMethod, encDiags := setupMethod(ctx, enc.cfg, methods[0], encMeta, enc.reg, staticEval)
+	diags = diags.Extend(encDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	base := &baseEncryption{
+		enc:        enc,
+		name:       name,
+		staticEval: staticEval,
+		methods:    methods,
+		encMethod:  encMethod,
+		encMeta:    encMeta,
+	}
 
 	return base, diags
 }
 
 type basedata struct {
-	Meta    map[keyprovider.Addr][]byte `json:"meta"`
-	Data    []byte                      `json:"encrypted_data"`
-	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
+	Meta    keyProviderMetamap `json:"meta"`
+	Data    []byte             `json:"encrypted_data"`
+	Version string             `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatibility field
 }
 
 func IsEncryptionPayload(data []byte) (bool, error) {
@@ -89,29 +118,24 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 	return es.Version != "", nil
 }
 
-func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
-	// buildTargetMethods above guarantees that there will be at least one encryption method.  They are not optional in the common target
-	// block, which is required to get to this code.
-	encryptor := s.encMethods[0]
+func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
+	encryptor := base.encMethod
 
 	if unencrypted.Is(encryptor) {
-		// ensure that the method is defined when Enforced is true
-		if s.enforced {
-			return nil, fmt.Errorf("unable to use unencrypted method for %q when enforced = true", s.name)
-		}
 		return data, nil
 	}
 
 	encd, err := encryptor.Encrypt(data)
 	if err != nil {
-		return nil, fmt.Errorf("encryption failed for %s: %w", s.name, err)
+		return nil, fmt.Errorf("encryption failed for %s: %w", base.name, err)
 	}
 
 	es := basedata{
 		Version: encryptionVersion,
-		Meta:    s.encMeta,
+		Meta:    base.encMeta.output,
 		Data:    encd,
 	}
+
 	jsond, err := json.Marshal(enhance(es))
 	if err != nil {
 		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
@@ -120,12 +144,20 @@ func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}
 	return jsond, nil
 }
 
-// TODO Find a way to make these errors actionable / clear
-func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
-	es := basedata{}
-	err := json.Unmarshal(data, &es)
+type EncryptionStatus int
 
-	if len(es.Version) == 0 || err != nil {
+const (
+	StatusUnknown   EncryptionStatus = 0
+	StatusSatisfied EncryptionStatus = 1
+	StatusMigration EncryptionStatus = 2
+)
+
+// TODO Find a way to make these errors actionable / clear
+func (base *baseEncryption) decrypt(ctx context.Context, data []byte, validator func([]byte) error) ([]byte, EncryptionStatus, error) {
+	inputData := basedata{}
+	err := json.Unmarshal(data, &inputData)
+
+	if len(inputData.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
 		verr := validator(data)
 		if verr != nil {
@@ -133,58 +165,73 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 
 			// Return the outer json error if we have one
 			if err != nil {
-				return nil, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
+				return nil, StatusUnknown, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
 			}
 
 			// Must have been invalid json payload
-			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
+			return nil, StatusUnknown, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 
 		// Yep, it's already decrypted
-		for _, method := range s.encMethods {
-			if unencrypted.Is(method) {
-				if s.enforced {
-					return nil, fmt.Errorf("unable to use unencrypted method when enforced = true")
-				}
-				return data, nil
+		unencryptedSupported := false
+		for _, method := range base.methods {
+			if unencrypted.IsConfig(method) {
+				unencryptedSupported = true
+				break
 			}
 		}
-		return nil, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		if !unencryptedSupported {
+			return nil, StatusUnknown, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		}
+		if unencrypted.IsConfig(base.methods[0]) {
+			// Decrypted and no pending migration
+			return data, StatusSatisfied, nil
+		}
+		// Decrypted and pending migration
+		return data, StatusMigration, nil
+	}
+	// This is not actually used, only the map inside the Meta parameter is. This is because we are passing the map
+	// around.
+	outputData := basedata{
+		Meta: make(keyProviderMetamap),
 	}
 
-	if es.Version != encryptionVersion {
-		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", es.Version, encryptionVersion)
-	}
-
-	// TODO Discuss if we should potentially cache this based on a json-encoded version of es.Meta and reduce overhead dramatically
-	methods, diags := s.buildTargetMethods(es.Meta)
-	if diags.HasErrors() {
-		// This cast to error here is safe as we know that at least one error exists
-		// This is also quite unlikely to happen as the constructor already has checked this code path
-		return nil, diags
+	if inputData.Version != encryptionVersion {
+		return nil, StatusUnknown, fmt.Errorf("invalid encrypted payload version: %s != %s", inputData.Version, encryptionVersion)
 	}
 
 	errs := make([]error, 0)
-	for _, method := range methods {
-		if unencrypted.Is(method) {
+	for i, method := range base.methods {
+		if unencrypted.IsConfig(method) {
 			// Not applicable
 			continue
 		}
-		uncd, err := method.Decrypt(es.Data)
+
+		// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
+		decMethod, diags := setupMethod(ctx, base.enc.cfg, method, keyProviderMetadata{
+			input:  inputData.Meta,
+			output: outputData.Meta,
+		}, base.enc.reg, base.staticEval)
+		if diags.HasErrors() {
+			// This cast to error here is safe as we know that at least one error exists
+			return nil, StatusUnknown, diags
+		}
+
+		uncd, err := decMethod.Decrypt(inputData.Data)
 		if err == nil {
 			// Success
-			return uncd, nil
+			if i == 0 {
+				// Decrypted with first method (encryption method)
+				return uncd, StatusSatisfied, nil
+			}
+			// Used a fallback
+			return uncd, StatusMigration, nil
 		}
 		// Record the failure
-		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", s.name, err))
+		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", base.name, err))
 	}
 
-	// This is good enough for now until we have better/distinct errors
-	errMessage := "decryption failed for all provided methods: "
-	sep := ""
-	for _, err := range errs {
-		errMessage += err.Error() + sep
-		sep = "\n"
-	}
-	return nil, fmt.Errorf(errMessage)
+	errs = append([]error{fmt.Errorf("decryption failed for all provided methods")}, errs...)
+
+	return nil, StatusUnknown, errors.New(errors.Join(errs...).Error())
 }

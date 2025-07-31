@@ -6,9 +6,12 @@
 package e2etest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/e2e"
@@ -40,6 +43,11 @@ func TestProviderProtocols(t *testing.T) {
 	simpleProvider := filepath.Join(tf.WorkDir(), "terraform-provider-simple")
 	simpleProviderExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple/main", simpleProvider)
 
+	extension := ""
+	if runtime.GOOS == "windows" {
+		extension = ".exe"
+	}
+
 	// Move the provider binaries into a directory that we will point tofu
 	// to using the -plugin-dir cli flag.
 	platform := getproviders.CurrentPlatform.String()
@@ -47,14 +55,14 @@ func TestProviderProtocols(t *testing.T) {
 	if err := os.MkdirAll(tf.Path(hashiDir, "simple6/0.0.1/", platform), os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Rename(simple6ProviderExe, tf.Path(hashiDir, "simple6/0.0.1/", platform, "terraform-provider-simple6")); err != nil {
+	if err := os.Rename(simple6ProviderExe, tf.Path(hashiDir, "simple6/0.0.1/", platform, "terraform-provider-simple6")+extension); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := os.MkdirAll(tf.Path(hashiDir, "simple/0.0.1/", platform), os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Rename(simpleProviderExe, tf.Path(hashiDir, "simple/0.0.1/", platform, "terraform-provider-simple")); err != nil {
+	if err := os.Rename(simpleProviderExe, tf.Path(hashiDir, "simple/0.0.1/", platform, "terraform-provider-simple")+extension); err != nil {
 		t.Fatal(err)
 	}
 
@@ -89,4 +97,46 @@ func TestProviderProtocols(t *testing.T) {
 	if !strings.Contains(stdout, "Resources: 2 destroyed") {
 		t.Fatalf("wrong destroy output\nstdout:%s\nstderr:%s", stdout, stderr)
 	}
+}
+
+// This test is designed to simulate a *very* busy CI server that has multiple
+// processes sharing a global provider cache. This exercises the locking in the
+// "providercache" package, as well as simulating bad file hashes in the
+// lock file.
+func TestProviderGlobalCache(t *testing.T) {
+	if !canAccessNetwork() {
+		t.Skip("Requires provider download access for e2e provider interactions")
+	}
+
+	t.Parallel()
+
+	tmpDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rcLoc := filepath.Join(tmpDir, ".tofurc")
+	// We use forward slashes consistently, even on Windows, because backslashes
+	// require escaping for valid HCL syntax.
+	rcData := fmt.Sprintf(`plugin_cache_dir = "%s"`, filepath.ToSlash(tmpDir))
+	err = os.WriteFile(rcLoc, []byte(rcData), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			tf := e2e.NewBinary(t, tofuBin, "testdata/provider-global-cache")
+			tf.AddEnv(fmt.Sprintf("TF_CLI_CONFIG_FILE=%s", rcLoc))
+
+			stdout, stderr, err := tf.Run("init")
+			tofuResult{t, stdout, stderr, err}.Success()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
 }

@@ -6,11 +6,13 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -45,6 +47,9 @@ type PlanGraphBuilder struct {
 
 	// Targets are resources to target
 	Targets []addrs.Targetable
+
+	// Excludes are resources to exclude
+	Excludes []addrs.Targetable
 
 	// ForceReplace are resource instances where if we would normally have
 	// generated a NoOp or Update action then we'll force generating a replace
@@ -83,24 +88,26 @@ type PlanGraphBuilder struct {
 	// ImportTargets are the list of resources to import.
 	ImportTargets []*ImportTarget
 
-	// EndpointsToRemove are the list of resources and modules to forget from
+	// RemoveStatements are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
 	// any import targets that do not already have configuration.
 	//
 	// If empty, then config will not be generated.
 	GenerateConfigPath string
+
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
-func (b *PlanGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *PlanGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] building graph for %s", b.Operation)
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "PlanGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -190,7 +197,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&AttachResourceConfigTransformer{Config: b.Config},
 
 		// add providers
-		transformProviders(b.ConcreteProvider, b.Config),
+		transformProviders(b.ConcreteProvider, b.Config, b.Operation),
 
 		// Remove modules no longer present in the config
 		&RemovedModuleTransformer{Config: b.Config, State: b.State},
@@ -200,7 +207,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
@@ -224,7 +231,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&attachDataResourceDependsOnTransformer{},
 
 		// DestroyEdgeTransformer is only required during a plan so that the
-		// TargetsTransformer can determine which nodes to keep in the graph.
+		// TargetingTransformer can determine which nodes to keep in the graph.
 		&DestroyEdgeTransformer{
 			Operation: b.Operation,
 		},
@@ -234,7 +241,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		// Target
-		&TargetsTransformer{Targets: b.Targets},
+		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.
@@ -244,7 +251,9 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&CloseProviderTransformer{},
 
 		// Close the root module
-		&CloseRootModuleTransformer{},
+		&CloseRootModuleTransformer{
+			RootConfig: b.Config,
+		},
 
 		// Perform the transitive reduction to make our graph a bit
 		// more understandable if possible (it usually is possible).
@@ -276,7 +285,7 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  b.skipRefresh,
 			skipPlanChanges:              b.skipPlanChanges,
-			EndpointsToRemove:            b.EndpointsToRemove,
+			RemoveStatements:             b.RemoveStatements,
 		}
 	}
 
@@ -285,9 +294,9 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			DeposedKey:                   key,
 
-			skipRefresh:       b.skipRefresh,
-			skipPlanChanges:   b.skipPlanChanges,
-			EndpointsToRemove: b.EndpointsToRemove,
+			skipRefresh:      b.skipRefresh,
+			skipPlanChanges:  b.skipPlanChanges,
+			RemoveStatements: b.RemoveStatements,
 		}
 	}
 }

@@ -6,8 +6,13 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -20,8 +25,6 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 )
 
 // MockEvalContext is a mock version of EvalContext that can be used
@@ -183,33 +186,32 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (c *MockEvalContext) InitProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {
 	c.InitProviderCalled = true
 	c.InitProviderType = addr.String()
 	c.InitProviderAddr = addr
 	return c.InitProviderProvider, c.InitProviderError
 }
 
-func (c *MockEvalContext) Provider(addr addrs.AbsProviderConfig) providers.Interface {
+func (c *MockEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) providers.Interface {
 	c.ProviderCalled = true
 	c.ProviderAddr = addr
 	return c.ProviderProvider
 }
 
-func (c *MockEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
+func (c *MockEvalContext) ProviderSchema(_ context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
 	c.ProviderSchemaCalled = true
 	c.ProviderSchemaAddr = addr
 	return c.ProviderSchemaSchema, c.ProviderSchemaError
 }
 
-func (c *MockEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
+func (c *MockEvalContext) CloseProvider(_ context.Context, addr addrs.AbsProviderConfig) error {
 	c.CloseProviderCalled = true
 	c.CloseProviderAddr = addr
 	return nil
 }
 
-func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
-
+func (c *MockEvalContext) ConfigureProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
 	c.ConfigureProviderCalled = true
 	c.ConfigureProviderAddr = addr
 	c.ConfigureProviderConfig = cfg
@@ -219,13 +221,13 @@ func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg ct
 	return c.ConfigureProviderDiags
 }
 
-func (c *MockEvalContext) ProviderInput(addr addrs.AbsProviderConfig) map[string]cty.Value {
+func (c *MockEvalContext) ProviderInput(_ context.Context, addr addrs.AbsProviderConfig) map[string]cty.Value {
 	c.ProviderInputCalled = true
 	c.ProviderInputAddr = addr
 	return c.ProviderInputValues
 }
 
-func (c *MockEvalContext) SetProviderInput(addr addrs.AbsProviderConfig, vals map[string]cty.Value) {
+func (c *MockEvalContext) SetProviderInput(_ context.Context, addr addrs.AbsProviderConfig, vals map[string]cty.Value) {
 	c.SetProviderInputCalled = true
 	c.SetProviderInputAddr = addr
 	c.SetProviderInputValues = vals
@@ -248,7 +250,7 @@ func (c *MockEvalContext) CloseProvisioners() error {
 	return nil
 }
 
-func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateBlock(_ context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	c.EvaluateBlockCalled = true
 	c.EvaluateBlockBody = body
 	c.EvaluateBlockSchema = schema
@@ -260,7 +262,7 @@ func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Bloc
 	return c.EvaluateBlockResult, c.EvaluateBlockExpandedBody, c.EvaluateBlockDiags
 }
 
-func (c *MockEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateExpr(_ context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	c.EvaluateExprCalled = true
 	c.EvaluateExprExpr = expr
 	c.EvaluateExprWantType = wantType
@@ -271,12 +273,8 @@ func (c *MockEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, s
 	return c.EvaluateExprResult, c.EvaluateExprDiags
 }
 
-func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateReplaceTriggeredBy(context.Context, hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 	return nil, false, nil
-}
-
-func (c *MockEvalContext) EvaluateImportAddress(expression hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	return addrs.AbsResourceInstance{}, nil
 }
 
 // installSimpleEval is a helper to install a simple mock implementation of
@@ -293,11 +291,11 @@ func (c *MockEvalContext) installSimpleEval() {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
 			var diags tfdiags.Diagnostics
-			body, diags = scope.ExpandBlock(body, schema)
+			body, diags = scope.ExpandBlock(context.TODO(), body, schema)
 			if diags.HasErrors() {
 				return cty.DynamicVal, body, diags
 			}
-			val, evalDiags := c.EvaluationScopeScope.EvalBlock(body, schema)
+			val, evalDiags := c.EvaluationScopeScope.EvalBlock(context.TODO(), body, schema)
 			diags = diags.Append(evalDiags)
 			if evalDiags.HasErrors() {
 				return cty.DynamicVal, body, diags
@@ -312,7 +310,7 @@ func (c *MockEvalContext) installSimpleEval() {
 	c.EvaluateExprResultFunc = func(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
-			return scope.EvalExpr(expr, wantType)
+			return scope.EvalExpr(context.TODO(), expr, wantType)
 		}
 
 		// Fallback codepath supporting constant values only.

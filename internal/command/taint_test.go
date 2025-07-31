@@ -33,6 +33,7 @@ func TestTaint(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -73,6 +74,7 @@ func TestTaint_lockedState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -107,7 +109,7 @@ func TestTaint_lockedState(t *testing.T) {
 
 func TestTaint_backup(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -125,6 +127,7 @@ func TestTaint_backup(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -151,7 +154,7 @@ func TestTaint_backup(t *testing.T) {
 
 func TestTaint_backupDisable(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -169,6 +172,7 @@ func TestTaint_backupDisable(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -218,7 +222,7 @@ func TestTaint_badState(t *testing.T) {
 
 func TestTaint_defaultState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -236,6 +240,7 @@ func TestTaint_defaultState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -261,7 +266,7 @@ func TestTaint_defaultState(t *testing.T) {
 
 func TestTaint_defaultWorkspaceState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -278,6 +283,7 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testWorkspace := "development"
@@ -286,7 +292,9 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	meta := Meta{Ui: ui, View: view}
-	meta.SetWorkspace(testWorkspace)
+	if err := meta.SetWorkspace(testWorkspace); err != nil {
+		t.Fatal(err)
+	}
 	c := &TaintCommand{
 		Meta: meta,
 	}
@@ -317,6 +325,7 @@ func TestTaint_missing(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -355,6 +364,7 @@ func TestTaint_missingAllow(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -393,7 +403,7 @@ because -allow-missing was set.
 
 func TestTaint_stateOut(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -411,6 +421,7 @@ func TestTaint_stateOut(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	testStateFileDefault(t, state)
@@ -452,6 +463,7 @@ func TestTaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -467,6 +479,7 @@ func TestTaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -495,7 +508,7 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("command-check-required-version"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Write the temp state
 	state := states.BuildState(func(s *states.SyncState) {
@@ -513,6 +526,7 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	path := testStateFile(t, state)

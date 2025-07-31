@@ -14,8 +14,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -32,12 +33,12 @@ func TestHTTPMirrorSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("httptest.NewTLSServer returned a server with an invalid URL")
 	}
-	creds := svcauth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(baseURL.Host): {
-			"token": "placeholder-token",
-		},
+	creds := svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(baseURL.Host): svcauth.HostCredentialsToken("placeholder-token"),
 	})
-	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient)
+	retryHTTPClient := retryablehttp.NewClient()
+	retryHTTPClient.HTTPClient = httpClient
+	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, retryHTTPClient)
 
 	existingProvider := addrs.MustParseProviderSourceString("terraform.io/test/exists")
 	missingProvider := addrs.MustParseProviderSourceString("terraform.io/test/missing")
@@ -72,7 +73,7 @@ func TestHTTPMirrorSource(t *testing.T) {
 		}
 	})
 	t.Run("AvailableVersions without required credentials", func(t *testing.T) {
-		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, httpClient)
+		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, retryHTTPClient)
 		_, _, err := unauthSource.AvailableVersions(context.Background(), existingProvider)
 		switch err := err.(type) {
 		case ErrUnauthorized:
@@ -136,12 +137,6 @@ func TestHTTPMirrorSource(t *testing.T) {
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("wrong result\n%s", diff)
-		}
-
-		gotHashes := got.AcceptableHashes()
-		wantHashes := []Hash{"h1:placeholder-hash", "h0:unacceptable-hash"}
-		if diff := cmp.Diff(wantHashes, gotHashes); diff != "" {
-			t.Errorf("wrong acceptable hashes\n%s", diff)
 		}
 	})
 	t.Run("PackageMeta for a version that exists and has no hash", func(t *testing.T) {

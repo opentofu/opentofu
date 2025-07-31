@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -25,6 +26,7 @@ type StateRmCommand struct {
 }
 
 func (c *StateRmCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	var dryRun bool
 	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state rm")
@@ -44,20 +46,20 @@ func (c *StateRmCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Get the state
-	stateMgr, err := c.State(enc)
+	stateMgr, err := c.State(ctx, enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -76,7 +78,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
 		return 1
 	}
@@ -124,7 +126,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -135,7 +137,7 @@ func (c *StateRmCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, state, nil)
 		diags = diags.Append(schemaDiags)
 	}
 
@@ -143,7 +145,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
-	if err := stateMgr.PersistState(schemas); err != nil {
+	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
@@ -203,6 +205,15 @@ Options:
   -ignore-remote-version  Continue even if remote and local OpenTofu versions
                           are incompatible. This may result in an unusable
                           workspace, and should be used with extreme caution.
+
+  -var 'foo=bar'          Set a value for one of the input variables in the root
+                          module of the configuration. Use this option more than
+                          once to set more than one variable.
+
+  -var-file=filename      Load variable values from the given file, in addition
+                          to the default files terraform.tfvars and *.auto.tfvars.
+                          Use this option more than once to include more than one
+                          variables file.
 
 `
 	return strings.TrimSpace(helpText)

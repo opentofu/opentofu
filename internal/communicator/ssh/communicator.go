@@ -45,7 +45,7 @@ var (
 	randLock   sync.Mutex
 	randShared *rand.Rand
 
-	// enable ssh keeplive probes by default
+	// enable ssh keepalive probes by default
 	keepAliveInterval = 2 * time.Second
 
 	// max time to wait for for a KeepAlive response before considering the
@@ -346,9 +346,9 @@ func (c *Communicator) ScriptPath() string {
 	randLock.Lock()
 	defer randLock.Unlock()
 
-	return strings.Replace(
+	return strings.ReplaceAll(
 		c.connInfo.ScriptPath, "%RAND%",
-		strconv.FormatInt(int64(randShared.Int31()), 10), -1)
+		strconv.FormatInt(int64(randShared.Int31()), 10))
 }
 
 // Start implementation of communicator.Communicator interface
@@ -456,7 +456,9 @@ func (c *Communicator) UploadScript(path string, input io.Reader) error {
 	if string(prefix) != "#!" && c.connInfo.TargetPlatform != TargetPlatformWindows {
 		script.WriteString(DefaultShebang)
 	}
-	script.ReadFrom(reader)
+	if _, err := script.ReadFrom(reader); err != nil {
+		return err
+	}
 
 	if err := c.Upload(path, &script); err != nil {
 		return err
@@ -604,7 +606,7 @@ func (c *Communicator) scpSession(scpCommand string, f func(io.Writer, *bufio.Re
 
 	if err != nil {
 		if exitErr, ok := err.(*ssh.ExitError); ok {
-			// Otherwise, we have an ExitErorr, meaning we can just read
+			// Otherwise, we have an ExitError, meaning we can just read
 			// the exit status
 			log.Printf("[ERROR] %s", exitErr)
 
@@ -718,7 +720,7 @@ func scpUploadDirProtocol(name string, w io.Writer, r *bufio.Reader, f func() er
 		return err
 	}
 
-	fmt.Fprintln(w, "E")
+	_, err = fmt.Fprintln(w, "E")
 	if err != nil {
 		return err
 	}
@@ -812,7 +814,9 @@ func ConnectFunc(network, addr string, p *proxyInfo) func() (net.Conn, error) {
 		}
 
 		if tcpConn, ok := c.(*net.TCPConn); ok {
-			tcpConn.SetKeepAlive(true)
+			if err := tcpConn.SetKeepAlive(true); err != nil {
+				log.Printf("[WARN] Unable to set connection keepalive for %q: %s", addr, err.Error())
+			}
 		}
 
 		return c, nil

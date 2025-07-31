@@ -32,7 +32,7 @@ func TestCloud_backendWithName(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -41,15 +41,15 @@ func TestCloud_backendWithName(t *testing.T) {
 		t.Fatalf("should only have a single configured workspace matching the configured 'name' strategy, but got: %#v", workspaces)
 	}
 
-	if _, err := b.StateMgr("foo"); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.StateMgr(t.Context(), "foo"); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected fetching a state which is NOT the single configured workspace to have an ErrWorkspacesNotSupported error, but got: %v", err)
 	}
 
-	if err := b.DeleteWorkspace(testBackendSingleWorkspaceName, true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace(t.Context(), testBackendSingleWorkspaceName, true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected deleting the single configured workspace name to result in an error, but got: %v", err)
 	}
 
-	if err := b.DeleteWorkspace("foo", true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace(t.Context(), "foo", true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected deleting a workspace which is NOT the configured workspace name to result in an error, but got: %v", err)
 	}
 }
@@ -76,7 +76,7 @@ func TestCloud_backendWithoutHost(t *testing.T) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 
 	if !confDiags.HasErrors() {
 		t.Fatalf("testBackend: backend.Configure() should have failed")
@@ -95,13 +95,13 @@ func TestCloud_backendWithTags(t *testing.T) {
 
 	// Test pagination works
 	for i := 0; i < 25; i++ {
-		_, err := b.StateMgr(fmt.Sprintf("foo-%d", i+1))
+		_, err := b.StateMgr(t.Context(), fmt.Sprintf("foo-%d", i+1))
 		if err != nil {
 			t.Fatalf("error: %s", err)
 		}
 	}
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -351,6 +351,7 @@ func TestCloud_config(t *testing.T) {
 		config  cty.Value
 		confErr string
 		valErr  string
+		envVars map[string]string
 	}{
 		"with_a_non_tfe_host": {
 			config: cty.ObjectVal(map[string]cty.Value{
@@ -440,10 +441,33 @@ func TestCloud_config(t *testing.T) {
 		"null config": {
 			config: cty.NullVal(cty.EmptyObject),
 		},
+		"with_tags_and_TF_WORKSPACE_env_var_not_matching_tags": { //TODO: once we have proper e2e backend testing we should also add the opposite test - with_tags_and_TF_WORKSPACE_env_var_matching_tags
+			config: cty.ObjectVal(map[string]cty.Value{
+				"hostname":     cty.NullVal(cty.String),
+				"organization": cty.StringVal("opentofu"),
+				"token":        cty.NullVal(cty.String),
+				"workspaces": cty.ObjectVal(map[string]cty.Value{
+					"tags": cty.SetVal(
+						[]cty.Value{
+							cty.StringVal("billing"),
+						},
+					),
+					"project": cty.NullVal(cty.String),
+				}),
+			}),
+			envVars: map[string]string{
+				"TF_WORKSPACE": "my-workspace",
+			},
+			confErr: `OpenTofu failed to find workspace my-workspace with the tags specified in your configuration`,
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			for k, v := range tc.envVars {
+				t.Setenv(k, v)
+			}
+
 			b, cleanup := testUnconfiguredBackend(t)
 			t.Cleanup(cleanup)
 
@@ -455,7 +479,7 @@ func TestCloud_config(t *testing.T) {
 			}
 
 			// Configure
-			confDiags := b.Configure(tc.config)
+			confDiags := b.Configure(t.Context(), tc.config)
 			if (confDiags.Err() != nil || tc.confErr != "") &&
 				(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 				t.Fatalf("unexpected configure result: %v", confDiags.Err())
@@ -490,7 +514,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	confDiags := b.Configure(config)
+	confDiags := b.Configure(t.Context(), config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -528,7 +552,7 @@ func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 	b.runningInAutomation = true
 
-	confDiags := b.Configure(config)
+	confDiags := b.Configure(t.Context(), config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -573,7 +597,7 @@ func TestCloud_setUnavailableTerraformVersion(t *testing.T) {
 		t.Fatalf("the workspace we were about to try and create (%s/%s) already exists in the mocks somehow, so this test isn't trustworthy anymore", b.organization, workspaceName)
 	}
 
-	_, err = b.StateMgr(workspaceName)
+	_, err = b.StateMgr(t.Context(), workspaceName)
 	if err != nil {
 		t.Fatalf("expected no error from StateMgr, despite not being able to set remote TF version: %#v", err)
 	}
@@ -660,7 +684,7 @@ func TestCloud_setConfigurationFieldsHappyPath(t *testing.T) {
 			},
 			expectedForceLocal: true,
 		},
-		"with hostname and workspace tags set, and tags overwritten by TF_WORKSPACE": {
+		"with hostname and workspace tags set, then tags should not be overwritten by TF_WORKSPACE": {
 			// see: https://github.com/opentofu/opentofu/issues/814
 			obj: cty.ObjectVal(map[string]cty.Value{
 				"organization": cty.NullVal(cty.String),
@@ -675,25 +699,24 @@ func TestCloud_setConfigurationFieldsHappyPath(t *testing.T) {
 				"TF_WORKSPACE": "foo",
 			},
 			expectedHostname:      "opentofu.org",
-			expectedWorkspaceName: "foo",
-			expectedWorkspaceTags: nil,
+			expectedWorkspaceName: "",
+			expectedWorkspaceTags: map[string]struct{}{"foo": {}, "bar": {}},
 		},
-		"with hostname and workspace name set, and TF_WORKSPACE specified": {
+		"with hostname and workspace name set, and workspace name the same as provided TF_WORKSPACE": {
 			obj: cty.ObjectVal(map[string]cty.Value{
 				"organization": cty.NullVal(cty.String),
 				"hostname":     cty.StringVal("opentofu.org"),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":    cty.StringVal("old"),
+					"name":    cty.StringVal("my-workspace"),
 					"tags":    cty.NullVal(cty.Set(cty.String)),
 					"project": cty.NullVal(cty.String),
 				}),
 			}),
 			envVars: map[string]string{
-				"TF_WORKSPACE": "new",
+				"TF_WORKSPACE": "my-workspace",
 			},
 			expectedHostname:      "opentofu.org",
-			expectedWorkspaceName: "old",
-			expectedWorkspaceTags: nil,
+			expectedWorkspaceName: "my-workspace",
 		},
 		"with hostname and project set, and project overwritten by TF_CLOUD_PROJECT": {
 			obj: cty.ObjectVal(map[string]cty.Value{
@@ -858,22 +881,21 @@ func TestCloud_setConfigurationFieldsUnhappyPath(t *testing.T) {
 			wantSummary: "Hostname is required for the cloud backend",
 			wantDetail:  `OpenTofu does not provide a default "hostname" attribute, so it must be set to the hostname of the cloud backend.`,
 		},
-		"with hostname and workspace tags set, and tags overwritten by TF_WORKSPACE": {
-			// see: https://github.com/opentofu/opentofu/issues/814
+		"with hostname and workspace name set, and workspace name is not the same as provided TF_WORKSPACE": {
 			obj: cty.ObjectVal(map[string]cty.Value{
 				"organization": cty.NullVal(cty.String),
 				"hostname":     cty.StringVal("opentofu.org"),
 				"workspaces": cty.ObjectVal(map[string]cty.Value{
-					"name":    cty.NullVal(cty.String),
-					"tags":    cty.SetVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("bar")}),
+					"name":    cty.StringVal("my-workspace"),
+					"tags":    cty.NullVal(cty.Set(cty.String)),
 					"project": cty.NullVal(cty.String),
 				}),
 			}),
 			envVars: map[string]string{
 				"TF_WORKSPACE": "qux",
 			},
-			wantSummary: invalidWorkspaceConfigMisconfigurationEnvVar.Description().Summary,
-			wantDetail:  invalidWorkspaceConfigMisconfigurationEnvVar.Description().Detail,
+			wantSummary: invalidWorkspaceConfigInconsistentNameAndEnvVar().Description().Summary,
+			wantDetail:  invalidWorkspaceConfigInconsistentNameAndEnvVar().Description().Detail,
 		},
 	}
 
@@ -921,11 +943,11 @@ func TestCloud_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	if _, err := b.StateMgr(t.Context(), testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if err := b.DeleteWorkspace(testBackendSingleWorkspaceName, true); err != backend.ErrWorkspacesNotSupported {
+	if err := b.DeleteWorkspace(t.Context(), testBackendSingleWorkspaceName, true); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 }
@@ -968,7 +990,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 	}
 
 	// This should succeed
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	if _, err := b.StateMgr(t.Context(), testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -986,7 +1008,7 @@ func TestCloud_StateMgr_versionCheck(t *testing.T) {
 
 	// This should fail
 	want := `Remote workspace TF version "0.13.5" does not match local OpenTofu version "0.14.0"`
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err.Error() != want {
+	if _, err := b.StateMgr(t.Context(), testBackendSingleWorkspaceName); err.Error() != want {
 		t.Fatalf("wrong error\n got: %v\nwant: %v", err.Error(), want)
 	}
 }
@@ -1025,7 +1047,7 @@ func TestCloud_StateMgr_versionCheckLatest(t *testing.T) {
 	}
 
 	// This should succeed despite not being a string match
-	if _, err := b.StateMgr(testBackendSingleWorkspaceName); err != nil {
+	if _, err := b.StateMgr(t.Context(), testBackendSingleWorkspaceName); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }
@@ -1215,18 +1237,18 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	safeDeleteWorkspaceName := "safe-delete-workspace"
 	forceDeleteWorkspaceName := "force-delete-workspace"
 
-	_, err := b.StateMgr(safeDeleteWorkspaceName)
+	_, err := b.StateMgr(t.Context(), safeDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
-	_, err = b.StateMgr(forceDeleteWorkspaceName)
+	_, err = b.StateMgr(t.Context(), forceDeleteWorkspaceName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
 
 	// sanity check that the mock now contains two workspaces
-	wl, err := b.Workspaces()
+	wl, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error fetching workspace names: %v", err)
 	}
@@ -1245,7 +1267,7 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error locking workspace: %v", err)
 	}
-	err = b.DeleteWorkspace(safeDeleteWorkspaceName, false)
+	err = b.DeleteWorkspace(t.Context(), safeDeleteWorkspaceName, false)
 	if err == nil {
 		t.Fatalf("workspace should have failed to safe delete")
 	}
@@ -1255,7 +1277,7 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error unlocking workspace: %v", err)
 	}
-	err = b.DeleteWorkspace(safeDeleteWorkspaceName, false)
+	err = b.DeleteWorkspace(t.Context(), safeDeleteWorkspaceName, false)
 	if err != nil {
 		t.Fatalf("error safe deleting workspace: %v", err)
 	}
@@ -1269,7 +1291,7 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error locking workspace: %v", err)
 	}
-	err = b.DeleteWorkspace(forceDeleteWorkspaceName, true)
+	err = b.DeleteWorkspace(t.Context(), forceDeleteWorkspaceName, true)
 	if err != nil {
 		t.Fatalf("error force deleting workspace: %v", err)
 	}
@@ -1279,7 +1301,7 @@ func TestCloudBackend_DeleteWorkspace_DoesNotExist(t *testing.T) {
 	b, bCleanup := testBackendWithTags(t)
 	defer bCleanup()
 
-	err := b.DeleteWorkspace("non-existent-workspace", false)
+	err := b.DeleteWorkspace(t.Context(), "non-existent-workspace", false)
 	if err != nil {
 		t.Fatalf("expected deleting a workspace which does not exist to succeed")
 	}
@@ -1289,7 +1311,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(t.Context(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

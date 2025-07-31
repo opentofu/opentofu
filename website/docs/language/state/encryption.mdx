@@ -5,6 +5,7 @@ description: >-
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import Button from "@site/src/components/Button";
 import CodeBlock from '@theme/CodeBlock';
 import ConfigurationTF from '!!raw-loader!./examples/encryption/configuration.tf'
 import ConfigurationSH from '!!raw-loader!./examples/encryption/configuration.sh'
@@ -15,11 +16,26 @@ import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
+import External from '!!raw-loader!./examples/encryption/keyprovider-external.tofu'
+import ExternalHeader from '!!raw-loader!./examples/encryption/keyprovider-external-header.json'
+import ExternalInput from '!!raw-loader!./examples/encryption/keyprovider-external-input.json'
+import ExternalOutput from '!!raw-loader!./examples/encryption/keyprovider-external-output.json'
+import ExternalGo from '!!raw-loader!./examples/encryption/keyprovider-external-provider.go'
+import ExternalPython from '!!raw-loader!./examples/encryption/keyprovider-external-provider.py'
+import ExternalSH from '!!raw-loader!./examples/encryption/keyprovider-external-provider.sh'
+import ExternalMethod from '!!raw-loader!./examples/encryption/external-method/method-external.tofu'
+import ExternalMethodHeader from '!!raw-loader!./examples/encryption/external-method/method-external-header.json'
+import ExternalMethodInput from '!!raw-loader!./examples/encryption/external-method/method-external-input.json'
+import ExternalMethodOutput from '!!raw-loader!./examples/encryption/external-method/method-external-output.json'
+import ExternalMethodGo from '!!raw-loader!./examples/encryption/external-method/method-external-method.go'
+import ExternalMethodPython from '!!raw-loader!./examples/encryption/external-method/method-external-method.py'
 import Sample from '!!raw-loader!./examples/encryption/sample.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
 import RemoteState from '!!raw-loader!./examples/encryption/terraform_remote_state.tf'
+import RemoteStateFullA from '!!raw-loader!./examples/encryption/terraform_remote_state_full_a.tf'
+import RemoteStateFullB from '!!raw-loader!./examples/encryption/terraform_remote_state_full_b.tf'
 
 # State and Plan Encryption
 
@@ -72,8 +88,7 @@ The basic configuration structure looks as follows:
 
 :::warning
 
-Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers.
-
+Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers. Alternatively, you can specify a unique metadata storage key in the `encrypted_metadata_alias` field on the key provider, which makes it possible to change the name of a key provider without problems.
 :::
 
 :::tip
@@ -112,6 +127,10 @@ When you first configure encryption on an existing project, your state and plan 
 
 <CodeBlock language="hcl">{FallbackFromUnencrypted}</CodeBlock>
 
+:::note
+Variables and locals can be used in configuration, but may not contain any references to data in the state or provider defined functions. All values must be able to be resolved during `tofu init` before the state is available.
+:::
+
 ## Rolling back encryption
 
 Similar to the initial setup above, migrating to unencrypted state and plan files is also possible by using the `unencrypted` method as follows:
@@ -136,6 +155,16 @@ For specific remote states, you can use the following syntax:
 - `mymodule.myname` to target a data source in the specified module with the given name.
 - `mymodule.myname[0]` to target the first data source in the specified module with the given name.
 
+In some cases key names between projects can conflict and you will need to use a different name for the key provider in one project than the other. In this case, you should use the `encrypted_metadata_alias` option to set a fixed metadata key in order to ensure the encryption works.
+
+For example, you may create certificates in project "A" and want to reference them in project "B". In project "A", you could create the following setup:
+
+<CodeBlock language="hcl">{RemoteStateFullA}</CodeBlock>
+
+Then you can reference it in project "B" as follows:
+
+<CodeBlock language="hcl">{RemoteStateFullB}</CodeBlock>
+
 ## Key providers
 
 ### PBKDF2
@@ -144,22 +173,25 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 
 <CodeBlock language="hcl">{PBKDF2}</CodeBlock>
 
-| Option                  | Description                                                                                                                                             | Min.      | Default |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|---------|
-| passphrase *(required)* | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -       |
-| key_length              | Number of bytes to generate as a key.                                                                                                                   | 1         | 32      |
-| iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000 |
-| salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32      |
-| hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512  |
+| Option                   | Description                                                                                                                                             | Min.      | Default                            |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------------|
+| passphrase *(required)*  | Enter a long and complex passphrase. Required if `chain` is not specified.                                                                              | 16 chars. | -                                  |
+| chain *(required)*       | Receive the passphrase from another key provider. Required if `passphrase` is not specified.                                                            |           | -                                  |
+| key_length               | Number of bytes to generate as a key.                                                                                                                   | 1         | 32                                 |
+| iterations               | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000                            |
+| salt_length              | Length of the salt for the key derivation.                                                                                                              | 1         | 32                                 |
+| hash_function            | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512                             |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.               | -         | derived from the key provider name |
 
 ### AWS KMS
 
 This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](../../language/settings/backends/s3.mdx) excluding any deprecated options. In addition, please provide the following options:
 
-| Option     | Description                                                                                                                                                  | Min. | Default |
-|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_key_id | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -       |
-| key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -       |
+| Option                   | Description                                                                                                                                                  | Min. | Default                            |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| kms_key_id               | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -                                  |
+| key_spec                 | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -                                  |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                    | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
@@ -169,36 +201,32 @@ The following example illustrates a minimal configuration:
 
 This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](../../language/settings/backends/gcs.mdx) excluding any deprecated options. In addition, please provide the following options:
 
-| Option                                | Description                                                                                                      | Min. | Default |
-|---------------------------------------|------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_encryption_key *(required)*       | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console). | N/A  | -       |
-| key_length *(required)*               | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                 | 1    | -       |
+| Option                          | Description                                                                                                                               | Min. | Default                            |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                          | N/A  | -                                  |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                          | 1    | -                                  |
+| encrypted_metadata_alias        | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider. | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
 
-### OpenBao (experimental)
+### OpenBao
 
 This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/docs/secrets/transit) to generate data keys. You can configure it as follows:
 
-| Option                | Description                                                                                                                                                                 | Min. | Default                |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------|
-| key_name *(required)* | Name of the transit encryption key to use to encrypt/decrypt the datakey. [Pre-configure](https://openbao.org/docs/secrets/transit/#setup) it in your in OpenBao server.    | N/A  | -                      |
-| token                 | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. OpenTofu can read it from the `BAO_TOKEN` environment variable as well. | N/A  | -                      |
-| address               | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200 |
-| transit_engine_path   | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit               |
-| key_length            | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                     |
+| Option                   | Description                                                                                                                                                                 | Min. | Default                            |
+|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| key_name *(required)*    | Name of the transit encryption key to use to encrypt/decrypt the datakey. [Pre-configure](https://openbao.org/docs/secrets/transit/#setup) it in your in OpenBao server.    | N/A  | -                                  |
+| token                    | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. OpenTofu can read it from the `BAO_TOKEN` environment variable as well. | N/A  | -                                  |
+| address                  | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200             |
+| transit_engine_path      | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit                           |
+| key_length               | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                                 |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                                   | -    | derived from the key provider name |
 
 The following example illustrates a possible configuration:
 
 <CodeBlock language="hcl">{OpenBao}</CodeBlock>
-
-:::warning
-
-The OpenBao key provider is currently experimental because there was no stable release of OpenBao available at the time the OpenTofu release was made.
-
-:::
 
 :::info
 
@@ -206,8 +234,78 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 
 :::
 
-## Methods
+### External (experimental)
 
+The external command provider lets you run external commands in order to obtain encryption keys. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
+
+| Option    | Description                                                                           | Min. | Default |
+|-----------|---------------------------------------------------------------------------------------|------|---------|
+| `command` | External command to run in an array format, each parameter being an item in an array. | 1    |         |
+
+For example, you can configure the external program as follows:
+
+<CodeBlock language="hcl">{External}</CodeBlock>
+
+:::note
+
+You can use this provider in conjunction with the `chain` option in the [PBKDF2](#pbkdf2) key provider to input a passphrase from an external program.
+
+:::
+
+#### Writing an external key provider
+
+An external provider can be anything as long as it is runnable as an application. The protocol consists of 3 steps:
+
+1. The external program writes the header to the standard output.
+2. OpenTofu sends the metadata to the external program over the standard input.
+3. The external program writes the key information to the standard output.
+
+<Tabs>
+    <TabItem value="step1" label="Step 1: Writing the header" default>
+        As a first step, the external program must output a header to the standard output so OpenTofu knows it is a valid external key provider. The header must always be a single line and contain the following:
+        <CodeBlock language={"json"}>{ExternalHeader}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/header.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step2" label="Step 2: Reading the input">
+        Once the header is written, OpenTofu writes the input data to the standard input of the external program. If OpenTofu only needs to encrypt data, this will be `null`. If OpenTofu needs to decrypt data, it will write the metadata previously stored with the encrypted form to the standard input:
+        <CodeBlock language={"json"}>{ExternalInput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/input.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step3" label="Step 3: Writing the output">
+        With the input, the external program can now construct the output. If no input is present, the external program only needs to produce an encryption key. If an input is present, it needs to produce a decryption key as well. If needed, the output can also contain metadata that will be stored with the encrypted data and passed as an input on the next run.
+        <CodeBlock language={"json"}>{ExternalOutput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/output.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="example-go" label="Example: Go">
+        <CodeBlock language={"go"}>{ExternalGo}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-python" label="Example: Python">
+        <CodeBlock language={"python"}>{ExternalPython}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-sh" label="Example: POSIX Shell">
+        <CodeBlock language={"sh"}>{ExternalSH}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+## Methods
 
 ### AES-GCM
 
@@ -226,6 +324,70 @@ The AES-GCM method needs 16, 24, or 32-byte keys. Please configure your key prov
 AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "key saturation". In order to configure a secure setup, you should either use a key-derivation key provider (such as PBKDF2) with a long and complex passphrase, or use a key management system that automatically rotates keys regularly. Using short, static keys will degrade your encryption.
 
 :::
+
+### External (experimental)
+
+The external command method lets you run external commands in order to perform encryption and decryption. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
+
+| Option            | Description                                                                                          | Min. | Default |
+|-------------------|------------------------------------------------------------------------------------------------------|------|---------|
+| `encrypt_command` | External command to run for encryption in an array format, each parameter being an item in an array. | 1    |         |
+| `decrypt_command` | External command to run for decryption in an array format, each parameter being an item in an array. | 1    |         |
+| `keys`            | Reference to a key provider if the external command requires keys.                                   |      |         |
+
+For example, you can configure the external program as follows:
+
+<CodeBlock language="hcl">{ExternalMethod}</CodeBlock>
+
+#### Writing an external method
+
+An external method can be anything as long as it is runnable as an application. The protocol consists of 3 steps:
+
+1. The external program writes the header to the standard output.
+2. OpenTofu sends the key material and data to encrypt/decrypt to the external program over the standard input.
+3. The external program writes the encrypted/decrypted data to the standard output.
+
+<Tabs>
+    <TabItem value="step1" label="Step 1: Writing the header" default>
+        As a first step, the external program must output a header to the standard output so OpenTofu knows it is a valid external method. The header must always be a single line and contain the following:
+        <CodeBlock language={"json"}>{ExternalMethodHeader}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/header.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step2" label="Step 2: Reading the input">
+        Once the header is written, OpenTofu writes the key material and the data to process to the standard input of the external program. The key material may not be present if no key provider is configured. The input will always have the following format:
+        <CodeBlock language={"json"}>{ExternalMethodInput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/input.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step3" label="Step 3: Writing the output">
+        With the input, the external program can now construct the output.
+        <CodeBlock language={"json"}>{ExternalMethodOutput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/output.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="example-go" label="Example: Go">
+        <CodeBlock language={"go"}>{ExternalMethodGo}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-python" label="Example: Python">
+        <CodeBlock language={"python"}>{ExternalMethodPython}</CodeBlock>
+    </TabItem>
+</Tabs>
 
 ### Unencrypted
 

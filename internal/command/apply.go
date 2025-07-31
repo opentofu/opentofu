@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -29,6 +30,7 @@ type ApplyCommand struct {
 
 func (c *ApplyCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
@@ -49,6 +51,8 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		args, diags = arguments.ParseApply(rawArgs)
 	}
 
+	c.View.SetShowSensitive(args.ShowSensitive)
+
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
 	view := views.NewApply(args.ViewType, c.Destroy, c.View)
@@ -67,8 +71,11 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	// Inject variables from args into meta for static evaluation
+	c.GatherVariables(args.Vars)
+
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -78,17 +85,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Attempt to load the plan file, if specified
 	planFile, diags := c.LoadPlanFile(args.PlanPath, enc)
 	if diags.HasErrors() {
-		view.Diagnostics(diags)
-		return 1
-	}
-
-	// Check for invalid combination of plan file and variable overrides
-	if planFile != nil && !args.Vars.Empty() {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Can't set variables when applying a saved plan",
-			"The -var and -var-file options cannot be used when applying a saved plan file, because a saved plan includes the variable values that were set when it was created.",
-		))
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -108,7 +104,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewType, enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -116,11 +112,8 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
-
-	// Collect variable value and add them to the operation request
-	diags = diags.Append(c.GatherVariables(opReq, args.Vars))
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
@@ -132,10 +125,9 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Run the operation
-	op, err := c.RunOperation(be, opReq)
-	if err != nil {
-		diags = diags.Append(err)
-		view.Diagnostics(diags)
+	op, diags := c.RunOperation(ctx, be, opReq)
+	view.Diagnostics(diags)
+	if diags.HasErrors() {
 		return 1
 	}
 
@@ -205,7 +197,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// FIXME: we need to apply the state arguments to the meta object here
@@ -236,16 +228,16 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 			))
 			return nil, diags
 		}
-		be, beDiags = c.BackendForLocalPlan(plan.Backend, enc)
+		be, beDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc)
 	} else {
 		// Both new plans and saved cloud plans load their backend from config.
-		backendConfig, configDiags := c.loadBackendConfig(".")
+		backendConfig, configDiags := c.loadBackendConfig(ctx, ".")
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return nil, diags
 		}
 
-		be, beDiags = c.Backend(&BackendOpts{
+		be, beDiags = c.Backend(ctx, &BackendOpts{
 			Config:   backendConfig,
 			ViewType: viewType,
 		}, enc)
@@ -259,6 +251,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 }
 
 func (c *ApplyCommand) OperationRequest(
+	ctx context.Context,
 	be backend.Enhanced,
 	view views.Apply,
 	viewType arguments.ViewType,
@@ -275,7 +268,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewType, enc)
 	opReq.AutoApprove = autoApprove
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
@@ -283,6 +276,7 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.PlanFile = planFile
 	opReq.PlanRefresh = args.Refresh
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
@@ -297,11 +291,9 @@ func (c *ApplyCommand) OperationRequest(
 	return opReq, diags
 }
 
-func (c *ApplyCommand) GatherVariables(opReq *backend.Operation, args *arguments.Vars) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
+func (c *ApplyCommand) GatherVariables(args *arguments.Vars) {
 	// FIXME the arguments package currently trivially gathers variable related
-	// arguments in a heterogenous slice, in order to minimize the number of
+	// arguments in a heterogeneous slice, in order to minimize the number of
 	// code paths gathering variables during the transition to this structure.
 	// Once all commands that gather variables have been converted to this
 	// structure, we could move the variable gathering code to the arguments
@@ -314,9 +306,6 @@ func (c *ApplyCommand) GatherVariables(opReq *backend.Operation, args *arguments
 		items[i].Value = varArgs[i].Value
 	}
 	c.Meta.variableArgs = rawFlags{items: &items}
-	opReq.Variables, diags = c.collectVariableValues()
-
-	return diags
 }
 
 func (c *ApplyCommand) Help() string {
@@ -350,39 +339,64 @@ Usage: tofu [global options] apply [options] [PLAN]
 
 Options:
 
-  -auto-approve          Skip interactive approval of plan before applying.
+  -auto-approve                Skip interactive approval of plan before applying.
 
-  -backup=path           Path to backup the existing state file before
-                         modifying. Defaults to the "-state-out" path with
-                         ".backup" extension. Set to "-" to disable backup.
+  -backup=path                 Path to backup the existing state file before
+                               modifying. Defaults to the "-state-out" path with
+                               ".backup" extension. Set to "-" to disable backup.
 
-  -compact-warnings      If OpenTofu produces any warnings that are not
-                         accompanied by errors, show them in a more compact
-                         form that includes only the summary messages.
+  -compact-warnings            If OpenTofu produces any warnings that are not
+                               accompanied by errors, show them in a more compact
+                               form that includes only the summary messages.
 
-  -destroy               Destroy OpenTofu-managed infrastructure.
-                         The command "tofu destroy" is a convenience alias
-                         for this option.
+  -consolidate-warnings=false  If OpenTofu produces any warnings, no consolidation
+                               will be performed. All locations, for all warnings
+                               will be listed. Enabled by default.
 
-  -lock=false            Don't hold a state lock during the operation. This is
-                         dangerous if others might concurrently run commands
-                         against the same workspace.
+  -consolidate-errors          If OpenTofu produces any errors, no consolidation
+                               will be performed. All locations, for all errors
+                               will be listed. Disabled by default.
 
-  -lock-timeout=0s       Duration to retry a state lock.
+  -destroy                     Destroy OpenTofu-managed infrastructure.
+                               The command "tofu destroy" is a convenience alias
+                               for this option.
 
-  -input=true            Ask for input for variables if not directly set.
+  -lock=false                  Don't hold a state lock during the operation.
+                               This is dangerous if others might concurrently
+                               run commands against the same workspace.
 
-  -no-color              If specified, output won't contain any color.
+  -lock-timeout=0s             Duration to retry a state lock.
 
-  -parallelism=n         Limit the number of parallel resource operations.
-                         Defaults to 10.
+  -input=true                  Ask for input for variables if not directly set.
 
-  -state=path            Path to read and save state (unless state-out
-                         is specified). Defaults to "terraform.tfstate".
+  -no-color                    If specified, output won't contain any color.
 
-  -state-out=path        Path to write state to that is different than
-                         "-state". This can be used to preserve the old
-                         state.
+  -concise                     Disables progress-related messages in the output.
+
+  -parallelism=n               Limit the number of parallel resource operations.
+                               Defaults to 10.
+
+  -state=path                  Path to read and save state (unless state-out
+                               is specified). Defaults to "terraform.tfstate".
+
+  -state-out=path              Path to write state to that is different than
+                               "-state". This can be used to preserve the old
+                               state.
+
+  -show-sensitive              If specified, sensitive values will be displayed.
+
+  -json                        Produce output in a machine-readable JSON format,
+                               suitable for use in text editor integrations and
+                               other automated systems. Always disables color.
+
+  -deprecation=module:m        Specify what type of warnings are shown. Accepted
+                               values for "m": all, local, none. Default: all.
+                               When "all" is selected, OpenTofu will show the
+                               deprecation warnings for all modules. When "local"
+                               is selected, the warns will be shown only for the
+                               modules that are imported with a relative path.
+                               When "none" is selected, all the deprecation
+                               warnings will be dropped.
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.

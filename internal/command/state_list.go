@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,9 +25,12 @@ type StateListCommand struct {
 }
 
 func (c *StateListCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	var statePath string
 	cmdFlags := c.Meta.defaultFlagSet("state list")
+	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&statePath, "state", "", "path")
 	lookupId := cmdFlags.String("id", "", "Restrict output to paths with a resource having the specified ID.")
 	if err := cmdFlags.Parse(args); err != nil {
@@ -40,14 +44,14 @@ func (c *StateListCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -57,17 +61,17 @@ func (c *StateListCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
 	}
-	stateMgr, err := b.StateMgr(env)
+	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
 	}
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
@@ -133,6 +137,15 @@ Options:
   -id=ID              Filters the results to include only instances whose
                       resource types have an attribute named "id" whose value
                       equals the given id string.
+
+  -var 'foo=bar'      Set a value for one of the input variables in the root
+                      module of the configuration. Use this option more than
+                      once to set more than one variable.
+
+  -var-file=filename  Load variable values from the given file, in addition
+                      to the default files terraform.tfvars and *.auto.tfvars.
+                      Use this option more than once to include more than one
+                      variables file.
 
 `
 	return strings.TrimSpace(helpText)

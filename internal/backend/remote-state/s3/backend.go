@@ -53,6 +53,7 @@ type Backend struct {
 	ddbTable              string
 	workspaceKeyPrefix    string
 	skipS3Checksum        bool
+	useLockfile           bool
 }
 
 // ConfigSchema returns a description of the expected configuration
@@ -288,12 +289,6 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Optional:    true,
 				Description: "The maximum number of times an AWS API request is retried on retryable failure.",
 			},
-			"use_legacy_workflow": {
-				Type:        cty.Bool,
-				Optional:    true,
-				Description: "Use the legacy authentication workflow, preferring environment variables over backend configuration.",
-				Deprecated:  true,
-			},
 			"custom_ca_bundle": {
 				Type:        cty.String,
 				Optional:    true,
@@ -459,6 +454,11 @@ See details: https://cs.opensource.google/go/x/net/+/refs/tags/v0.17.0:http/http
 				Optional:    true,
 				Description: "Do not include checksum when uploading S3 Objects. Useful for some S3-Compatible APIs as some of them do not support checksum checks.",
 			},
+			"use_lockfile": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Manage locking in the same configured S3 bucket",
+			},
 		},
 	}
 }
@@ -575,18 +575,6 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 			attrPath))
 	}
 
-	if val := obj.GetAttr("use_legacy_workflow"); !val.IsNull() {
-		attrPath := cty.GetAttrPath("use_legacy_workflow")
-		detail := fmt.Sprintf(
-			`Parameter "%s" is deprecated and will be removed in an upcoming minor version.`,
-			pathString(attrPath))
-
-		diags = diags.Append(attributeWarningDiag(
-			"Deprecated Parameter",
-			detail,
-			attrPath))
-	}
-
 	validateAttributesConflict(
 		cty.GetAttrPath("force_path_style"),
 		cty.GetAttrPath("use_path_style"),
@@ -659,7 +647,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 // The given configuration is assumed to have already been validated
 // against the schema returned by ConfigSchema and passed validation
 // via PrepareConfig.
-func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -689,6 +677,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")
 	b.ddbTable = stringAttr(obj, "dynamodb_table")
+	b.useLockfile = boolAttr(obj, "use_lockfile")
 	b.skipS3Checksum = boolAttr(obj, "skip_s3_checksum")
 
 	if customerKey, ok := stringAttrOk(obj, "sse_customer_key"); ok {
@@ -729,7 +718,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		}
 	}
 
-	ctx := context.TODO()
 	ctx, baselog := attachLoggerToContext(ctx)
 
 	cfg := &awsbase.Config{
@@ -750,15 +738,18 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		// Note: we don't need to read env variables explicitly because they are read implicitly by aws-sdk-base-go:
 		// see: https://github.com/hashicorp/aws-sdk-go-base/blob/v2.0.0-beta.41/internal/config/config.go#L133
 		// which relies on: https://cs.opensource.google/go/x/net/+/refs/tags/v0.18.0:http/httpproxy/proxy.go;l=89-96
-		HTTPProxy:            aws.String(stringAttrDefaultEnvVar(obj, "http_proxy", "HTTP_PROXY")),
-		HTTPSProxy:           aws.String(stringAttrDefaultEnvVar(obj, "https_proxy", "HTTPS_PROXY")),
-		NoProxy:              stringAttrDefaultEnvVar(obj, "no_proxy", "NO_PROXY"),
+		//
+		// Note: we are switching to "separate" mode here since the legacy mode is deprecated and should no longer be
+		// used.
+		HTTPProxyMode:        awsbase.HTTPProxyModeSeparate,
 		Insecure:             boolAttr(obj, "insecure"),
 		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
-		UserAgent: awsbase.UserAgentProducts{
-			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.DefaultApplicationName, Version: version.String()},
+		APNInfo: &awsbase.APNInfo{
+			PartnerName: "OpenTofu-S3-Backend",
+			Products: []awsbase.UserAgentProduct{
+				{Name: httpclient.DefaultApplicationName, Version: version.String()},
+			},
 		},
 		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
@@ -766,7 +757,15 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Logger:                         baselog,
 	}
 
-	cfg.UseLegacyWorkflow = boolAttr(obj, "use_legacy_workflow")
+	if val, ok := stringAttrOk(obj, "http_proxy"); ok {
+		cfg.HTTPProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "https_proxy"); ok {
+		cfg.HTTPSProxy = &val
+	}
+	if val, ok := stringAttrOk(obj, "no_proxy"); ok {
+		cfg.NoProxy = val
+	}
 
 	if val, ok := boolAttrOk(obj, "skip_metadata_api_check"); ok {
 		if val {
@@ -781,9 +780,9 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
-		cfg.AssumeRole = configureNestedAssumeRole(obj)
+		cfg.AssumeRole = []awsbase.AssumeRole{configureNestedAssumeRole(obj)}
 	} else if value := obj.GetAttr("role_arn"); !value.IsNull() {
-		cfg.AssumeRole = configureAssumeRole(obj)
+		cfg.AssumeRole = []awsbase.AssumeRole{configureAssumeRole(obj)}
 	}
 
 	if val := obj.GetAttr("assume_role_with_web_identity"); !val.IsNull() {
@@ -894,7 +893,7 @@ func getS3Config(obj cty.Value) func(options *s3.Options) {
 	}
 }
 
-func configureNestedAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+func configureNestedAssumeRole(obj cty.Value) awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
 
 	obj = obj.GetAttr("assume_role")
@@ -931,10 +930,10 @@ func configureNestedAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 		assumeRole.TransitiveTagKeys = val
 	}
 
-	return &assumeRole
+	return assumeRole
 }
 
-func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+func configureAssumeRole(obj cty.Value) awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
 
 	assumeRole.RoleARN = stringAttr(obj, "role_arn")
@@ -953,7 +952,7 @@ func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 		assumeRole.TransitiveTagKeys = val
 	}
 
-	return &assumeRole
+	return assumeRole
 }
 
 func configureAssumeRoleWithWebIdentity(obj cty.Value) *awsbase.AssumeRoleWithWebIdentity {
@@ -1116,15 +1115,6 @@ func stringMapAttrOk(obj cty.Value, name string) (map[string]string, bool) {
 	return stringMapValueOk(obj.GetAttr(name))
 }
 
-func customEndpointAttrDefaultEnvVarOk(obj cty.Value, endpointsKey, deprecatedKey string, envvars ...string) (string, bool) {
-	if val := obj.GetAttr("endpoints"); !val.IsNull() {
-		if v, ok := stringAttrDefaultEnvVarOk(val, endpointsKey, envvars...); ok {
-			return v, true
-		}
-	}
-	return stringAttrDefaultEnvVarOk(obj, deprecatedKey, envvars...)
-}
-
 func pathString(path cty.Path) string {
 	var buf strings.Builder
 	for i, step := range path {
@@ -1138,10 +1128,10 @@ func pathString(path cty.Path) string {
 			val := x.Key
 			typ := val.Type()
 			var s string
-			switch {
-			case typ == cty.String:
+			switch typ {
+			case cty.String:
 				s = val.AsString()
-			case typ == cty.Number:
+			case cty.Number:
 				num := val.AsBigFloat()
 				if num.IsInt() {
 					s = num.Text('f', -1)
@@ -1217,7 +1207,7 @@ func (e customEndpoint) String(obj cty.Value) string {
 	return v
 }
 
-func includeProtoIfNessesary(endpoint string) string {
+func includeProtoIfNecessary(endpoint string) string {
 	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
 		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
 		endpoint = fmt.Sprintf("https://%s", endpoint)
@@ -1232,12 +1222,12 @@ func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 			continue
 		}
 		if s, ok := stringValueOk(val); ok {
-			return includeProtoIfNessesary(s), true
+			return includeProtoIfNecessary(s), true
 		}
 	}
 	for _, envVar := range e.EnvVars {
 		if v := os.Getenv(envVar); v != "" {
-			return includeProtoIfNessesary(v), true
+			return includeProtoIfNecessary(v), true
 		}
 	}
 	return "", false

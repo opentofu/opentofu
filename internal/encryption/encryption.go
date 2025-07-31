@@ -6,8 +6,12 @@
 package encryption
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
 
@@ -37,9 +41,23 @@ type encryption struct {
 }
 
 // New creates a new Encryption provider from the given configuration and registry.
-func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.Diagnostics) {
+func New(ctx context.Context, reg registry.Registry, cfg *config.EncryptionConfig, staticEval *configs.StaticEvaluator) (Encryption, hcl.Diagnostics) {
 	if cfg == nil {
 		return Disabled(), nil
+	}
+
+	var diags hcl.Diagnostics
+
+	// Early check for unencrypted, so we can warn about it
+	for _, mc := range cfg.MethodConfigs {
+		if unencrypted.IsConfig(mc) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Unencrypted method configured",
+				Detail:   "Method unencrypted is present in configuration. This is a security risk and should only be enabled during migrations.",
+				Subject:  cfg.DeclRange.Ptr(),
+			})
+		}
 	}
 
 	enc := &encryption{
@@ -48,25 +66,24 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 
 		remotes: make(map[string]StateEncryption),
 	}
-	var diags hcl.Diagnostics
 	var encDiags hcl.Diagnostics
 
 	if cfg.State != nil {
-		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state")
+		enc.state, encDiags = newStateEncryption(ctx, enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.state = StateEncryptionDisabled()
 	}
 
 	if cfg.Plan != nil {
-		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan")
+		enc.plan, encDiags = newPlanEncryption(ctx, enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.plan = PlanEncryptionDisabled()
 	}
 
 	if cfg.Remote != nil && cfg.Remote.Default != nil {
-		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default")
+		enc.remoteDefault, encDiags = newStateEncryption(ctx, enc, cfg.Remote.Default, false, "remote.default", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.remoteDefault = StateEncryptionDisabled()
@@ -76,7 +93,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig) (Encryption, hcl.D
 		for _, remoteTarget := range cfg.Remote.Targets {
 			// TODO the addr here should be generated in one place.
 			addr := "remote.remote_state_datasource." + remoteTarget.Name
-			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr)
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(ctx, enc, remoteTarget.AsTargetConfig(), false, addr, staticEval)
 			diags = append(diags, encDiags...)
 		}
 	}

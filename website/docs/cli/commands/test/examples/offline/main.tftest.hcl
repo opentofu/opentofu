@@ -1,8 +1,3 @@
-# Copyright (c) The OpenTofu Authors
-# SPDX-License-Identifier: MPL-2.0
-# Copyright (c) 2023 HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
 // Configure the AWS provider to run fake credentials and without
 // any validations. Not all providers support this, but when they
 // do, you can run fully offline tests.

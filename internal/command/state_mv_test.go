@@ -35,6 +35,7 @@ func TestStateMv(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -51,6 +52,7 @@ func TestStateMv(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -171,13 +173,14 @@ func TestStateMv_backupAndBackupOutOptionsWithNonLocalBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
 	t.Run("backup option specified", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-backend-http"), td)
-		defer testChdir(t, td)()
+		t.Chdir(td)
 
 		backupPath := filepath.Join(td, "backup")
 
@@ -225,7 +228,7 @@ on a local state file only. You must specify a local state file with the
 	t.Run("backup-out option specified", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-backend-http"), td)
-		defer testChdir(t, td)()
+		t.Chdir(td)
 
 		backupOutPath := filepath.Join(td, "backup-out")
 
@@ -273,7 +276,7 @@ on a local state file only. You must specify a local state file with the
 	t.Run("backup and backup-out options specified", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-backend-http"), td)
-		defer testChdir(t, td)()
+		t.Chdir(td)
 
 		backupPath := filepath.Join(td, "backup")
 		backupOutPath := filepath.Join(td, "backup-out")
@@ -323,7 +326,7 @@ on a local state file only. You must specify a local state file with the
 	t.Run("backup option specified with state option", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-backend-http"), td)
-		defer testChdir(t, td)()
+		t.Chdir(td)
 
 		statePath := testStateFile(t, state)
 		backupPath := filepath.Join(td, "backup")
@@ -363,7 +366,7 @@ on a local state file only. You must specify a local state file with the
 	t.Run("backup-out option specified with state option", func(t *testing.T) {
 		td := t.TempDir()
 		testCopyDir(t, testFixturePath("init-backend-http"), td)
-		defer testChdir(t, td)()
+		t.Chdir(td)
 
 		statePath := testStateFile(t, state)
 		backupOutPath := filepath.Join(td, "backup-out")
@@ -418,6 +421,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -434,6 +438,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceProvider(
 			addrs.Resource{
@@ -509,6 +514,7 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceProvider(
 			addrs.Resource{
@@ -578,6 +584,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceProvider(
 			addrs.Resource{
@@ -648,6 +655,7 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -663,6 +671,7 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -738,6 +747,7 @@ func TestStateMv_instanceToNewResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -811,6 +821,7 @@ func TestStateMv_differentResourceTypes(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -854,7 +865,7 @@ match.
 func TestStateMv_explicitWithBackend(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("init-backend"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	backupPath := filepath.Join(td, "backup")
 
@@ -873,6 +884,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -888,6 +900,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -951,6 +964,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -967,6 +981,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1018,6 +1033,7 @@ func TestStateMv_stateOutNew(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1074,6 +1090,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, stateSrc)
@@ -1093,6 +1110,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	stateOutPath := testStateFile(t, stateDst)
@@ -1139,7 +1157,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 }
 
 func TestStateMv_noState(t *testing.T) {
-	testCwd(t)
+	testCwdTemp(t)
 
 	p := testProvider()
 	ui := new(cli.MockUi)
@@ -1176,6 +1194,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1191,6 +1210,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1206,6 +1226,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1266,6 +1287,7 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
+				addrs.NoKey,
 			)
 		}
 		s.SetResourceInstanceCurrent(
@@ -1282,6 +1304,7 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1338,6 +1361,7 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1353,6 +1377,7 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -1410,6 +1435,7 @@ func TestStateMv_toNewModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -1467,7 +1493,7 @@ func TestStateMv_toNewModule(t *testing.T) {
 func TestStateMv_withinBackend(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("backend-unchanged"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1484,6 +1510,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1500,6 +1527,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -1546,7 +1574,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 func TestStateMv_fromBackendToLocal(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("backend-unchanged"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	state := states.NewState()
 	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
@@ -1559,6 +1587,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
 		mustResourceAddr("test_instance.baz").Resource.Instance(addrs.NoKey),
@@ -1570,6 +1599,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	// the local backend state file is "foo"
@@ -1635,6 +1665,7 @@ func TestStateMv_onlyResourceInModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -1713,7 +1744,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("command-check-required-version"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1730,6 +1761,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1746,6 +1778,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)

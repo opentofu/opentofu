@@ -89,7 +89,7 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 //
 // The provider address is a resource-wide setting and is updated for all other
 // instances of the same resource as a side-effect of this call.
-func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
+func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
 	// you'll probably just cause issues
@@ -139,6 +139,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 	}
 	// Update the resource's ProviderConfig, in case the provider has updated
 	rs.ProviderConfig = provider
+	is.ProviderKey = providerKey
 	is.Current = obj
 }
 
@@ -158,11 +159,12 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 // is overwritten. Set obj to nil to remove the deposed object altogether. If
 // the instance is left with no objects after this operation then it will
 // be removed from its containing resource altogether.
-func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
+func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
 	ms.SetResourceProvider(addr.Resource, provider)
 
 	rs := ms.Resource(addr.Resource)
 	is := rs.EnsureInstance(addr.Key)
+	is.ProviderKey = providerKey
 	if obj != nil {
 		is.Deposed[key] = obj
 	} else {
@@ -257,7 +259,7 @@ func (ms *Module) maybeRestoreResourceInstanceDeposed(addr addrs.ResourceInstanc
 
 // SetOutputValue writes an output value into the state, overwriting any
 // existing value of the same name.
-func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *OutputValue {
+func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool, deprecated string) *OutputValue {
 	os := &OutputValue{
 		Addr: addrs.AbsOutputValue{
 			Module: ms.Addr,
@@ -265,8 +267,9 @@ func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *
 				Name: name,
 			},
 		},
-		Value:     value,
-		Sensitive: sensitive,
+		Value:      value,
+		Sensitive:  sensitive,
+		Deprecated: deprecated,
 	}
 	ms.OutputValues[name] = os
 	return os
@@ -306,7 +309,7 @@ func (ms *Module) PruneResourceHusks() {
 	}
 }
 
-// empty returns true if the receving module state is contributing nothing
+// empty returns true if the receiving module state is contributing nothing
 // to the state. In other words, it returns true if the module could be
 // removed from the state altogether without changing the meaning of the state.
 //

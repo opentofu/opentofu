@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -44,7 +45,7 @@ func (n *NodeForgetResourceInstance) Name() string {
 }
 
 // GraphNodeExecutable
-func (n *NodeForgetResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeForgetResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Get our state
@@ -53,9 +54,14 @@ func (n *NodeForgetResourceInstance) Execute(ctx EvalContext, op walkOperation) 
 		log.Printf("[WARN] NodeForgetResourceInstance for %s with no state", addr)
 	}
 
+	diags = n.resolveProvider(ctx, evalCtx, false, states.NotDeposed)
+	if diags.HasErrors() {
+		return diags
+	}
+
 	var state *states.ResourceInstanceObject
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -66,10 +72,10 @@ func (n *NodeForgetResourceInstance) Execute(ctx EvalContext, op walkOperation) 
 		return diags
 	}
 
-	contextState := ctx.State()
+	contextState := evalCtx.State()
 	contextState.ForgetResourceInstanceAll(n.Addr)
 
-	diags = diags.Append(updateStateHook(ctx))
+	diags = diags.Append(updateStateHook(evalCtx))
 
 	return diags
 }

@@ -35,6 +35,7 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 func (c *ProvidersMirrorCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
+	c.Meta.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -80,13 +81,13 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
-	config, confDiags := c.loadConfig(".")
+	config, confDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(confDiags)
-	reqs, moreDiags := config.ProviderRequirements()
+	reqs, _, moreDiags := config.ProviderRequirements()
 	diags = diags.Append(moreDiags)
 
 	// Read lock file
-	lockedDeps, lockedDepsDiags := c.Meta.lockedDependencies()
+	lockedDeps, lockedDepsDiags := c.Meta.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(lockedDepsDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.
@@ -111,14 +112,14 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	// directory without needing to first disable that local mirror
 	// in the CLI configuration.
 	source := getproviders.NewMemoizeSource(
-		getproviders.NewRegistrySource(c.Services),
+		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx)),
 	)
 
 	// Providers from registries always use HTTP, so we don't need the full
 	// generality of go-getter but it's still handy to use the HTTP getter
 	// as an easy way to download over HTTP into a file on disk.
 	httpGetter := getter.HttpGetter{
-		Client:                httpclient.New(),
+		Client:                httpclient.New(ctx),
 		Netrc:                 true,
 		XTerraformGetDisabled: true,
 	}
@@ -163,6 +164,14 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 		}
 		selected := candidates.Newest()
 		if !lockedDeps.Empty() {
+			if lockedDeps.Provider(provider) == nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider not found in lockfile",
+					fmt.Sprintf("Failed to find %s in the lock file", provider.String()),
+				))
+				continue
+			}
 			selected = lockedDeps.Provider(provider).Version()
 			c.Ui.Output(fmt.Sprintf("  - Selected v%s to match dependency lock file", selected.String()))
 		} else if len(constraintsStr) > 0 {
@@ -380,5 +389,14 @@ Options:
                      Linux operating system running on an AMD64 or x86_64
                      CPU. Each provider is available only for a limited
                      set of target platforms.
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 }

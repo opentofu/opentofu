@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package openbao
 
 import (
@@ -9,7 +14,7 @@ import (
 	"os"
 	"testing"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
 )
 
@@ -199,7 +204,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 		case generateDataKeyPath:
 			bits, ok := data["bits"].(int)
 			if !ok {
-				t.Fatalf("Invalid bits in data suplied to mock: not a number")
+				t.Fatalf("Invalid bits in data supplied to mock: not a number")
 			}
 
 			plaintext := make([]byte, int(bits)/8)
@@ -219,7 +224,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 		case decryptPath:
 			ciphertext, ok := data["ciphertext"].(string)
 			if !ok {
-				t.Fatalf("Invalid ciphertext in data suplied to mock: not an string")
+				t.Fatalf("Invalid ciphertext in data supplied to mock: not an string")
 			}
 
 			plaintext := []byte(ciphertext[len(testKeyName):])
@@ -233,7 +238,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			return s, nil
 
 		default:
-			t.Fatalf("Invalid path suplied to mock: %s", path)
+			t.Fatalf("Invalid path supplied to mock: %s", path)
 		}
 
 		// unreachable code

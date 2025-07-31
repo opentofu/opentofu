@@ -6,13 +6,17 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -21,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // NodeValidatableResource represents a resource that is used for validation
@@ -46,14 +51,22 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeEvalable
-func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	_, span := tracing.Tracer().Start(
+		ctx, traceNameValidateResource,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrConfigResourceAddr, n.Addr.String()),
+		),
+	)
+	defer span.End()
+
 	if n.Config == nil {
 		return diags
 	}
 
-	diags = diags.Append(n.validateResource(ctx))
+	diags = diags.Append(n.validateResource(ctx, evalCtx))
 
-	diags = diags.Append(n.validateCheckRules(ctx, n.Config))
+	diags = diags.Append(n.validateCheckRules(ctx, evalCtx, n.Config))
 
 	if managed := n.Config.Managed; managed != nil {
 		// Validate all the provisioners
@@ -74,22 +87,25 @@ func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (di
 			}
 
 			// Validate Provisioner Config
-			diags = diags.Append(n.validateProvisioner(ctx, &provisioner))
+			diags = diags.Append(n.validateProvisioner(ctx, evalCtx, &provisioner))
 			if diags.HasErrors() {
 				return diags
 			}
 		}
 	}
+	importDiags := n.validateImportIDs(ctx, evalCtx)
+	diags = diags.Append(importDiags)
+
 	return diags
 }
 
 // validateProvisioner validates the configuration of a provisioner belonging to
 // a resource. The provisioner config is expected to contain the merged
 // connection configurations.
-func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provisioner, err := ctx.Provisioner(p.Type)
+	provisioner, err := evalCtx.Provisioner(p.Type)
 	if err != nil {
 		diags = diags.Append(err)
 		return diags
@@ -98,7 +114,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *config
 	if provisioner == nil {
 		return diags.Append(fmt.Errorf("provisioner %s not initialized", p.Type))
 	}
-	provisionerSchema, err := ctx.ProvisionerSchema(p.Type)
+	provisionerSchema, err := evalCtx.ProvisionerSchema(p.Type)
 	if err != nil {
 		return diags.Append(fmt.Errorf("failed to read schema for provisioner %s: %w", p.Type, err))
 	}
@@ -107,7 +123,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *config
 	}
 
 	// Validate the provisioner's own config first
-	configVal, _, configDiags := n.evaluateBlock(ctx, p.Config, provisionerSchema)
+	configVal, _, configDiags := n.evaluateBlock(ctx, evalCtx, p.Config, provisionerSchema)
 	diags = diags.Append(configDiags)
 
 	if configVal == cty.NilVal {
@@ -131,158 +147,22 @@ func (n *NodeValidatableResource) validateProvisioner(ctx EvalContext, p *config
 		// configuration keys that are not valid for *any* communicator, catching
 		// typos early rather than waiting until we actually try to run one of
 		// the resource's provisioners.
-		_, _, connDiags := n.evaluateBlock(ctx, p.Connection.Config, connectionBlockSupersetSchema)
+		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
 	}
 	return diags
 }
 
-func (n *NodeValidatableResource) evaluateBlock(ctx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
-	return ctx.EvaluateBlock(body, schema, selfAddr, keyData)
+	return evalCtx.EvaluateBlock(ctx, body, schema, selfAddr, keyData)
 }
 
-// connectionBlockSupersetSchema is a schema representing the superset of all
-// possible arguments for "connection" blocks across all supported connection
-// types.
-//
-// This currently lives here because we've not yet updated our communicator
-// subsystem to be aware of schema itself. Once that is done, we can remove
-// this and use a type-specific schema from the communicator to validate
-// exactly what is expected for a given connection type.
-var connectionBlockSupersetSchema = &configschema.Block{
-	Attributes: map[string]*configschema.Attribute{
-		// NOTE: "type" is not included here because it's treated special
-		// by the config loader and stored away in a separate field.
-
-		// Common attributes for both connection types
-		"host": {
-			Type:     cty.String,
-			Required: true,
-		},
-		"type": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"user": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"timeout": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"script_path": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		// For type=ssh only (enforced in ssh communicator)
-		"target_platform": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"private_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"certificate": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"host_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"agent": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"agent_identity": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_scheme": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_host": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"proxy_user_name": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_user_password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_host": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_host_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"bastion_user": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_private_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_certificate": {
-			Type:     cty.String,
-			Optional: true,
-		},
-
-		// For type=winrm only (enforced in winrm communicator)
-		"https": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"insecure": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"cacert": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"use_ntlm": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-	},
-}
-
-func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -301,7 +181,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 
 		// Basic type-checking of the count argument. More complete validation
 		// of this will happen when we DynamicExpand during the plan walk.
-		countDiags := validateCount(ctx, n.Config.Count)
+		countDiags := validateCount(ctx, evalCtx, n.Config.Count)
 		diags = diags.Append(countDiags)
 
 	case n.Config.ForEach != nil:
@@ -311,11 +191,11 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 		}
 
 		// Evaluate the for_each expression here so we can expose the diagnostics
-		forEachDiags := validateForEach(ctx, n.Config.ForEach)
+		forEachDiags := validateForEach(ctx, evalCtx, n.Config.ForEach)
 		diags = diags.Append(forEachDiags)
 	}
 
-	diags = diags.Append(validateDependsOn(ctx, n.Config.DependsOn))
+	diags = diags.Append(validateDependsOn(ctx, evalCtx, n.Config.DependsOn))
 
 	// Validate the provider_meta block for the provider this resource
 	// belongs to, if there is one.
@@ -380,7 +260,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -426,7 +306,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			Config:   unmarkedConfigVal,
 		}
 
-		resp := provider.ValidateResourceConfig(req)
+		resp := provider.ValidateResourceConfig(ctx, req)
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	case addrs.DataResourceMode:
@@ -454,7 +334,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			return diags
 		}
 
-		configVal, _, valDiags := ctx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -467,22 +347,35 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 			Config:   unmarkedConfigVal,
 		}
 
-		resp := provider.ValidateDataResourceConfig(req)
+		resp := provider.ValidateDataResourceConfig(ctx, req)
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 	}
 
 	return diags
 }
 
-func (n *NodeValidatableResource) evaluateExpr(ctx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) validateImportIDs(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
+	importResolver := evalCtx.ImportResolver()
+	var diags tfdiags.Diagnostics
+	for _, importTarget := range n.importTargets {
+		err := importResolver.ValidateImportIDs(ctx, importTarget, evalCtx)
+		if err != nil {
+			diags = diags.Append(err)
+		}
+	}
+	return diags
+
+}
+
+func (n *NodeValidatableResource) evaluateExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	refs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(refDiags)
 
-	scope := ctx.EvaluationScope(self, nil, keyData)
+	scope := evalCtx.EvaluationScope(self, nil, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(refs)
+	hclCtx, moreDiags := scope.EvalContext(ctx, refs)
 	diags = diags.Append(moreDiags)
 
 	result, hclDiags := expr.Value(hclCtx)
@@ -525,32 +418,32 @@ func (n *NodeValidatableResource) stubRepetitionData(hasCount, hasForEach bool) 
 	return keyData, selfAddr
 }
 
-func (n *NodeValidatableResource) validateCheckRules(ctx EvalContext, config *configs.Resource) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateCheckRules(ctx context.Context, evalCtx EvalContext, config *configs.Resource) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
 	for _, cr := range config.Preconditions {
-		_, conditionDiags := n.evaluateExpr(ctx, cr.Condition, cty.Bool, nil, keyData)
+		_, conditionDiags := n.evaluateExpr(ctx, evalCtx, cr.Condition, cty.Bool, nil, keyData)
 		diags = diags.Append(conditionDiags)
 
-		_, errorMessageDiags := n.evaluateExpr(ctx, cr.ErrorMessage, cty.Bool, nil, keyData)
+		_, errorMessageDiags := n.evaluateExpr(ctx, evalCtx, cr.ErrorMessage, cty.Bool, nil, keyData)
 		diags = diags.Append(errorMessageDiags)
 	}
 
 	for _, cr := range config.Postconditions {
-		_, conditionDiags := n.evaluateExpr(ctx, cr.Condition, cty.Bool, selfAddr, keyData)
+		_, conditionDiags := n.evaluateExpr(ctx, evalCtx, cr.Condition, cty.Bool, selfAddr, keyData)
 		diags = diags.Append(conditionDiags)
 
-		_, errorMessageDiags := n.evaluateExpr(ctx, cr.ErrorMessage, cty.Bool, selfAddr, keyData)
+		_, errorMessageDiags := n.evaluateExpr(ctx, evalCtx, cr.ErrorMessage, cty.Bool, selfAddr, keyData)
 		diags = diags.Append(errorMessageDiags)
 	}
 
 	return diags
 }
 
-func validateCount(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
-	val, countDiags := evaluateCountExpressionValue(expr, ctx)
+func validateCount(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
+	val, countDiags := evaluateCountExpressionValue(ctx, expr, evalCtx)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {
@@ -564,22 +457,23 @@ func validateCount(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnost
 	return diags
 }
 
-func validateForEach(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
-	val, forEachDiags := evaluateForEachExpressionValue(expr, ctx, true, false)
+func validateForEach(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
+	const unknownsAllowed = true
+	const tupleNotAllowed = false
+
+	val, forEachDiags := evaluateForEachExpressionValue(ctx, expr, evalCtx, unknownsAllowed, tupleNotAllowed, nil)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {
 		return diags
 	}
 
-	if forEachDiags.HasErrors() {
-		diags = diags.Append(forEachDiags)
-	}
+	diags = diags.Append(forEachDiags)
 
 	return diags
 }
 
-func validateDependsOn(ctx EvalContext, dependsOn []hcl.Traversal) (diags tfdiags.Diagnostics) {
+func validateDependsOn(ctx context.Context, evalCtx EvalContext, dependsOn []hcl.Traversal) (diags tfdiags.Diagnostics) {
 	for _, traversal := range dependsOn {
 		ref, refDiags := addrs.ParseRef(traversal)
 		diags = diags.Append(refDiags)
@@ -596,9 +490,9 @@ func validateDependsOn(ctx EvalContext, dependsOn []hcl.Traversal) (diags tfdiag
 		// we'll just eval it and count on the fact that our evaluator will
 		// detect references to non-existent objects.
 		if !diags.HasErrors() {
-			scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
+			scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
 			if scope != nil { // sometimes nil in tests, due to incomplete mocks
-				_, refDiags = scope.EvalReference(ref, cty.DynamicPseudoType)
+				_, refDiags = scope.EvalReference(ctx, ref, cty.DynamicPseudoType)
 				diags = diags.Append(refDiags)
 			}
 		}

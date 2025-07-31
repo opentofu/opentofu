@@ -1,6 +1,12 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package unencrypted
 
 import (
+	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
@@ -14,12 +20,12 @@ func (f *descriptor) ID() method.ID {
 	return "unencrypted"
 }
 func (f *descriptor) ConfigStruct() method.Config {
-	return new(config)
+	return new(methodConfig)
 }
 
-type config struct{}
+type methodConfig struct{}
 
-func (c *config) Build() (method.Method, error) {
+func (c *methodConfig) Build() (method.Method, error) {
 	return new(unenc), nil
 }
 
@@ -35,4 +41,8 @@ func (a *unenc) Decrypt(data []byte) ([]byte, error) {
 func Is(m method.Method) bool {
 	_, ok := m.(*unenc)
 	return ok
+}
+
+func IsConfig(m config.MethodConfig) bool {
+	return m.Type == "unencrypted"
 }

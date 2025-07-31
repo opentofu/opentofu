@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,7 +21,7 @@ type RemovedModuleTransformer struct {
 	State  *states.State
 }
 
-func (t *RemovedModuleTransformer) Transform(g *Graph) error {
+func (t *RemovedModuleTransformer) Transform(_ context.Context, g *Graph) error {
 	// nothing to remove if there's no state!
 	if t.State == nil {
 		return nil
@@ -33,7 +34,8 @@ func (t *RemovedModuleTransformer) Transform(g *Graph) error {
 		if cc != nil {
 			continue
 		}
-		removed[m.Addr.Module().String()] = m.Addr.Module()
+		mod := m.Addr.Module()
+		removed[mod.String()] = mod
 		log.Printf("[DEBUG] %s is no longer in configuration\n", m.Addr)
 	}
 

@@ -1,0 +1,14 @@
+{
+  "resource": {
+    "test_object": {
+      "a_tofu": {
+        "count": 1,
+        "test_string": "hello"
+      },
+      "b_tofu": {
+        "count": 1,
+        "test_string": "world"
+      }
+    }
+  }
+}

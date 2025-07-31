@@ -12,10 +12,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // A Config is a node in the tree of modules within a configuration.
@@ -212,7 +212,7 @@ func (c *Config) EntersNewPackage() bool {
 
 // VerifyDependencySelections checks whether the given locked dependencies
 // are acceptable for all of the version constraints reported in the
-// configuration tree represented by the reciever.
+// configuration tree represented by the receiver.
 //
 // This function will errors only if any of the locked dependencies are out of
 // range for corresponding constraints in the configuration. If there are
@@ -230,7 +230,7 @@ func (c *Config) EntersNewPackage() bool {
 func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
 	var errs []error
 
-	reqs, diags := c.ProviderRequirements()
+	reqs, _, diags := c.ProviderRequirements()
 	if diags.HasErrors() {
 		// It should be very unusual to get here, but unfortunately we can
 		// end up here in some edge cases where the config loader doesn't
@@ -301,11 +301,12 @@ func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
 //
 // If the returned diagnostics includes errors then the resulting Requirements
 // may be incomplete.
-func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnostics) {
+func (c *Config) ProviderRequirements() (getproviders.Requirements, *getproviders.ProvidersQualification, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, true, true)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, true, true)
 
-	return reqs, diags
+	return reqs, qualifs, diags
 }
 
 // ProviderRequirementsShallow searches only the direct receiver for explicit
@@ -315,7 +316,8 @@ func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnost
 // may be incomplete.
 func (c *Config) ProviderRequirementsShallow() (getproviders.Requirements, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, false, true)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, false, true)
 
 	return reqs, diags
 }
@@ -328,7 +330,8 @@ func (c *Config) ProviderRequirementsShallow() (getproviders.Requirements, hcl.D
 // may be incomplete.
 func (c *Config) ProviderRequirementsByModule() (*ModuleRequirements, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, false, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, false, false)
 
 	children := make(map[string]*ModuleRequirements)
 	for name, child := range c.Children {
@@ -378,7 +381,7 @@ func (c *Config) ProviderRequirementsByModule() (*ModuleRequirements, hcl.Diagno
 // implementation, gradually mutating a shared requirements object to
 // eventually return. If the recurse argument is true, the requirements will
 // include all descendant modules; otherwise, only the specified module.
-func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse, tests bool) hcl.Diagnostics {
+func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs *getproviders.ProvidersQualification, recurse, tests bool) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	// First we'll deal with the requirements directly in _our_ module...
@@ -409,6 +412,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 				})
 			}
 			reqs[fqn] = append(reqs[fqn], constraints...)
+			qualifs.AddExplicitProvider(providerReqs.Type)
 		}
 	}
 
@@ -418,31 +422,43 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	for _, rc := range c.Module.ManagedResources {
 		fqn := rc.Provider
 		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
 			// Explicit dependency already present
 			continue
 		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
 	}
 	for _, rc := range c.Module.DataResources {
 		fqn := rc.Provider
 		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
+
 			// Explicit dependency already present
 			continue
 		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
-	}
-	for _, i := range c.Module.Import {
-		implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
-		if err == nil {
-			provider := c.Module.ImpliedProviderForUnqualifiedType(implied)
-			if _, exists := reqs[provider]; exists {
-				// Explicit dependency already present
-				continue
-			}
-			reqs[provider] = nil
-		}
-		// We don't return a diagnostic here, because the invalid address will
-		// have been caught elsewhere.
 	}
 
 	// Import blocks that are generating config may also have a custom provider
@@ -454,6 +470,18 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	// this will be because the user has written explicit provider arguments
 	// that don't agree and we'll get them to fix it.
 	for _, i := range c.Module.Import {
+		// Add the import's declared or implicit provider
+		fqn := i.Provider
+		if _, exists := reqs[fqn]; !exists {
+			reqs[fqn] = nil
+			qualifs.AddImplicitProvider(i.Provider, getproviders.ResourceRef{
+				CfgRes: i.StaticTo,
+				Ref:    tfdiags.SourceRangeFromHCL(i.DeclRange),
+			})
+		}
+
+		// TODO: This should probably be moved to provider_validation.go so that
+		// import providers can be properly validated across modules (root -> children)
 		if len(i.StaticTo.Module) > 0 {
 			// All provider information for imports into modules should come
 			// from the module block, so we don't need to load anything for
@@ -479,7 +507,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Invalid import provider argument",
-						Detail:   "The provider argument can only be specified in import blocks that will generate configuration.\n\nUse the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.",
+						Detail:   "The provider argument in the target resource block must be specified and match the import block.",
 						Subject:  i.ProviderDeclRange.Ptr(),
 					})
 					continue
@@ -499,27 +527,13 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Invalid import provider argument",
-						Detail:   "The provider argument can only be specified in import blocks that will generate configuration.\n\nUse the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.",
+						Detail:   "The provider argument in the target resource block must match the import block.",
 						Subject:  i.ProviderDeclRange.Ptr(),
 					})
 					continue
 				}
 			}
-
-			// All the provider information should come from the target resource
-			// which has already been processed, so skip the rest of this
-			// processing.
-			continue
 		}
-
-		// Otherwise we are generating config for the resource being imported,
-		// so all the provider information must come from this import block.
-		fqn := i.Provider
-		if _, exists := reqs[fqn]; exists {
-			// Explicit dependency already present
-			continue
-		}
-		reqs[fqn] = nil
 	}
 
 	// "provider" block can also contain version constraints
@@ -541,7 +555,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 				// Then we'll also look for requirements in testing modules.
 				for _, run := range file.Runs {
 					if run.ConfigUnderTest != nil {
-						moreDiags := run.ConfigUnderTest.addProviderRequirements(reqs, true, false)
+						moreDiags := run.ConfigUnderTest.addProviderRequirements(reqs, qualifs, true, false)
 						diags = append(diags, moreDiags...)
 					}
 				}
@@ -551,7 +565,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 
 	if recurse {
 		for _, childConfig := range c.Children {
-			moreDiags := childConfig.addProviderRequirements(reqs, true, false)
+			moreDiags := childConfig.addProviderRequirements(reqs, qualifs, true, false)
 			diags = append(diags, moreDiags...)
 		}
 	}
@@ -791,7 +805,7 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 // versions for each provider.
 func (c *Config) ProviderTypes() []addrs.Provider {
 	// Ignore diagnostics here because they relate to version constraints
-	reqs, _ := c.ProviderRequirements()
+	reqs, _, _ := c.ProviderRequirements()
 
 	ret := make([]addrs.Provider, 0, len(reqs))
 	for k := range reqs {
@@ -870,6 +884,8 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 	return diags
 }
 
+type testConfigTransformFunc func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
+
 // TransformForTest prepares the config to execute the given test.
 //
 // This function directly edits the config that is to be tested, and returns a
@@ -877,86 +893,360 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 //
 // Tests will call this before they execute, and then call the deferred function
 // to reset the config before the next test.
-func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+func (c *Config) TransformForTest(run *TestRun, file *TestFile, evalCtx *hcl.EvalContext) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	// Currently, we only need to override the provider settings.
-	//
-	// We can have a set of providers defined within the config, we can also
-	// have a set of providers defined within the test file. Then the run can
-	// also specify a set of overrides that tell OpenTofu exactly which
-	// providers from the test file to apply into the config.
-	//
-	// The process here is as follows:
-	//   1. Take all the providers in the original config keyed by name.alias,
-	//      we call this `previous`
-	//   2. Copy them all into a new map, we call this `next`.
-	//   3a. If the run has configuration specifying provider overrides, we copy
-	//       only the specified providers from the test file into `next`. While
-	//       doing this we ensure to preserve the name and alias from the
-	//       original config.
-	//   3b. If the run has no override configuration, we copy all the providers
-	//       from the test file into `next`, overriding all providers with name
-	//       collisions from the original config.
-	//   4. We then modify the original configuration so that the providers it
-	//      holds are the combination specified by the original config, the test
-	//      file and the run file.
-	//   5. We then return a function that resets the original config back to
-	//      its original state. This can be called by the surrounding test once
-	//      completed so future run blocks can safely execute.
-
-	// First, initialise `previous` and `next`. `previous` contains a backup of
-	// the providers from the original config. `next` contains the set of
-	// providers that will be used by the test. `next` starts with the set of
-	// providers from the original config.
-	previous := c.Module.ProviderConfigs
-	next := make(map[string]*Provider)
-	for key, value := range previous {
-		next[key] = value
+	// These transformation functions must be in sync of what is being transformed,
+	// currently all the functions operate on different fields of configuration.
+	transformFuncs := []testConfigTransformFunc{
+		c.getProviderConfigTransformForTest(evalCtx),
+		c.transformOverriddenResourcesForTest,
+		c.transformOverriddenModulesForTest,
 	}
 
-	if run != nil && len(run.Providers) > 0 {
-		// Then we'll only copy over and overwrite the specific providers asked
-		// for by this run block.
+	var resetFuncs []func()
 
-		for _, ref := range run.Providers {
+	// We call each function to transform the configuration
+	// and gather transformation diags as well as reset functions.
+	for _, f := range transformFuncs {
+		resetFunc, moreDiags := f(run, file)
+		diags = append(diags, moreDiags...)
+		resetFuncs = append(resetFuncs, resetFunc)
+	}
 
-			testProvider, ok := file.Providers[ref.InParent.String()]
-			if !ok {
-				// Then this reference was invalid as we didn't have the
-				// specified provider in the parent. This should have been
-				// caught earlier in validation anyway so is unlikely to happen.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
-					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParent.NameRange.Ptr(),
-				})
+	// Order of calls doesn't matter as long as transformation functions
+	// don't operate on the same set of fields.
+	return func() {
+		for _, f := range resetFuncs {
+			f()
+		}
+	}, diags
+}
+
+func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) testConfigTransformFunc {
+	return func(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		// We need to override the provider settings.
+		//
+		// We can have a set of providers defined within the config, we can also
+		// have a set of providers defined within the test file. Then the run can
+		// also specify a set of overrides that tell OpenTofu exactly which
+		// providers from the test file to apply into the config.
+		//
+		// The process here is as follows:
+		//   1. Take all the providers in the original config keyed by name.alias,
+		//      we call this `previous`
+		//   2. Copy them all into a new map, we call this `next`.
+		//   3a. If the run has configuration specifying provider overrides, we copy
+		//       only the specified providers from the test file into `next`. While
+		//       doing this we ensure to preserve the name and alias from the
+		//       original config.
+		//   3b. If the run has no override configuration, we copy all the providers
+		//       (including mocks) from the test file into `next`, overriding all providers
+		//       with name collisions from the original config.
+		//   4. We then modify the original configuration so that the providers it
+		//      holds are the combination specified by the original config, the test
+		//      file and the run file.
+		//   5. We then return a function that resets the original config back to
+		//      its original state. This can be called by the surrounding test once
+		//      completed so future run blocks can safely execute.
+
+		// First, initialise `previous` and `next`. `previous` contains a backup of
+		// the providers from the original config. `next` contains the set of
+		// providers that will be used by the test. `next` starts with the set of
+		// providers from the original config.
+		previous := c.Module.ProviderConfigs
+		next := make(map[string]*Provider)
+		for key, value := range previous {
+			next[key] = value
+		}
+
+		ctxRunOutputExists := !evalCtx.Variables["run"].IsNull() && len(evalCtx.Variables["run"].AsValueMap()) > 0
+
+		if run != nil && len(run.Providers) > 0 {
+			// Then we'll only copy over and overwrite the specific providers asked
+			// for by this run block.
+
+			for _, ref := range run.Providers {
+
+				testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
+				if !ok {
+					// Then this reference was invalid as we didn't have the
+					// specified provider in the parent. This should have been
+					// caught earlier in validation anyway so is unlikely to happen.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
+						Detail:   "This provider block references a provider definition that does not exist.",
+						Subject:  ref.InParent.NameRange.Ptr(),
+					})
+					continue
+				}
+
+				providerConfig := testProvider.Config
+				// If we have test run block output and provider config exists we can use testProviderBody to wrap it.
+				// It can be used to evaluate run block expressions inside provider config with prepared evalCtx.
+				if ctxRunOutputExists && providerConfig != nil {
+					providerConfig = testProviderBody{originalBody: providerConfig, evalCtx: evalCtx}
+				}
+
+				next[ref.InChild.String()] = &Provider{
+					Name:              ref.InChild.Name,
+					NameRange:         ref.InChild.NameRange,
+					Alias:             ref.InChild.Alias,
+					AliasRange:        ref.InChild.AliasRange,
+					Version:           testProvider.Version,
+					Config:            providerConfig,
+					DeclRange:         testProvider.DeclRange,
+					IsMocked:          testProvider.IsMocked,
+					MockResources:     testProvider.MockResources,
+					OverrideResources: testProvider.OverrideResources,
+				}
+
+			}
+		} else {
+			// Otherwise, let's copy over and overwrite all providers specified by
+			// the test file itself.
+			for key, provider := range file.Providers {
+				// If we have test run block output and provider config exists we can use testProviderBody to wrap it.
+				// It can be used to evaluate run block expressions inside provider config with prepared evalCtx.
+				if ctxRunOutputExists && provider.Config != nil {
+					provider.Config = testProviderBody{originalBody: provider.Config, evalCtx: evalCtx}
+				}
+				next[key] = provider
+			}
+			for _, mp := range file.MockProviders {
+				next[mp.moduleUniqueKey()] = &Provider{
+					Name:              mp.Name,
+					NameRange:         mp.NameRange,
+					Alias:             mp.Alias,
+					AliasRange:        mp.AliasRange,
+					DeclRange:         mp.DeclRange,
+					IsMocked:          true,
+					MockResources:     mp.MockResources,
+					OverrideResources: mp.OverrideResources,
+				}
+			}
+		}
+
+		c.Module.ProviderConfigs = next
+
+		return func() {
+			// Reset the original config within the returned function.
+			c.Module.ProviderConfigs = previous
+		}, diags
+	}
+}
+
+func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	resources, diags := mergeOverriddenResources(run.OverrideResources, file.OverrideResources)
+
+	// We want to pass override values to resources being overridden.
+	for _, overrideRes := range resources {
+		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module)
+		if targetConfig == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Module not found: %v", overrideRes.TargetParsed.Module),
+				Detail:   "Target points to resource in undefined module. Please, ensure module exists.",
+				Subject:  overrideRes.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		res := targetConfig.Module.ResourceByAddr(overrideRes.TargetParsed.Resource)
+		if res == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Resource not found: %v", overrideRes.TargetParsed),
+				Detail:   "Target points to undefined resource. Please, ensure resource exists.",
+				Subject:  overrideRes.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		if res.Mode != overrideRes.Mode {
+			blockName, targetMode := blockNameOverrideResource, "data"
+			if overrideRes.Mode == addrs.DataResourceMode {
+				blockName, targetMode = blockNameOverrideData, "resource"
+			}
+			// It could be a warning, but for the sake of consistent UX let's make it an error
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Unsupported `%v` target in `%v` block", targetMode, blockName),
+				Detail: fmt.Sprintf("Target `%v` is `%v` block itself and cannot be overridden with `%v`.",
+					overrideRes.TargetParsed, targetMode, blockName),
+				Subject: overrideRes.Target.SourceRange().Ptr(),
+			})
+		}
+
+		res.IsOverridden = true
+		res.OverrideValues = overrideRes.Values
+	}
+
+	return func() {
+		// Reset all the overridden resources.
+		for _, o := range run.OverrideResources {
+			m := c.Root.Descendent(o.TargetParsed.Module)
+			if m == nil {
 				continue
 			}
 
-			next[ref.InChild.String()] = &Provider{
-				Name:       ref.InChild.Name,
-				NameRange:  ref.InChild.NameRange,
-				Alias:      ref.InChild.Alias,
-				AliasRange: ref.InChild.AliasRange,
-				Version:    testProvider.Version,
-				Config:     testProvider.Config,
-				DeclRange:  testProvider.DeclRange,
+			res := m.Module.ResourceByAddr(o.TargetParsed.Resource)
+			if res == nil {
+				continue
 			}
 
+			res.IsOverridden = false
+			res.OverrideValues = nil
 		}
-	} else {
-		// Otherwise, let's copy over and overwrite all providers specified by
-		// the test file itself.
-		for key, provider := range file.Providers {
-			next[key] = provider
+	}, diags
+}
+
+func (c *Config) transformOverriddenModulesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+	modules, diags := mergeOverriddenModules(run.OverrideModules, file.OverrideModules)
+
+	for _, overrideMod := range modules {
+		targetConfig := c.Root.Descendent(overrideMod.TargetParsed)
+		if targetConfig == nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Module not found: %v", overrideMod.TargetParsed),
+				Detail:   "Target points to an undefined module. Please, ensure module exists.",
+				Subject:  overrideMod.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		for overrideKey := range overrideMod.Outputs {
+			if _, ok := targetConfig.Module.Outputs[overrideKey]; !ok {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  fmt.Sprintf("Output not found: %v", overrideKey),
+					Detail:   "Specified output to override is not present in the module and will be ignored.",
+					Subject:  overrideMod.Target.SourceRange().Ptr(),
+				})
+			}
+		}
+
+		targetConfig.Module.IsOverridden = true
+
+		for key, output := range targetConfig.Module.Outputs {
+			output.IsOverridden = true
+
+			// Override outputs are optional so it's okay to set IsOverridden with no OverrideValue.
+			if v, ok := overrideMod.Outputs[key]; ok {
+				output.OverrideValue = &v
+			}
 		}
 	}
 
-	c.Module.ProviderConfigs = next
 	return func() {
-		// Reset the original config within the returned function.
-		c.Module.ProviderConfigs = previous
+		for _, overrideMod := range run.OverrideModules {
+			targetConfig := c.Root.Descendent(overrideMod.TargetParsed)
+			if targetConfig == nil {
+				continue
+			}
+
+			targetConfig.Module.IsOverridden = false
+
+			for _, output := range targetConfig.Module.Outputs {
+				output.IsOverridden = false
+				output.OverrideValue = nil
+			}
+		}
 	}, diags
+}
+
+func mergeOverriddenResources(runResources, fileResources []*OverrideResource) ([]*OverrideResource, hcl.Diagnostics) {
+	// resAddrsInRun is a unique set of resource addresses in run block.
+	// It's already validated for duplicates previously.
+	resAddrsInRun := make(map[string]struct{})
+	for _, r := range runResources {
+		resAddrsInRun[r.TargetParsed.String()] = struct{}{}
+	}
+
+	var diags hcl.Diagnostics
+
+	resources := runResources
+	for _, r := range fileResources {
+		addr := r.TargetParsed.String()
+
+		// Run and file override resources could have overlap
+		// so we warn user and proceed with the definition from the smaller scope.
+		if _, ok := resAddrsInRun[addr]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  fmt.Sprintf("Multiple `%v` blocks for the same address", r.getBlockName()),
+				Detail:   fmt.Sprintf("`%v` is overridden in both global file and local run blocks. The declaration in global file block will be ignored.", addr),
+				Subject:  r.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		resources = append(resources, r)
+	}
+
+	return resources, diags
+}
+
+func mergeOverriddenModules(runModules, fileModules []*OverrideModule) ([]*OverrideModule, hcl.Diagnostics) {
+	// modAddrsInRun is a unique set of module addresses in run block.
+	// It's already validated for duplicates previously.
+	modAddrsInRun := make(map[string]struct{})
+	for _, m := range runModules {
+		modAddrsInRun[m.TargetParsed.String()] = struct{}{}
+	}
+
+	var diags hcl.Diagnostics
+
+	modules := runModules
+	for _, m := range fileModules {
+		addr := m.TargetParsed.String()
+
+		// Run and file override modules could have overlap
+		// so we warn user and proceed with the definition from the smaller scope.
+		if _, ok := modAddrsInRun[addr]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Multiple `override_module` blocks for the same address",
+				Detail:   fmt.Sprintf("Module `%v` is overridden in both global file and local run blocks. The declaration in global file block will be ignored.", addr),
+				Subject:  m.Target.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		modules = append(modules, m)
+	}
+
+	return modules, diags
+}
+
+// IsModuleCallFromRemoteModule is traversing upwards from the module call to the root module and is looking for any
+// module on the path for which configs.Module.EntersNewPackage=true.
+// This is needed to know if a variable is referenced from a module imported from a remote source or from a local one.
+func (c *Config) IsModuleCallFromRemoteModule(callName string) bool {
+	if _, ok := c.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		return true
+	}
+	calledModuleName := callName
+	parent := c.Parent
+	for parent != nil {
+		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
+		if !ok {
+			log.Printf("[ERROR] no module call found in %q for %q", parent.Path, calledModuleName)
+			return false
+		}
+		if refCallCfg.EntersNewPackage() {
+			return true
+		}
+		if parent.Path.IsRoot() {
+			return false
+		}
+		_, call := parent.Path.Call()
+		calledModuleName = call.Name
+		parent = parent.Parent
+	}
+	return false
 }
