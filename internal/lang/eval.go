@@ -635,10 +635,40 @@ func normalizeRefValue(val cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfd
 // The diagnostics returned by this method need to go through InConfigBody
 // by the caller of the evaluator to append additional context to the diagnostic
 // for an enhanced feedback to the user.
+//
+// A nil schema will handle the value as unable to hold any ephemeral mark.
 func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags tfdiags.Diagnostics) {
 	// Ephemeral resources can reference values with any mark, so ignore this validation for ephemeral blocks
-	if schema == nil || schema.Ephemeral {
+	if schema != nil && schema.Ephemeral {
 		return diags
+	}
+	// This is the function for schema != nil.
+	// In the case of schema == nil, the function is recreated below.
+	//
+	// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
+	// referencing an ephemeral value might be missing from the schema.
+	// Therefore, we search for the first ancestor that exists in the schema.
+	attrFromSchema := func(path cty.Path) (*configschema.Attribute, cty.Path) {
+		attrPath := path
+		attr := schema.AttributeByPath(attrPath)
+		for attr == nil {
+			if len(attrPath) == 0 {
+				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", path)
+				return nil, path
+			}
+			attrPath = attrPath[:len(attrPath)-1]
+			attr = schema.AttributeByPath(attrPath)
+		}
+		return attr, attrPath
+	}
+
+	// We recreate the attribute search in the schema here purely for being sure
+	// that the logic below can run even when the schema is nil.
+	// When there is no schema, there should be no ephemeral value in the block.
+	if schema == nil {
+		attrFromSchema = func(path cty.Path) (*configschema.Attribute, cty.Path) {
+			return nil, path
+		}
 	}
 
 	_, valueMarks := val.UnmarkDeepWithPaths()
@@ -650,19 +680,7 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 
 		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
 		// To figure it out, we need to find the attribute by the mark path.
-		// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
-		// referencing an ephemeral value will be missing from the schema.
-		// Therefore, we search for the first ancestor that exists in the schema.
-		attrPath := pathMark.Path
-		attr := schema.AttributeByPath(attrPath)
-		for attr == nil {
-			if len(attrPath) == 0 {
-				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", pathMark.Path)
-				break
-			}
-			attrPath = attrPath[:len(attrPath)-1]
-			attr = schema.AttributeByPath(attrPath)
-		}
+		attr, foundPath := attrFromSchema(pathMark.Path)
 		if attr != nil && attr.WriteOnly {
 			continue
 		}
@@ -670,8 +688,8 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Ephemeral value used in non-ephemeral context",
-			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", tfdiags.FormatCtyPath(attrPath)),
-			attrPath,
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", tfdiags.FormatCtyPath(foundPath)),
+			foundPath,
 		))
 	}
 

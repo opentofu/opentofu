@@ -1105,10 +1105,26 @@ func TestValidEphemeralReference(t *testing.T) {
 
 		want tfdiags.Diagnostics
 	}{
-		"nil schema": {
+		"nil schema with no ephemeral mark": {
 			nil,
 			cty.UnknownVal(cty.String),
 			nil,
+		},
+		"nil schema with ephemeral mark": {
+			nil,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret":    cty.StringVal("secret value"),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+			}),
+			tfdiags.Diagnostics{}.Append(
+				tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Ephemeral value used in non-ephemeral context",
+					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", ".secret_wo"),
+					cty.Path{cty.GetAttrStep{Name: "secret_wo"}},
+				),
+			),
 		},
 		"schema is ephemeral": {
 			&configschema.Block{
@@ -1131,7 +1147,7 @@ func TestValidEphemeralReference(t *testing.T) {
 			}),
 			nil,
 		},
-		"error when an write-only and a non-write-only contains ephemeral": {
+		"error when an write-only and a non-write-only contain ephemeral": {
 			schema,
 			cty.ObjectVal(map[string]cty.Value{
 				"id":        cty.StringVal("id value"),
@@ -1179,8 +1195,11 @@ func TestValidEphemeralReference(t *testing.T) {
 				tfdiags.AttributeValue(
 					tfdiags.Error,
 					"Ephemeral value used in non-ephemeral context",
-					`Attribute "" is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.`,
-					cty.Path{},
+					fmt.Sprintf(
+						`Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.`,
+						".nested_simple.inner_nested_simple.block_not_in_schema.attribute_not_in_schema",
+					),
+					cty.GetAttrPath("nested_simple").GetAttr("inner_nested_simple").GetAttr("block_not_in_schema").GetAttr("attribute_not_in_schema"),
 				),
 			),
 		},
