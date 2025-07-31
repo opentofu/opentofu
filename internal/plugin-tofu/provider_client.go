@@ -163,6 +163,7 @@ func (c *ProviderClient) sendRequest(req *Request) (*Response, error) {
 func (c *ProviderClient) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	if !c.initialized {
 		// Initialize first
+		// TODO: Extract out to full protocol
 		req := &Request{
 			ID:     atomic.AddUint64(&c.nextID, 1),
 			Method: "initialize",
@@ -211,9 +212,60 @@ func (c *ProviderClient) GetProviderSchema(_ context.Context) providers.GetProvi
 		}
 	}
 
-	// For now, return minimal schema - we'll expand this later
+	// Parse the schema response
+	functions := make(map[string]providers.FunctionSpec)
+
+	if resp.Result == nil {
+		return providers.GetProviderSchemaResponse{Functions: functions}
+	}
+
+	schemaData, ok := resp.Result.(map[string]interface{})
+	if !ok {
+		return providers.GetProviderSchemaResponse{Functions: functions}
+	}
+
+	functionsData, ok := schemaData["functions"].(map[string]interface{})
+	if !ok {
+		return providers.GetProviderSchemaResponse{Functions: functions}
+	}
+
+	for funcName, funcData := range functionsData {
+		funcSpec, ok := funcData.(map[string]interface{})
+		if !ok {
+			continue // Skip malformed function specs
+		}
+
+		spec := providers.FunctionSpec{
+			Summary: getStringFromMap(funcSpec, "summary"),
+			Return:  cty.String, // TODO: Default return type for now
+		}
+
+		// Parse parameters
+		if paramsData, ok := funcSpec["parameters"].([]interface{}); ok {
+			for _, paramData := range paramsData {
+				paramMap, ok := paramData.(map[string]interface{})
+				if !ok {
+					continue // Skip malformed parameters
+				}
+
+				param := providers.FunctionParameterSpec{
+					Name: getStringFromMap(paramMap, "name"),
+					Type: parseTypeFromString(getStringFromMap(paramMap, "type")),
+				}
+				spec.Parameters = append(spec.Parameters, param)
+			}
+		}
+
+		// Parse return type (override default if specified)
+		if returnData, ok := funcSpec["return"].(map[string]interface{}); ok {
+			spec.Return = parseTypeFromString(getStringFromMap(returnData, "type"))
+		}
+
+		functions[funcName] = spec
+	}
+
 	return providers.GetProviderSchemaResponse{
-		Functions: make(map[string]providers.FunctionSpec),
+		Functions: functions,
 	}
 }
 
@@ -262,12 +314,41 @@ func (c *ProviderClient) ReadDataSource(_ context.Context, req providers.ReadDat
 }
 
 func (c *ProviderClient) CallFunction(_ context.Context, funcReq providers.CallFunctionRequest) providers.CallFunctionResponse {
+	// Get function spec to determine parameter names and return type
+	schemaResp := c.GetProviderSchema(context.Background())
+	if schemaResp.Diagnostics.HasErrors() {
+		return providers.CallFunctionResponse{
+			Error: fmt.Errorf("failed to get function schema: %s", schemaResp.Diagnostics.Err()),
+		}
+	}
+	
+	funcSpec, ok := schemaResp.Functions[funcReq.Name]
+	if !ok {
+		return providers.CallFunctionResponse{
+			Error: fmt.Errorf("function %s not found", funcReq.Name),
+		}
+	}
+	
+	// Extract parameter names from function spec
+	paramNames := make([]string, len(funcSpec.Parameters))
+	for i, param := range funcSpec.Parameters {
+		paramNames[i] = param.Name
+	}
+	
+	// Convert cty arguments to map[string]interface{}
+	args, err := convertCtyArgsToMap(funcReq.Arguments, paramNames)
+	if err != nil {
+		return providers.CallFunctionResponse{
+			Error: fmt.Errorf("failed to convert function arguments: %w", err),
+		}
+	}
+
 	req := &Request{
 		ID:     atomic.AddUint64(&c.nextID, 1),
 		Method: "callFunction",
 		Params: &CallFunctionRequest{
 			Name: funcReq.Name,
-			Args: make(map[string]interface{}), // TODO: Convert from []cty.Value to map[string]interface{}
+			Args: args,
 		},
 	}
 
@@ -284,9 +365,30 @@ func (c *ProviderClient) CallFunction(_ context.Context, funcReq providers.CallF
 		}
 	}
 
-	// TODO: Convert result back to cty.Value
+	// Convert result back to cty.Value
+	if resp.Result == nil {
+		return providers.CallFunctionResponse{
+			Result: cty.NullVal(funcSpec.Return),
+		}
+	}
+	
+	// Extract the actual result from the response
+	var resultData interface{}
+	if resultMap, ok := resp.Result.(map[string]interface{}); ok {
+		resultData = resultMap["result"] // Assuming provider returns {"result": actualValue}
+	} else {
+		resultData = resp.Result // Direct result
+	}
+	
+	result, err := convertInterfaceToCty(resultData, funcSpec.Return)
+	if err != nil {
+		return providers.CallFunctionResponse{
+			Error: fmt.Errorf("failed to convert function result: %w", err),
+		}
+	}
+
 	return providers.CallFunctionResponse{
-		Result: cty.NilVal, // TODO: implement conversion
+		Result: result,
 	}
 }
 
@@ -295,5 +397,17 @@ func (c *ProviderClient) MoveResourceState(_ context.Context, req providers.Move
 }
 
 func (c *ProviderClient) GetFunctions(_ context.Context) providers.GetFunctionsResponse {
-	return providers.GetFunctionsResponse{}
+	// TODO: Discuss if this should be it's own call
+	// Get the schema which includes function definitions
+	schemaResp := c.GetProviderSchema(context.Background())
+	if schemaResp.Diagnostics.HasErrors() {
+		return providers.GetFunctionsResponse{
+			Diagnostics: schemaResp.Diagnostics,
+		}
+	}
+
+	// Return the functions from the schema response
+	return providers.GetFunctionsResponse{
+		Functions: schemaResp.Functions,
+	}
 }
