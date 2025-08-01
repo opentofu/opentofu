@@ -40,9 +40,11 @@ type Variable struct {
 	Validations []*CheckRule
 	Sensitive   bool
 	Deprecated  string
+	Ephemeral   bool
 
 	DescriptionSet bool
 	SensitiveSet   bool
+	EphemeralSet   bool
 
 	// Nullable indicates that null is a valid value for this variable. Setting
 	// Nullable to false means that the module can expect this variable to
@@ -136,6 +138,12 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				Subject:  &block.LabelRanges[0],
 			})
 		}
+	}
+
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Ephemeral)
+		diags = append(diags, valDiags...)
+		v.EphemeralSet = true
 	}
 
 	if attr, exists := content.Attributes["nullable"]; exists {
@@ -418,11 +426,13 @@ type Output struct {
 	DependsOn   []hcl.Traversal
 	Sensitive   bool
 	Deprecated  string
+	Ephemeral   bool
 
 	Preconditions []*CheckRule
 
 	DescriptionSet bool
 	SensitiveSet   bool
+	EphemeralSet   bool
 
 	DeclRange hcl.Range
 
@@ -490,6 +500,12 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		}
 	}
 
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Ephemeral)
+		diags = append(diags, valDiags...)
+		o.EphemeralSet = true
+	}
+
 	if attr, exists := content.Attributes["depends_on"]; exists {
 		deps, depsDiags := decodeDependsOn(attr)
 		diags = append(diags, depsDiags...)
@@ -521,6 +537,17 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 
 func (o *Output) Addr() addrs.OutputValue {
 	return addrs.OutputValue{Name: o.Name}
+}
+
+// UsageRange returns the location where the output value is configured, but if the expression is not configured
+// then it returns the output definition location.
+// Useful for generating diagnostics.
+func (o *Output) UsageRange() hcl.Range {
+	subj := o.DeclRange
+	if o.Expr != nil {
+		subj = o.Expr.Range()
+	}
+	return subj
 }
 
 // Local represents a single entry from a "locals" block in a module or file.
@@ -582,6 +609,9 @@ var variableBlockSchema = &hcl.BodySchema{
 			Name: "sensitive",
 		},
 		{
+			Name: "ephemeral",
+		},
+		{
 			Name: "deprecated",
 		},
 		{
@@ -609,6 +639,9 @@ var outputBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "sensitive",
+		},
+		{
+			Name: "ephemeral",
 		},
 		{
 			Name: "deprecated",

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
@@ -174,6 +175,104 @@ module.foo[1].thing.b
 `)
 	if actual != expected {
 		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
+	}
+}
+
+// TestAttachResourceDependsOnTransformer performs a sanity check on the happy path
+// of attachResourceDependsOnTransformer.
+// This expects to find the dependency injected into the graph nodes that this
+// transformer is working with (data sources and ephemeral resource).
+func TestAttachResourceDependsOnTransformer(t *testing.T) {
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "null_instance" "write" {
+  foo = "attribute"
+}
+
+data "null_data_source" "read" {
+  depends_on = ["null_instance.write"]
+}
+
+ephemeral "null_ephemeral" "open" {
+  depends_on = ["null_instance.write"]
+}
+`,
+	})
+	g := Graph{Path: addrs.RootModuleInstance}
+	resCfg := cfg.Module.ResourceByAddr(addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "null_instance",
+		Name: "write",
+	})
+	resAddr := resCfg.Addr().InModule(addrs.RootModule)
+	g.Add(&NodeAbstractResourceInstance{
+		NodeAbstractResource: NodeAbstractResource{Addr: resAddr, Config: resCfg},
+		Addr: addrs.AbsResourceInstance{
+			Module: addrs.ModuleInstance{},
+			Resource: addrs.ResourceInstance{
+				Resource: resCfg.Addr(),
+				Key:      addrs.NoKey,
+			},
+		}})
+
+	dataCfg := cfg.Module.ResourceByAddr(addrs.Resource{
+		Mode: addrs.DataResourceMode,
+		Type: "null_data_source",
+		Name: "read",
+	})
+	dataAddr := dataCfg.Addr().InModule(addrs.RootModule)
+	dataNode := &NodeAbstractResourceInstance{
+		NodeAbstractResource: NodeAbstractResource{Addr: dataAddr, Config: dataCfg,
+			Schema: &configschema.Block{}, // Setting this strictly to force references processing (check GraphNodeReferencer)
+		},
+		Addr: addrs.AbsResourceInstance{
+			Module: addrs.ModuleInstance{},
+			Resource: addrs.ResourceInstance{
+				Resource: dataCfg.Addr(),
+				Key:      addrs.NoKey,
+			},
+		},
+	}
+	g.Add(dataNode)
+
+	ephemeralCfg := cfg.Module.ResourceByAddr(addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "null_ephemeral",
+		Name: "open",
+	})
+	ephemeralAddr := ephemeralCfg.Addr().InModule(addrs.RootModule)
+	ephemeralNode := &NodeAbstractResourceInstance{
+		NodeAbstractResource: NodeAbstractResource{Addr: ephemeralAddr, Config: ephemeralCfg,
+			Schema: &configschema.Block{}, // Setting this strictly to force references processing (check GraphNodeReferencer)
+		},
+		Addr: addrs.AbsResourceInstance{
+			Module: addrs.ModuleInstance{},
+			Resource: addrs.ResourceInstance{
+				Resource: ephemeralCfg.Addr(),
+				Key:      addrs.NoKey,
+			},
+		},
+	}
+	g.Add(ephemeralNode)
+
+	tr := &attachResourceDependsOnTransformer{}
+	err := tr.Transform(t.Context(), &g)
+	if err != nil {
+		t.Fatalf("expected no error. got %s", err)
+	}
+
+	if got, want := len(dataNode.dependsOn), 1; got != want {
+		t.Fatalf("wrong number of deps on the data source graph node. expected %d but got %d", want, got)
+	}
+	if got, want := dataNode.dependsOn[0], resAddr; !got.Equal(want) {
+		t.Fatalf("wrong reference registered as dependency. expected %+v but got %+v", want, got)
+	}
+
+	if got, want := len(ephemeralNode.dependsOn), 1; got != want {
+		t.Fatalf("wrong number of deps on the data source graph node. expected %d but got %d", want, got)
+	}
+	if got, want := ephemeralNode.dependsOn[0], resAddr; !got.Equal(want) {
+		t.Fatalf("wrong reference registered as dependency. expected %+v but got %+v", want, got)
 	}
 }
 

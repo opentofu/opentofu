@@ -385,6 +385,8 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 		// fail to set up their world properly.
 		return fmt.Errorf("failed to encode %s in state: no resource type schema available", absAddr)
 	}
+
+	obj.Value = schema.RemoveEphemeralFromWriteOnly(obj.Value)
 	src, err := obj.Encode(schema.ImpliedType(), currentVersion)
 	if err != nil {
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)

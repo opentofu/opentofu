@@ -371,6 +371,11 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 		// depends_on expressions here too
 		diags = diags.Append(validateDependsOn(ctx, evalCtx, n.Config.DependsOn))
 
+		// Before checking for the sensitivity, we want to check for ephemerality, since it's
+		// a more restrictive mark.
+		if ephDiags := n.validateEphemerality(val); ephDiags.HasErrors() {
+			return diags.Append(ephDiags)
+		}
 		// For root module outputs in particular, an output value must be
 		// statically declared as sensitive in order to dynamically return
 		// a sensitive result, to help avoid accidental exposure in the state
@@ -385,6 +390,14 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 If you do intend to export this data, annotate the output value as sensitive by adding the following argument:
     sensitive = true`,
 					Subject: n.Config.DeclRange.Ptr(),
+				})
+			}
+			if n.Config.Ephemeral {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid output configuration",
+					Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
+					Subject:  n.Config.DeclRange.Ptr(),
 				})
 			}
 		}
@@ -417,6 +430,11 @@ If you do intend to export this data, annotate the output value as sensitive by 
 		}
 		return diags
 	}
+
+	if ephDiags := n.validateEphemerality(val); ephDiags.HasErrors() {
+		return diags.Append(ephDiags)
+	}
+
 	n.setValue(state, changes, val)
 
 	// If we were able to evaluate a new value, we can update that in the
@@ -426,6 +444,26 @@ If you do intend to export this data, annotate the output value as sensitive by 
 		n.setValue(state, nil, val)
 	}
 
+	return diags
+}
+
+func (n *NodeApplyableOutput) validateEphemerality(val cty.Value) (diags tfdiags.Diagnostics) {
+	// We don't want to check when the value is unknown and is not marked.
+	// If the value is unknown due to the referenced values and inherited the marks from those,
+	// we do want to validate though.
+	if !val.IsWhollyKnown() && !val.IsMarked() {
+		return diags
+	}
+	ephemeralMarked := marks.Contains(val, marks.Ephemeral)
+	// We don't allow ephemeral values in outputs that are not marked as such.
+	if !n.Config.Ephemeral && ephemeralMarked {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Output does not allow ephemeral value",
+			Detail:   "The value that was generated for the output is ephemeral, but it is not configured to allow one.",
+			Subject:  n.Config.UsageRange().Ptr(),
+		})
+	}
 	return diags
 }
 

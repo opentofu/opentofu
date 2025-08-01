@@ -1069,6 +1069,22 @@ new line`),
         # (2 unchanged attributes hidden)
     }`,
 		},
+		"open ephemeral": {
+			Action: plans.Open,
+			Mode:   addrs.EphemeralResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"name": cty.StringVal("name"),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"name": cty.StringVal("name"),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"name": {Type: cty.String, Optional: true},
+				},
+			},
+			ExpectedOutput: ``,
+		},
 	}
 
 	runTestCases(t, testCases)
@@ -1685,6 +1701,26 @@ func TestResourceChange_JSON(t *testing.T) {
         )
     }`,
 		},
+		"ephemeral resource creation": {
+			Action: plans.Create,
+			Mode:   addrs.EphemeralResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":         cty.StringVal("ad4d04ed-ac40-43fc-ad4f-d2fc89b80793"),
+				"json_field": cty.StringVal(`{"secret_value": "8f6fb348-949d-4fa3-98a4-da9e66088257"}`),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":         cty.StringVal("ad4d04ed-ac40-43fc-ad4f-d2fc89b80793"),
+				"json_field": cty.StringVal(`{"secret_value": "f8b90277-7b0b-4f15-9c31-aed5a642b274"}`),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":         {Type: cty.String, Optional: true, Computed: true},
+					"json_field": {Type: cty.String, Optional: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput:  ``,
+		},
 	}
 	runTestCases(t, testCases)
 }
@@ -2289,6 +2325,74 @@ func TestResourceChange_primitiveSet(t *testing.T) {
         ]
         # (1 unchanged attribute hidden)
     }`,
+		},
+		"fails when ephemeral in the after marks": {
+			Action: plans.Update,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("i-02ae66f368e8518a9"),
+				"ami":       cty.StringVal("ami-STATIC"),
+				"set_field": cty.NullVal(cty.Set(cty.String)),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.UnknownVal(cty.String),
+				"ami": cty.StringVal("ami-STATIC"),
+				"set_field": cty.SetVal([]cty.Value{
+					cty.StringVal("new-element"),
+				}),
+			}),
+			AfterValMarks: []cty.PathValueMarks{
+				{
+					Path: cty.GetAttrPath("set_field").IndexInt(0),
+					Marks: map[interface{}]struct{}{
+						marks.Ephemeral: {},
+					},
+				},
+			},
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":        {Type: cty.String, Optional: true, Computed: true},
+					"ami":       {Type: cty.String, Optional: true},
+					"set_field": {Type: cty.Set(cty.String), Optional: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput:  ``,
+			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths:\n.set_field[0]"),
+		},
+		"fails when ephemeral in the before marks": {
+			Action: plans.Update,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("i-02ae66f368e8518a9"),
+				"ami":       cty.StringVal("ami-STATIC"),
+				"set_field": cty.NullVal(cty.Set(cty.String)),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.UnknownVal(cty.String),
+				"ami": cty.StringVal("ami-STATIC"),
+				"set_field": cty.SetVal([]cty.Value{
+					cty.StringVal("new-element"),
+				}),
+			}),
+			BeforeValMarks: []cty.PathValueMarks{
+				{
+					Path: cty.GetAttrPath("set_field").IndexInt(0),
+					Marks: map[interface{}]struct{}{
+						marks.Ephemeral: {},
+					},
+				},
+			},
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":        {Type: cty.String, Optional: true, Computed: true},
+					"ami":       {Type: cty.String, Optional: true},
+					"set_field": {Type: cty.Set(cty.String), Optional: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput:  ``,
+			ExpectedErr:     fmt.Errorf("test_instance.example: ephemeral marks found at the following paths:\n.set_field[0]"),
 		},
 		"in-place update - first insertion": {
 			Action: plans.Update,
@@ -7172,6 +7276,7 @@ type testCase struct {
 	RequiredReplace cty.PathSet
 	ExpectedOutput  string
 	PrevRunAddr     addrs.AbsResourceInstance
+	ExpectedErr     error
 }
 
 func runTestCases(t *testing.T, testCases map[string]testCase) {
@@ -7253,23 +7358,41 @@ func runTestCases(t *testing.T, testCases map[string]testCase) {
 								Block: tc.Schema,
 							},
 						},
+						EphemeralResources: map[string]providers.Schema{
+							src.Addr.Resource.Resource.Type: {
+								Block: tc.Schema,
+							},
+						},
 					},
 				},
 			}
 			jsonchanges, err := jsonplan.MarshalResourceChanges([]*plans.ResourceInstanceChangeSrc{src}, tfschemas)
 			if err != nil {
-				t.Errorf("failed to marshal resource changes: %s", err.Error())
-				return
+				if tc.ExpectedErr == nil {
+					t.Errorf("failed to marshal resource changes.\ngot err:\n%s\nbut no expected err", err)
+				} else {
+					gotErr := err.Error()
+					wantErr := tc.ExpectedErr.Error()
+					if gotErr != wantErr {
+						t.Errorf("failed to marshal resource changes.\ngot err:\n%s\nexpected err:\n%s", gotErr, wantErr)
+					}
+				}
+			} else if tc.ExpectedErr != nil {
+				t.Errorf("failed to marshal resource changes.\nwant err:\n%s\nbut got none", tc.ExpectedErr)
 			}
 
 			jsonschemas := jsonprovider.MarshalForRenderer(tfschemas)
-			change := structured.FromJsonChange(jsonchanges[0].Change, attribute_path.AlwaysMatcher())
-			renderer := Renderer{Colorize: color}
-			diff := diff{
-				change: jsonchanges[0],
-				diff:   differ.ComputeDiffForBlock(change, jsonschemas[jsonchanges[0].ProviderName].ResourceSchemas[jsonchanges[0].Type].Block),
+
+			var output string
+			if len(jsonchanges) > 0 {
+				change := structured.FromJsonChange(jsonchanges[0].Change, attribute_path.AlwaysMatcher())
+				renderer := Renderer{Colorize: color}
+				diff := diff{
+					change: jsonchanges[0],
+					diff:   differ.ComputeDiffForBlock(change, jsonschemas[jsonchanges[0].ProviderName].ResourceSchemas[jsonchanges[0].Type].Block),
+				}
+				output, _ = renderHumanDiff(renderer, diff, proposedChange)
 			}
-			output, _ := renderHumanDiff(renderer, diff, proposedChange)
 			if diff := cmp.Diff(output, tc.ExpectedOutput); diff != "" {
 				t.Errorf("wrong output\nexpected:\n%s\nactual:\n%s\ndiff:\n%s\n", tc.ExpectedOutput, output, diff)
 			}

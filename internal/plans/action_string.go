@@ -16,6 +16,7 @@ func _() {
 	_ = x[CreateThenDelete-177]
 	_ = x[Delete-45]
 	_ = x[Forget-46]
+	_ = x[Open-8272]
 }
 
 const (
@@ -24,8 +25,9 @@ const (
 	_Action_name_2 = "DeleteForget"
 	_Action_name_3 = "Update"
 	_Action_name_4 = "CreateThenDelete"
-	_Action_name_5 = "Read"
-	_Action_name_6 = "DeleteThenCreate"
+	_Action_name_5 = "Open"
+	_Action_name_6 = "Read"
+	_Action_name_7 = "DeleteThenCreate"
 )
 
 var (
@@ -45,10 +47,12 @@ func (i Action) String() string {
 		return _Action_name_3
 	case i == 177:
 		return _Action_name_4
-	case i == 8592:
+	case i == 8272:
 		return _Action_name_5
-	case i == 8723:
+	case i == 8592:
 		return _Action_name_6
+	case i == 8723:
+		return _Action_name_7
 	default:
 		return "Action(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

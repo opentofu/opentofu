@@ -410,6 +410,8 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 		ret.Action = plans.DeleteThenCreate
 		beforeIdx = 0
 		afterIdx = 1
+	case planproto.Action_OPEN:
+		ret.Action = plans.Open
 	default:
 		return nil, fmt.Errorf("invalid change action %s", rawChange.Action)
 	}
@@ -819,6 +821,15 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 	case plans.CreateThenDelete:
 		ret.Action = planproto.Action_CREATE_THEN_DELETE
 		ret.Values = []*planproto.DynamicValue{before, after}
+	case plans.Open:
+		ret.Action = planproto.Action_OPEN
+		// We need to write ephemeral resources to the plan file to be able to build
+		// the apply graph on `tofu apply <planfile>`.
+		// The DiffTransformer needs the changes from the plan to be able to generate
+		// executable resource instance graph nodes so we are adding the ephemeral resources too.
+		// Even though we are writing these, the actual values of the ephemeral *must not*
+		// be written to the plan so set nothing here.
+		ret.Values = []*planproto.DynamicValue{}
 	default:
 		return nil, fmt.Errorf("invalid change action %s", change.Action)
 	}

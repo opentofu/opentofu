@@ -65,6 +65,7 @@ var (
 				},
 			},
 		},
+		// TODO ephemeral - when implementing testing support for ephemeral resources, consider configuring ephemeral schema here
 	}
 )
 

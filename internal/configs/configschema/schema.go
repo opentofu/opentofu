@@ -38,6 +38,11 @@ type Block struct {
 	DescriptionKind StringKind
 
 	Deprecated bool
+
+	// Ephemeral is a flag indicating that this is an ephemeral block marking it as an "ephemeral context".
+	// There are multiple places where this is set to "true". Generally speaking,
+	// any Block that is meant to accept ephemeral values should have this set as "true".
+	Ephemeral bool
 }
 
 // Attribute represents a configuration attribute, within a block.
@@ -94,6 +99,8 @@ type Attribute struct {
 	Sensitive bool
 
 	Deprecated bool
+
+	WriteOnly bool
 }
 
 // Object represents the embedding of a structural object inside an Attribute.

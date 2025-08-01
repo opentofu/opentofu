@@ -144,6 +144,104 @@ test_instance\.foo: Still modifying... \[id=test, \ds elapsed\]
 	}
 }
 
+// Test the ephemeral specific hooks
+func TestUiHook_ephemeral(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	cases := []struct {
+		name       string
+		preF       func(hook tofu.Hook) (tofu.HookAction, error)
+		postF      func(hook tofu.Hook) (tofu.HookAction, error)
+		wantOutput string
+	}{
+		{
+			name: "opening",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreOpen(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostOpen(addr, nil)
+			},
+			wantOutput: `ephemeral\.test_instance\.foo: Opening\.\.\.
+ephemeral\.test_instance\.foo: Still opening\.\.\. \[\ds elapsed\]
+`,
+		},
+		{
+			name: "renewing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreRenew(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostRenew(addr, nil)
+			},
+			wantOutput: `ephemeral\.test_instance\.foo: Renewing\.\.\.
+ephemeral\.test_instance\.foo: Still renewing\.\.\. \[\ds elapsed\]
+ephemeral\.test_instance\.foo: Renew complete after \ds
+`,
+		},
+		{
+			name: "closing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreClose(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostClose(addr, nil)
+			},
+			wantOutput: `ephemeral\.test_instance\.foo: Closing\.\.\.
+ephemeral\.test_instance\.foo: Still closing\.\.\. \[\ds elapsed\]
+ephemeral\.test_instance\.foo: Close complete after \ds
+`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			h := NewUiHook(view)
+			h.periodicUiTimer = 1 * time.Second
+
+			action, err := tt.preF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Fatalf("Expected hook to continue, given: %#v", action)
+			}
+
+			<-time.After(1100 * time.Millisecond)
+
+			// stop the background writer
+			uiState := h.resources[addr.String()]
+			// call postF that will stop the waiting for the action
+			action, err = tt.postF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Errorf("Expected hook to continue, given: %#v", action)
+			}
+			// wait for the waiting to stop completely
+			<-uiState.done
+
+			result := done(t)
+			output := result.Stdout()
+			if matched, _ := regexp.MatchString(tt.wantOutput, output); !matched {
+				t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", tt.wantOutput, output)
+			}
+
+			expectedErrOutput := ""
+			errOutput := result.Stderr()
+			if errOutput != expectedErrOutput {
+				t.Fatalf("Error output didn't match.\nExpected: %q\nGiven: %q", expectedErrOutput, errOutput)
+			}
+		})
+	}
+}
+
 // Test the PreApply hook's destroy path, including passing a deposed key as
 // the gen argument.
 func TestUiHookPreApply_destroy(t *testing.T) {

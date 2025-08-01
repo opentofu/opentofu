@@ -8,7 +8,9 @@ package tofu
 import (
 	"context"
 	"fmt"
+	"log"
 
+	"github.com/opentofu/opentofu/internal/dag"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
 
@@ -40,7 +42,13 @@ var (
 	_ GraphNodeAttachResourceState  = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeExecutable           = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeProviderConsumer     = (*NodePlanDestroyableResourceInstance)(nil)
+	_ dag.NamedVertex               = (*NodePlanDestroyableResourceInstance)(nil)
 )
+
+// dag.NamedVertex
+func (n *NodePlanDestroyableResourceInstance) Name() string {
+	return n.NodeAbstractResourceInstance.Name() + " (destroy)"
+}
 
 // GraphNodeDestroyer
 func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceInstance {
@@ -78,6 +86,10 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 	case addrs.DataResourceMode:
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx, op),
+		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx, op),
 		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
@@ -153,4 +165,13 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx context.Co
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 	}
 	return diags.Append(n.writeChange(ctx, evalCtx, change, ""))
+}
+
+func (n *NodePlanDestroyableResourceInstance) ephemeralResourceExecute(_ context.Context, _ EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+	log.Printf("[TRACE] NodePlanDestroyableResourceInstance: called for ephemeral resource %s", n.Addr)
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"An ephemeral resource planned for destroy",
+		fmt.Sprintf("A destroy operation has been planned for the ephemeral resource %q. This is an OpenTofu error. Please report this.", n.Addr),
+	))
 }

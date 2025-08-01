@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -244,6 +246,69 @@ func TestPlanGraphBuilder_forEach(t *testing.T) {
 	want := strings.TrimSpace(testPlanGraphBuilderForEachStr)
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("wrong result\n%s", diff)
+	}
+}
+
+// TestPlanGraphBuilder_ephemeralResourceDestroy contains some wierd and theoretically impossible setup steps, but it's done
+// this way to verify that some checks are in place along the way. Check the inline comments for more details.
+func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
+	awsProvider := mockProviderWithResourceTypeSchema("aws_secretmanager_secret", simpleTestSchema())
+	b := &PlanGraphBuilder{
+		Config:    &configs.Config{Module: &configs.Module{}},
+		Operation: walkPlanDestroy,
+		Plugins: newContextPlugins(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
+		}, nil),
+		State: &states.State{
+			Modules: map[string]*states.Module{
+				"": {
+					Resources: map[string]*states.Resource{
+						// This is the wierd/stupid setup: the state is NEVER meant to contain an ephemeral resource.
+						// This setup is done this way only to be sure that the code path for creating NodePlanDestroyableResourceInstance
+						// is working well and that the node resulted from that returns an error on v.Execute(...)
+						"ephemeral.aws_secretmanager_secret.test": {
+							Addr: mustAbsResourceAddr("ephemeral.aws_secretmanager_secret.test"),
+							Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+								addrs.NoKey: {
+									Current: &states.ResourceInstanceObjectSrc{},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	t.Logf("Graph: %s", g.String())
+	var found *NodePlanDestroyableResourceInstance
+	for _, vertex := range g.Vertices() {
+		if v, ok := vertex.(*NodePlanDestroyableResourceInstance); ok {
+			if found == nil {
+				found = v
+				continue // not break on purpose to check if there are other NodePlanDestroyableResourceInstance in the graph
+			}
+			t.Fatal("found more than 1 NodePlanDestroyableResourceInstance in the graph")
+		}
+	}
+	if found == nil {
+		t.Fatal("expected to find one NodePlanDestroyableResourceInstance in graph")
+	}
+
+	// Let's see how NodePlanDestroyableResourceInstance.Execute is behaving when it's for an ephemeral resource
+	evalCtx := &MockEvalContext{
+		ProviderProvider: testProvider("aws"),
+	}
+	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
+	got := diags.Err().Error()
+	want := `An ephemeral resource planned for destroy: A destroy operation has been planned for the ephemeral resource "ephemeral.aws_secretmanager_secret.test". This is an OpenTofu error. Please report this.`
+	if got != want {
+		t.Fatalf("unexpected error returned.\ngot: %s\nwant:%s", got, want)
 	}
 }
 

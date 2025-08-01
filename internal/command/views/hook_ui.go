@@ -78,6 +78,8 @@ const (
 	uiResourceDestroy
 	uiResourceRead
 	uiResourceNoOp
+	// NOTE: Ephemeral hooks are implemented separately,
+	// so there are no uiResource entries for Open/Renew/Close actions.
 )
 
 func (h *UiHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
@@ -335,6 +337,120 @@ func (h *UiHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plans
 		h.view.colorize.Color("[reset][bold]%s: Import complete [id=%s]"),
 		addr, importing.ID,
 	))
+
+	return tofu.HookActionContinue, nil
+}
+
+func (h *UiHook) Deferred(addr addrs.AbsResourceInstance, reason string) (tofu.HookAction, error) {
+	id := addr.String()
+	msg := fmt.Sprintf("Deferred due to %s", reason)
+
+	colorized := fmt.Sprintf(
+		h.view.colorize.Color("[reset][bold]%s: %s"),
+		id, msg)
+
+	h.println(colorized)
+
+	return tofu.HookActionContinue, nil
+}
+
+func (h *UiHook) PreOpen(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	return h.preEphemeral(addr, "Opening...", "Still opening...")
+}
+
+func (h *UiHook) PostOpen(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	return h.postEphemeral(addr, "Open complete")
+}
+
+func (h *UiHook) PreRenew(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	return h.preEphemeral(addr, "Renewing...", "Still renewing...")
+}
+
+func (h *UiHook) PostRenew(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	return h.postEphemeral(addr, "Renew complete")
+}
+
+func (h *UiHook) PreClose(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	return h.preEphemeral(addr, "Closing...", "Still closing...")
+}
+
+func (h *UiHook) PostClose(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	return h.postEphemeral(addr, "Close complete")
+}
+
+// preEphemeral is the hook implementation that is used before actions like Renew and Close.
+// These are specific for ephemeral resources, and we are not using hook methods used for
+// the rest of the resource types because these particular 2 operations have no action
+// associated.
+func (h *UiHook) preEphemeral(addr addrs.AbsResourceInstance, startMsg, stillRunningMsg string) (tofu.HookAction, error) {
+	dispAddr := addr.String()
+
+	h.println(fmt.Sprintf(
+		h.view.colorize.Color("[reset][bold]%s: %s[reset]"),
+		dispAddr,
+		startMsg,
+	))
+
+	key := addr.String()
+	uiState := uiResourceState{
+		DispAddr: key,
+		Start:    time.Now().Round(time.Second),
+		DoneCh:   make(chan struct{}),
+		done:     make(chan struct{}),
+	}
+
+	h.resourcesLock.Lock()
+	h.resources[key] = uiState
+	h.resourcesLock.Unlock()
+
+	go func() {
+		defer close(uiState.done)
+		for {
+			select {
+			case <-uiState.DoneCh:
+				return
+			case <-time.After(h.periodicUiTimer):
+				// Timer up, show status
+			}
+
+			h.println(fmt.Sprintf(
+				h.view.colorize.Color("[reset][bold]%s: %s [%s elapsed][reset]"),
+				uiState.DispAddr,
+				stillRunningMsg,
+				time.Now().Round(time.Second).Sub(uiState.Start),
+			))
+		}
+	}()
+
+	return tofu.HookActionContinue, nil
+}
+
+// postEphemeral is the hook implementation that is used after actions like Renew and Close.
+// These are specific for ephemeral resources, and we are not using hook methods used for
+// the rest of the resource types because these particular 2 operations have no action
+// associated.
+func (h *UiHook) postEphemeral(addr addrs.AbsResourceInstance, msg string) (tofu.HookAction, error) {
+	id := addr.String()
+
+	h.resourcesLock.Lock()
+	state := h.resources[id]
+	if state.DoneCh != nil {
+		close(state.DoneCh)
+	}
+
+	delete(h.resources, id)
+	h.resourcesLock.Unlock()
+
+	addrStr := addr.String()
+
+	colorized := fmt.Sprintf(
+		h.view.colorize.Color("[reset][bold]%s: %s after %s"),
+		addrStr,
+		msg,
+		time.Now().Round(time.Second).Sub(state.Start),
+	)
+
+	h.println(colorized)
 
 	return tofu.HookActionContinue, nil
 }

@@ -8,6 +8,7 @@ package lang
 import (
 	"context"
 	"fmt"
+	"log"
 	"maps"
 	"reflect"
 	"strings"
@@ -16,16 +17,15 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
-	"github.com/zclconf/go-cty/cty/function"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // ExpandBlock expands any "dynamic" blocks present in the given body. The
@@ -79,6 +79,8 @@ func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configsche
 
 	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	diags = diags.Append(validEphemeralReferences(schema, val))
 
 	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
 	diags = diags.Append(depDiags)
@@ -398,35 +400,37 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 type evalVarBuilder struct {
 	s *Scope
 
-	dataResources    map[string]map[string]cty.Value
-	managedResources map[string]map[string]cty.Value
-	wholeModules     map[string]cty.Value
-	inputVariables   map[string]cty.Value
-	localValues      map[string]cty.Value
-	outputValues     map[string]cty.Value
-	pathAttrs        map[string]cty.Value
-	terraformAttrs   map[string]cty.Value
-	countAttrs       map[string]cty.Value
-	forEachAttrs     map[string]cty.Value
-	checkBlocks      map[string]cty.Value
-	self             cty.Value
+	dataResources      map[string]map[string]cty.Value
+	managedResources   map[string]map[string]cty.Value
+	ephemeralResources map[string]map[string]cty.Value
+	wholeModules       map[string]cty.Value
+	inputVariables     map[string]cty.Value
+	localValues        map[string]cty.Value
+	outputValues       map[string]cty.Value
+	pathAttrs          map[string]cty.Value
+	terraformAttrs     map[string]cty.Value
+	countAttrs         map[string]cty.Value
+	forEachAttrs       map[string]cty.Value
+	checkBlocks        map[string]cty.Value
+	self               cty.Value
 }
 
 func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 	return &evalVarBuilder{
 		s: s,
 
-		dataResources:    map[string]map[string]cty.Value{},
-		managedResources: map[string]map[string]cty.Value{},
-		wholeModules:     map[string]cty.Value{},
-		inputVariables:   map[string]cty.Value{},
-		localValues:      map[string]cty.Value{},
-		outputValues:     map[string]cty.Value{},
-		pathAttrs:        map[string]cty.Value{},
-		terraformAttrs:   map[string]cty.Value{},
-		countAttrs:       map[string]cty.Value{},
-		forEachAttrs:     map[string]cty.Value{},
-		checkBlocks:      map[string]cty.Value{},
+		dataResources:      map[string]map[string]cty.Value{},
+		ephemeralResources: map[string]map[string]cty.Value{},
+		managedResources:   map[string]map[string]cty.Value{},
+		wholeModules:       map[string]cty.Value{},
+		inputVariables:     map[string]cty.Value{},
+		localValues:        map[string]cty.Value{},
+		outputValues:       map[string]cty.Value{},
+		pathAttrs:          map[string]cty.Value{},
+		terraformAttrs:     map[string]cty.Value{},
+		countAttrs:         map[string]cty.Value{},
+		forEachAttrs:       map[string]cty.Value{},
+		checkBlocks:        map[string]cty.Value{},
 	}
 }
 
@@ -549,6 +553,8 @@ func (b *evalVarBuilder) putResourceValue(ctx context.Context, res addrs.Resourc
 		into = b.managedResources
 	case addrs.DataResourceMode:
 		into = b.dataResources
+	case addrs.EphemeralResourceMode:
+		into = b.ephemeralResources
 	case addrs.InvalidResourceMode:
 		panic("BUG: got invalid resource mode")
 	default:
@@ -577,6 +583,7 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["resource"] = cty.ObjectVal(buildResourceObjects(b.managedResources))
 
 	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
+	vals["ephemeral"] = cty.ObjectVal(buildResourceObjects(b.ephemeralResources))
 	vals["module"] = cty.ObjectVal(b.wholeModules)
 	vals["var"] = cty.ObjectVal(b.inputVariables)
 	vals["local"] = cty.ObjectVal(b.localValues)
@@ -618,4 +625,73 @@ func normalizeRefValue(val cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfd
 		return cty.UnknownVal(val.Type()), diags
 	}
 	return val, diags
+}
+
+// validEphemeralReferences is checking if val is containing ephemeral marks.
+// The schema argument is used to figure out if the value is for an ephemeral
+// context. If it is, then we don't even validate ephemeral marks.
+// If val contains any ephemeral mark, we check if the attribute containing
+// an ephemeral value is a write-only one. If not, we generate a diagnostic.
+// The diagnostics returned by this method need to go through InConfigBody
+// by the caller of the evaluator to append additional context to the diagnostic
+// for an enhanced feedback to the user.
+//
+// A nil schema will handle the value as unable to hold any ephemeral mark.
+func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags tfdiags.Diagnostics) {
+	// Ephemeral resources can reference values with any mark, so ignore this validation for ephemeral blocks
+	if schema != nil && schema.Ephemeral {
+		return diags
+	}
+	// This is the function for schema != nil.
+	// In the case of schema == nil, the function is recreated below.
+	//
+	// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
+	// referencing an ephemeral value might be missing from the schema.
+	// Therefore, we search for the first ancestor that exists in the schema.
+	attrFromSchema := func(path cty.Path) (*configschema.Attribute, cty.Path) {
+		attrPath := path
+		attr := schema.AttributeByPath(attrPath)
+		for attr == nil {
+			if len(attrPath) == 0 {
+				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", path)
+				return nil, path
+			}
+			attrPath = attrPath[:len(attrPath)-1]
+			attr = schema.AttributeByPath(attrPath)
+		}
+		return attr, attrPath
+	}
+
+	// We recreate the attribute search in the schema here purely for being sure
+	// that the logic below can run even when the schema is nil.
+	// When there is no schema, there should be no ephemeral value in the block.
+	if schema == nil {
+		attrFromSchema = func(path cty.Path) (*configschema.Attribute, cty.Path) {
+			return nil, path
+		}
+	}
+
+	_, valueMarks := val.UnmarkDeepWithPaths()
+	for _, pathMark := range valueMarks {
+		_, ok := pathMark.Marks[marks.Ephemeral]
+		if !ok {
+			continue
+		}
+
+		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
+		// To figure it out, we need to find the attribute by the mark path.
+		attr, foundPath := attrFromSchema(pathMark.Path)
+		if attr != nil && attr.WriteOnly {
+			continue
+		}
+
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Ephemeral value used in non-ephemeral context",
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", tfdiags.FormatCtyPath(foundPath)),
+			foundPath,
+		))
+	}
+
+	return diags
 }

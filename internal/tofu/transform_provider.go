@@ -457,6 +457,10 @@ func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error 
 				g.Connect(dag.BasicEdge(closer, s))
 			} else if _, ok := s.(GraphNodeReferencer); ok {
 				g.Connect(dag.BasicEdge(closer, s))
+			} else if _, ok := s.(GraphNodeCloseableResource); ok {
+				// Connect also the nodes that are meant to close resources since these
+				// are created quite late in the graph building process
+				g.Connect(dag.BasicEdge(closer, s))
 			}
 		}
 	}

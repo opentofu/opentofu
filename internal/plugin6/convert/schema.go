@@ -37,6 +37,7 @@ func ConfigSchemaToProto(b *configschema.Block) *proto.Schema_Block {
 			Required:        a.Required,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != cty.NilType {
@@ -104,6 +105,15 @@ func ProtoToProviderSchema(s *proto.Schema) providers.Schema {
 	}
 }
 
+// ProtoToEphemeralProviderSchema takes a proto.Schema and converts it to a providers.Schema
+// marking it as being able to work with ephemeral values.
+func ProtoToEphemeralProviderSchema(s *proto.Schema) providers.Schema {
+	ret := ProtoToProviderSchema(s)
+	ret.Block.Ephemeral = true
+
+	return ret
+}
+
 // ProtoToConfigSchema takes the Schema_Block from a grpc response and converts it
 // to a tofu *configschema.Block.
 func ProtoToConfigSchema(b *proto.Schema_Block) *configschema.Block {
@@ -125,6 +135,7 @@ func ProtoToConfigSchema(b *proto.Schema_Block) *configschema.Block {
 			Computed:        a.Computed,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != nil {
@@ -215,6 +226,7 @@ func protoObjectToConfigSchema(b *proto.Schema_Object) *configschema.Object {
 			Computed:        a.Computed,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != nil {

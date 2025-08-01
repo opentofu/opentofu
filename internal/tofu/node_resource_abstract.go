@@ -89,7 +89,7 @@ type NodeAbstractResource struct {
 	// Set from GraphNodeTargetable
 	Excludes []addrs.Targetable
 
-	// Set from AttachDataResourceDependsOn
+	// Set from AttachResourceDependsOn
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
@@ -115,18 +115,18 @@ type NodeAbstractResource struct {
 }
 
 var (
-	_ GraphNodeReferenceable               = (*NodeAbstractResource)(nil)
-	_ GraphNodeReferencer                  = (*NodeAbstractResource)(nil)
-	_ GraphNodeProviderConsumer            = (*NodeAbstractResource)(nil)
-	_ GraphNodeProvisionerConsumer         = (*NodeAbstractResource)(nil)
-	_ GraphNodeConfigResource              = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceConfig        = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceSchema        = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProvisionerSchema     = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProviderMetaConfigs   = (*NodeAbstractResource)(nil)
-	_ GraphNodeTargetable                  = (*NodeAbstractResource)(nil)
-	_ graphNodeAttachDataResourceDependsOn = (*NodeAbstractResource)(nil)
-	_ dag.GraphNodeDotter                  = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferenceable             = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferencer                = (*NodeAbstractResource)(nil)
+	_ GraphNodeProviderConsumer          = (*NodeAbstractResource)(nil)
+	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResource)(nil)
+	_ GraphNodeConfigResource            = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceConfig      = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceSchema      = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProvisionerSchema   = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProviderMetaConfigs = (*NodeAbstractResource)(nil)
+	_ GraphNodeTargetable                = (*NodeAbstractResource)(nil)
+	_ graphNodeAttachResourceDependsOn   = (*NodeAbstractResource)(nil)
+	_ dag.GraphNodeDotter                = (*NodeAbstractResource)(nil)
 )
 
 // NewNodeAbstractResource creates an abstract resource graph node for
@@ -455,8 +455,8 @@ func (n *NodeAbstractResource) SetExcludes(excludes []addrs.Targetable) {
 	n.Excludes = excludes
 }
 
-// graphNodeAttachDataResourceDependsOn
-func (n *NodeAbstractResource) AttachDataResourceDependsOn(deps []addrs.ConfigResource, force bool) {
+// graphNodeAttachResourceDependsOn
+func (n *NodeAbstractResource) AttachResourceDependsOn(deps []addrs.ConfigResource, force bool) {
 	n.dependsOn = deps
 	n.forceDependsOn = force
 }

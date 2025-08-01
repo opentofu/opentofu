@@ -144,6 +144,7 @@ var ConnectionBlockSupersetSchema = &configschema.Block{
 			Optional: true,
 		},
 	},
+	Ephemeral: true,
 }
 
 // IpFormat formats the IP correctly, so we don't provide IPv6 address in an IPv4 format during node communication. We return the ip parameter as is if it's an IPv4 address or a hostname.

@@ -43,6 +43,8 @@ func (plan Plan) getSchema(change jsonplan.ResourceChange) *jsonprovider.Schema 
 		return plan.ProviderSchemas[change.ProviderName].ResourceSchemas[change.Type]
 	case jsonstate.DataResourceMode:
 		return plan.ProviderSchemas[change.ProviderName].DataSourceSchemas[change.Type]
+	case jsonstate.EphemeralResourceMode:
+		return plan.ProviderSchemas[change.ProviderName].EphemeralResourceSchemas[change.Type]
 	default:
 		panic("found unrecognized resource mode: " + change.Mode)
 	}
@@ -74,6 +76,10 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		}
 		if action == plans.Delete && diff.change.Mode != jsonstate.ManagedResourceMode {
 			// Don't render anything for deleted data sources.
+			continue
+		}
+		if diff.change.Mode == jsonstate.EphemeralResourceMode {
+			// Do not render ephemeral changes. // TODO ephemeral add e2e test for this
 			continue
 		}
 
@@ -361,6 +367,10 @@ func renderHumanDiffDrift(renderer Renderer, diffs diffs, mode plans.Mode) bool 
 }
 
 func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) {
+	if diff.change.Mode == jsonstate.EphemeralResourceMode {
+		// render nothing for ephemeral resources
+		return "", false
+	}
 
 	// Internally, our computed diffs can't tell the difference between a
 	// replace action (eg. CreateThenDestroy, DestroyThenCreate) and a simple
@@ -569,6 +579,8 @@ func actionDescription(action plans.Action) string {
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
 		return "  [red].[reset] forget"
+	case plans.Open:
+		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))
