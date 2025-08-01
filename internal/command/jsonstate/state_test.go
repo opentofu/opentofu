@@ -338,7 +338,7 @@ func TestMarshalResources(t *testing.T) {
 			},
 			"",
 		},
-		"resource with marks": {
+		"resource with sensitive marks": {
 			map[string]*states.Resource{
 				"test_thing.bar": {
 					Addr: addrs.AbsResource{
@@ -383,6 +383,38 @@ func TestMarshalResources(t *testing.T) {
 				},
 			},
 			"",
+		},
+		"resource with ephemeral": {
+			map[string]*states.Resource{
+				"test_thing.bar": {
+					Addr: addrs.AbsResource{
+						Resource: addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_thing",
+							Name: "bar",
+						},
+					},
+					Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+						addrs.NoKey: {
+							Current: &states.ResourceInstanceObjectSrc{
+								Status:    states.ObjectReady,
+								AttrsJSON: []byte(`{"foozles":"confuzles"}`),
+								AttrSensitivePaths: []cty.PathValueMarks{{
+									Path:  cty.Path{cty.GetAttrStep{Name: "foozles"}},
+									Marks: cty.NewValueMarks(marks.Ephemeral)},
+								},
+							},
+						},
+					},
+					ProviderConfig: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				},
+			},
+			testSchemas(),
+			nil,
+			"test_thing.bar: ephemeral marks found at the following paths:\n.foozles",
 		},
 		"single resource wrong schema": {
 			map[string]*states.Resource{

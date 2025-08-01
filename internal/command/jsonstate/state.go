@@ -366,8 +366,9 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 			resAddr := r.Addr.Resource
 
+			instAddr := r.Addr.Instance(k)
 			current := Resource{
-				Address:      r.Addr.Instance(k).String(),
+				Address:      instAddr.String(),
 				Type:         resAddr.Type,
 				Name:         resAddr.Name,
 				ProviderName: r.ProviderConfig.Provider.String(),
@@ -418,11 +419,18 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				current.AttributeValues = marshalAttributeValues(riObj.Value)
 
-				value, marks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsSensitive() {
-					marks = append(marks, schema.ValueMarks(value, nil)...)
+				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
+				if schema.ContainsMarks() {
+					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
 				}
-				s := SensitiveAsBoolWithPathValueMarks(value, marks)
+				// NOTE: Even though at this point, the resources that are processed here
+				// should have no ephemeral mark, we want to validate that before having
+				// these written to the state.
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+					return nil, fmt.Errorf("%s: %w", instAddr, err)
+				}
+
+				s := SensitiveAsBoolWithPathValueMarks(value, valMarks)
 				v, err := ctyjson.Marshal(s, s.Type())
 				if err != nil {
 					return nil, err
@@ -469,11 +477,17 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				deposed.AttributeValues = marshalAttributeValues(riObj.Value)
 
-				value, marks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsSensitive() {
-					marks = append(marks, schema.ValueMarks(value, nil)...)
+				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
+				if schema.ContainsMarks() {
+					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
 				}
-				s := SensitiveAsBool(value.MarkWithPaths(marks))
+				// NOTE: Even though at this point, the resources that are processed here
+				// should have no ephemeral mark, we want to validate that before having
+				// these written to the state.
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+					return nil, fmt.Errorf("%s: %w", instAddr, err)
+				}
+				s := SensitiveAsBool(value.MarkWithPaths(valMarks))
 				v, err := ctyjson.Marshal(s, s.Type())
 				if err != nil {
 					return nil, err

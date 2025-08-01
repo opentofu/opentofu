@@ -214,6 +214,13 @@ func parseResourceTypeAndName(remain hcl.Traversal, mode ResourceMode) (typeName
 				Detail:   "A data source name is required.",
 				Subject:  remain[0].SourceRange().Ptr(),
 			})
+		case EphemeralResourceMode:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid address",
+				Detail:   "An ephemeral resource name is required.",
+				Subject:  remain[0].SourceRange().Ptr(),
+			})
 		default:
 			panic("unknown mode")
 		}

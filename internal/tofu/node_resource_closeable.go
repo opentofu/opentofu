@@ -7,6 +7,8 @@ package tofu
 
 import (
 	"context"
+	"log"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -33,8 +35,21 @@ func (n *nodeCloseableResource) Name() string {
 }
 
 func (n *nodeCloseableResource) Execute(_ context.Context, _ EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+	var wg sync.WaitGroup
+	diagsCh := make(chan tfdiags.Diagnostics, len(n.cbs))
+	log.Printf("[TRACE] nodeCloseableResource - scheduling %d closing operations for of ephemeral resource %s", len(n.cbs), n.Addr.String())
+	// NOTE: since go v1.22 there is no need to copy the loop variable.
 	for _, cb := range n.cbs {
-		diags = diags.Append(cb())
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			diagsCh <- cb()
+		}()
+	}
+	wg.Wait()
+	close(diagsCh)
+	for d := range diagsCh {
+		diags = diags.Append(d)
 	}
 	return diags
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
@@ -400,7 +401,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			// We need to write ephemeral resources to the plan file to be able to build
 			// the apply graph on `tofu apply <planfile>`.
 			// The DiffTransformer needs the changes from the plan to be able to generate
-			// executable resource instance graph nodes so we are adding the ephemeral resources too.
+			// executable resource instance graph nodes, so we are adding the ephemeral resources too.
 			// Even though we are writing these, the actual values of the ephemeral *must not*
 			// be written to the plan so nullify these.
 			rc.ChangeSrc.Before = nil
@@ -441,11 +442,14 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if err != nil {
 				return nil, err
 			}
-			marks := rc.BeforeValMarks
-			if schema.ContainsSensitive() {
-				marks = append(marks, schema.ValueMarks(changeV.Before, nil)...)
+			valMarks := rc.BeforeValMarks
+			if schema.ContainsMarks() {
+				valMarks = append(valMarks, schema.ValueMarks(changeV.Before, nil)...)
 			}
-			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, marks)
+			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
+				return nil, err
+			}
+			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, valMarks)
 			beforeSensitive, err = ctyjson.Marshal(bs, bs.Type())
 			if err != nil {
 				return nil, err
@@ -470,11 +474,14 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				}
 				afterUnknown = unknownAsBool(changeV.After)
 			}
-			marks := rc.AfterValMarks
-			if schema.ContainsSensitive() {
-				marks = append(marks, schema.ValueMarks(changeV.After, nil)...)
+			valMarks := rc.AfterValMarks
+			if schema.ContainsMarks() {
+				valMarks = append(valMarks, schema.ValueMarks(changeV.After, nil)...)
 			}
-			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, marks)
+			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
+				return nil, err
+			}
+			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, valMarks)
 			afterSensitive, err = ctyjson.Marshal(as, as.Type())
 			if err != nil {
 				return nil, err
@@ -572,6 +579,18 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 	}
 
 	return ret, nil
+}
+
+func ensureEphemeralMarksAreValid(addr addrs.AbsResourceInstance, valMarks []cty.PathValueMarks) error {
+	// ephemeral resources will have the ephemeral mark at the root of the value, got from schema.ValueMarks
+	// so we don't want to error for those particular ones
+	if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		return nil
+	}
+	if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+		return fmt.Errorf("%s: %w", addr, err)
+	}
+	return nil
 }
 
 // GenerateChange is used to receive two values and calculate the difference

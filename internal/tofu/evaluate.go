@@ -754,8 +754,13 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				// If the block that it's evaluated is an ephemeral one, we want to mark
 				// the cty.DynamicVal as ephemeral to ensure that the ephemeral references
 				// check is working properly during walkValidate.
-				// TODO ephemeral - for the reviewers: do you see any unwanted consequences in
-				// marking this value?
+				// For the sake of consistency, we could use "schema.ValueMarks(...)" instead.
+				// Though, since that method it also gathers sensitive marks from all the nesting
+				// layers, based on the size of the schema and the level of nested objects,
+				// that could add a pretty significant performance penalty for marking in the end
+				// only the root object with the ephemeral mark (only the root object, because the
+				// returned slice of cty.PathValueMarks will not be applicable to the attributes
+				// of cty.DynamicVal, since it is having none).
 				ephemeralMark := cty.PathValueMarks{
 					Path:  make(cty.Path, 0),
 					Marks: cty.NewValueMarks(marks.Ephemeral),
@@ -829,7 +834,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			}
 
 			afterMarks := change.AfterValMarks
-			if schema.ContainsSensitive() || schema.Ephemeral {
+			if schema.ContainsMarks() {
 				if schema.Ephemeral {
 					// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
 					// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
@@ -861,7 +866,7 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 		val := instanceObjectSrc.Value
 
-		if schema.ContainsSensitive() || schema.Ephemeral {
+		if schema.ContainsMarks() {
 			var valMarks []cty.PathValueMarks
 			// Now that we know that the schema contains sensitive and/or ephemeral marks,
 			// Combine those marks together to ensure that the value is marked correctly but not double marked

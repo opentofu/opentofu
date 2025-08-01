@@ -883,7 +883,7 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 	}
 }
 
-func TestImport_dataResource(t *testing.T) {
+func TestImport_nonManagedResource(t *testing.T) {
 	t.Chdir(testFixturePath("import-missing-resource-config"))
 
 	statePath := testTempFile(t)
@@ -899,19 +899,36 @@ func TestImport_dataResource(t *testing.T) {
 		},
 	}
 
-	args := []string{
-		"-state", statePath,
-		"data.test_data_source.foo",
-		"bar",
+	cases := []struct {
+		resAddr        string
+		expectedErrMsg string
+	}{
+		{
+			resAddr:        "data.test_data_source.foo",
+			expectedErrMsg: "A managed resource address is required. Importing into a data resource is not allowed.",
+		},
+		{
+			resAddr:        "ephemeral.test_data_source.foo",
+			expectedErrMsg: "A managed resource address is required. Importing into an ephemeral resource is not allowed.",
+		},
 	}
-	code := c.Run(args)
-	if code != 1 {
-		t.Fatalf("import succeeded; expected failure")
-	}
+	for _, tt := range cases {
+		t.Run(tt.resAddr, func(t *testing.T) {
+			args := []string{
+				"-state", statePath,
+				tt.resAddr,
+				"bar",
+			}
+			code := c.Run(args)
+			if code != 1 {
+				t.Fatalf("import succeeded; expected failure")
+			}
 
-	msg := ui.ErrorWriter.String()
-	if want := `A managed resource address is required`; !strings.Contains(msg, want) {
-		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
+			msg := ui.ErrorWriter.String()
+			if want := tt.expectedErrMsg; !strings.Contains(msg, want) {
+				t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
+			}
+		})
 	}
 }
 

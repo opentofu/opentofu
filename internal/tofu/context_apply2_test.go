@@ -5675,14 +5675,14 @@ ephemeral "test_ephemeral_resource" "a" {
 		t.Fatalf("want %d hook calls but got %d", want, got)
 	}
 	wantCalls := []*testHookCall{
-		{Action: "PreApply", InstanceID: addr.String()},
-		{Action: "PostApply", InstanceID: addr.String()},
-		{Action: "PreApply", InstanceID: addr.String()},
-		{Action: "PostApply", InstanceID: addr.String()},
-		{Action: "PreApply", InstanceID: addr.String()},
-		{Action: "PostApply", InstanceID: addr.String()},
-		{Action: "PreApply", InstanceID: addr.String()},
-		{Action: "PostApply", InstanceID: addr.String()},
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
 	}
 	if diff := cmp.Diff(wantCalls, h.Calls); diff != "" {
 		t.Fatalf("unexpected hook calls:\n%s", diff)

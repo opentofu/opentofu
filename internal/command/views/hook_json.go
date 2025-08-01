@@ -174,3 +174,33 @@ func (h *jsonHook) PostRefresh(addr addrs.AbsResourceInstance, gen states.Genera
 	h.view.Hook(json.NewRefreshComplete(addr, idKey, idValue))
 	return tofu.HookActionContinue, nil
 }
+
+func (h *jsonHook) PreOpen(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStart(addr, "Opening..."))
+	return tofu.HookActionContinue, nil
+}
+
+func (h *jsonHook) PostOpen(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStop(addr, "Open complete"))
+	return tofu.HookActionContinue, nil
+}
+
+func (h *jsonHook) PreRenew(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStart(addr, "Renewing..."))
+	return tofu.HookActionContinue, nil
+}
+
+func (h *jsonHook) PostRenew(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStop(addr, "Renew complete"))
+	return tofu.HookActionContinue, nil
+}
+
+func (h *jsonHook) PreClose(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStart(addr, "Closing..."))
+	return tofu.HookActionContinue, nil
+}
+
+func (h *jsonHook) PostClose(addr addrs.AbsResourceInstance, _ error) (tofu.HookAction, error) {
+	h.view.Hook(json.NewEphemeralStop(addr, "Close complete"))
+	return tofu.HookActionContinue, nil
+}

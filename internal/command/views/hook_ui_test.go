@@ -144,164 +144,102 @@ test_instance\.foo: Still modifying... \[id=test, \ds elapsed\]
 	}
 }
 
-// Test the PreApply hook's use of a periodic timer to display "still opening"
-// log lines
-func TestUiHookPreApply_periodicTimerOnEphemeral(t *testing.T) {
-	t.Run("opening", func(t *testing.T) {
-		streams, done := terminal.StreamsForTesting(t)
-		view := NewView(streams)
-		h := NewUiHook(view)
-		h.periodicUiTimer = 1 * time.Second
-		h.resources = map[string]uiResourceState{
-			"ephemeral.test_instance.foo": {
-				Op:    uiResourceOpen,
-				Start: time.Now(),
+// Test the ephemeral specific hooks
+func TestUiHook_ephemeral(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	cases := []struct {
+		name       string
+		preF       func(hook tofu.Hook) (tofu.HookAction, error)
+		postF      func(hook tofu.Hook) (tofu.HookAction, error)
+		wantOutput string
+	}{
+		{
+			name: "opening",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreOpen(addr)
 			},
-		}
-
-		addr := addrs.Resource{
-			Mode: addrs.EphemeralResourceMode,
-			Type: "test_instance",
-			Name: "foo",
-		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
-
-		priorState := cty.ObjectVal(map[string]cty.Value{
-			"id":  cty.StringVal("test"),
-			"bar": cty.ListValEmpty(cty.String),
-		})
-		plannedNewState := cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("test"),
-			"bar": cty.ListVal([]cty.Value{
-				cty.StringVal("baz"),
-			}),
-		})
-
-		action, err := h.PreApply(addr, states.CurrentGen, plans.Open, priorState, plannedNewState)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if action != tofu.HookActionContinue {
-			t.Fatalf("Expected hook to continue, given: %#v", action)
-		}
-
-		time.Sleep(1100 * time.Millisecond)
-
-		// stop the background writer
-		uiState := h.resources[addr.String()]
-		close(uiState.DoneCh)
-		<-uiState.done
-
-		expectedRegexp := `ephemeral\.test_instance\.foo: Opening\.\.\. \[id=test\]
-ephemeral\.test_instance\.foo: Still opening\.\.\. \[id=test, \ds elapsed\]
-`
-		result := done(t)
-		output := result.Stdout()
-		if matched, _ := regexp.MatchString(expectedRegexp, output); !matched {
-			t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedRegexp, output)
-		}
-
-		expectedErrOutput := ""
-		errOutput := result.Stderr()
-		if errOutput != expectedErrOutput {
-			t.Fatalf("Error output didn't match.\nExpected: %q\nGiven: %q", expectedErrOutput, errOutput)
-		}
-	})
-	t.Run("renew", func(t *testing.T) {
-		streams, done := terminal.StreamsForTesting(t)
-		view := NewView(streams)
-		h := NewUiHook(view)
-		h.periodicUiTimer = 1 * time.Second
-		h.resources = map[string]uiResourceState{
-			"ephemeral.test_instance.foo": {
-				Op:    uiResourceRenew,
-				Start: time.Now(),
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostOpen(addr, nil)
 			},
-		}
-
-		addr := addrs.Resource{
-			Mode: addrs.EphemeralResourceMode,
-			Type: "test_instance",
-			Name: "foo",
-		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
-
-		action, err := h.PreApply(addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if action != tofu.HookActionContinue {
-			t.Fatalf("Expected hook to continue, given: %#v", action)
-		}
-
-		time.Sleep(1100 * time.Millisecond)
-
-		// stop the background writer
-		uiState := h.resources[addr.String()]
-		close(uiState.DoneCh)
-		<-uiState.done
-
-		expectedRegexp := `ephemeral\.test_instance\.foo: Renewing\.\.\.
+			wantOutput: `ephemeral\.test_instance\.foo: Opening\.\.\.
+ephemeral\.test_instance\.foo: Still opening\.\.\. \[\ds elapsed\]
+`,
+		},
+		{
+			name: "renewing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreRenew(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostRenew(addr, nil)
+			},
+			wantOutput: `ephemeral\.test_instance\.foo: Renewing\.\.\.
 ephemeral\.test_instance\.foo: Still renewing\.\.\. \[\ds elapsed\]
-`
-		result := done(t)
-		output := result.Stdout()
-		if matched, _ := regexp.MatchString(expectedRegexp, output); !matched {
-			t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedRegexp, output)
-		}
-
-		expectedErrOutput := ""
-		errOutput := result.Stderr()
-		if errOutput != expectedErrOutput {
-			t.Fatalf("Error output didn't match.\nExpected: %q\nGiven: %q", expectedErrOutput, errOutput)
-		}
-	})
-	t.Run("closing", func(t *testing.T) {
-		streams, done := terminal.StreamsForTesting(t)
-		view := NewView(streams)
-		h := NewUiHook(view)
-		h.periodicUiTimer = 1 * time.Second
-		h.resources = map[string]uiResourceState{
-			"ephemeral.test_instance.foo": {
-				Op:    uiResourceClose,
-				Start: time.Now(),
+ephemeral\.test_instance\.foo: Renew complete after \ds
+`,
+		},
+		{
+			name: "closing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreClose(addr)
 			},
-		}
-
-		addr := addrs.Resource{
-			Mode: addrs.EphemeralResourceMode,
-			Type: "test_instance",
-			Name: "foo",
-		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
-
-		action, err := h.PreApply(addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if action != tofu.HookActionContinue {
-			t.Fatalf("Expected hook to continue, given: %#v", action)
-		}
-
-		time.Sleep(1100 * time.Millisecond)
-
-		// stop the background writer
-		uiState := h.resources[addr.String()]
-		close(uiState.DoneCh)
-		<-uiState.done
-
-		expectedRegexp := `ephemeral\.test_instance\.foo: Closing\.\.\.
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostClose(addr, nil)
+			},
+			wantOutput: `ephemeral\.test_instance\.foo: Closing\.\.\.
 ephemeral\.test_instance\.foo: Still closing\.\.\. \[\ds elapsed\]
-`
-		result := done(t)
-		output := result.Stdout()
-		if matched, _ := regexp.MatchString(expectedRegexp, output); !matched {
-			t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedRegexp, output)
-		}
+ephemeral\.test_instance\.foo: Close complete after \ds
+`,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			h := NewUiHook(view)
+			h.periodicUiTimer = 1 * time.Second
 
-		expectedErrOutput := ""
-		errOutput := result.Stderr()
-		if errOutput != expectedErrOutput {
-			t.Fatalf("Error output didn't match.\nExpected: %q\nGiven: %q", expectedErrOutput, errOutput)
-		}
-	})
+			action, err := tt.preF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Fatalf("Expected hook to continue, given: %#v", action)
+			}
+
+			<-time.After(1100 * time.Millisecond)
+
+			// stop the background writer
+			uiState := h.resources[addr.String()]
+			// call postF that will stop the waiting for the action
+			action, err = tt.postF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Errorf("Expected hook to continue, given: %#v", action)
+			}
+			// wait for the waiting to stop completely
+			<-uiState.done
+
+			result := done(t)
+			output := result.Stdout()
+			if matched, _ := regexp.MatchString(tt.wantOutput, output); !matched {
+				t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", tt.wantOutput, output)
+			}
+
+			expectedErrOutput := ""
+			errOutput := result.Stderr()
+			if errOutput != expectedErrOutput {
+				t.Fatalf("Error output didn't match.\nExpected: %q\nGiven: %q", expectedErrOutput, errOutput)
+			}
+		})
+	}
 }
 
 // Test the PreApply hook's destroy path, including passing a deposed key as

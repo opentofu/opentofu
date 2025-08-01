@@ -152,6 +152,16 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
+	// TODO ephemeral - remove this line after work will be done on write-only arguments.
+	// The problem now is that the value sent to ApplyResourceChange is always null as returned by the plan call.
+	// When the work on write-only arguments will be done, OpenTofu should send the actual value to
+	// the ApplyResourceChange too.
+	// To confirm that everything is ok, by removing this "waitIfRequested" call from here, theTestEphemeralWorkflowAndOutput
+	// should still work correctly without any warn logs in the test output
+	waitIfRequested(m)
+	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
+	m["value_wo"] = cty.NullVal(cty.String)
+
 	resp.PlannedState = cty.ObjectVal(m)
 	return resp
 }
@@ -167,13 +177,11 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	if !ok {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
+	waitIfRequested(m)
+
+	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
+	m["value_wo"] = cty.NullVal(cty.String)
 	resp.NewState = cty.ObjectVal(m)
-	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
-	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
-	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
-	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
-		<-time.After(time.Second)
-	}
 
 	return resp
 }
@@ -223,4 +231,13 @@ func (s simple) CallFunction(_ context.Context, r providers.CallFunctionRequest)
 
 func (s simple) Close(_ context.Context) error {
 	return nil
+}
+
+func waitIfRequested(m map[string]cty.Value) {
+	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
+	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
+	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
+	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+		<-time.After(time.Second)
+	}
 }
