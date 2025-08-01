@@ -1,4 +1,11 @@
-## 1.10.5 (unreleased)
+## 1.10.6 (unreleased)
+
+## 1.10.5
+
+BUG FIXES:
+
+- Fixed issue where usage of TF_PLUGIN_CACHE_DIR could result in unexpected lock contention errors ([#3090](https://github.com/opentofu/opentofu/pull/3090))
+  - NOTE: It is still highly recommended to have valid .terraform.lock.hcl files in projects using TF_PLUGIN_CACHE_DIR
 
 ## 1.10.4
 
