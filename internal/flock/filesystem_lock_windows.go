@@ -9,9 +9,12 @@
 package flock
 
 import (
+	"context"
+	"errors"
 	"math"
 	"os"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -26,6 +29,8 @@ const (
 	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365203(v=vs.85).aspx
 	_LOCKFILE_FAIL_IMMEDIATELY = 1
 	_LOCKFILE_EXCLUSIVE_LOCK   = 2
+	// https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes--0-499-
+	ERROR_LOCK_VIOLATION = 33
 )
 
 // This still alows the file handle to be opened by another process for competing locks on the same file.
@@ -46,6 +51,44 @@ func Lock(f *os.File) error {
 		math.MaxUint32, // bytes high
 		ol,
 	)
+}
+
+// This is a poor implementation of blocking locks, but it a somewhat function patch for the moment.
+// This should eventually be tweaked to use native windows locking.
+// See https://github.com/opentofu/opentofu/issues/3089 for more details.
+func LockBlocking(ctx context.Context, f *os.File) error {
+	resultChan := make(chan error)
+
+	go func() {
+		for {
+			err := Lock(f)
+			if err == nil {
+				// Lock succeeded
+				resultChan <- nil
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				// Lock cancelled, so return cancellation error
+				resultChan <- ctx.Err()
+				return
+			default:
+				// LockFileEx returns this error when the lock is contended.
+				var errno syscall.Errno
+				ok := errors.As(err, &errno)
+				if ok && errno == ERROR_LOCK_VIOLATION {
+					// Chill for a bit before trying again
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+				// All other errors are fatal.
+				resultChan <- err
+			}
+		}
+	}()
+
+	return <-resultChan
 }
 
 func Unlock(*os.File) error {
