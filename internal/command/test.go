@@ -1104,7 +1104,8 @@ func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState
 		varMap = make(map[string]cty.Value)
 	}
 	for name, val := range vars {
-		if val == nil {
+		// If the input variable is not defined on test file, we skip it.
+		if val == nil || val.Value.IsNull() {
 			continue
 		}
 		varMap[name] = val.Value
