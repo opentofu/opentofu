@@ -353,7 +353,7 @@ func NewEphemeralStop(addr addrs.AbsResourceInstance, startMsg string) Hook {
 // Convert the subset of plans.Action values we expect to receive into a
 // present-tense verb for the applyStart hook message.
 //
-// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
+// NOTE: Open, Renew and Close missing on purpose since those have their own dedicated hooks.
 func startActionVerb(action plans.Action) string {
 	switch action {
 	case plans.Create:
@@ -383,7 +383,7 @@ func startActionVerb(action plans.Action) string {
 // present-tense verb for the applyProgress hook message. This will be
 // prefixed with "Still ", so it is lower-case.
 //
-// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
+// NOTE: Open, Renew and Close missing on purpose since those have their own dedicated hooks.
 func progressActionVerb(action plans.Action) string {
 	switch action {
 	case plans.Create:
@@ -413,7 +413,7 @@ func progressActionVerb(action plans.Action) string {
 // noun for the applyComplete and applyErrored hook messages. This will be
 // combined into a phrase like "Creation complete after 1m4s".
 //
-// NOTE: Open, Renew and Close missing on purpose since those two have their own dedicated hooks.
+// NOTE: Open, Renew and Close missing on purpose since those have their own dedicated hooks.
 func actionNoun(action plans.Action) string {
 	switch action {
 	case plans.Create:
