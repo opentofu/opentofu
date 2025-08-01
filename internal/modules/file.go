@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package configs2
+package modules
 
 import (
 	"fmt"
@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 
-	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -44,13 +43,17 @@ type configFile struct {
 	// the file, or in other files belonging to the same module.
 	SupportedOpenTofuVersions *WithSourceRange[*version.Constraints]
 
-	// ActiveLanguageExperiments is the set of language experiments that
+	// SelectedLanguageExperiments is the set of language experiment names that
 	// the module has opted into.
 	//
 	// This is eagerly decoded on a best-effort basis so that all subsequent
 	// decoding can potentially vary depending on which experiments are
 	// selected across all files in a module.
-	ActiveLanguageExperiments *WithSourceRange[experiments.Set]
+	//
+	// The language experiment names are not checked against the current
+	// active experiments in this version of OpenTofu. It's the caller's
+	// responsibility to check whether each experiment is name is valid to use.
+	SelectedLanguageExperiments []WithSourceRange[string]
 
 	// ConfigBlocks are all of the top-level blocks of supported types other
 	// than "language" that were found in the file.
@@ -114,13 +117,13 @@ func parseConfigSource(src []byte, filename string) *configFile {
 	// we make a best effort to decode those early here.
 	reqdVersions, experiments, moreDiags := sniffConfigFileLanguageSettings(ret)
 	ret.SupportedOpenTofuVersions = reqdVersions
-	ret.ActiveLanguageExperiments = experiments
+	ret.SelectedLanguageExperiments = experiments
 	ret.Diagnostics = ret.Diagnostics.Append(moreDiags)
 
 	return ret
 }
 
-func sniffConfigFileLanguageSettings(f *configFile) (*WithSourceRange[*version.Constraints], *WithSourceRange[experiments.Set], tfdiags.Diagnostics) {
+func sniffConfigFileLanguageSettings(f *configFile) (*WithSourceRange[*version.Constraints], []WithSourceRange[string], tfdiags.Diagnostics) {
 	// TODO: Search f.ConfigBlocks for a "terraform" block and do a careful
 	// decode of its contents to try to find required_version, experiments,
 	// and language arguments, and then make a best effort to evaluate them.

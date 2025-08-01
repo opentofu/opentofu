@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package configs2
+package modules
 
 import (
 	"fmt"
@@ -14,16 +14,28 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	tofuVersion "github.com/opentofu/opentofu/version"
 )
 
+// Module represents the mostly-unevaluated content of a single module, before
+// it has been included into a configuration tree and had early evaluation
+// applied to it.
+//
+// This is not the representation of a module that most parts of OpenTofu should
+// use. Instead, it's an intermediate representation reflecting the static
+// structure of the configuration. (The "final" form of a configuration would
+// live in some other package and use different struct types.)
 type Module struct {
 	Dir string
 }
 
 func LoadModuleDir(dir string) (*Module, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 	ret := &Module{
 		Dir: dir,
 	}
@@ -36,10 +48,76 @@ func LoadModuleDir(dir string) (*Module, tfdiags.Diagnostics) {
 		return ret, diags
 	}
 
-	primaryFiles := make([]*configFile, 0, len(primaryFilenames))
-	overrideFiles := make([]*configFile, 0, len(overrideFilenames))
+	primaryFiles := loadConfigFiles(primaryFilenames)
+	overrideFiles := loadConfigFiles(overrideFilenames)
+	diags = diags.Append(precheckLanguageCompatibility(primaryFiles, tofuVersion.SemVer))
+	diags = diags.Append(precheckLanguageCompatibility(overrideFiles, tofuVersion.SemVer))
+	if diags.HasErrors() {
+		// If the module declared that it isn't compatible with this version
+		// then we can expect that some other parts of the configuration will
+		// seem invalid to the following code, and so we'll return early to
+		// avoid returning confusing errors, focusing only on the version
+		// incompatibility.
+		return ret, diags
+	}
+
+	// TODO: Decode everything else!
 
 	return ret, diags
+}
+
+func loadConfigFiles(filenames []string) []*configFile {
+	if len(filenames) == 0 {
+		return nil
+	}
+	files := make([]*configFile, len(filenames))
+	for i, filename := range filenames {
+		files[i] = parseConfigFile(filename)
+	}
+	return files
+}
+
+func precheckLanguageCompatibility(files []*configFile, opentofuVersion *version.Version) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, file := range files {
+		if file.SupportedOpenTofuVersions != nil && !file.SupportedOpenTofuVersions.Value.Check(opentofuVersion) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Incompatible module",
+				Detail:   fmt.Sprintf("This module declares that it is not compatible with OpenTofu %s.\n\nYou may need to either use a different OpenTofu version or select a different version of this module.", opentofuVersion),
+				Subject:  file.SupportedOpenTofuVersions.SourceRange.ToHCL().Ptr(),
+			})
+		}
+		for _, selected := range file.SelectedLanguageExperiments {
+			experiment, err := experiments.GetCurrent(selected.Value)
+			switch err := err.(type) {
+			case nil:
+				// no problem: selected experiment is currently active
+			case experiments.UnavailableError:
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Module uses unsupported language experiment",
+					Detail:   fmt.Sprintf("This module relies on features from the language experiment %q, which is not available in OpenTofu %s.", err.ExperimentName, opentofuVersion),
+					Subject:  selected.SourceRange.ToHCL().Ptr(),
+				})
+			case experiments.ConcludedError:
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Module uses concluded language experiment",
+					Detail:   fmt.Sprintf("This module relies on features from the language experiment %q, which has concluded.\n\n%s.", err.ExperimentName, err.Message),
+					Subject:  selected.SourceRange.ToHCL().Ptr(),
+				})
+			default:
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Module uses invalid language experiment",
+					Detail:   fmt.Sprintf("This module refers to language experiment %q, which is invalid: %s.", experiment.Keyword(), err),
+					Subject:  selected.SourceRange.ToHCL().Ptr(),
+				})
+			}
+		}
+	}
+	return diags
 }
 
 // filesInModuleDir finds OpenTofu configuration files within dir, splitting
