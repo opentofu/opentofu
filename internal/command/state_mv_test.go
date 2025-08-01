@@ -1824,8 +1824,9 @@ func TestValidateResourceMove(t *testing.T) {
 	var (
 		c = &StateMvCommand{}
 
-		managedRes = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_type", Name: "test_name"}}
-		dataRes    = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "test_type", Name: "test_name"}}
+		managedRes   = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_type", Name: "test_name"}}
+		dataRes      = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "test_type", Name: "test_name"}}
+		ephemeralRes = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.EphemeralResourceMode, Type: "test_type", Name: "test_name"}}
 	)
 
 	tests := map[string]struct {
@@ -1842,6 +1843,15 @@ func TestValidateResourceMove(t *testing.T) {
 			dataRes,
 			tfdiags.Diagnostics{},
 		},
+		"ephemeral to ephemeral": {
+			ephemeralRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
+			)},
+		},
 		"resource to data": {
 			managedRes,
 			dataRes,
@@ -1851,6 +1861,15 @@ func TestValidateResourceMove(t *testing.T) {
 				fmt.Sprintf("Cannot move %s to %s: a managed resource can be moved only to another managed resource address.", managedRes, dataRes),
 			)},
 		},
+		"resource to ephemeral": {
+			managedRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
+			)},
+		},
 		"data to resource": {
 			dataRes,
 			managedRes,
@@ -1858,6 +1877,15 @@ func TestValidateResourceMove(t *testing.T) {
 				tfdiags.Error,
 				"Invalid state move request",
 				fmt.Sprintf("Cannot move %s to %s: a data resource can be moved only to another data resource address.", dataRes, managedRes),
+			)},
+		},
+		"data to ephemeral": {
+			dataRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
 			)},
 		},
 	}
