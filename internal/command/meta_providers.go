@@ -12,19 +12,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"strings"
 
-	plugin "github.com/hashicorp/go-plugin"
+	"github.com/apparentlymart/opentofu-providers/tofuprovider"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/logging"
-	tfplugin "github.com/opentofu/opentofu/internal/plugin"
-	tfplugin6 "github.com/opentofu/opentofu/internal/plugin6"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/providers/rpcproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -77,11 +74,13 @@ func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *provid
 		builtinProviderTypes = append(builtinProviderTypes, ty)
 	}
 	inst.SetBuiltInProviderTypes(builtinProviderTypes)
-	unmanagedProviderTypes := make(map[addrs.Provider]struct{}, len(m.UnmanagedProviders))
-	for ty := range m.UnmanagedProviders {
-		unmanagedProviderTypes[ty] = struct{}{}
-	}
-	inst.SetUnmanagedProviderTypes(unmanagedProviderTypes)
+	/*
+		unmanagedProviderTypes := make(map[addrs.Provider]struct{}, len(m.UnmanagedProviders))
+		for ty := range m.UnmanagedProviders {
+			unmanagedProviderTypes[ty] = struct{}{}
+		}
+		inst.SetUnmanagedProviderTypes(unmanagedProviderTypes)
+	*/
 	return inst
 }
 
@@ -274,9 +273,9 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	// overrides are typically a "session-level" setting while unmanaged
 	// providers are typically scoped to a single unattended command.
 	devOverrideProviders := m.ProviderDevOverrides
-	unmanagedProviders := m.UnmanagedProviders
+	//unmanagedProviders := m.UnmanagedProviders
 
-	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders))
+	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories))
 	for name, factory := range internalFactories {
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
@@ -329,9 +328,16 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	for provider, localDir := range devOverrideProviders {
 		factories[provider] = devOverrideProviderFactory(provider, localDir)
 	}
-	for provider, reattach := range unmanagedProviders {
-		factories[provider] = unmanagedProviderFactory(provider, reattach)
-	}
+	/*
+		for provider := range unmanagedProviders {
+			factories[provider] = func() (providers.Interface, error) {
+				// FIXME: The tofuproviders library for Go doesn't yet have an
+				// equivalent to the "reattach" functionality, so we'll need to
+				// implement that upstream to make this work again.
+				return nil, fmt.Errorf("unmanaged providers not yet supported with new client library")
+			}
+		}
+	*/
 
 	var err error
 	if len(errs) > 0 {
@@ -358,56 +364,28 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			return nil, err
 		}
 
-		config := &plugin.ClientConfig{
-			HandshakeConfig:  tfplugin.Handshake,
-			Logger:           logging.NewProviderLogger(""),
-			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-			Managed:          true,
-			Cmd:              exec.Command(execFile),
-			AutoMTLS:         enableProviderAutoMTLS,
-			VersionedPlugins: tfplugin.VersionedPlugins,
-			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
-			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
-		}
-
-		client := plugin.NewClient(config)
-		rpcClient, err := client.Client()
+		// TODO: The previous version of this that directly called go-plugin
+		// also activated go-plugin's special handling of plugin stderr
+		// as logs. The tofuprovider library considers any parsing of stderr
+		// to be the caller's concern, so to replicate the previous behavior
+		// we would:
+		//  - Add some new code to OpenTofu's package logging that has
+		//    similar logic to go-plugin's stderr parsing code, with
+		//    it taking content from the read end of a pipe and returning
+		//    the write end of the pipe.
+		//  - Pass the write end of that pipe to the following function
+		//    by using this library's providertrace.ContextWithTracer to
+		//    pass in a tracer that traces the provider's stderr into that pipe.
+		//
+		// For now we're just ignoring that whole idea for early prototyping
+		// purposes. Any stderr content written by a provider is silently
+		// discarded.
+		client, err := tofuprovider.StartGRPCPlugin(context.Background(), execFile)
 		if err != nil {
 			return nil, err
 		}
 
-		raw, err := rpcClient.Dispense(tfplugin.ProviderPluginName)
-		if err != nil {
-			return nil, err
-		}
-
-		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
-		if errors.Is(err, errUnsupportedProtocolVersion) {
-			panic(err)
-		}
-
-		return p, err
-	}
-}
-
-// initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
-// per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
-	// store the client so that the plugin can kill the child process
-	switch protoVer {
-	case 5:
-		p := plugin.(*tfplugin.GRPCProvider)
-		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
-		return p, nil
-	case 6:
-		p := plugin.(*tfplugin6.GRPCProvider)
-		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
-		return p, nil
-	default:
-		return nil, errUnsupportedProtocolVersion
+		return rpcproviders.NewProvider(client), nil
 	}
 }
 
@@ -422,63 +400,6 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 		Version:    getproviders.UnspecifiedVersion,
 		PackageDir: string(localDir),
 	})
-}
-
-// unmanagedProviderFactory produces a provider factory that uses the passed
-// reattach information to connect to go-plugin processes that are already
-// running, and implements providers.Interface against it.
-func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
-	return func() (providers.Interface, error) {
-		config := &plugin.ClientConfig{
-			HandshakeConfig:  tfplugin.Handshake,
-			Logger:           logging.NewProviderLogger("unmanaged."),
-			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-			Managed:          false,
-			Reattach:         reattach,
-			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", provider)),
-			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", provider)),
-		}
-
-		if reattach.ProtocolVersion == 0 {
-			// As of the 0.15 release, sdk.v2 doesn't include the protocol
-			// version in the ReattachConfig (only recently added to
-			// go-plugin), so client.NegotiatedVersion() always returns 0. We
-			// assume that an unmanaged provider reporting protocol version 0 is
-			// actually using proto v5 for backwards compatibility.
-			if defaultPlugins, ok := tfplugin.VersionedPlugins[5]; ok {
-				config.Plugins = defaultPlugins
-			} else {
-				return nil, errors.New("no supported plugins for protocol 0")
-			}
-		} else if plugins, ok := tfplugin.VersionedPlugins[reattach.ProtocolVersion]; !ok {
-			return nil, fmt.Errorf("no supported plugins for protocol %d", reattach.ProtocolVersion)
-		} else {
-			config.Plugins = plugins
-		}
-
-		client := plugin.NewClient(config)
-		rpcClient, err := client.Client()
-		if err != nil {
-			return nil, err
-		}
-
-		raw, err := rpcClient.Dispense(tfplugin.ProviderPluginName)
-		if err != nil {
-			return nil, err
-		}
-
-		protoVer := client.NegotiatedVersion()
-		if protoVer == 0 {
-			// As of the 0.15 release, sdk.v2 doesn't include the protocol
-			// version in the ReattachConfig (only recently added to
-			// go-plugin), so client.NegotiatedVersion() always returns 0. We
-			// assume that an unmanaged provider reporting protocol version 0 is
-			// actually using proto v5 for backwards compatibility.
-			protoVer = 5
-		}
-
-		return initializeProviderInstance(raw, protoVer, client, provider)
-	}
 }
 
 // providerFactoryError is a stub providers.Factory that returns an error

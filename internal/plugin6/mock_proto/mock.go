@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	tfplugin6 "github.com/opentofu/opentofu/internal/tfplugin6"
+	tfplugin6 "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	gomock "go.uber.org/mock/gomock"
 	grpc "google.golang.org/grpc"
 )

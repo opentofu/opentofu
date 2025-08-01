@@ -6,8 +6,11 @@
 package plugin6
 
 import (
-	"github.com/hashicorp/go-plugin"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
+	"context"
+
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
+	"go.rpcplugin.org/rpcplugin"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -25,14 +28,10 @@ const (
 )
 
 // Handshake is the HandshakeConfig used to configure clients and servers.
-var Handshake = plugin.HandshakeConfig{
-	// The ProtocolVersion is the version that must match between TF core
-	// and TF plugins.
-	ProtocolVersion: DefaultProtocolVersion,
-
+var Handshake = rpcplugin.HandshakeConfig{
 	// The magic cookie values should NEVER be changed.
-	MagicCookieKey:   "TF_PLUGIN_MAGIC_COOKIE",
-	MagicCookieValue: "d602bf8f470bc67ca7faa0386276bbdd4330efaf76d1a219cb4d6991ca9872b2",
+	CookieKey:   "TF_PLUGIN_MAGIC_COOKIE",
+	CookieValue: "d602bf8f470bc67ca7faa0386276bbdd4330efaf76d1a219cb4d6991ca9872b2",
 }
 
 type GRPCProviderFunc func() proto.ProviderServer
@@ -45,24 +44,27 @@ type ServeOpts struct {
 // Serve serves a plugin. This function never returns and should be the final
 // function called in the main function of the plugin.
 func Serve(opts *ServeOpts) {
-	plugin.Serve(&plugin.ServeConfig{
-		HandshakeConfig:  Handshake,
-		VersionedPlugins: pluginSet(opts),
-		GRPCServer:       plugin.DefaultGRPCServer,
+	err := rpcplugin.Serve(context.Background(), &rpcplugin.ServerConfig{
+		Handshake:     Handshake,
+		ProtoVersions: protoVersions(opts),
 	})
+	// This function is documented to never return, so if rpcplugin.Serve
+	// returns we'll either panic (on error) or just block here forever
+	// (on success).
+	if err != nil {
+		panic(err)
+	}
+	ch := make(chan struct{})
+	<-ch // never returns, because nothing ever writes to this channel
 }
 
-func pluginSet(opts *ServeOpts) map[int]plugin.PluginSet {
-	plugins := map[int]plugin.PluginSet{}
-
-	// add the new protocol versions if they're configured
-	if opts.GRPCProviderFunc != nil {
-		plugins[6] = plugin.PluginSet{}
+func protoVersions(opts *ServeOpts) map[int]rpcplugin.ServerVersion {
+	ret := make(map[int]rpcplugin.ServerVersion, 1)
+	ret[6] = rpcplugin.ServerVersionFunc(func(s *grpc.Server) error {
 		if opts.GRPCProviderFunc != nil {
-			plugins[6]["provider"] = &GRPCProviderPlugin{
-				GRPCProvider: opts.GRPCProviderFunc,
-			}
+			s.RegisterService(&proto.Provider_ServiceDesc, opts.GRPCProviderFunc())
 		}
-	}
-	return plugins
+		return nil
+	})
+	return ret
 }
