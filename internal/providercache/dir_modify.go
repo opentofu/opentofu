@@ -151,34 +151,25 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 		return nil, err
 	}
 
-	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
-	for timeout := time.After(time.Second * 60); ; {
-		// We have a valid file handle, let's try to lock it (nonblocking)
-		err := flock.Lock(f)
-		if err == nil {
-			// Lock succeeded
-			break
-		}
-
-		select {
-		case <-timeout:
-			if f != nil {
-				f.Close()
-			}
-			return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
-		case <-ctx.Done():
-			if f != nil {
-				f.Close()
-			}
-			return nil, ctx.Err()
-		default:
-			// Chill for a bit before trying again
-			time.Sleep(100 * time.Millisecond)
-		}
-
+	// If the callers InstallerEvents has a hook function for
+	// CacheDirLockContended then we'll notify it if we take more than five
+	// seconds to acquire the lock, to give some feedback about what's causing
+	// delay here. 5 seconds is an arbitrary amount that's short enough to
+	// give relatively prompt feedback but long enough to be reasonably
+	// confident that a delay here is caused by lock contention.
+	evts := installerEventsForContext(ctx)
+	if evts.CacheDirLockContended != nil {
+		cancelWhenSlow := whenSlow(5*time.Second, func() {
+			evts.CacheDirLockContended(d.BasePath())
+		})
+		defer cancelWhenSlow()
 	}
 
-	log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
+	err = flock.LockBlocking(ctx, f)
+	if err != nil {
+		// Ensure that we are not in a partially failed state
+		return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
+	}
 
 	return func() error {
 		log.Printf("[TRACE] Releasing global provider lock %s", lockFile)
@@ -192,4 +183,18 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 		}
 		return unlockErr
 	}, nil
+}
+
+func whenSlow(dur time.Duration, f func()) (cancel func()) {
+	cancelCh := make(chan struct{})
+	go func() {
+		select {
+		case <-cancelCh:
+		case <-time.After(dur):
+			f()
+		}
+	}()
+	return func() {
+		close(cancelCh)
+	}
 }

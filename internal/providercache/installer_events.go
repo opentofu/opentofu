@@ -112,6 +112,11 @@ type InstallerEvents struct {
 	FetchPackageSuccess func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult)
 	FetchPackageFailure func(provider addrs.Provider, version getproviders.Version, err error)
 
+	// CacheDirLockContended is called if acquiring a lock on the specified
+	// cache directory takes more than a few seconds, suggesting that some
+	// other process is already holding a lock.
+	CacheDirLockContended func(cacheDir string)
+
 	// The ProvidersLockUpdated event is called whenever the lock file will be
 	// updated. It provides the following information:
 	//
