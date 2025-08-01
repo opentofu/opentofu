@@ -32,9 +32,11 @@ import (
 // live in some other package and use different struct types.)
 type Module struct {
 	Dir string
+
+	InputVariables map[string]*InputVariable
 }
 
-func LoadModuleDir(dir string) (*Module, tfdiags.Diagnostics) {
+func LoadModuleFromDir(dir string) (*Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &Module{
 		Dir: dir,
@@ -61,7 +63,63 @@ func LoadModuleDir(dir string) (*Module, tfdiags.Diagnostics) {
 		return ret, diags
 	}
 
-	// TODO: Decode everything else!
+	// Once we've confirmed that this module hasn't explicitly told us it
+	// is for a different version of OpenTofu, we can collect all of the
+	// diagnostics we encountered while loading the individual files, and
+	// bail out early if things were so invalid that we couldn't even
+	// complete shallow decoding. We delay this intentionally so that
+	// later OpenTofu versions could, for example, use laternewer HCL syntax
+	// features that cause recoverable parse errors without those blocking
+	// us from checking what OpenTofu versions the module was declared as
+	// being compatible with.
+	for _, file := range primaryFiles {
+		diags = diags.Append(file.Diagnostics)
+	}
+	for _, file := range overrideFiles {
+		diags = diags.Append(file.Diagnostics)
+	}
+	if diags.HasErrors() {
+		return ret, diags
+	}
+
+	// If we've got this far without encountering any errors, it's time to
+	// analyze one level deeper with the content of the top-level declarations.
+	ret.InputVariables = make(map[string]*InputVariable)
+	for _, file := range primaryFiles {
+		for _, block := range file.ConfigBlocks {
+			switch block.Type {
+			case "variable":
+				varDecl, moreDiags := decodeInputVariableBlock(block)
+				diags = diags.Append(moreDiags)
+				if varDecl == nil {
+					continue
+				}
+				if existing, exists := ret.InputVariables[varDecl.Name]; exists {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Duplicate input variable declaration",
+						Detail:   fmt.Sprintf("An input variable named %q was also declared at %s.", existing.Name, existing.DeclRange.StartString()),
+						Subject:  varDecl.DeclRange.ToHCL().Ptr(),
+					})
+					continue
+				}
+				ret.InputVariables[varDecl.Name] = varDecl
+			default:
+				// We should not get here because the cases above should
+				// cover all block types from [configFileSchema].
+				diags = diags.Append(fmt.Errorf("unhandled block type %q", block.Type))
+			}
+		}
+	}
+	for _, file := range overrideFiles {
+		// TODO: Implement something compatible with the existing merge
+		// behavior from "package configs".
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Override files not supported yet",
+			fmt.Sprintf("The prototype of a new approach to module loading does not yet handle override files, so cannot deal with %q.", file.Filename),
+		))
+	}
 
 	return ret, diags
 }

@@ -1,0 +1,32 @@
+The subdirectories of this directory each contain an "example" module that
+will be automatically tested by TestByExample in the "modules" package.
+
+All modules are expected to be loadable without generating any diagnostics,
+unless lines in the file are marked with end-of-line comments describing
+an expected diagnostic. For example:
+
+  vriable "example" { # ERROR: Unsupported block type
+
+  }
+
+A line containing "ERROR:" means that the example is expected to generate
+an error diagnostic referring to that line of source code, whose summary
+matches the text that follows "ERROR:" after stripping leading/trailing
+whitespace.
+
+A line containing "WARNING:" means the same except that the diagnostic is
+expected to have warning severity.
+
+Any diagnostic reported on a line that does not include one of these
+substrings is treated as unexpected and causes a test failure.
+
+By convention, examples that contain expected errors are named with the
+prefix "err-" to distinguish them from the examples that are expected to
+be valid (potentially with warnings). However, that prefix is for human
+convenience only.
+
+When an example directory contains only one source file, prefer to give it
+a basename that matches the directory name (ignoring "err-" prefix) so that
+it's easier to distinguish them in an editor with multiple examples open at
+once. When there are multiple files present, just try to select filenames that
+are all somehow related to the name of the directory containing the example.
