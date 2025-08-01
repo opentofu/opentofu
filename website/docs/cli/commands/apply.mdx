@@ -94,6 +94,13 @@ The following options change how the apply command executes and reports on the a
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults to
   10\.
 
+- `-var 'foo=bar'` - Set a variable in the OpenTofu configuration.
+  This flag can be set multiple times.
+
+- `-var-file=foo` - Set variables in the OpenTofu configuration from a file.
+  If "terraform.tfvars" or any ".auto.tfvars" files are present, they will
+  be automatically loaded.
+
 - `-show-sensitive` - If specified, sensitive values will not be
   redacted in te UI output.
 
