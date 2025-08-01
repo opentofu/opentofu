@@ -817,6 +817,35 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 	return ret
 }
 
+func (c *Config) ProviderSchemaRequirements() addrs.ProviderSchemaRequirements {
+	result := make(addrs.ProviderSchemaRequirements)
+
+	for _, r := range c.Module.ManagedResources {
+		result.AddResource(r.Provider, r.Mode, r.Type)
+	}
+
+	for _, d := range c.Module.DataResources {
+		result.AddResource(d.Provider, d.Mode, d.Type)
+	}
+	for _, c := range c.Module.Checks {
+		d := c.DataResource
+		if d != nil {
+			result.AddResource(d.Provider, d.Mode, d.Type)
+		}
+	}
+
+	/* TODO
+	Import  []*Import
+	Removed []*Removed
+	*/
+
+	for _, ch := range c.Children {
+		result.Merge(ch.ProviderSchemaRequirements())
+	}
+
+	return result
+}
+
 // ResolveAbsProviderAddr returns the AbsProviderConfig represented by the given
 // ProviderConfig address, which must not be nil or this method will panic.
 //

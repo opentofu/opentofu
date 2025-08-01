@@ -2571,7 +2571,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 	}
 	ctxOpts.Providers = Providers
 	ctxOpts.Provisioners = provisioners
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
 	}
@@ -5977,7 +5977,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		}
 
-		ctx, diags = NewContext(ctxOpts)
+		ctx, diags = NewContext(ctxOpts, nil)
 		if diags.HasErrors() {
 			t.Fatalf("err: %s", diags.Err())
 		}
@@ -6048,7 +6048,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			}
 
-		ctx, diags = NewContext(ctxOpts)
+		ctx, diags = NewContext(ctxOpts, nil)
 		if diags.HasErrors() {
 			t.Fatalf("err: %s", diags.Err())
 		}
@@ -6192,7 +6192,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			}
 
-		ctx, diags = NewContext(ctxOpts)
+		ctx, diags = NewContext(ctxOpts, nil)
 		if diags.HasErrors() {
 			t.Fatalf("err: %s", diags.Err())
 		}
@@ -8194,7 +8194,7 @@ func TestContext2Apply_issue7824(t *testing.T) {
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
 		}
 
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8268,7 +8268,7 @@ func TestContext2Apply_issue5254(t *testing.T) {
 		addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
 	}
 
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8346,7 +8346,7 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 		addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 	}
 
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8613,7 +8613,7 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
 		}
 
-		ctx, diags = NewContext(ctxOpts)
+		ctx, diags = NewContext(ctxOpts, nil)
 		if diags.HasErrors() {
 			t.Fatalf("err: %s", diags.Err())
 		}
@@ -9199,7 +9199,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 	}
 
 	ctxOpts.Providers = Providers
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -9260,7 +9260,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 	}
 
 	ctxOpts.Providers = providers
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -9788,7 +9788,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctxOpts.Providers = Providers
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
 	}
@@ -10145,7 +10145,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctxOpts.Providers = Providers
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
 	}
@@ -11665,7 +11665,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctxOpts.Providers = providers
-	ctx, diags = NewContext(ctxOpts)
+	ctx, diags = NewContext(ctxOpts, nil)
 
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
