@@ -106,42 +106,18 @@ Historical changes related to this:
 
 ## What are we proposing?
 
-We are proposing two major design changes to OpenTofu's architecture, both focusing on breaking apart the complexity of the graph operations above.
-
-### Treating References and Operation Execution as two distinct concerns
-
-The operations above build a graph that combines multiple conceptual reference graphs (config, state, changes) into a single homogenized representation.  While that conglomeration is occurring, additional changes are peppered in that are specific to setting up the graph for "Operation Execution".
-
-The result is a set of deeply intertwined graph operations that are nearly impossible to fully understand and to thoroughly test.  This is made harder to grok with the mixing of graph nodes that represent a single config object (unexpanded) and graph nodes that represent multiple instances (expanded).
-
-With this in mind, we propose that the concept of "references" within the codebase be separated from the "actions to take to complete an operation" graph. This would allow for multiple simpler graphs to be created which then drive the "operation graph".
-
-One potential shape of this could look like the following:
-```mermaid
-flowchart LR
-    ConfigData --> ConfigReferences
-    StateData --> StateReferences
-    PlanData --> PlanReferences
-
-    ConfigReferences --> ReferenceGraph
-    StateReferences --> ReferenceGraph
-    PlanReferences --> ReferenceGraph
-
-    ReferenceGraph --> OperationGraph
-    Operation --> OperationGraph
-```
-
-In that sort of scenario, the ReferenceGraph would be passed to the constructor/builder of the OperationGraph.  The OperationGraph would then "execute", informed by the references.
-
-There is already some precedence for building these sort of reference only graphs in the OpenTofu codebase:
-https://pkg.go.dev/github.com/opentofu/opentofu@v1.10.3/internal/lang/globalref
-
-
-### Conceptual Chaining of Operations
+We are proposing a major design change to OpenTofu's internal architecture, focusing on breaking apart the complexity of the graph operations above.
 
 Operations today re-use a lot of the same concepts and code throughout their execution.  In practice, this means that a lot of work needs to be repeated between operations.  It is also complicated that the expected result of a given codepath may change dramatically based on the operation, leading to hard to trace bugs.
 
-We propose that there are three phases of execution, which are chained into each other: Validate, Plan, and Apply.
+In short, we have several general purpose structures and concepts that are heavily re-used in ways that are not idea.  Althought code re-use should be a goal we strive for, doing so in to aggressive of a fashion can lead to hard to maintain patterns and brittle designs.
+
+Therefore, we propose to form a stronger conceptual chain between the three classes of operations, Validate, Plan, and Apply.  Each operation class would have a clear set of non-overlapping responsibilities that would feed into the next link in the chain.
+
+The main conceptual difference between this model and what exists today is that each operation bases it's execution primarily on the prior operation's output, instead of trying to replicate similar logic that's been twisted for the current operation.
+
+For example, today Apply builds a similar graph to Plan.  The graphs differ in several important ways, but it is hard to know what is an intentional difference and what is a bug.  Consider if Plan outputs a set of "actions" to take during the Apply, such that Apply is relegated to stepping through what the Plan explicitly laid out.
+
 ```mermaid
 flowchart LR
     Config("InputConfig") --> Validate["Validate"]
@@ -172,9 +148,32 @@ class ExpectedState,PlanGraph,ConfigPlan,RefreshedState,ChangesToResources green
 class OutputState green
 ```
 
-The main conceptual difference between this model and what exists today is that each operation bases it's execution primarily on the prior operation's output, instead of trying to replicate similar logic that's been twisted for the current operation.
+This diagram should serve as a conceptual representation of what this could look like, but is not prescribing an exact implementation.  That is reserved for followup prototyping and RFCs.
 
-For example, today Apply builds a similar graph to Plan.  The graphs differ in several important ways, but it is hard to know what is an intentional difference and what is a bug.  Consider if Plan outputs a set of "actions" to take during the Apply, such that Apply is relegated to stepping through what the Plan explicitly laid out.
+In this diagram, we can see that each component has a clear job of taking a specific input and transforming it to the expected outputs.
+
+Let's follow this diagram through running `tofu apply` on a project:
+1. The configuration is parsed and basic sanity checks are performed
+2. The validate step accepts the configuration and produces a validated configuration and configuration references
+  - The majority of static evaluation could be moved into this step (perhaps renaming the step to "Load" or "Build" would be better)
+  - Configuration References is a structure which can answer questions about the relationship between elements in the configuration
+    - What provider configuration is required in different modules/resources
+    - What resources a resource depends upon (for situations like ephemeral and ordering)
+3. The plan step accepts the output from validate, as well as the current state, and produces everything needed for the apply step 
+  - ExecutionGraph is a structure which completely represents the actions needed to be taken in apply and their interdependencies
+    - It completely encapsulates complex logic like the difference between update/replace and the create_before_destory modifier
+  - ResourceChanges is a structure which stores the state change information for elements described in the ExecutionGraph
+    - It is unclear if this should be subsumed by the ExecutionGraph
+  - The RefreshState is a structure which represents the "provider refreshed" understanding of the input state, where elements may have drifted
+    - It is unclear if this should be subsumed by the ExecutionGraph or ResourceChanges
+  - The PlanConfig in this representation is simply a passthrough
+  - ExpectedState is only used during UI output and could potentially be omitted in a future iteration
+4. The apply step accepts the output from plan and produces the output state
+  - Apply should be as simple as possible, only following the path layed out by plan and not deviating
+
+It is unclear at this juncture if several of the distinct outputs of the plan step should instead be represented as a homogeneous structure, instead of being represented piecemeal.  For the purposes of this discussion they are distinct, in order to more closely model details the current architecture.
+
+This process could be alternately thought of as a variant of "Parse, Compile, Execute".
 
 With this change in mind, the above proposal allows each reference graph to be more independent of each other.  The ConfigurationReferences would represent the Validate -> Plan data.  The State and Plan References would be subsumed by PlanActions.
 
@@ -187,6 +186,7 @@ By separating opentofu's execution into compartmentalized and distinct concerns:
 
 It does not try to constrain or reduce the complexity of what OpenTofu can do in a given operation, and instead should allow for easier expansion in the future.
 
+
 ## Implementation Path
 
 As mentioned above, the implementation of these concepts is to large of a topic to cover in a single RFC.  However we set a goal of incremental changes to the architecture.
@@ -194,9 +194,8 @@ As mentioned above, the implementation of these concepts is to large of a topic 
 In an ideal world, we would be able to make the new "execution engine" opt-in for a period of time.  In practice, this may not be possible to hold to that exact ideal.  We should attempt to reduce the "churn" of each step toward this architecture by re-using and adapting as many existing constructs within the codebase as possible.  All of the sub-rfcs should discuss this in detail.
 
 ## Open Questions:
-* Does what we propose for Chaining of Operations impact our ability to implement Deferred Actions / unknown count+for_each?
+* Does what we propose impact our ability to implement Deferred Actions / unknown count+for_each?
   - Is this a workflow that will be important to OpenTofu?
-* Should we try to merge the two sub-proposals together in a more homogeneous fashion?
 
 ## Related Proposals
 * [Remove Graph Dynamic Expand](https://github.com/opentofu/opentofu/pull/2285)
