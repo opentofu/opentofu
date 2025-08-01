@@ -741,8 +741,11 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 
 	var diags tfdiags.Diagnostics
 
-	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
-	diags = diags.Append(ctxDiags)
+	evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, run, file, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		return state, nil
+	}
 
 	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, evalCtx)
 	diags = diags.Append(variableDiags)
@@ -1053,8 +1056,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
-		diags = diags.Append(ctxDiags)
+		evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, state.Run, file, runConfig, runner.Suite.GlobalVariables)
+		if evalDiags.HasErrors() {
+			return
+		}
 
 		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
