@@ -385,6 +385,15 @@ Options:
 
   -show-sensitive              If specified, sensitive values will be displayed.
 
+  -var 'foo=bar'               Set a variable in the OpenTofu configuration.
+                               This flag can be set multiple times.
+
+  -var-file=foo                Set variables in the OpenTofu configuration from
+                               a file.
+                               If "terraform.tfvars" or any ".auto.tfvars"
+                               files are present, they will be automatically
+                               loaded.
+
   -json                        Produce output in a machine-readable JSON format,
                                suitable for use in text editor integrations and
                                other automated systems. Always disables color.
