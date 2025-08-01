@@ -154,12 +154,12 @@ func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getprov
 	// If the callers InstallerEvents has a hook function for
 	// CacheDirLockContended then we'll notify it if we take more than five
 	// seconds to acquire the lock, to give some feedback about what's causing
-	// delay here. 2 seconds is an arbitrary amount that's short enough to
+	// delay here. 5 seconds is an arbitrary amount that's short enough to
 	// give relatively prompt feedback but long enough to be reasonably
 	// confident that a delay here is caused by lock contention.
 	evts := installerEventsForContext(ctx)
 	if evts.CacheDirLockContended != nil {
-		cancelWhenSlow := whenSlow(2*time.Second, func() {
+		cancelWhenSlow := whenSlow(5*time.Second, func() {
 			evts.CacheDirLockContended(d.BasePath())
 		})
 		defer cancelWhenSlow()
