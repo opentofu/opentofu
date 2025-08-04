@@ -149,14 +149,9 @@ func implicitProviderSource(ctx context.Context, services *disco.Disco, original
 		}
 	}
 
-	// When using -chdir, the terraform.d/plugins directory should be checked
-	// in the original working directory, not the directory passed as parameter
-	// to -chdir.
-	if usingChdir {
-		addLocalDir(filepath.Join(originalWorkingDir, "terraform.d/plugins"))
-	} else {
-		addLocalDir("terraform.d/plugins") // our "vendor" directory
-	}
+	// Check and add the "terraform.d/plugins" directory in the original working directory
+	addLocalDir(filepath.Join(originalWorkingDir, "terraform.d/plugins"))
+
 	cliDataDirs, err := cliconfig.DataDirs()
 	if err == nil {
 		for _, cliDataDir := range cliDataDirs {
