@@ -249,6 +249,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 
 	// convert the variables into the format expected for the plan
 	varVals := make(map[string]plans.DynamicValue, len(opts.SetVariables))
+	ephemeralVals := make(map[string]bool, len(opts.SetVariables))
 	for k, iv := range opts.SetVariables {
 		if iv.Value == cty.NilVal {
 			continue // We only record values that the caller actually set
@@ -267,12 +268,14 @@ The -target and -exclude options are not for routine use, and are provided only 
 			continue
 		}
 		varVals[k] = dv
+		ephemeralVals[k] = iv.Ephemeral
 	}
 
 	// insert the run-specific data from the context into the plan; variables,
 	// targets and provider SHAs.
 	if plan != nil {
 		plan.VariableValues = varVals
+		plan.EphemeralVariables = ephemeralVals
 		plan.TargetAddrs = opts.Targets
 		plan.ExcludeAddrs = opts.Excludes
 	} else if !diags.HasErrors() {

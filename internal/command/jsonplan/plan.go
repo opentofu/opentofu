@@ -319,7 +319,7 @@ func Marshal(
 
 func (p *Plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls map[string]*configs.Variable) error {
 	p.Variables = make(Variables, len(vars))
-
+	// TODO andrei - should ephemeral should be somehow processed here?
 	for k, v := range vars {
 		val, err := v.Decode(cty.DynamicPseudoType)
 		if err != nil {

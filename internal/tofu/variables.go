@@ -64,6 +64,8 @@ type InputValue struct {
 	// ValueForNormalFile. It is not populated for other source types, and so
 	// should not be used.
 	SourceRange tfdiags.SourceRange
+
+	Ephemeral bool
 }
 
 // ValueSourceType describes what broad category of source location provided

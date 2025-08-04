@@ -629,6 +629,9 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	}
 
 	for name, val := range plan.VariableValues {
+		if is, ok := plan.EphemeralVariables[name]; ok && is {
+			continue
+		}
 		rawPlan.Variables[name] = valueToTfplan(val)
 	}
 

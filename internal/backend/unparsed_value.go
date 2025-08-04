@@ -128,6 +128,7 @@ func ParseDeclaredVariableValues(vv map[string]UnparsedVariableValue, decls map[
 			continue
 		}
 
+		val.Ephemeral = config.Ephemeral
 		ret[name] = val
 	}
 
@@ -197,6 +198,7 @@ func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*
 				Value:       cty.DynamicVal,
 				SourceType:  tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(vc.DeclRange),
+				Ephemeral:   vc.Ephemeral,
 			}
 		} else {
 			// We're still required to put an entry for this variable
@@ -209,6 +211,7 @@ func ParseVariableValues(vv map[string]UnparsedVariableValue, decls map[string]*
 				Value:       cty.NilVal,
 				SourceType:  tofu.ValueFromConfig,
 				SourceRange: tfdiags.SourceRangeFromHCL(vc.DeclRange),
+				Ephemeral:   vc.Ephemeral,
 			}
 		}
 	}
