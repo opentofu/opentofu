@@ -174,10 +174,42 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx),
 		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
 	tracing.SetSpanError(span, diags)
+	return diags
+}
+
+func (n *NodeApplyableResourceInstance) ephemeralResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+	// For ephemeral resources we don't need the change or the state of it, that being used only
+	// for dependencies resolution and respectively, for expression evaluation.
+	state, repeatData, applyDiags := n.applyEphemeralResource(ctx, evalCtx)
+	diags = diags.Append(applyDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, workingState))
+
+	// Post-conditions might block further progress. We intentionally do this
+	// _after_ writing the state/diff because we want to check against
+	// the result of the operation, and to fail on future operations
+	// until the user makes the condition succeed.
+	checkDiags := evalCheckRules(
+		ctx,
+		addrs.ResourcePostcondition,
+		n.Config.Postconditions,
+		evalCtx, n.ResourceInstanceAddr(),
+		repeatData,
+		tfdiags.Error,
+	)
+	diags = diags.Append(checkDiags)
+
 	return diags
 }
 
@@ -520,4 +552,12 @@ func maybeTainted(addr addrs.AbsResourceInstance, state *states.ResourceInstance
 		return state.AsTainted()
 	}
 	return state
+}
+
+// Close implements closableResource
+func (n *NodeApplyableResourceInstance) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+	return n.NodeAbstractResourceInstance.Close()
 }

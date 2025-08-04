@@ -16,6 +16,10 @@ const (
 	CreateThenDelete Action = '±'
 	Delete           Action = '-'
 	Forget           Action = '.'
+	Open             Action = '⁐'
+	// NOTE: Renew and Close missing on purpose.
+	// Those are not meant to be stored in the plan.
+	// Instead, we have hooks for those to show progress.
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type Action

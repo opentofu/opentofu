@@ -205,6 +205,8 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 			resource.Mode = "managed"
 		case addrs.DataResourceMode:
 			resource.Mode = "data"
+		case addrs.EphemeralResourceMode:
+			resource.Mode = "ephemeral"
 		default:
 			return nil, fmt.Errorf("resource %s has an unsupported mode %s",
 				r.Addr.String(),

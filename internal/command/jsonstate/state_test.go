@@ -8,6 +8,7 @@ package jsonstate
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -203,13 +204,13 @@ func TestMarshalResources(t *testing.T) {
 		Resources map[string]*states.Resource
 		Schemas   *tofu.Schemas
 		Want      []Resource
-		Err       bool
+		ErrMsg    string
 	}{
 		"nil": {
 			nil,
 			nil,
 			nil,
-			false,
+			"",
 		},
 		"single resource": {
 			map[string]*states.Resource{
@@ -251,7 +252,49 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
+		},
+		"single data source": {
+			map[string]*states.Resource{
+				"test_thing.baz": {
+					Addr: addrs.AbsResource{
+						Resource: addrs.Resource{
+							Mode: addrs.DataResourceMode,
+							Type: "test_thing",
+							Name: "bar",
+						},
+					},
+					Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+						addrs.NoKey: {
+							Current: &states.ResourceInstanceObjectSrc{
+								Status:    states.ObjectReady,
+								AttrsJSON: []byte(`{"foo":"baz"}`),
+							},
+						},
+					},
+					ProviderConfig: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				},
+			},
+			testSchemas(),
+			[]Resource{
+				{
+					Address:      "data.test_thing.bar",
+					Mode:         "data",
+					Type:         "test_thing",
+					Name:         "bar",
+					Index:        nil,
+					ProviderName: "registry.opentofu.org/hashicorp/test",
+					AttributeValues: AttributeValues{
+						"foo": json.RawMessage(`"baz"`),
+						"bar": json.RawMessage(`null`),
+					},
+					SensitiveValues: json.RawMessage("{\"bar\":true}"),
+				},
+			},
+			"",
 		},
 		"single resource_with_sensitive": {
 			map[string]*states.Resource{
@@ -293,9 +336,9 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
 		},
-		"resource with marks": {
+		"resource with sensitive marks": {
 			map[string]*states.Resource{
 				"test_thing.bar": {
 					Addr: addrs.AbsResource{
@@ -339,7 +382,39 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage(`{"foozles":true}`),
 				},
 			},
-			false,
+			"",
+		},
+		"resource with ephemeral": {
+			map[string]*states.Resource{
+				"test_thing.bar": {
+					Addr: addrs.AbsResource{
+						Resource: addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_thing",
+							Name: "bar",
+						},
+					},
+					Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+						addrs.NoKey: {
+							Current: &states.ResourceInstanceObjectSrc{
+								Status:    states.ObjectReady,
+								AttrsJSON: []byte(`{"foozles":"confuzles"}`),
+								AttrSensitivePaths: []cty.PathValueMarks{{
+									Path:  cty.Path{cty.GetAttrStep{Name: "foozles"}},
+									Marks: cty.NewValueMarks(marks.Ephemeral)},
+								},
+							},
+						},
+					},
+					ProviderConfig: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				},
+			},
+			testSchemas(),
+			nil,
+			"test_thing.bar: ephemeral marks found at the following paths:\n.foozles",
 		},
 		"single resource wrong schema": {
 			map[string]*states.Resource{
@@ -368,7 +443,7 @@ func TestMarshalResources(t *testing.T) {
 			},
 			testSchemas(),
 			nil,
-			true,
+			"schema version 1 for test_thing.bar in state does not match version 0 from the provider",
 		},
 		"resource with count": {
 			map[string]*states.Resource{
@@ -410,7 +485,7 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
 		},
 		"resource with for_each": {
 			map[string]*states.Resource{
@@ -452,7 +527,7 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
 		},
 		"deposed resource": {
 			map[string]*states.Resource{
@@ -497,7 +572,7 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
 		},
 		"deposed and current resource": {
 			map[string]*states.Resource{
@@ -559,7 +634,7 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage("{\"foozles\":true}"),
 				},
 			},
-			false,
+			"",
 		},
 		"resource with marked map attr": {
 			map[string]*states.Resource{
@@ -604,16 +679,47 @@ func TestMarshalResources(t *testing.T) {
 					SensitiveValues: json.RawMessage(`{"data":true}`),
 				},
 			},
-			false,
+			``,
+		},
+		"single ephemeral resource": {
+			map[string]*states.Resource{
+				"test_thing.baz": {
+					Addr: addrs.AbsResource{
+						Resource: addrs.Resource{
+							Mode: addrs.EphemeralResourceMode,
+							Type: "test_thing",
+							Name: "bar",
+						},
+					},
+					Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+						addrs.NoKey: {
+							Current: &states.ResourceInstanceObjectSrc{
+								Status:    states.ObjectReady,
+								AttrsJSON: []byte(`{"foo":"baz"}`),
+							},
+						},
+					},
+					ProviderConfig: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				},
+			},
+			testSchemas(),
+			nil,
+			`ephemeral resource "ephemeral.test_thing.bar" detected in the current state. This is an error in OpenTofu`,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			got, err := marshalResources(test.Resources, addrs.RootModuleInstance, test.Schemas)
-			if test.Err {
+			if test.ErrMsg != "" {
 				if err == nil {
 					t.Fatal("succeeded; want error")
+				}
+				if !strings.Contains(err.Error(), test.ErrMsg) {
+					t.Fatalf("expected msg %q in error %q", test.ErrMsg, err.Error())
 				}
 				return
 			} else if err != nil {
@@ -858,6 +964,26 @@ func testSchemas() *tofu.Schemas {
 						Block: &configschema.Block{
 							Attributes: map[string]*configschema.Attribute{
 								"data": {Type: cty.Map(cty.String), Optional: true, Computed: true, Sensitive: true},
+							},
+						},
+					},
+				},
+				DataSources: map[string]providers.Schema{
+					"test_thing": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"foo": {Type: cty.String, Optional: true, Computed: true},
+								"bar": {Type: cty.String, Optional: true, Sensitive: true},
+							},
+						},
+					},
+				},
+				EphemeralResources: map[string]providers.Schema{
+					"test_thing": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"foo": {Type: cty.String, Optional: true, Computed: true},
+								"bar": {Type: cty.String, Optional: true, Sensitive: true},
 							},
 						},
 					},

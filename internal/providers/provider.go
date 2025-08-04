@@ -7,6 +7,7 @@ package providers
 
 import (
 	"context"
+	"time"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -39,6 +40,10 @@ type Unconfigured interface {
 	// ValidateDataResourceConfig allows the provider to validate the data source
 	// configuration values.
 	ValidateDataResourceConfig(context.Context, ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
+
+	// ValidateEphemeralConfig allows the provider to validate the ephemeral resource
+	// configuration values.
+	ValidateEphemeralConfig(context.Context, ValidateEphemeralConfigRequest) ValidateEphemeralConfigResponse
 
 	// MoveResourceState requests that the given resource data be moved from one
 	// type to another, potentially between providers as well.
@@ -114,6 +119,32 @@ type Configured interface {
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(context.Context, ReadDataSourceRequest) ReadDataSourceResponse
 
+	// OpenEphemeralResource opens the provided ephemeral resource.
+	// This is meant to return the following:
+	// * the ephemeral information that will be used in other ephemeral contexts.
+	//   The OpenEphemeralResourceResponse.Result is meant to be used all the time it's requested
+	//   but this information will not be changed if the Renew will be called.
+	//   Renew is meant to be supported only by a limited number of providers where the actual
+	//   information from Result renewed by updating a remote state (eg: Vault/OpenBao)
+	// * internal private information that needs to be used for future Renew/Close calls.
+	// * a timestamp that will be used to determine if and when Renew call will be performed.
+	// * deferred information containing a reason returned by the provider. This will be used to
+	//   determine if the resource needs to be deferred or not.
+	OpenEphemeralResource(context.Context, OpenEphemeralResourceRequest) OpenEphemeralResourceResponse
+
+	// RenewEphemeralResource is renewing the information related to the OpenEphemeralResourceResponse.Result returned by
+	// the OpenEphemeralResource.
+	// The request is using the private information from the OpenEphemeralResourceResponse.Private
+	// to enable the provider to perform this action.
+	// The information returned in RenewEphemeralResourceResponse.Private needs to be used in any future call to
+	// Renew/Close.
+	RenewEphemeralResource(context.Context, RenewEphemeralResourceRequest) (resp RenewEphemeralResourceResponse)
+
+	// CloseEphemeralResource closes the provided ephemeral resource.
+	// This requires the information from OpenEphemeralResourceResponse.Private or RenewEphemeralResourceResponse.Private
+	// to succeed.
+	CloseEphemeralResource(context.Context, CloseEphemeralResourceRequest) CloseEphemeralResourceResponse
+
 	// GetFunctions returns a full list of functions defined in this provider. It should be a super
 	// set of the functions returned in GetProviderSchema()
 	GetFunctions(context.Context) GetFunctionsResponse
@@ -152,6 +183,9 @@ type GetProviderSchemaResponse struct {
 
 	// Functions lists all functions supported by this provider.
 	Functions map[string]FunctionSpec
+
+	// EphemeralResources maps the ephemeral type name to that type's schema.
+	EphemeralResources map[string]Schema
 }
 
 // Schema pairs a provider or resource schema with that schema's version.
@@ -260,6 +294,20 @@ type ValidateDataResourceConfigRequest struct {
 }
 
 type ValidateDataResourceConfigResponse struct {
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type ValidateEphemeralConfigRequest struct {
+	// TypeName is the name of the ephemeral resource type to validate.
+	TypeName string
+
+	// Config is the configuration value to validate, which may contain unknown
+	// values.
+	Config cty.Value
+}
+
+type ValidateEphemeralConfigResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
 }
@@ -543,6 +591,63 @@ type ReadDataSourceResponse struct {
 	// State is the current state of the requested data source.
 	State cty.Value
 
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type OpenEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource type to Open.
+	TypeName string
+
+	// Config is the complete configuration for the requested ephemeral resource.
+	Config cty.Value
+}
+
+type OpenEphemeralResourceResponse struct {
+	// Result will contain the ephemeral information returned by the ephemeral resource.
+	Result cty.Value
+	// Private is the provider information that needs to be used later on Renew/Close call.
+	Private []byte
+	// Deferred returns only a reason of why the provider is asking deferring the opening.
+	Deferred *EphemeralResourceDeferred
+	// RenewAt indicates if(!=nil) and when(<=time.Now()) the Renew call needs to be performed.
+	RenewAt *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type EphemeralResourceDeferred struct {
+	DeferralReason DeferralReason
+}
+
+type RenewEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource to Renew.
+	TypeName string
+
+	// Private should be the same with the one from the last call on Open/Renew call.
+	Private []byte
+}
+
+type RenewEphemeralResourceResponse struct {
+	// Private needs to be used for the next call on Renew/Close
+	Private []byte
+	// RenewAt indicates if(!=nil) and when(<=time.Now()) the Renew call needs to be performed.
+	RenewAt *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type CloseEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource to Close.
+	TypeName string
+
+	// Private should be the same with the one from the last call on Open/Renew call.
+	Private []byte
+}
+
+type CloseEphemeralResourceResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
 }

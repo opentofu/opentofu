@@ -126,6 +126,9 @@ func NewInstanceInfo(addr addrs.AbsResourceInstance) *InstanceInfo {
 	if addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		id = "data." + id
 	}
+	if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		panic("ephemeral resources are not meant to be processed by this function. Are you sure that this code should be reused?")
+	}
 	if addr.Resource.Key != addrs.NoKey {
 		switch k := addr.Resource.Key.(type) {
 		case addrs.IntKey:

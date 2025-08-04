@@ -7,7 +7,6 @@ package command
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -87,7 +86,16 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
-		diags = diags.Append(errors.New("A managed resource address is required. Importing into a data resource is not allowed."))
+		var what string
+		switch addr.Resource.Resource.Mode {
+		case addrs.DataResourceMode:
+			what = "a data resource"
+		case addrs.EphemeralResourceMode:
+			what = "an ephemeral resource"
+		default:
+			what = "a resource type"
+		}
+		diags = diags.Append(fmt.Errorf("A managed resource address is required. Importing into %s is not allowed.", what))
 		c.showDiagnostics(diags)
 		return 1
 	}

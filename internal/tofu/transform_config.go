@@ -31,12 +31,12 @@ type ConfigTransformer struct {
 	// Module is the module to add resources from.
 	Config *configs.Config
 
-	// Mode will only add resources that match the given mode
-	ModeFilter bool
-	Mode       addrs.ResourceMode
-
-	// Do not apply this transformer.
-	skip bool
+	// ModeFilter can be used choose what resource types to skip from being
+	// added into the graph from the configuration.
+	// When this function is not defined, all the resources are allowed.
+	// When this function is defined, the transformer will add only the
+	// resources that this function returns "true" on.
+	ModeFilter func(mode addrs.ResourceMode) bool
 
 	// importTargets specifies a slice of addresses that will have state
 	// imported for them.
@@ -53,10 +53,6 @@ type ConfigTransformer struct {
 }
 
 func (t *ConfigTransformer) Transform(_ context.Context, g *Graph) error {
-	if t.skip {
-		return nil
-	}
-
 	// If no configuration is available, we don't do anything
 	if t.Config == nil {
 		return nil
@@ -98,11 +94,14 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	module := config.Module
 	log.Printf("[TRACE] ConfigTransformer: Starting for path: %v", path)
 
-	allResources := make([]*configs.Resource, 0, len(module.ManagedResources)+len(module.DataResources))
+	allResources := make([]*configs.Resource, 0, len(module.ManagedResources)+len(module.DataResources)+len(module.EphemeralResources))
 	for _, r := range module.ManagedResources {
 		allResources = append(allResources, r)
 	}
 	for _, r := range module.DataResources {
+		allResources = append(allResources, r)
+	}
+	for _, r := range module.EphemeralResources {
 		allResources = append(allResources, r)
 	}
 
@@ -118,8 +117,9 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	for _, r := range allResources {
 		relAddr := r.Addr()
 
-		if t.ModeFilter && relAddr.Mode != t.Mode {
+		if t.ModeFilter != nil && t.ModeFilter(relAddr.Mode) {
 			// Skip non-matching modes
+			log.Printf("[TRACE] config transformer skipped resource %q", relAddr)
 			continue
 		}
 
@@ -174,6 +174,11 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// We'll add the nodes that we know will fail, and catch them again later
 	// in the processing when we are in a position to raise a much more helpful
 	// error message.
+	//
+	// We checked this during the removal of the "skip" argument.
+	// On walkPlanDestroy, the importTargets it's not even passed across to the plan graph builder.
+	// Therefore, this is having no impact on the actual behavior of the destroy planning process,
+	// so we decided not to add additional logic to skip this part.
 	for _, i := range importTargets {
 		if len(generateConfigPath) > 0 {
 			// Create a node with the resource and import target. This node will take care of the config generation

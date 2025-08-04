@@ -543,6 +543,191 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	}
 }
 
+func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
+	rc := &configs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_resource",
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"secret_name": cty.StringVal("foo"),
+		}),
+		Provider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
+	}
+	ephemeralSchema := providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {
+					Type:     cty.String,
+					Computed: true,
+				},
+				"value": {
+					Type:     cty.String,
+					Computed: true,
+				},
+			},
+			BlockTypes: map[string]*configschema.NestedBlock{
+				"nesting_map": {
+					Block: configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"foo": {
+								Type:     cty.String,
+								Optional: true,
+								// Sensitive is added here to ensure that the mark is kept after processing the ephemeral ones
+								Sensitive: true,
+							},
+						},
+					},
+					Nesting: configschema.NestingSet,
+				},
+			},
+		},
+	}
+	tests := map[string]struct {
+		changes *plans.ChangesSync
+		state   *states.SyncState
+		want    cty.Value
+	}{
+		"no changes and no state": {
+			plans.NewChanges().SyncWrapper(),
+			states.NewState().SyncWrapper(),
+			cty.DynamicVal.Mark(marks.Ephemeral),
+		},
+		"with state and planned changes": {
+			plans.BuildChanges(func(sync *plans.ChangesSync) {
+				sync.AppendResourceInstanceChange(
+					&plans.ResourceInstanceChangeSrc{
+						Addr:        rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						PrevRunAddr: rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						DeposedKey:  states.NotDeposed,
+						ProviderAddr: addrs.AbsProviderConfig{
+							Provider: rc.Provider,
+							Module:   addrs.RootModule,
+						},
+						ChangeSrc: plans.ChangeSrc{
+							After: encodeDynamicValue(t, cty.ObjectVal(map[string]cty.Value{
+								"id":    cty.StringVal("foo"),
+								"value": cty.StringVal("tacos"),
+								"nesting_map": cty.SetVal([]cty.Value{
+									cty.ObjectVal(map[string]cty.Value{
+										"foo": cty.StringVal("test"),
+									}),
+								}),
+							})),
+							AfterValMarks: []cty.PathValueMarks{
+								{
+									Path: cty.GetAttrPath("nesting_map").Index(cty.ObjectVal(map[string]cty.Value{"foo": cty.StringVal("test")})).GetAttr("foo"),
+									Marks: map[interface{}]struct{}{
+										// added the ephemeral mark here to validate that it is removed and the
+										// sensitive one is added based on the schema
+										marks.Ephemeral: {},
+									},
+								},
+							},
+						},
+					},
+				)
+			}).SyncWrapper(),
+			states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectPlanned,
+						AttrsJSON: []byte(`{"id":"foo", "val":"tacos"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: rc.Provider,
+						Module:   addrs.RootModule,
+					},
+					addrs.NoKey,
+				)
+			}).SyncWrapper(),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":    cty.StringVal("foo"),
+				"value": cty.StringVal("tacos"),
+				"nesting_map": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
+					}),
+				}),
+			}).Mark(marks.Ephemeral),
+		},
+		"with object ready state and no changes": {
+			plans.BuildChanges(func(sync *plans.ChangesSync) {}).SyncWrapper(),
+			states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: []byte(`{"id":"foo", "value":"tacos", "nesting_map": [{"foo": "test"}]}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: rc.Provider,
+						Module:   addrs.RootModule,
+					},
+					addrs.NoKey,
+				)
+			}).SyncWrapper(),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":    cty.StringVal("foo"),
+				"value": cty.StringVal("tacos"),
+				"nesting_map": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
+					}),
+				}),
+			}).Mark(marks.Ephemeral),
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			// having these here for easier reference in the test body
+			state := tt.state
+			changes := tt.changes
+			want := tt.want
+
+			evaluator := &Evaluator{
+				Meta: &ContextMeta{
+					Env: "foo",
+				},
+				Changes: changes,
+				Config: &configs.Config{
+					Module: &configs.Module{
+						EphemeralResources: map[string]*configs.Resource{
+							rc.Addr().String(): rc,
+						},
+					},
+				},
+				State: state,
+				Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						EphemeralResources: map[string]providers.Schema{
+							"test_resource": ephemeralSchema,
+						},
+					},
+				}, t),
+			}
+			data := &evaluationStateData{
+				Evaluator: evaluator,
+			}
+			scope := evaluator.Scope(data, nil, nil, nil)
+
+			got, diags := scope.Data.GetResource(t.Context(), rc.Addr(), tfdiags.SourceRange{})
+
+			if len(diags) != 0 {
+				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+			}
+
+			if !got.RawEquals(want) {
+				t.Errorf("wrong result:\ngot: %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}
+
 func TestEvaluatorGetModule(t *testing.T) {
 	// Create a new evaluator with an existing state
 	stateSync := states.BuildState(func(ss *states.SyncState) {

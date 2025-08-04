@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -39,22 +40,60 @@ func TestConfigTransformer(t *testing.T) {
 }
 
 func TestConfigTransformer_mode(t *testing.T) {
-	g := Graph{Path: addrs.RootModuleInstance}
-	tf := &ConfigTransformer{
-		Config:     testModule(t, "transform-config-mode-data"),
-		ModeFilter: true,
-		Mode:       addrs.DataResourceMode,
-	}
-	if err := tf.Transform(t.Context(), &g); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	actual := strings.TrimSpace(g.String())
-	expected := strings.TrimSpace(`
+	cases := map[string]struct {
+		filterFunc    func(mode addrs.ResourceMode) bool
+		expectedGraph string
+	}{
+		"no filter": {
+			filterFunc: nil,
+			expectedGraph: `aws_instance.web
 data.aws_ami.foo
-`)
-	if actual != expected {
-		t.Fatalf("bad:\n\n%s", actual)
+ephemeral.aws_secret.secret`,
+		},
+		"allow all": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return false
+			},
+			expectedGraph: `aws_instance.web
+data.aws_ami.foo
+ephemeral.aws_secret.secret`,
+		},
+		"only managed resources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.ManagedResourceMode
+			},
+			expectedGraph: `aws_instance.web`,
+		},
+		"only data sources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.DataResourceMode
+			},
+			expectedGraph: `data.aws_ami.foo`,
+		},
+		"only ephemeral resources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.EphemeralResourceMode
+			},
+			expectedGraph: `ephemeral.aws_secret.secret`,
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			g := Graph{Path: addrs.RootModuleInstance}
+			tf := &ConfigTransformer{
+				Config:     testModule(t, "transform-config-mode-data"),
+				ModeFilter: tt.filterFunc,
+			}
+			if err := tf.Transform(t.Context(), &g); err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			actual := strings.TrimSpace(g.String())
+			expected := strings.TrimSpace(tt.expectedGraph)
+			if diff := cmp.Diff(expected, actual); diff != "" {
+				t.Errorf("wrong graph:\n\n%s", diff)
+			}
+		})
 	}
 }
 

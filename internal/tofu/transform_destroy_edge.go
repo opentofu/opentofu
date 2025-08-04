@@ -174,9 +174,15 @@ func (t *DestroyEdgeTransformer) Transform(_ context.Context, g *Graph) error {
 				break
 			}
 
-			// NoOp changes should not participate in the destroy dependencies.
+			// NoOp and Open changes should not participate in the destroy dependencies.
+			//
+			// The Open changes have been added later, with the introduction of ephemeral resources.
+			// The idea is that ephemeral resources cannot be dependent on destroying resources since
+			// the best case scenario, the ephemeral resource can only provide some information to
+			// another dependency of the resource that it's going to be destroyed, but that is done
+			// through other transformers, as ReferenceTransformer.
 			rc := t.Changes.ResourceInstance(*addr)
-			if rc != nil && rc.Action != plans.NoOp {
+			if rc != nil && rc.Action != plans.NoOp && rc.Action != plans.Open {
 				creators[cfgAddr] = append(creators[cfgAddr], n)
 			}
 		}
@@ -309,6 +315,7 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 					// root module outputs indicate they are not temporary by
 					// returning false here.
 					if !n.temporaryValue() {
+						log.Printf("[TRACE] pruneUnusedNodes: temporary value vertex %q kept because it's not a temporary value vertex", dag.VertexName(n))
 						return
 					}
 
@@ -318,6 +325,7 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 						// keep any value which is connected through a
 						// reference
 						if _, ok := v.(GraphNodeReferencer); ok {
+							log.Printf("[TRACE] pruneUnusedNodes: temporary value vertex %q kept it is referenced by %q", dag.VertexName(n), dag.VertexName(v))
 							return
 						}
 					}
@@ -335,15 +343,23 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 							// to expand it and so this lets us do a bit more
 							// pruning than we'd be able to do otherwise.
 							if tmp, ok := v.(graphNodeTemporaryValue); ok && !tmp.temporaryValue() {
+								log.Printf("[TRACE] pruneUnusedNodes: expanding vertex %q kept because another expanding vertex %q with non-temporary value is one of its dependencies", dag.VertexName(n), dag.VertexName(v))
 								continue
 							}
 
 							// expanders can always depend on module expansion
 							// themselves
+							log.Printf("[TRACE] pruneUnusedNodes: expanding vertex %q kept because another expanding vertex %q is one of its dependencies", dag.VertexName(n), dag.VertexName(v))
 							return
 						case GraphNodeResourceInstance:
 							// resource instances always depend on their
 							// resource node, which is an expander
+							log.Printf("[TRACE] pruneUnusedNodes: expanding vertex %q kept because an instance vertex %q depends on it", dag.VertexName(n), dag.VertexName(v))
+							return
+						case GraphNodeProvider:
+							// When a provider is referencing a resource managed by a different provider instance,
+							// it means that we need to run that resource before actually configuring the dependant provider.
+							log.Printf("[TRACE] pruneUnusedNodes: expanding vertex %q kept because a provider vertex %q depends on it", dag.VertexName(n), dag.VertexName(v))
 							return
 						}
 					}
@@ -361,13 +377,16 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 					for _, v := range des {
 						switch v.(type) {
 						case GraphNodeProviderConsumer:
+							log.Printf("[TRACE] pruneUnusedNodes: provider vertex %q kept because vertex %q depends on it", dag.VertexName(n), dag.VertexName(v))
 							return
 						case GraphNodeReferencer:
+							log.Printf("[TRACE] pruneUnusedNodes: provider vertex %q kept because vertex %q is referencing it", dag.VertexName(n), dag.VertexName(v))
 							return
 						}
 					}
 
 				default:
+					log.Printf("[TRACE] pruneUnusedNodes: vertex %q kept", dag.VertexName(n))
 					return
 				}
 

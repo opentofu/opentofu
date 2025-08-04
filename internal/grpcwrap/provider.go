@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // New wraps a providers.Interface to implement a grpc ProviderServer.
@@ -33,8 +34,9 @@ type provider struct {
 
 func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema_Request) (*tfplugin5.GetProviderSchema_Response, error) {
 	resp := &tfplugin5.GetProviderSchema_Response{
-		ResourceSchemas:   make(map[string]*tfplugin5.Schema),
-		DataSourceSchemas: make(map[string]*tfplugin5.Schema),
+		ResourceSchemas:          make(map[string]*tfplugin5.Schema),
+		DataSourceSchemas:        make(map[string]*tfplugin5.Schema),
+		EphemeralResourceSchemas: make(map[string]*tfplugin5.Schema),
 	}
 
 	resp.Provider = &tfplugin5.Schema{
@@ -59,6 +61,12 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 	}
 	for typ, dat := range p.schema.DataSources {
 		resp.DataSourceSchemas[typ] = &tfplugin5.Schema{
+			Version: dat.Version,
+			Block:   convert.ConfigSchemaToProto(dat.Block),
+		}
+	}
+	for typ, dat := range p.schema.EphemeralResources {
+		resp.EphemeralResourceSchemas[typ] = &tfplugin5.Schema{
 			Version: dat.Version,
 			Block:   convert.ConfigSchemaToProto(dat.Block),
 		}
@@ -123,6 +131,26 @@ func (p *provider) ValidateDataSourceConfig(ctx context.Context, req *tfplugin5.
 	}
 
 	validateResp := p.provider.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
+		TypeName: req.TypeName,
+		Config:   configVal,
+	})
+
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, validateResp.Diagnostics)
+	return resp, nil
+}
+
+// ValidateEphemeralResourceConfig implements tfplugin5.ProviderServer.
+func (p *provider) ValidateEphemeralResourceConfig(ctx context.Context, req *tfplugin5.ValidateEphemeralResourceConfig_Request) (*tfplugin5.ValidateEphemeralResourceConfig_Response, error) {
+	resp := &tfplugin5.ValidateEphemeralResourceConfig_Response{}
+	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
+
+	configVal, err := decodeDynamicValue(req.Config, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	validateResp := p.provider.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -392,24 +420,69 @@ func (p *provider) ReadDataSource(ctx context.Context, req *tfplugin5.ReadDataSo
 	return resp, nil
 }
 
-// CloseEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) CloseEphemeralResource(context.Context, *tfplugin5.CloseEphemeralResource_Request) (*tfplugin5.CloseEphemeralResource_Response, error) {
-	panic("unimplemented")
-}
-
 // OpenEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) OpenEphemeralResource(context.Context, *tfplugin5.OpenEphemeralResource_Request) (*tfplugin5.OpenEphemeralResource_Response, error) {
-	panic("unimplemented")
+func (p *provider) OpenEphemeralResource(ctx context.Context, req *tfplugin5.OpenEphemeralResource_Request) (*tfplugin5.OpenEphemeralResource_Response, error) {
+	resp := &tfplugin5.OpenEphemeralResource_Response{}
+	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
+
+	configVal, err := decodeDynamicValue(req.Config, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	openResp := p.provider.OpenEphemeralResource(ctx, providers.OpenEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Config:   configVal,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, openResp.Diagnostics)
+	if openResp.Diagnostics.HasErrors() {
+		return resp, nil
+	}
+
+	resp.Result, err = encodeDynamicValue(openResp.Result, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	resp.Private = openResp.Private
+	if openResp.RenewAt != nil {
+		resp.RenewAt = timestamppb.New(*openResp.RenewAt)
+	}
+	return resp, nil
 }
 
 // RenewEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) RenewEphemeralResource(context.Context, *tfplugin5.RenewEphemeralResource_Request) (*tfplugin5.RenewEphemeralResource_Response, error) {
-	panic("unimplemented")
+func (p *provider) RenewEphemeralResource(ctx context.Context, req *tfplugin5.RenewEphemeralResource_Request) (*tfplugin5.RenewEphemeralResource_Response, error) {
+	resp := &tfplugin5.RenewEphemeralResource_Response{}
+
+	renewResp := p.provider.RenewEphemeralResource(ctx, providers.RenewEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Private:  req.Private,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, renewResp.Diagnostics)
+	if renewResp.Diagnostics.HasErrors() {
+		return resp, nil
+	}
+
+	resp.Private = renewResp.Private
+	if renewResp.RenewAt != nil {
+		resp.RenewAt = timestamppb.New(*renewResp.RenewAt)
+	}
+	return resp, nil
 }
 
-// ValidateEphemeralResourceConfig implements tfplugin5.ProviderServer.
-func (p *provider) ValidateEphemeralResourceConfig(context.Context, *tfplugin5.ValidateEphemeralResourceConfig_Request) (*tfplugin5.ValidateEphemeralResourceConfig_Response, error) {
-	panic("unimplemented")
+// CloseEphemeralResource implements tfplugin5.ProviderServer.
+func (p *provider) CloseEphemeralResource(ctx context.Context, req *tfplugin5.CloseEphemeralResource_Request) (*tfplugin5.CloseEphemeralResource_Response, error) {
+	resp := &tfplugin5.CloseEphemeralResource_Response{}
+
+	renewResp := p.provider.CloseEphemeralResource(ctx, providers.CloseEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Private:  req.Private,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, renewResp.Diagnostics)
+	return resp, nil
 }
 
 func (p *provider) Stop(ctx context.Context, _ *tfplugin5.Stop_Request) (*tfplugin5.Stop_Response, error) {

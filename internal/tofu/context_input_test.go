@@ -23,45 +23,90 @@ import (
 
 func TestContext2Input_provider(t *testing.T) {
 	m := testModule(t, "input-provider")
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
-		Provider: &configschema.Block{
-			Attributes: map[string]*configschema.Attribute{
-				"foo": {
-					Type:        cty.String,
-					Required:    true,
-					Description: "something something",
-				},
+
+	providerCfgSchema := configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"foo": {
+				Type:        cty.String,
+				Required:    true,
+				Description: "something something",
 			},
 		},
-		ResourceTypes: map[string]*configschema.Block{
-			"aws_instance": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-				},
+	}
+	resourceCfgSchema := configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {
+				Type:     cty.String,
+				Computed: true,
 			},
+		},
+	}
+	// Create an aws provider with one resource
+	awsp := testProvider("aws")
+	awsp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &providerCfgSchema,
+		ResourceTypes: map[string]*configschema.Block{
+			"aws_instance": &resourceCfgSchema,
 		},
 	})
+	// Create a cloudflare provider with one data source
+	cfp := testProvider("cloudflare")
+	cfp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &providerCfgSchema,
+		DataSources: map[string]*configschema.Block{
+			"cloudflare_account": &resourceCfgSchema,
+		},
+	})
+	cfp.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
+		State: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("data content")}),
+	}
+	// Create an azure provider with one ephemeral resource
+	azp := testProvider("azurem")
+	azp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &providerCfgSchema,
+		EphemeralTypes: map[string]*configschema.Block{
+			"azurerm_key_vault_secret": &resourceCfgSchema,
+		},
+	})
+	azp.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{Result: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("ephemeral result")})}
 
 	inp := &MockUIInput{
 		InputReturnMap: map[string]string{
-			"provider.aws.foo": "bar",
+			"provider.aws.foo":        "bar",
+			"provider.cloudflare.foo": "baz",
+			"provider.azurerm.foo":    "qux",
 		},
 	}
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			addrs.NewDefaultProvider("aws"):        testProviderFuncFixed(awsp),
+			addrs.NewDefaultProvider("cloudflare"): testProviderFuncFixed(cfp),
+			addrs.NewDefaultProvider("azurerm"):    testProviderFuncFixed(azp),
 		},
 		UIInput: inp,
 	})
 
-	var actual interface{}
-	p.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
-		actual = req.Config.GetAttr("foo").AsString()
+	var (
+		actual = map[addrs.Provider]interface{}{}
+		mu     sync.Mutex
+	)
+	awsp.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+		mu.Lock()
+		defer mu.Unlock()
+		actual[addrs.NewDefaultProvider("aws")] = req.Config.GetAttr("foo").AsString()
+		return
+	}
+	cfp.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+		mu.Lock()
+		defer mu.Unlock()
+		actual[addrs.NewDefaultProvider("cloudflare")] = req.Config.GetAttr("foo").AsString()
+		return
+	}
+	azp.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+		mu.Lock()
+		defer mu.Unlock()
+		actual[addrs.NewDefaultProvider("azurerm")] = req.Config.GetAttr("foo").AsString()
 		return
 	}
 
@@ -83,8 +128,13 @@ func TestContext2Input_provider(t *testing.T) {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
-	if !reflect.DeepEqual(actual, "bar") {
-		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", actual, "bar")
+	want := map[addrs.Provider]interface{}{
+		addrs.NewDefaultProvider("aws"):        "bar",
+		addrs.NewDefaultProvider("cloudflare"): "baz",
+		addrs.NewDefaultProvider("azurerm"):    "qux",
+	}
+	if !reflect.DeepEqual(actual, want) {
+		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", actual, want)
 	}
 }
 
@@ -183,67 +233,6 @@ func TestContext2Input_providerOnce(t *testing.T) {
 
 	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
-	}
-}
-
-func TestContext2Input_providerId(t *testing.T) {
-	input := new(MockUIInput)
-
-	m := testModule(t, "input-provider")
-
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
-		Provider: &configschema.Block{
-			Attributes: map[string]*configschema.Attribute{
-				"foo": {
-					Type:        cty.String,
-					Required:    true,
-					Description: "something something",
-				},
-			},
-		},
-		ResourceTypes: map[string]*configschema.Block{
-			"aws_instance": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-				},
-			},
-		},
-	})
-
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		UIInput: input,
-	})
-
-	var actual interface{}
-	p.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
-		actual = req.Config.GetAttr("foo").AsString()
-		return
-	}
-
-	input.InputReturnMap = map[string]string{
-		"provider.aws.foo": "bar",
-	}
-
-	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
-		t.Fatalf("input errors: %s", diags.Err())
-	}
-
-	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	assertNoErrors(t, diags)
-
-	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
-		t.Fatalf("apply errors: %s", diags.Err())
-	}
-
-	if !reflect.DeepEqual(actual, "bar") {
-		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", actual, "bar")
 	}
 }
 
