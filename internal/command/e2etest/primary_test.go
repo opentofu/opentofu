@@ -399,7 +399,7 @@ Changes to Outputs:
 				}, true},
 				outputEntry{[]string{
 					`simple_resource.test_res (local-exec): visible test value`,
-					`simple_resource.test_res (local-exec): "visible test value"`,
+					`simple_resource.test_res (local-exec): \"visible test value\"`,
 				}, true},
 				outputEntry{[]string{"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)"}, true},
 			)
