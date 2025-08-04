@@ -511,11 +511,15 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 	}
 	for _, name := range needed {
 		vc := vcs[name]
-		rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
+		varUiInput := uiInput
+		if vc.Ephemeral {
+			varUiInput = tofu.NewEphemeralSuffixUIInput(varUiInput)
+		}
+		rawValue, err := varUiInput.Input(ctx, &tofu.InputOpts{
 			Id:          fmt.Sprintf("var.%s", name),
 			Query:       fmt.Sprintf("var.%s", name),
 			Description: vc.InputPrompt(),
-			Secret:      vc.Sensitive,
+			Secret:      vc.Sensitive || vc.Ephemeral,
 		})
 		if err != nil {
 			// Since interactive prompts are best-effort, we'll just continue

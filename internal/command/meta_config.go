@@ -166,11 +166,14 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 	}
 
 	uiInput := m.UIInput()
+	if variable.Ephemeral {
+		uiInput = tofu.NewEphemeralSuffixUIInput(uiInput)
+	}
 	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
 		Id:          fmt.Sprintf("var.%s", variable.Name),
 		Query:       fmt.Sprintf("var.%s", variable.Name),
 		Description: variable.InputPrompt(),
-		Secret:      variable.Sensitive,
+		Secret:      variable.Sensitive || variable.Ephemeral,
 	})
 	if err != nil {
 		log.Printf("[TRACE] Meta.getInput Failed to prompt for %s: %s", variable.Name, err)
