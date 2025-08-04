@@ -110,7 +110,7 @@ We are proposing a major design change to OpenTofu's internal architecture, focu
 
 Operations today re-use a lot of the same concepts and code throughout their execution.  In practice, this means that a lot of work needs to be repeated between operations.  It is also complicated that the expected result of a given codepath may change dramatically based on the operation, leading to hard to trace bugs.
 
-In short, we have several general purpose structures and concepts that are heavily re-used in ways that are not idea.  Althought code re-use should be a goal we strive for, doing so in to aggressive of a fashion can lead to hard to maintain patterns and brittle designs.
+In short, we have several general purpose structures and concepts that are heavily re-used in ways that are not ideal.  Althought code re-use should be a goal we strive for, doing so in to aggressive of a fashion can lead to hard to maintain patterns and brittle designs.
 
 Therefore, we propose to form a stronger conceptual chain between the three classes of operations, Validate, Plan, and Apply.  Each operation class would have a clear set of non-overlapping responsibilities that would feed into the next link in the chain.
 
@@ -155,27 +155,25 @@ In this diagram, we can see that each component has a clear job of taking a spec
 Let's follow this diagram through running `tofu apply` on a project:
 1. The configuration is parsed and basic sanity checks are performed
 2. The validate step accepts the configuration and produces a validated configuration and configuration references
-  - The majority of static evaluation could be moved into this step (perhaps renaming the step to "Load" or "Build" would be better)
-  - Configuration References is a structure which can answer questions about the relationship between elements in the configuration
-    - What provider configuration is required in different modules/resources
-    - What resources a resource depends upon (for situations like ephemeral and ordering)
+   - The majority of static evaluation could be moved into this step (perhaps renaming the step to "Load" or "Build" would be better)
+   - Configuration References is a structure which can answer questions about the relationship between elements in the configuration
+     - What provider configuration is required in different modules/resources
+     - What resources a resource depends upon (for situations like ephemeral and ordering)
 3. The plan step accepts the output from validate, as well as the current state, and produces everything needed for the apply step 
-  - ExecutionGraph is a structure which completely represents the actions needed to be taken in apply and their interdependencies
-    - It completely encapsulates complex logic like the difference between update/replace and the create_before_destory modifier
-  - ResourceChanges is a structure which stores the state change information for elements described in the ExecutionGraph
-    - It is unclear if this should be subsumed by the ExecutionGraph
-  - The RefreshState is a structure which represents the "provider refreshed" understanding of the input state, where elements may have drifted
-    - It is unclear if this should be subsumed by the ExecutionGraph or ResourceChanges
-  - The PlanConfig in this representation is simply a passthrough
-  - ExpectedState is only used during UI output and could potentially be omitted in a future iteration
+   - ExecutionGraph is a structure which completely represents the actions needed to be taken in apply and their interdependencies
+     - It completely encapsulates complex logic like the difference between update/replace and the create_before_destory modifier
+   - ResourceChanges is a structure which stores the state change information for elements described in the ExecutionGraph
+     - It is unclear if this should be subsumed by the ExecutionGraph
+   - The RefreshState is a structure which represents the "provider refreshed" understanding of the input state, where elements may have drifted
+     - It is unclear if this should be subsumed by the ExecutionGraph or ResourceChanges
+   - The PlanConfig in this representation is simply a passthrough
+   - ExpectedState is only used during UI output and could potentially be omitted in a future iteration
 4. The apply step accepts the output from plan and produces the output state
-  - Apply should be as simple as possible, only following the path layed out by plan and not deviating
+   - Apply should be as simple as possible, only following the path layed out by plan and not deviating
 
 It is unclear at this juncture if several of the distinct outputs of the plan step should instead be represented as a homogeneous structure, instead of being represented piecemeal.  For the purposes of this discussion they are distinct, in order to more closely model details the current architecture.
 
 This process could be alternately thought of as a variant of "Parse, Compile, Execute".
-
-With this change in mind, the above proposal allows each reference graph to be more independent of each other.  The ConfigurationReferences would represent the Validate -> Plan data.  The State and Plan References would be subsumed by PlanActions.
 
 ## How do these changes solve the stated problem?
 
@@ -196,6 +194,8 @@ In an ideal world, we would be able to make the new "execution engine" opt-in fo
 ## Open Questions:
 * Does what we propose impact our ability to implement Deferred Actions / unknown count+for_each?
   - Is this a workflow that will be important to OpenTofu?
+  - The current thoughts from some of the Maintainers is that Deferred Actions should not be too problematic to inject into this design if and when it's neede
+  - Unknown count and for_each would be much harder to implement.  The author believes that this is not an important workflow for OpenTofu and the existing solution of target/exclude is sufficient.
 
 ## Related Proposals
 * [Remove Graph Dynamic Expand](https://github.com/opentofu/opentofu/pull/2285)
