@@ -305,36 +305,24 @@ Changes to Outputs:
   + final_output  = "just a simple resource to ensure that the second provider it's working fine"
   + out_ephemeral = "rawvalue"`
 
-			expectedResourcesUpdates := map[string]bool{
-				"data.simple_resource.test_data1: Reading...":                       true,
-				"data.simple_resource.test_data1: Read complete after":              true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Opening...":           true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Open complete after":  true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Opening...":           true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Open complete after":  true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Closing...":           true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Close complete after": true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Closing...":           true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Close complete after": true,
-			}
+			entriesChecker := &outputEntriesChecker{phase: "plan"}
+			entriesChecker.addChecks(outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
+				outputEntry{[]string{"data.simple_resource.test_data1: Read complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Close complete after"}, true},
+			)
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
 			}
-
-			for reg, required := range expectedResourcesUpdates {
-				if strings.Contains(out, reg) {
-					continue
-				}
-				if required {
-					t.Errorf("plan output does not contain required content %q\nout:%s", reg, out)
-				} else {
-					// We don't want to fail the test for outputs that are performance and time dependent
-					// as the renew status updates
-					t.Logf("plan output does not contain %q\nout:%s", reg, out)
-				}
-			}
+			entriesChecker.check(t, out)
 
 			// assert plan file content
 			plan, err := tf.Plan("tfplan")
@@ -385,47 +373,42 @@ Changes to Outputs:
 			expectedChangesOutput := `Apply complete! Resources: 2 added, 0 changed, 0 destroyed.`
 			// NOTE: the non-required ones are dependent on the performance of the platform that this test is running on.
 			// In CI, if we would make this as required, this test might be flaky.
-			expectedResourcesUpdates := map[string]bool{
-				"ephemeral.simple_resource.test_ephemeral[0]: Opening...":                                          true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Open complete after":                                 true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Opening...":                                          true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Open complete after":                                 true,
-				"data.simple_resource.test_data2: Reading...":                                                      true,
-				"data.simple_resource.test_data2: Read complete after":                                             true,
-				"simple_resource.test_res: Creating...":                                                            true,
-				"simple_resource.test_res_second_provider: Creating...":                                            true,
-				"simple_resource.test_res_second_provider: Creation complete after":                                true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Renewing...":                                         false,
-				"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after":                                false,
-				"ephemeral.simple_resource.test_ephemeral[1]: Renewing...":                                         false,
-				"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after":                                false,
-				"simple_resource.test_res: Creation complete after":                                                true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Closing...":                                          true,
-				"ephemeral.simple_resource.test_ephemeral[0]: Close complete after":                                true,
-				"ephemeral.simple_resource.test_ephemeral[1]: Closing...":                                          true,
-				"simple_resource.test_res: Provisioning with 'local-exec'...":                                      true,
-				`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible test value\""]`: true,
-				"simple_resource.test_res (local-exec): visible test value":                                        true,
-				"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)":      true,
-			}
+			entriesChecker := outputEntriesChecker{phase: "apply"}
+			entriesChecker.addChecks(
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Opening..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Open complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Opening..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Open complete after"}, true},
+				outputEntry{[]string{"data.simple_resource.test_data2: Reading..."}, true},
+				outputEntry{[]string{"data.simple_resource.test_data2: Read complete after"}, true},
+				outputEntry{[]string{"simple_resource.test_res: Creating..."}, true},
+				outputEntry{[]string{"simple_resource.test_res_second_provider: Creating..."}, true},
+				outputEntry{[]string{"simple_resource.test_res_second_provider: Creation complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renewing..."}, false},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after"}, false},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renewing..."}, false},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after"}, false},
+				outputEntry{[]string{"simple_resource.test_res: Creation complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Closing..."}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[0]: Close complete after"}, true},
+				outputEntry{[]string{"ephemeral.simple_resource.test_ephemeral[1]: Closing..."}, true},
+				outputEntry{[]string{"simple_resource.test_res: Provisioning with 'local-exec'..."}, true},
+				outputEntry{[]string{
+					`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible test value\""]`,
+					`simple_resource.test_res (local-exec): Executing: ["cmd" "/C" "echo \"visible test value\""]`,
+				}, true},
+				outputEntry{[]string{
+					`simple_resource.test_res (local-exec): visible test value`,
+					`simple_resource.test_res (local-exec): "visible test value"`,
+				}, true},
+				outputEntry{[]string{"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)"}, true},
+			)
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong apply output:\nstdout:%s\nstderr%s", stdout, stderr)
 			}
-
-			for reg, required := range expectedResourcesUpdates {
-				if strings.Contains(out, reg) {
-					continue
-				}
-				if required {
-					t.Errorf("apply output does not contain required content %q\nout:%s", reg, out)
-				} else {
-					// We don't want to fail the test for outputs that are performance and time dependent
-					// as the renew status updates
-					t.Logf("apply output does not contain %q\nout:%s", reg, out)
-				}
-			}
+			entriesChecker.check(t, out)
 		}
 		{ //// DESTROY
 			stdout, stderr, err := tf.Run("destroy", "-auto-approve")
@@ -520,5 +503,47 @@ func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutN
 	providerFinalBinaryFilePath := filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerBinFileName), platform, fmt.Sprintf("terraform-provider-%s", providerBinFileName)) + extension
 	if err := os.Rename(providerTmpBinPath, providerFinalBinaryFilePath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+type outputEntry struct {
+	variants []string
+	required bool
+}
+
+func (oe outputEntry) in(out string) bool {
+	for _, v := range oe.variants {
+		if strings.Contains(out, v) {
+			return true
+		}
+	}
+	return false
+}
+
+func (oe outputEntry) String() string {
+	return `"` + strings.Join(oe.variants, `" OR "`) + `"`
+}
+
+type outputEntriesChecker struct {
+	entries []outputEntry
+	phase   string
+}
+
+func (oec *outputEntriesChecker) addChecks(entries ...outputEntry) {
+	oec.entries = append(oec.entries, entries...)
+}
+
+func (oec *outputEntriesChecker) check(t *testing.T, contentToCheckIn string) {
+	for _, entry := range oec.entries {
+		if entry.in(contentToCheckIn) {
+			continue
+		}
+		if entry.required {
+			t.Errorf("%s output does not contain required content %s\nout:%s", oec.phase, entry.String(), contentToCheckIn)
+		} else {
+			// We don't want to fail the test for outputs that are performance and time dependent
+			// as the renew status updates
+			t.Logf("%s output does not contain %s\nout:%s", oec.phase, entry.String(), contentToCheckIn)
+		}
 	}
 }
