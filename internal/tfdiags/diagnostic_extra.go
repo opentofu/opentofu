@@ -151,7 +151,7 @@ func DiagnosticCausedByUnknown(diag Diagnostic) bool {
 
 // DiagnosticExtraBecauseSensitive is an interface implemented by values in
 // the Extra field of Diagnostic when the diagnostic is potentially caused by
-// the presence of sensitive values in an expression evaluation.
+// the presence of sensitive or ephemeral values in an expression evaluation.
 //
 // Just implementing this interface is not sufficient signal, though. Callers
 // must also call the DiagnosticCausedBySensitive method in order to confirm
@@ -159,18 +159,18 @@ func DiagnosticCausedByUnknown(diag Diagnostic) bool {
 // as a convenient wrapper.
 type DiagnosticExtraBecauseSensitive interface {
 	// DiagnosticCausedBySensitive returns true if the associated diagnostic
-	// was caused by the presence of sensitive values during an expression
+	// was caused by the presence of sensitive or ephemeral values during an expression
 	// evaluation, or false otherwise.
 	//
 	// Callers might use this to tailor what contextual information they show
 	// alongside an error report in the UI, to avoid potential confusion
-	// caused by talking about the presence of sensitive values if that was
+	// caused by talking about the presence of sensitive (or ephemeral) values if that was
 	// immaterial to the error.
 	DiagnosticCausedBySensitive() bool
 }
 
 // DiagnosticCausedBySensitive returns true if the given diagnostic has an
-// indication that it was caused by the presence of sensitive values during
+// indication that it was caused by the presence of sensitive or ephemeral values during
 // an expression evaluation.
 //
 // This is a wrapper around checking if the diagnostic's extra info implements
