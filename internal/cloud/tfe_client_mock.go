@@ -551,6 +551,8 @@ func (m *MockRedactedPlans) create(cvID, workspaceID, planID string) error {
 		return err
 	}
 
+	defer redactedPlanFile.Close()
+
 	raw, err := io.ReadAll(redactedPlanFile)
 	if err != nil {
 		return err

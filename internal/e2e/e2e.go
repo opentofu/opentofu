@@ -81,6 +81,7 @@ func NewBinary(t *testing.T, binaryPath, workingDir string) *binary {
 		if err != nil {
 			return err
 		}
+
 		dst, err := os.OpenFile(dstFn, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 		if err != nil {
 			return err

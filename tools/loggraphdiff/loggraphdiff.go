@@ -131,6 +131,7 @@ func readGraph(fn string) (Graph, error) {
 	if err != nil {
 		return ret, err
 	}
+	defer r.Close()
 
 	sc := bufio.NewScanner(r)
 	var latestNode string

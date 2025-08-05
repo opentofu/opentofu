@@ -172,6 +172,7 @@ func TestFilesystem_backup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer bfh.Close()
 	bf, err := statefile.Read(bfh, encryption.StateEncryptionDisabled())
 	if err != nil {
 		t.Fatal(err)
