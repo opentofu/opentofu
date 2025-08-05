@@ -1,0 +1,4 @@
+resource "simple_resource" "test_res" {
+  provider = simple.s1
+  value = var.in
+}

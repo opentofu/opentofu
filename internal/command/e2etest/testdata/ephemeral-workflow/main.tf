@@ -8,10 +8,6 @@ terraform {
   }
 }
 
-provider "simple" {
-  alias = "s1"
-}
-
 variable "simple_input" {
   type = string
 }
@@ -19,6 +15,16 @@ variable "simple_input" {
 variable "ephemeral_input" {
   type      = string
   ephemeral = true
+  validation {
+    condition = var.ephemeral_input == "ephemeral_val"
+    error_message = "this is just to ensure that error_message is not executed when condition suceeds. If the condition fails, it will fail because this message references an ephemeral value ${var.ephemeral_input}}"
+  }
+}
+
+provider "simple" {
+  alias = "s1"
+  // NOTE we want to ensure that ephemeral variables can be used as provider configuration
+  i_depend_on = var.ephemeral_input
 }
 
 data "simple_resource" "test_data1" {
@@ -44,6 +50,9 @@ resource "simple_resource" "test_res" {
   }
   provisioner "local-exec" {
     command = "echo \"not visible ${ephemeral.simple_resource.test_ephemeral[0].value}\""
+  }
+  provisioner "local-exec" {
+    command = "echo \"not visible ${var.ephemeral_input}\""
   }
   // NOTE: value_wo cannot be used in a provisioner because it is returned as null by the provider so the interpolation fails
 }

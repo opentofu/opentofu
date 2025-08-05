@@ -1,0 +1,4 @@
+module "test" {
+  source = "./non-ephemeral-mod"
+  in     = var.in
+}
