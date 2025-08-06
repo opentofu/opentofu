@@ -60,6 +60,7 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 		})
 	}
 
+	// TODO ephemeral - we might need to add ephemeral mark too
 	if importIdVal.HasMark(marks.Sensitive) {
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -185,6 +186,7 @@ func parseImportIndexKeyExpr(evalCtx EvalContext, expr hcl.Expression, keyData i
 		return idx, diags
 	}
 
+	// TODO ephemeral - we might need to add ephemeral mark too
 	unmarkedVal, valMarks := val.Unmark()
 	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
 		diags = diags.Append(&hcl.Diagnostic{

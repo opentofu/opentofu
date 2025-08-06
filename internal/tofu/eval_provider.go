@@ -76,6 +76,7 @@ func resolveProviderInstance(ctx context.Context, keyExpr hcl.Expression, keySco
 		return nil, diags
 	}
 
+	// TODO ephemeral - we might need to add ephemeral mark too
 	if keyVal.HasMark(marks.Sensitive) {
 		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,

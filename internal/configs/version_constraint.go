@@ -31,6 +31,8 @@ func decodeVersionConstraint(attr *hcl.Attribute) (VersionConstraint, hcl.Diagno
 	}
 	return decodeVersionConstraintValue(attr, val)
 }
+
+// TODO ephemeral - check how the ephemeral mark should be handled in this function
 func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionConstraint, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 

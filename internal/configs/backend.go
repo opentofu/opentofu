@@ -48,6 +48,8 @@ func decodeBackendBlock(block *hcl.Block) (*Backend, hcl.Diagnostics) {
 // for the purpose of hashing, so that an incomplete configuration can still
 // be hashed. Other errors, such as extraneous attributes, have no such special
 // case.
+// TODO ephemeral - check if ephemeral should be able to be used here or not. Seems that it shouldn't
+// but we need to double check
 func (b *Backend) Hash(ctx context.Context, schema *configschema.Block) (int, hcl.Diagnostics) {
 	// Don't fail if required attributes are not set. Instead, we'll just
 	// hash them as nulls.
