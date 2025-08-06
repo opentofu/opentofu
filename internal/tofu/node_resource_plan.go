@@ -166,6 +166,50 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
+		// Also check if Addr contains module key
+		importTarget.CommandLineImportTarget.Addr.Module.UniqueKey()
+		if importTarget.IsFromImportCommandLine() && importTarget.CommandLineImportTarget.Addr.Resource.Key != nil {
+			resourceKey := importTarget.CommandLineImportTarget.Addr.Resource.Key.Value()
+			if resourceKey.IsNull() {
+				continue
+			}
+			//TODO we need to get ForEach expression here and evaluate it, so we can validate the import target address existing keys
+			if importTarget.CommandLineImportTarget.TargetResource != nil && importTarget.CommandLineImportTarget.TargetResource.ForEach != nil {
+				rootCtx := evalCtx.WithPath(addrs.RootModuleInstance)
+				forEachVal, evalDiags := evaluateForEachExpressionValue(context.TODO(), importTarget.CommandLineImportTarget.TargetResource.ForEach, rootCtx, false, false, nil)
+				diags = diags.Append(evalDiags)
+				fmt.Printf("ForEach value: %+v\n", forEachVal)
+				if evalDiags.HasErrors() {
+					// If we fail to evaluate the ForEach expression, we cannot resolve the import target
+					// and we should not continue with the import resolution
+					continue
+				}
+				key := importTarget.CommandLineImportTarget.Addr.Resource.Key.Value()
+				it := forEachVal.ElementIterator()
+				exists := false
+				for it.Next() {
+					_, v := it.Element()
+					// Check if the key exists for the for_each expression
+					if v.Equals(key).True() {
+						exists = true
+						break
+					}
+				}
+				if !exists {
+					// We cannot resolve the import target address, as the key does not exist for the for_each expression
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Invalid import target address",
+						fmt.Sprintf(
+							"Import target address %q is invalid, as the key %q does not exist in the for_each expression %q.",
+							importTarget.CommandLineImportTarget.Addr,
+							key.AsString(),
+							importTarget.CommandLineImportTarget.TargetResource.ForEach,
+						),
+					))
+				}
+			}
+		}
 		// If the import target originates from the import command (instead of the import block), we don't need to
 		// resolve the import as it's already in the resolved form
 		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
