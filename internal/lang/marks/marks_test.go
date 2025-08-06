@@ -123,18 +123,62 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 	}
 }
 
+func TestHasDeprecated(t *testing.T) {
+	tests := []struct {
+		name  string
+		input cty.Value
+		want  bool
+	}{
+		{
+			name:  "no marks",
+			input: cty.StringVal("test"),
+			want:  false,
+		},
+		{
+			name:  "only sensitive mark",
+			input: cty.StringVal("test").Mark(Sensitive),
+			want:  false,
+		},
+		{
+			name: "has deprecation mark",
+			input: Deprecated(cty.StringVal("test"), DeprecationCause{
+				By:      addrs.InputVariable{Name: "var1"},
+				Key:     "var1",
+				Message: "deprecated",
+			}),
+			want: true,
+		},
+		{
+			name: "mixed marks with deprecation",
+			input: Deprecated(cty.StringVal("test").Mark(Sensitive), DeprecationCause{
+				By:      addrs.InputVariable{Name: "var1"},
+				Key:     "var1",
+				Message: "deprecated",
+			}),
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := HasDeprecated(tt.input)
+			if got != tt.want {
+				t.Errorf("HasDeprecated() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 	tests := []struct {
 		name                      string
 		input                     cty.Value
 		wantDeprecationPathsCount int
-		wantOtherPathsCount       int
 	}{
 		{
 			name:                      "no marks",
 			input:                     cty.StringVal("test"),
 			wantDeprecationPathsCount: 0,
-			wantOtherPathsCount:       0,
 		},
 		{
 			name: "single deprecation mark",
@@ -144,7 +188,6 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				Message: "deprecated",
 			}),
 			wantDeprecationPathsCount: 1,
-			wantOtherPathsCount:       0,
 		},
 		{
 			name: "mixed marks",
@@ -154,7 +197,6 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				Message: "deprecated",
 			}),
 			wantDeprecationPathsCount: 1,
-			wantOtherPathsCount:       0,
 		},
 		{
 			name: "multiple fields all of which have only deprecation marks",
@@ -176,7 +218,6 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				}),
 			}),
 			wantDeprecationPathsCount: 3,
-			wantOtherPathsCount:       0,
 		},
 		{
 			name: "nested object with deprecation",
@@ -190,7 +231,6 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				}),
 			}),
 			wantDeprecationPathsCount: 1,
-			wantOtherPathsCount:       0,
 		},
 		{
 			name: "only non-deprecation marks",
@@ -199,7 +239,6 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				"ephemeral": cty.StringVal("temp").Mark(Ephemeral),
 			}),
 			wantDeprecationPathsCount: 0,
-			wantOtherPathsCount:       2,
 		},
 		{
 			name: "nested with other marks too",
@@ -214,16 +253,29 @@ func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
 				}),
 			}),
 			wantDeprecationPathsCount: 1,
-			wantOtherPathsCount:       1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotDeprecationMarks := unmarkDeepWithPathsDeprecated(tt.input)
+			gotUnmarked, gotDeprecationMarks := unmarkDeepWithPathsDeprecated(tt.input)
 
 			if len(gotDeprecationMarks) != tt.wantDeprecationPathsCount {
 				t.Errorf("deprecation marks count mismatch\ngot:  %d\nwant: %d", len(gotDeprecationMarks), tt.wantDeprecationPathsCount)
+			}
+
+			// Verify that the returned value has NO deprecation marks
+			if HasDeprecated(gotUnmarked) {
+				t.Error("returned value still contains deprecation marks")
+			}
+
+			// Verify all deprecation marks returned only contain deprecation marks
+			for _, pm := range gotDeprecationMarks {
+				for m := range pm.Marks {
+					if _, ok := m.(deprecationMark); !ok {
+						t.Errorf("found non-deprecation mark in deprecation marks: %T", m)
+					}
+				}
 			}
 		})
 	}
