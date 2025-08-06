@@ -11,6 +11,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -118,5 +120,111 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 		if diff := cmp.Diff(vals[1], consolidatedDiags[i].Description().Detail); diff != "" {
 			t.Errorf("%d: wrong detail msg: %s", i, diff)
 		}
+	}
+}
+
+func TestUnmarkDeepWithPathsDeprecated(t *testing.T) {
+	tests := []struct {
+		name                      string
+		input                     cty.Value
+		wantDeprecationPathsCount int
+		wantOtherPathsCount       int
+	}{
+		{
+			name:                      "no marks",
+			input:                     cty.StringVal("test"),
+			wantDeprecationPathsCount: 0,
+			wantOtherPathsCount:       0,
+		},
+		{
+			name: "single deprecation mark",
+			input: Deprecated(cty.StringVal("test"), DeprecationCause{
+				By:      addrs.InputVariable{Name: "var1"},
+				Key:     "var1",
+				Message: "deprecated",
+			}),
+			wantDeprecationPathsCount: 1,
+			wantOtherPathsCount:       0,
+		},
+		{
+			name: "mixed marks",
+			input: Deprecated(cty.StringVal("test").Mark(Sensitive), DeprecationCause{
+				By:      addrs.InputVariable{Name: "var1"},
+				Key:     "var1",
+				Message: "deprecated",
+			}),
+			wantDeprecationPathsCount: 1,
+			wantOtherPathsCount:       0,
+		},
+		{
+			name: "multiple fields all of which have only deprecation marks",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"field1": Deprecated(cty.StringVal("test1"), DeprecationCause{
+					By:      addrs.InputVariable{Name: "var1"},
+					Key:     "var1",
+					Message: "deprecated1",
+				}),
+				"field2": Deprecated(cty.StringVal("test2"), DeprecationCause{
+					By:      addrs.InputVariable{Name: "var2"},
+					Key:     "var2",
+					Message: "deprecated2",
+				}),
+				"field3": Deprecated(cty.StringVal("test3"), DeprecationCause{
+					By:      addrs.InputVariable{Name: "var3"},
+					Key:     "var3",
+					Message: "deprecated3",
+				}),
+			}),
+			wantDeprecationPathsCount: 3,
+			wantOtherPathsCount:       0,
+		},
+		{
+			name: "nested object with deprecation",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"outer": cty.ObjectVal(map[string]cty.Value{
+					"inner": Deprecated(cty.StringVal("nested"), DeprecationCause{
+						By:      addrs.InputVariable{Name: "var1"},
+						Key:     "var1",
+						Message: "deprecated",
+					}),
+				}),
+			}),
+			wantDeprecationPathsCount: 1,
+			wantOtherPathsCount:       0,
+		},
+		{
+			name: "only non-deprecation marks",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"sensitive": cty.StringVal("secret").Mark(Sensitive),
+				"ephemeral": cty.StringVal("temp").Mark(Ephemeral),
+			}),
+			wantDeprecationPathsCount: 0,
+			wantOtherPathsCount:       2,
+		},
+		{
+			name: "nested with other marks too",
+			input: cty.ObjectVal(map[string]cty.Value{
+				"outer": cty.ObjectVal(map[string]cty.Value{
+					"deprecated": Deprecated(cty.StringVal("dep"), DeprecationCause{
+						By:      addrs.InputVariable{Name: "var1"},
+						Key:     "var1",
+						Message: "deprecated",
+					}),
+					"sensitive": cty.StringVal("secret").Mark(Sensitive),
+				}),
+			}),
+			wantDeprecationPathsCount: 1,
+			wantOtherPathsCount:       1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, gotDeprecationMarks := unmarkDeepWithPathsDeprecated(tt.input)
+
+			if len(gotDeprecationMarks) != tt.wantDeprecationPathsCount {
+				t.Errorf("deprecation marks count mismatch\ngot:  %d\nwant: %d", len(gotDeprecationMarks), tt.wantDeprecationPathsCount)
+			}
+		})
 	}
 }
