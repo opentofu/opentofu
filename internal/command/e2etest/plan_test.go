@@ -94,3 +94,77 @@ found no differences, so no changes are needed.
 		}
 	})
 }
+
+func TestPlanOnDeprecated(t *testing.T) {
+	t.Parallel()
+
+	fixturePath := filepath.Join("testdata", "deprecated-values")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	//// INIT
+	_, stderr, err := tf.Run("init", "-input=false")
+	if err != nil {
+		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	//// PLAN
+	stdout, stderr, err := tf.Run("plan")
+	if err != nil {
+		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	expected := []string{
+		`Variable marked as deprecated by the module author`,
+		`Variable "input" is marked as deprecated with the following message`,
+		`This var is deprecated`,
+		`Value derived from a deprecated source`,
+		`This value is derived from module.call.output, which is deprecated with the`,
+		`following message:`,
+		`this output is deprecated`,
+	}
+	for _, want := range expected {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("invalid plan output. expected to contain %q but it does not:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestPlanOnMultipleDeprecatedMarksSliceBug(t *testing.T) {
+	t.Parallel()
+
+	// Test for [the bug](https://github.com/opentofu/opentofu/issues/3104) where modifying 
+	// pathMarks slice during iteration would cause slice bounds errors when multiple 
+	// deprecated marks exist
+	fixturePath := filepath.Join("testdata", "multiple-deprecated-marks-slice-bug")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	t.Run("multiple deprecated marks slice bug", func(t *testing.T) {
+		_, initErr, err := tf.Run("init")
+		if err != nil {
+			t.Fatalf("expected no errors on init, got error %v: %s", err, initErr)
+		}
+
+		planStdout, planErr, err := tf.Run("plan")
+		if err != nil {
+			t.Fatalf("expected no errors on plan, got error %v: %s", err, planErr)
+		}
+
+		// Should not crash and should show deprecation warnings for all outputs
+		expectedContents := []string{
+			"Changes to Outputs:",
+			"trigger = {",
+			"Value derived from a deprecated source",
+			"Use new_out1",
+			"Use new_out2", 
+			"Use new_out3",
+		}
+
+		// Strip ANSI codes for consistent testing
+		cleanOutput := stripAnsi(planStdout)
+		for _, want := range expectedContents {
+			if !strings.Contains(cleanOutput, want) {
+				t.Errorf("plan output missing expected content %q:\n%s", want, cleanOutput)
+			}
+		}
+	})
+}

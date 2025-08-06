@@ -23,6 +23,7 @@ BUG FIXES:
 * Allow function calls in test variable blocks ([#2947](https://github.com/opentofu/opentofu/pull/2947))
 * The `issensitive` function now returns an unknown result when its argument is unknown, since a sensitive unknown value can potentially become non-sensitive once more information is available. ([#3008](https://github.com/opentofu/opentofu/pull/3008))
 * Provider references like "null.some_alias[each.key]" in .tf.json files are now correctly parsed ([#2915](https://github.com/opentofu/opentofu/issues/2915))
+* Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
 
 ## Previous Releases
 
