@@ -431,7 +431,7 @@ func generateEphemeralPlanValues(vv map[string]backend.UnparsedVariableValue, vc
 	}
 	ephemeralVars, ephemeralDiags := ephemeralValuesForPlanDuringFromUserInput(parsedVars, vcfgs)
 	diags = diags.Append(ephemeralDiags)
-	return ephemeralVars, ephemeralDiags
+	return ephemeralVars, diags
 }
 
 // ephemeralValuesForPlanDuringFromUserInput is creating a map ready to be given to the plan to merge these together
