@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // valueMarks allow creating strictly typed values for use as cty.Value marks.
@@ -188,6 +189,8 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 	return val, diags
 }
 
+// unmarkDeepWithPathsDeprecated removes all deprecation marks from a value and returns them separately.
+// It returns both the input value with all deprecation marks removed whilst preserving other marks, and a slice of PathValueMarks where marks were removed.
 func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMarks) {
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
