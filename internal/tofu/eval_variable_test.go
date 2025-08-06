@@ -1658,7 +1658,7 @@ variable "bar" {
     condition     = length(var.bar) == 4
 	// error_message = "Bar must be 4 characters, not ${ephemeralasnull(length(var.bar))}."
     // TODO ephemeral - enable the error_message above after ephemeralasnull is introduced
-	error_message = "Bar must be 4 characters, not null."
+	error_message = "Value for bar must be 4 characters"
   }
 }
 `
@@ -1683,15 +1683,15 @@ variable "bar" {
 		wantErr []string
 		status  checks.Status
 	}{
-		// Validations pass on an ephemeral variable with an error message which
-		// would generate a ephemeral value
+		// There is no issue if the validation.error_message references an ephemeral value when the check passes.
+		// That is reported only when the validation fails, and we evaluate the error_message.
 		{
 			varName: "foo",
 			given:   cty.StringVal("boop"),
 			status:  checks.StatusPass,
 		},
-		// Assigning a value which fails the condition generates an ephemeral
-		// error message, which is elided and generates another error
+		// When the validation fails, trying to render the error_message will generate another
+		// error because the value resulted from error_message evaluation contains the ephemeral mark.
 		{
 			varName: "foo",
 			given:   cty.StringVal("bap"),
@@ -1702,15 +1702,15 @@ variable "bar" {
 			},
 			status: checks.StatusFail,
 		},
-		// Validations pass on an ephemeral variable with a correctly defined
-		// error message
+		// When error_message contains no ephemeral values, and the validation passes,
+		// there is no error expected to be returned.
 		{
 			varName: "bar",
 			given:   cty.StringVal("boop"),
 			status:  checks.StatusPass,
 		},
-		// Assigning a value which fails the condition generates an ephemeralasnull
-		// error message, which is displayed
+		// When error_message contains no ephemeral values, and the validation fails,
+		// the value resulted from error_message evaluation is returned.
 		{
 			varName: "bar",
 			given:   cty.StringVal("bap"),
@@ -1718,7 +1718,7 @@ variable "bar" {
 				"Invalid value for variable",
 				// "Bar must be 4 characters, not null.",
 				// TODO ephemeral - enable the line above after "ephemeralasnull" is introduced
-				"Bar must be 4 characters",
+				"Value for bar must be 4 characters",
 			},
 			status: checks.StatusFail,
 		},
@@ -1791,11 +1791,10 @@ variable "bar" {
 	}
 }
 
+// TestEvalVariableValidations_ephemeralValueDiagnostics verifies that values for ephemeral variables get captured
+// into diagnostic messages with the ephemeral mark intact, so that
+// the values won't be disclosed in the UI.
 func TestEvalVariableValidations_ephemeralValueDiagnostics(t *testing.T) {
-	// This test verifies that values for ephemeral variables get captured
-	// into diagnostic messages with the ephemeral mark intact, so that
-	// the values won't be disclosed in the UI.
-
 	cfgSrc := `
 		variable "foo" {
 			type      = string

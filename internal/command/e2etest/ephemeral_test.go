@@ -8,6 +8,8 @@ import (
 	"github.com/opentofu/opentofu/internal/e2e"
 )
 
+// TestEphemeralErrors_variables checks common errors when ephemeral variables
+// are referenced in contexts where it's not allowed to.
 func TestEphemeralErrors_variables(t *testing.T) {
 	tf := e2e.NewBinary(t, tofuBin, "testdata/ephemeral-errors/variables")
 	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
@@ -86,7 +88,7 @@ func TestEphemeralErrors_variables(t *testing.T) {
 			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 		}
 		sanitized := SanitizeStderr(serr)
-		if !strings.Contains(sanitized, `Variable does not allow ephemeral value    on in-non-ephemeral-mod-variable.tf line 3, in module "test"`) {
+		if !strings.Contains(sanitized, `Variable does not allow ephemeral value    on in-non-ephemeral-mod-variable.tf line 5, in module "test"`) {
 			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized serr: %s", sanitized)
 		}

@@ -242,7 +242,12 @@ func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
 
 // StoreEphemeralVariablesValues converts the given values and store them in Plan.VariableValues for being
 // able to return those from VariableMapper.
-// It also stores the names of the
+// It also stores the names of the ephemeral variables in a separate map for being able to ignore
+// those later if the plan needs to be persisted again.
+//
+// This function is mainly used when applying a saved plan.
+// Since the ephemeral variables are ignored during storing the plan, we need to
+// still provide values for those when the plan is applied.
 func (plan *Plan) StoreEphemeralVariablesValues(vars map[string]cty.Value) (diags hcl.Diagnostics) {
 	if plan.EphemeralVariables == nil {
 		plan.EphemeralVariables = map[string]bool{}
@@ -256,13 +261,13 @@ func (plan *Plan) StoreEphemeralVariablesValues(vars map[string]cty.Value) (diag
 			})
 			continue
 		}
-		log.Printf("[TRACE] ephemeral variable %q value stored into plan", vn)
+		log.Printf("[TRACE] ephemeral variable %q value restored into the plan", vn)
 		vdv, err := NewDynamicValue(vv, cty.DynamicPseudoType)
 		if err != nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Failed to prepare variable value for plan",
-				Detail:   fmt.Sprintf("The value for ephemeral variable %q could not be serialized to store in the plan: %s.", vn, err),
+				Detail:   fmt.Sprintf("The value for ephemeral variable %q could not be serialized to restore in the plan: %s.", vn, err),
 			})
 			continue
 		}

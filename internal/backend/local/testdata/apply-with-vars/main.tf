@@ -6,7 +6,3 @@ variable "ephemeral_var" {
 variable "regular_var" {
   type      = string
 }
-
-# resource "test_instance" "foo" {
-#   ami = "bar"
-# }

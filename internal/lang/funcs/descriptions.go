@@ -19,9 +19,9 @@ type descriptionEntry struct {
 	ParamDescription []string
 }
 
-// TODO ephemeral - when will work for "ephemeralasnull",
-// check the whole package and each and every function to see how those need
-// to be updated to work (or not) with ephemeral values
+// TODO ephemeral - when "ephemeralasnull" will be introduced,
+//  check the whole package and each and every function to see how those need
+//  to be updated to work (or not) with ephemeral values
 
 // DescriptionList is a consolidated list containing all descriptions for all
 // functions available within OpenTofu. A function's description should point

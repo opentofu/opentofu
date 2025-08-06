@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -311,23 +312,44 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		t.Fatal(fileDiags)
 	}
 	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+	mod.Locals["my_ephemeral_local"] = &Local{
+		Name:      "my_ephemeral_local",
+		Expr:      hcl.StaticExpr(cty.StringVal("ephemeral local value").Mark(marks.Ephemeral), hcl.Range{}),
+		DeclRange: hcl.Range{},
+	}
+	mod.Locals["my_sensitive_local"] = &Local{
+		Name:      "my_sensitive_local",
+		Expr:      hcl.StaticExpr(cty.StringVal("sensitive local value").Mark(marks.Sensitive), hcl.Range{}),
+		DeclRange: hcl.Range{},
+	}
 	eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
-
 	cases := []struct {
 		expr  string
 		diags []string
-	}{{
-		expr: `"static"`,
-	}, {
-		expr: `count`,
-		diags: []string{
-			`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`,
-			`:0,0-0: Dynamic value in static context; Unable to use count. in static context, which is required by local.test`,
+	}{
+		{
+			expr: `"static"`,
 		},
-	}, {
-		expr:  `module.foo.bar`,
-		diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
-	}}
+		{
+			expr: `count`,
+			diags: []string{
+				`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`,
+				`:0,0-0: Dynamic value in static context; Unable to use count. in static context, which is required by local.test`,
+			},
+		},
+		{
+			expr:  `module.foo.bar`,
+			diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
+		},
+		{
+			expr:  `local.my_ephemeral_local`,
+			diags: []string{`eval.tf:1,1-25: Ephemeral value not allowed; Ephemeral values, or values derived from ephemeral values, cannot be used as local.test.`},
+		},
+		{
+			expr:  `local.my_sensitive_local`,
+			diags: []string{`eval.tf:1,1-25: Sensitive value not allowed; Sensitive values, or values derived from sensitive values, cannot be used as local.test.`},
+		},
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.expr, func(t *testing.T) {

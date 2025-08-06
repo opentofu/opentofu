@@ -402,9 +402,6 @@ func TestLocalRun_ephemeralVariablesLoadedCorrectlyIntoThePlan(t *testing.T) {
 				assertBackendStateUnlocked(t, b)
 			} else {
 				assertBackendStateLocked(t, b)
-				// if diags := op.StateLocker.Unlock(); diags.HasErrors() {
-				// 	t.Fatalf("unexpected error unlocking state: %s", diags.Err())
-				// }
 			}
 		})
 	}
@@ -484,7 +481,7 @@ func (s *stateStorageThatFailsRefresh) PersistState(_ context.Context, schemas *
 func encodeDynamicValueWithType(t *testing.T, value cty.Value, ty cty.Type) []byte {
 	data, err := ctymsgpack.Marshal(value, ty)
 	if err != nil {
-		t.Fatalf("failed to marshal JSON: %s", err)
+		t.Fatalf("failed to marshal cty msgpack value: %s", err)
 	}
 	return data
 }

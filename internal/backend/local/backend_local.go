@@ -429,17 +429,17 @@ func generateEphemeralPlanValues(vv map[string]backend.UnparsedVariableValue, vc
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	ephemeralVars, ephemeralDiags := encodeEphemeralVariablesFromCLI(parsedVars, vcfgs)
+	ephemeralVars, ephemeralDiags := ephemeralValuesForPlanDuringFromUserInput(parsedVars, vcfgs)
 	diags = diags.Append(ephemeralDiags)
 	return ephemeralVars, ephemeralDiags
 }
 
-// encodeEphemeralVariablesFromCLI is creating a map ready to be given to the plan to merge these together
+// ephemeralValuesForPlanDuringFromUserInput is creating a map ready to be given to the plan to merge these together
 // with the variables that are already in the plan.
 // This function is handling only the ephemeral variables since those are the only ones that are not
 // stored in the plan, so the only way to pass then into the apply phase is to provide them again
 // in the -var/-var-file.
-func encodeEphemeralVariablesFromCLI(parsedVars tofu.InputValues, variables map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
+func ephemeralValuesForPlanDuringFromUserInput(parsedVars tofu.InputValues, variables map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	out := make(map[string]cty.Value)
 	for vn, vc := range variables {

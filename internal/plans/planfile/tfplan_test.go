@@ -32,7 +32,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 			"bar": mustNewDynamicValueStr("bar value"),
 			"baz": mustNewDynamicValueStr("baz value"),
 		},
-		EphemeralVariables: map[string]bool{"bar": false, "baz": true}, // foo omitted on purpose to ensure that it works that way too
+		// foo omitted on purpose to ensure that ephemeral values filtering works well and does not break
+		// existing functionality
+		EphemeralVariables: map[string]bool{"bar": false, "baz": true},
 		Changes: &plans.Changes{
 			Outputs: []*plans.OutputChangeSrc{
 				{
