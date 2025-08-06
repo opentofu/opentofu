@@ -240,9 +240,7 @@ func realMain() int {
 		}
 	}
 
-	// Create the provider source after we know whether -chdir was used
-	usingChdir := overrideWd != ""
-	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy, originalWd, usingChdir)
+	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy, originalWd)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
 		for _, diag := range diags {
