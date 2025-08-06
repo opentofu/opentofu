@@ -194,6 +194,15 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		return nil, diags.ErrWithWarnings()
 	}
 
+	// Import target validation, when the target address contains a for_each key,
+	// needs to happen after we have expanded all of the resource instances,
+	// since the target addresses might include references with non-existent keys.
+	importDiags := n.cliImportTargetValidation(instAddrs)
+	diags = diags.Append(importDiags)
+	if diags.HasErrors() {
+		return nil, diags.ErrWithWarnings()
+	}
+
 	// If this is a resource that participates in custom condition checks
 	// (i.e. it has preconditions or postconditions) then the check state
 	// wants to know the addresses of the checkable objects so that it can
@@ -206,6 +215,38 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	addRootNodeToGraph(&g)
 
 	return &g, diags.ErrWithWarnings()
+}
+
+// cliImportTargetValidation Checks if we have an import targets from the commandline
+// and the resources at the target addresses are referenced with a key corresponding to an existing instance.
+func (n *nodeExpandPlannableResource) cliImportTargetValidation(instAddrs addrs.Set[addrs.Checkable]) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	for _, importTarget := range n.importTargets {
+		if !importTarget.IsFromImportCommandLine() {
+			continue
+		}
+
+		cliTarget := importTarget.CommandLineImportTarget
+		key := cliTarget.Addr.Resource.Key
+		// We don't need to check if the resource address doesn't include a key
+		if key == nil || key.Value().IsNull() {
+			continue
+		}
+		exists := instAddrs.Has(cliTarget.Addr)
+		if !exists {
+			// We cannot resolve the import target address, as the key does not exist for the for_each expression
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid import target address",
+				fmt.Sprintf(
+					"Import target address %q is invalid, as the resource doesn't exist with the given key",
+					cliTarget.Addr,
+				),
+			))
+		}
+	}
+	return diags
 }
 
 // expandResourceInstances calculates the dynamic expansion for the resource
