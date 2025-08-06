@@ -195,9 +195,10 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	var deprecationMarks []cty.PathValueMarks
+	var filteredPathMarks []cty.PathValueMarks
 
 	// Locate deprecationMarks and filter them out
-	for i, pm := range pathMarks {
+	for _, pm := range pathMarks {
 		deprecationPM := cty.PathValueMarks{
 			Path:  pm.Path,
 			Marks: make(cty.ValueMarks),
@@ -209,16 +210,15 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 				continue
 			}
 
-			// Remove mark from value marks
+			// Remove deprecated mark from value marks
 			delete(pm.Marks, m)
 
-			// Add mark to deprecation marks
+			// Add mark to deprecation marks to keep track of what we're removing
 			deprecationPM.Marks[m] = struct{}{}
 		}
 
-		// Remove empty path to not break caller code expectations.
-		if len(pm.Marks) == 0 {
-			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		if len(pm.Marks) > 0 {
+			filteredPathMarks = append(filteredPathMarks, pm)
 		}
 
 		if len(deprecationPM.Marks) != 0 {
@@ -226,7 +226,7 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 		}
 	}
 
-	return unmarked.MarkWithPaths(pathMarks), deprecationMarks
+	return unmarked.MarkWithPaths(filteredPathMarks), deprecationMarks
 }
 
 func RemoveDeepDeprecated(val cty.Value) cty.Value {
