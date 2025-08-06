@@ -6,10 +6,11 @@
 package main
 
 import (
+	"github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+
 	"github.com/opentofu/opentofu/internal/grpcwrap"
 	"github.com/opentofu/opentofu/internal/plugin"
 	simple "github.com/opentofu/opentofu/internal/provider-simple"
-	"github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
 func main() {

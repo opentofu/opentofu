@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/svchost"
@@ -65,7 +64,7 @@ func initCommands(
 	modulePkgFetcher *getmodules.PackageFetcher,
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
-	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
+	//unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
 ) {
 	var inAutomation bool
 	if v := os.Getenv(runningInAutomationEnvName); v != "" {
@@ -119,7 +118,7 @@ func initCommands(
 		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
-		UnmanagedProviders:   unmanagedProviders,
+		//UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
 	}
