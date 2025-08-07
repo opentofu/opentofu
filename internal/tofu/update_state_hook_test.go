@@ -36,4 +36,11 @@ func TestUpdateStateHook(t *testing.T) {
 	if ctx.StateState.LocalValue(localAddr) != cty.StringVal("hello") {
 		t.Fatalf("wrong state passed to hook: %s", spew.Sdump(ctx.StateState))
 	}
+
+	// Ensure the modification recorded is correct
+	state := states.NewState()
+	mockHook.PostStateUpdateFn(state.SyncWrapper())
+	if !ctx.StateState.Close().Equal(state) {
+		t.Fatalf("wrong state passed to hook: %s", spew.Sdump(ctx.StateState))
+	}
 }
