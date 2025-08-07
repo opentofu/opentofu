@@ -182,7 +182,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByConfidentialValues(true),
 		})
 		resultVal = cty.NullVal(ty)
 	}

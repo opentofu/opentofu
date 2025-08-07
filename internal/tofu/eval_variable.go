@@ -469,7 +469,7 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
-					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			case marks.Has(errorValue, marks.Ephemeral):
@@ -484,7 +484,7 @@ You can correct this by removing references to ephemeral values.`, // TODO ephem
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
-					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
 				})
 				errorMessage = "The error message included an ephemeral value, so it will not be displayed."
 			default:
