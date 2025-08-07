@@ -516,45 +516,86 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 		log.Printf("[TRACE] %s to %s for %s (deposed key %s)", logFuncName, targetState, absAddr, deposedKey)
 	}
 
-	var state *states.SyncState
+	checkNilState := func(state *states.SyncState) error {
+		if state == nil {
+			// Should not happen, because we shouldn't ever try to write to
+			// a state that isn't applicable to the current operation.
+			// (We can also get in here for unit tests which are using
+			// EvalContextMock but not populating PrevRunStateState with
+			// a suitable state object.)
+			return fmt.Errorf("state of type %s is not applicable to the current operation; this is a bug in OpenTofu", targetState)
+		}
+		return nil
+	}
+
+	var writeToState func(func(*states.SyncState)) error
 	switch targetState {
 	case workingState:
-		state = evalCtx.State()
+		writeToState = func(mut func(*states.SyncState)) error {
+			state := evalCtx.State()
+
+			if err := checkNilState(state); err != nil {
+				return err
+			}
+
+			if n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				// Don't need to run the updateState Hook
+				mut(state)
+				return nil
+			} else {
+				// Mutate both the working state and apply the change to any hooked states
+				return updateState(evalCtx, mut)
+			}
+		}
 	case refreshState:
-		state = evalCtx.RefreshState()
+		writeToState = func(mut func(*states.SyncState)) error {
+			state := evalCtx.RefreshState()
+
+			if err := checkNilState(state); err != nil {
+				return err
+			}
+
+			mut(state)
+			return nil
+		}
 	case prevRunState:
-		state = evalCtx.PrevRunState()
+		writeToState = func(mut func(*states.SyncState)) error {
+			state := evalCtx.PrevRunState()
+
+			if err := checkNilState(state); err != nil {
+				return err
+			}
+
+			mut(state)
+			return nil
+		}
 	default:
 		panic(fmt.Sprintf("unsupported phaseState value %#v", targetState))
-	}
-	if state == nil {
-		// Should not happen, because we shouldn't ever try to write to
-		// a state that isn't applicable to the current operation.
-		// (We can also get in here for unit tests which are using
-		// EvalContextMock but not populating PrevRunStateState with
-		// a suitable state object.)
-		return fmt.Errorf("state of type %s is not applicable to the current operation; this is a bug in OpenTofu", targetState)
 	}
 
 	// In spite of the name, this function also handles the non-deposed case
 	// via the writeResourceInstanceState wrapper, by setting deposedKey to
 	// the NotDeposed value (the zero value of DeposedKey).
-	var write func(src *states.ResourceInstanceObjectSrc)
+	var write func(src *states.ResourceInstanceObjectSrc) error
 	if deposedKey == states.NotDeposed {
-		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceCurrent(absAddr, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+		write = func(src *states.ResourceInstanceObjectSrc) error {
+			return writeToState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(absAddr, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+			})
 		}
 	} else {
-		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+		write = func(src *states.ResourceInstanceObjectSrc) error {
+			return writeToState(func(state *states.SyncState) {
+				state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+			})
 		}
 	}
 
 	if obj == nil || obj.Value.IsNull() {
 		// No need to encode anything: we'll just write it directly.
-		write(nil)
+		err := write(nil)
 		log.Printf("[TRACE] %s: removing state object for %s", logFuncName, absAddr)
-		return nil
+		return err
 	}
 
 	log.Printf("[TRACE] %s: writing state object for %s", logFuncName, absAddr)
@@ -573,8 +614,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
 	}
 
-	write(src)
-	return nil
+	return write(src)
 }
 
 // planForget returns a removed from state diff.
