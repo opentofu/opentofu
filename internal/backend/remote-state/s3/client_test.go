@@ -980,6 +980,136 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	}
 }
 
+func TestS3LockObjectTagging(t *testing.T) {
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+
+	tests := []struct {
+		name         string
+		action       func(cl *RemoteClient) error
+		skipChecksum bool
+
+		lockTags     map[string]string
+		expectedTags string
+	}{
+		{
+			name:         "s3.Put with no tags",
+			skipChecksum: false,
+			lockTags:     map[string]string{},
+			expectedTags: "",
+		},
+		{
+			name:         "s3.Put with 1 tag",
+			skipChecksum: false,
+			lockTags: map[string]string{
+				"a": "b",
+			},
+			expectedTags: "a=b",
+		},
+		{
+			name:         "s3.Put with several tags",
+			skipChecksum: false,
+			lockTags: map[string]string{
+				"a": "b",
+				"c": "e",
+				"f": "g",
+			},
+			expectedTags: "a=b&c=e&f=g",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:    s3Cl,
+				bucketName:  "test-bucket",
+				path:        "state-file",
+				useLockfile: true,
+				lockTags:    tt.lockTags,
+			}
+
+			_, err := rc.Lock(t.Context(), statemgr.NewLockInfo())
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			gotTags := httpCl.receivedReq.Header.Get("x-amz-tagging")
+			if gotTags != tt.expectedTags {
+				t.Errorf("Found tags %s did not match expected tags: %s", gotTags, tt.expectedTags)
+			}
+		})
+	}
+}
+
+func TestS3StateObjectTagging(t *testing.T) {
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+
+	tests := []struct {
+		name         string
+		action       func(cl *RemoteClient) error
+		skipChecksum bool
+
+		stateTags    map[string]string
+		expectedTags string
+	}{
+		{
+			name:         "s3.Put with no tags",
+			skipChecksum: false,
+			stateTags:    map[string]string{},
+			expectedTags: "",
+		},
+		{
+			name:         "s3.Put with 1 tag",
+			skipChecksum: false,
+			stateTags: map[string]string{
+				"a": "b",
+			},
+			expectedTags: "a=b",
+		},
+		{
+			name:         "s3.Put with several tags",
+			skipChecksum: false,
+			stateTags: map[string]string{
+				"a": "b",
+				"c": "e",
+				"f": "g",
+			},
+			expectedTags: "a=b&c=e&f=g",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:   s3Cl,
+				bucketName: "test-bucket",
+				path:       "state-file",
+				stateTags:  tt.stateTags,
+			}
+			err := rc.Put(t.Context(), []byte("test"))
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			gotTags := httpCl.receivedReq.Header.Get("x-amz-tagging")
+			if gotTags != tt.expectedTags {
+				t.Errorf("Found tags %s did not match expected tags: %s", gotTags, tt.expectedTags)
+			}
+		})
+	}
+}
+
 // mockHttpClient is used to test the interaction of the s3 backend with the aws-sdk.
 // This is meant to be configured with a response that will be returned to the aws-sdk.
 // The receivedReq is going to contain the last request received by it.
@@ -1011,3 +1141,53 @@ const encryptionPolicy = `{
     }
   ]
 }`
+
+func TestConfigurePutObjectTags(t *testing.T) {
+	tests := []struct {
+		name   string
+		tags   map[string]string
+		result s3.PutObjectInput
+	}{
+		{
+			name:   "No tags",
+			tags:   nil,
+			result: s3.PutObjectInput{},
+		},
+		{
+			name: "Basic tags",
+			tags: map[string]string{
+				"abd": "def",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("abd=def"),
+			},
+		},
+		{
+			name: "Complex values",
+			tags: map[string]string{
+				"opentofu.com/environment": "production",
+				"my-special-chars":         "&*&@$!(&)",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("my-special-chars=%26%2A%26%40%24%21%28%26%29&opentofu.com%2Fenvironment=production"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		c := RemoteClient{
+			stateTags: tt.tags,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			pot := &s3.PutObjectInput{}
+			c.configurePutObjectTags(pot, c.stateTags)
+
+			if pot.Tagging == nil && tt.result.Tagging == nil {
+				return
+			}
+
+			if *pot.Tagging != *tt.result.Tagging {
+				t.Errorf("configurePutObjectTags() = %v; want %v", *pot.Tagging, *tt.result.Tagging)
+			}
+		})
+	}
+}
