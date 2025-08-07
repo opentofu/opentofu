@@ -26,9 +26,6 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Fetch tags
-        run: git fetch --force --tags
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
