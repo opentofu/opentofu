@@ -1138,8 +1138,8 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // diagnostics that are explicitly marked as being caused by sensitive values.
 type diagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = diagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e diagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }

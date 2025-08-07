@@ -31,7 +31,7 @@ func (e DiagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 }
 
 // diagnosticCausedBySensitive is an implementation of
-// tfdiags.DiagnosticExtraBecauseSensitive which we can use in the "Extra" field
+// tfdiags.DiagnosticExtraBecauseConfidentialValues which we can use in the "Extra" field
 // of a diagnostic to indicate that the problem was caused by sensitive values
 // being involved in an expression evaluation.
 //
@@ -41,9 +41,9 @@ func (e DiagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // the user in understanding what was sensitive.
 type DiagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = DiagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = DiagnosticCausedBySensitive(true)
 
-func (e DiagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e DiagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }
 

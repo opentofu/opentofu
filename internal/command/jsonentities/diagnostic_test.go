@@ -651,7 +651,7 @@ func TestNewDiagnostic(t *testing.T) {
 					StartLine:            (2),
 					HighlightStartOffset: (8),
 					HighlightEndOffset:   (25),
-					Values:               []DiagnosticExpressionValue{
+					Values: []DiagnosticExpressionValue{
 						// The sensitive value is filtered out because this is
 						// not a sensitive-value-related diagnostic message.
 					},
@@ -878,7 +878,7 @@ func TestNewDiagnostic(t *testing.T) {
 					StartLine:            (2),
 					HighlightStartOffset: (8),
 					HighlightEndOffset:   (25),
-					Values:               []DiagnosticExpressionValue{
+					Values: []DiagnosticExpressionValue{
 						// The unknown value is filtered out because this is
 						// not an unknown-value-related diagnostic message.
 					},
@@ -1236,8 +1236,8 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // diagnostics that are explicitly marked as being caused by sensitive values.
 type diagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = diagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e diagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }
