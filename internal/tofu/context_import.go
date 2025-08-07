@@ -37,6 +37,8 @@ type CommandLineImportTarget struct {
 	// be imported into.
 	Addr addrs.AbsResourceInstance
 
+	TargetResource *configs.Resource
+
 	// ID is the string ID of the resource to import. This is resource-specific.
 	ID string
 }

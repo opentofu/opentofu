@@ -259,8 +259,9 @@ func (c *ImportCommand) Run(args []string) int {
 		Targets: []*tofu.ImportTarget{
 			{
 				CommandLineImportTarget: &tofu.CommandLineImportTarget{
-					Addr: addr,
-					ID:   args[1],
+					Addr:           addr,
+					TargetResource: rc,
+					ID:             args[1],
 				},
 			},
 		},
