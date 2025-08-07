@@ -7,6 +7,7 @@ mock_provider "aws" {
 // The same goes for `local` provider. Also, every `local_file`
 // data source will have its `content` set to `test`.
 mock_provider "local" {
+  alias = "mock"
   mock_data "local_file" {
     defaults = {
       content = "test"
@@ -17,13 +18,19 @@ mock_provider "local" {
 // Test if the bucket name is correctly passed to the aws_s3_bucket
 // resource from the local file.
 run "test" {
-  // Use `aws.mock` provider for this test run only.
   providers = {
+    // Use `aws.mock` and `local.mock` providers for this test run only.
     aws = aws.mock
+    local = local.mock
   }
 
   assert {
     condition     = aws_s3_bucket.test.bucket == "test"
     error_message = "Incorrect bucket name: ${aws_s3_bucket.test.bucket}"
+  }
+
+  assert {
+    condition     = output.example_output != ""
+    error_message = "Empty output."
   }
 }

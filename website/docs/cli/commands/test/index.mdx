@@ -469,6 +469,7 @@ A `mock_provider` block allows you to replace provider configuration by a mocked
 creation and retrieval of provider resources and data sources will be skipped. Instead, OpenTofu
 will automatically generate all computed attributes and blocks to be used in tests.
 
+
 :::tip Note
 
 Learn more on how OpenTofu produces [automatically generated values](#automatically-generated-values).
@@ -478,6 +479,9 @@ Learn more on how OpenTofu produces [automatically generated values](#automatica
 Mock providers also support `alias` field as well as `mock_resource` and `mock_data` blocks.
 In some cases, you may want to use default values instead of automatically generated ones by passing them
 inside `defaults` field of `mock_resource` or `mock_data` blocks.
+
+Provider-defined functions are also automatically mocked. If they are being used and the provider
+mocked is using `configuration_aliases` or `alias`, the function should be called using [provider aliases](../../../language/functions/#provider-defined-functions).
 
 Additionally, you can use `override_resource` and `override_data` blocks to override resources or data
 sources in the scope of a single provider. Read more about overriding in [the next section](#the-override_resource-and-override_data-blocks).
