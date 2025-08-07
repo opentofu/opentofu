@@ -112,6 +112,15 @@ func (s *State) WriteState(state *states.State) error {
 	return nil
 }
 
+func (s *State) MutateState(fn func(*states.State) *states.State) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.state = fn(s.state)
+
+	return nil
+}
+
 // WriteStateForMigration is part of our implementation of statemgr.Migrator.
 func (s *State) WriteStateForMigration(f *statefile.File, force bool) error {
 	s.mu.Lock()

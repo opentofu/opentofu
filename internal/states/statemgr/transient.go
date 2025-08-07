@@ -68,4 +68,13 @@ type Writer interface {
 	// modified while a WriteState call is in progress. WriteState itself
 	// will never modify the given state.
 	WriteState(*states.State) error
+
+	// MutateState modifies the current transient snapshot.
+	//
+	// The caller may return an entirely distinct state object, that must not
+	// be modified after this call.  The primary use case is creating a new state
+	// object when the current state is nil.
+	// Any changes to the existing state object must not contain data that will be
+	// modified after the call.
+	MutateState(func(*states.State) *states.State) error
 }

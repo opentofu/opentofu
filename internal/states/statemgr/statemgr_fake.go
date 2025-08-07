@@ -64,6 +64,10 @@ func (m *fakeFull) WriteState(s *states.State) error {
 	return m.t.WriteState(s)
 }
 
+func (m *fakeFull) MutateState(fn func(*states.State) *states.State) error {
+	return m.t.MutateState(fn)
+}
+
 func (m *fakeFull) RefreshState(_ context.Context) error {
 	return m.t.WriteState(m.fakeP.State())
 }
@@ -127,6 +131,10 @@ func (m *fakeErrorFull) GetRootOutputValues(_ context.Context) (map[string]*stat
 }
 
 func (m *fakeErrorFull) WriteState(s *states.State) error {
+	return errors.New("fake state manager error")
+}
+
+func (m *fakeErrorFull) MutateState(func(*states.State) *states.State) error {
 	return errors.New("fake state manager error")
 }
 
