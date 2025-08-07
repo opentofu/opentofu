@@ -176,6 +176,7 @@ func TestMarshalModule(t *testing.T) {
 							Description:    "description",
 							Deprecated:     "deprecation message",
 							Sensitive:      true,
+							Ephemeral:      true,
 							ConstraintType: cty.String,
 							Type:           cty.String, // similar to ConstraintType; unfortunate historical quirk
 							Default:        cty.StringVal("hello"),
@@ -195,6 +196,7 @@ func TestMarshalModule(t *testing.T) {
 						Description: "description",
 						Deprecated:  "deprecation message",
 						Sensitive:   true,
+						Ephemeral:   true,
 					},
 				},
 			},
