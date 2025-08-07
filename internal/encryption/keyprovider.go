@@ -223,7 +223,7 @@ func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg con
 	// gohcl does not handle marks, we need to remove the sensitive and ephemeral marks from any input variables
 	// We assume that the entire configuration in the encryption block should be treated as sensitive
 	for key, sv := range evalCtx.Variables {
-		if marks.Contains(sv, marks.Sensitive) || marks.Contains(sv, marks.Ephemeral) {
+		if marks.ContainsAnyMark(sv, marks.Sensitive, marks.Ephemeral) {
 			evalCtx.Variables[key], _ = sv.UnmarkDeep()
 		}
 	}

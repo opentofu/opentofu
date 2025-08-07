@@ -407,11 +407,24 @@ terraform {
 	}
 }`,
 		diags: []string{`eval.tf:6,2-21: Backend config contains sensitive values; The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply sensitive credentials via backend specific environment variables`},
+	}, {
+		ident: "ephemeral",
+		body: `
+variable "backend_cfg" {
+	ephemeral = true
+    default = "foo"
+}
+terraform {
+	backend "my_backend" {
+		thing = var.backend_cfg
+	}
+}`,
+		diags: []string{`eval.tf:7,2-22: Backend config contains ephemeral values; The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply ephemeral credentials via backend specific environment variables`},
 	}}
 
 	schema := &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
-			"thing": &configschema.Attribute{
+			"thing": {
 				Type: cty.String,
 			},
 		},
@@ -425,7 +438,12 @@ terraform {
 				t.Fatal(fileDiags)
 			}
 
-			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+			modCall := StaticModuleCall{
+				vars: func(v *Variable) (cty.Value, hcl.Diagnostics) {
+					return v.Default, nil
+				},
+			}
+			mod, _ := NewModule([]*File{file}, nil, modCall, "dir", SelectiveLoadAll)
 
 			_, diags := mod.Backend.Hash(t.Context(), schema)
 			if diags.HasErrors() {

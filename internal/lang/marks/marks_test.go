@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Integration test for the marks to see if consolidate warnings is
@@ -119,4 +120,86 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 			t.Errorf("%d: wrong detail msg: %s", i, diff)
 		}
 	}
+}
+
+func TestContainsMarks(t *testing.T) {
+	cases := []struct {
+		v     cty.Value
+		check map[valueMark]bool
+
+		wantOnContainsMarks bool
+	}{
+		{
+			cty.StringVal("test").Mark(Ephemeral).Mark(Sensitive),
+			map[valueMark]bool{Ephemeral: true, Sensitive: true},
+			true,
+		},
+		{
+			cty.StringVal("test").Mark(Ephemeral),
+			map[valueMark]bool{Ephemeral: true, Sensitive: false},
+			true,
+		},
+		{
+			cty.StringVal("test").Mark(Sensitive),
+			map[valueMark]bool{Ephemeral: false, Sensitive: true},
+			true,
+		},
+		{
+			cty.StringVal("test").Mark(valueMark("non-existing-mark")),
+			map[valueMark]bool{Ephemeral: false, Sensitive: false},
+			false,
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"set": cty.SetVal([]cty.Value{cty.NumberIntVal(42).Mark(Ephemeral).Mark(Sensitive)}),
+				}),
+			}),
+			map[valueMark]bool{Ephemeral: true, Sensitive: true},
+			true,
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"set": cty.SetVal([]cty.Value{cty.NumberIntVal(42).Mark(Ephemeral)}),
+				}),
+			}),
+			map[valueMark]bool{Ephemeral: true, Sensitive: false},
+			true,
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"set": cty.SetVal([]cty.Value{cty.NumberIntVal(42).Mark(Sensitive)}),
+				}),
+			}),
+			map[valueMark]bool{Ephemeral: false, Sensitive: true},
+			true,
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.ObjectVal(map[string]cty.Value{
+					"set": cty.SetVal([]cty.Value{cty.NumberIntVal(42).Mark(valueMark("non-existing-mark"))}),
+				}),
+			}),
+			map[valueMark]bool{Ephemeral: false, Sensitive: false},
+			false,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.v.GoString(), func(t *testing.T) {
+			var allMarks []valueMark
+			for mark, want := range tt.check {
+				allMarks = append(allMarks, mark)
+				if got := Contains(tt.v, mark); want != got {
+					t.Errorf("Contains - expected mark %s to return %t but got %t", mark, want, got)
+				}
+			}
+
+			if got := ContainsAnyMark(tt.v, allMarks...); tt.wantOnContainsMarks != got {
+				t.Errorf("ContainsAnyMark - expected checking marks %#v to return %t but got %t", allMarks, tt.wantOnContainsMarks, got)
+			}
+		})
+	}
+
 }
