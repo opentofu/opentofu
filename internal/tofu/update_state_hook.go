@@ -11,7 +11,7 @@ import (
 
 // updateState calls the PostStateUpdate hook with the state modification function and applies the change to the "live" state object
 func updateState(ctx EvalContext, fn func(*states.SyncState)) error {
-	// Modify the state
+	// Since the EvalContext.State() is not in sync with the StateMgr hold one, we want to update both in the same call.
 	fn(ctx.State())
 
 	// Call the hook
