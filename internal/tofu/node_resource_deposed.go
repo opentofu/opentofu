@@ -357,7 +357,6 @@ func (n *graphNodeDeposer) SetPreallocatedDeposedKey(key states.DeposedKey) {
 func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ctx context.Context, evalCtx EvalContext, obj *states.ResourceInstanceObject) error {
 	absAddr := n.Addr
 	key := n.DeposedKey
-	state := evalCtx.State()
 
 	if key == states.NotDeposed {
 		// should never happen
@@ -366,9 +365,11 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 
 	if obj == nil {
 		// No need to encode anything: we'll just write it directly.
-		state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+		err := updateState(evalCtx, func(state *states.SyncState) {
+			state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+		})
 		log.Printf("[TRACE] writeResourceInstanceStateDeposed: removing state object for %s deposed %s", absAddr, key)
-		return nil
+		return err
 	}
 
 	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
@@ -391,8 +392,9 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	}
 
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)
-	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	return nil
+	return updateState(evalCtx, func(state *states.SyncState) {
+		state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	})
 }
 
 // NodeForgetDeposedResourceInstanceObject represents deposed resource

@@ -427,12 +427,14 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 				))
 			}
 		} else {
-			restored := evalCtx.State().MaybeRestoreResourceInstanceDeposed(addr.Absolute(evalCtx.Path()), deposedKey)
-			if restored {
-				log.Printf("[TRACE] managedResourceExecute: %s deposed object %s was restored as the current object", addr, deposedKey)
-			} else {
-				log.Printf("[TRACE] managedResourceExecute: %s deposed object %s remains deposed", addr, deposedKey)
-			}
+			diags = diags.Append(updateState(evalCtx, func(state *states.SyncState) {
+				restored := state.MaybeRestoreResourceInstanceDeposed(addr.Absolute(evalCtx.Path()), deposedKey)
+				if restored {
+					log.Printf("[TRACE] managedResourceExecute: %s deposed object %s was restored as the current object", addr, deposedKey)
+				} else {
+					log.Printf("[TRACE] managedResourceExecute: %s deposed object %s remains deposed", addr, deposedKey)
+				}
+			}))
 		}
 	}
 
