@@ -35,8 +35,7 @@ func stateHookMutator(state *states.SyncState) {
 func TestStateHook(t *testing.T) {
 	is := statemgr.NewTransientInMemory(nil)
 	var hook tofu.Hook = &StateHook{
-		StateMgr:    is,
-		workingCopy: states.NewState().SyncWrapper(),
+		StateMgr: is,
 	}
 
 	action, err := hook.PostStateUpdate(stateHookMutator)
@@ -61,7 +60,6 @@ func TestStateHookStopping(t *testing.T) {
 		intermediatePersist: IntermediateStatePersistInfo{
 			LastPersist: time.Now(),
 		},
-		workingCopy: states.NewState().SyncWrapper(),
 	}
 
 	s := stateHookExpected()
@@ -106,14 +104,14 @@ func TestStateHookStopping(t *testing.T) {
 	gotLog := is.CallLog
 	wantLog := []string{
 		// Initial call before we reset lastPersist
-		"WriteState",
+		"MutateState",
 
 		// Write and then persist after we reset lastPersist
-		"WriteState",
+		"MutateState",
 		"PersistState",
 
 		// Final call when persisting wasn't due yet.
-		"WriteState",
+		"MutateState",
 	}
 	if diff := cmp.Diff(wantLog, gotLog); diff != "" {
 		t.Fatalf("wrong call log so far\n%s", diff)
@@ -154,9 +152,9 @@ func TestStateHookStopping(t *testing.T) {
 		// PostStateUpdate then writes and persists on every call,
 		// on the assumption that we're now bailing out after
 		// being cancelled and trying to save as much state as we can.
-		"WriteState",
+		"MutateState",
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"PersistState",
 	}
 	if diff := cmp.Diff(wantLog, gotLog); diff != "" {
@@ -173,7 +171,6 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 		intermediatePersist: IntermediateStatePersistInfo{
 			LastPersist: time.Now(),
 		},
-		workingCopy: states.NewState().SyncWrapper(),
 	}
 
 	s := stateHookExpected()
@@ -218,17 +215,17 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	gotLog := is.CallLog
 	wantLog := []string{
 		// Initial call before we reset lastPersist
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 
 		// Write and then decline to persist
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 
 		// Final call before we start "stopping".
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 	}
@@ -268,11 +265,11 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
@@ -295,6 +292,12 @@ var _ statemgr.Persister = (*testPersistentState)(nil)
 func (sm *testPersistentState) WriteState(state *states.State) error {
 	sm.CallLog = append(sm.CallLog, "WriteState")
 	sm.Written = state
+	return nil
+}
+
+func (sm *testPersistentState) MutateState(fn func(*states.State) *states.State) error {
+	sm.CallLog = append(sm.CallLog, "MutateState")
+	sm.Written = fn(sm.Written)
 	return nil
 }
 
@@ -321,6 +324,12 @@ var _ IntermediateStateConditionalPersister = (*testPersistentStateThatRefusesTo
 func (sm *testPersistentStateThatRefusesToPersist) WriteState(state *states.State) error {
 	sm.CallLog = append(sm.CallLog, "WriteState")
 	sm.Written = state
+	return nil
+}
+
+func (sm *testPersistentStateThatRefusesToPersist) MutateState(fn func(*states.State) *states.State) error {
+	sm.CallLog = append(sm.CallLog, "MutateState")
+	sm.Written = fn(sm.Written)
 	return nil
 }
 
