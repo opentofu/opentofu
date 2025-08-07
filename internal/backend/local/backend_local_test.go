@@ -270,6 +270,10 @@ func (s *stateStorageThatFailsRefresh) WriteState(*states.State) error {
 	return fmt.Errorf("unimplemented")
 }
 
+func (s *stateStorageThatFailsRefresh) MutateState(fn func(*states.State) *states.State) error {
+	return fmt.Errorf("unimplemented")
+}
+
 func (s *stateStorageThatFailsRefresh) RefreshState(_ context.Context) error {
 	return fmt.Errorf("intentionally failing for testing purposes")
 }
