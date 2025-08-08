@@ -22,8 +22,9 @@ type NodeEvalableProvider struct {
 
 var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
 
-// GraphNodeExecutable
+// // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, err := evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
+	diags = diags.Append(err)
 	return diags.Append(err)
 }

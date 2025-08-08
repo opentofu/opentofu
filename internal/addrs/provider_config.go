@@ -97,6 +97,22 @@ type AbsProviderConfig struct {
 	Alias    string
 }
 
+type absProviderConfigKey struct {
+	Module       string
+	ProviderType string
+	Alias        string
+}
+
+func (k absProviderConfigKey) uniqueKeySigil() {}
+
+func (apc AbsProviderConfig) UniqueKey() UniqueKey {
+	return absProviderConfigKey{
+		Module:       apc.Module.String(),
+		ProviderType: apc.Provider.Type,
+		Alias:        apc.Alias,
+	}
+}
+
 var _ ProviderConfig = AbsProviderConfig{}
 
 // ParseAbsProviderConfig parses the given traversal as an absolute provider
