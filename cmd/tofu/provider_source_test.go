@@ -19,22 +19,19 @@ import (
 
 func TestProviderSource(t *testing.T) {
 	tests := []struct {
-		name               string
-		originalWorkingDir string
-		setupFunc          func(t *testing.T) (string, string) // returns (originalDir, overrideDir)
-		expectedProvider   string
+		name             string
+		setupFunc        func(t *testing.T) (string, string) // returns (originalDir, overrideDir)
+		expectedProvider string
 	}{
 		{
-			name:               "without overrideWd - should use terraform.d/plugins in original working directory",
-			originalWorkingDir: "",
+			name: "without overrideWd - should use terraform.d/plugins in original working directory",
 			setupFunc: func(t *testing.T) (string, string) {
-				// Create terraform.d/plugins in the original working directory
-				currentDir, err := os.Getwd()
-				if err != nil {
-					t.Fatalf("Failed to get current directory: %v", err)
-				}
-				pluginsDir := filepath.Join(currentDir, "terraform.d", "plugins")
-				err = os.MkdirAll(pluginsDir, 0755)
+				// Create a temporary directory to conduct the test in
+				tempDir := t.TempDir()
+
+				// Create terraform.d/plugins in the testing directory
+				pluginsDir := filepath.Join(tempDir, "terraform.d", "plugins")
+				err := os.MkdirAll(pluginsDir, 0755)
 				if err != nil {
 					t.Fatalf("Failed to create plugins directory: %v", err)
 				}
@@ -53,21 +50,19 @@ func TestProviderSource(t *testing.T) {
 					t.Fatalf("Failed to create mock provider binary: %v", err)
 				}
 
-				return currentDir, ""
+				return tempDir, ""
 			},
 			expectedProvider: "hashicorp/test-provider",
 		},
 		{
-			name:               "with overrideWd - should still use terraform.d/plugins in original working directory",
-			originalWorkingDir: "",
+			name: "with overrideWd - should still use terraform.d/plugins in original working directory",
 			setupFunc: func(t *testing.T) (string, string) {
-				// Create terraform.d/plugins in the original working directory
-				originalDir, err := os.Getwd()
-				if err != nil {
-					t.Fatalf("Failed to get current directory: %v", err)
-				}
-				pluginsDir := filepath.Join(originalDir, "terraform.d", "plugins")
-				err = os.MkdirAll(pluginsDir, 0755)
+				// Create a temporary directory to conduct the test in
+				tempDir := t.TempDir()
+
+				// Create terraform.d/plugins in the testing directory
+				pluginsDir := filepath.Join(tempDir, "terraform.d", "plugins")
+				err := os.MkdirAll(pluginsDir, 0755)
 				if err != nil {
 					t.Fatalf("Failed to create plugins directory: %v", err)
 				}
@@ -87,9 +82,13 @@ func TestProviderSource(t *testing.T) {
 				}
 
 				// Create a temporary directory for the override working directory
-				overrideDir := t.TempDir()
+				overrideDir := filepath.Join(tempDir, "override")
+				err = os.MkdirAll(overrideDir, 0755)
+				if err != nil {
+					t.Fatalf("Failed to create override directory: %v", err)
+				}
 
-				return originalDir, overrideDir
+				return tempDir, overrideDir
 			},
 			expectedProvider: "hashicorp/test-provider",
 		},
@@ -100,19 +99,17 @@ func TestProviderSource(t *testing.T) {
 			// Setup test environment
 			originalWorkingDir, overrideWd := tt.setupFunc(t)
 
+			err := os.Chdir(originalWorkingDir)
+			if err != nil {
+				t.Fatalf("Failed to change to original working directory: %v", err)
+			}
+
 			// If we have an override directory, change to it (simulating -chdir behavior)
 			if overrideWd != "" {
 				err := os.Chdir(overrideWd)
 				if err != nil {
 					t.Fatalf("Failed to change to override directory: %v", err)
 				}
-				// Restore the original working directory after the test
-				defer func() {
-					err := os.Chdir(originalWorkingDir)
-					if err != nil {
-						t.Logf("Failed to restore original working directory: %v", err)
-					}
-				}()
 			}
 
 			// Create a mock disco service
@@ -141,9 +138,8 @@ func TestProviderSource(t *testing.T) {
 			provider := addrs.MustParseProviderSourceString(tt.expectedProvider)
 			versions, _, err := source.AvailableVersions(context.Background(), provider)
 			if err != nil {
-				// It's okay if this fails since we're not setting up actual providers
-				// We're mainly testing that the source is created correctly
-				t.Logf("AvailableVersions failed (expected for test): %v", err)
+				// If available provider versions could not be determined, something went wrong with mock provider setup
+				t.Fatalf("AvailableVersions failed (expected for test): %v", err)
 			}
 
 			t.Logf("Source created successfully for test case: %s", tt.name)
