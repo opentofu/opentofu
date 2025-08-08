@@ -199,21 +199,12 @@ func realMain() int {
 
 	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
-	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy)
-	if len(diags) > 0 {
-		Ui.Error("There are some problems with the provider_installation configuration:")
-		for _, diag := range diags {
-			earlyColor := &colorstring.Colorize{
-				Colors:  colorstring.DefaultColors,
-				Disable: true, // Disable color to be conservative until we know better
-				Reset:   true,
-			}
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
-		}
-		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
-			// We continue to run anyway, because most commands don't do provider installation.
-		}
+	// Get the original working directory before any -chdir processing
+	originalWd, err := os.Getwd()
+	if err != nil {
+		// It would be very strange to end up here
+		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
+		return 1
 	}
 	providerDevOverrides := providerDevOverrides(config.ProviderInstallation)
 
@@ -233,13 +224,6 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	originalWd, err := os.Getwd()
-	if err != nil {
-		// It would be very strange to end up here
-		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
-		return 1
-	}
-
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
@@ -253,6 +237,23 @@ func realMain() int {
 		if err != nil {
 			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
 			return 1
+		}
+	}
+
+	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy, originalWd)
+	if len(diags) > 0 {
+		Ui.Error("There are some problems with the provider_installation configuration:")
+		for _, diag := range diags {
+			earlyColor := &colorstring.Colorize{
+				Colors:  colorstring.DefaultColors,
+				Disable: true, // Disable color to be conservative until we know better
+				Reset:   true,
+			}
+			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
+		}
+		if diags.HasErrors() {
+			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
+			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
 
