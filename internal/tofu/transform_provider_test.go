@@ -55,7 +55,7 @@ func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.C
 		&ProviderUnconfiguredTransformer{Config: config},
 
 		// After schema transformer, we can add function references
-		//  &ProviderFunctionTransformer{Config: config},
+		&ProviderFunctionTransformer{Config: config, ProviderFunctionTracker: ProviderFunctionMapping{}},
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
 	)
