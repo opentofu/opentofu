@@ -327,6 +327,9 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
 	referencedProviders := make(map[addrs.UniqueKey]struct{})
 
+	// Loop through the vertices trying to find provider references
+	// If no references are found, we will create a stub provider
+	// so the provider can call functions without Configuring it
 	for _, v := range g.Vertices() {
 		// Check if a provider is referenced
 		var addr addrs.AbsProviderConfig
@@ -353,7 +356,8 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 	}
 
 	for _, p := range providerVerts {
-		// If there are no resources on this provider, we change it to a stub provider
+		// If there are no resources on this provider, we change it
+		// to a stub provider
 		testProvider := p
 		if proxied, ok := p.(*graphNodeProxyProvider); ok {
 			testProvider = proxied.Target()
@@ -428,6 +432,8 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
+						// If this provider doesn't exist, stub it out with an init-only provider node
+						// This works for unconfigured functions only, but that validation is elsewhere
 						provider = createStubProvider(g, providerVerts, absPc)
 					}
 
@@ -809,7 +815,8 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 
 				var v dag.Vertex
 				if t.Concrete != nil {
-					// Unconfigured provider nodes (NodeApplyableProvider) are created here
+					// Configured default provider nodes
+					// (NodeApplyableProvider) are created here
 					v = t.Concrete(abstract)
 				} else {
 					v = abstract

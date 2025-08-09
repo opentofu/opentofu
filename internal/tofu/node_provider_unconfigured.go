@@ -13,10 +13,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// NodeUnconfiguredProvider represents a provider during an "eval" walk.
+// NodeUnconfiguredProvider represents a unconfigured provider node.
 // This special provider node type just initializes a provider and
-// fetches its schema, without configuring it or otherwise interacting
-// with it.
+// fetches its schema and add it to the context.
+// NodeEvalableProvider is similar, but it's used during an "eval" walk.
 type NodeUnconfiguredProvider struct {
 	*NodeAbstractProvider
 }

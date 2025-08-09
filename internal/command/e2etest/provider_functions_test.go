@@ -27,7 +27,7 @@ func TestFunction_Simple(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 	if stderr != "" {
-		t.Fatalf("unexpected stderr output:\n%s", stderr)
+		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
 	_, stderr, err = tf.Run("plan", "-out=fnplan")
@@ -35,12 +35,12 @@ func TestFunction_Simple(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 	if stderr != "" {
-		t.Fatalf("unexpected stderr output:\n%s", stderr)
+		t.Errorf("unexpected stderr output:\n%s", stderr)
 	}
 
 	plan, err := tf.Plan("fnplan")
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Errorf("unexpected error: %s", err)
 	}
 
 	if len(plan.Changes.Outputs) != 1 {
