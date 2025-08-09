@@ -86,11 +86,12 @@ func TestFunction_ProviderDefinedFunctionWithoutConfigure(t *testing.T) {
 	if len(plan.Changes.Outputs) != 1 {
 		t.Fatalf("expected 1 outputs, got %d", len(plan.Changes.Outputs))
 	}
-	// for _, out := range plan.Changes.Outputs {
-	// 	if !strings.Contains(string(out.After), "Hello Functions") {
-	// 		t.Fatalf("unexpected plan output: %s", string(out.After))
-	// 	}
-	// }
+
+	for _, out := range plan.Changes.Outputs {
+		if !strings.Contains(string(out.After), "arn:aws:s3:::bucket-prod") {
+			t.Fatalf("unexpected plan output: %s", string(out.After))
+		}
+	}
 }
 
 func TestFunction_Error(t *testing.T) {

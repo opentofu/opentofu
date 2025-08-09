@@ -293,7 +293,7 @@ type ProviderFunctionTransformer struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
-func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pAddr addrs.AbsProviderConfig) {
+func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pAddr addrs.AbsProviderConfig) *NodeUnconfiguredProvider {
 	stubAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: pAddr.Provider,
@@ -309,6 +309,7 @@ func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pA
 
 	providerVerts[stubAddr.String()] = stubProvider
 	g.Add(stubProvider)
+	return stubProvider
 }
 
 func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) error {
@@ -427,7 +428,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
-						createStubProvider(g, providerVerts, absPc)
+						provider = createStubProvider(g, providerVerts, absPc)
 					}
 
 					var targetExpr hcl.Expression
@@ -440,7 +441,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
-					g.Connect(dag.BasicEdge(key, provider))
+					g.Connect(dag.BasicEdge(v, provider))
 
 					// Save for future lookups
 					providerReferences[key] = provider
