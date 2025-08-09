@@ -422,6 +422,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					} else {
 						// If this provider doesn't exist, stub it out with an init-only provider node
 						// This works for unconfigured functions only, but that validation is elsewhere
+						log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", absPc)
 						stubAddr := addrs.AbsProviderConfig{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
