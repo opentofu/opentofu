@@ -31,6 +31,8 @@ func (n *NodeUnconfiguredProvider) Execute(ctx context.Context, evalCtx EvalCont
 	return diags.Append(n.InitUnconfiguredProvider(ctx, evalCtx, provider))
 }
 
+// InitUnconfiguredProvider fetches its schema, builds it, and adds it
+// to the context.
 func (n *NodeUnconfiguredProvider) InitUnconfiguredProvider(ctx context.Context, evalCtx EvalContext, provider providers.Interface) tfdiags.Diagnostics {
 	providerKey := addrs.NoKey
 	config := n.ProviderConfig()
