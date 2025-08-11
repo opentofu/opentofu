@@ -12,8 +12,13 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/zclconf/go-cty/cty"
 )
+
+func boolPtr(b bool) *bool {
+	return &b
+}
 
 func TestRemovedBlock_decode(t *testing.T) {
 	blockRange := hcl.Range{
@@ -29,22 +34,17 @@ func TestRemovedBlock_decode(t *testing.T) {
 	data_foo_expr := hcltest.MockExprTraversalSrc("data.test_instance.foo")
 
 	tests := map[string]struct {
-		input         *hcl.Block
+		input         *parser.Removed
 		want          *Removed
 		err           string
 		wantWarnDiags hcl.Diagnostics
 	}{
 		"success": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
-						},
-					},
-				}),
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -60,41 +60,24 @@ func TestRemovedBlock_decode(t *testing.T) {
 			}),
 		},
 		"success-with-lifecycle-and-provisioner": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
+				Lifecycle: []*parser.RemovedLifecycle{{
+					Destroy: boolPtr(true),
+				}},
+				Provisioners: []*parser.Provisioner{{
+					Type:      "local-exec",
+					TypeRange: hcl.Range{Filename: "file"},
+					When:      &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
+					Config: hcltest.MockBody(&hcl.BodyContent{
+						Attributes: hcl.Attributes{
+							"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
 						},
-					},
-					Blocks: hcl.Blocks{
-						{
-							Type: "lifecycle",
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"destroy": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.BoolVal(true)}},
-								},
-							}),
-						},
-						{
-							Type:   "provisioner",
-							Labels: []string{"local-exec"},
-							LabelRanges: []hcl.Range{
-								{
-									Filename: "file",
-								},
-							},
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
-									"when":    &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
-								},
-							}),
-						},
-					},
-				}),
+					}),
+				}},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -121,41 +104,24 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"success-with-lifecycle-not-destroy-and-provisioner": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
+				Lifecycle: []*parser.RemovedLifecycle{{
+					Destroy: boolPtr(false),
+				}},
+				Provisioners: []*parser.Provisioner{{
+					Type:      "local-exec",
+					TypeRange: hcl.Range{Filename: "file"},
+					When:      &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
+					Config: hcltest.MockBody(&hcl.BodyContent{
+						Attributes: hcl.Attributes{
+							"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
 						},
-					},
-					Blocks: hcl.Blocks{
-						{
-							Type: "lifecycle",
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"destroy": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.BoolVal(false)}},
-								},
-							}),
-						},
-						{
-							Type:   "provisioner",
-							Labels: []string{"local-exec"},
-							LabelRanges: []hcl.Range{
-								{
-									Filename: "file",
-								},
-							},
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
-									"when":    &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
-								},
-							}),
-						},
-					},
-				}),
+					}),
+				}},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -187,16 +153,11 @@ func TestRemovedBlock_decode(t *testing.T) {
 			}),
 		},
 		"modules": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: mod_foo_expr,
-						},
-					},
-				}),
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: mod_foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -212,33 +173,21 @@ func TestRemovedBlock_decode(t *testing.T) {
 			}),
 		},
 		"error-removed-module-with-provisioner": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: mod_foo_expr,
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: mod_foo_expr,
+				},
+				Provisioners: []*parser.Provisioner{{
+					Type:      "local-exec",
+					TypeRange: hcl.Range{Filename: "file"},
+					When:      &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
+					Config: hcltest.MockBody(&hcl.BodyContent{
+						Attributes: hcl.Attributes{
+							"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
 						},
-					},
-					Blocks: hcl.Blocks{
-						{
-							Type:   "provisioner",
-							Labels: []string{"local-exec"},
-							LabelRanges: []hcl.Range{
-								{
-									Filename: "file",
-								},
-							},
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
-									"when":    &hcl.Attribute{Expr: hcltest.MockExprTraversalSrc("destroy")},
-								},
-							}),
-						},
-					},
-				}),
+					}),
+				}},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -249,33 +198,21 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"error-non-destroy-provisioner": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
+				Provisioners: []*parser.Provisioner{{
+					Type:      "local-exec",
+					TypeRange: hcl.Range{Filename: "file"},
+					// Not configuring "when" attribute is defaulting to when=create so it needs to fail
+					Config: hcltest.MockBody(&hcl.BodyContent{
+						Attributes: hcl.Attributes{
+							"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
 						},
-					},
-					Blocks: hcl.Blocks{
-						{
-							Type:   "provisioner",
-							Labels: []string{"local-exec"},
-							LabelRanges: []hcl.Range{
-								{
-									Filename: "file",
-								},
-							},
-							Body: hcltest.MockBody(&hcl.BodyContent{
-								Attributes: hcl.Attributes{
-									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
-									// Not configuring "when" attribute is defaulting to when=create so it needs to fail
-								},
-							}),
-						},
-					},
-				}),
+					}),
+				}},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -286,11 +223,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"error: missing argument": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{},
-				}),
+			&parser.Removed{
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -300,16 +233,11 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"error: indexed resources": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_index_expr,
-						},
-					},
-				}),
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_index_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -319,16 +247,11 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"error: indexed modules": {
-			&hcl.Block{
-				Type: "removed",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: mod_boop_index_foo_expr,
-						},
-					},
-				}),
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: mod_boop_index_foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Removed{
@@ -338,16 +261,11 @@ func TestRemovedBlock_decode(t *testing.T) {
 			hcl.Diagnostics{},
 		},
 		"error: data address": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: data_foo_expr,
-						},
-					},
-				}),
+			&parser.Removed{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: data_foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Removed{

@@ -11,6 +11,7 @@ import (
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -54,25 +55,22 @@ type Import struct {
 	ProviderDeclRange hcl.Range
 }
 
-func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
+func decodeImportBlock(block *parser.Import) (*Import, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	imp := &Import{
 		DeclRange: block.DefRange,
 	}
 
-	content, moreDiags := block.Body.Content(importBlockSchema)
-	diags = append(diags, moreDiags...)
-
-	if attr, exists := content.Attributes["id"]; exists {
-		imp.ID = attr.Expr
+	if block.ID != nil {
+		imp.ID = block.ID.Expr
 	}
 
-	if attr, exists := content.Attributes["to"]; exists {
-		toExpr := attr.Expr
+	if block.To != nil {
+		toExpr := block.To.Expr
 		// Since we are manually parsing the 'to' argument, we need to specially
 		// handle json configs, in which case the values will be json strings
 		// rather than hcl
-		isJSON := hcljson.IsJSONExpression(attr.Expr)
+		isJSON := hcljson.IsJSONExpression(toExpr)
 
 		if isJSON {
 			convertedExpr, convertDiags := hcl2shim.ConvertJSONExpressionToHCL(toExpr)
@@ -98,46 +96,27 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		imp.ResolvedTo = resolvedImportAddress(imp.To)
 	}
 
-	if attr, exists := content.Attributes["provider"]; exists {
+	if block.Provider != nil {
 		if len(imp.StaticTo.Module) > 0 {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid import provider argument",
 				Detail:   "The provider argument can only be specified in import blocks that will generate configuration.\n\nUse the providers argument within the module block to configure providers for all resources within a module, including imported resources.",
-				Subject:  attr.Range.Ptr(),
+				Subject:  block.Provider.Range.Ptr(),
 			})
 		}
 
 		var providerDiags hcl.Diagnostics
-		imp.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
-		imp.ProviderDeclRange = attr.Range
+		imp.ProviderConfigRef, providerDiags = decodeProviderConfigRef(block.Provider.Expr, "provider")
+		imp.ProviderDeclRange = block.Provider.Range
 		diags = append(diags, providerDiags...)
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists {
-		imp.ForEach = attr.Expr
+	if block.ForEach != nil {
+		imp.ForEach = block.ForEach.Expr
 	}
 
 	return imp, diags
-}
-
-var importBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "provider",
-		},
-		{
-			Name:     "id",
-			Required: true,
-		},
-		{
-			Name:     "to",
-			Required: true,
-		},
-		{
-			Name: "for_each",
-		},
-	},
 }
 
 // absTraversalForImportToExpr returns a static traversal of an import block's "to" field.

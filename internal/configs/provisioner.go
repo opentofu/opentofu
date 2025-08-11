@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
 
 // Provisioner represents a "provisioner" block when used within a
@@ -24,17 +25,18 @@ type Provisioner struct {
 	TypeRange hcl.Range
 }
 
-func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
+func decodeProvisionerBlock(block *parser.Provisioner) (*Provisioner, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
 	pv := &Provisioner{
-		Type:      block.Labels[0],
-		TypeRange: block.LabelRanges[0],
+		Type:      block.Type,
+		TypeRange: block.TypeRange,
 		DeclRange: block.DefRange,
 		When:      ProvisionerWhenCreate,
 		OnFailure: ProvisionerOnFailureFail,
 	}
 
-	content, config, diags := block.Body.PartialContent(provisionerBlockSchema)
-	pv.Config = config
+	pv.Config = block.Config
 
 	switch pv.Type {
 	case "chef", "habitat", "puppet", "salt-masterless":
@@ -47,8 +49,8 @@ func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
 		return nil, diags
 	}
 
-	if attr, exists := content.Attributes["when"]; exists {
-		expr, shimDiags := shimTraversalInString(attr.Expr, true)
+	if block.When != nil {
+		expr, shimDiags := shimTraversalInString(block.When.Expr, true)
 		diags = append(diags, shimDiags...)
 
 		switch hcl.ExprAsKeyword(expr) {
@@ -67,12 +69,13 @@ func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
 	}
 
 	// destroy provisioners can only refer to self
+	// TODO should this check happen after the Escape block???
 	if pv.When == ProvisionerWhenDestroy {
-		diags = append(diags, onlySelfRefs(config)...)
+		diags = append(diags, onlySelfRefs(pv.Config)...)
 	}
 
-	if attr, exists := content.Attributes["on_failure"]; exists {
-		expr, shimDiags := shimTraversalInString(attr.Expr, true)
+	if block.OnFailure != nil {
+		expr, shimDiags := shimTraversalInString(block.OnFailure.Expr, true)
 		diags = append(diags, shimDiags...)
 
 		switch hcl.ExprAsKeyword(expr) {
@@ -85,67 +88,64 @@ func decodeProvisionerBlock(block *hcl.Block) (*Provisioner, hcl.Diagnostics) {
 				Severity: hcl.DiagError,
 				Summary:  "Invalid \"on_failure\" keyword",
 				Detail:   "The \"on_failure\" argument requires one of the following keywords: continue or fail.",
-				Subject:  attr.Expr.Range().Ptr(),
+				Subject:  block.OnFailure.Expr.Range().Ptr(),
 			})
 		}
 	}
 
-	var seenConnection *hcl.Block
-	var seenEscapeBlock *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as provisioner-type-specific rather than as meta-arguments, but each provisioner block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
-
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
-			pv.Config = hcl.MergeBodies([]hcl.Body{pv.Config, block.Body})
-
-		case "connection":
-			if seenConnection != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate connection block",
-					Detail:   fmt.Sprintf("This provisioner already has a connection block at %s.", seenConnection.DefRange),
-					Subject:  &block.DefRange,
-				})
-				continue
-			}
-			seenConnection = block
-
-			// destroy provisioners can only refer to self
-			if pv.When == ProvisionerWhenDestroy {
-				diags = append(diags, onlySelfRefs(block.Body)...)
-			}
-
-			pv.Connection = &Connection{
-				Config:    block.Body,
-				DeclRange: block.DefRange,
-			}
-
-		default:
-			// Any other block types are ones we've reserved for future use,
-			// so they get a generic message.
+	var seenConnection *parser.Block
+	for _, block := range block.Connection {
+		if seenConnection != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Reserved block type name in provisioner block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
-				Subject:  &block.TypeRange,
+				Summary:  "Duplicate connection block",
+				Detail:   fmt.Sprintf("This provisioner already has a connection block at %s.", seenConnection.DefRange),
+				Subject:  &block.DefRange,
 			})
+			continue
 		}
+		seenConnection = block
+
+		// destroy provisioners can only refer to self
+		if pv.When == ProvisionerWhenDestroy {
+			diags = append(diags, onlySelfRefs(block.Body)...)
+		}
+
+		pv.Connection = &Connection{
+			Config:    block.Body,
+			DeclRange: block.DefRange,
+		}
+	}
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as provisioner-type-specific rather than as meta-arguments, but each provisioner block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
+
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		pv.Config = hcl.MergeBodies([]hcl.Body{pv.Config, block.Body})
+	}
+	for _, block := range block.Lifecycle {
+		// Any other block types are ones we've reserved for future use,
+		// so they get a generic message.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reserved block type name in provisioner block",
+			Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", "lifecycle"),
+			Subject:  &block.TypeRange,
+		})
 	}
 
 	return pv, diags
@@ -227,16 +227,3 @@ const (
 	ProvisionerOnFailureContinue
 	ProvisionerOnFailureFail
 )
-
-var provisionerBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{Name: "when"},
-		{Name: "on_failure"},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "_"}, // meta-argument escaping block
-
-		{Type: "connection"},
-		{Type: "lifecycle"}, // reserved for future use
-	},
-}

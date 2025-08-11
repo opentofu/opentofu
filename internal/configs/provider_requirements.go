@@ -11,6 +11,7 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -32,7 +33,7 @@ type RequiredProviders struct {
 	DeclRange         hcl.Range
 }
 
-func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Diagnostics) {
+func decodeRequiredProvidersBlock(block *parser.RequiredProviders) (*RequiredProviders, hcl.Diagnostics) {
 	ret := &RequiredProviders{
 		RequiredProviders: make(map[string]*RequiredProvider),
 		DeclRange:         block.DefRange,

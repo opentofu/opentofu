@@ -7,6 +7,8 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -69,160 +71,149 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 	file.ActiveExperiments, expDiags = sniffActiveExperiments(body, p.allowExperiments)
 	diags = append(diags, expDiags...)
 
-	content, contentDiags := body.Content(configFileSchema)
-	diags = append(diags, contentDiags...)
+	var parsed parser.File
+	decodeDiags := gohcl.DecodeBody(body, nil, &parsed)
+	diags = append(diags, decodeDiags...)
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-
-		case "terraform":
-			content, contentDiags := block.Body.Content(terraformBlockSchema)
-			diags = append(diags, contentDiags...)
-
-			// We ignore the "terraform_version", "language" and "experiments"
-			// attributes here because sniffCoreVersionRequirements and
-			// sniffActiveExperiments already dealt with those above.
-
-			for _, innerBlock := range content.Blocks {
-				switch innerBlock.Type {
-
-				case "backend":
-					backendCfg, cfgDiags := decodeBackendBlock(innerBlock)
-					diags = append(diags, cfgDiags...)
-					if backendCfg != nil {
-						file.Backends = append(file.Backends, backendCfg)
-					}
-
-				case "cloud":
-					cloudCfg, cfgDiags := decodeCloudBlock(innerBlock)
-					diags = append(diags, cfgDiags...)
-					if cloudCfg != nil {
-						file.CloudConfigs = append(file.CloudConfigs, cloudCfg)
-					}
-
-				case "required_providers":
-					reqs, reqsDiags := decodeRequiredProvidersBlock(innerBlock)
-					diags = append(diags, reqsDiags...)
-					file.RequiredProviders = append(file.RequiredProviders, reqs)
-
-				case "provider_meta":
-					providerCfg, cfgDiags := decodeProviderMetaBlock(innerBlock)
-					diags = append(diags, cfgDiags...)
-					if providerCfg != nil {
-						file.ProviderMetas = append(file.ProviderMetas, providerCfg)
-					}
-
-				case "encryption":
-					encryptionCfg, cfgDiags := config.DecodeConfig(innerBlock.Body, innerBlock.DefRange)
-					diags = append(diags, cfgDiags...)
-					if encryptionCfg != nil {
-						file.Encryptions = append(file.Encryptions, encryptionCfg)
-					}
-
-				default:
-					// Should never happen because the above cases should be exhaustive
-					// for all block type names in our schema.
-					continue
-
-				}
-			}
-
-		case "required_providers":
-			// required_providers should be nested inside a "terraform" block
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid required_providers block",
-				Detail:   "A \"required_providers\" block must be nested inside a \"terraform\" block.",
-				Subject:  block.TypeRange.Ptr(),
-			})
-
-		case "provider":
-			cfg, cfgDiags := decodeProviderBlock(block)
+	for _, product := range parsed.Product {
+		if product.Backend != nil {
+			backendCfg, cfgDiags := decodeBackendBlock(product.Backend)
 			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.ProviderConfigs = append(file.ProviderConfigs, cfg)
+			if backendCfg != nil {
+				file.Backends = append(file.Backends, backendCfg)
 			}
+		}
 
-		case "variable":
-			cfg, cfgDiags := decodeVariableBlock(block, override)
+		if product.Cloud != nil {
+			cloudCfg, cfgDiags := decodeCloudBlock(product.Cloud)
 			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Variables = append(file.Variables, cfg)
+			if cloudCfg != nil {
+				file.CloudConfigs = append(file.CloudConfigs, cloudCfg)
 			}
+		}
 
-		case "locals":
-			defs, defsDiags := decodeLocalsBlock(block)
-			diags = append(diags, defsDiags...)
-			file.Locals = append(file.Locals, defs...)
+		if product.RequiredProviders != nil {
+			reqs, reqsDiags := decodeRequiredProvidersBlock(product.RequiredProviders)
+			diags = append(diags, reqsDiags...)
+			file.RequiredProviders = append(file.RequiredProviders, reqs)
+		}
 
-		case "output":
-			cfg, cfgDiags := decodeOutputBlock(block, override)
+		for _, providerMeta := range product.ProviderMeta {
+			providerCfg, cfgDiags := decodeProviderMetaBlock(providerMeta)
 			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Outputs = append(file.Outputs, cfg)
+			if providerCfg != nil {
+				file.ProviderMetas = append(file.ProviderMetas, providerCfg)
 			}
+		}
 
-		case "module":
-			cfg, cfgDiags := decodeModuleBlock(block, override)
+		if product.Encryption != nil {
+			encryptionCfg, cfgDiags := config.DecodeConfig(product.Encryption.Body, product.Encryption.DefRange)
 			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.ModuleCalls = append(file.ModuleCalls, cfg)
+			if encryptionCfg != nil {
+				file.Encryptions = append(file.Encryptions, encryptionCfg)
 			}
+		}
+	}
 
-		case "resource":
-			cfg, cfgDiags := decodeResourceBlock(block, override)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.ManagedResources = append(file.ManagedResources, cfg)
-			}
+	for _, block := range parsed.RequiredProviders {
+		// required_providers should be nested inside a "terraform" block
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid required_providers block",
+			Detail:   "A \"required_providers\" block must be nested inside a \"terraform\" block.",
+			Subject:  block.TypeRange.Ptr(),
+		})
+	}
 
-		case "data":
-			cfg, cfgDiags := decodeDataBlock(block, override, false)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.DataResources = append(file.DataResources, cfg)
-			}
+	for _, provider := range parsed.ProviderConfigs {
+		cfg, cfgDiags := decodeProviderBlock(provider)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.ProviderConfigs = append(file.ProviderConfigs, cfg)
+		}
+	}
 
-		case "ephemeral":
-			cfg, cfgDiags := decodeEphemeralBlock(block, override)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.EphemeralResources = append(file.EphemeralResources, cfg)
-			}
+	for _, variable := range parsed.Variables {
+		cfg, cfgDiags := decodeVariableBlock(variable, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Variables = append(file.Variables, cfg)
+		}
+	}
 
-		case "moved":
-			cfg, cfgDiags := decodeMovedBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Moved = append(file.Moved, cfg)
-			}
+	for _, local := range parsed.Locals {
+		defs, defsDiags := decodeLocalsBlock(local)
+		diags = append(diags, defsDiags...)
+		file.Locals = append(file.Locals, defs...)
+	}
 
-		case "import":
-			cfg, cfgDiags := decodeImportBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Import = append(file.Import, cfg)
-			}
+	for _, output := range parsed.Outputs {
+		cfg, cfgDiags := decodeOutputBlock(output, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Outputs = append(file.Outputs, cfg)
+		}
+	}
 
-		case "check":
-			cfg, cfgDiags := decodeCheckBlock(block, override)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Checks = append(file.Checks, cfg)
-			}
+	for _, moduleCall := range parsed.ModuleCalls {
+		cfg, cfgDiags := decodeModuleBlock(moduleCall, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.ModuleCalls = append(file.ModuleCalls, cfg)
+		}
+	}
 
-		case "removed":
-			cfg, cfgDiags := decodeRemovedBlock(block)
-			diags = append(diags, cfgDiags...)
-			if cfg != nil {
-				file.Removed = append(file.Removed, cfg)
-			}
+	for _, resource := range parsed.ManagedResources {
+		cfg, cfgDiags := decodeResourceBlock(resource, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.ManagedResources = append(file.ManagedResources, cfg)
+		}
+	}
+	for _, datasource := range parsed.DataResources {
+		cfg, cfgDiags := decodeDataBlock(datasource, override, false)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.DataResources = append(file.DataResources, cfg)
+		}
+	}
+	for _, ephemeral := range parsed.EphemeralResources {
+		cfg, cfgDiags := decodeEphemeralBlock(ephemeral, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.EphemeralResources = append(file.EphemeralResources, cfg)
+		}
+	}
 
-		default:
-			// Should never happen because the above cases should be exhaustive
-			// for all block type names in our schema.
-			continue
+	for _, moved := range parsed.Moved {
+		cfg, cfgDiags := decodeMovedBlock(moved)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Moved = append(file.Moved, cfg)
+		}
+	}
 
+	for _, imp := range parsed.Import {
+		cfg, cfgDiags := decodeImportBlock(imp)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Import = append(file.Import, cfg)
+		}
+	}
+
+	for _, check := range parsed.Checks {
+		cfg, cfgDiags := decodeCheckBlock(check, override)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Checks = append(file.Checks, cfg)
+		}
+	}
+
+	for _, removed := range parsed.Removed {
+		cfg, cfgDiags := decodeRemovedBlock(removed)
+		diags = append(diags, cfgDiags...)
+		if cfg != nil {
+			file.Removed = append(file.Removed, cfg)
 		}
 	}
 
@@ -262,96 +253,6 @@ func sniffCoreVersionRequirements(body hcl.Body) ([]VersionConstraint, hcl.Diagn
 	}
 
 	return constraints, diags
-}
-
-// configFileSchema is the schema for the top-level of a config file. We use
-// the low-level HCL API for this level so we can easily deal with each
-// block type separately with its own decoding logic.
-var configFileSchema = &hcl.BodySchema{
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type: "terraform",
-		},
-		{
-			// This one is not really valid, but we include it here so we
-			// can create a specialized error message hinting the user to
-			// nest it inside a "terraform" block.
-			Type: "required_providers",
-		},
-		{
-			Type:       "provider",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "variable",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type: "locals",
-		},
-		{
-			Type:       "output",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "module",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type:       "resource",
-			LabelNames: []string{"type", "name"},
-		},
-		{
-			Type:       "data",
-			LabelNames: []string{"type", "name"},
-		},
-		{
-			Type:       "ephemeral",
-			LabelNames: []string{"type", "name"},
-		},
-		{
-			Type: "moved",
-		},
-		{
-			Type: "import",
-		},
-		{
-			Type:       "check",
-			LabelNames: []string{"name"},
-		},
-		{
-			Type: "removed",
-		},
-	},
-}
-
-// terraformBlockSchema is the schema for a top-level "terraform" block in
-// a configuration file.
-var terraformBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{Name: "required_version"},
-		{Name: "experiments"},
-		{Name: "language"},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type:       "backend",
-			LabelNames: []string{"type"},
-		},
-		{
-			Type: "cloud",
-		},
-		{
-			Type: "required_providers",
-		},
-		{
-			Type:       "provider_meta",
-			LabelNames: []string{"provider"},
-		},
-		{
-			Type: "encryption",
-		},
-	},
 }
 
 // configFileTerraformBlockSniffRootSchema is a schema for

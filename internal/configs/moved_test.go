@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
 
 func TestMovedBlock_decode(t *testing.T) {
@@ -33,25 +34,20 @@ func TestMovedBlock_decode(t *testing.T) {
 	ephemeral_ref_expr := hcltest.MockExprTraversalSrc("ephemeral.test.test")
 
 	tests := map[string]struct {
-		input *hcl.Block
+		input *parser.Moved
 		want  *Moved
 		err   string
 	}{
 		"success": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
-						},
-						"to": {
-							Name: "to",
-							Expr: bar_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: bar_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{
@@ -62,20 +58,15 @@ func TestMovedBlock_decode(t *testing.T) {
 			``,
 		},
 		"indexed resources": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_index_expr,
-						},
-						"to": {
-							Name: "to",
-							Expr: bar_index_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_index_expr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: bar_index_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{
@@ -86,20 +77,15 @@ func TestMovedBlock_decode(t *testing.T) {
 			``,
 		},
 		"modules": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: mod_foo_expr,
-						},
-						"to": {
-							Name: "to",
-							Expr: mod_bar_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: mod_foo_expr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: mod_bar_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{
@@ -110,16 +96,11 @@ func TestMovedBlock_decode(t *testing.T) {
 			``,
 		},
 		"error: missing argument": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"from": {
-							Name: "from",
-							Expr: foo_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{
@@ -129,20 +110,15 @@ func TestMovedBlock_decode(t *testing.T) {
 			"Missing required argument",
 		},
 		"error: type mismatch": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"to": {
-							Name: "to",
-							Expr: foo_expr,
-						},
-						"from": {
-							Name: "from",
-							Expr: mod_foo_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: foo_expr,
+				},
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: mod_foo_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{
@@ -153,20 +129,15 @@ func TestMovedBlock_decode(t *testing.T) {
 			"Invalid \"moved\" addresses",
 		},
 		"error: ephemeral not allowed": {
-			&hcl.Block{
-				Type: "moved",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"to": {
-							Name: "to",
-							Expr: ephemeral_ref_expr,
-						},
-						"from": {
-							Name: "from",
-							Expr: ephemeral_ref_expr,
-						},
-					},
-				}),
+			&parser.Moved{
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: ephemeral_ref_expr,
+				},
+				From: &hcl.Attribute{
+					Name: "from",
+					Expr: ephemeral_ref_expr,
+				},
 				DefRange: blockRange,
 			},
 			&Moved{

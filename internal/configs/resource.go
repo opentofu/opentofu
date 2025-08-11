@@ -9,13 +9,13 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -117,27 +117,25 @@ func (r *Resource) HasCustomConditions() bool {
 	return len(r.Postconditions) != 0 || len(r.Preconditions) != 0
 }
 
-func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagnostics) {
+func decodeResourceBlock(block *parser.Resource, override bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
 		Mode:      addrs.ManagedResourceMode,
-		Type:      block.Labels[0],
-		Name:      block.Labels[1],
+		Type:      block.Type,
+		Name:      block.Name,
 		DeclRange: block.DefRange,
-		TypeRange: block.LabelRanges[0],
+		TypeRange: block.TypeRange,
 		Managed:   &ManagedResource{},
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
-	diags = append(diags, moreDiags...)
-	r.Config = remain
+	r.Config = block.Config
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid resource type name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.TypeRange,
 		})
 	}
 	if !hclsyntax.ValidIdentifier(r.Name) {
@@ -145,216 +143,209 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			Severity: hcl.DiagError,
 			Summary:  "Invalid resource name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[1],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["count"]; exists {
-		r.Count = attr.Expr
+	if block.Count != nil {
+		r.Count = block.Count.Expr
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists {
-		r.ForEach = attr.Expr
+	if block.ForEach != nil {
+		r.ForEach = block.ForEach.Expr
 		// Cannot have count and for_each on the same resource block
 		if r.Count != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
 				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
+				Subject:  &block.ForEach.NameRange,
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["provider"]; exists {
+	if block.Provider != nil {
 		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(block.Provider.Expr, "provider")
 		diags = append(diags, providerDiags...)
 	}
 
-	if attr, exists := content.Attributes["depends_on"]; exists {
-		deps, depsDiags := decodeDependsOn(attr)
+	if block.DependsOn != nil {
+		deps, depsDiags := decodeDependsOn(block.DependsOn)
 		diags = append(diags, depsDiags...)
 		r.DependsOn = append(r.DependsOn, deps...)
 	}
 
-	var seenLifecycle *hcl.Block
-	var seenConnection *hcl.Block
-	var seenEscapeBlock *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "lifecycle":
-			if seenLifecycle != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate lifecycle block",
-					Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
-					Subject:  &block.DefRange,
-				})
-				continue
-			}
-			seenLifecycle = block
-
-			lcContent, lcDiags := block.Body.Content(resourceLifecycleBlockSchema)
-			diags = append(diags, lcDiags...)
-
-			if attr, exists := lcContent.Attributes["create_before_destroy"]; exists {
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.CreateBeforeDestroy)
-				diags = append(diags, valDiags...)
-				r.Managed.CreateBeforeDestroySet = true
-			}
-
-			if attr, exists := lcContent.Attributes["prevent_destroy"]; exists {
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
-				diags = append(diags, valDiags...)
-				r.Managed.PreventDestroySet = true
-			}
-
-			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
-				exprs, hclDiags := decodeReplaceTriggeredBy(attr.Expr)
-				diags = diags.Extend(hclDiags)
-
-				r.TriggersReplacement = append(r.TriggersReplacement, exprs...)
-			}
-
-			if attr, exists := lcContent.Attributes["ignore_changes"]; exists {
-
-				// ignore_changes can either be a list of relative traversals
-				// or it can be just the keyword "all" to ignore changes to this
-				// resource entirely.
-				//   ignore_changes = [ami, instance_type]
-				//   ignore_changes = all
-				// We also allow two legacy forms for compatibility with earlier
-				// versions:
-				//   ignore_changes = ["ami", "instance_type"]
-				//   ignore_changes = ["*"]
-
-				kw := hcl.ExprAsKeyword(attr.Expr)
-
-				switch kw {
-				case "all":
-					r.Managed.IgnoreAllChanges = true
-				default:
-					exprs, listDiags := hcl.ExprList(attr.Expr)
-					diags = append(diags, listDiags...)
-
-					var ignoreAllRange hcl.Range
-
-					for _, expr := range exprs {
-
-						// our expr might be the literal string "*", which
-						// we accept as a deprecated way of saying "all".
-						if shimIsIgnoreChangesStar(expr) {
-							r.Managed.IgnoreAllChanges = true
-							ignoreAllRange = expr.Range()
-							diags = append(diags, &hcl.Diagnostic{
-								Severity: hcl.DiagError,
-								Summary:  "Invalid ignore_changes wildcard",
-								Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
-								Subject:  attr.Expr.Range().Ptr(),
-							})
-							continue
-						}
-
-						expr, shimDiags := shimTraversalInString(expr, false)
-						diags = append(diags, shimDiags...)
-
-						traversal, travDiags := hcl.RelTraversalForExpr(expr)
-						diags = append(diags, travDiags...)
-						if len(traversal) != 0 {
-							r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
-						}
-					}
-
-					if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
-						diags = append(diags, &hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Invalid ignore_changes ruleset",
-							Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
-							Subject:  &ignoreAllRange,
-							Context:  attr.Expr.Range().Ptr(),
-						})
-					}
-
-				}
-			}
-
-			for _, block := range lcContent.Blocks {
-				switch block.Type {
-				case "precondition", "postcondition":
-					cr, moreDiags := decodeCheckRuleBlock(block, override)
-					diags = append(diags, moreDiags...)
-
-					moreDiags = cr.validateSelfReferences(block.Type, r.Addr())
-					diags = append(diags, moreDiags...)
-
-					switch block.Type {
-					case "precondition":
-						r.Preconditions = append(r.Preconditions, cr)
-					case "postcondition":
-						r.Postconditions = append(r.Postconditions, cr)
-					}
-				default:
-					// The cases above should be exhaustive for all block types
-					// defined in the lifecycle schema, so this shouldn't happen.
-					panic(fmt.Sprintf("unexpected lifecycle sub-block type %q", block.Type))
-				}
-			}
-
-		case "connection":
-			if seenConnection != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate connection block",
-					Detail:   fmt.Sprintf("This resource already has a connection block at %s.", seenConnection.DefRange),
-					Subject:  &block.DefRange,
-				})
-				continue
-			}
-			seenConnection = block
-
-			r.Managed.Connection = &Connection{
-				Config:    block.Body,
-				DeclRange: block.DefRange,
-			}
-
-		case "provisioner":
-			pv, pvDiags := decodeProvisionerBlock(block)
-			diags = append(diags, pvDiags...)
-			if pv != nil {
-				r.Managed.Provisioners = append(r.Managed.Provisioners, pv)
-			}
-
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each resource block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
-
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
-			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
-
-		default:
-			// Any other block types are ones we've reserved for future use,
-			// so they get a generic message.
+	var seenLifecycle *parser.ResourceLifecycle
+	for _, block := range block.Lifecycle {
+		if seenLifecycle != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Reserved block type name in resource block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
-				Subject:  &block.TypeRange,
+				Summary:  "Duplicate lifecycle block",
+				Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+				Subject:  &block.DefRange,
 			})
+			continue
 		}
+		seenLifecycle = block
+
+		if block.CreateBeforeDestroy != nil {
+			r.Managed.CreateBeforeDestroy = *block.CreateBeforeDestroy
+			r.Managed.CreateBeforeDestroySet = true
+		}
+
+		if block.PreventDestroy != nil {
+			r.Managed.PreventDestroy = *block.PreventDestroy
+			r.Managed.PreventDestroySet = true
+		}
+
+		if block.TriggersReplacement != nil {
+			exprs, hclDiags := decodeReplaceTriggeredBy(block.TriggersReplacement.Expr)
+			diags = diags.Extend(hclDiags)
+
+			r.TriggersReplacement = append(r.TriggersReplacement, exprs...)
+		}
+
+		if block.IgnoreChanges != nil {
+			attr := block.IgnoreChanges
+
+			// ignore_changes can either be a list of relative traversals
+			// or it can be just the keyword "all" to ignore changes to this
+			// resource entirely.
+			//   ignore_changes = [ami, instance_type]
+			//   ignore_changes = all
+			// We also allow two legacy forms for compatibility with earlier
+			// versions:
+			//   ignore_changes = ["ami", "instance_type"]
+			//   ignore_changes = ["*"]
+
+			kw := hcl.ExprAsKeyword(attr.Expr)
+
+			switch kw {
+			case "all":
+				r.Managed.IgnoreAllChanges = true
+			default:
+				exprs, listDiags := hcl.ExprList(attr.Expr)
+				diags = append(diags, listDiags...)
+
+				var ignoreAllRange hcl.Range
+
+				for _, expr := range exprs {
+
+					// our expr might be the literal string "*", which
+					// we accept as a deprecated way of saying "all".
+					if shimIsIgnoreChangesStar(expr) {
+						r.Managed.IgnoreAllChanges = true
+						ignoreAllRange = expr.Range()
+						diags = append(diags, &hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Invalid ignore_changes wildcard",
+							Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
+							Subject:  attr.Expr.Range().Ptr(),
+						})
+						continue
+					}
+
+					expr, shimDiags := shimTraversalInString(expr, false)
+					diags = append(diags, shimDiags...)
+
+					traversal, travDiags := hcl.RelTraversalForExpr(expr)
+					diags = append(diags, travDiags...)
+					if len(traversal) != 0 {
+						r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
+					}
+				}
+
+				if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid ignore_changes ruleset",
+						Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
+						Subject:  &ignoreAllRange,
+						Context:  attr.Expr.Range().Ptr(),
+					})
+				}
+
+			}
+		}
+
+		for _, block := range block.Preconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "precondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("precondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Preconditions = append(r.Preconditions, cr)
+		}
+
+		for _, block := range block.Postconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "postcondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("postcondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Postconditions = append(r.Postconditions, cr)
+		}
+	}
+	var seenConnection *parser.Block
+	for _, block := range block.Connection {
+		if seenConnection != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate connection block",
+				Detail:   fmt.Sprintf("This resource already has a connection block at %s.", seenConnection.DefRange),
+				Subject:  &block.DefRange,
+			})
+			continue
+		}
+		seenConnection = block
+
+		r.Managed.Connection = &Connection{
+			Config:    block.Body,
+			DeclRange: block.DefRange,
+		}
+	}
+	for _, block := range block.Provisioners {
+		pv, pvDiags := decodeProvisionerBlock(block)
+		diags = append(diags, pvDiags...)
+		if pv != nil {
+			r.Managed.Provisioners = append(r.Managed.Provisioners, pv)
+		}
+	}
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each resource block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
+
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		if block.Body != nil {
+			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
+		}
+	}
+	for _, block := range block.Locals {
+		// Any other block types are ones we've reserved for future use,
+		// so they get a generic message.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reserved block type name in resource block",
+			Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", "locals"),
+			Subject:  &block.TypeRange,
+		})
 	}
 
 	// Now we can validate the connection block references if there are any destroy provisioners.
@@ -371,26 +362,24 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	return r, diags
 }
 
-func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Diagnostics) {
+func decodeDataBlock(block *parser.Resource, override, nested bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
 		Mode:      addrs.DataResourceMode,
-		Type:      block.Labels[0],
-		Name:      block.Labels[1],
+		Type:      block.Type,
+		Name:      block.Name,
 		DeclRange: block.DefRange,
-		TypeRange: block.LabelRanges[0],
+		TypeRange: block.TypeRange,
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(dataBlockSchema)
-	diags = append(diags, moreDiags...)
-	r.Config = remain
+	r.Config = block.Config
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid data source name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.TypeRange,
 		})
 	}
 	if !hclsyntax.ValidIdentifier(r.Name) {
@@ -398,31 +387,31 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			Severity: hcl.DiagError,
 			Summary:  "Invalid data resource name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[1],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["count"]; exists && !nested {
-		r.Count = attr.Expr
+	if exists := block.Count != nil; exists && !nested {
+		r.Count = block.Count.Expr
 	} else if exists && nested {
 		// We don't allow count attributes in nested data blocks.
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid "count" attribute`,
 			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
-			Subject:  &attr.NameRange,
+			Subject:  &block.Count.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists && !nested {
-		r.ForEach = attr.Expr
+	if exists := block.ForEach != nil; exists && !nested {
+		r.ForEach = block.ForEach.Expr
 		// Cannot have count and for_each on the same data block
 		if r.Count != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
 				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
+				Subject:  &block.ForEach.NameRange,
 			})
 		}
 	} else if exists && nested {
@@ -431,142 +420,134 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			Severity: hcl.DiagError,
 			Summary:  `Invalid "for_each" attribute`,
 			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
-			Subject:  &attr.NameRange,
+			Subject:  &block.ForEach.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["provider"]; exists {
+	if block.Provider != nil {
 		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(block.Provider.Expr, "provider")
 		diags = append(diags, providerDiags...)
 	}
 
-	if attr, exists := content.Attributes["depends_on"]; exists {
-		deps, depsDiags := decodeDependsOn(attr)
+	if block.DependsOn != nil {
+		deps, depsDiags := decodeDependsOn(block.DependsOn)
 		diags = append(diags, depsDiags...)
 		r.DependsOn = append(r.DependsOn, deps...)
 	}
 
-	var seenEscapeBlock *hcl.Block
-	var seenLifecycle *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each data block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
-
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
-			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
-
-		case "lifecycle":
-			if nested {
-				// We don't allow lifecycle arguments in nested data blocks,
-				// the lifecycle is managed by the parent block.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid lifecycle block",
-					Detail:   `Nested data blocks do not support "lifecycle" blocks as the lifecycle is managed by the containing block.`,
-					Subject:  block.DefRange.Ptr(),
-				})
-			}
-
-			if seenLifecycle != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate lifecycle block",
-					Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
-					Subject:  block.DefRange.Ptr(),
-				})
-				continue
-			}
-			seenLifecycle = block
-
-			lcContent, lcDiags := block.Body.Content(resourceLifecycleBlockSchema)
-			diags = append(diags, lcDiags...)
-
-			// All of the attributes defined for resource lifecycle are for
-			// managed resources only, so we can emit a common error message
-			// for any given attributes that HCL accepted.
-			for name, attr := range lcContent.Attributes {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid data resource lifecycle argument",
-					Detail:   fmt.Sprintf("The lifecycle argument %q is defined only for managed resources (\"resource\" blocks), and is not valid for data resources.", name),
-					Subject:  attr.NameRange.Ptr(),
-				})
-			}
-
-			for _, block := range lcContent.Blocks {
-				switch block.Type {
-				case "precondition", "postcondition":
-					cr, moreDiags := decodeCheckRuleBlock(block, override)
-					diags = append(diags, moreDiags...)
-
-					moreDiags = cr.validateSelfReferences(block.Type, r.Addr())
-					diags = append(diags, moreDiags...)
-
-					switch block.Type {
-					case "precondition":
-						r.Preconditions = append(r.Preconditions, cr)
-					case "postcondition":
-						r.Postconditions = append(r.Postconditions, cr)
-					}
-				default:
-					// The cases above should be exhaustive for all block types
-					// defined in the lifecycle schema, so this shouldn't happen.
-					panic(fmt.Sprintf("unexpected lifecycle sub-block type %q", block.Type))
-				}
-			}
-
-		default:
-			// Any other block types are ones we're reserving for future use,
-			// but don't have any defined meaning today.
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Reserved block type name in data block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
-				Subject:  block.TypeRange.Ptr(),
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each data block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
+
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		if block.Body != nil {
+			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
+		}
+	}
+	var seenLifecycle *parser.ResourceLifecycle
+	for _, block := range block.Lifecycle {
+		if nested {
+			// We don't allow lifecycle arguments in nested data blocks,
+			// the lifecycle is managed by the parent block.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid lifecycle block",
+				Detail:   `Nested data blocks do not support "lifecycle" blocks as the lifecycle is managed by the containing block.`,
+				Subject:  block.DefRange.Ptr(),
 			})
 		}
+
+		if seenLifecycle != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate lifecycle block",
+				Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+				Subject:  block.DefRange.Ptr(),
+			})
+			continue
+		}
+		seenLifecycle = block
+
+		/* TODO TODO TODO
+		// All of the attributes defined for resource lifecycle are for
+		// managed resources only, so we can emit a common error message
+		// for any given attributes that HCL accepted.
+		for name, attr := range lcContent.Attributes {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid data resource lifecycle argument",
+				Detail:   fmt.Sprintf("The lifecycle argument %q is defined only for managed resources (\"resource\" blocks), and is not valid for data resources.", name),
+				Subject:  attr.NameRange.Ptr(),
+			})
+		}*/
+
+		for _, block := range block.Preconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "precondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("precondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Preconditions = append(r.Preconditions, cr)
+		}
+
+		for _, block := range block.Postconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "postcondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("postcondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Postconditions = append(r.Postconditions, cr)
+		}
+	}
+	for _, block := range block.Locals {
+		// Any other block types are ones we've reserved for future use,
+		// so they get a generic message.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reserved block type name in resource block",
+			Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", "locals"),
+			Subject:  &block.TypeRange,
+		})
 	}
 
 	return r, diags
 }
 
-func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagnostics) {
+func decodeEphemeralBlock(block *parser.Resource, override bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
 		Mode:      addrs.EphemeralResourceMode,
-		Type:      block.Labels[0],
-		Name:      block.Labels[1],
+		Type:      block.Type,
+		Name:      block.Name,
 		DeclRange: block.DefRange,
-		TypeRange: block.LabelRanges[0],
+		TypeRange: block.TypeRange,
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
-	diags = append(diags, moreDiags...)
-	r.Config = remain
+	r.Config = block.Config
 
 	if !hclsyntax.ValidIdentifier(r.Type) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid ephemeral resource type name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.TypeRange,
 		})
 	}
 	if !hclsyntax.ValidIdentifier(r.Name) {
@@ -574,35 +555,35 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			Severity: hcl.DiagError,
 			Summary:  "Invalid ephemeral resource name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[1],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["count"]; exists {
-		r.Count = attr.Expr
+	if block.Count != nil {
+		r.Count = block.Count.Expr
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists {
-		r.ForEach = attr.Expr
+	if block.ForEach != nil {
+		r.ForEach = block.ForEach.Expr
 		// Cannot have count and for_each on the same resource block
 		if r.Count != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
 				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
+				Subject:  &block.ForEach.NameRange,
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["provider"]; exists {
+	if block.Provider != nil {
 		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(block.Provider.Expr, "provider")
 		diags = append(diags, providerDiags...)
 	}
 
-	if attr, exists := content.Attributes["depends_on"]; exists {
-		deps, depsDiags := decodeDependsOn(attr)
+	if block.DependsOn != nil {
+		deps, depsDiags := decodeDependsOn(block.DependsOn)
 		diags = append(diags, depsDiags...)
 		r.DependsOn = append(r.DependsOn, deps...)
 	}
@@ -623,95 +604,90 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			Subject:  &block.DefRange,
 		}
 	}
-	var seenLifecycle *hcl.Block
-	var seenEscapeBlock *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "lifecycle":
-			if seenLifecycle != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate lifecycle block",
-					Detail:   fmt.Sprintf("This ephemeral resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
-					Subject:  &block.DefRange,
-				})
-				continue
-			}
-			seenLifecycle = block
-
-			lcContent, lcDiags := block.Body.Content(resourceLifecycleBlockSchema)
-			diags = append(diags, lcDiags...)
-
-			if _, exists := lcContent.Attributes["create_before_destroy"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy"))
-			}
-			if _, exists := lcContent.Attributes["prevent_destroy"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy"))
-			}
-			if _, exists := lcContent.Attributes["replace_triggered_by"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("replace_triggered_by"))
-			}
-			if _, exists := lcContent.Attributes["ignore_changes"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("ignore_changes"))
-			}
-			for _, block := range lcContent.Blocks {
-				switch block.Type {
-				case "precondition", "postcondition":
-					cr, moreDiags := decodeCheckRuleBlock(block, override)
-					diags = append(diags, moreDiags...)
-
-					moreDiags = cr.validateSelfReferences(block.Type, r.Addr())
-					diags = append(diags, moreDiags...)
-
-					switch block.Type {
-					case "precondition":
-						r.Preconditions = append(r.Preconditions, cr)
-					case "postcondition":
-						r.Postconditions = append(r.Postconditions, cr)
-					}
-				default:
-					// The cases above should be exhaustive for all block types
-					// defined in the lifecycle schema, so this shouldn't happen.
-					panic(fmt.Sprintf("unexpected lifecycle sub-block type %q", block.Type))
-				}
-			}
-
-		case "connection":
-			diags = append(diags, invalidEphemeralBlockDiag("connection"))
-
-		case "provisioner":
-			diags = append(diags, invalidEphemeralBlockDiag("provisioner"))
-
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each resource block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
-
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
-			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
-
-		default:
-			// Any other block types are ones we've reserved for future use,
-			// so they get a generic message.
+	var seenLifecycle *parser.ResourceLifecycle
+	for _, block := range block.Lifecycle {
+		if seenLifecycle != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Reserved block type name in ephemeral block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
-				Subject:  &block.TypeRange,
+				Summary:  "Duplicate lifecycle block",
+				Detail:   fmt.Sprintf("This ephemeral resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+				Subject:  &block.DefRange,
 			})
+			continue
 		}
+		seenLifecycle = block
+
+		if block.CreateBeforeDestroy != nil {
+			diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy"))
+		}
+		if block.PreventDestroy != nil {
+			diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy"))
+		}
+		if block.TriggersReplacement != nil {
+			diags = append(diags, invalidEphemeralLifecycleAttributeDiag("replace_triggered_by"))
+		}
+		if block.IgnoreChanges != nil {
+			diags = append(diags, invalidEphemeralLifecycleAttributeDiag("ignore_changes"))
+		}
+		for _, block := range block.Preconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "precondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("precondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Preconditions = append(r.Preconditions, cr)
+		}
+
+		for _, block := range block.Postconditions {
+			cr, moreDiags := decodeCheckRuleBlock(block, "postcondition", override)
+			diags = append(diags, moreDiags...)
+
+			moreDiags = cr.validateSelfReferences("postcondition", r.Addr())
+			diags = append(diags, moreDiags...)
+
+			r.Postconditions = append(r.Postconditions, cr)
+		}
+	}
+	for _ = range block.Connection {
+		diags = append(diags, invalidEphemeralBlockDiag("connection"))
+	}
+	for _ = range block.Provisioners {
+		diags = append(diags, invalidEphemeralBlockDiag("provisioner"))
+	}
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as resource-type-specific rather than as meta-arguments, but each resource block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
+
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		if block.Body != nil {
+			r.Config = hcl.MergeBodies([]hcl.Body{r.Config, block.Body})
+		}
+	}
+	for _, block := range block.Locals {
+
+		// Any other block types are ones we've reserved for future use,
+		// so they get a generic message.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reserved block type name in ephemeral block",
+			Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", "locals"),
+			Subject:  &block.TypeRange,
+		})
 	}
 
 	return r, diags
@@ -1048,39 +1024,5 @@ var ResourceBlockSchema = &hcl.BodySchema{
 		{Type: "connection"},
 		{Type: "provisioner", LabelNames: []string{"type"}},
 		{Type: "_"}, // meta-argument escaping block
-	},
-}
-
-var dataBlockSchema = &hcl.BodySchema{
-	Attributes: commonResourceAttributes,
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "lifecycle"},
-		{Type: "locals"}, // reserved for future use
-		{Type: "_"},      // meta-argument escaping block
-	},
-}
-
-var resourceLifecycleBlockSchema = &hcl.BodySchema{
-	// We tell HCL that these elements are all valid for both "resource"
-	// and "data" lifecycle blocks, but the rules are actually more restrictive
-	// than that. We deal with that after decoding so that we can return
-	// more specific error messages than HCL would typically return itself.
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "create_before_destroy",
-		},
-		{
-			Name: "prevent_destroy",
-		},
-		{
-			Name: "ignore_changes",
-		},
-		{
-			Name: "replace_triggered_by",
-		},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "precondition"},
-		{Type: "postcondition"},
 	},
 }

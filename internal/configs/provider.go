@@ -10,11 +10,11 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -52,16 +52,13 @@ type Provider struct {
 	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
 
-func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
+func decodeProviderBlock(block *parser.ProviderConfig) (*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	content, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
-	diags = append(diags, moreDiags...)
 
 	// Provider names must be localized. Produce an error with a message
 	// indicating the action the user can take to fix this message if the local
 	// name is not localized.
-	name := block.Labels[0]
+	name := block.Name
 	nameDiags := checkProviderNameNormalized(name, block.DefRange)
 	diags = append(diags, nameDiags...)
 	if nameDiags.HasErrors() {
@@ -72,15 +69,14 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 
 	provider := &Provider{
 		Name:      name,
-		NameRange: block.LabelRanges[0],
-		Config:    config,
+		NameRange: block.NameRange,
+		Config:    block.Config,
 		DeclRange: block.DefRange,
 	}
 
-	if attr, exists := content.Attributes["alias"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
-		diags = append(diags, valDiags...)
-		provider.AliasRange = attr.Expr.Range().Ptr()
+	if block.Alias != nil {
+		provider.Alias = *block.Alias
+		provider.AliasRange = block.AliasRange.Ptr()
 
 		if !hclsyntax.ValidIdentifier(provider.Alias) {
 			diags = append(diags, &hcl.Diagnostic{
@@ -91,20 +87,20 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		}
 	}
 
-	if attr, exists := content.Attributes["version"]; exists {
+	if block.Version != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  "Version constraints inside provider configuration blocks are deprecated",
 			Detail:   "OpenTofu 0.13 and earlier allowed provider version constraints inside the provider configuration block, but that is now deprecated and will be removed in a future version of OpenTofu. To silence this warning, move the provider version constraint into the required_providers block.",
-			Subject:  attr.Expr.Range().Ptr(),
+			Subject:  block.Version.Expr.Range().Ptr(),
 		})
 		var versionDiags hcl.Diagnostics
-		provider.Version, versionDiags = decodeVersionConstraint(attr)
+		provider.Version, versionDiags = decodeVersionConstraint(block.Version)
 		diags = append(diags, versionDiags...)
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists {
-		provider.ForEach = attr.Expr
+	if block.ForEach != nil {
+		provider.ForEach = block.ForEach.Expr
 	}
 
 	if len(provider.Alias) == 0 && provider.ForEach != nil {
@@ -117,47 +113,47 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"count", "depends_on", "source"} {
-		if attr, exists := content.Attributes[name]; exists {
+	for name, attr := range map[string]*hcl.Attribute{"count": block.Count, "depends_on": block.DependsOn, "source": block.Source} {
+		if attr != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved argument name in provider block",
 				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
-				Subject:  &attr.NameRange,
+				Subject:  attr.NameRange.Ptr(),
 			})
 		}
 	}
 
-	var seenEscapeBlock *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as provider-specific rather than as meta-arguments, but each provider block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as provider-specific rather than as meta-arguments, but each provider block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
 
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
-			provider.Config = hcl.MergeBodies([]hcl.Body{provider.Config, block.Body})
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		provider.Config = hcl.MergeBodies([]hcl.Body{provider.Config, block.Body})
+	}
 
-		default:
+	for name, blocks := range map[string][]*parser.Block{"lifecycle": block.Lifecycle, "locals": block.Locals} {
+		for _, block := range blocks {
 			// All of the other block types in our schema are reserved for
 			// future expansion.
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved block type name in provider block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
+				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", name),
 				Subject:  &block.TypeRange,
 			})
 		}
@@ -290,32 +286,6 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdia
 	addr, addrDiags := ParseProviderConfigCompact(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
-}
-
-var providerBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "alias",
-		},
-		{
-			Name: "version",
-		},
-		{
-			Name: "for_each",
-		},
-
-		// Attribute names reserved for future expansion.
-		{Name: "count"},
-		{Name: "depends_on"},
-		{Name: "source"},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "_"}, // meta-argument escaping block
-
-		// The rest of these are reserved for future expansion.
-		{Type: "lifecycle"},
-		{Type: "locals"},
-	},
 }
 
 // checkProviderNameNormalized verifies that the given string is already

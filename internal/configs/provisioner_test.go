@@ -12,32 +12,35 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
+
+func exprPtr(expr hcl.Expression) *hcl.Expression {
+	return &expr
+}
 
 func TestProvisionerBlock_decode(t *testing.T) {
 	tests := map[string]struct {
-		input *hcl.Block
+		input *parser.Provisioner
 		want  *Provisioner
 		err   string
 	}{
 		"refer terraform.workspace when destroy": {
-			input: &hcl.Block{
-				Type:   "provisioner",
-				Labels: []string{"local-exec"},
-				Body: hcltest.MockBody(&hcl.BodyContent{
+			input: &parser.Provisioner{
+				Type: "local-exec",
+				When: &hcl.Attribute{
+					Name: "when",
+					Expr: hcltest.MockExprTraversalSrc("destroy"),
+				},
+				Config: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
-						"when": {
-							Name: "when",
-							Expr: hcltest.MockExprTraversalSrc("destroy"),
-						},
 						"command": {
 							Name: "command",
 							Expr: hcltest.MockExprTraversalSrc("terraform.workspace"),
 						},
 					},
 				}),
-				DefRange:    blockRange,
-				LabelRanges: []hcl.Range{hcl.Range{}},
+				DefRange: blockRange,
 			},
 			want: &Provisioner{
 				Type:      "local-exec",
@@ -47,23 +50,21 @@ func TestProvisionerBlock_decode(t *testing.T) {
 			},
 		},
 		"refer tofu.workspace when destroy": {
-			input: &hcl.Block{
-				Type:   "provisioner",
-				Labels: []string{"local-exec"},
-				Body: hcltest.MockBody(&hcl.BodyContent{
+			input: &parser.Provisioner{
+				Type: "local-exec",
+				When: &hcl.Attribute{
+					Name: "when",
+					Expr: hcltest.MockExprTraversalSrc("destroy"),
+				},
+				Config: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
-						"when": {
-							Name: "when",
-							Expr: hcltest.MockExprTraversalSrc("destroy"),
-						},
 						"command": {
 							Name: "command",
 							Expr: hcltest.MockExprTraversalSrc("tofu.workspace"),
 						},
 					},
 				}),
-				DefRange:    blockRange,
-				LabelRanges: []hcl.Range{hcl.Range{}},
+				DefRange: blockRange,
 			},
 			want: &Provisioner{
 				Type:      "local-exec",
@@ -73,23 +74,21 @@ func TestProvisionerBlock_decode(t *testing.T) {
 			},
 		},
 		"refer unknown.workspace when destroy": {
-			input: &hcl.Block{
-				Type:   "provisioner",
-				Labels: []string{"local-exec"},
-				Body: hcltest.MockBody(&hcl.BodyContent{
+			input: &parser.Provisioner{
+				Type: "local-exec",
+				When: &hcl.Attribute{
+					Name: "when",
+					Expr: hcltest.MockExprTraversalSrc("destroy"),
+				},
+				Config: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
-						"when": {
-							Name: "when",
-							Expr: hcltest.MockExprTraversalSrc("destroy"),
-						},
 						"command": {
 							Name: "command",
 							Expr: hcltest.MockExprTraversalSrc("unknown.workspace"),
 						},
 					},
 				}),
-				DefRange:    blockRange,
-				LabelRanges: []hcl.Range{hcl.Range{}},
+				DefRange: blockRange,
 			},
 			want: &Provisioner{
 				Type:      "local-exec",

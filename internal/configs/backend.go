@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
@@ -29,10 +30,10 @@ type Backend struct {
 	DeclRange hcl.Range
 }
 
-func decodeBackendBlock(block *hcl.Block) (*Backend, hcl.Diagnostics) {
+func decodeBackendBlock(block *parser.Backend) (*Backend, hcl.Diagnostics) {
 	return &Backend{
-		Type:      block.Labels[0],
-		TypeRange: block.LabelRanges[0],
+		Type:      block.Type,
+		TypeRange: block.TypeRange,
 		Config:    block.Body,
 		DeclRange: block.DefRange,
 	}, nil

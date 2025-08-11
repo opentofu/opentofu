@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
@@ -46,12 +47,12 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagnostics) {
+func decodeModuleBlock(block *parser.ModuleCall, override bool) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
 		DeclRange: block.DefRange,
-		Name:      block.Labels[0],
+		Name:      block.Name,
 	}
 
 	schema := moduleBlockSchema
@@ -59,86 +60,88 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		schema = schemaForOverrides(schema)
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(schema)
-	diags = append(diags, moreDiags...)
-	mc.Config = remain
+	mc.Config = block.Config
+	if mc.Config == nil {
+		mc.Config = &hclsyntax.Body{}
+	}
 
 	if !hclsyntax.ValidIdentifier(mc.Name) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid module instance name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["version"]; exists {
-		mc.VersionAttr = attr
+	if block.Version != nil {
+		mc.VersionAttr = block.Version
 	}
 
-	if attr, exists := content.Attributes["source"]; exists {
+	if block.Source != nil {
 		mc.SourceSet = true
-		mc.Source = attr.Expr
+		mc.Source = block.Source.Expr
 	}
 
-	if attr, exists := content.Attributes["count"]; exists {
-		mc.Count = attr.Expr
+	if block.Count != nil {
+		mc.Count = block.Count.Expr
 	}
 
-	if attr, exists := content.Attributes["for_each"]; exists {
+	if block.ForEach != nil {
 		if mc.Count != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
 				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
+				Subject:  block.ForEach.NameRange.Ptr(),
 			})
 		}
 
-		mc.ForEach = attr.Expr
+		mc.ForEach = block.ForEach.Expr
 	}
 
-	if attr, exists := content.Attributes["depends_on"]; exists {
-		deps, depsDiags := decodeDependsOn(attr)
+	if block.DependsOn != nil {
+		deps, depsDiags := decodeDependsOn(block.DependsOn)
 		diags = append(diags, depsDiags...)
 		mc.DependsOn = append(mc.DependsOn, deps...)
 	}
 
-	if attr, exists := content.Attributes["providers"]; exists {
-		providers, providerDiags := decodePassedProviderConfigs(attr)
+	if block.Providers != nil {
+		providers, providerDiags := decodePassedProviderConfigs(block.Providers)
 		diags = append(diags, providerDiags...)
 		mc.Providers = append(mc.Providers, providers...)
 	}
 
-	var seenEscapeBlock *hcl.Block
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "_":
-			if seenEscapeBlock != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Duplicate escaping block",
-					Detail: fmt.Sprintf(
-						"The special block type \"_\" can be used to force particular arguments to be interpreted as module input variables rather than as meta-arguments, but each module block can have only one such block. The first escaping block was at %s.",
-						seenEscapeBlock.DefRange,
-					),
-					Subject: &block.DefRange,
-				})
-				continue
-			}
-			seenEscapeBlock = block
+	var seenEscapeBlock *parser.Block
+	for _, block := range block.Escaped {
+		if seenEscapeBlock != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate escaping block",
+				Detail: fmt.Sprintf(
+					"The special block type \"_\" can be used to force particular arguments to be interpreted as module input variables rather than as meta-arguments, but each module block can have only one such block. The first escaping block was at %s.",
+					seenEscapeBlock.DefRange,
+				),
+				Subject: &block.DefRange,
+			})
+			continue
+		}
+		seenEscapeBlock = block
 
-			// When there's an escaping block its content merges with the
-			// existing config we extracted earlier, so later decoding
-			// will see a blend of both.
+		// When there's an escaping block its content merges with the
+		// existing config we extracted earlier, so later decoding
+		// will see a blend of both.
+		if block.Body != nil {
 			mc.Config = hcl.MergeBodies([]hcl.Body{mc.Config, block.Body})
-
-		default:
+		}
+	}
+	for name, blocks := range map[string][]*parser.Block{"lifecycle": block.Lifecycle, "locals": block.Locals, "provider": block.Provider} {
+		for _, block := range blocks {
 			// All of the other block types in our schema are reserved.
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Reserved block type name in module block",
-				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", block.Type),
+				Detail:   fmt.Sprintf("The block type name %q is reserved for use by OpenTofu in a future version.", name),
 				Subject:  &block.TypeRange,
 			})
 		}

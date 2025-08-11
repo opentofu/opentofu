@@ -11,8 +11,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
@@ -55,9 +55,9 @@ type Variable struct {
 	DeclRange hcl.Range
 }
 
-func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagnostics) {
+func decodeVariableBlock(block *parser.Variable, override bool) (*Variable, hcl.Diagnostics) {
 	v := &Variable{
-		Name:      block.Labels[0],
+		Name:      block.Name,
 		DeclRange: block.DefRange,
 	}
 
@@ -71,14 +71,14 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		v.ParsingMode = VariableParseLiteral
 	}
 
-	content, diags := block.Body.Content(variableBlockSchema)
+	var diags hcl.Diagnostics
 
 	if !hclsyntax.ValidIdentifier(v.Name) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid variable name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.NameRange,
 		})
 	}
 
@@ -91,7 +91,7 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				Severity: hcl.DiagError,
 				Summary:  "Invalid variable name",
 				Detail:   fmt.Sprintf("The variable name %q is reserved due to its special meaning inside module blocks.", attr.Name),
-				Subject:  &block.LabelRanges[0],
+				Subject:  &block.NameRange,
 			})
 		}
 	}
@@ -101,19 +101,18 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				Severity: hcl.DiagError,
 				Summary:  "Invalid variable name",
 				Detail:   fmt.Sprintf("The variable name %q is reserved due to its special meaning inside module blocks.", blockS.Type),
-				Subject:  &block.LabelRanges[0],
+				Subject:  &block.NameRange,
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["description"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Description)
-		diags = append(diags, valDiags...)
+	if block.Description != nil {
+		v.Description = *block.Description
 		v.DescriptionSet = true
 	}
 
-	if attr, exists := content.Attributes["type"]; exists {
-		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(attr.Expr)
+	if block.Type != nil {
+		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(block.Type.Expr)
 		diags = append(diags, tyDiags...)
 		v.ConstraintType = ty
 		v.TypeDefaults = tyDefaults
@@ -121,34 +120,30 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		v.ParsingMode = parseMode
 	}
 
-	if attr, exists := content.Attributes["sensitive"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Sensitive)
-		diags = append(diags, valDiags...)
+	if block.Sensitive != nil {
+		v.Sensitive = *block.Sensitive
 		v.SensitiveSet = true
 	}
 
-	if attr, exists := content.Attributes["deprecated"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Deprecated)
-		diags = append(diags, valDiags...)
-		if !valDiags.HasErrors() && strings.TrimSpace(v.Deprecated) == "" {
+	if block.Deprecated != nil {
+		v.Deprecated = *block.Deprecated
+		if strings.TrimSpace(v.Deprecated) == "" {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid `deprecated` value",
 				Detail:   `The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated variable.`,
-				Subject:  &block.LabelRanges[0],
+				Subject:  block.DeprecatedRange.Ptr(),
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["ephemeral"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Ephemeral)
-		diags = append(diags, valDiags...)
+	if block.Ephemeral != nil {
+		v.Ephemeral = *block.Ephemeral
 		v.EphemeralSet = true
 	}
 
-	if attr, exists := content.Attributes["nullable"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Nullable)
-		diags = append(diags, valDiags...)
+	if block.Nullable != nil {
+		v.Nullable = *block.Nullable
 		v.NullableSet = true
 	} else {
 		// The current default is true, which is subject to change in a future
@@ -156,9 +151,8 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		v.Nullable = true
 	}
 
-	if attr, exists := content.Attributes["default"]; exists {
-		val, valDiags := attr.Expr.Value(nil)
-		diags = append(diags, valDiags...)
+	if block.Default != nil {
+		val := *block.Default
 
 		// Convert the default to the expected type so we can catch invalid
 		// defaults early and allow later code to assume validity.
@@ -182,7 +176,7 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 					Severity: hcl.DiagError,
 					Summary:  "Invalid default value for variable",
 					Detail:   fmt.Sprintf("This default value is not compatible with the variable's type constraint: %s.", tfdiags.FormatError(err)),
-					Subject:  attr.Expr.Range().Ptr(),
+					Subject:  block.DefaultRange.Ptr(),
 				})
 				val = cty.DynamicVal
 			}
@@ -193,26 +187,17 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				Severity: hcl.DiagError,
 				Summary:  "Invalid default value for variable",
 				Detail:   "A null default value is not valid when nullable=false.",
-				Subject:  attr.Expr.Range().Ptr(),
+				Subject:  block.DefaultRange.Ptr(),
 			})
 		}
 
 		v.Default = val
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-
-		case "validation":
-			vv, moreDiags := decodeVariableValidationBlock(v.Name, block, override)
-			diags = append(diags, moreDiags...)
-			v.Validations = append(v.Validations, vv)
-
-		default:
-			// The above cases should be exhaustive for all block types
-			// defined in variableBlockSchema
-			panic(fmt.Sprintf("unhandled block type %q", block.Type))
-		}
+	for _, validation := range block.Validations {
+		vv, moreDiags := decodeVariableValidationBlock(v.Name, validation, override)
+		diags = append(diags, moreDiags...)
+		v.Validations = append(v.Validations, vv)
 	}
 
 	return v, diags
@@ -369,8 +354,8 @@ func (m VariableParsingMode) Parse(name, value string) (cty.Value, hcl.Diagnosti
 // decodeVariableValidationBlock is a wrapper around decodeCheckRuleBlock
 // that imposes the additional rule that the condition expression can refer
 // only to an input variable of the given name.
-func decodeVariableValidationBlock(varName string, block *hcl.Block, override bool) (*CheckRule, hcl.Diagnostics) {
-	vv, diags := decodeCheckRuleBlock(block, override)
+func decodeVariableValidationBlock(varName string, block *parser.CheckRule, override bool) (*CheckRule, hcl.Diagnostics) {
+	vv, diags := decodeCheckRuleBlock(block, "validation", override)
 	if vv.Condition != nil {
 		// The validation condition can only refer to the variable itself,
 		// to ensure that the variable declaration can't create additional
@@ -445,91 +430,73 @@ type Output struct {
 	OverrideValue *cty.Value
 }
 
-func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostics) {
+func decodeOutputBlock(block *parser.Output, override bool) (*Output, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	o := &Output{
-		Name:      block.Labels[0],
+		Name:      block.Name,
 		DeclRange: block.DefRange,
 	}
-
-	schema := outputBlockSchema
-	if override {
-		schema = schemaForOverrides(schema)
-	}
-
-	content, moreDiags := block.Body.Content(schema)
-	diags = append(diags, moreDiags...)
 
 	if !hclsyntax.ValidIdentifier(o.Name) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid output name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	if attr, exists := content.Attributes["description"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Description)
-		diags = append(diags, valDiags...)
+	if block.Description != nil {
+		o.Description = *block.Description
 		o.DescriptionSet = true
 	}
 
-	if attr, exists := content.Attributes["value"]; exists {
-		o.Expr = attr.Expr
+	if block.Value != nil {
+		o.Expr = block.Value.Expr
 	}
 
-	if attr, exists := content.Attributes["sensitive"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Sensitive)
-		diags = append(diags, valDiags...)
+	if block.Sensitive != nil {
+		o.Sensitive = *block.Sensitive
 		o.SensitiveSet = true
 	}
 
-	if attr, exists := content.Attributes["deprecated"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Deprecated)
-		diags = append(diags, valDiags...)
+	if block.Deprecated != nil {
+		o.Deprecated = *block.Deprecated
 
-		if !diags.HasErrors() && strings.TrimSpace(o.Deprecated) == "" {
+		if strings.TrimSpace(o.Deprecated) == "" {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid `deprecated` attribute",
 				Detail:   `The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated output value.`,
-				Subject:  attr.Expr.Range().Ptr(),
+				Subject:  block.DeprecatedRange.Ptr(),
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["ephemeral"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Ephemeral)
-		diags = append(diags, valDiags...)
+	if block.Ephemeral != nil {
+		o.Ephemeral = *block.Ephemeral
 		o.EphemeralSet = true
 	}
 
-	if attr, exists := content.Attributes["depends_on"]; exists {
-		deps, depsDiags := decodeDependsOn(attr)
+	if block.DependsOn != nil {
+		deps, depsDiags := decodeDependsOn(block.DependsOn)
 		diags = append(diags, depsDiags...)
 		o.DependsOn = append(o.DependsOn, deps...)
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "precondition":
-			cr, moreDiags := decodeCheckRuleBlock(block, override)
-			diags = append(diags, moreDiags...)
-			o.Preconditions = append(o.Preconditions, cr)
-		case "postcondition":
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Postconditions are not allowed",
-				Detail:   "Output values can only have preconditions, not postconditions.",
-				Subject:  block.TypeRange.Ptr(),
-			})
-		default:
-			// The cases above should be exhaustive for all block types
-			// defined in the block type schema, so this shouldn't happen.
-			panic(fmt.Sprintf("unexpected lifecycle sub-block type %q", block.Type))
-		}
+	for _, precondition := range block.Preconditions {
+		cr, moreDiags := decodeCheckRuleBlock(precondition, "precondition", override)
+		diags = append(diags, moreDiags...)
+		o.Preconditions = append(o.Preconditions, cr)
+	}
+	for _, postcondition := range block.Postconditions {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Postconditions are not allowed",
+			Detail:   "Output values can only have preconditions, not postconditions.",
+			Subject:  postcondition.TypeRange.Ptr(),
+		})
 	}
 
 	return o, diags
@@ -560,7 +527,7 @@ type Local struct {
 	DeclRange hcl.Range
 }
 
-func decodeLocalsBlock(block *hcl.Block) ([]*Local, hcl.Diagnostics) {
+func decodeLocalsBlock(block *parser.Locals) ([]*Local, hcl.Diagnostics) {
 	attrs, diags := block.Body.JustAttributes()
 	if len(attrs) == 0 {
 		return nil, diags
@@ -592,63 +559,4 @@ func (l *Local) Addr() addrs.LocalValue {
 	return addrs.LocalValue{
 		Name: l.Name,
 	}
-}
-
-var variableBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "description",
-		},
-		{
-			Name: "default",
-		},
-		{
-			Name: "type",
-		},
-		{
-			Name: "sensitive",
-		},
-		{
-			Name: "ephemeral",
-		},
-		{
-			Name: "deprecated",
-		},
-		{
-			Name: "nullable",
-		},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type: "validation",
-		},
-	},
-}
-
-var outputBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "description",
-		},
-		{
-			Name:     "value",
-			Required: true,
-		},
-		{
-			Name: "depends_on",
-		},
-		{
-			Name: "sensitive",
-		},
-		{
-			Name: "ephemeral",
-		},
-		{
-			Name: "deprecated",
-		},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "precondition"},
-		{Type: "postcondition"},
-	},
 }

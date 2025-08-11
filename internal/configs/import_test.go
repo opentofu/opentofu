@@ -13,8 +13,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -68,25 +68,20 @@ func TestImportBlock_decode(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		input *hcl.Block
+		input *parser.Import
 		want  *Import
 		err   string
 	}{
 		"success": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-						"to": {
-							Name: "to",
-							Expr: barExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: barExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -103,20 +98,15 @@ func TestImportBlock_decode(t *testing.T) {
 			``,
 		},
 		"indexed resources": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-						"to": {
-							Name: "to",
-							Expr: barIndexExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: barIndexExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -136,20 +126,15 @@ func TestImportBlock_decode(t *testing.T) {
 			``,
 		},
 		"resource inside module": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-						"to": {
-							Name: "to",
-							Expr: modBarExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: modBarExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -172,20 +157,15 @@ func TestImportBlock_decode(t *testing.T) {
 			``,
 		},
 		"dynamic resource index": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-						"to": {
-							Name: "to",
-							Expr: dynamicBarExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: dynamicBarExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -199,16 +179,11 @@ func TestImportBlock_decode(t *testing.T) {
 			``,
 		},
 		"error: missing id argument": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"to": {
-							Name: "to",
-							Expr: barExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: barExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -224,16 +199,11 @@ func TestImportBlock_decode(t *testing.T) {
 			"Missing required argument",
 		},
 		"error: missing to argument": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{
@@ -243,20 +213,15 @@ func TestImportBlock_decode(t *testing.T) {
 			"Missing required argument",
 		},
 		"error: invalid import address": {
-			&hcl.Block{
-				Type: "import",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"id": {
-							Name: "id",
-							Expr: fooStrExpr,
-						},
-						"to": {
-							Name: "to",
-							Expr: invalidExpr,
-						},
-					},
-				}),
+			&parser.Import{
+				ID: &hcl.Attribute{
+					Name: "id",
+					Expr: fooStrExpr,
+				},
+				To: &hcl.Attribute{
+					Name: "to",
+					Expr: invalidExpr,
+				},
 				DefRange: blockRange,
 			},
 			&Import{

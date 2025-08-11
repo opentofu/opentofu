@@ -8,6 +8,7 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
 
 type Moved struct {
@@ -17,17 +18,14 @@ type Moved struct {
 	DeclRange hcl.Range
 }
 
-func decodeMovedBlock(block *hcl.Block) (*Moved, hcl.Diagnostics) {
+func decodeMovedBlock(block *parser.Moved) (*Moved, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	moved := &Moved{
 		DeclRange: block.DefRange,
 	}
 
-	content, moreDiags := block.Body.Content(movedBlockSchema)
-	diags = append(diags, moreDiags...)
-
-	if attr, exists := content.Attributes["from"]; exists {
-		from, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+	if block.From != nil {
+		from, traversalDiags := hcl.AbsTraversalForExpr(block.From.Expr)
 		diags = append(diags, traversalDiags...)
 		if !traversalDiags.HasErrors() {
 			from, fromDiags := addrs.ParseMoveEndpoint(from)
@@ -36,8 +34,8 @@ func decodeMovedBlock(block *hcl.Block) (*Moved, hcl.Diagnostics) {
 		}
 	}
 
-	if attr, exists := content.Attributes["to"]; exists {
-		to, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+	if block.To != nil {
+		to, traversalDiags := hcl.AbsTraversalForExpr(block.To.Expr)
 		diags = append(diags, traversalDiags...)
 		if !traversalDiags.HasErrors() {
 			to, toDiags := addrs.ParseMoveEndpoint(to)
@@ -78,17 +76,4 @@ func decodeMovedBlock(block *hcl.Block) (*Moved, hcl.Diagnostics) {
 	}
 
 	return moved, diags
-}
-
-var movedBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name:     "from",
-			Required: true,
-		},
-		{
-			Name:     "to",
-			Required: true,
-		},
-	},
 }

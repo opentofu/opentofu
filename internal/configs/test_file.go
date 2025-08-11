@@ -451,11 +451,11 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 
 		case "provider":
-			provider, providerDiags := decodeProviderBlock(block)
+			/*TODO provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
 				tf.Providers[provider.moduleUniqueKey()] = provider
-			}
+			}*/
 
 		case blockNameOverrideResource, blockNameOverrideData:
 			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
@@ -519,11 +519,12 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case "assert":
+			/* TODO TODO
 			cr, crDiags := decodeCheckRuleBlock(block, false)
 			diags = append(diags, crDiags...)
 			if !crDiags.HasErrors() {
 				r.CheckRules = append(r.CheckRules, cr)
-			}
+			}*/
 		case "plan_options":
 			if r.Options != nil {
 				diags = append(diags, &hcl.Diagnostic{

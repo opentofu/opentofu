@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
 
 // Cloud represents a "cloud" block inside a "terraform" block in a module
@@ -18,7 +19,7 @@ type CloudConfig struct {
 	DeclRange hcl.Range
 }
 
-func decodeCloudBlock(block *hcl.Block) (*CloudConfig, hcl.Diagnostics) {
+func decodeCloudBlock(block *parser.Block) (*CloudConfig, hcl.Diagnostics) {
 	return &CloudConfig{
 		Config:    block.Body,
 		DeclRange: block.DefRange,

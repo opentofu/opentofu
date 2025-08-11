@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -49,13 +50,12 @@ var (
 
 func TestDecodeRequiredProvidersBlock(t *testing.T) {
 	tests := map[string]struct {
-		Block *hcl.Block
+		Block *parser.RequiredProviders
 		Want  *RequiredProviders
 		Error string
 	}{
 		"legacy": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"default": {
@@ -79,8 +79,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			},
 		},
 		"provider source": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my-test": {
@@ -108,8 +107,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			},
 		},
 		"mixed": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"legacy": {
@@ -147,8 +145,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			},
 		},
 		"version-only block": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"test": {
@@ -174,8 +171,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			},
 		},
 		"invalid source": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my-test": {
@@ -196,8 +192,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid provider source string",
 		},
 		"invalid localname": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my_test": {
@@ -217,8 +212,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid provider local name",
 		},
 		"invalid localname caps": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"MYTEST": {
@@ -238,8 +232,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid provider local name",
 		},
 		"version constraint error": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my-test": {
@@ -260,8 +253,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid version constraint",
 		},
 		"invalid required_providers attribute value": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"test": {
@@ -279,8 +271,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid required_providers object",
 		},
 		"invalid source attribute type": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my-test": {
@@ -300,8 +291,7 @@ func TestDecodeRequiredProvidersBlock(t *testing.T) {
 			Error: "Invalid source",
 		},
 		"additional attributes": {
-			Block: &hcl.Block{
-				Type: "required_providers",
+			Block: &parser.RequiredProviders{
 				Body: hcltest.MockBody(&hcl.BodyContent{
 					Attributes: hcl.Attributes{
 						"my-test": {

@@ -5,7 +5,10 @@
 
 package configs
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs/parser"
+)
 
 // ProviderMeta represents a "provider_meta" block inside a "terraform" block
 // in a module or file.
@@ -17,7 +20,7 @@ type ProviderMeta struct {
 	DeclRange     hcl.Range
 }
 
-func decodeProviderMetaBlock(block *hcl.Block) (*ProviderMeta, hcl.Diagnostics) {
+func decodeProviderMetaBlock(block *parser.ProviderMeta) (*ProviderMeta, hcl.Diagnostics) {
 	// provider_meta must be a static map. We can verify this by attempting to
 	// evaluate the values.
 	attrs, diags := block.Body.JustAttributes()
@@ -32,13 +35,13 @@ func decodeProviderMetaBlock(block *hcl.Block) (*ProviderMeta, hcl.Diagnostics) 
 
 	// If the name is invalid, we return an error early, lest the invalid value
 	// is used by the caller and causes a panic further down the line.
-	if diags = append(diags, checkProviderNameNormalized(block.Labels[0], block.DefRange)...); diags.HasErrors() {
+	if diags = append(diags, checkProviderNameNormalized(block.Provider, block.DefRange)...); diags.HasErrors() {
 		return nil, diags
 	}
 
 	return &ProviderMeta{
-		Provider:      block.Labels[0],
-		ProviderRange: block.LabelRanges[0],
+		Provider:      block.Provider,
+		ProviderRange: block.ProviderRange,
 		Config:        block.Body,
 		DeclRange:     block.DefRange,
 	}, diags

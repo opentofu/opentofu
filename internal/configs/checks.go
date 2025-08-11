@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/lang"
 )
 
@@ -89,7 +90,7 @@ func (cr *CheckRule) validateSelfReferences(checkType string, addr addrs.Resourc
 // function takes the containing block only because some error messages will
 // refer to its location, and the returned object's DeclRange will be the
 // block's header.
-func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diagnostics) {
+func decodeCheckRuleBlock(block *parser.CheckRule, blockType string, override bool) (*CheckRule, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	cr := &CheckRule{
 		DeclRange: block.DefRange,
@@ -102,33 +103,30 @@ func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diag
 		// isn't confusing then we could relax this.
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  fmt.Sprintf("Can't override %s blocks", block.Type),
-			Detail:   fmt.Sprintf("Override files cannot override %q blocks.", block.Type),
+			Summary:  fmt.Sprintf("Can't override %s blocks", blockType),
+			Detail:   fmt.Sprintf("Override files cannot override %q blocks.", blockType),
 			Subject:  cr.DeclRange.Ptr(),
 		})
 		return cr, diags
 	}
 
-	content, moreDiags := block.Body.Content(checkRuleBlockSchema)
-	diags = append(diags, moreDiags...)
-
-	if attr, exists := content.Attributes["condition"]; exists {
-		cr.Condition = attr.Expr
+	if block.Condition != nil {
+		cr.Condition = block.Condition.Expr
 
 		if len(cr.Condition.Variables()) == 0 {
 			// A condition expression that doesn't refer to any variable is
 			// pointless, because its result would always be a constant.
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Invalid %s expression", block.Type),
+				Summary:  fmt.Sprintf("Invalid %s expression", blockType),
 				Detail:   "The condition expression must refer to at least one object from elsewhere in the configuration, or else its result would not be checking anything.",
 				Subject:  cr.Condition.Range().Ptr(),
 			})
 		}
 	}
 
-	if attr, exists := content.Attributes["error_message"]; exists {
-		cr.ErrorMessage = attr.Expr
+	if block.ErrorMessage != nil {
+		cr.ErrorMessage = block.ErrorMessage.Expr
 	}
 
 	return cr, diags
@@ -174,11 +172,11 @@ func (c Check) Accessible(addr addrs.Referenceable) bool {
 	return false
 }
 
-func decodeCheckBlock(block *hcl.Block, override bool) (*Check, hcl.Diagnostics) {
+func decodeCheckBlock(block *parser.Check, override bool) (*Check, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	check := &Check{
-		Name:      block.Labels[0],
+		Name:      block.Name,
 		DeclRange: block.DefRange,
 	}
 
@@ -196,49 +194,41 @@ func decodeCheckBlock(block *hcl.Block, override bool) (*Check, hcl.Diagnostics)
 		return check, diags
 	}
 
-	content, moreDiags := block.Body.Content(checkBlockSchema)
-	diags = append(diags, moreDiags...)
-
 	if !hclsyntax.ValidIdentifier(check.Name) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid check block name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "data":
+	for _, block := range block.DataResource {
+		if check.DataResource != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Multiple data resource blocks",
+				Detail:   fmt.Sprintf("This check block already has a data resource defined at %s.", check.DataResource.DeclRange.Ptr()),
+				Subject:  block.DefRange.Ptr(),
+			})
+			continue
+		}
 
-			if check.DataResource != nil {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Multiple data resource blocks",
-					Detail:   fmt.Sprintf("This check block already has a data resource defined at %s.", check.DataResource.DeclRange.Ptr()),
-					Subject:  block.DefRange.Ptr(),
-				})
-				continue
-			}
+		data, moreDiags := decodeDataBlock(block, override, true)
+		diags = append(diags, moreDiags...)
+		if !moreDiags.HasErrors() {
+			// Connect this data block back up to this check block.
+			data.Container = check
 
-			data, moreDiags := decodeDataBlock(block, override, true)
-			diags = append(diags, moreDiags...)
-			if !moreDiags.HasErrors() {
-				// Connect this data block back up to this check block.
-				data.Container = check
-
-				// Finally, save the data block.
-				check.DataResource = data
-			}
-		case "assert":
-			assert, moreDiags := decodeCheckRuleBlock(block, override)
-			diags = append(diags, moreDiags...)
-			if !moreDiags.HasErrors() {
-				check.Asserts = append(check.Asserts, assert)
-			}
-		default:
-			panic(fmt.Sprintf("unhandled check nested block %q", block.Type))
+			// Finally, save the data block.
+			check.DataResource = data
+		}
+	}
+	for _, block := range block.Asserts {
+		assert, moreDiags := decodeCheckRuleBlock(block, "assert", override)
+		diags = append(diags, moreDiags...)
+		if !moreDiags.HasErrors() {
+			check.Asserts = append(check.Asserts, assert)
 		}
 	}
 
@@ -252,11 +242,4 @@ func decodeCheckBlock(block *hcl.Block, override bool) (*Check, hcl.Diagnostics)
 	}
 
 	return check, diags
-}
-
-var checkBlockSchema = &hcl.BodySchema{
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "data", LabelNames: []string{"type", "name"}},
-		{Type: "assert"},
-	},
 }
