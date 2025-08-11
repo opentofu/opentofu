@@ -1,4 +1,5 @@
 name: Nightly Acceptance Tests
+# TODO: Maybe we should do weekly? 
 
 on:
   schedule:
@@ -12,6 +13,31 @@ jobs:
     env:
       TF_APPEND_USER_AGENT: Acceptance-Test
       TF_ACC: 1
+      # TODO: Create credentials for Azure Tests, AWS, GCP tests, etc...
+      # For Azure:
+      # ARM_LOCATION=centralus
+      # ARM_CLIENT_ID
+      # ARM_CLIENT_SECRET
+      # ARM_TENANT_ID
+      # ARM_SUBSCRIPTION_ID
+
+      # For AWS:
+      # AWS_ACCESS_KEY_ID
+      # AWS_SECRET_ACCESS_KEY
+
+      # For GCP:
+      # GCP_PROJECT_ID
+      # GCP_REGION
+      # GCP_CREDENTIALS
+      # GCP_CLIENT_ID
+      # GCP_CLIENT_SECRET
+      # GCP_TENANT_ID
+      # GCP_SUBSCRIPTION_ID
+
+      # For Consul
+      # CONSUL_CACERT
+      # CONSUL_CLIENT_CERT
+      # CONSUL_CLIENT_KEY
       GOOS: ${{ matrix.goos }}
       GOARCH: ${{ matrix.goarch }}
     strategy:
@@ -41,6 +67,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: "Unit tests"
+      - name: "Acceptance tests"
         run: |
           go test ./...
