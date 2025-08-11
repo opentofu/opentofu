@@ -69,6 +69,7 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 	return errs
 }
 
+// TODO ephemeral - should this function be aware of the ephemeral mark? This needs proper testing and investigation
 func assertAttributeCompatible(plannedV, actualV cty.Value, attrS *configschema.Attribute, path cty.Path) []error {
 	var errs []error
 

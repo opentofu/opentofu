@@ -68,6 +68,14 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 			Subject:  expr.Range().Ptr(),
 		})
 	}
+	if importIdVal.HasMark(marks.Ephemeral) {
+		return "", diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import id argument",
+			Detail:   "The import ID cannot be ephemeral.",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
 
 	var importId string
 	err := gocty.FromCtyValue(importIdVal, &importId)
@@ -191,6 +199,14 @@ func parseImportIndexKeyExpr(evalCtx EvalContext, expr hcl.Expression, keyData i
 			Severity: hcl.DiagError,
 			Summary:  "Import block 'to' address contains an invalid key",
 			Detail:   "Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive",
+			Subject:  expr.Range().Ptr(),
+		})
+	}
+	if _, ephemeral := valMarks[marks.Ephemeral]; ephemeral {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Import block 'to' address contains an invalid key",
+			Detail:   "Import block contained a resource address using an index which is ephemeral. Please ensure indexes used in the resource address of an import target are not ephemeral",
 			Subject:  expr.Range().Ptr(),
 		})
 	}
