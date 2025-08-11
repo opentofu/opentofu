@@ -1,0 +1,5 @@
+// NOTE: Ephemeral outputs are not allowed in the root module
+output "test" {
+  value     = "test"
+  ephemeral = true
+}

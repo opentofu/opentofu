@@ -110,3 +110,105 @@ func TestEphemeralErrors_variables(t *testing.T) {
 		}
 	})
 }
+
+func TestEphemeralErrors_outputs(t *testing.T) {
+	tf := e2e.NewBinary(t, tofuBin, "testdata/ephemeral-errors/outputs")
+	buildSimpleProvider(t, "6", tf.WorkDir(), "simple")
+	with := func(path string, fn func()) {
+		src := tf.Path(path + ".disabled")
+		dst := tf.Path(path)
+		tf.WorkDir()
+
+		err := os.Rename(src, dst)
+		if err != nil {
+			t.Fatalf("%s", err.Error())
+		}
+
+		fn()
+
+		err = os.Rename(dst, src)
+		if err != nil {
+			t.Fatalf("%s", err.Error())
+		}
+	}
+
+	tofuInit := func() {
+		sout, serr, err := tf.Run("init", "-plugin-dir=cache")
+		if err != nil {
+			t.Fatalf("unable to init: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+	}
+
+	with("ephemeral_output_in_root_module.tf", func() {
+		sout, serr, err := tf.Run("apply")
+		if err == nil || !strings.Contains(err.Error(), "exit status 1") {
+			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+		sanitized := SanitizeStderr(serr)
+		if !strings.Contains(sanitized, `Error: Invalid output configuration    on ephemeral_output_in_root_module.tf`) ||
+			!strings.Contains(sanitized, `Root modules are not allowed to have outputs defined as ephemeral`) {
+			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized serr: %s", sanitized)
+		}
+	})
+
+	with("ephemeral_output_in_resource.tf", func() {
+		tofuInit()
+		sout, serr, err := tf.Run("apply")
+		if err == nil || !strings.Contains(err.Error(), "exit status 1") {
+			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+		sanitized := SanitizeStderr(serr)
+		if !strings.Contains(sanitized, `Ephemeral value used in non-ephemeral context    with simple_resource.test_res`) {
+			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized serr: %s", sanitized)
+		}
+	})
+
+	with("ephemeral_output_in_data_source.tf", func() {
+		tofuInit()
+		sout, serr, err := tf.Run("apply")
+		if err == nil || !strings.Contains(err.Error(), "exit status 1") {
+			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+		sanitized := SanitizeStderr(serr)
+		if !strings.Contains(sanitized, `Ephemeral value used in non-ephemeral context    with data.simple_resource.test_data1`) {
+			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized serr: %s", sanitized)
+		}
+	})
+
+	with("regular_output_given_ephemeral_value.tf", func() {
+		tofuInit()
+		sout, serr, err := tf.Run("apply")
+		if err == nil || !strings.Contains(err.Error(), "exit status 1") {
+			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+		sanitized := SanitizeStderr(serr)
+		if !strings.Contains(sanitized, `Output does not allow ephemeral value    on __mod-with-regular-output-got-ephemeral-value/main.tf`) ||
+			!strings.Contains(sanitized, `The value that was generated for the output is ephemeral, but it is not configured to allow one`) {
+			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized serr: %s", sanitized)
+		}
+	})
+
+	with("ephemeral_output_with_precondition.tf", func() {
+		tofuInit()
+		sout, serr, err := tf.Run("apply", "-var", "in=notdefaultvalue")
+		if err == nil || !strings.Contains(err.Error(), "exit status 1") {
+			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+		}
+		sanitizedSerr := SanitizeStderr(serr)
+		sanitizedSout := SanitizeStderr(sout)
+		if !strings.Contains(sanitizedSerr, `Module output value precondition failed    on __mod-ephemeral-output-with-precondition/main.tf`) ||
+			!strings.Contains(sanitizedSerr, `"notdefaultvalue" -> "default value"  This check failed, but has an invalid error message as described in the other accompanying messages`) {
+			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized serr: %s", sanitizedSerr)
+		}
+		if !strings.Contains(sanitizedSout, `Warning: Error message refers to ephemeral values    on __mod-ephemeral-output-with-precondition/main.tf`) ||
+			!strings.Contains(sanitizedSout, `The error expression used to explain this condition refers to ephemeral values, so OpenTofu will not display the resulting message.  You can correct this by removing references to ephemeral values`) {
+			t.Errorf("unexpected stdout: %s;\nstdout:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Logf("sanitized sout: %s", sanitizedSerr)
+		}
+	})
+}
