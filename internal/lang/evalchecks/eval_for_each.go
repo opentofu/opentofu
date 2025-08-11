@@ -135,6 +135,9 @@ func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 
 }
 
+// TODO ephemeral - check how ephemeral should impact this function. Check also the unit tests
+//
+//	Christian: it should follow the same conventions as Sensitive and only be allowed in each.value and not in each.key.
 func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, typeCheckVal cty.Value, errInvalidUnknownDetail string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
@@ -179,7 +182,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByConfidentialValues(true),
 		})
 		resultVal = cty.NullVal(ty)
 	}

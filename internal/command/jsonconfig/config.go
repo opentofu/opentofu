@@ -69,6 +69,7 @@ type variable struct {
 	Description string          `json:"description,omitempty"`
 	Required    bool            `json:"required,omitempty"`
 	Sensitive   bool            `json:"sensitive,omitempty"`
+	Ephemeral   bool            `json:"ephemeral,omitempty"`
 	Deprecated  string          `json:"deprecated,omitempty"`
 }
 
@@ -429,6 +430,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				Required:    required,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
+				Ephemeral:   v.Ephemeral,
 				Deprecated:  v.Deprecated,
 			}
 		}

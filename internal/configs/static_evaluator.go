@@ -111,6 +111,14 @@ func (s StaticEvaluator) DecodeExpression(ctx context.Context, expr hcl.Expressi
 			Subject:  expr.Range().Ptr(),
 		})
 	}
+	if marks.Contains(srcVal, marks.Ephemeral) {
+		return diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Ephemeral value not allowed",
+			Detail:   fmt.Sprintf("Ephemeral values, or values derived from ephemeral values, cannot be used as %s.", ident.String()),
+			Subject:  expr.Range().Ptr(),
+		})
+	}
 
 	return diags.Extend(gohcl.DecodeValue(srcVal, expr.StartRange(), expr.Range(), val))
 }

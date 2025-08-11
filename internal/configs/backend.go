@@ -72,6 +72,14 @@ func (b *Backend) Hash(ctx context.Context, schema *configschema.Block) (int, hc
 			Subject:  b.DeclRange.Ptr(),
 		})
 	}
+	if marks.Contains(val, marks.Ephemeral) {
+		return -1, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Backend config contains ephemeral values",
+			Detail:   "The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply ephemeral credentials via backend specific environment variables",
+			Subject:  b.DeclRange.Ptr(),
+		})
+	}
 
 	toHash := cty.TupleVal([]cty.Value{
 		cty.StringVal(b.Type),

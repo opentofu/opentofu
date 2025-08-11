@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -277,6 +278,19 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	}
 	run.Config = config
 
+	// When the configuration contains ephemeral variables in the root module, we need
+	// to populate the values of those inside the plan with the values given in the
+	// current run.
+	epv, epvDiags := generateEphemeralPlanValues(op.Variables, config.Module.Variables)
+	diags = diags.Append(epvDiags)
+	if diags.HasErrors() {
+		return nil, snap, diags
+	}
+	diags = diags.Append(plan.StoreEphemeralVariablesValues(epv))
+	if diags.HasErrors() {
+		return nil, snap, diags
+	}
+
 	// Check that all provided variables are in the configuration
 	_, undeclaredDiags := backend.ParseUndeclaredVariableValues(op.Variables, config.Module.Variables)
 	diags = diags.Append(undeclaredDiags)
@@ -402,6 +416,52 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	return run, snap, diags
 }
 
+// generateEphemeralPlanValues converts the user given variables into a format processable
+// by plans.Plan#StoreEphemeralVariablesValues.
+// This is needed because the ephemeral variables' values are not stored in the plan when saving it
+// after a `tofu plan -out <planfile>` run.
+// Therefore, for the ephemeral values that are required to be passed during plan creation,
+// we need to process those variables during apply too.
+func generateEphemeralPlanValues(vv map[string]backend.UnparsedVariableValue, vcfgs map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	parsedVars, varsParsingDiags := backend.ParseDeclaredVariableValues(vv, vcfgs)
+	diags = diags.Append(varsParsingDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	ephemeralVars, ephemeralDiags := ephemeralValuesForPlanDuringFromUserInput(parsedVars, vcfgs)
+	diags = diags.Append(ephemeralDiags)
+	return ephemeralVars, diags
+}
+
+// ephemeralValuesForPlanDuringFromUserInput is creating a map ready to be given to the plan to merge these together
+// with the variables that are already in the plan.
+// This function is handling only the ephemeral variables since those are the only ones that are not
+// stored in the plan, so the only way to pass then into the apply phase is to provide them again
+// in the -var/-var-file.
+func ephemeralValuesForPlanDuringFromUserInput(parsedVars tofu.InputValues, variables map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	out := make(map[string]cty.Value)
+	for vn, vc := range variables {
+		if !vc.Ephemeral {
+			log.Printf("[TRACE] variable %q is not ephemeral so not processing it to store in the plan", vn)
+			continue
+		}
+		vv, ok := parsedVars[vn]
+		if !ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "No value for required variable",
+				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", vc.Name),
+				Subject:  vc.DeclRange.Ptr(),
+			})
+			continue
+		}
+		out[vn] = vv.Value
+	}
+	return out, diags
+}
+
 // interactiveCollectVariables attempts to complete the given existing
 // map of variables by interactively prompting for any variables that are
 // declared as required but not yet present.
@@ -451,11 +511,15 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 	}
 	for _, name := range needed {
 		vc := vcs[name]
-		rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
+		varUiInput := uiInput
+		if vc.Ephemeral {
+			varUiInput = tofu.NewEphemeralSuffixUIInput(varUiInput)
+		}
+		rawValue, err := varUiInput.Input(ctx, &tofu.InputOpts{
 			Id:          fmt.Sprintf("var.%s", name),
 			Query:       fmt.Sprintf("var.%s", name),
 			Description: vc.InputPrompt(),
-			Secret:      vc.Sensitive,
+			Secret:      vc.Sensitive || vc.Ephemeral,
 		})
 		if err != nil {
 			// Since interactive prompts are best-effort, we'll just continue

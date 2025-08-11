@@ -25,6 +25,7 @@ import (
 // should generally be suitable for display to an end-user anyway.
 //
 // This function will panic if the given value is not of an object type.
+// TODO ephemeral - check that ephemeral is not going to impact this
 func ObjectValueID(obj cty.Value) (k, v string) {
 	if obj.IsNull() || !obj.IsKnown() {
 		return "", ""
@@ -82,6 +83,7 @@ func ObjectValueID(obj cty.Value) (k, v string) {
 // name-extraction heuristics.
 //
 // This function will panic if the given value is not of an object type.
+// TODO ephemeral - check how (and if) ephemeral marks should have their own logic here. Check unit tests too.
 func ObjectValueName(obj cty.Value) (k, v string) {
 	if obj.IsNull() || !obj.IsKnown() {
 		return "", ""
