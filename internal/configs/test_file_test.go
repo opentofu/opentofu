@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 )
 
 func TestTestRun_Validate(t *testing.T) {
@@ -113,12 +113,12 @@ func assertDiagsSummaryMatch(t *testing.T, want hcl.Diagnostics, got hcl.Diagnos
 func TestDecodeTestRunModuleBlock(t *testing.T) {
 	tcs := map[string]struct {
 		inputModuleSource string
-		wantModuleSource string
-		expectedDiags hcl.Diagnostics
+		wantModuleSource  string
+		expectedDiags     hcl.Diagnostics
 	}{
 		"invalid": {
 			inputModuleSource: "hg",
-			wantModuleSource: "",
+			wantModuleSource:  "",
 			expectedDiags: hcl.Diagnostics{
 				{
 					Summary: "Invalid module source address",
@@ -127,13 +127,13 @@ func TestDecodeTestRunModuleBlock(t *testing.T) {
 		},
 		"generic_git_url": {
 			inputModuleSource: "git@github.com:opentofu/terraform-module-test.git",
-			wantModuleSource: "git::ssh://git@github.com/opentofu/terraform-module-test.git",
-			expectedDiags: nil,
+			wantModuleSource:  "git::ssh://git@github.com/opentofu/terraform-module-test.git",
+			expectedDiags:     nil,
 		},
 		"github_url": {
 			inputModuleSource: "github.com/opentofu/terraform-module-test",
-			wantModuleSource: "git::https://github.com/opentofu/terraform-module-test.git",
-			expectedDiags: nil,
+			wantModuleSource:  "git::https://github.com/opentofu/terraform-module-test.git",
+			expectedDiags:     nil,
 		},
 	}
 
@@ -141,18 +141,13 @@ func TestDecodeTestRunModuleBlock(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			pos := hcl.Pos{Line: 1, Column: 1}
 			exprName := fmt.Sprintf("\"%s\"", tc.inputModuleSource)
-			expr, _ :=  hclsyntax.ParseExpression([]byte(exprName), "", pos)
+			expr, _ := hclsyntax.ParseExpression([]byte(exprName), "", pos)
 
-			block := &hcl.Block{
-				Type: "module",
-				Body: hcltest.MockBody(&hcl.BodyContent{
-					Attributes: hcl.Attributes{
-						"source": {
-							Name: "source",
-							Expr: expr,
-						},
-					},
-				}),
+			block := &parser.TestRunModule{
+				Source: &hcl.Attribute{
+					Name: "source",
+					Expr: expr,
+				},
 				DefRange: blockRange,
 			}
 
@@ -171,8 +166,7 @@ func TestDecodeTestRunModuleBlock(t *testing.T) {
 				t.Fatalf("was expecting to have a source, but did not: %d", trcm.Source)
 			}
 
-
-			if trcm.Source.String() != tc.wantModuleSource  {
+			if trcm.Source.String() != tc.wantModuleSource {
 				t.Fatalf("got %#v; want %#v", trcm.Source.String(), tc.wantModuleSource)
 			}
 		})

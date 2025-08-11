@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/parser"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -413,81 +414,92 @@ func (r MockResource) getBlockName() string {
 func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	content, contentDiags := body.Content(testFileSchema)
-	diags = append(diags, contentDiags...)
+	var parsed parser.TestFile
+	decodeDiags := gohcl.DecodeBody(body, nil, &parsed)
+	diags = append(diags, decodeDiags...)
 
 	tf := TestFile{
 		Providers:     make(map[string]*Provider),
 		MockProviders: make(map[string]*MockProvider),
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "run":
-			run, runDiags := decodeTestRunBlock(block)
-			diags = append(diags, runDiags...)
-			if !runDiags.HasErrors() {
-				tf.Runs = append(tf.Runs, run)
-			}
+	for _, block := range parsed.Runs {
+		run, runDiags := decodeTestRunBlock(block)
+		diags = append(diags, runDiags...)
+		if !runDiags.HasErrors() {
+			tf.Runs = append(tf.Runs, run)
+		}
+	}
 
-		case "variables":
-			if tf.Variables != nil {
-				diags = append(diags, &hcl.Diagnostic{
+	for _, block := range parsed.Variables {
+		if tf.Variables != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Multiple \"variables\" blocks",
+				Detail:   fmt.Sprintf("This test file already has a variables block defined at %s.", tf.VariablesDeclRange),
+				Subject:  block.DefRange.Ptr(),
+			})
+			continue
+		}
+
+		tf.Variables = make(map[string]hcl.Expression)
+		tf.VariablesDeclRange = block.DefRange
+
+		vars, varsDiags := block.Body.JustAttributes()
+		diags = append(diags, varsDiags...)
+		for _, v := range vars {
+			tf.Variables[v.Name] = v.Expr
+		}
+	}
+
+	for _, block := range parsed.ProviderConfigs {
+		provider, providerDiags := decodeProviderBlock(block)
+		diags = append(diags, providerDiags...)
+		if provider != nil {
+			tf.Providers[provider.moduleUniqueKey()] = provider
+		}
+	}
+
+	for _, block := range parsed.OverrideResources {
+		overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		diags = append(diags, overrideResDiags...)
+		if !overrideResDiags.HasErrors() {
+			tf.OverrideResources = append(tf.OverrideResources, overrideRes)
+		}
+	}
+
+	for _, block := range parsed.OverrideData {
+		overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+		diags = append(diags, overrideResDiags...)
+		if !overrideResDiags.HasErrors() {
+			tf.OverrideResources = append(tf.OverrideResources, overrideRes)
+		}
+	}
+
+	for _, block := range parsed.OverrideModules {
+		overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
+		diags = append(diags, overrideModDiags...)
+		if !overrideModDiags.HasErrors() {
+			tf.OverrideModules = append(tf.OverrideModules, overrideMod)
+		}
+	}
+
+	for _, block := range parsed.MockProviders {
+		mockProvider, mockProviderDiags := decodeMockProviderBlock(block)
+		diags = append(diags, mockProviderDiags...)
+
+		if !mockProviderDiags.HasErrors() {
+			k := mockProvider.moduleUniqueKey()
+
+			if _, ok := tf.MockProviders[k]; ok {
+				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Multiple \"variables\" blocks",
-					Detail:   fmt.Sprintf("This test file already has a variables block defined at %s.", tf.VariablesDeclRange),
-					Subject:  block.DefRange.Ptr(),
+					Summary:  "Duplicated `mock_provider` block",
+					Detail:   fmt.Sprintf("It is not allowed to have multiple `mock_provider` blocks with the same address: `%v`.", k),
+					Subject:  mockProvider.DeclRange.Ptr(),
 				})
-				continue
-			}
-
-			tf.Variables = make(map[string]hcl.Expression)
-			tf.VariablesDeclRange = block.DefRange
-
-			vars, varsDiags := block.Body.JustAttributes()
-			diags = append(diags, varsDiags...)
-			for _, v := range vars {
-				tf.Variables[v.Name] = v.Expr
-			}
-
-		case "provider":
-			/*TODO provider, providerDiags := decodeProviderBlock(block)
-			diags = append(diags, providerDiags...)
-			if provider != nil {
-				tf.Providers[provider.moduleUniqueKey()] = provider
-			}*/
-
-		case blockNameOverrideResource, blockNameOverrideData:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
-			diags = append(diags, overrideResDiags...)
-			if !overrideResDiags.HasErrors() {
-				tf.OverrideResources = append(tf.OverrideResources, overrideRes)
-			}
-
-		case blockNameOverrideModule:
-			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
-			diags = append(diags, overrideModDiags...)
-			if !overrideModDiags.HasErrors() {
-				tf.OverrideModules = append(tf.OverrideModules, overrideMod)
-			}
-
-		case blockNameMockProvider:
-			mockProvider, mockProviderDiags := decodeMockProviderBlock(block)
-			diags = append(diags, mockProviderDiags...)
-
-			if !mockProviderDiags.HasErrors() {
-				k := mockProvider.moduleUniqueKey()
-
-				if _, ok := tf.MockProviders[k]; ok {
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Duplicated `mock_provider` block",
-						Detail:   fmt.Sprintf("It is not allowed to have multiple `mock_provider` blocks with the same address: `%v`.", k),
-						Subject:  mockProvider.DeclRange.Ptr(),
-					})
-				} else {
-					tf.MockProviders[k] = mockProvider
-				}
+			} else {
+				tf.MockProviders[k] = mockProvider
 			}
 		}
 	}
@@ -495,15 +507,12 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 	return &tf, diags
 }
 
-func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
+func decodeTestRunBlock(block *parser.TestRun) (*TestRun, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	content, contentDiags := block.Body.Content(testRunBlockSchema)
-	diags = append(diags, contentDiags...)
-
 	r := TestRun{
-		Name:          block.Labels[0],
-		NameDeclRange: block.LabelRanges[0],
+		Name:          block.Name,
+		NameDeclRange: block.NameRange,
 		DeclRange:     block.DefRange,
 	}
 
@@ -512,83 +521,94 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 			Severity: hcl.DiagError,
 			Summary:  "Invalid run block name",
 			Detail:   badIdentifierDetail,
-			Subject:  &block.LabelRanges[0],
+			Subject:  &block.NameRange,
 		})
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case "assert":
-			/* TODO TODO
-			cr, crDiags := decodeCheckRuleBlock(block, false)
-			diags = append(diags, crDiags...)
-			if !crDiags.HasErrors() {
-				r.CheckRules = append(r.CheckRules, cr)
-			}*/
-		case "plan_options":
-			if r.Options != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Multiple \"plan_options\" blocks",
-					Detail:   fmt.Sprintf("This run block already has a plan_options block defined at %s.", r.Options.DeclRange),
-					Subject:  block.DefRange.Ptr(),
-				})
-				continue
-			}
+	for _, block := range block.Asserts {
+		cr, crDiags := decodeCheckRuleBlock(block, "assert", false)
+		diags = append(diags, crDiags...)
+		if !crDiags.HasErrors() {
+			r.CheckRules = append(r.CheckRules, cr)
+		}
+	}
 
-			opts, optsDiags := decodeTestRunOptionsBlock(block)
-			diags = append(diags, optsDiags...)
-			if !optsDiags.HasErrors() {
-				r.Options = opts
-			}
-		case "variables":
-			if r.Variables != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Multiple \"variables\" blocks",
-					Detail:   fmt.Sprintf("This run block already has a variables block defined at %s.", r.VariablesDeclRange),
-					Subject:  block.DefRange.Ptr(),
-				})
-				continue
-			}
+	for _, block := range block.PlanOptions {
+		if r.Options != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Multiple \"plan_options\" blocks",
+				Detail:   fmt.Sprintf("This run block already has a plan_options block defined at %s.", r.Options.DeclRange),
+				Subject:  block.DefRange.Ptr(),
+			})
+			continue
+		}
 
-			r.Variables = make(map[string]hcl.Expression)
-			r.VariablesDeclRange = block.DefRange
+		opts, optsDiags := decodeTestRunOptionsBlock(block)
+		diags = append(diags, optsDiags...)
+		if !optsDiags.HasErrors() {
+			r.Options = opts
+		}
+	}
 
-			vars, varsDiags := block.Body.JustAttributes()
-			diags = append(diags, varsDiags...)
-			for _, v := range vars {
-				r.Variables[v.Name] = v.Expr
-			}
-		case "module":
-			if r.Module != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Multiple \"module\" blocks",
-					Detail:   fmt.Sprintf("This run block already has a module block defined at %s.", r.Module.DeclRange),
-					Subject:  block.DefRange.Ptr(),
-				})
-			}
+	for _, block := range block.Variables {
+		if r.Variables != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Multiple \"variables\" blocks",
+				Detail:   fmt.Sprintf("This run block already has a variables block defined at %s.", r.VariablesDeclRange),
+				Subject:  block.DefRange.Ptr(),
+			})
+			continue
+		}
 
-			module, moduleDiags := decodeTestRunModuleBlock(block)
-			diags = append(diags, moduleDiags...)
-			if !moduleDiags.HasErrors() {
-				r.Module = module
-			}
+		r.Variables = make(map[string]hcl.Expression)
+		r.VariablesDeclRange = block.DefRange
 
-		case blockNameOverrideResource, blockNameOverrideData:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
-			diags = append(diags, overrideResDiags...)
-			if !overrideResDiags.HasErrors() {
-				r.OverrideResources = append(r.OverrideResources, overrideRes)
-			}
+		vars, varsDiags := block.Body.JustAttributes()
+		diags = append(diags, varsDiags...)
+		for _, v := range vars {
+			r.Variables[v.Name] = v.Expr
+		}
+	}
 
-		case blockNameOverrideModule:
-			overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
-			diags = append(diags, overrideModDiags...)
-			if !overrideModDiags.HasErrors() {
-				r.OverrideModules = append(r.OverrideModules, overrideMod)
-			}
+	for _, block := range block.Module {
+		if r.Module != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Multiple \"module\" blocks",
+				Detail:   fmt.Sprintf("This run block already has a module block defined at %s.", r.Module.DeclRange),
+				Subject:  block.DefRange.Ptr(),
+			})
+		}
+
+		module, moduleDiags := decodeTestRunModuleBlock(block)
+		diags = append(diags, moduleDiags...)
+		if !moduleDiags.HasErrors() {
+			r.Module = module
+		}
+	}
+
+	for _, block := range block.OverrideResources {
+		overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		diags = append(diags, overrideResDiags...)
+		if !overrideResDiags.HasErrors() {
+			r.OverrideResources = append(r.OverrideResources, overrideRes)
+		}
+	}
+	for _, block := range block.OverrideData {
+		overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+		diags = append(diags, overrideResDiags...)
+		if !overrideResDiags.HasErrors() {
+			r.OverrideResources = append(r.OverrideResources, overrideRes)
+		}
+	}
+
+	for _, block := range block.OverrideModules {
+		overrideMod, overrideModDiags := decodeOverrideModuleBlock(block)
+		diags = append(diags, overrideModDiags...)
+		if !overrideModDiags.HasErrors() {
+			r.OverrideModules = append(r.OverrideModules, overrideMod)
 		}
 	}
 
@@ -608,8 +628,8 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 		}
 	}
 
-	if attr, exists := content.Attributes["command"]; exists {
-		switch hcl.ExprAsKeyword(attr.Expr) {
+	if block.Command != nil {
+		switch hcl.ExprAsKeyword(block.Command.Expr) {
 		case "apply":
 			r.Command = ApplyTestCommand
 		case "plan":
@@ -619,21 +639,21 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 				Severity: hcl.DiagError,
 				Summary:  "Invalid \"command\" keyword",
 				Detail:   "The \"command\" argument requires one of the following keywords without quotes: apply or plan.",
-				Subject:  attr.Expr.Range().Ptr(),
+				Subject:  block.Command.Expr.Range().Ptr(),
 			})
 		}
 	} else {
 		r.Command = ApplyTestCommand // Default to apply
 	}
 
-	if attr, exists := content.Attributes["providers"]; exists {
-		providers, providerDiags := decodePassedProviderConfigs(attr)
+	if block.Providers != nil {
+		providers, providerDiags := decodePassedProviderConfigs(block.Providers)
 		diags = append(diags, providerDiags...)
 		r.Providers = append(r.Providers, providers...)
 	}
 
-	if attr, exists := content.Attributes["expect_failures"]; exists {
-		failures, failDiags := decodeDependsOn(attr)
+	if block.ExpectFailures != nil {
+		failures, failDiags := decodeDependsOn(block.ExpectFailures)
 		diags = append(diags, failDiags...)
 		r.ExpectFailures = failures
 	}
@@ -641,25 +661,22 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 	return &r, diags
 }
 
-func decodeTestRunModuleBlock(block *hcl.Block) (*TestRunModuleCall, hcl.Diagnostics) {
+func decodeTestRunModuleBlock(block *parser.TestRunModule) (*TestRunModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	content, contentDiags := block.Body.Content(testRunModuleBlockSchema)
-	diags = append(diags, contentDiags...)
 
 	module := TestRunModuleCall{
 		DeclRange: block.DefRange,
 	}
 
 	haveVersionArg := false
-	if attr, exists := content.Attributes["version"]; exists {
+	if block.Version != nil {
 		var versionDiags hcl.Diagnostics
-		module.Version, versionDiags = decodeVersionConstraint(attr)
+		module.Version, versionDiags = decodeVersionConstraint(block.Version)
 		diags = append(diags, versionDiags...)
 		haveVersionArg = true
 	}
 
-	if attr, exists := content.Attributes["source"]; exists {
+	if attr := block.Source; attr != nil {
 		module.SourceDeclRange = attr.Range
 
 		var raw string
@@ -732,17 +749,14 @@ func decodeTestRunModuleBlock(block *hcl.Block) (*TestRunModuleCall, hcl.Diagnos
 	return &module, diags
 }
 
-func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnostics) {
+func decodeTestRunOptionsBlock(block *parser.TestRunOptions) (*TestRunOptions, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	content, contentDiags := block.Body.Content(testRunOptionsBlockSchema)
-	diags = append(diags, contentDiags...)
 
 	opts := TestRunOptions{
 		DeclRange: block.DefRange,
 	}
 
-	if attr, exists := content.Attributes["mode"]; exists {
+	if attr := block.Mode; attr != nil {
 		switch hcl.ExprAsKeyword(attr.Expr) {
 		case "refresh-only":
 			opts.Mode = RefreshOnlyTestMode
@@ -760,21 +774,21 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 		opts.Mode = NormalTestMode // Default to normal
 	}
 
-	if attr, exists := content.Attributes["refresh"]; exists {
-		diags = append(diags, gohcl.DecodeExpression(attr.Expr, nil, &opts.Refresh)...)
+	if block.Refresh != nil {
+		opts.Refresh = *block.Refresh
 	} else {
 		// Defaults to true.
 		opts.Refresh = true
 	}
 
-	if attr, exists := content.Attributes["replace"]; exists {
-		reps, repsDiags := decodeDependsOn(attr)
+	if block.Replace != nil {
+		reps, repsDiags := decodeDependsOn(block.Replace)
 		diags = append(diags, repsDiags...)
 		opts.Replace = reps
 	}
 
-	if attr, exists := content.Attributes["target"]; exists {
-		tars, tarsDiags := decodeDependsOn(attr)
+	if block.Target != nil {
+		tars, tarsDiags := decodeDependsOn(block.Target)
 		diags = append(diags, tarsDiags...)
 		opts.Target = tars
 	}
@@ -785,14 +799,14 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 			Severity: hcl.DiagError,
 			Summary:  "Incompatible plan options",
 			Detail:   "The \"refresh\" option cannot be set to false when running a test in \"refresh-only\" mode.",
-			Subject:  content.Attributes["refresh"].Range.Ptr(),
+			Subject:  block.RefreshRange.Ptr(),
 		})
 	}
 
 	return &opts, diags
 }
 
-func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagnostics) {
+func decodeOverrideResourceBlock(block *parser.OverrideResource, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
 	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.ConfigResource, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
 		diags := traversalDiags
@@ -809,34 +823,24 @@ func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagn
 		return traversal, &configRes, diags
 	}
 
-	res := &OverrideResource{}
-
-	switch block.Type {
-	case blockNameOverrideResource:
-		res.Mode = addrs.ManagedResourceMode
-	case blockNameOverrideData:
-		res.Mode = addrs.DataResourceMode
-	default:
-		panic("BUG: unsupported block type for override resource: " + block.Type)
+	var diags hcl.Diagnostics
+	res := &OverrideResource{
+		Mode: mode,
 	}
 
-	content, diags := block.Body.Content(overrideResourceBlockSchema)
+	target, parsed, moreDiags := parseTarget(&block.Target)
+	res.Target, res.TargetParsed = target, parsed
+	diags = append(diags, moreDiags...)
 
-	if attr, exists := content.Attributes["target"]; exists {
-		target, parsed, moreDiags := parseTarget(attr)
-		res.Target, res.TargetParsed = target, parsed
-		diags = append(diags, moreDiags...)
-	}
-
-	if attr, exists := content.Attributes["values"]; exists {
-		v, moreDiags := parseObjectAttrWithNoVariables(attr)
+	if block.Values != nil {
+		v, moreDiags := parseObjectAttrWithNoVariables(block.Values)
 		res.Values, diags = v, append(diags, moreDiags...)
 	}
 
 	return res, diags
 }
 
-func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnostics) {
+func decodeOverrideModuleBlock(block *parser.OverrideModule) (*OverrideModule, hcl.Diagnostics) {
 	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, addrs.Module, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
 		diags := traversalDiags
@@ -853,18 +857,15 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 		return traversal, target, diags
 	}
 
+	var diags hcl.Diagnostics
 	mod := &OverrideModule{}
 
-	content, diags := block.Body.Content(overrideModuleBlockSchema)
+	traversal, target, moreDiags := parseTarget(&block.Target)
+	mod.Target, mod.TargetParsed = traversal, target
+	diags = append(diags, moreDiags...)
 
-	if attr, exists := content.Attributes["target"]; exists {
-		traversal, target, moreDiags := parseTarget(attr)
-		mod.Target, mod.TargetParsed = traversal, target
-		diags = append(diags, moreDiags...)
-	}
-
-	if attr, exists := content.Attributes["outputs"]; exists {
-		outputs, moreDiags := parseObjectAttrWithNoVariables(attr)
+	if block.Outputs != nil {
+		outputs, moreDiags := parseObjectAttrWithNoVariables(block.Outputs)
 		mod.Outputs, diags = outputs, append(diags, moreDiags...)
 	}
 
@@ -872,16 +873,13 @@ func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnosti
 }
 
 // Some code of decodeMockProviderBlock function was copied from decodeProviderBlock.
-func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) {
+func decodeMockProviderBlock(block *parser.MockProvider) (*MockProvider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	content, moreDiags := block.Body.Content(mockProviderBlockSchema)
-	diags = append(diags, moreDiags...)
 
 	// Provider names must be localized. Produce an error with a message
 	// indicating the action the user can take to fix this message if the local
 	// name is not localized.
-	name := block.Labels[0]
+	name := block.Name
 	nameDiags := checkProviderNameNormalized(name, block.DefRange)
 	diags = append(diags, nameDiags...)
 	if nameDiags.HasErrors() {
@@ -892,14 +890,13 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 
 	provider := &MockProvider{
 		Name:      name,
-		NameRange: block.LabelRanges[0],
+		NameRange: block.NameRange,
 		DeclRange: block.DefRange,
 	}
 
-	if attr, exists := content.Attributes["alias"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
-		diags = append(diags, valDiags...)
-		provider.AliasRange = attr.Expr.Range().Ptr()
+	if block.Alias != nil {
+		provider.Alias = *block.Alias
+		provider.AliasRange = block.AliasRange.Ptr()
 
 		if !hclsyntax.ValidIdentifier(provider.Alias) {
 			diags = append(diags, &hcl.Diagnostic{
@@ -911,20 +908,34 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		}
 	}
 
-	for _, block := range content.Blocks {
-		switch block.Type {
-		case blockNameMockData, blockNameMockResource:
-			res, resDiags := decodeMockResourceBlock(block)
-			diags = append(diags, resDiags...)
-			if !resDiags.HasErrors() {
-				provider.MockResources = append(provider.MockResources, res)
-			}
-		case blockNameOverrideData, blockNameOverrideResource:
-			res, resDiags := decodeOverrideResourceBlock(block)
-			diags = append(diags, resDiags...)
-			if !resDiags.HasErrors() {
-				provider.OverrideResources = append(provider.OverrideResources, res)
-			}
+	for _, block := range block.MockResources {
+		res, resDiags := decodeMockResourceBlock(block, addrs.ManagedResourceMode)
+		diags = append(diags, resDiags...)
+		if !resDiags.HasErrors() {
+			provider.MockResources = append(provider.MockResources, res)
+		}
+	}
+	for _, block := range block.MockData {
+		res, resDiags := decodeMockResourceBlock(block, addrs.DataResourceMode)
+		diags = append(diags, resDiags...)
+		if !resDiags.HasErrors() {
+			provider.MockResources = append(provider.MockResources, res)
+		}
+	}
+
+	for _, block := range block.OverrideResources {
+		res, resDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		diags = append(diags, resDiags...)
+		if !resDiags.HasErrors() {
+			provider.OverrideResources = append(provider.OverrideResources, res)
+		}
+	}
+
+	for _, block := range block.OverrideResources {
+		res, resDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
+		diags = append(diags, resDiags...)
+		if !resDiags.HasErrors() {
+			provider.OverrideResources = append(provider.OverrideResources, res)
 		}
 	}
 
@@ -934,27 +945,16 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 	return provider, diags
 }
 
-func decodeMockResourceBlock(block *hcl.Block) (*MockResource, hcl.Diagnostics) {
-	var mode addrs.ResourceMode
-
-	switch block.Type {
-	case blockNameMockResource:
-		mode = addrs.ManagedResourceMode
-	case blockNameMockData:
-		mode = addrs.DataResourceMode
-	default:
-		panic("BUG: unsupported block type for mock resource: " + block.Type)
-	}
+func decodeMockResourceBlock(block *parser.MockResource, mode addrs.ResourceMode) (*MockResource, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
 
 	res := &MockResource{
 		Mode: mode,
-		Type: block.Labels[0],
+		Type: block.Type,
 	}
 
-	content, diags := block.Body.Content(mockResourceBlockSchema)
-
-	if attr, exists := content.Attributes["defaults"]; exists {
-		v, moreDiags := parseObjectAttrWithNoVariables(attr)
+	if block.Defaults != nil {
+		v, moreDiags := parseObjectAttrWithNoVariables(block.Defaults)
 		res.Defaults, diags = v, append(diags, moreDiags...)
 	}
 
@@ -1024,162 +1024,4 @@ func checkForDuplicatedOverrideModules(modules []*OverrideModule) hcl.Diagnostic
 	}
 
 	return diags
-}
-
-// testFileSchema defines the structure of test file configuration for tofu tests.
-var testFileSchema = &hcl.BodySchema{
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			// run block defines the steps to execute during a test run.
-			Type:       "run",
-			LabelNames: []string{"name"},
-		},
-		{
-			// provider block specifies the infrastructure provider to use for the test.
-			Type:       "provider",
-			LabelNames: []string{"name"},
-		},
-		{
-			// variables block defines input variables to pass to the test.
-			Type: "variables",
-		},
-		{
-			Type: blockNameOverrideResource,
-		},
-		{
-			Type: blockNameOverrideData,
-		},
-		{
-			Type: blockNameOverrideModule,
-		},
-		{
-			Type:       blockNameMockProvider,
-			LabelNames: []string{"name"},
-		},
-	},
-}
-
-// testRunBlockSchema defines the structure of the run block within a test,
-// including attributes like the command, expected failures, and providers.
-var testRunBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		// command specifies the shell command or script to execute during the test.
-		{Name: "command"},
-		// providers defines the list of infrastructure providers used during the test.
-		{Name: "providers"},
-		// expect_failures indicates whether test failures are expected.
-		{Name: "expect_failures"},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			// plan_options block configures options for the planning phase of the test.
-			Type: "plan_options",
-		},
-		{
-			// assert block allows defining conditions that must be met for the test to pass.
-			Type: "assert",
-		},
-		{
-			// variables block provides input variables to be used during the test.
-			Type: "variables",
-		},
-		{
-			// module block specifies the module to be tested.
-			Type: "module",
-		},
-		{
-			Type: blockNameOverrideResource,
-		},
-		{
-			Type: blockNameOverrideData,
-		},
-		{
-			Type: blockNameOverrideModule,
-		},
-	},
-}
-
-// testRunOptionsBlockSchema defines the structure of the plan_options block
-// within a test, allowing configuration of test planning behavior.
-var testRunOptionsBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		// mode defines the execution mode for the plan (e.g., apply or destroy).
-		{Name: "mode"},
-		// refresh determines whether resources should be refreshed before planning.
-		{Name: "refresh"},
-		// replace specifies the resources to be replaced during the plan.
-		{Name: "replace"},
-		// target lists the specific resources to target during the plan.
-		{Name: "target"},
-	},
-}
-
-// testRunModuleBlockSchema defines the structure of the module block within a test run,
-// including attributes for the module's source and version.
-var testRunModuleBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		// source specifies the source of the module (e.g., a Git URL or local path).
-		{Name: "source"},
-		// version specifies the version of the module to use.
-		{Name: "version"},
-	},
-}
-
-var overrideResourceBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name:     "target",
-			Required: true,
-		},
-		{
-			Name:     "values",
-			Required: false,
-		},
-	},
-}
-
-var overrideModuleBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name:     "target",
-			Required: true,
-		},
-		{
-			Name:     "outputs",
-			Required: false,
-		},
-	},
-}
-
-var mockProviderBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name:     "alias",
-			Required: false,
-		},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type:       blockNameMockResource,
-			LabelNames: []string{"type"},
-		},
-		{
-			Type:       blockNameMockData,
-			LabelNames: []string{"type"},
-		},
-		{
-			Type: blockNameOverrideResource,
-		},
-		{
-			Type: blockNameOverrideData,
-		},
-	},
-}
-
-var mockResourceBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "defaults",
-		},
-	},
 }

@@ -110,24 +110,20 @@ func decodeCheckRuleBlock(block *parser.CheckRule, blockType string, override bo
 		return cr, diags
 	}
 
-	if block.Condition != nil {
-		cr.Condition = block.Condition.Expr
+	cr.Condition = block.Condition
 
-		if len(cr.Condition.Variables()) == 0 {
-			// A condition expression that doesn't refer to any variable is
-			// pointless, because its result would always be a constant.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Invalid %s expression", blockType),
-				Detail:   "The condition expression must refer to at least one object from elsewhere in the configuration, or else its result would not be checking anything.",
-				Subject:  cr.Condition.Range().Ptr(),
-			})
-		}
+	if len(cr.Condition.Variables()) == 0 {
+		// A condition expression that doesn't refer to any variable is
+		// pointless, because its result would always be a constant.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid %s expression", blockType),
+			Detail:   "The condition expression must refer to at least one object from elsewhere in the configuration, or else its result would not be checking anything.",
+			Subject:  cr.Condition.Range().Ptr(),
+		})
 	}
 
-	if block.ErrorMessage != nil {
-		cr.ErrorMessage = block.ErrorMessage.Expr
-	}
+	cr.ErrorMessage = block.ErrorMessage
 
 	return cr, diags
 }

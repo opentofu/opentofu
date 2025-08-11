@@ -3,8 +3,8 @@ package parser
 import "github.com/hashicorp/hcl/v2"
 
 type CheckRule struct {
-	Condition    *hcl.Attribute `hcl:"condition,attr"`
-	ErrorMessage *hcl.Attribute `hcl:"error_message,attr"`
+	Condition    hcl.Expression `hcl:"condition,attr"`
+	ErrorMessage hcl.Expression `hcl:"error_message,attr"`
 
 	TypeRange hcl.Range `hcl:",type_range"`
 	DefRange  hcl.Range `hcl:",def_range"`
