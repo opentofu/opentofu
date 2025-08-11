@@ -6,6 +6,8 @@
 package plans
 
 import (
+	"fmt"
+	"log"
 	"sort"
 	"time"
 
@@ -43,6 +45,15 @@ type Plan struct {
 	// should not be added based on this flag, and changing the flag should be
 	// checked carefully against existing destroy behaviors.
 	UIMode Mode
+
+	// EphemeralVariables is meant is used to determine what variables should be stored
+	// into the plan and which shouldn't.
+	// Those marked as "true" should be skipped from writing into the plan.
+	// Later, when loading the plan from the file, this map will stay nil since there is
+	// no way to determine what ephemeral variables are in the configuration without
+	// having direct access to the config objects.
+	// This is later populated, before executing the apply phase.
+	EphemeralVariables map[string]bool
 
 	VariableValues    map[string]DynamicValue
 	Changes           *Changes
@@ -227,6 +238,43 @@ func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
 		}
 		return parsed, diags
 	}
+}
+
+// StoreEphemeralVariablesValues converts the given values and store them in Plan.VariableValues for being
+// able to return those from VariableMapper.
+// It also stores the names of the ephemeral variables in a separate map for being able to ignore
+// those later if the plan needs to be persisted again.
+//
+// This function is mainly used when applying a saved plan.
+// Since the ephemeral variables are ignored during storing the plan, we need to
+// still provide values for those when the plan is applied.
+func (plan *Plan) StoreEphemeralVariablesValues(vars map[string]cty.Value) (diags hcl.Diagnostics) {
+	if plan.EphemeralVariables == nil {
+		plan.EphemeralVariables = map[string]bool{}
+	}
+	for vn, vv := range vars {
+		if _, ok := plan.VariableValues[vn]; ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Ephemeral variable found in plan",
+				Detail:   fmt.Sprintf("Variable value %q found in the plan. This is an error on OpenTofu's side. Please report this", vn),
+			})
+			continue
+		}
+		log.Printf("[TRACE] ephemeral variable %q value restored into the plan", vn)
+		vdv, err := NewDynamicValue(vv, cty.DynamicPseudoType)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to prepare variable value for plan",
+				Detail:   fmt.Sprintf("The value for ephemeral variable %q could not be serialized to restore in the plan: %s.", vn, err),
+			})
+			continue
+		}
+		plan.VariableValues[vn] = vdv
+		plan.EphemeralVariables[vn] = true // true because this method should be called with values **only** for ephemeral variables
+	}
+	return diags
 }
 
 // Backend represents the backend-related configuration and other data as it

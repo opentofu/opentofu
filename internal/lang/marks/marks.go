@@ -31,10 +31,27 @@ func Has(val cty.Value, mark valueMark) bool {
 	return val.HasMark(mark)
 }
 
-// Contains returns true if the cty.Value or any any value within it contains
+// Contains returns true if the cty.Value or any value within it contains
 // the given mark.
 func Contains(val cty.Value, mark valueMark) bool {
 	return val.HasMarkDeep(mark)
+}
+
+// ContainsAnyMark returns true if the cty.Value or any value within it contains
+// any of the given mark.
+func ContainsAnyMark(val cty.Value, marks ...valueMark) bool {
+	ret := false
+	// We never return an error, so we can ignore the value here
+	_ = cty.Walk(val, func(_ cty.Path, v cty.Value) (bool, error) {
+		for _, mark := range marks {
+			if v.HasMark(mark) {
+				ret = true
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+	return ret
 }
 
 // Sensitive indicates that this value is marked as sensitive in the context of

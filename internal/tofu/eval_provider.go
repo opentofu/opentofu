@@ -82,7 +82,16 @@ func resolveProviderInstance(ctx context.Context, keyExpr hcl.Expression, keySco
 			Summary:  "Invalid provider instance key",
 			Detail:   "A provider instance key must not be derived from a sensitive value.",
 			Subject:  keyExpr.Range().Ptr(),
-			Extra:    evalchecks.DiagnosticCausedBySensitive(true),
+			Extra:    evalchecks.DiagnosticCausedByConfidentialValues(true),
+		})
+	}
+	if keyVal.HasMark(marks.Ephemeral) {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   "A provider instance key must not be derived from an ephemeral value.",
+			Subject:  keyExpr.Range().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedByConfidentialValues(true),
 		})
 	}
 	if keyVal.IsNull() {

@@ -149,38 +149,40 @@ func DiagnosticCausedByUnknown(diag Diagnostic) bool {
 	return maybe.DiagnosticCausedByUnknown()
 }
 
-// DiagnosticExtraBecauseSensitive is an interface implemented by values in
+// DiagnosticExtraBecauseConfidentialValues is an interface implemented by values in
 // the Extra field of Diagnostic when the diagnostic is potentially caused by
-// the presence of sensitive values in an expression evaluation.
+// the presence of confidential values in an expression evaluation.
 //
-// Just implementing this interface is not sufficient signal, though. Callers
-// must also call the DiagnosticCausedBySensitive method in order to confirm
-// the result, or use the package-level function DiagnosticCausedBySensitive
-// as a convenient wrapper.
-type DiagnosticExtraBecauseSensitive interface {
-	// DiagnosticCausedBySensitive returns true if the associated diagnostic
-	// was caused by the presence of sensitive values during an expression
+// In the "confidential" bucket, we have "sensitive" and "ephemeral" values.
+//
+// Just implementing this interface is not a sufficient signal, though.
+// Callers must also call the DiagnosticExtraBecauseConfidentialValues.DiagnosticCausedByConfidentialInfo
+// method in order to confirm the result, or use the package-level function
+// DiagnosticCausedByConfidentialValues as a convenient wrapper.
+type DiagnosticExtraBecauseConfidentialValues interface {
+	// DiagnosticCausedByConfidentialValues returns true if the associated diagnostic
+	// was caused by the presence of confidential values during an expression
 	// evaluation, or false otherwise.
 	//
 	// Callers might use this to tailor what contextual information they show
 	// alongside an error report in the UI, to avoid potential confusion
-	// caused by talking about the presence of sensitive values if that was
+	// caused by talking about the presence of confidential values if that was
 	// immaterial to the error.
-	DiagnosticCausedBySensitive() bool
+	DiagnosticCausedByConfidentialValues() bool
 }
 
-// DiagnosticCausedBySensitive returns true if the given diagnostic has an
-// indication that it was caused by the presence of sensitive values during
+// DiagnosticCausedByConfidentialValues returns true if the given diagnostic has an
+// indication that it was caused by the presence of confidential values during
 // an expression evaluation.
 //
 // This is a wrapper around checking if the diagnostic's extra info implements
-// interface DiagnosticExtraBecauseSensitive and then calling its method if so.
-func DiagnosticCausedBySensitive(diag Diagnostic) bool {
-	maybe := ExtraInfo[DiagnosticExtraBecauseSensitive](diag)
+// interface DiagnosticExtraBecauseConfidentialValues and then calling its method if so.
+func DiagnosticCausedByConfidentialValues(diag Diagnostic) bool {
+	maybe := ExtraInfo[DiagnosticExtraBecauseConfidentialValues](diag)
 	if maybe == nil {
 		return false
 	}
-	return maybe.DiagnosticCausedBySensitive()
+	return maybe.DiagnosticCausedByConfidentialValues()
 }
 
 // DiagnosticExtraDoNotConsolidate tells the Diagnostics.ConsolidateWarnings

@@ -149,6 +149,41 @@ func TestDiagnostic(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+		"error with source code subject and expression referring to ephemeral value": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
+						}),
+					},
+				},
+				Extra: diagnosticCausedBySensitive(true),
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on test.tf line 1:
+[red]│[reset]    1: test [underline]source[reset] code
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] has an ephemeral value
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
 		"error with source code subject and unknown string expression": {
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -525,6 +560,71 @@ Whatever shall we do?
 					Variables: map[string]cty.Value{
 						"boop": cty.ObjectVal(map[string]cty.Value{
 							"beep": cty.StringVal("blah").Mark(marks.Sensitive),
+						}),
+					},
+				},
+			},
+			`
+Error: Bad bad bad
+
+  on test.tf line 1:
+   1: test source code
+
+Whatever shall we do?
+`,
+		},
+		"error with source code subject and expression referring to ephemeral value": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
+						}),
+					},
+				},
+				Extra: diagnosticCausedBySensitive(true),
+			},
+			`
+Error: Bad bad bad
+
+  on test.tf line 1:
+   1: test source code
+    ├────────────────
+    │ boop.beep has an ephemeral value
+
+Whatever shall we do?
+`,
+		},
+		"error with source code subject and expression referring to ephemeral value when not related to sensitivity": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
 						}),
 					},
 				},
@@ -1038,8 +1138,8 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // diagnostics that are explicitly marked as being caused by sensitive values.
 type diagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = diagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e diagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }
