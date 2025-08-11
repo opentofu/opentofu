@@ -293,7 +293,7 @@ type ProviderFunctionTransformer struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
-func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pAddr addrs.AbsProviderConfig) *NodeUnconfiguredProvider {
+func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pAddr addrs.AbsProviderConfig) *NodeEvalableProvider {
 	stubAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: pAddr.Provider,
@@ -301,7 +301,7 @@ func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pA
 	}
 
 	log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-	stubProvider := &NodeUnconfiguredProvider{
+	stubProvider := &NodeEvalableProvider{
 		&NodeAbstractProvider{
 			Addr: stubAddr,
 		},
@@ -335,11 +335,6 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 		var addr addrs.AbsProviderConfig
 		var ok bool
 		switch v := v.(type) {
-		case NodeValidatableResource:
-			addr, ok = v.ProvidedBy().ProviderConfig.(addrs.AbsProviderConfig)
-			if !ok {
-				continue
-			}
 		case GraphNodeProviderConsumer:
 			addr, ok = v.ProvidedBy().ProviderConfig.(addrs.AbsProviderConfig)
 			if !ok {
