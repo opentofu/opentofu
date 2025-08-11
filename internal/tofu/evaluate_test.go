@@ -164,7 +164,8 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 }
 
 // This particularly tests that a sensitive attribute in config
-// results in a value that has a "sensitive" cty Mark
+// results in a value that has a "sensitive" cty Mark.
+// It also checks the same thing for marks.Ephemeral.
 func TestEvaluatorGetInputVariable(t *testing.T) {
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
@@ -188,13 +189,30 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 						Type:           cty.String,
 						ConstraintType: cty.String,
 					},
+					"some_ephemeral_var_with_unmarked_val": {
+						Name:           "some_ephemeral_var",
+						Ephemeral:      true,
+						Default:        cty.StringVal("foo"),
+						Type:           cty.String,
+						ConstraintType: cty.String,
+					},
+					// Avoid double marking a value
+					"some_ephemeral_var_with_marked_val": {
+						Name:           "some_ephemeral_var",
+						Ephemeral:      true,
+						Default:        cty.StringVal("foo"),
+						Type:           cty.String,
+						ConstraintType: cty.String,
+					},
 				},
 			},
 		},
 		VariableValues: map[string]map[string]cty.Value{
 			"": {
-				"some_var":       cty.StringVal("bar"),
-				"some_other_var": cty.StringVal("boop").Mark(marks.Sensitive),
+				"some_var":                             cty.StringVal("bar"),
+				"some_other_var":                       cty.StringVal("boop").Mark(marks.Sensitive),
+				"some_ephemeral_var_with_unmarked_val": cty.StringVal("blop"),
+				"some_ephemeral_var_with_marked_val":   cty.StringVal("bloop").Mark(marks.Ephemeral),
 			},
 		},
 		VariableValuesLock: &sync.Mutex{},
@@ -205,28 +223,58 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 	}
 	scope := evaluator.Scope(data, nil, nil, nil)
 
-	want := cty.StringVal("bar").Mark(marks.Sensitive)
-	got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
-		Name: "some_var",
-	}, tfdiags.SourceRange{})
+	{ // variable configured as sensitive but value not marked before
+		want := cty.StringVal("bar").Mark(marks.Sensitive)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_var",
+		}, tfdiags.SourceRange{})
 
-	if len(diags) != 0 {
-		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
-	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+	{ // variable configured as sensitive and value marked - avoiding double marking
+		want := cty.StringVal("boop").Mark(marks.Sensitive)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_other_var",
+		}, tfdiags.SourceRange{})
+
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
 
-	want = cty.StringVal("boop").Mark(marks.Sensitive)
-	got, diags = scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
-		Name: "some_other_var",
-	}, tfdiags.SourceRange{})
+	{ // variable configured as ephemeral but value not marked before
+		want := cty.StringVal("blop").Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_ephemeral_var_with_unmarked_val",
+		}, tfdiags.SourceRange{})
 
-	if len(diags) != 0 {
-		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
-	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+	{ // variable configured as ephemeral and value marked - avoiding double marking
+		want := cty.StringVal("bloop").Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_ephemeral_var_with_marked_val",
+		}, tfdiags.SourceRange{})
+
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
 }
 

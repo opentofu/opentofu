@@ -17,6 +17,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// TODO ephemeral - check this when working on the ephemeral outputs - and the unit tests for it
+// We might need to returne diags in case of ephemeral - let's check this at that point
 func OutputsFromMap(outputValues map[string]*states.OutputValue) (jsonentities.Outputs, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
