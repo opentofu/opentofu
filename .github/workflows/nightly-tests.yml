@@ -1,0 +1,46 @@
+name: Nightly Acceptance Tests
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 1 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    name: Acceptance tests for ${{ matrix.goos }}_${{ matrix.goarch }}
+    runs-on: ${{ matrix.runson }}
+    env:
+      TF_APPEND_USER_AGENT: Acceptance-Test
+      TF_ACC: 1
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    strategy:
+      matrix:
+        include:
+          - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
+          - { runson: macos-latest, goos: darwin, goarch: "arm64" }
+          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          # https://github.com/opentofu/opentofu/issues/1201 if fixed
+          #  ^ un-comment the  windows-latest line
+      fail-fast: false
+    steps:
+      # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
+      # for testing on non amd64 envs like 386, arm64 etc...
+      - name: "Set up QEMU"
+        if: matrix.goos == 'linux' && matrix.goarch != 'amd64' && matrix.goarch != 'arm64'
+        uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # v3.3.0
+
+      - name: "Fetch source code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: "Unit tests"
+        run: |
+          go test ./...
