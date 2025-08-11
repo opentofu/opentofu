@@ -130,6 +130,7 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 	return diags
 }
 
+// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, stateVal cty.Value, attrs map[string]*configschema.Attribute, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if len(attrs) == 0 {
@@ -325,6 +326,7 @@ func writeConfigBlocksFromExisting(addr addrs.AbsResourceInstance, buf *strings.
 	return diags
 }
 
+// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, name string, schema *configschema.Attribute, stateVal cty.Value, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -444,6 +446,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	}
 }
 
+// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, name string, schema *configschema.NestedBlock, stateVal cty.Value, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 

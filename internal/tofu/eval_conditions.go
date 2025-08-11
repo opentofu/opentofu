@@ -264,6 +264,9 @@ func evalCheckErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string
 		return "", diags
 	}
 
+	// TODO ephemeral - ephemeral mark needs to be handled too here.
+	//  See the validation for variables since there we already handled the
+	//  situation where error_message contains a reference to the ephemeral values
 	val, valMarks := val.Unmark()
 	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
 		diags = diags.Append(&hcl.Diagnostic{
