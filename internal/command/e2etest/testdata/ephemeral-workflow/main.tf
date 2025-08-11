@@ -99,11 +99,6 @@ module "call" {
   // NOTE: because variable "in" is marked as ephemeral, this should work as expected.
 }
 
-output "out_ephemeral" {
-  value = module.call.out2
-  // TODO: Because the output ephemeral marking is not done yet entirely, this is working now but remove this output once the marking of outputs are done completely.
-}
-
 output "final_output" {
   value = simple_resource.test_res_second_provider.value
 }
