@@ -1,0 +1,6 @@
+// Running this configuration is expected to have an error since data sources are not allowed
+// to use ephemeral values at all.
+data "simple_resource" "test_data1" {
+  provider = simple.s1
+  value    = var.in
+}

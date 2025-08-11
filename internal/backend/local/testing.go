@@ -219,12 +219,15 @@ func mustResourceInstanceAddr(s string) addrs.AbsResourceInstance {
 func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	t.Helper()
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
-	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
+	lockId, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo())
+	if err != nil {
+		// lock was not obtained
 		t.Errorf("state is already locked: %s", err.Error())
-		// lock was obtained
 		return false
 	}
-	// lock was not obtained
+	// lock was obtained so we want to ensure that we release it before getting out to leave the workdir
+	// in a clean state
+	_ = stateMgr.Unlock(t.Context(), lockId)
 	return true
 }
 
@@ -234,10 +237,14 @@ func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 func assertBackendStateLocked(t *testing.T, b *Local) bool {
 	t.Helper()
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
-	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
+	lockId, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo())
+	if err != nil {
 		// lock was not obtained
 		return true
 	}
+	// In case the lock has been acquired, ensure that it's removed before getting out to
+	// leave the workdir in a clean state
+	_ = stateMgr.Unlock(t.Context(), lockId)
 	t.Error("unexpected success locking state")
 	// lock was obtained
 	return false
