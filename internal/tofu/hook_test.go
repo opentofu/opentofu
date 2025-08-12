@@ -171,6 +171,55 @@ func (h *testHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, 
 	return HookActionContinue, nil
 }
 
+func (h *testHook) Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"Deferred", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PreOpen(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PreOpen", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PostOpen(addr addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PostOpen", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PreRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PreRenew", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PostRenew(addr addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PostRenew", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PreClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PreClose", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PostClose(addr addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PostClose", addr.String()})
+	return HookActionContinue, nil
+}
+
 func (h *testHook) Stopping() {
 	h.mu.Lock()
 	defer h.mu.Unlock()

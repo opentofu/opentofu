@@ -238,19 +238,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	case addrs.ManagedResourceMode:
 		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
 		if schema == nil {
-			var suggestion string
-			if dSchema, _ := providerSchema.SchemaForResourceType(addrs.DataResourceMode, n.Config.Type); dSchema != nil {
-				suggestion = fmt.Sprintf("\n\nDid you intend to use the data source %q? If so, declare this using a \"data\" block instead of a \"resource\" block.", n.Config.Type)
-			} else if len(providerSchema.ResourceTypes) > 0 {
-				suggestions := make([]string, 0, len(providerSchema.ResourceTypes))
-				for name := range providerSchema.ResourceTypes {
-					suggestions = append(suggestions, name)
-				}
-				if suggestion = didyoumean.NameSuggestion(n.Config.Type, suggestions); suggestion != "" {
-					suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
-				}
-			}
-
+			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid resource type",
@@ -261,7 +249,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags)
+		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
 		}
@@ -312,23 +300,39 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	case addrs.DataResourceMode:
 		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
 		if schema == nil {
-			var suggestion string
-			if dSchema, _ := providerSchema.SchemaForResourceType(addrs.ManagedResourceMode, n.Config.Type); dSchema != nil {
-				suggestion = fmt.Sprintf("\n\nDid you intend to use the managed resource type %q? If so, declare this using a \"resource\" block instead of a \"data\" block.", n.Config.Type)
-			} else if len(providerSchema.DataSources) > 0 {
-				suggestions := make([]string, 0, len(providerSchema.DataSources))
-				for name := range providerSchema.DataSources {
-					suggestions = append(suggestions, name)
-				}
-				if suggestion = didyoumean.NameSuggestion(n.Config.Type, suggestions); suggestion != "" {
-					suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
-				}
-			}
-
+			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid data source",
 				Detail:   fmt.Sprintf("The provider %s does not support data source %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
+				Subject:  &n.Config.TypeRange,
+			})
+			return diags
+		}
+
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
+		if valDiags.HasErrors() {
+			return diags
+		}
+
+		// Use unmarked value for validate request
+		unmarkedConfigVal, _ := configVal.UnmarkDeep()
+		req := providers.ValidateDataResourceConfigRequest{
+			TypeName: n.Config.Type,
+			Config:   unmarkedConfigVal,
+		}
+
+		resp := provider.ValidateDataResourceConfig(ctx, req)
+		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
+	case addrs.EphemeralResourceMode:
+		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schema == nil {
+			suggestion := n.noResourceSchemaSuggestion(providerSchema)
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid ephemeral resource",
+				Detail:   fmt.Sprintf("The provider %s does not support ephemeral resource %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
 				Subject:  &n.Config.TypeRange,
 			})
 			return diags
@@ -342,12 +346,12 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 
 		// Use unmarked value for validate request
 		unmarkedConfigVal, _ := configVal.UnmarkDeep()
-		req := providers.ValidateDataResourceConfigRequest{
+		req := providers.ValidateEphemeralConfigRequest{
 			TypeName: n.Config.Type,
 			Config:   unmarkedConfigVal,
 		}
 
-		resp := provider.ValidateDataResourceConfig(ctx, req)
+		resp := provider.ValidateEphemeralConfig(ctx, req)
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 	}
 
@@ -364,7 +368,53 @@ func (n *NodeValidatableResource) validateImportIDs(ctx context.Context, evalCtx
 		}
 	}
 	return diags
+}
 
+// noResourceSchemaSuggestion is trying to generate a suggestion to be appended into the diagnostic that is pointing to the fact
+// that the resource indicated by the user does not exist. This is doing its best to find a better alternative:
+//   - It is checking if in the provider's schema exists a resource with the same resource type but with a different mode.
+//   - If none found at the step above, it tries to determine if the name of the resource is incomplete and tries to recommend the
+//     closest resource type name to the one that is already configured.
+func (n *NodeValidatableResource) noResourceSchemaSuggestion(providerSchema providers.ProviderSchema) string {
+	var suggestion string
+	if candidateMode, candidateSchema := nodeValidationAlternateBlockModeSuggestion(providerSchema, n.Config.Mode, n.Config.Type); candidateSchema != nil {
+		suggestion = fmt.Sprintf("\n\nDid you intend to use a block of type %q %q? If so, declare this using a block of type %q instead of one of type %q.",
+			addrs.ResourceModeBlockName(candidateMode), n.Config.Type, addrs.ResourceModeBlockName(candidateMode), addrs.ResourceModeBlockName(n.Config.Mode))
+	} else if len(providerSchema.ResourceTypes) > 0 {
+		suggestions := make([]string, 0, len(providerSchema.ResourceTypes))
+		for name := range providerSchema.ResourceTypes {
+			suggestions = append(suggestions, name)
+		}
+		if suggestion = didyoumean.NameSuggestion(n.Config.Type, suggestions); suggestion != "" {
+			suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+		}
+	}
+	return suggestion
+}
+
+// nodeValidationAlternateBlockModeSuggestion is trying to find an alternative addrs.ResourceMode for the given resourceType in the provider's schema.
+// This is needed to be able to provide a suggestion when the user is using a wrong block type for the type of the resource that it's intended
+// to be used.
+func nodeValidationAlternateBlockModeSuggestion(schema providers.ProviderSchema, mode addrs.ResourceMode, resourceType string) (addrs.ResourceMode, *configschema.Block) {
+	filterOnOtherModes := func(targetModes []addrs.ResourceMode) (addrs.ResourceMode, *configschema.Block) {
+		for _, candidateMode := range targetModes {
+			if b, _ := schema.SchemaForResourceType(candidateMode, resourceType); b != nil {
+				return candidateMode, b
+			}
+		}
+		return addrs.InvalidResourceMode, nil
+	}
+
+	switch mode {
+	case addrs.ManagedResourceMode:
+		return filterOnOtherModes([]addrs.ResourceMode{addrs.DataResourceMode, addrs.EphemeralResourceMode})
+	case addrs.DataResourceMode:
+		return filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.EphemeralResourceMode})
+	case addrs.EphemeralResourceMode:
+		return filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.DataResourceMode})
+	}
+
+	return addrs.InvalidResourceMode, nil
 }
 
 func (n *NodeValidatableResource) evaluateExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {

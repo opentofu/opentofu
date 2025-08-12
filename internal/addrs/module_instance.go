@@ -82,6 +82,17 @@ func ParseModuleInstanceStr(str string) (ModuleInstance, tfdiags.Diagnostics) {
 	return addr, diags
 }
 
+// MustParseModuleInstanceStr is a wrapper around ParseModuleInstanceStr that panics if
+// it returns an error.
+// This is mainly meant for being used in unit tests.
+func MustParseModuleInstanceStr(str string) ModuleInstance {
+	result, diags := ParseModuleInstanceStr(str)
+	if diags.HasErrors() {
+		panic(diags.Err().Error())
+	}
+	return result
+}
+
 // parseModuleInstancePrefix parses a module instance address from the given
 // traversal, returning the module instance address and the remaining
 // traversal.

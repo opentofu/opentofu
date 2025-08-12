@@ -100,6 +100,34 @@ func (h *stopHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, err
 	return h.hook()
 }
 
+func (h *stopHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PreOpen(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PostOpen(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PreRenew(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PostRenew(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PreClose(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PostClose(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return h.hook()
+}
+
 func (h *stopHook) Stopping() {}
 
 func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {

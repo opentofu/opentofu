@@ -140,6 +140,10 @@ func (r *ResourceAddress) MatchesResourceConfig(path addrs.Module, rc *configs.R
 			if rc.Mode != addrs.DataResourceMode {
 				return false
 			}
+		default:
+			// NOTE: Even though the ephemeral resources are not supported in the legacy form, we want to be sure
+			// that it is not handled as the other type of resources.
+			return false
 		}
 		if r.Type != rc.Type || r.Name != rc.Name {
 			return false
@@ -300,6 +304,10 @@ func NewLegacyResourceAddress(addr addrs.AbsResource) *ResourceAddress {
 	case addrs.DataResourceMode:
 		ret.Mode = DataResourceMode
 	default:
+		// This is also covering the unlikely situation when an ephemeral resource will end up in here.
+		// This is not meant to happen. However, since this method is not used anymore, we want it to panic
+		// in case somebody starts using it again in the future. This is to indicate that this is legacy code and that
+		// is not meant to work with new features without putting additional work into it, if ever needed.
 		panic(fmt.Errorf("cannot shim %s to legacy ResourceMode value", addr.Resource.Mode))
 	}
 
@@ -338,6 +346,10 @@ func NewLegacyResourceInstanceAddress(addr addrs.AbsResourceInstance) *ResourceA
 	case addrs.DataResourceMode:
 		ret.Mode = DataResourceMode
 	default:
+		// This is also covering the unlikely situation when an ephemeral resource will end up in here.
+		// This is not meant to happen. However, since this method is not used anymore, we want it to panic
+		// in case somebody starts using it again in the future. This is to indicate that this is legacy code and that
+		// is not meant to work with new features without putting additional work into it, if ever needed.
 		panic(fmt.Errorf("cannot shim %s to legacy ResourceMode value", addr.Resource.Resource.Mode))
 	}
 
@@ -403,6 +415,8 @@ func (addr *ResourceAddress) AbsResourceInstanceAddr() addrs.AbsResourceInstance
 	case DataResourceMode:
 		ret.Resource.Resource.Mode = addrs.DataResourceMode
 	default:
+		// This case is also covering situations when ephemeral resources are getting here.
+		// This shouldn't be possible, so let this panic.
 		panic(fmt.Errorf("cannot shim %s to addrs.ResourceMode value", addr.Mode))
 	}
 

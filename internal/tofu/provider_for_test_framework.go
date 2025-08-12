@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -60,14 +61,16 @@ func newProviderForTestWithSchema(internal providers.Interface, schema providers
 }
 
 func (p providerForTest) ReadResource(_ context.Context, r providers.ReadResourceRequest) providers.ReadResourceResponse {
-	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
-
-	mockValues := p.getMockValuesForManagedResource(r.TypeName)
-
 	var resp providers.ReadResourceResponse
 
-	resp.NewState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.ProviderMeta, mockValues)
+	resp.NewState = r.PriorState
+	if resp.NewState.IsNull() {
+		resp.Diagnostics = tfdiags.Diagnostics{}.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			fmt.Sprintf("Unexpected null value for prior state in `%v`", r.TypeName),
+			"While reading a resource from a mock provider, the prior state was found to be missing.",
+		))
+	}
 
 	return resp
 }
@@ -108,6 +111,21 @@ func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataS
 		ComposeBySchema(resSchema, r.Config, mockValues)
 
 	return resp
+}
+
+func (p providerForTest) OpenEphemeralResource(_ context.Context, _ providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
+}
+
+func (p providerForTest) RenewEphemeralResource(_ context.Context, _ providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
+}
+
+func (p providerForTest) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
 }
 
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
@@ -155,6 +173,10 @@ func (p providerForTest) ValidateDataResourceConfig(ctx context.Context, r provi
 
 func (p providerForTest) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return p.internal.UpgradeResourceState(ctx, r)
+}
+
+func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	return p.internal.ValidateEphemeralConfig(ctx, request)
 }
 
 func (p providerForTest) Stop(ctx context.Context) error {

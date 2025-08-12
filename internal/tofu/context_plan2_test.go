@@ -22,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/zclconf/go-cty/cty"
 
-	// "github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -4168,7 +4167,7 @@ func TestContext2Plan_preconditionErrors(t *testing.T) {
 		{
 			"data.foo.bar",
 			"Reference to undeclared resource",
-			`A data resource "foo" "bar" has not been declared in the root module`,
+			`There is no data resource "foo" "bar" definition in the root module.`,
 		},
 		{
 			"test_resource.b.value",
@@ -8436,6 +8435,111 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 	}
 }
 
+// TestContext2Plan_ephemeralResourceDeferred is testing that an ephemeral resource gets deferred
+// correctly:
+// * gets deferred when a dependency is having planned changes, so OpenEphemeralResource is not called.
+// * gets deferred when the response from OpenEphemeralResource is indicating so.
+func TestContext2Plan_ephemeralResourceDeferred(t *testing.T) {
+	// Ephemeral resource is deferred by opentofu itself, before calling OpenEphemeralResource. This is
+	// due to pending changes in the ephemeral's dependencies.
+	t.Run("before open", func(t *testing.T) {
+		m := testModuleInline(t, map[string]string{
+			"main.tf": `
+			resource "test_object" "testres" {
+			}
+			ephemeral "test_object" "testeph" {
+				depends_on = [
+					test_object.testres
+				]
+			}
+		`,
+		})
+
+		state := states.BuildState(func(s *states.SyncState) {})
+
+		p := simpleMockProvider()
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+			},
+		})
+		hook := &testHook{}
+		ctx.hooks = append(ctx.hooks, hook)
+
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors: %s", diags.Err())
+		}
+
+		// last call should have been on the ephemeral defer
+		deferCall := hook.Calls[len(hook.Calls)-1]
+		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
+			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
+		}
+	})
+	// Ephemeral is deferred because of the defer reason returned from OpenEphemeralResource.
+	t.Run("from open", func(t *testing.T) {
+		m := testModuleInline(t, map[string]string{
+			"main.tf": `
+			resource "test_object" "testres" {
+				test_string = "test value"
+			}
+			ephemeral "test_object" "testeph" {
+				depends_on = [
+					test_object.testres
+				]
+			}
+		`,
+		})
+
+		addr := mustAbsResourceAddr("test_object.testres")
+		state := states.BuildState(func(s *states.SyncState) {
+			s.SetResourceInstanceCurrent(addr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"test_string": "test value"}`),
+				Status:    states.ObjectReady,
+			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		})
+
+		p := simpleMockProvider()
+		p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+			Result:   cty.Value{},
+			Deferred: &providers.EphemeralResourceDeferred{DeferralReason: providers.DeferredBecauseResourceConfigUnknown},
+		}
+		p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+			cfg := req.Config.AsValueMap()
+			resp.PlannedState = cty.ObjectVal(cfg)
+			return resp
+		}
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+			},
+		})
+		hook := &testHook{}
+		ctx.hooks = append(ctx.hooks, hook)
+
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+
+		if diags.HasErrors() {
+			t.Fatalf("unexpected errors: %s", diags.Err())
+		}
+
+		if !p.OpenEphemeralResourceCalled {
+			t.Fatal("expected OpenEphemeralResource to be called but it was not")
+		}
+		// last call should have been on the ephemeral defer
+		deferCall := hook.Calls[len(hook.Calls)-1]
+		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
+			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
+		}
+	})
+}
+
 func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{
@@ -8598,6 +8702,72 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 
 			assertDiagnosticsMatch(t, diags, expectedDiags)
 		})
+	}
+}
+
+// Ensure that running plan on a configuration with ephemeral resources,
+// the generated plan contains the expected changes
+func TestContext2Plan_ephemeralResourceChangesGenerated(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+ephemeral "test_ephemeral_resource" "a" {
+}
+`,
+	})
+	testProvider := testProvider("test")
+	testProvider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+		Result: cty.ObjectVal(map[string]cty.Value{
+			"id":     cty.StringVal("id val"),
+			"secret": cty.StringVal("val"),
+		}),
+	}
+
+	state := states.NewState()
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(testProvider),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected plan error: %s", diags)
+	}
+	if plan.Changes == nil {
+		t.Fatalf("expected to have some changes but got none")
+	}
+	if got, want := len(plan.Changes.Resources), 1; got != want {
+		t.Fatalf("expected to have %d changes but got %d", want, got)
+	}
+	got := plan.Changes.Resources[0]
+	addr := mustResourceInstanceAddr("ephemeral.test_ephemeral_resource.a")
+	schema := testProvider.ProviderSchema().EphemeralTypes[addr.Resource.Resource.Type]
+	objTy := schema.ImpliedType()
+	priorVal := cty.NullVal(objTy)
+	beforeVal, err := plans.NewDynamicValue(priorVal, objTy)
+	if err != nil {
+		t.Fatalf("unexpected error creating before val: %s", err)
+	}
+	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
+		"id":     cty.StringVal("id val"),
+		"secret": cty.StringVal("val"),
+	}), objTy)
+	if err != nil {
+		t.Fatalf("unexpected error creating after val: %s", err)
+	}
+	want := &plans.ResourceInstanceChangeSrc{
+		Addr:         addr,
+		PrevRunAddr:  addr,
+		ProviderAddr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		ChangeSrc: plans.ChangeSrc{
+			Action: plans.Open,
+			Before: beforeVal,
+			After:  afterVal,
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected diff in the ephemeral resource recorded change:\n%s", diff)
 	}
 }
 

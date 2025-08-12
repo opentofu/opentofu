@@ -55,10 +55,20 @@ func (n *NodeDestroyResourceInstance) Name() string {
 }
 
 func (n *NodeDestroyResourceInstance) ProvidedBy() RequestedProvider {
-	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
+	switch n.Addr.Resource.Resource.Mode {
+	case addrs.DataResourceMode:
 		// indicate that this node does not require a configured provider
 		return RequestedProvider{}
+	case addrs.EphemeralResourceMode:
+		// Since ephemeral resources are not stored into the state or plan files,
+		// a change of type delete cannot be generated for it, meaning that this
+		// code path is not meant to be reached.
+		// Even though, let's ensure that ever the case, a destroy node for an
+		// ephemeral resource indicates correctly that for its removal there
+		// is no provider needed.
+		return RequestedProvider{}
 	}
+
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
 
@@ -171,6 +181,10 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx),
 		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
@@ -263,4 +277,17 @@ func (n *NodeDestroyResourceInstance) dataResourceExecute(_ context.Context, eva
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
 	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	return diags.Append(updateStateHook(evalCtx))
+}
+
+// ephemeralResourceExecute for NodeDestroyResourceInstance is only here to return an error.
+// An ephemeral resource, by definition, cannot be destroyed. If the execution path is reaching this part, it means that
+// there is an issue somewhere else, most probably in the planning phase since the generation of NodeDestroyResourceInstance
+// is strictly related to the changes from the plan.
+func (n *NodeDestroyResourceInstance) ephemeralResourceExecute(_ context.Context, _ EvalContext) (diags tfdiags.Diagnostics) {
+	log.Printf("[TRACE] NodeDestroyResourceInstance: called for ephemeral resource %s", n.Addr)
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Destroy invoked for an ephemeral resource",
+		fmt.Sprintf("A destroy operation has been invoked for the ephemeral resource %q. This is an OpenTofu error. Please report this.", n.Addr),
+	))
 }

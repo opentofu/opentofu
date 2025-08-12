@@ -51,6 +51,7 @@ func (m *moduleMgr) readModuleManifestSnapshot() error {
 		}
 		return err
 	}
+	defer r.Close()
 
 	m.manifest, err = modsdir.ReadManifestSnapshot(r)
 	return err

@@ -96,6 +96,22 @@ type Hook interface {
 	PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 	PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 
+	// Deferred is called when a resource is deferred from the plan phase due to
+	// a specific given reason.
+	Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error)
+
+	// PreOpen and PostOpen are called before and after the request to a provider
+	// to open an ephemeral resource.
+	PreOpen(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostOpen(addr addrs.AbsResourceInstance, err error) (HookAction, error)
+	// PreRenew and PostRenew are called before and after the request to a provider
+	// to renew an ephemeral resource.
+	PreRenew(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostRenew(addr addrs.AbsResourceInstance, err error) (HookAction, error)
+	// PreClose and PostClose are called before and after the request to a provider
+	// to close an ephemeral resource.
+	PreClose(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostClose(addr addrs.AbsResourceInstance, err error) (HookAction, error)
 	// Stopping is called if an external signal requests that OpenTofu
 	// gracefully abort an operation in progress.
 	//
@@ -197,6 +213,34 @@ func (h *NilHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error
 }
 
 func (h *NilHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreOpen(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostOpen(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreRenew(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostRenew(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreClose(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostClose(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
 	return HookActionContinue, nil
 }
 

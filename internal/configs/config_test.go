@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -718,6 +719,81 @@ func TestConfigAddProviderRequirements(t *testing.T) {
 	qualifs := new(getproviders.ProvidersQualification)
 	diags = cfg.addProviderRequirements(reqs, qualifs, true, false)
 	assertNoDiagnostics(t, diags)
+	if got, want := len(qualifs.Explicit), 1; got != want {
+		t.Fatalf("expected to have %d explicit provider requirement but got %d", want, got)
+	}
+	if got, want := len(qualifs.Implicit), 4; got != want {
+		t.Fatalf("expected to have %d explicit provider requirement but got %d", want, got)
+	}
+
+	checks := []struct {
+		key  addrs.Provider
+		want []addrs.Resource
+	}{
+		{
+			// check registry.opentofu.org/hashicorp/aws
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "aws"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "aws_instance", "foo").Resource,
+				cfg.Path.Resource(addrs.DataResourceMode, "aws_s3_object", "baz").Resource,
+				cfg.Path.Resource(addrs.EphemeralResourceMode, "aws_secret", "bar").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/null
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "null"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "null_resource", "foo").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/local
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "local"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "local_file", "foo").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/template
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "template"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "local_file", "bar").Resource,
+			},
+		},
+	}
+	for _, c := range checks {
+		t.Run(c.key.String(), func(t *testing.T) {
+			refs := qualifs.Implicit[c.key]
+			if got, want := len(refs), len(c.want); got != want {
+				t.Fatalf("expected to find %d implicit references for provider %q but got %d", want, c.key, got)
+			}
+
+			var refsAddrs []addrs.Resource
+			for _, ref := range refs {
+				refsAddrs = append(refsAddrs, ref.CfgRes.Resource)
+			}
+			sort.Slice(refsAddrs, func(i, j int) bool {
+				return refsAddrs[i].Less(refsAddrs[j])
+			})
+			sort.Slice(c.want, func(i, j int) bool {
+				return c.want[i].Less(c.want[j])
+			})
+			if diff := cmp.Diff(refsAddrs, c.want); diff != "" {
+				t.Fatalf("expected to find specific resources to implicitly reference the provider %s. diff:\n%s", c.key, diff)
+			}
+		})
+	}
+
+	wantReqs := getproviders.Requirements{
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "template"): nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "local"):    nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "null"):     nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "aws"):      nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "test"):     nil,
+	}
+	if diff := cmp.Diff(wantReqs, reqs); diff != "" {
+		t.Fatalf("unexected returned providers qualifications: %s", diff)
+	}
 }
 
 func TestConfigImportProviderClashesWithModules(t *testing.T) {
@@ -1087,6 +1163,69 @@ func TestIsCallFromRemote(t *testing.T) {
 				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
 			}
 		})
+	}
+}
+
+func TestParseEphemeralBlocks(t *testing.T) {
+	p := NewParser(nil)
+	f, diags := p.LoadConfigFile("testdata/ephemeral-blocks/main.tf")
+	// check diags
+	{
+		if len(diags) != 6 { // 4 lifecycle unallowed attributes, unallowed connection block and unallowed provisioner block
+			t.Fatalf("expected 6 diagnostics but got only: %d", len(diags))
+		}
+		containsExpectedKeywords := func(diagContent string) bool {
+			for _, k := range []string{"ignore_changes", "prevent_destroy", "create_before_destroy", "replace_triggered_by", "connection", "provisioner"} {
+				if strings.Contains(diagContent, k) {
+					return true
+				}
+			}
+			return false
+		}
+		for _, diag := range diags {
+			if content := diag.Error(); !containsExpectedKeywords(content) {
+				t.Fatalf("expected diagnostic to contain at least one of the keywords: %s", content)
+			}
+		}
+	}
+	{
+		if len(f.EphemeralResources) != 2 {
+			t.Fatalf("expected 2 ephemeral resources but got only: %d", len(f.EphemeralResources))
+		}
+		for _, er := range f.EphemeralResources {
+			switch er.Name {
+			case "foo":
+				if er.ForEach == nil {
+					t.Errorf("expected to have a for_each expression but got nothing")
+				}
+			case "bar":
+				attrs, _ := er.Config.JustAttributes()
+				if _, ok := attrs["attribute"]; !ok {
+					t.Errorf("expected to have \"attribute\" but could not find it")
+				}
+				if _, ok := attrs["attribute2"]; !ok {
+					t.Errorf("expected to have \"attribute\" but could not find it")
+				}
+				if er.Count == nil {
+					t.Errorf("expected to have a count expression but got nothing")
+				}
+				if er.ProviderConfigRef == nil || er.ProviderConfigRef.Addr().String() != "provider.test.name" {
+					t.Errorf("expected to have \"provider.test.name\" provider alias configured but instead it was: %+v", er.ProviderConfigRef)
+				}
+				if len(er.Preconditions) != 1 {
+					t.Errorf("expected to have one precondition but got %d", len(er.Preconditions))
+				}
+				if len(er.Postconditions) != 1 {
+					t.Errorf("expected to have one postcondition but got %d", len(er.Postconditions))
+				}
+				if len(er.DependsOn) != 1 {
+					t.Errorf("expected to have a depends_on traversal but got %d", len(er.Postconditions))
+				}
+				if er.Managed != nil {
+					t.Errorf("error in the parsing code. Ephemeral resources are not meant to have a managed object")
+				}
+			}
+		}
 	}
 
 }

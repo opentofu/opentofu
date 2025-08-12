@@ -50,8 +50,9 @@ type Module struct {
 
 	ModuleCalls map[string]*ModuleCall
 
-	ManagedResources map[string]*Resource
-	DataResources    map[string]*Resource
+	ManagedResources   map[string]*Resource
+	DataResources      map[string]*Resource
+	EphemeralResources map[string]*Resource
 
 	Moved   []*Moved
 	Import  []*Import
@@ -105,8 +106,9 @@ type File struct {
 
 	ModuleCalls []*ModuleCall
 
-	ManagedResources []*Resource
-	DataResources    []*Resource
+	ManagedResources   []*Resource
+	DataResources      []*Resource
+	EphemeralResources []*Resource
 
 	Moved   []*Moved
 	Import  []*Import
@@ -178,6 +180,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		ModuleCalls:        map[string]*ModuleCall{},
 		ManagedResources:   map[string]*Resource{},
 		DataResources:      map[string]*Resource{},
+		EphemeralResources: map[string]*Resource{},
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
@@ -273,6 +276,8 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 		return m.ManagedResources[key]
 	case addrs.DataResourceMode:
 		return m.DataResources[key]
+	case addrs.EphemeralResourceMode:
+		return m.EphemeralResources[key]
 	default:
 		return nil
 	}
@@ -464,6 +469,35 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			continue
 		}
 		m.DataResources[key] = r
+	}
+
+	for _, r := range file.EphemeralResources {
+		key := r.moduleUniqueKey()
+		if existing, exists := m.EphemeralResources[key]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate ephemeral resource %q configuration", existing.Type),
+				Detail:   fmt.Sprintf("A %s ephemeral resource named %q was already declared at %s. Resource names must be unique per type in each module.", existing.Type, existing.Name, existing.DeclRange),
+				Subject:  &r.DeclRange,
+			})
+			continue
+		}
+		m.EphemeralResources[key] = r
+
+		// set the provider FQN for the resource
+		if r.ProviderConfigRef != nil {
+			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+		} else {
+			// an invalid resource name (for e.g. "null resource" instead of
+			// "null_resource") can cause a panic down the line in addrs:
+			// https://github.com/hashicorp/terraform/issues/25560
+			implied, err := addrs.ParseProviderPart(r.Addr().ImpliedProvider())
+			if err == nil {
+				r.Provider = m.ImpliedProviderForUnqualifiedType(implied)
+			}
+			// We don't return a diagnostic because the invalid resource name
+			// will already have been caught.
+		}
 	}
 
 	for _, c := range file.Checks {
@@ -728,6 +762,22 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 				Severity: hcl.DiagError,
 				Summary:  "Missing data resource to override",
 				Detail:   fmt.Sprintf("There is no %s data resource named %q. An override file can only override a data block defined in a primary configuration file.", r.Type, r.Name),
+				Subject:  &r.DeclRange,
+			})
+			continue
+		}
+		mergeDiags := existing.merge(r, m.ProviderRequirements.RequiredProviders)
+		diags = append(diags, mergeDiags...)
+	}
+
+	for _, r := range file.EphemeralResources {
+		key := r.moduleUniqueKey()
+		existing, exists := m.EphemeralResources[key]
+		if !exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing ephemeral resource to override",
+				Detail:   fmt.Sprintf("There is no %s ephemeral resource named %q. An override file can only override an ephemeral block defined in a primary configuration file.", r.Type, r.Name),
 				Subject:  &r.DeclRange,
 			})
 			continue

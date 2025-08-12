@@ -5064,6 +5064,7 @@ output "test-child" {
 	}{
 		"simpleModCall": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5104,6 +5105,7 @@ output "test-child" {
 		},
 		"modForEach": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod[\"a\"].test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5288,8 +5290,8 @@ module "modfe" {
 				t.Fatalf("Expected a warning, got: %v", diags.ErrWithWarnings())
 			}
 
-			if !diags[0].Description().Equal(test.expectedWarn) {
-				t.Fatalf("Unexpected warning: %v", diags.ErrWithWarnings())
+			if got, want := diags[0].Description(), test.expectedWarn; !got.Equal(want) {
+				t.Fatalf("Unexpected warning. Want:\n%v\nGot:\n%v\n", want, got)
 			}
 		})
 	}
@@ -5601,5 +5603,88 @@ check "http_check" {
 	diags = destroy(t, m, state)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
+	}
+}
+
+// TestContext2Apply_ephemeralResourcesLifecycleCheck is checking the hook calls
+// and the state to be sure that the expected information is there.
+func TestContext2Apply_ephemeralResourcesLifecycleCheck(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+ephemeral "test_ephemeral_resource" "a" {
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+		Result: cty.ObjectVal(map[string]cty.Value{
+			"id":     cty.StringVal("id val"),
+			"secret": cty.StringVal("val"),
+		}),
+	}
+
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	h := &testHook{}
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+			Hooks:     []Hook{h},
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m)
+	}
+
+	newState, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
+	gotRes := newState.Resource(addr)
+	wantRes := &states.Resource{
+		Addr: addr,
+		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+			addrs.NoKey: {
+				Current: &states.ResourceInstanceObjectSrc{
+					AttrsJSON:          []byte(`{"id":"id val","secret":"val"}`),
+					Status:             states.ObjectReady,
+					AttrSensitivePaths: []cty.PathValueMarks{},
+					Dependencies:       []addrs.ConfigResource{},
+				},
+				Deposed: map[states.DeposedKey]*states.ResourceInstanceObjectSrc{},
+			},
+		},
+		ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+	}
+	if diff := cmp.Diff(wantRes, gotRes); diff != "" {
+		t.Errorf("unexpected ephemeral resource content in the state:\n%s", diff)
+	}
+
+	if got, want := len(h.Calls), 8; got != want {
+		t.Fatalf("want %d hook calls but got %d", want, got)
+	}
+	wantCalls := []*testHookCall{
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
+	}
+	if diff := cmp.Diff(wantCalls, h.Calls); diff != "" {
+		t.Fatalf("unexpected hook calls:\n%s", diff)
 	}
 }

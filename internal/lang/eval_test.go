@@ -8,12 +8,16 @@ package lang
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
@@ -58,6 +62,9 @@ func TestScopeEvalContext(t *testing.T) {
 			}),
 			"null_resource.multi[1]": cty.ObjectVal(map[string]cty.Value{
 				"attr": cty.StringVal("multi1"),
+			}),
+			"ephemeral.foo_ephemeral.bar": cty.ObjectVal(map[string]cty.Value{
+				"attr": cty.StringVal("baz"),
 			}),
 		},
 		LocalValues: map[string]cty.Value{
@@ -370,6 +377,18 @@ func TestScopeEvalContext(t *testing.T) {
 			map[string]cty.Value{
 				"var": cty.ObjectVal(map[string]cty.Value{
 					"baz": cty.StringVal("boop"),
+				}),
+			},
+		},
+		{
+			`ephemeral.foo_ephemeral.bar`,
+			map[string]cty.Value{
+				"ephemeral": cty.ObjectVal(map[string]cty.Value{
+					"foo_ephemeral": cty.ObjectVal(map[string]cty.Value{
+						"bar": cty.ObjectVal(map[string]cty.Value{
+							"attr": cty.StringVal("baz"),
+						}),
+					}),
 				}),
 			},
 		},
@@ -1021,6 +1040,202 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 				t.Fatalf("Expected Detail %q, got %q", test.Detail, diag.Detail)
 			}
 
+		})
+	}
+}
+
+func TestValidEphemeralReference(t *testing.T) {
+	schema := &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {
+				Type: cty.String,
+			},
+			"secret": {
+				Type: cty.String,
+			},
+			"secret_wo": {
+				Type:      cty.String,
+				WriteOnly: true,
+			},
+		},
+		BlockTypes: map[string]*configschema.NestedBlock{
+			"nested_simple": {
+				Block: configschema.Block{
+					Attributes: map[string]*configschema.Attribute{},
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"inner_nested_simple": {
+							Nesting: configschema.NestingSingle,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"inner_nested_simple_attr": {
+										Type:      cty.DynamicPseudoType,
+										WriteOnly: true,
+									},
+								},
+							},
+						},
+					},
+				},
+				Nesting: configschema.NestingSingle,
+			},
+			"nested_set": {
+				Block: configschema.Block{
+					Attributes: map[string]*configschema.Attribute{},
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"inner_nested_set": {
+							Nesting: configschema.NestingSingle,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"inner_nested_set_attr": {
+										Type:      cty.DynamicPseudoType,
+										WriteOnly: true,
+									},
+								},
+							},
+						},
+					},
+				},
+				Nesting: configschema.NestingSet,
+			},
+		},
+	}
+	tests := map[string]struct {
+		schema *configschema.Block
+		val    cty.Value
+
+		want tfdiags.Diagnostics
+	}{
+		"nil schema with no ephemeral mark": {
+			nil,
+			cty.UnknownVal(cty.String),
+			nil,
+		},
+		"nil schema with ephemeral mark": {
+			nil,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret":    cty.StringVal("secret value"),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+			}),
+			tfdiags.Diagnostics{}.Append(
+				tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Ephemeral value used in non-ephemeral context",
+					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", ".secret_wo"),
+					cty.Path{cty.GetAttrStep{Name: "secret_wo"}},
+				),
+			),
+		},
+		"schema is ephemeral": {
+			&configschema.Block{
+				Ephemeral: true,
+			},
+			cty.UnknownVal(cty.String),
+			nil,
+		},
+		"no checks if the value contains no ephemeral": {
+			schema,
+			cty.StringVal("test"),
+			nil,
+		},
+		"write only argument is referencing ephemeral value": {
+			schema,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret":    cty.StringVal("secret value"),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+			}),
+			nil,
+		},
+		"error when an write-only and a non-write-only contain ephemeral": {
+			schema,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret":    cty.StringVal("secret value").Mark(marks.Ephemeral),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+			}),
+			tfdiags.Diagnostics{}.Append(
+				tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Ephemeral value used in non-ephemeral context",
+					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", ".secret"),
+					cty.Path{cty.GetAttrStep{Name: "secret"}},
+				),
+			),
+		},
+		"find the right DynamicPseudoType attribute": {
+			schema,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+				"nested_simple": cty.ObjectVal(map[string]cty.Value{
+					"inner_nested_simple": cty.ObjectVal(map[string]cty.Value{
+						"inner_nested_simple_attr": cty.ObjectVal(map[string]cty.Value{
+							"attribute_not_in_schema": cty.StringVal("test val").Mark(marks.Ephemeral),
+						}),
+					}),
+				}),
+			}),
+			nil,
+		},
+		"error when attribute is not in the schema": {
+			schema,
+			cty.ObjectVal(map[string]cty.Value{
+				"id":        cty.StringVal("id value"),
+				"secret_wo": cty.StringVal("secret value").Mark(marks.Ephemeral),
+				"nested_simple": cty.ObjectVal(map[string]cty.Value{
+					"inner_nested_simple": cty.ObjectVal(map[string]cty.Value{
+						"block_not_in_schema": cty.ObjectVal(map[string]cty.Value{
+							"attribute_not_in_schema": cty.StringVal("test val").Mark(marks.Ephemeral),
+						}),
+					}),
+				}),
+			}),
+			tfdiags.Diagnostics{}.Append(
+				tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Ephemeral value used in non-ephemeral context",
+					fmt.Sprintf(
+						`Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.`,
+						".nested_simple.inner_nested_simple.block_not_in_schema.attribute_not_in_schema",
+					),
+					cty.GetAttrPath("nested_simple").GetAttr("inner_nested_simple").GetAttr("block_not_in_schema").GetAttr("attribute_not_in_schema"),
+				),
+			),
+		},
+	}
+
+	lookupAttributeDiag := func(forPath cty.Path, in tfdiags.Diagnostics) tfdiags.Diagnostic {
+		for _, i := range in {
+			p := tfdiags.GetAttribute(i)
+			if p.Equals(forPath) {
+				return i
+			}
+		}
+		return nil
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			diags := validEphemeralReferences(tt.schema, tt.val)
+			if want, got := len(tt.want), len(diags); want != got {
+				t.Errorf("wrong number of diags. want: %d; got: %d", want, got)
+			}
+			for _, d := range diags {
+				attributePath := tfdiags.GetAttribute(d)
+				wantDiag := lookupAttributeDiag(attributePath, tt.want)
+				if wantDiag == nil {
+					t.Errorf("got a diagnostic with a path (%s) that is not expected: %s", attributePath, d)
+					continue
+				}
+				gotDesc := d.Description()
+				wantDesc := wantDiag.Description()
+				if diff := cmp.Diff(wantDesc, gotDesc); diff != "" {
+					t.Errorf("%s: unexpected diff in diagnostic description:\n%s", attributePath, diff)
+				}
+				if want, got := d.Severity(), wantDiag.Severity(); want != got {
+					t.Errorf("%s: wrong severity. want %q; got %q", attributePath, want, got)
+				}
+			}
 		})
 	}
 }

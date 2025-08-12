@@ -329,8 +329,14 @@ their configuration:
 │ 'examle' variable must no longer be used due to a typo, use 'example' instead
 ```
 
-Deprecation warnings can be filtered or disabled by using the `-deprecation` CLI argument. For more details, check its description
-in the command options for [plan](../../cli/commands/plan.mdx#other-options) and [apply](../../cli/commands/apply.mdx#apply-options).
+Deprecation warnings can be filtered or disabled by using the `-deprecation` CLI
+argument. By default, deprecated module variables will be consolidated by using their variable
+name and the deprecation message. If two different modules are using a submodule with
+a deprecated variable, they will be shown together. In order to see them individually, 
+`-consolidation-warnings=false` can be used. For more details, check its description
+in the command options for [plan](../../cli/commands/plan.mdx#other-options) and
+[apply](../../cli/commands/apply.mdx#apply-options).
+
 ## Using Input Variable Values
 
 Within the module that declared a variable, its value can be accessed from

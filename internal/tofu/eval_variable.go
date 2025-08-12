@@ -54,6 +54,25 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 		}
 	}
 
+	if marks.Contains(raw.Value, marks.Ephemeral) && !cfg.Ephemeral {
+		log.Printf("[TRACE] prepareFinalInputVariableValue: %q references an ephemeral value but not configured accordingly", addr)
+		// For child modules variables, this logic is unnecessary since those variables
+		// do always have a SourceRange defined.
+		// We generate subj this way because of the root module variables. In many cases,
+		// the SourceRange can be missing for root module variables.
+		subj := cfg.DeclRange
+		if raw.HasSourceRange() {
+			subj = raw.SourceRange.ToHCL()
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Variable does not allow ephemeral value`,
+			Detail:   fmt.Sprintf("The value used for the variable %q is ephemeral, but it is not configured to allow one.", cfg.Name),
+			Subject:  subj.Ptr(),
+		})
+		return cty.UnknownVal(cfg.Type), diags
+	}
+
 	var sourceRange tfdiags.SourceRange
 	var nonFileSource string
 	if raw.HasSourceRange() {
@@ -124,18 +143,23 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 				"The given value is not suitable for %s declared at %s: %s.",
 				addr, cfg.DeclRange.String(), err,
 			)
-			subject = sourceRange.ToHCL().Ptr()
 
 			// In some workflows, the operator running tofu does not have access to the variables
 			// themselves. They are for example stored in encrypted files that will be used by the CI toolset
 			// and not by the operator directly. In such a case, the failing secret value should not be
 			// displayed to the operator
-			if cfg.Sensitive {
+			subject = cfg.DeclRange.Ptr()
+			switch {
+			case cfg.Ephemeral:
+				detail = fmt.Sprintf(
+					"The given value is not suitable for %s, which is ephemeral: %s. Invalid value defined at %s.",
+					addr, err, sourceRange.ToHCL(),
+				)
+			case cfg.Sensitive:
 				detail = fmt.Sprintf(
 					"The given value is not suitable for %s, which is sensitive: %s. Invalid value defined at %s.",
 					addr, err, sourceRange.ToHCL(),
 				)
-				subject = cfg.DeclRange.Ptr()
 			}
 		}
 
@@ -517,7 +541,14 @@ func evalVariableDeprecation(
 		Summary:  `Variable marked as deprecated by the module author`,
 		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
-		Extra:    VariableDeprecationCause{IsFromRemoteModule: variableFromRemoteModule},
+		Extra: VariableDeprecationCause{
+			// Used to identify the input on the consolidation diagnostics and
+			// make sure they are showed separately, by using the address of the
+			// module variable. Since these always be different, variables won't consolidate,
+			// but after we have a reliable way to get the address on remote modules, we can consolidate them.
+			Key:                fmt.Sprintf("%s\n%s", config.Name, config.Deprecated),
+			IsFromRemoteModule: variableFromRemoteModule,
+		},
 	})
 }
 
@@ -543,6 +574,12 @@ func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprec
 // has provided in the CLI args.
 type VariableDeprecationCause struct {
 	IsFromRemoteModule bool
+	Key                string
+}
+
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+func (c VariableDeprecationCause) ExtraInfoKey() string {
+	return c.Key
 }
 
 // VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause

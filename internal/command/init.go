@@ -905,6 +905,9 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				c.Ui.Info(fmt.Sprintf("- Installed %s v%s (%s%s)", provider.ForDisplay(), version, authResult, keyID))
 			}
 		},
+		CacheDirLockContended: func(cacheDir string) {
+			c.Ui.Info(fmt.Sprintf("- Waiting for lock on cache directory %s", cacheDir))
+		},
 		ProvidersLockUpdated: func(provider addrs.Provider, version getproviders.Version, localHashes []getproviders.Hash, signedHashes []getproviders.Hash, priorHashes []getproviders.Hash) {
 			// We're going to use this opportunity to track if we have any
 			// "incomplete" installs of providers. An incomplete install is

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -49,6 +50,8 @@ type RemoteClient struct {
 	serverSideEncryption  bool
 	customerEncryptionKey []byte
 	acl                   string
+	stateTags             map[string]string
+	lockTags              map[string]string
 	kmsKeyID              string
 	ddbTable              string
 
@@ -207,6 +210,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	c.configurePutObjectChecksum(data, i)
 	c.configurePutObjectEncryption(i)
 	c.configurePutObjectACL(i)
+	c.configurePutObjectTags(i, c.stateTags)
 
 	ctx, _ = attachLoggerToContext(ctx)
 
@@ -322,6 +326,7 @@ func (c *RemoteClient) s3Lock(ctx context.Context, info *statemgr.LockInfo) erro
 	c.configurePutObjectChecksum(lInfo, putParams)
 	c.configurePutObjectEncryption(putParams)
 	c.configurePutObjectACL(putParams)
+	c.configurePutObjectTags(putParams, c.lockTags)
 
 	ctx, _ = attachLoggerToContext(ctx)
 
@@ -646,6 +651,17 @@ func (c *RemoteClient) configurePutObjectACL(i *s3.PutObjectInput) {
 		return
 	}
 	i.ACL = types.ObjectCannedACL(c.acl)
+}
+
+func (c *RemoteClient) configurePutObjectTags(i *s3.PutObjectInput, tags map[string]string) {
+	if len(tags) == 0 {
+		return
+	}
+	headers := url.Values{}
+	for k, v := range tags {
+		headers.Add(k, v)
+	}
+	i.Tagging = aws.String(headers.Encode())
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.

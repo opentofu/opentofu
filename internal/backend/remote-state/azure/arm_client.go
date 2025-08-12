@@ -33,6 +33,8 @@ type ArmClient struct {
 	// azureAdStorageAuth is only here if we're using AzureAD Authentication but is an Authorizer for Storage
 	azureAdStorageAuth *autorest.Authorizer
 
+	storageAuthCache autorest.Authorizer
+
 	accessKey          string
 	environment        azure.Environment
 	resourceGroupName  string
@@ -141,23 +143,22 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 	return &client, nil
 }
 
-func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
+func (c ArmClient) getStorageAuth(ctx context.Context) (autorest.Authorizer, error) {
+	if c.storageAuthCache != nil {
+		return c.storageAuthCache, nil
+	}
+	var err error
+	c.storageAuthCache, err = c.newStorageAuth(ctx)
+	return c.storageAuthCache, err
+}
+func (c ArmClient) newStorageAuth(ctx context.Context) (autorest.Authorizer, error) {
 	if c.sasToken != "" {
-		log.Printf("[DEBUG] Building the Blob Client from a SAS Token")
-		storageAuth, err := autorest.NewSASTokenAuthorizer(c.sasToken)
-		if err != nil {
-			return nil, fmt.Errorf("Error building SAS Token Authorizer: %w", err)
-		}
-
-		blobsClient := blobs.NewWithEnvironment(c.environment)
-		c.configureClient(&blobsClient.Client, storageAuth)
-		return &blobsClient, nil
+		log.Printf("[DEBUG] Building the Storage Auth from a SAS Token")
+		return autorest.NewSASTokenAuthorizer(c.sasToken)
 	}
 
 	if c.azureAdStorageAuth != nil {
-		blobsClient := blobs.NewWithEnvironment(c.environment)
-		c.configureClient(&blobsClient.Client, *c.azureAdStorageAuth)
-		return &blobsClient, nil
+		return *c.azureAdStorageAuth, nil
 	}
 
 	accessKey := c.accessKey
@@ -182,6 +183,14 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Error building Shared Key Authorizer: %w", err)
 	}
+	return storageAuth, err
+}
+
+func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
+	storageAuth, err := c.getStorageAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	blobsClient := blobs.NewWithEnvironment(c.environment)
 	c.configureClient(&blobsClient.Client, storageAuth)
@@ -189,45 +198,9 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 }
 
 func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client, error) {
-	if c.sasToken != "" {
-		log.Printf("[DEBUG] Building the Container Client from a SAS Token")
-		storageAuth, err := autorest.NewSASTokenAuthorizer(c.sasToken)
-		if err != nil {
-			return nil, fmt.Errorf("Error building SAS Token Authorizer: %w", err)
-		}
-
-		containersClient := containers.NewWithEnvironment(c.environment)
-		c.configureClient(&containersClient.Client, storageAuth)
-		return &containersClient, nil
-	}
-
-	if c.azureAdStorageAuth != nil {
-		containersClient := containers.NewWithEnvironment(c.environment)
-		c.configureClient(&containersClient.Client, *c.azureAdStorageAuth)
-		return &containersClient, nil
-	}
-
-	accessKey := c.accessKey
-	if accessKey == "" {
-		log.Printf("[DEBUG] Building the Container Client from an Access Token (using user credentials)")
-		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
-		defer cancel()
-		keys, err := c.storageAccountsClient.ListKeys(timeoutCtx, c.resourceGroupName, c.storageAccountName, "")
-		if err != nil {
-			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
-		}
-
-		if keys.Keys == nil {
-			return nil, fmt.Errorf("Nil key returned for storage account %q", c.storageAccountName)
-		}
-
-		accessKeys := *keys.Keys
-		accessKey = *accessKeys[0].Value
-	}
-
-	storageAuth, err := autorest.NewSharedKeyAuthorizer(c.storageAccountName, accessKey, autorest.SharedKey)
+	storageAuth, err := c.getStorageAuth(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Error building Shared Key Authorizer: %w", err)
+		return nil, err
 	}
 
 	containersClient := containers.NewWithEnvironment(c.environment)

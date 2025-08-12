@@ -229,6 +229,7 @@ func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, sto
 		// file we've created, so we'll make a best effort to proactively
 		// remove it. If we succeed then it's the caller's responsibility to
 		// remove the file once it's no longer needed.
+		f.Close() // always close this file, so that caller can safely remove it.
 		if err != nil {
 			os.Remove(f.Name())
 		}
@@ -237,7 +238,6 @@ func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, sto
 	// We'll borrow go-getter's "cancelable copy" implementation here so that
 	// the download can potentially be interrupted partway through.
 	n, err := getter.Copy(ctx, f, reader)
-	f.Close() // we're done using the filehandle now, even if the copy failed
 	if err == nil && n < desc.Size {
 		// This should be impossible because we used io.LimitReader, but we'll check
 		// anyway to be robust since go-getter returns this information regardless.

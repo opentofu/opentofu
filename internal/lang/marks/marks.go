@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // valueMarks allow creating strictly typed values for use as cty.Value marks.
@@ -48,6 +49,10 @@ func Contains(val cty.Value, mark valueMark) bool {
 // OpenTofu.
 const Sensitive = valueMark("Sensitive")
 
+// Ephemeral indicates that this value is marked as ephemeral in the context of
+// OpenTofu.
+const Ephemeral = valueMark("Ephemeral")
+
 // TypeType is used to indicate that the value contains a representation of
 // another value's type. This is part of the implementation of the console-only
 // `type` function.
@@ -59,12 +64,18 @@ var (
 
 type DeprecationCause struct {
 	By      addrs.Referenceable
+	Key     string
 	Message string
 
 	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
 	// imported module relative to the root module.
 	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
 	IsFromRemoteModule bool
+}
+
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+func (dc DeprecationCause) ExtraInfoKey() string {
+	return dc.Key
 }
 
 type deprecationMark struct {
@@ -110,7 +121,11 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
 		By:                 callOutAddr,
-		Message:            msg,
+		// Used to identify the output on the consolidation diagnostics and
+		// make sure they are consolidated correctly. We use:
+		// output value + deprecated message as the key
+		Key:     fmt.Sprintf("%s\n%s", addr.OutputValue.Name, msg),
+		Message: msg,
 	})
 }
 
@@ -174,13 +189,16 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 	return val, diags
 }
 
+// unmarkDeepWithPathsDeprecated removes all deprecation marks from a value and returns them separately.
+// It returns both the input value with all deprecation marks removed whilst preserving other marks, and a slice of PathValueMarks where marks were removed.
 func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMarks) {
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	var deprecationMarks []cty.PathValueMarks
+	var filteredPathMarks []cty.PathValueMarks
 
 	// Locate deprecationMarks and filter them out
-	for i, pm := range pathMarks {
+	for _, pm := range pathMarks {
 		deprecationPM := cty.PathValueMarks{
 			Path:  pm.Path,
 			Marks: make(cty.ValueMarks),
@@ -192,16 +210,15 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 				continue
 			}
 
-			// Remove mark from value marks
+			// Remove deprecated mark from value marks
 			delete(pm.Marks, m)
 
-			// Add mark to deprecation marks
+			// Add mark to deprecation marks to keep track of what we're removing
 			deprecationPM.Marks[m] = struct{}{}
 		}
 
-		// Remove empty path to not break caller code expectations.
-		if len(pm.Marks) == 0 {
-			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		if len(pm.Marks) > 0 {
+			filteredPathMarks = append(filteredPathMarks, pm)
 		}
 
 		if len(deprecationPM.Marks) != 0 {
@@ -209,10 +226,27 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 		}
 	}
 
-	return unmarked.MarkWithPaths(pathMarks), deprecationMarks
+	return unmarked.MarkWithPaths(filteredPathMarks), deprecationMarks
 }
 
 func RemoveDeepDeprecated(val cty.Value) cty.Value {
 	val, _ = unmarkDeepWithPathsDeprecated(val)
 	return val
+}
+
+// EnsureNoEphemeralMarks checks all the given paths for the Ephemeral mark.
+// If there is at least one path marked as such, this method will return
+// an error containing the marked paths.
+func EnsureNoEphemeralMarks(pvms []cty.PathValueMarks) error {
+	var res []string
+	for _, pvm := range pvms {
+		if _, ok := pvm.Marks[Ephemeral]; ok {
+			res = append(res, tfdiags.FormatCtyPath(pvm.Path))
+		}
+	}
+
+	if len(res) > 0 {
+		return fmt.Errorf("ephemeral marks found at the following paths:\n%s", strings.Join(res, "\n"))
+	}
+	return nil
 }
