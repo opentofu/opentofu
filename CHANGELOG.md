@@ -13,7 +13,7 @@ ENHANCEMENTS:
 * `tofu show` now supports `-config` and `-module=DIR` options, to be used in conjunction with `-json` to produce a machine-readable summary of either the whole configuration or a single module without first creating a plan. ([#2820](https://github.com/opentofu/opentofu/pull/2820), [#3003](https://github.com/opentofu/opentofu/pull/3003))
 * [The JSON representation of configuration](https://opentofu.org/docs/internals/json-format/#configuration-representation) returned by `tofu show` in `-json` mode now includes type constraint information for input variables and whether each input variable is required, in addition to the existing properties related to input variables. ([#3013](https://github.com/opentofu/opentofu/pull/3013))
 * Multiline string updates in arrays are now diffed line-by-line, rather than as a single element, making it easier to see changes in the plan output. ([#3030](https://github.com/opentofu/opentofu/pull/3030))
-* Added shell completion scripts for Bash, Zsh, and Fish shells, making it easier to use the OpenTofu CLI. (#2239)
+* Added shell completion scripts for Bash, Zsh shells, making it easier to use the OpenTofu CLI. (#2239)
 * Add full support for -var, -var-file, and TF_VARS during `tofu apply` to support plan encryption ([#1998](https://github.com/opentofu/opentofu/pull/1998))
 * The S3 state backend now supports arguments to specify tags of the state and lock files. [#3038](https://github.com/opentofu/opentofu/pull/3038)
 

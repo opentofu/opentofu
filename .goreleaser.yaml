@@ -308,10 +308,6 @@ nfpms:
         dst: /usr/share/zsh/vendor-completions/_tofu
         file_info:
           mode: 0644
-      - src: ./scripts/shell-completion/fish/tofu.fish
-        dst: /usr/share/fish/vendor_completions.d/tofu.fish
-        file_info:
-          mode: 0644
     rpm:
       signature:
         key_file: "{{ if index .Env \"GPG_KEY_FILE\"  }}{{.Env.GPG_KEY_FILE}}{{ end }}"
