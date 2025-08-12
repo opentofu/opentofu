@@ -17,60 +17,10 @@ _tofu_completion() {
   # Check if we're at the end of a command with empty current word
   # This prevents repeating commands when pressing TAB at the end of a complete command
   if [[ -z "$cur" && $cword -ge 2 ]]; then
-    # Get the main commands list
-    local all_commands="apply console destroy fmt force-unlock get graph import init login logout metadata output plan providers refresh show state taint test untaint validate version workspace"
-    # Get subcommand lists for common commands
-    local state_subcmds="list mv pull push rm show"
-    local workspace_subcmds="list new select show delete"
-    local providers_subcmds="lock mirror schema"
-    
-    # Check if the last word is a complete command
-    local last_word="${words[$cword-1]}"
-    local is_complete_command=0
-    
-    # Check if it's a top-level command
-    for cmd in $all_commands; do
-      if [[ "$last_word" == "$cmd" ]]; then
-        is_complete_command=1
-        break
-      fi
-    done
-    
-    # Check if it's a subcommand of state
-    if [[ "${words[1]}" == "state" && $cword -ge 3 ]]; then
-      for subcmd in $state_subcmds; do
-        if [[ "$last_word" == "$subcmd" ]]; then
-          is_complete_command=1
-          break
-        fi
-      done
-    fi
-    
-    # Check if it's a subcommand of workspace
-    if [[ "${words[1]}" == "workspace" && $cword -ge 3 ]]; then
-      for subcmd in $workspace_subcmds; do
-        if [[ "$last_word" == "$subcmd" ]]; then
-          is_complete_command=1
-          break
-        fi
-      done
-    fi
-    
-    # Check if it's a subcommand of providers
-    if [[ "${words[1]}" == "providers" && $cword -ge 3 ]]; then
-      for subcmd in $providers_subcmds; do
-        if [[ "$last_word" == "$subcmd" ]]; then
-          is_complete_command=1
-          break
-        fi
-      done
-    fi
-    
-    # If the last word is already a complete command or subcommand, don't offer completions
-    if [[ $is_complete_command -eq 1 ]]; then
-      COMPREPLY=()
-      return 0
-    fi
+    # If the last word is already a complete command, don't offer completions
+    # Let OpenTofu's built-in completion handle subcommands
+    COMPREPLY=()
+    return 0
   fi
   
   # Special case for flags that require values
@@ -82,141 +32,13 @@ _tofu_completion() {
     return 0
   fi
   
-  # Handle known commands with subcommands
-  if [[ $cword -eq 2 ]]; then
-    case "${words[1]}" in
-      state)
-        local subcmds="list mv pull push rm show"
-        COMPREPLY=($(compgen -W "$subcmds" -- "$cur"))
-        return 0
-        ;;
-      workspace)
-        local subcmds="list new select show delete"
-        COMPREPLY=($(compgen -W "$subcmds" -- "$cur"))
-        return 0
-        ;;
-      providers)
-        local subcmds="lock mirror schema"
-        COMPREPLY=($(compgen -W "$subcmds" -- "$cur"))
-        return 0
-        ;;
-    esac
-  fi
-  
-  # If we're completing a flag, use our static definitions as OpenTofu doesn't complete flags
+  # Let OpenTofu's built-in completion handle subcommands
+  # If we're completing a flag, just use common flags as OpenTofu doesn't complete flags
   if [[ "$cur" == -* ]]; then
-    # Define command-specific flags
-    local flags
+    # Define only common flags to reduce maintenance overhead
     local common_flags="-help -version -chdir"
     
-    case "${words[1]}" in
-      plan)
-        flags="$common_flags -compact-warnings -destroy -detailed-exitcode -input -lock -lock-timeout -no-color -out -parallelism -state -var -var-file"
-        ;;
-      apply)
-        flags="$common_flags -auto-approve -backup -compact-warnings -input -lock -lock-timeout -no-color -parallelism -state -state-out -var -var-file"
-        ;;
-      destroy)
-        flags="$common_flags -auto-approve -backup -compact-warnings -input -lock -lock-timeout -no-color -parallelism -state -state-out -var -var-file"
-        ;;
-      fmt)
-        flags="$common_flags -list -write -diff -check -no-color -recursive"
-        ;;
-      get)
-        flags="$common_flags -update -no-color -test-directory -json -var -var-file"
-        ;;
-      graph)
-        flags="$common_flags -draw-cycles -type -plan -var -var-file"
-        ;;
-      import)
-        flags="$common_flags -config -ignore-remote-version -parallelism -state -state-out -backup -lock -lock-timeout"
-        ;;
-      init)
-        flags="$common_flags -backend -backend-config -force-copy -from-module -get -input -lock -lock-timeout -no-color -upgrade"
-        ;;
-      output)
-        flags="$common_flags -state -no-color -json -raw -show-sensitive -var -var-file"
-        ;;
-      refresh)
-        flags="$common_flags -input -json -lock -lock-timeout -no-color -parallelism -state -state-out -backup -var -var-file -target -target-file -exclude -exclude-file -replace"
-        ;;
-      show)
-        flags="$common_flags -json -show-sensitive -state -plan -config -module -var -var-file"
-        ;;
-      taint)
-        flags="$common_flags -allow-missing -backup -lock -lock-timeout -state -state-out"
-        ;;
-      test)
-        flags="$common_flags -compact-warnings -consolidate-warnings -consolidate-errors -filter -json -no-color -test-directory -var -var-file -verbose"
-        ;;
-      untaint)
-        flags="$common_flags -allow-missing -backup -lock -lock-timeout -state -state-out"
-        ;;
-      validate)
-        flags="$common_flags -json -test-directory -no-tests -var -var-file"
-        ;;
-      version)
-        flags="$common_flags -json"
-        ;;
-      *)
-        flags="$common_flags"
-        ;;
-    esac
-    
-    # Add subcommand flags if we're in a subcommand
-    if [[ $cword -ge 3 ]]; then
-      case "${words[1]} ${words[2]}" in
-        # Workspace subcommands
-        "workspace list")
-          flags="$common_flags -var -var-file"
-          ;;
-        "workspace new")
-          flags="$common_flags -lock -lock-timeout -state -var -var-file"
-          ;;
-        "workspace select")
-          flags="$common_flags -or-create -var -var-file"
-          ;;
-        "workspace delete")
-          flags="$common_flags -lock -lock-timeout -force -var -var-file"
-          ;;
-        "workspace show")
-          flags="$common_flags"
-          ;;
-          
-        # State subcommands
-        "state list")
-          flags="$common_flags -state -id -var -var-file"
-          ;;
-        "state mv" | "state move")
-          flags="$common_flags -dry-run -backup -backup-out -lock -lock-timeout -state -state-out -ignore-remote-version -var -var-file"
-          ;;
-        "state pull")
-          flags="$common_flags -var -var-file"
-          ;;
-        "state push")
-          flags="$common_flags -force -lock -lock-timeout -var -var-file"
-          ;;
-        "state rm" | "state remove")
-          flags="$common_flags -dry-run -backup -lock -lock-timeout -state -ignore-remote-version -var -var-file"
-          ;;
-        "state show")
-          flags="$common_flags -state -show-sensitive -var -var-file"
-          ;;
-          
-        # Providers subcommands
-        "providers lock")
-          flags="$common_flags -platform -fs-mirror -net-mirror -var -var-file"
-          ;;
-        "providers mirror")
-          flags="$common_flags -platform -var -var-file"
-          ;;
-        "providers schema")
-          flags="$common_flags -json -var -var-file"
-          ;;
-      esac
-    fi
-    
-    COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+    COMPREPLY=($(compgen -W "$common_flags" -- "$cur"))
     return 0
   fi
 
@@ -249,7 +71,7 @@ _tofu_completion() {
 
   # If nothing matched so far, provide general commands
   if [[ ${#COMPREPLY[@]} -eq 0 ]]; then
-    local commands="apply console destroy fmt force-unlock get graph import init login logout metadata output plan providers refresh show state taint test untaint validate version workspace"
+    local commands="apply plan init fmt state workspace output show version"
     COMPREPLY=($(compgen -W "$commands" -- "$cur"))
   fi
 
