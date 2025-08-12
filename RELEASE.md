@@ -12,3 +12,6 @@
 
 ## **Compatibility**
 -	To check the compatibility of OpenTofu with Terraform, refer to the ([Migration guide](https://opentofu.org/docs/intro/migration/))
+
+## **Nightly Builds**
+- Nightly builds are currently being trialled experimentally, these builds will be removed after 30 days and are not intended for usage in production environments ever.
