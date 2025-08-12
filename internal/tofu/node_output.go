@@ -52,7 +52,7 @@ var (
 
 func (n *nodeExpandOutput) expandsInstances() {}
 
-func (n *nodeExpandOutput) temporaryValue() bool {
+func (n *nodeExpandOutput) temporaryValue(_ walkOperation) bool {
 	// non root outputs are temporary
 	return !n.Module.IsRoot()
 }
@@ -220,7 +220,7 @@ var (
 	_ dag.GraphNodeDotter       = (*NodeApplyableOutput)(nil)
 )
 
-func (n *NodeApplyableOutput) temporaryValue() bool {
+func (n *NodeApplyableOutput) temporaryValue(_ walkOperation) bool {
 	// this must always be evaluated if it is a root module output
 	return !n.Addr.Module.IsRoot()
 }
@@ -499,7 +499,7 @@ func (n *NodeDestroyableOutput) ModulePath() addrs.Module {
 	return n.Addr.Module.Module()
 }
 
-func (n *NodeDestroyableOutput) temporaryValue() bool {
+func (n *NodeDestroyableOutput) temporaryValue(_ walkOperation) bool {
 	// this must always be evaluated if it is a root module output
 	return !n.Addr.Module.IsRoot()
 }

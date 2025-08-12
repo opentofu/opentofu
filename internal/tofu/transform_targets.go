@@ -204,7 +204,7 @@ func (t *TargetingTransformer) getTargetedOutputNodes(targetedNodes dag.Set, gra
 
 		// root module outputs indicate that while they are an output type,
 		// they not temporary and will return false here.
-		if tv.temporaryValue() {
+		if tv.temporaryValue(walkInvalid) {
 			continue
 		}
 

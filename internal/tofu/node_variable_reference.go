@@ -45,8 +45,8 @@ var (
 func (n *nodeVariableReference) expandsInstances() {}
 
 // Abuse graphNodeTemporaryValue to keep the validation rule around
-func (n *nodeVariableReference) temporaryValue() bool {
-	return len(n.Config.Validations) == 0
+func (n *nodeVariableReference) temporaryValue(op walkOperation) bool {
+	return len(n.Config.Validations) == 0 || op == walkDestroy || op == walkPlanDestroy
 }
 
 // GraphNodeDynamicExpandable
