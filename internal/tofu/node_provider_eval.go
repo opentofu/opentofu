@@ -28,7 +28,8 @@ func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext,
 	provider, err := evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
 
 	diags = diags.Append(err)
-	return diags.Append(n.InitEvalableProvider(ctx, evalCtx, provider))
+	initDiags := n.InitEvalableProvider(ctx, evalCtx, provider)
+	return diags.Append(initDiags)
 }
 
 // InitEvalableProvider fetches its schema, builds it, and adds it
