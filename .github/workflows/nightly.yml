@@ -50,12 +50,14 @@ jobs:
           GPG_TTY: /dev/ttys000
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@5742e2a039330cbb23ebf35f046f814d4c6ff811 # v5.1.0
+        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
         with:
-          version: v1.21.2
+          version: v2.11.2
+          distribution: goreleaser-pro
           args: release --nightly --clean --timeout=60m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 
       - name: Remove GPG key
         if: always()
