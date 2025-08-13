@@ -1182,10 +1182,35 @@ func TestParseEphemeralBlocks(t *testing.T) {
 			}
 			return false
 		}
+		var connDiag *hcl.Diagnostic
 		for _, diag := range diags {
-			if content := diag.Error(); !containsExpectedKeywords(content) {
+			content := diag.Error()
+			if !containsExpectedKeywords(content) {
 				t.Fatalf("expected diagnostic to contain at least one of the keywords: %s", content)
 			}
+			if strings.Contains(content, "connection") {
+				connDiag = diag
+			}
+		}
+		// specific assertions for ensuring that the definition block from diags are configured properly
+		if connDiag == nil {
+			t.Fatalf("diagnostic for the 'connection' block not found")
+		}
+		expectedRange := hcl.Range{
+			Filename: "testdata/ephemeral-blocks/main.tf",
+			Start: hcl.Pos{
+				Line:   18,
+				Column: 3,
+				Byte:   274,
+			},
+			End: hcl.Pos{
+				Line:   18,
+				Column: 13,
+				Byte:   284,
+			},
+		}
+		if !expectedRange.Overlaps(*connDiag.Subject) {
+			t.Fatalf("unexpected connection block definition range.\nwant: %s\ngot: %s", expectedRange, *connDiag.Subject)
 		}
 	}
 	{
