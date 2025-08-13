@@ -18,6 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/depsrccfgs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -269,4 +270,42 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	return configs[0].DevOverrides
+}
+
+func providerDepMappingOverrides(mainSource getproviders.Source, configs []*depsrccfgs.Config, getOCICredsPolicy ociCredsPolicyBuilder) getproviders.Source {
+	// If we don't have any provider-related rules then we'll keep things
+	// simple and just retain exactly what we were given.
+	ruleCount := 0
+	for _, config := range configs {
+		ruleCount += len(config.ProviderPackageRules)
+	}
+	if ruleCount == 0 {
+		return mainSource
+	}
+
+	env := &providerDepMappingEnv{
+		getOCICredsPolicy: getOCICredsPolicy,
+	}
+
+	// Since we apparently have at least one provider address mapping rule,
+	// we'll wrap the main source in an adapter that prefers to use a
+	// configured mapping whenever one is available.
+	return getproviders.NewMappingConfigSource(mainSource, configs, env)
+}
+
+type providerDepMappingEnv struct {
+	getOCICredsPolicy ociCredsPolicyBuilder
+}
+
+var _ getproviders.MappingConfigSourceEnv = (*providerDepMappingEnv)(nil)
+
+// OCIRepositoryStore implements getproviders.MappingConfigSourceEnv.
+func (p *providerDepMappingEnv) OCIRepositoryStore(ctx context.Context, registryDomain string, repositoryName string) (getproviders.OCIRepositoryStore, error) {
+	credsPolicy, err := p.getOCICredsPolicy(ctx)
+	if err != nil {
+		// This deals with only a small number of errors that we can't catch during CLI config validation
+		return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
+	}
+	return getOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
+
 }
