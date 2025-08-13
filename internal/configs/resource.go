@@ -607,20 +607,20 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 		r.DependsOn = append(r.DependsOn, deps...)
 	}
 
-	invalidEphemeralLifecycleAttributeDiag := func(field string) *hcl.Diagnostic {
+	invalidEphemeralLifecycleAttributeDiag := func(field string, subj hcl.Range) *hcl.Diagnostic {
 		return &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid lifecycle configuration for ephemeral resource",
 			Detail:   fmt.Sprintf("The lifecycle argument %q cannot be used in ephemeral resources. This is meant to be used strictly in \"resource\" blocks.", field),
-			Subject:  &block.DefRange,
+			Subject:  &subj,
 		}
 	}
-	invalidEphemeralBlockDiag := func(field string) *hcl.Diagnostic {
+	invalidEphemeralBlockDiag := func(field string, subj hcl.Range) *hcl.Diagnostic {
 		return &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid configuration block for ephemeral resource",
 			Detail:   fmt.Sprintf("The block type %q cannot be used in ephemeral resources. This is meant to be used strictly in \"resource\" blocks.", field),
-			Subject:  &block.DefRange,
+			Subject:  &subj,
 		}
 	}
 	var seenLifecycle *hcl.Block
@@ -643,16 +643,16 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			diags = append(diags, lcDiags...)
 
 			if _, exists := lcContent.Attributes["create_before_destroy"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy"))
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy", block.DefRange))
 			}
 			if _, exists := lcContent.Attributes["prevent_destroy"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy"))
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy", block.DefRange))
 			}
 			if _, exists := lcContent.Attributes["replace_triggered_by"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("replace_triggered_by"))
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("replace_triggered_by", block.DefRange))
 			}
 			if _, exists := lcContent.Attributes["ignore_changes"]; exists {
-				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("ignore_changes"))
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("ignore_changes", block.DefRange))
 			}
 			for _, block := range lcContent.Blocks {
 				switch block.Type {
@@ -677,10 +677,10 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			}
 
 		case "connection":
-			diags = append(diags, invalidEphemeralBlockDiag("connection"))
+			diags = append(diags, invalidEphemeralBlockDiag("connection", block.DefRange))
 
 		case "provisioner":
-			diags = append(diags, invalidEphemeralBlockDiag("provisioner"))
+			diags = append(diags, invalidEphemeralBlockDiag("provisioner", block.DefRange))
 
 		case "_":
 			if seenEscapeBlock != nil {
