@@ -26,12 +26,12 @@ import (
 // CLI configuration and some default search locations. This will be the
 // provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
-func providerSource(ctx context.Context, configs []*cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSource(ctx context.Context, configs []*cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder, originalWorkingDir string) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
 		// some automatically-selected local filesystem mirrors.
-		return implicitProviderSource(ctx, services), nil
+		return implicitProviderSource(ctx, services, originalWorkingDir), nil
 	}
 
 	// There should only be zero or one configurations, which is checked by
@@ -92,12 +92,14 @@ func explicitProviderSource(ctx context.Context, config *cliconfig.ProviderInsta
 // one version available in a local directory are implicitly excluded from
 // direct installation, as if the user had listed them explicitly in the
 // "exclude" argument in the direct provider source in the CLI config.
-func implicitProviderSource(ctx context.Context, services *disco.Disco) getproviders.Source {
+func implicitProviderSource(ctx context.Context, services *disco.Disco, originalWorkingDir string) getproviders.Source {
 	// The local search directories we use for implicit configuration are:
 	// - The "terraform.d/plugins" directory in the current working directory,
 	//   which we've historically documented as a place to put plugins as a
 	//   way to include them in bundles uploaded to Terraform Cloud, where
 	//   there has historically otherwise been no way to use custom providers.
+	//   When using -chdir, this directory is checked in the launch directory
+	//   (original working directory), not the directory specified with -chdir.
 	// - The "plugins" subdirectory of the CLI config search directory.
 	//   (that's ~/.terraform.d/plugins or $XDG_DATA_HOME/opentofu/plugins
 	//   on Unix systems, equivalents elsewhere)
@@ -147,7 +149,9 @@ func implicitProviderSource(ctx context.Context, services *disco.Disco) getprovi
 		}
 	}
 
-	addLocalDir("terraform.d/plugins") // our "vendor" directory
+	// Check and add the "terraform.d/plugins" directory in the original working directory
+	addLocalDir(filepath.Join(originalWorkingDir, "terraform.d/plugins"))
+
 	cliDataDirs, err := cliconfig.DataDirs()
 	if err == nil {
 		for _, cliDataDir := range cliDataDirs {
