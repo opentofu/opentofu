@@ -58,6 +58,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          RELEASE_FLAG_LATEST: "false"
+          RELEASE_FLAG_PRERELEASE: "true"
 
       - name: Remove GPG key
         if: always()
