@@ -201,7 +201,8 @@ func TestEphemeralErrors_outputs(t *testing.T) {
 		sanitizedSerr := SanitizeStderr(serr)
 		sanitizedSout := SanitizeStderr(sout)
 		if !strings.Contains(sanitizedSerr, `Module output value precondition failed    on __mod-ephemeral-output-with-precondition/main.tf`) ||
-			!strings.Contains(sanitizedSerr, `"notdefaultvalue" -> "default value"  This check failed, but has an invalid error message as described in the other accompanying messages`) {
+			!strings.Contains(sanitizedSerr, `This check failed, but has an invalid error message as described in the other accompanying messages`) ||
+			strings.Contains(sanitizedSerr, `"notdefaultvalue" -> "default value"`) {
 			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized serr: %s", sanitizedSerr)
 		}

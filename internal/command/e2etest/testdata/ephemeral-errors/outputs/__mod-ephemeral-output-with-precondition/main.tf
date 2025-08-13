@@ -9,10 +9,8 @@ output "output_with_precondition" {
   value = var.variable_for_output_precondition
   ephemeral = true
   precondition {
-    // NOTE: When this condition will fail, the actual value of the variable will be printed.
-    // TODO ephemeral: the description above applies for sensitive and ephemeral values. Left another comment in
-    //  the code with a question about this. Maybe we want to do something about this confidential information
-    //  exposure.
+    // NOTE: When this condition will fail, for ephemeral references in the condition, the diff between the left
+    // side and right side will be skipped. This is printed only for sensitive values.
     condition = var.variable_for_output_precondition == "default value"
     // NOTE: This error_message is going to generate a warning because ephemeral values are used in the expression.
     error_message = "Variable `variable_for_output_precondition` does not have the required value: ${var.variable_for_output_precondition}"

@@ -184,11 +184,6 @@ func evalCheckRule(ctx context.Context, addr addrs.CheckRule, rule *configs.Chec
 		return checkResult{Status: checks.StatusError}, diags
 	}
 
-	// TODO ephemeral - FOR REVIEWERS: this is here for a long time the way it is.
-	//  The check's failure triggers a print of a diff between the values in the condition.
-	//  The diff is shown even if the condition expression references a sensitive or an ephemeral value.
-	//  Is this as desired? It's the first place where I see a bleeding of confidential info.
-
 	// The condition result may be marked if the expression refers to a
 	// sensitive value.
 	resultVal, _ = resultVal.Unmark()
