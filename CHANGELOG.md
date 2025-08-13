@@ -1,5 +1,8 @@
 ## 1.10.6 (unreleased)
 
+ENHANCEMENTS:
+
+- Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
 ## 1.10.5
 
 BUG FIXES:
