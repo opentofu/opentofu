@@ -11,11 +11,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plugin/convert"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
 // New wraps a provisioners.Interface to implement a grpc ProviderServer.
@@ -31,6 +31,8 @@ func Provisioner(p provisioners.Interface) tfplugin5.ProvisionerServer {
 type provisioner struct {
 	provisioner provisioners.Interface
 	schema      *configschema.Block
+
+	tfplugin5.UnimplementedProvisionerServer
 }
 
 func (p *provisioner) GetSchema(_ context.Context, req *tfplugin5.GetProvisionerSchema_Request) (*tfplugin5.GetProvisionerSchema_Response, error) {

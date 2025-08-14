@@ -6,8 +6,8 @@
 package convert
 
 import (
+	"github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 func DeferralReasonFromProto(reason tfplugin6.Deferred_Reason) providers.DeferralReason {

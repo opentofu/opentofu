@@ -9,10 +9,10 @@ import (
 	"errors"
 	"testing"
 
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 	"github.com/zclconf/go-cty/cty"
 )
 
