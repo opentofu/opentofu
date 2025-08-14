@@ -73,6 +73,26 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 	return cty.ObjectVal(mockValues), diags
 }
 
+/*
+composeMockValueForAttributes follows the truth table below for generating an output value, given schema and inputs:
+Required  Optional  Computed  Has config  Has Override  Result
+t         f         f         t           t             Error - Not Allowed to override config
+t         f         f         t           f             Config
+t         f         f         f           t             Error - Required field in config not provided
+t         f         f         f           f             Error - Required field in config not provided
+f         t         f         t           t             Error - Not Allowed to override config
+f         t         f         t           f             Config
+f         t         f         f           t             Override Value
+f         t         f         f           f             NilVal of the attribute type
+f         t         t         t           t             Error - Not Allowed to override config
+f         t         t         t           f             Config
+f         t         t         f           t             Override
+f         t         t         f           f             GenVal
+f         f         t         t           t             Error - Not Allowed to override config
+f         f         t         t           f             Error - Config not allowed here
+f         f         t         f           t             Override
+f         f         t         f           f             GenVal
+*/
 func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*configschema.Attribute, configMap map[string]cty.Value, overrides map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -91,26 +111,6 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 				"Overriding non-computed fields is not allowed, so this field cannot be processed.",
 			))
 		}
-
-		/*
-			Required  Optional  Computed  Has config  Has Override  Result
-			t         f         f         t           t             Error - Not Allowed to override config
-			t         f         f         t           f             Config
-			t         f         f         f           t             Error - Required field in config not provided
-			t         f         f         f           f             Error - Required field in config not provided
-			f         t         f         t           t             Error - Not Allowed to override config
-			f         t         f         t           f             Config
-			f         t         f         f           t             Override Value
-			f         t         f         f           f             NilVal of the attribute type
-			f         t         t         t           t             Error - Not Allowed to override config
-			f         t         t         t           f             Config
-			f         t         t         f           t             Override
-			f         t         t         f           f             GenVal
-			f         f         t         t           t             Error - Not Allowed to override config
-			f         f         t         t           f             Error - Config not allowed here
-			f         f         t         f           t             Override
-			f         f         t         f           f             GenVal
-		*/
 
 		overrideValue, hasOverride := overrides[k]
 		configValue, hasConfig := configMap[k]
