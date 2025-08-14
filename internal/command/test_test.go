@@ -1542,8 +1542,8 @@ func TestTest_MockProviderValidation(t *testing.T) {
 	}
 }
 
-// TestTest_MockProviderValidation checks if tofu test runs proper validation for
-// mock_provider. Even if provider schema has required fields, tofu test should
+// TestTest_MockProviderValidationForEach checks if tofu test runs proper validation for
+// mock_provider with for_each. Even if provider schema has required fields, tofu test should
 // ignore it completely, because the provider is mocked.
 func TestTest_MockProviderValidationForEach(t *testing.T) {
 	td := t.TempDir()

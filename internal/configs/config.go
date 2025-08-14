@@ -1035,13 +1035,14 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 	}
 }
 
-// evaluateProviderConfig evaluates code for the mock provider. In the current implementation,
-// it only evaluates the for_each expression.
+// evaluateProviderConfig evaluates code for the mock provider. for_each is the only attribute
+// that is evaluated for the mock provider, but support for other provider attributes can be added
+// here if needed.
 func (mp *MockProvider) evaluateProviderConfig(evalCtx *hcl.EvalContext) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if mp.ForEach == nil {
-		// Since we're evaluating only forEach expressions, return it if it's not present.
+		// Since we're evaluating only for_each expressions, return it if it's not present.
 		return diags
 	}
 
