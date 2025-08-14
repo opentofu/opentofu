@@ -54,6 +54,13 @@ func (s *SyncState) Module(addr addrs.ModuleInstance) *Module {
 	return ret
 }
 
+func (s *SyncState) ModuleCall(addr addrs.ModuleInstance) *ModuleCall {
+	s.lock.RLock()
+	ret := s.state.ModuleCall(addr).DeepCopy()
+	s.lock.RUnlock()
+	return ret
+}
+
 // ModuleOutputs returns the set of OutputValues that matches the given path.
 func (s *SyncState) ModuleOutputs(parentAddr addrs.ModuleInstance, module addrs.ModuleCall) []*OutputValue {
 	s.lock.RLock()

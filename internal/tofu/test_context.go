@@ -18,6 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/moduletest"
@@ -98,6 +99,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			}(),
 			VariableValuesLock: new(sync.Mutex),
 			PlanTimestamp:      tc.Plan.Timestamp,
+			InstanceExpander:   instances.NewExpander(),
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,

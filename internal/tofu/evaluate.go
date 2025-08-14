@@ -69,6 +69,10 @@ type Evaluator struct {
 	Changes *plans.ChangesSync
 
 	PlanTimestamp time.Time
+
+	// InstanceExpander is the instance expander that is used to expand the
+	// instances of the module.
+	InstanceExpander *instances.Expander
 }
 
 // Scope creates an evaluation scope for the given module path and optional
@@ -387,6 +391,27 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 		// should be caught during static validation.
 		panic(fmt.Sprintf("output value read from %s, which has no configuration", moduleAddr))
 	}
+
+	// Expand all module instances and then reuse it
+	moduleInstances := map[addrs.InstanceKey]map[string]cty.Value{}
+	if d.Operation != walkValidate {
+		modAddr := addrs.ModuleInstance{
+			Module: d.ModulePath.Module(),
+			Call:   addr,
+		}
+		modCall := d.Evaluator.State.Module(modAddr)
+		fmt.Println("modCall", modCall)
+		// for _, instance := range instances {
+		// 	modInstance, callInstance := instance.CallInstance()
+
+		// 	fmt.Println("modInstance", modInstance)
+		// 	fmt.Println("callInstance", callInstance)
+
+		// 	instanceKey := callInstance.Key
+		// 	moduleInstances[instanceKey] = map[string]cty.Value{}
+		// }
+	}
+
 	outputConfigs := moduleConfig.Module.Outputs
 
 	// Collect all the relevant outputs that current exist in the state.
@@ -427,10 +452,6 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 		instance[change.Addr.OutputValue.Name] = change
 	}
 
-	// Build up all the module objects, creating a map of values for each
-	// module instance.
-	moduleInstances := map[addrs.InstanceKey]map[string]cty.Value{}
-
 	// create a dummy object type for validation below
 	unknownMap := map[string]cty.Type{}
 
@@ -449,6 +470,7 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 
 			instance, ok := moduleInstances[key]
 			if !ok {
+				// panic(fmt.Sprintf("%s instance not found", key))
 				instance = map[string]cty.Value{}
 				moduleInstances[key] = instance
 			}
