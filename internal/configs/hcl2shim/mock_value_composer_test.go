@@ -32,13 +32,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 						Computed:  false,
 						Sensitive: false,
 					},
-					/*INVALID "required-computed": {
-						Type:      cty.String,
-						Required:  true,
-						Optional:  false,
-						Computed:  true,
-						Sensitive: false,
-					},*/
 					"optional": {
 						Type:      cty.String,
 						Required:  false,
@@ -88,8 +81,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				"sensitive-required": cty.StringVal("sensitive"),
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
-				"required-only": cty.StringVal("required"),
-				//INVALID "required-computed":  cty.StringVal("xNmGyAVmNkB4"),
+				"required-only":      cty.StringVal("required"),
 				"optional":           cty.NullVal(cty.String),
 				"optional-computed":  cty.StringVal("6zQu0"),
 				"computed-only":      cty.StringVal("l3INvNSQT"),
@@ -112,13 +104,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 									Computed:  false,
 									Sensitive: false,
 								},
-								/*INVALID "required-computed": {
-									Type:      cty.String,
-									Required:  true,
-									Optional:  false,
-									Computed:  true,
-									Sensitive: false,
-								},*/
 								"optional": {
 									Type:      cty.String,
 									Required:  false,
@@ -174,8 +159,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantVal: cty.ObjectVal(map[string]cty.Value{
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"required-only": cty.StringVal("required"),
-					// INVALID "required-computed":  cty.StringVal("xNmGyAVmNkB4"),
+					"required-only":      cty.StringVal("required"),
 					"optional":           cty.NullVal(cty.String),
 					"optional-computed":  cty.StringVal("6zQu0"),
 					"computed-only":      cty.StringVal("l3INvNSQT"),
