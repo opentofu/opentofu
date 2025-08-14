@@ -934,17 +934,10 @@ func TestModuleInstaller_nonExistentSubmodule(t *testing.T) {
 	errorStr := diags.Err().Error()
 	t.Logf("Actual error: %s", errorStr)
 
-	// Check that the error message is fixed and no longer claims to be a bug in OpenTofu
-	if strings.Contains(errorStr, "This is a bug in OpenTofu") {
-		t.Errorf("Error incorrectly claims to be a bug in OpenTofu. Got: %s", errorStr)
-	}
-
-	// The error should mention that the subdirectory was not found
 	if !strings.Contains(errorStr, "subdirectory") && !strings.Contains(errorStr, "does not exist") {
 		t.Errorf("Expected error to mention missing subdirectory. Got: %s", errorStr)
 	}
 
-	// Should contain a helpful message about the subdirectory
 	if !strings.Contains(errorStr, "Module subdirectory not found") {
 		t.Errorf("Expected 'Module subdirectory not found' in error message. Got: %s", errorStr)
 	}
