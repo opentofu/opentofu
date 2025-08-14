@@ -1,0 +1,168 @@
+---
+sidebar_label: r2
+description: OpenTofu can store state remotely in Cloudflare R2 object storage.
+---
+
+# Backend Type: r2
+
+Stores the state as a given key in a given bucket on [Cloudflare R2](https://developers.cloudflare.com/r2/).
+
+This backend supports state locking via R2's conditional request headers.
+
+:::warning
+It is highly recommended that you enable [Object Versioning](https://developers.cloudflare.com/r2/buckets/object-versioning/) on the R2 bucket to allow for state recovery in the case of accidental deletions and human error.
+:::
+
+## Example Configuration
+
+```hcl
+terraform {
+  backend "r2" {
+    account_id = "1234567890abcdef1234567890abcdef"
+    api_token  = var.cloudflare_api_token
+    bucket     = "my-terraform-state"
+    key        = "production/terraform.tfstate"
+  }
+}
+```
+
+This assumes we have a bucket created called `my-terraform-state`. The OpenTofu state is written to the key `production/terraform.tfstate`.
+
+Note that for the access credentials we recommend using a [partial configuration](../../../language/settings/backends/configuration.mdx#partial-configuration).
+
+## Data Source Configuration
+
+To make use of the R2 remote state in another configuration, use the [`terraform_remote_state` data source](../../../language/state/remote-state-data.mdx).
+
+```hcl
+data "terraform_remote_state" "network" {
+  backend = "r2"
+  config = {
+    account_id = "1234567890abcdef1234567890abcdef"
+    api_token  = var.cloudflare_api_token
+    bucket     = "my-terraform-state"
+    key        = "network/terraform.tfstate"
+  }
+}
+```
+
+## Authentication
+
+The R2 backend requires a Cloudflare API token with appropriate permissions to access your R2 bucket.
+
+### API Token Permissions
+
+Your API token needs the following permissions:
+- **Account** - Cloudflare R2:Edit
+
+You can create an API token in the [Cloudflare dashboard](https://dash.cloudflare.com/profile/api-tokens) with the necessary permissions.
+
+:::warning
+Store your API token securely and never commit it to version control. Use environment variables or OpenTofu's partial configuration to supply sensitive values.
+:::
+
+## Jurisdictions
+
+Cloudflare R2 supports data localization through jurisdictions. You can specify where your data is stored by setting the `jurisdiction` parameter.
+
+```hcl
+terraform {
+  backend "r2" {
+    account_id   = "1234567890abcdef1234567890abcdef"
+    api_token    = var.cloudflare_api_token
+    bucket       = "my-terraform-state"
+    key          = "terraform.tfstate"
+    jurisdiction = "eu"
+  }
+}
+```
+
+Available jurisdictions:
+- `""` (empty/default) - Automatic region selection
+- `"eu"` - European Union
+- `"fedramp"` - FedRAMP
+
+## Workspaces
+
+The R2 backend supports OpenTofu workspaces. When using workspaces, the state file is stored at:
+- Default workspace: `<key>`
+- Named workspaces: `<workspace_key_prefix>/<workspace_name>/<key>`
+
+```hcl
+terraform {
+  backend "r2" {
+    account_id          = "1234567890abcdef1234567890abcdef"
+    api_token           = var.cloudflare_api_token
+    bucket              = "my-terraform-state"
+    key                 = "terraform.tfstate"
+    workspace_key_prefix = "workspaces"
+  }
+}
+```
+
+## State Locking
+
+The R2 backend implements state locking using R2's conditional request headers. This prevents concurrent state modifications without requiring additional infrastructure like DynamoDB.
+
+State locking is automatically enabled and cannot be disabled. If you need to force-unlock the state, you can use:
+
+```bash
+tofu force-unlock <lock-id>
+```
+
+## Configuration Variables
+
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu includes these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+:::
+
+The following configuration options are supported:
+
+- `account_id` - (Required) The Cloudflare account ID. This is a 32-character hexadecimal string.
+- `api_token` - (Required) A Cloudflare API token with R2 edit permissions. Can also be specified with the `CLOUDFLARE_API_TOKEN` environment variable.
+- `bucket` - (Required) The name of the R2 bucket.
+- `key` - (Required) The path to the state file inside the bucket.
+- `region` - (Optional) The AWS region for S3-compatible operations. Defaults to `"auto"`. This is primarily used for internal S3-compatible API calls.
+- `access_key_id` - (Optional) R2 access key ID for S3-compatible authentication. Can also be specified with the `CLOUDFLARE_R2_ACCESS_KEY_ID` environment variable.
+- `secret_access_key` - (Optional) R2 secret access key for S3-compatible authentication. Can also be specified with the `CLOUDFLARE_R2_SECRET_ACCESS_KEY` environment variable.
+- `workspace_key_prefix` - (Optional) The prefix applied to the state path inside the bucket when using workspaces. Defaults to `"env:"`.
+- `jurisdiction` - (Optional) The jurisdiction for data localization. Valid values are `""` (automatic), `"eu"` (European Union), or `"fedramp"`.
+- `endpoints` - (Optional) A block for configuring custom endpoints:
+  - `api` - (Optional) Custom API endpoint URL. Defaults to `"https://api.cloudflare.com"`.
+  - `s3` - (Optional) Custom S3-compatible endpoint URL. This is automatically determined based on account ID and jurisdiction if not specified.
+
+### Example with Environment Variables
+
+```bash
+export CLOUDFLARE_API_TOKEN="your-api-token"
+export CLOUDFLARE_R2_ACCESS_KEY_ID="your-access-key-id"
+export CLOUDFLARE_R2_SECRET_ACCESS_KEY="your-secret-access-key"
+```
+
+```hcl
+terraform {
+  backend "r2" {
+    account_id = "1234567890abcdef1234567890abcdef"
+    bucket     = "my-terraform-state"
+    key        = "terraform.tfstate"
+  }
+}
+```
+
+### Example with Custom Endpoints
+
+```hcl
+terraform {
+  backend "r2" {
+    account_id = "1234567890abcdef1234567890abcdef"
+    api_token  = var.cloudflare_api_token
+    bucket     = "my-terraform-state"
+    key        = "terraform.tfstate"
+    
+    endpoints = {
+      api = "https://api.cloudflare.com"
+      s3  = "https://1234567890abcdef1234567890abcdef.r2.cloudflarestorage.com"
+    }
+  }
+}
+```
