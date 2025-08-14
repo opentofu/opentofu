@@ -16,6 +16,7 @@ ENHANCEMENTS:
 * Add full support for -var, -var-file, and TF_VARS during `tofu apply` to support plan encryption ([#1998](https://github.com/opentofu/opentofu/pull/1998))
 * The S3 state backend now supports arguments to specify tags of the state and lock files. [#3038](https://github.com/opentofu/opentofu/pull/3038)
 * Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
+* Upgrade github.com/openbao/openbao/api/v2 from 2.1.0 to 2.3.0 to fix [GO-2025-3783](https://pkg.go.dev/vuln/GO-2025-3783) ([3134](https://github.com/opentofu/opentofu/pull/3134))
 
 BUG FIXES:
 
