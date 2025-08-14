@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -274,7 +275,6 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
 			// TODO ephemeral - this "value_wo" should be shown something like (write-only attribute). This will be handled during the work on the write-only attributes.
-			// TODO ephemeral - "out_ephemeral" should fail later when the marking of the outputs is implemented fully, so that should not be visible in the output
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
@@ -302,8 +302,7 @@ OpenTofu will perform the following actions:
 Plan: 2 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
-  + final_output  = "just a simple resource to ensure that the second provider it's working fine"
-  + out_ephemeral = "rawvalue"`
+  + final_output = "just a simple resource to ensure that the second provider it's working fine"`
 
 			entriesChecker := &outputEntriesChecker{phase: "plan"}
 			entriesChecker.addChecks(outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
@@ -321,6 +320,7 @@ Changes to Outputs:
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
+				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
 			entriesChecker.check(t, out)
 
@@ -443,6 +443,7 @@ Changes to Outputs:
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong apply output:\nstdout:%s\nstderr%s", stdout, stderr)
+				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
 			entriesChecker.check(t, out)
 		}

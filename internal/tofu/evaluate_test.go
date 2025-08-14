@@ -111,6 +111,10 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 						Name:      "some_output",
 						Sensitive: true,
 					},
+					"ephemeral_output": {
+						Name:      "ephemeral_output",
+						Ephemeral: true,
+					},
 					"some_other_output": {
 						Name: "some_other_output",
 					},
@@ -130,6 +134,12 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 					Name: "some_other_output",
 				},
 			}, cty.StringVal("second"), false, "")
+			state.SetOutputValue(addrs.AbsOutputValue{
+				Module: addrs.RootModuleInstance,
+				OutputValue: addrs.OutputValue{
+					Name: "ephemeral_output",
+				},
+			}, cty.StringVal("third"), false, "")
 		}).SyncWrapper(),
 	}
 
@@ -153,6 +163,20 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 	want = cty.StringVal("second")
 	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
 		Name: "some_other_output",
+	}, tfdiags.SourceRange{})
+
+	if len(diags) != 0 {
+		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+	}
+	if !got.RawEquals(want) {
+		t.Errorf("wrong result %#v; want %#v", got, want)
+	}
+
+	// TODO ephemeral - uncomment the line with the ephemeral mark once the testing support implementation is done
+	// want = cty.StringVal("third").Mark(marks.Ephemeral)
+	want = cty.StringVal("third")
+	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
+		Name: "ephemeral_output",
 	}, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
@@ -785,13 +809,22 @@ func TestEvaluatorGetModule(t *testing.T) {
 			true,
 			"",
 		)
+		ss.SetOutputValue(
+			addrs.OutputValue{Name: "out2"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+			cty.StringVal("baz"),
+			false,
+			"",
+		)
 	}).SyncWrapper()
 	evaluator := evaluatorForModule(stateSync, plans.NewChanges().SyncWrapper())
 	data := &evaluationStateData{
 		Evaluator: evaluator,
 	}
 	scope := evaluator.Scope(data, nil, nil, nil)
-	want := cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("bar").Mark(marks.Sensitive)})
+	want := cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("bar").Mark(marks.Sensitive),
+		"out2": cty.StringVal("baz").Mark(marks.Ephemeral),
+	})
 	got, diags := scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
@@ -800,7 +833,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 	}
 	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+		t.Errorf("wrong result %#v\nwant %#v", got, want)
 	}
 
 	// Changes should override the state value
@@ -814,12 +847,23 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 	cs, _ := change.Encode()
 	changesSync.AppendOutputChange(cs)
+	change2 := &plans.OutputChange{
+		Addr: addrs.OutputValue{Name: "out2"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+		Change: plans.Change{
+			After: cty.StringVal("bazz"),
+		},
+	}
+	cs2, _ := change2.Encode()
+	changesSync.AppendOutputChange(cs2)
 	evaluator = evaluatorForModule(stateSync, changesSync)
 	data = &evaluationStateData{
 		Evaluator: evaluator,
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
-	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
+	want = cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("baz").Mark(marks.Sensitive),
+		"out2": cty.StringVal("bazz").Mark(marks.Ephemeral),
+	})
 	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
@@ -837,7 +881,10 @@ func TestEvaluatorGetModule(t *testing.T) {
 		Evaluator: evaluator,
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
-	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
+	want = cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("baz").Mark(marks.Sensitive),
+		"out2": cty.StringVal("bazz").Mark(marks.Ephemeral),
+	})
 	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
@@ -871,6 +918,10 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 							"out": {
 								Name:      "out",
 								Sensitive: true,
+							},
+							"out2": {
+								Name:      "out2",
+								Ephemeral: true,
 							},
 						},
 					},
