@@ -61,9 +61,6 @@ jobs:
           cp dist/*.tar.gz ./upload/nightlies/${DATE}/ 2>/dev/null || true
           cp dist/*.zip ./upload/nightlies/${DATE}/ 2>/dev/null || true
           cp dist/*SHA256SUMS* ./upload/nightlies/${DATE}/ 2>/dev/null || true
-          cp dist/*.sig ./upload/nightlies/${DATE}/ 2>/dev/null || true
-          cp dist/*.pem ./upload/nightlies/${DATE}/ 2>/dev/null || true
-          cp dist/*.gpgsig ./upload/nightlies/${DATE}/ 2>/dev/null || true
 
           # Create latest.json
           cat > ./upload/nightlies/latest.json <<EOF
@@ -80,13 +77,33 @@ jobs:
           echo "Version: ${VERSION}"
           echo "Commit: ${COMMIT}"
 
+      - name: Test R2 connection
+        run: |
+          echo "Testing R2 connection..."
+          rclone version
+          echo "Bucket name: ${{ secrets.R2_BUCKET_NAME }}"
+          echo "Testing bucket access..."
+          if ! rclone lsd R2: --max-depth 1; then
+            echo "ERROR: Cannot access R2 bucket"
+            exit 1
+          fi
+          echo "R2 connection test passed"
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+
       - name: Sync to R2
         run: |
           set -euo pipefail
 
-          # Use high parallelism for faster uploads
           echo "Starting upload to R2..."
-          if ! rclone copy --checkers=512 --transfers=512 --checksum --no-traverse --verbose ./upload/ R2:${{ secrets.R2_BUCKET_NAME }}; then
+          echo "Files to upload:"
+          find ./upload -type f -name "*.tar.gz" -o -name "*.zip" -o -name "*SHA256SUMS*" -o -name "*.json"
+          
+          if ! rclone copy --verbose ./upload/ R2:${{ secrets.R2_BUCKET_NAME }}; then
             echo "ERROR: Failed to upload artifacts to R2"
             exit 1
           fi
@@ -98,4 +115,3 @@ jobs:
           RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-          RCLONE_CONFIG_R2_ACL: public-read
