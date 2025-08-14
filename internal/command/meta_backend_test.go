@@ -1957,8 +1957,8 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
+		defer f.Close()
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
