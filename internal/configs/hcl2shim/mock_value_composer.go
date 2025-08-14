@@ -83,7 +83,7 @@ t         f         f         f           f             Error - Required field i
 f         t         f         t           t             Error - Not Allowed to override config
 f         t         f         t           f             Config
 f         t         f         f           t             Override Value
-f         t         f         f           f             NilVal of the attribute type
+f         t         f         f           f             NullVal of the attribute type
 f         t         t         t           t             Error - Not Allowed to override config
 f         t         t         t           f             Config
 f         t         t         f           t             Override

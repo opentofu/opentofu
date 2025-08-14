@@ -8,6 +8,10 @@ UPGRADE NOTES:
     If your module was previously assigning something derived from an `issensitive` result to a context where unknown values are not allowed during the planning phase, such as `count`/`for_each` arguments for resources or modules, this will now fail during the planning phase and so you will need to choose a new approach where either the `issensitive` argument is always known during the planning phase or where the sensitivity of an unknown value is not used as part of the decision.
 * OpenTofu no longer accepts SHA-1 signatures in TLS handshakes, as recommended in [RFC 9155](https://www.rfc-editor.org/rfc/rfc9155.html).
 
+* Testing mocks previously only followed a subset of the rules defined in provider schemas. The provider schema now drives the mocking to ensure the schema is correctly followed. ([#3069](https://github.com/opentofu/opentofu/pull/3069))
+
+    In rare cases this change might result in some previously-passing tests now failing, due to invalid mocks or overrides that were not detected in earlier versions.
+
 ENHANCEMENTS:
 
 * OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))
@@ -35,6 +39,9 @@ BUG FIXES:
 * Provider references like "null.some_alias[each.key]" in .tf.json files are now correctly parsed ([#2915](https://github.com/opentofu/opentofu/issues/2915))
 * Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
 * Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
+* Ensure that generated mock values for testing correctly follows the provider schema. ([#3069](https://github.com/opentofu/opentofu/pull/3069))
+
+BREAKING CHANGES:
 
 ## Previous Releases
 
