@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -105,6 +106,8 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 			Alias:             mockProvider.Alias,
 			AliasRange:        mockProvider.AliasRange,
 			DeclRange:         mockProvider.DeclRange,
+			ForEach:           mockProvider.ForEach,
+			Instances:         mockProvider.Instances,
 			IsMocked:          true,
 			MockResources:     mockProvider.MockResources,
 			OverrideResources: mockProvider.OverrideResources,
@@ -317,6 +320,9 @@ type MockProvider struct {
 	AliasRange *hcl.Range // nil if no alias set
 
 	DeclRange hcl.Range
+
+	ForEach   hcl.Expression
+	Instances map[addrs.InstanceKey]instances.RepetitionData
 
 	// Fields below are specific to configs.MockProvider:
 
@@ -910,6 +916,19 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		}
 	}
 
+	if attr, exists := content.Attributes["for_each"]; exists {
+		provider.ForEach = attr.Expr
+	}
+
+	if len(provider.Alias) == 0 && provider.ForEach != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Alias required when using "for_each"`,
+			Detail:   `The for_each argument is allowed only for provider configurations with an alias.`,
+			Subject:  provider.ForEach.Range().Ptr(),
+		})
+	}
+
 	for _, block := range content.Blocks {
 		switch block.Type {
 		case blockNameMockData, blockNameMockResource:
@@ -1154,6 +1173,10 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
 			Name:     "alias",
+			Required: false,
+		},
+		{
+			Name:     "for_each",
 			Required: false,
 		},
 	},

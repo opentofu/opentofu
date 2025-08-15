@@ -17,6 +17,8 @@ ENHANCEMENTS:
 * The S3 state backend now supports arguments to specify tags of the state and lock files. [#3038](https://github.com/opentofu/opentofu/pull/3038)
 * Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
 * Improved error messages when a submodule is not found in a module ([#3144]https://github.com/opentofu/opentofu/pull/3144)
+* Add support for the `for_each` attribute in the `mock_provider` block. ([#3087](https://github.com/opentofu/opentofu/pull/3087))
+
 
 BUG FIXES:
 
