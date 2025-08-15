@@ -1,0 +1,67 @@
+#compdef tofu
+
+_tofu() {
+  local curcontext="$curcontext" state line ret=1
+  typeset -A opt_args
+
+  # Define common flags for all commands
+  local -a common_flags
+  common_flags=(
+    '-help[Show help output]'
+    '-version[Show version]'
+    '-chdir=[Change working directory]:directory:_files -/'
+  )
+
+  # Note: OpenTofu's built-in completion mechanism only works with Bash
+  # We'll use pure Zsh completion instead
+
+  # Top-level OpenTofu commands
+  _arguments -C : \
+    $common_flags[@] \
+    '1: :->command' \
+    '*:: :->args' && ret=0
+
+  case $state in
+    command)
+      local -a commands
+      commands=(
+        'apply:Build or change infrastructure'
+        'console:Interactive console for OpenTofu interpolations'
+        'destroy:Destroy OpenTofu-managed infrastructure'
+        'fmt:Reformat your configuration in the standard style'
+        'force-unlock:Release a stuck lock on the current workspace'
+        'get:Install or upgrade OpenTofu modules'
+        'graph:Create a visual graph of OpenTofu resources'
+        'import:Import existing infrastructure into OpenTofu'
+        'init:Initialize a new or existing OpenTofu working directory'
+        'login:Obtain and save credentials for a remote host'
+        'logout:Remove locally-stored credentials for a remote host'
+        'metadata:Metadata related commands with functions subcommand'
+        'output:Show output values from your root module'
+        'plan:Show changes required by the current configuration'
+        'providers:Show the providers required for this configuration'
+        'refresh:Update local state file against real resources'
+        'show:Show the current state or a saved plan'
+        'state:Advanced state management'
+        'taint:Mark a resource instance as not fully functional'
+        'test:Execute integration tests for OpenTofu modules'
+        'untaint:Remove the tainted status from a resource instance'
+        'validate:Check whether the configuration is valid'
+        'version:Show the current OpenTofu version'
+        'workspace:Workspace management'
+      )
+      _describe -t commands 'OpenTofu command' commands && ret=0
+      ;;
+
+    args)
+      # Handle subcommands and their flags
+      # For all commands, only use common flags to reduce maintenance overhead
+      # Users can see all flags in the command help output using -help
+      _arguments : $common_flags[@] && ret=0
+      ;;
+  esac
+
+  return ret
+}
+
+_tofu
