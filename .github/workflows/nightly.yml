@@ -8,7 +8,6 @@ on:
 jobs:
   nightly:
     runs-on: larger-runners
-    environment: gpg
     permissions:
       contents: read
       id-token: write
