@@ -293,6 +293,25 @@ type ProviderFunctionTransformer struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
+func createStubProvider(g *Graph, providerVerts map[string]GraphNodeProvider, pAddr addrs.AbsProviderConfig) *NodeEvalableProvider {
+	stubAddr := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: pAddr.Provider,
+		Alias:    "",
+	}
+
+	log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+	stubProvider := &NodeEvalableProvider{
+		&NodeAbstractProvider{
+			Addr: stubAddr,
+		},
+	}
+
+	providerVerts[stubAddr.String()] = stubProvider
+	g.Add(stubProvider)
+	return stubProvider
+}
+
 func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) error {
 	var diags tfdiags.Diagnostics
 
@@ -306,7 +325,43 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 	providerVerts := providerVertexMap(g)
 	// LuT of provider reference -> provider vertex
 	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
+	referencedProviders := make(map[addrs.UniqueKey]struct{})
 
+	// Loop through the vertices trying to find provider references
+	// If no references are found, we will create a stub provider
+	// so the provider can call functions without Configuring it
+	for _, v := range g.Vertices() {
+		// Check if a provider is referenced
+		var addr addrs.AbsProviderConfig
+		var ok bool
+		switch v := v.(type) {
+		case GraphNodeProviderConsumer:
+			addr, ok = v.ProvidedBy().ProviderConfig.(addrs.AbsProviderConfig)
+			if !ok {
+				continue
+			}
+		case *graphNodeProxyProvider:
+			addr = v.Target().ProviderAddr()
+		default:
+			// Since it can't be referenced, skip it
+			continue
+		}
+
+		referencedProviders[addr.UniqueKey()] = struct{}{}
+	}
+
+	for _, p := range providerVerts {
+		// If there are no resources on this provider, we change it
+		// to a stub provider
+		testProvider := p
+		if proxied, ok := p.(*graphNodeProxyProvider); ok {
+			testProvider = proxied.Target()
+		}
+		if _, ok := referencedProviders[testProvider.ProviderAddr().UniqueKey()]; !ok {
+			g.Remove(testProvider)
+			createStubProvider(g, providerVerts, testProvider.ProviderAddr())
+		}
+	}
 	for _, v := range g.Vertices() {
 		// Provider function references
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
@@ -374,24 +429,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					} else {
 						// If this provider doesn't exist, stub it out with an init-only provider node
 						// This works for unconfigured functions only, but that validation is elsewhere
-						stubAddr := addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: absPc.Provider,
-						}
-						// Try to look up an existing stub
-						provider, ok = providerVerts[stubAddr.String()]
-						// If it does not exist, create it
-						if !ok {
-							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-
-							provider = &NodeEvalableProvider{
-								&NodeAbstractProvider{
-									Addr: stubAddr,
-								},
-							}
-							providerVerts[stubAddr.String()] = provider
-							g.Add(provider)
-						}
+						provider = createStubProvider(g, providerVerts, absPc)
 					}
 
 					var targetExpr hcl.Expression
@@ -772,6 +810,8 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 
 				var v dag.Vertex
 				if t.Concrete != nil {
+					// Configured default provider nodes
+					// (NodeApplyableProvider) are created here
 					v = t.Concrete(abstract)
 				} else {
 					v = abstract
