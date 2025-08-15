@@ -394,7 +394,8 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	values := make([]DiagnosticExpressionValue, 0, len(vars))
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
-	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+	// confidential means "sensitive" or "ephemeral"
+	includeConfidentialValues := tfdiags.DiagnosticCausedByConfidentialValues(diag)
 
 Traversals:
 	for _, traversal := range vars {
@@ -418,7 +419,7 @@ Traversals:
 			if _, exists := seen[traversalStr]; exists {
 				continue Traversals // don't show duplicates when the same variable is referenced multiple times
 			}
-			statement := newDiagnosticSnippetValueDescription(val, includeUnknown, includeSensitive)
+			statement := newDiagnosticSnippetValueDescription(val, includeUnknown, includeConfidentialValues)
 			if statement == "" {
 				// If we don't have anything to say about this value then we won't include
 				// an entry for it at all.
@@ -463,7 +464,7 @@ func newDiagnosticSnippetFunctionCall(diag tfdiags.Diagnostic) *DiagnosticFuncti
 	return ret
 }
 
-func newDiagnosticSnippetValueDescription(val cty.Value, includeUnknown, includeSensitive bool) string {
+func newDiagnosticSnippetValueDescription(val cty.Value, includeUnknown, includeConfidentialValues bool) string {
 	switch {
 	case val.HasMark(marks.Sensitive):
 		// We only mention a sensitive value if the diagnostic
@@ -471,13 +472,26 @@ func newDiagnosticSnippetValueDescription(val cty.Value, includeUnknown, include
 		// caused by sensitive values, because otherwise
 		// readers tend to be misled into thinking the error
 		// is caused by the sensitive value even when it isn't.
-		if !includeSensitive {
+		if !includeConfidentialValues {
 			return ""
 		}
 		// Even when we do mention one, we keep it vague
 		// in order to minimize the chance of giving away
-		// whatever was sensitive about it.
+		// whatever was confidential about it.
 		return "has a sensitive value"
+	case val.HasMark(marks.Ephemeral):
+		// We only mention an ephemeral value if the diagnostic
+		// we're rendering is explicitly marked as being
+		// caused by ephemeral values, because otherwise
+		// readers tend to be misled into thinking the error
+		// is caused by the ephemeral value even when it isn't.
+		if !includeConfidentialValues {
+			return ""
+		}
+		// Even when we do mention one, we keep it vague
+		// in order to minimize the chance of giving away
+		// whatever was confidential about it.
+		return "has an ephemeral value"
 	case !val.IsKnown():
 		ty := val.Type()
 		// We'll avoid saying anything about unknown or
@@ -541,6 +555,13 @@ func compactValueStr(val cty.Value) string {
 		// calling into compactValueStr anyway, so this shouldn't actually
 		// be reachable.
 		return "(sensitive value)"
+	}
+	if val.HasMark(marks.Ephemeral) {
+		// We check this in here just to make sure, but note that the caller
+		// of compactValueStr ought to have already checked this and skipped
+		// calling into compactValueStr anyway, so this shouldn't actually
+		// be reachable.
+		return "(ephemeral value)"
 	}
 
 	// val could have deprecated marks as well, so we want to

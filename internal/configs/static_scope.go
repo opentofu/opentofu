@@ -363,6 +363,11 @@ func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVa
 		// that their sensitivity can propagate to derived expressions.
 		val = val.Mark(marks.Sensitive)
 	}
+	if variable.Ephemeral {
+		// Ephemeral input variables must always be marked as such, so
+		// that their ephemerality can propagate to derived expressions.
+		val = val.Mark(marks.Ephemeral)
+	}
 
 	// TODO: We should check the variable validations here too, since module
 	// authors expect that any value that doesn't meet the validation requirements

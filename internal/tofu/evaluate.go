@@ -395,6 +395,7 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 	stateMap := map[addrs.InstanceKey]map[string]cty.Value{}
 	for _, output := range d.Evaluator.State.ModuleOutputs(d.ModulePath, addr) {
 		val := output.Value
+		// TODO ephemeral - outputs need to get the ephemeral attribute too and then it can be used here
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
 		}
