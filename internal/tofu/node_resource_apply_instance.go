@@ -256,8 +256,6 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	diags = diags.Append(n.writeChange(ctx, evalCtx, nil, ""))
 
-	diags = diags.Append(updateStateHook(evalCtx))
-
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state/diff because we want to check against
 	// the result of the operation, and to fail on future operations
@@ -429,17 +427,18 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 				))
 			}
 		} else {
-			restored := evalCtx.State().MaybeRestoreResourceInstanceDeposed(addr.Absolute(evalCtx.Path()), deposedKey)
-			if restored {
-				log.Printf("[TRACE] managedResourceExecute: %s deposed object %s was restored as the current object", addr, deposedKey)
-			} else {
-				log.Printf("[TRACE] managedResourceExecute: %s deposed object %s remains deposed", addr, deposedKey)
-			}
+			diags = diags.Append(updateState(evalCtx, func(state *states.SyncState) {
+				restored := state.MaybeRestoreResourceInstanceDeposed(addr.Absolute(evalCtx.Path()), deposedKey)
+				if restored {
+					log.Printf("[TRACE] managedResourceExecute: %s deposed object %s was restored as the current object", addr, deposedKey)
+				} else {
+					log.Printf("[TRACE] managedResourceExecute: %s deposed object %s remains deposed", addr, deposedKey)
+				}
+			}))
 		}
 	}
 
 	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(evalCtx))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state because we want to check against

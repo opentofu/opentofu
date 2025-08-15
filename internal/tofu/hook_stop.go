@@ -130,7 +130,7 @@ func (h *stopHook) PostClose(_ addrs.AbsResourceInstance, _ error) (HookAction, 
 
 func (h *stopHook) Stopping() {}
 
-func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *stopHook) PostStateUpdate(func(*states.SyncState)) (HookAction, error) {
 	return h.hook()
 }
 
