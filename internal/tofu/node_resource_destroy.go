@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
@@ -269,14 +270,14 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context
 
 	// create the err value for postApplyHook
 	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, statekeys.NewResourceInstance(n.Addr)))
 	return diags
 }
 
 func (n *NodeDestroyResourceInstance) dataResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
 	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	return diags.Append(updateStateHook(evalCtx))
+	return diags.Append(updateStateHook(evalCtx, statekeys.NewResourceInstance(n.Addr)))
 }
 
 // ephemeralResourceExecute for NodeDestroyResourceInstance is only here to return an error.
