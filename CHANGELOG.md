@@ -28,6 +28,10 @@ BUG FIXES:
 * Provider references like "null.some_alias[each.key]" in .tf.json files are now correctly parsed ([#2915](https://github.com/opentofu/opentofu/issues/2915))
 * Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
 
+BREAKING CHANGES:
+* Ensure that generated mock values for testing correctly follows the provider schema. ((#3069)[https://github.com/opentofu/opentofu/pull/3069])
+  - There is a small likelihood that this change may result in some previously functional tests failing due to invalid mocks/defaults not caught in prior versions of this code
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
