@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 )
 
 func TestNilHook_impl(t *testing.T) {
@@ -231,4 +232,8 @@ func (h *testHook) PostStateUpdate(new *states.State) (HookAction, error) {
 	defer h.mu.Unlock()
 	h.Calls = append(h.Calls, &testHookCall{"PostStateUpdate", ""})
 	return HookActionContinue, nil
+}
+
+func (h *testHook) StateValueChanged(key statekeys.Key, state *states.State) error {
+	return nil
 }

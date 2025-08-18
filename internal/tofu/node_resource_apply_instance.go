@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
@@ -256,7 +257,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	diags = diags.Append(n.writeChange(ctx, evalCtx, nil, ""))
 
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, statekeys.NewResourceInstance(n.Addr)))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state/diff because we want to check against
@@ -439,7 +440,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	}
 
 	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, statekeys.NewResourceInstance(n.Addr)))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state because we want to check against

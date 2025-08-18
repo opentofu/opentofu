@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/states"
@@ -75,7 +76,7 @@ func (n *NodeForgetResourceInstance) Execute(ctx context.Context, evalCtx EvalCo
 	contextState := evalCtx.State()
 	contextState.ForgetResourceInstanceAll(n.Addr)
 
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, statekeys.NewResourceInstance(n.Addr)))
 
 	return diags
 }

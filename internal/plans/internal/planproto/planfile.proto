@@ -77,6 +77,9 @@ message Plan {
     // conclusion about what action a particular resource instance needs.
     repeated string force_replace_addrs = 16;
 
+    map<string, bytes> shared_locks = 22;
+    map<string, bytes> exclusive_locks = 23;
+
     // The version string for the OpenTofu binary that created this plan.
     string terraform_version = 14;
 

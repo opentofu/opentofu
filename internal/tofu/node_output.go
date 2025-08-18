@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -444,6 +445,10 @@ If you do intend to export this data, annotate the output value as sensitive by 
 		n.setValue(state, nil, val)
 	}
 
+	if !n.Planning && n.Addr.Module.IsRoot() {
+		diags.Append(updateStateHook(evalCtx, statekeys.NewRootModuleOutputValue(n.Addr)))
+	}
+
 	return diags
 }
 
@@ -506,9 +511,11 @@ func (n *NodeDestroyableOutput) temporaryValue() bool {
 
 // GraphNodeExecutable
 func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
 	state := evalCtx.State()
 	if state == nil {
-		return nil
+		return diags
 	}
 
 	// if this is a root module, try to get a before value from the state for
@@ -523,8 +530,7 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 		} else {
 			// If the output was not in state, a delete change would
 			// be meaningless, so exit early.
-			return nil
-
+			return diags
 		}
 	}
 
@@ -552,7 +558,11 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	}
 
 	state.RemoveOutputValue(n.Addr)
-	return nil
+	if !n.Planning && n.Addr.Module.IsRoot() {
+		diags = diags.Append(updateStateHook(evalCtx, statekeys.NewRootModuleOutputValue(n.Addr)))
+	}
+
+	return diags
 }
 
 // dag.GraphNodeDotter impl.
