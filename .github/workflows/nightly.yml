@@ -76,24 +76,6 @@ jobs:
           echo "Version: ${VERSION}"
           echo "Commit: ${COMMIT}"
 
-      - name: Test R2 connection
-        run: |
-          echo "Testing R2 connection..."
-          rclone version
-          echo "Bucket name: ${{ secrets.R2_BUCKET_NAME }}"
-          echo "Testing bucket access..."
-          if ! rclone lsd R2: --max-depth 1; then
-            echo "ERROR: Cannot access R2 bucket"
-            exit 1
-          fi
-          echo "R2 connection test passed"
-        env:
-          RCLONE_CONFIG_R2_TYPE: s3
-          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
-          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-
       - name: Sync to R2
         run: |
           set -euo pipefail
