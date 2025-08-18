@@ -11,39 +11,22 @@ import (
 	"io"
 	"sync"
 
-	plugin "github.com/hashicorp/go-plugin"
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plugin/convert"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	proto "github.com/opentofu/opentofu/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
+	"go.rpcplugin.org/rpcplugin"
 	"google.golang.org/grpc"
 )
 
-// GRPCProvisionerPlugin is the plugin.GRPCPlugin implementation.
-type GRPCProvisionerPlugin struct {
-	plugin.Plugin
-	GRPCProvisioner func() proto.ProvisionerServer
-}
-
-func (p *GRPCProvisionerPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &GRPCProvisioner{
-		client: proto.NewProvisionerClient(c),
-		ctx:    ctx,
-	}, nil
-}
-
-func (p *GRPCProvisionerPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterProvisionerServer(s, p.GRPCProvisioner())
-	return nil
-}
-
 // provisioners.Interface grpc implementation
 type GRPCProvisioner struct {
-	// PluginClient provides a reference to the plugin.Client which controls the plugin process.
-	// This allows the GRPCProvider a way to shutdown the plugin process.
-	PluginClient *plugin.Client
+	// PluginClient provides a reference to the rpcplugin.Plugin which controls
+	// the plugin process. This allows the GRPCProvisioner a way to shutdown
+	// the plugin process.
+	PluginClient *rpcplugin.Plugin
 
 	client proto.ProvisionerClient
 	ctx    context.Context
@@ -51,6 +34,13 @@ type GRPCProvisioner struct {
 	mu sync.Mutex
 	// Cache the schema since we need it for serialization in each method call.
 	schema *configschema.Block
+}
+
+func NewGRPCProvisioner(ctx context.Context, conn *grpc.ClientConn) provisioners.Interface {
+	return &GRPCProvisioner{
+		client: proto.NewProvisionerClient(conn),
+		ctx:    ctx,
+	}
 }
 
 func (p *GRPCProvisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
@@ -177,6 +167,5 @@ func (p *GRPCProvisioner) Close() error {
 		return nil
 	}
 
-	p.PluginClient.Kill()
-	return nil
+	return p.PluginClient.Close()
 }

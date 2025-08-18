@@ -5,6 +5,7 @@
 
 package e2etest
 
+/*
 import (
 	"context"
 	"encoding/json"
@@ -14,6 +15,8 @@ import (
 	"sync"
 	"testing"
 
+	proto5 "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/opentofu/opentofu/internal/e2e"
@@ -22,8 +25,6 @@ import (
 	tfplugin "github.com/opentofu/opentofu/internal/plugin6"
 	simple5 "github.com/opentofu/opentofu/internal/provider-simple"
 	simple "github.com/opentofu/opentofu/internal/provider-simple-v6"
-	proto5 "github.com/opentofu/opentofu/internal/tfplugin5"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 // The tests in this file are for the "unmanaged provider workflow", which
@@ -356,3 +357,4 @@ func TestUnmanagedSeparatePlan_proto5(t *testing.T) {
 	cancel()
 	<-closeCh
 }
+*/

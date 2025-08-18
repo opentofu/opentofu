@@ -19,12 +19,12 @@ import (
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	proto "github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
 var _ providers.Interface = (*GRPCProvider)(nil)
