@@ -1,0 +1,24 @@
+// Running this configuration is expected to have an error since `value` is not a write-only argument.
+// Regular resources arguments are not allowed to use ephemeral variables and values
+terraform {
+  required_providers {
+    simple = {
+      source = "registry.opentofu.org/hashicorp/simple"
+    }
+  }
+}
+
+provider "simple" {
+  alias = "s1"
+}
+
+module "test" {
+  source = "./__mod-with-ephemeral-output"
+  ephemeral_var = "value in ephemeral_var"
+  regular_var = "value in regular_var"
+}
+
+resource "simple_resource" "test_res" {
+  provider = simple.s1
+  value = module.test.ephemeral_out_hardcoded_with_non_ephemeral_value
+}

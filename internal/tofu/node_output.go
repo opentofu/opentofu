@@ -392,14 +392,6 @@ If you do intend to export this data, annotate the output value as sensitive by 
 					Subject: n.Config.DeclRange.Ptr(),
 				})
 			}
-			if n.Config.Ephemeral {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid output configuration",
-					Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
-					Subject:  n.Config.DeclRange.Ptr(),
-				})
-			}
 		}
 	}
 
@@ -448,6 +440,15 @@ If you do intend to export this data, annotate the output value as sensitive by 
 }
 
 func (n *NodeApplyableOutput) validateEphemerality(val cty.Value) (diags tfdiags.Diagnostics) {
+	if n.Config.Ephemeral && n.Addr.Module.IsRoot() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid output configuration",
+			Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
+			Subject:  n.Config.DeclRange.Ptr(),
+		})
+	}
+
 	// We don't want to check when the value is unknown and is not marked.
 	// If the value is unknown due to the referenced values and inherited the marks from those,
 	// we do want to validate though.
@@ -464,6 +465,16 @@ func (n *NodeApplyableOutput) validateEphemerality(val cty.Value) (diags tfdiags
 			Subject:  n.Config.UsageRange().Ptr(),
 		})
 	}
+	// There would be a 3rd validation that could be added: when the value generated for a
+	// root module output is marked as ephemeral.
+	// But considering the other 2 validations above, that validation could not be reached:
+	//   - 1st validation does not allow for a root module output to be configured
+	//   - 2nd validation does not allow for an ephemeral value to be stored
+	//     into an output without the "ephemeral = true" config
+	// Therefore, since we do not allow ephemeral marked values to be stored into an output
+	// without "ephemeral = true" AND we don't allow "ephemeral = true" on root modules, then
+	// the 3rd validation can be skipped.
+
 	return diags
 }
 
