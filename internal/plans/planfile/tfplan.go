@@ -450,9 +450,6 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
 
-	// TODO ephemeral - investiaate if ephemeral mark needs to be handled here.
-	//  It looks that it's not needed, but let's be sure.
-	//  But check the unit tests
 	sensitive := cty.NewValueMarks(marks.Sensitive)
 	beforeValMarks, err := pathValueMarksFromTfplan(rawChange.BeforeSensitivePaths, sensitive)
 	if err != nil {
