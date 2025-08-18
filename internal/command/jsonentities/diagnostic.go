@@ -365,6 +365,15 @@ func newDiagnosticDifference(diag tfdiags.Diagnostic) *jsonplan.Change {
 
 	lhs, _ := binExpr.LHS.Value(ctx)
 	rhs, _ := binExpr.RHS.Value(ctx)
+	// Because a jsonplan.Change is not meant to hold any ephemeral information,
+	// we cannot generate the same diff when the values involved are marked as ephemeral.
+	// Therefore, for situations like this, we will return no diagnostic diff, making
+	// the rendering of this to skip the diff part.
+	// TODO ephemeral - later we can find a better solution for this, like changing the type
+	//   of the Diagnostic.Difference so that it can hold a generic type that can do this.
+	if marks.Contains(lhs, marks.Ephemeral) || marks.Contains(rhs, marks.Ephemeral) {
+		return nil
+	}
 	change, err := jsonplan.GenerateChange(lhs, rhs)
 	if err != nil {
 		return nil

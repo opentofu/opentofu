@@ -264,9 +264,6 @@ func evalCheckErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string
 		return "", diags
 	}
 
-	// TODO ephemeral - ephemeral mark needs to be handled too here.
-	//  See the validation for variables since there we already handled the
-	//  situation where error_message contains a reference to the ephemeral values
 	val, valMarks := val.Unmark()
 	if _, sensitive := valMarks[marks.Sensitive]; sensitive {
 		diags = diags.Append(&hcl.Diagnostic{
@@ -275,6 +272,19 @@ func evalCheckErrorMessage(expr hcl.Expression, hclCtx *hcl.EvalContext) (string
 			Detail: `The error expression used to explain this condition refers to sensitive values, so OpenTofu will not display the resulting message.
 
 You can correct this by removing references to sensitive values, or by carefully using the nonsensitive() function if the expression will not reveal the sensitive data.`,
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+		return "", diags
+	}
+	if _, ephemeral := valMarks[marks.Ephemeral]; ephemeral {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Error message refers to ephemeral values",
+			Detail: `The error expression used to explain this condition refers to ephemeral values, so OpenTofu will not display the resulting message.
+
+You can correct this by removing references to ephemeral values.`, // TODO ephemeral - update the message to include ephemeralasnull option too
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
