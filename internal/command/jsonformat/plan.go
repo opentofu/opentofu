@@ -570,7 +570,7 @@ func actionDescription(action plans.Action) string {
 	case plans.Delete:
 		return "  [red]-[reset] destroy"
 	case plans.Update:
-		return "  [yellow]~[reset] update in-place"
+		return "  [yellow]~[reset] update in-place (current -> planned)"
 	case plans.CreateThenDelete:
 		return "[green]+[reset]/[red]-[reset] create replacement and then destroy"
 	case plans.DeleteThenCreate:
