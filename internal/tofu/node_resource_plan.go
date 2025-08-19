@@ -240,7 +240,7 @@ func (n *nodeExpandPlannableResource) cliImportTargetValidation(instAddrs addrs.
 				tfdiags.Error,
 				"Invalid import target address",
 				fmt.Sprintf(
-					"Import target address %q is invalid, as the resource doesn't exist with the given key",
+					"Import target address %q is invalid, as the resource instance doesn't exist with the given key",
 					cliTarget.Addr,
 				),
 			))

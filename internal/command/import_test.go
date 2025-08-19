@@ -996,6 +996,51 @@ func TestImport_targetIsModule(t *testing.T) {
 	}
 }
 
+func TestImport_ForEachKeyInTargetAddr(t *testing.T) {
+	t.Chdir(testFixturePath("import-non-existent-key"))
+
+	statePath := testTempFile(t)
+	p := testProvider()
+	ui := new(cli.MockUi)
+	view, _ := testView(t)
+	c := &ImportCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Ui:               ui,
+			View:             view,
+		},
+	}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {Type: cty.String, Optional: true, Computed: true},
+					},
+				},
+			},
+		},
+	}
+	args := []string{
+		"-state", statePath,
+		"test_instance.this[\"f\"]",
+		"ff",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure when the resource instance doesn't exist with the given key")
+	}
+
+	// Let's test it with an existing key
+	args = []string{
+		"-state", statePath,
+		"test_instance.this[\"a\"]",
+		"aa",
+	}
+	if code := c.Run(args); code != 0 {
+		t.Fatalf("import failed; expected success for existing resource: %s", ui.ErrorWriter.String())
+	}
+}
+
 const testImportStr = `
 test_instance.foo:
   ID = yay
