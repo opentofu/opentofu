@@ -286,6 +286,54 @@ func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFu
 	return providedBy, ok
 }
 
+// ProviderUnconfiguredTransformer converts NodeApplyableProvider nodes to NodeEvalableProvider
+// nodes so provider's functions can be used without configuration.
+type ProviderUnconfiguredTransformer struct {
+	Config *configs.Config
+}
+
+func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph) error {
+	if t.Config == nil {
+		// This is probably a test case, inherited from ProviderTransformer
+		log.Printf("[WARN] Skipping provider config and references transformer due to missing config")
+		return nil
+	}
+
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
+	// Iterate through the providers to identify their dependencies (edges). If a provider
+	// lacks both references and configuration, use a NodeEvalableProvider.
+providerVertsLoop:
+	for _, p := range providerVerts {
+		applyableProvider, ok := p.(*NodeApplyableProvider)
+		// If it's not an NodeApplyableProvider or there's existing configuration, we can skip it.
+		if !ok || applyableProvider.Config != nil {
+			continue
+		}
+
+		edges := append(g.EdgesFrom(p), g.EdgesTo(p)...)
+		for _, edge := range edges {
+			// We just need to check `Source` since we're getting all edges both from
+			// `EdgesFrom` and `EdgesTo`.
+			if _, ok := edge.Source().(GraphNodeProviderConsumer); ok {
+				continue providerVertsLoop
+			}
+		}
+
+		pAddr := applyableProvider.ProviderAddr()
+		log.Printf("[TRACE] ProviderFunctionTransformer: creating unconfigured node for %s", pAddr)
+		unconfiguredProvider := &NodeEvalableProvider{
+			&NodeAbstractProvider{
+				Addr: pAddr,
+			},
+		}
+
+		providerVerts[pAddr.String()] = unconfiguredProvider
+		g.Replace(applyableProvider, unconfiguredProvider)
+	}
+	return nil
+}
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {

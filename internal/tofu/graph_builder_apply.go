@@ -156,6 +156,9 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
+		// Convert providers without configuration and dependencies into NodeEvalableProvider nodes
+		&ProviderUnconfiguredTransformer{Config: b.Config},
+
 		// After schema transformer, we can add function references
 		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
