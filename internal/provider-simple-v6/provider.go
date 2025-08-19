@@ -39,13 +39,27 @@ func Provider() providers.Interface {
 		},
 	}
 	// Only managed resource should have write-only arguments.
-	withWriteOnlyAttribute := func(s providers.Schema) providers.Schema {
+	withWriteOnlyBlocks := func(s providers.Schema) providers.Schema {
 		b := *s.Block
 
 		b.Attributes["value_wo"] = &configschema.Attribute{
 			Optional:  true,
 			Type:      cty.String,
 			WriteOnly: true,
+		}
+		b.BlockTypes = map[string]*configschema.NestedBlock{
+			"nested_block": {
+				Nesting: configschema.NestingSingle,
+				Block: configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"nested_block_attr": {
+							Type:      cty.String,
+							Optional:  true,
+							WriteOnly: true,
+						},
+					},
+				},
+			},
 		}
 		return providers.Schema{Block: &b}
 	}
@@ -70,7 +84,7 @@ func Provider() providers.Interface {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"simple_resource": withWriteOnlyAttribute(simpleResource),
+				"simple_resource": withWriteOnlyBlocks(simpleResource),
 			},
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
@@ -187,7 +201,7 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	waitIfRequested(m)
-	
+
 	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
 	m["value_wo"] = cty.NullVal(cty.String)
 	resp.NewState = cty.ObjectVal(m)

@@ -6,6 +6,8 @@
 package renderers
 
 import (
+	"maps"
+	"slices"
 	"sort"
 	"testing"
 
@@ -38,6 +40,18 @@ func ValidatePrimitive(before, after interface{}, action plans.Action, replace b
 
 		if len(beforeDiff) > 0 || len(afterDiff) > 0 {
 			t.Errorf("before diff: (%s), after diff: (%s)", beforeDiff, afterDiff)
+		}
+	}
+}
+
+func ValidateWriteOnly(action plans.Action, replace bool) ValidateDiffFunction {
+	return func(t *testing.T, diff computed.Diff) {
+		validateDiff(t, diff, action, replace)
+
+		_, ok := diff.Renderer.(*writeOnlyRenderer)
+		if !ok {
+			t.Errorf("invalid renderer type: %T", diff.Renderer)
+			return
 		}
 	}
 }
@@ -120,6 +134,12 @@ func validateKeys[C, V any](t *testing.T, actual map[string]C, expected map[stri
 
 		if diff := cmp.Diff(actualAttributes, expectedAttributes); len(diff) > 0 {
 			t.Errorf("actual and expected attributes did not match: %s", diff)
+		}
+	} else {
+		gotKeys := slices.Sorted(maps.Keys(actual))
+		wantKeys := slices.Sorted(maps.Keys(expected))
+		if diff := cmp.Diff(wantKeys, gotKeys); len(diff) > 0 {
+			t.Errorf("keys not match: %s", diff)
 		}
 	}
 }
