@@ -3,6 +3,11 @@
 UPGRADE NOTES:
 
 - Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
+
+BUG FIXES:
+
+- Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
+
 ## 1.10.5
 
 BUG FIXES:
