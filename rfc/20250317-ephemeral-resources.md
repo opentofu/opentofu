@@ -837,16 +837,16 @@ In all of these, referencing an ephemeral value should work as normal.
 
 ### Utilities
 #### `tofu.applying`
-The `tofu.applying` needs to be introduced to allow the user to check if the current command that is running is `apply` or not.
-This is useful when the user wants to configure different properties between write operations and read operations.
+The `tofu.applying` needs to be introduced to allow the user to check if the current running phase is `apply` or not.
+This is useful when the user wants to configure different properties between these 2 phases.
 
-`tofu.applying` should be set to `true` when `tofu apply` is executed and `false` in any other command.
+`tofu.applying` should be set to `true` when the `apply` phase is running and false in any other phase (`plan`, `validate`).
 
 > [!NOTE]
 >
-> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when
-> running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of 
-> the `apply` command. This is `true` also when running a destroy operation.
+> This keyword is related to the `apply` phase and not to the `apply` command, meaning that when
+> running `tofu apply`, `terraform.applying` should be `true` during the `apply` phase
+> and `false` during the `plan` phase. The same rule should stand also when a destroy command is executed.
 
 This is an ephemeral value that should be handled accordingly, meaning that its value or any other value generated 
 from it will not end up in a plan/state file.
