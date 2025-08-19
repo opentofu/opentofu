@@ -349,11 +349,11 @@ docker_signs:
 snapshot:
   name_template: "{{ .Version }}-next"
 
+# Docs are here: https://github.com/goreleaser/goreleaser/blob/v1.26.2/www/docs/customization/nightlies.md
 nightly:
-  # Version format: 1.9.0-20250806-nightly-c5fd934
-  version_template: "{{ .Version }}-{{ .Now.Format \"20060102\" }}-nightly-{{ .ShortCommit }}"
+  # Version format: nightly-20250806-c5fd934
+  name_template: "nightly-{{ .Now.Format \"20060102\" }}-{{ .ShortCommit }}"
   publish_release: false
-  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 changelog:
   use: github-native

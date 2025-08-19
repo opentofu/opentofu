@@ -102,7 +102,6 @@ func TestModuleInstaller_error(t *testing.T) {
 	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
-
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
@@ -896,6 +895,51 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	if config.Module.Tests["main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
 		t.Fatalf("should have loaded config into the relevant run block but did not")
+	}
+}
+
+// TestModuleInstaller_nonExistentSubmodule ensures that the error message returned when a module does not exist in an existing module
+// is not that it's a bug in OpenTofu. See issue https://github.com/opentofu/opentofu/issues/3142 for more information
+//
+// Code is taken from tests above
+func TestModuleInstaller_nonExistentSubmodule(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("this test accesses github.com; set TF_ACC=1 to run it")
+	}
+
+	fixtureDir := filepath.Clean("testdata/submodule-non-existent")
+	tmpDir := tempChdir(t, fixtureDir)
+
+	// the module installer runs filepath.EvalSymlinks() on the destination
+	// directory before copying files, and the resultant directory is what is
+	// returned by the install hooks. Without this, tests could fail on machines
+	// where the default temp dir was a symlink.
+	dir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Error(err)
+	}
+
+	hooks := &testInstallHooks{}
+	modulesDir := filepath.Join(dir, ".terraform/modules")
+
+	loader := configload.NewLoaderForTests(t)
+	fetcher := getmodules.NewPackageFetcher(t.Context(), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), fetcher)
+	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
+
+	if !diags.HasErrors() {
+		t.Fatal("expected error for non-existent submodule, but got none")
+	}
+
+	errorStr := diags.Err().Error()
+	t.Logf("Actual error: %s", errorStr)
+
+	if !strings.Contains(errorStr, "subdirectory") && !strings.Contains(errorStr, "does not exist") {
+		t.Errorf("Expected error to mention missing subdirectory. Got: %s", errorStr)
+	}
+
+	if !strings.Contains(errorStr, "Module subdirectory not found") {
+		t.Errorf("Expected 'Module subdirectory not found' in error message. Got: %s", errorStr)
 	}
 }
 
