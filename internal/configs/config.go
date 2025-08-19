@@ -15,7 +15,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // A Config is a node in the tree of modules within a configuration.
@@ -986,6 +989,8 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 					Version:           testProvider.Version,
 					Config:            providerConfig,
 					DeclRange:         testProvider.DeclRange,
+					ForEach:           testProvider.ForEach,
+					Instances:         testProvider.Instances,
 					IsMocked:          testProvider.IsMocked,
 					MockResources:     testProvider.MockResources,
 					OverrideResources: testProvider.OverrideResources,
@@ -1004,12 +1009,16 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 				next[key] = provider
 			}
 			for _, mp := range file.MockProviders {
+				providerDiags := mp.evaluateProviderConfig(evalCtx)
+				diags = append(diags, providerDiags...)
 				next[mp.moduleUniqueKey()] = &Provider{
 					Name:              mp.Name,
 					NameRange:         mp.NameRange,
 					Alias:             mp.Alias,
 					AliasRange:        mp.AliasRange,
 					DeclRange:         mp.DeclRange,
+					ForEach:           mp.ForEach,
+					Instances:         mp.Instances,
 					IsMocked:          true,
 					MockResources:     mp.MockResources,
 					OverrideResources: mp.OverrideResources,
@@ -1024,6 +1033,39 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 			c.Module.ProviderConfigs = previous
 		}, diags
 	}
+}
+
+// evaluateProviderConfig evaluates code for the mock provider. for_each is the only attribute
+// that is evaluated for the mock provider, but support for other provider attributes can be added
+// here if needed.
+func (mp *MockProvider) evaluateProviderConfig(evalCtx *hcl.EvalContext) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if mp.ForEach == nil {
+		// Since we're evaluating only for_each expressions, return it if it's not present.
+		return diags
+	}
+
+	// Create a dummy forEachRefsFunc to be used with EvaluateForEachExpression.
+	forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		return evalCtx, nil
+	}
+
+	forVal, evalDiags := evalchecks.EvaluateForEachExpression(mp.ForEach, forEachRefsFunc, nil)
+	diags = append(diags, evalDiags.ToHCL()...)
+	if evalDiags.HasErrors() {
+		return diags
+	}
+
+	mp.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
+	for k, v := range forVal {
+		mp.Instances[addrs.StringKey(k)] = instances.RepetitionData{
+			EachKey:   cty.StringVal(k),
+			EachValue: v,
+		}
+	}
+
+	return diags
 }
 
 func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {

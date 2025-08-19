@@ -85,6 +85,26 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClien
 	}
 }
 
+// isSubDirNonExistant checks if the error is due to a non-existent subdirectory
+// within an otherwise valid module. This helps distinguish between a genuine
+// OpenTofu bug when failing to get the module and a user configuration error where they've specified a
+// submodule path that doesn't exist.
+func isSubDirNonExistant(modDir string) bool {
+	parent := filepath.Dir(modDir)
+	if parent == modDir || parent == "." || parent == "/" {
+		return false
+	}
+
+	// Check if parent directory exists but the subdir doesn't
+	if _, err := os.Stat(parent); err == nil {
+		if _, err := os.Stat(modDir); os.IsNotExist(err) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // InstallModules analyses the root module in the given directory and installs
 // all of its direct and transitive dependencies into the given modules
 // directory, which must already exist.
@@ -798,14 +818,23 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
-		// error message here. For registry modules this actually
-		// indicates a bug in the code above, since it's not the
-		// user's responsibility to create the directory in this case.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
-		})
+		// error message here.
+		if subDir != "" && isSubDirNonExistant(modDir) {
+			// This may be a user error, or a submodule may have been removed between unpinned versions of the module (ie a module update)
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Module subdirectory not found",
+				Detail:   fmt.Sprintf("The subdirectory %q does not exist in module %q. Please verify that the subdirectory path is correct.", subDir, instPath),
+				Subject:  req.CallRange.Ptr(),
+			})
+		} else {
+			// This is genuinely unexpected - the module was just downloaded
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unreadable module directory",
+				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
+			})
+		}
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
@@ -911,14 +940,23 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
-		// error message here. For go-getter modules this actually
-		// indicates a bug in the code above, since it's not the
-		// user's responsibility to create the directory in this case.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
-		})
+		// error message here.
+		if addr.Subdir != "" && isSubDirNonExistant(modDir) {
+			// This is a user configuration error - they referenced a submodule that doesn't exist
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Module subdirectory not found",
+				Detail:   fmt.Sprintf("The subdirectory %q does not exist in the downloaded module. Verify that the subdirectory path is correct.", addr.Subdir),
+				Subject:  req.CallRange.Ptr(),
+			})
+		} else {
+			// This is genuinely unexpected - the module was just downloaded
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unreadable module directory",
+				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
+			})
+		}
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future

@@ -11,5 +11,5 @@ package tofu
 // A boolean return value allows a node which may need to be saved to
 // conditionally do so.
 type graphNodeTemporaryValue interface {
-	temporaryValue() bool
+	temporaryValue(op walkOperation) bool
 }

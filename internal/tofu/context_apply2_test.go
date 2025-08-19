@@ -4820,14 +4820,19 @@ variable "root_var" {
     error_message = "${local.err} root"
   }
 }
+data "test_data_source" "res_parent" {
+}
+data "test_data_source" "res" {
+	count = length(data.test_data_source.res_parent.id)
+}
 module "mod" {
   source = "./mod"
-  mod_var = local.value
+  mod_var = local.value + length(data.test_data_source.res[0].id)
 }
 `,
 		"mod/mod.tofu": `
 locals {
-  expected = 10
+  expected = 21
   err = "error"
 }
 variable "mod_var" {
@@ -4883,7 +4888,24 @@ variable "other_var" {
 	t.Run("valid", func(t *testing.T) {
 		input := InputValuesFromCaller(map[string]cty.Value{"root_var": cty.NumberIntVal(10)})
 
-		ctx := testContext2(t, &ContextOpts{})
+		provider := testProvider("test")
+
+		provider.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":  cty.StringVal("data_source"),
+					"foo": cty.StringVal("ok"),
+				}),
+			}
+		}
+
+		ps := map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		}
+
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
 
 		plan, diags := ctx.Plan(context.Background(), valid, nil, &PlanOpts{
 			SetVariables: input,

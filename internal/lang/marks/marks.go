@@ -10,9 +10,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // valueMarks allow creating strictly typed values for use as cty.Value marks.
@@ -188,13 +189,16 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 	return val, diags
 }
 
+// unmarkDeepWithPathsDeprecated removes all deprecation marks from a value and returns them separately.
+// It returns both the input value with all deprecation marks removed whilst preserving other marks, and a slice of PathValueMarks where marks were removed.
 func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMarks) {
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	var deprecationMarks []cty.PathValueMarks
+	var filteredPathMarks []cty.PathValueMarks
 
 	// Locate deprecationMarks and filter them out
-	for i, pm := range pathMarks {
+	for _, pm := range pathMarks {
 		deprecationPM := cty.PathValueMarks{
 			Path:  pm.Path,
 			Marks: make(cty.ValueMarks),
@@ -206,16 +210,15 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 				continue
 			}
 
-			// Remove mark from value marks
+			// Remove deprecated mark from value marks
 			delete(pm.Marks, m)
 
-			// Add mark to deprecation marks
+			// Add mark to deprecation marks to keep track of what we're removing
 			deprecationPM.Marks[m] = struct{}{}
 		}
 
-		// Remove empty path to not break caller code expectations.
-		if len(pm.Marks) == 0 {
-			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		if len(pm.Marks) > 0 {
+			filteredPathMarks = append(filteredPathMarks, pm)
 		}
 
 		if len(deprecationPM.Marks) != 0 {
@@ -223,7 +226,7 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 		}
 	}
 
-	return unmarked.MarkWithPaths(pathMarks), deprecationMarks
+	return unmarked.MarkWithPaths(filteredPathMarks), deprecationMarks
 }
 
 func RemoveDeepDeprecated(val cty.Value) cty.Value {

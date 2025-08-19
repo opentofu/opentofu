@@ -1541,3 +1541,69 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }
+
+// TestTest_MockProviderValidationForEach checks if tofu test runs proper validation for
+// mock_provider with for_each. Even if provider schema has required fields, tofu test should
+// ignore it completely, because the provider is mocked.
+func TestTest_MockProviderValidationForEach(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/mock_provider_validation_for_each"), td)
+	t.Chdir(td)
+
+	provider := testing_command.NewProvider(nil)
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer closePS()
+
+	provider.Provider.ConfigureProviderCalled = true
+	provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"value": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"object_attr": {
+							Computed: true,
+							NestedType: &configschema.Object{
+								Nesting: configschema.NestingSingle,
+								Attributes: map[string]*configschema.Attribute{
+									"string_attr": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
+						"computed_value": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	view, done := testView(t)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		Ui:               ui,
+		View:             view,
+		ProviderSource:   providerSource,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+}

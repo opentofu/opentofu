@@ -287,11 +287,11 @@ type pruneUnusedNodesTransformer struct {
 	// destroy. Planing normally involves all nodes, but during a destroy plan
 	// we may need to prune things which are in the configuration but do not
 	// exist in state to evaluate.
-	skip bool
+	Op walkOperation
 }
 
 func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) error {
-	if t.skip {
+	if t.Op != walkPlanDestroy && t.Op != walkDestroy && t.Op != walkApply {
 		return nil
 	}
 
@@ -314,7 +314,7 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 				case graphNodeTemporaryValue:
 					// root module outputs indicate they are not temporary by
 					// returning false here.
-					if !n.temporaryValue() {
+					if !n.temporaryValue(t.Op) {
 						log.Printf("[TRACE] pruneUnusedNodes: temporary value vertex %q kept because it's not a temporary value vertex", dag.VertexName(n))
 						return
 					}
@@ -342,7 +342,7 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 							// root module, and so it's not actually important
 							// to expand it and so this lets us do a bit more
 							// pruning than we'd be able to do otherwise.
-							if tmp, ok := v.(graphNodeTemporaryValue); ok && !tmp.temporaryValue() {
+							if tmp, ok := v.(graphNodeTemporaryValue); ok && !tmp.temporaryValue(t.Op) {
 								log.Printf("[TRACE] pruneUnusedNodes: expanding vertex %q kept because another expanding vertex %q with non-temporary value is one of its dependencies", dag.VertexName(n), dag.VertexName(v))
 								continue
 							}

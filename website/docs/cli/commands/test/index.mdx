@@ -475,9 +475,13 @@ Learn more on how OpenTofu produces [automatically generated values](#automatica
 
 :::
 
-Mock providers also support `alias` field as well as `mock_resource` and `mock_data` blocks.
-In some cases, you may want to use default values instead of automatically generated ones by passing them
-inside `defaults` field of `mock_resource` or `mock_data` blocks.
+For Mock Providers, the `alias` and `for_each` fields are supported. However, the `for_each` attribute
+is only supported when an `alias`  is also used. The combination of these two will allow for the use of
+[provider instances](../../../language/providers/configuration/#for_each-multiple-instances-of-a-provider-configuration) on the test suite.
+
+Mock providers also support `mock_resource` and `mock_data` blocks. In some cases, you may want to
+use default values instead of automatically generated ones by passing them inside `defaults` field
+of `mock_resource` or `mock_data` blocks.
 
 Additionally, you can use `override_resource` and `override_data` blocks to override resources or data
 sources in the scope of a single provider. Read more about overriding in [the next section](#the-override_resource-and-override_data-blocks).

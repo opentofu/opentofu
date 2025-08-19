@@ -741,8 +741,11 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 
 	var diags tfdiags.Diagnostics
 
-	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
-	diags = diags.Append(ctxDiags)
+	evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, run, file, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		return state, nil
+	}
 
 	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, evalCtx)
 	diags = diags.Append(variableDiags)
@@ -1053,8 +1056,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
-		diags = diags.Append(ctxDiags)
+		evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, state.Run, file, runConfig, runner.Suite.GlobalVariables)
+		if evalDiags.HasErrors() {
+			return
+		}
 
 		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
@@ -1099,7 +1104,8 @@ func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState
 		varMap = make(map[string]cty.Value)
 	}
 	for name, val := range vars {
-		if val == nil {
+		// If the input variable is not defined on test file, we skip it.
+		if val == nil || val.Value.IsNull() {
 			continue
 		}
 		varMap[name] = val.Value

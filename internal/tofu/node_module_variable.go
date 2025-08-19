@@ -41,7 +41,7 @@ var (
 
 func (n *nodeExpandModuleVariable) expandsInstances() {}
 
-func (n *nodeExpandModuleVariable) temporaryValue() bool {
+func (n *nodeExpandModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -130,7 +130,7 @@ var (
 	_ dag.GraphNodeDotter     = (*nodeModuleVariable)(nil)
 )
 
-func (n *nodeModuleVariable) temporaryValue() bool {
+func (n *nodeModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
