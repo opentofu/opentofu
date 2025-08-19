@@ -259,7 +259,7 @@ Plan: 1 to import, 0 to add, 0 to change, 0 to destroy.
 			output: `
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
@@ -303,7 +303,7 @@ Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
 			output: `
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
@@ -344,7 +344,7 @@ Plan: 1 to import, 0 to add, 1 to change, 0 to destroy.
 			output: `
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
