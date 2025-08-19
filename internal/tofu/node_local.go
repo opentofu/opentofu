@@ -38,7 +38,7 @@ var (
 func (n *nodeExpandLocal) expandsInstances() {}
 
 // graphNodeTemporaryValue
-func (n *nodeExpandLocal) temporaryValue() bool {
+func (n *nodeExpandLocal) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -102,7 +102,7 @@ var (
 )
 
 // graphNodeTemporaryValue
-func (n *NodeLocal) temporaryValue() bool {
+func (n *NodeLocal) temporaryValue(_ walkOperation) bool {
 	return true
 }
 

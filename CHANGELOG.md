@@ -1,5 +1,9 @@
 ## 1.9.4 (Unreleased)
 
+BUG FIXES:
+
+- Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
+
 ## 1.9.3
 
 BUG FIXES:

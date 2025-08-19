@@ -410,7 +410,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 			},
 			&ReferenceTransformer{},
 			&AttachDependenciesTransformer{},
-			&pruneUnusedNodesTransformer{},
+			&pruneUnusedNodesTransformer{Op: walkDestroy},
 			&CloseRootModuleTransformer{},
 		},
 	}

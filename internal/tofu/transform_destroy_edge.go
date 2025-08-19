@@ -280,11 +280,11 @@ type pruneUnusedNodesTransformer struct {
 	// destroy. Planing normally involves all nodes, but during a destroy plan
 	// we may need to prune things which are in the configuration but do not
 	// exist in state to evaluate.
-	skip bool
+	Op walkOperation
 }
 
 func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
-	if t.skip {
+	if t.Op != walkPlanDestroy && t.Op != walkDestroy && t.Op != walkApply {
 		return nil
 	}
 
@@ -307,7 +307,7 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 				case graphNodeTemporaryValue:
 					// root module outputs indicate they are not temporary by
 					// returning false here.
-					if !n.temporaryValue() {
+					if !n.temporaryValue(t.Op) {
 						return
 					}
 
@@ -333,7 +333,7 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 							// root module, and so it's not actually important
 							// to expand it and so this lets us do a bit more
 							// pruning than we'd be able to do otherwise.
-							if tmp, ok := v.(graphNodeTemporaryValue); ok && !tmp.temporaryValue() {
+							if tmp, ok := v.(graphNodeTemporaryValue); ok && !tmp.temporaryValue(t.Op) {
 								continue
 							}
 

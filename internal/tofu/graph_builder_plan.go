@@ -235,7 +235,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		&pruneUnusedNodesTransformer{
-			skip: b.Operation != walkPlanDestroy,
+			Op: b.Operation,
 		},
 
 		// Target
