@@ -2,7 +2,7 @@ tfcoremock_simple_resource.multiline: Refreshing state... [id=69fe5233-e77a-804f
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
