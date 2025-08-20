@@ -35,8 +35,18 @@ var EphemeralAsNullFunc = function.New(&function.Spec{
 			case val.IsNull():
 				return cty.NullVal(ty).WithMarks(nonEphemeralMarks)
 			case !val.IsKnown():
-				// TODO ensure we are handling unknown properly
-				// See comments in sensitive.go
+				// This mirrors the logic in IsSensitive()
+				//
+				// When a value is unknown its ephemerality is also not yet
+				// finalized, because authors can write expressions where the
+				// ephemerality of the result is decided based on some other
+				// value that isn't yet known itself. As a simple example:
+				//    var.unknown_bool ? var.some_ephemeral_value : "b"
+				//
+				// Therefore we must report that we can't predict whether an
+				// unknown value will be ephemeral or not. For more information,
+				// refer to https://github.com/opentofu/opentofu/issues/2415
+
 				return cty.UnknownVal(val.Type()).WithMarks(nonEphemeralMarks)
 			case val.HasMark(marks.Ephemeral):
 				// This whole value is marked as ephemeral and should be null
