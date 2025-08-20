@@ -20,6 +20,7 @@ ENHANCEMENTS:
 * Add support for the `for_each` attribute in the `mock_provider` block. ([#3087](https://github.com/opentofu/opentofu/pull/3087))
 * Upgrade github.com/openbao/openbao/api/v2 from 2.1.0 to 2.3.0 to fix [GO-2025-3783](https://pkg.go.dev/vuln/GO-2025-3783) ([3134](https://github.com/opentofu/opentofu/pull/3134))
   * The upgrade is necessary to silence the security scanner and does not affect the actual state encryption provided by OpenBao.
+* Add logs for the DynamoDB operations in the S3 backend ([#3103](https://github.com/opentofu/opentofu/pull/3103))
 
 BUG FIXES:
 

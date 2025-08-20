@@ -291,6 +291,7 @@ func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo
 		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
 	}
 
+	ctx, _ = attachLoggerToContext(ctx)
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
@@ -362,6 +363,7 @@ func (c *RemoteClient) getMD5(ctx context.Context) ([]byte, error) {
 		ConsistentRead:       aws.Bool(true),
 	}
 
+	ctx, _ = attachLoggerToContext(ctx)
 	resp, err := c.dynClient.GetItem(ctx, getParams)
 	if err != nil {
 		return nil, err
@@ -399,6 +401,8 @@ func (c *RemoteClient) putMD5(ctx context.Context, sum []byte) error {
 		},
 		TableName: aws.String(c.ddbTable),
 	}
+
+	ctx, _ = attachLoggerToContext(ctx)
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		log.Printf("[WARN] failed to record state serial in dynamodb: %s", err)
@@ -419,6 +423,8 @@ func (c *RemoteClient) deleteMD5(ctx context.Context) error {
 		},
 		TableName: aws.String(c.ddbTable),
 	}
+
+	ctx, _ = attachLoggerToContext(ctx)
 	if _, err := c.dynClient.DeleteItem(ctx, params); err != nil {
 		return err
 	}
@@ -435,6 +441,7 @@ func (c *RemoteClient) getLockInfoFromDynamoDB(ctx context.Context) (*statemgr.L
 		ConsistentRead:       aws.Bool(true),
 	}
 
+	ctx, _ = attachLoggerToContext(ctx)
 	resp, err := c.dynClient.GetItem(ctx, getParams)
 	if err != nil {
 		return nil, err
@@ -575,6 +582,7 @@ func (c *RemoteClient) dynamoDBUnlock(ctx context.Context, id string) *statemgr.
 			":info": &dtypes.AttributeValueMemberS{Value: string(lockInfo.Marshal())},
 		},
 	}
+	ctx, _ = attachLoggerToContext(ctx)
 	_, err = c.dynClient.DeleteItem(ctx, params)
 
 	if err != nil {
