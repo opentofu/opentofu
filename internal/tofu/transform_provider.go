@@ -321,7 +321,7 @@ providerVertsLoop:
 		}
 
 		pAddr := applyableProvider.ProviderAddr()
-		log.Printf("[TRACE] ProviderFunctionTransformer: creating unconfigured node for %s", pAddr)
+		log.Printf("[TRACE] ProviderFunctionTransformer: replacing NodeApplyableProvider with NodeEvalableProvider for %s since it's missing configuration and there are no consumers of it", pAddr)
 		unconfiguredProvider := &NodeEvalableProvider{
 			&NodeAbstractProvider{
 				Addr: pAddr,
