@@ -40,7 +40,12 @@ var clientCapabilities = &proto.ClientCapabilities{
 	// satisfy the request. Setting this means that we need to be prepared
 	// for there to be a "deferred" object in the response from various
 	// other provider RPC functions.
-	DeferralAllowed:            true,
+	DeferralAllowed: true,
+	// WriteOnlyAttributesAllowed indicates that the current system version
+	// supports write-only attributes.
+	// This enables the SDK to run specific validations and enable the
+	// nullification of such configure attributes before returning the
+	// response back to the system.
 	WriteOnlyAttributesAllowed: true,
 }
 

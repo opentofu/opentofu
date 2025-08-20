@@ -100,6 +100,10 @@ type Attribute struct {
 
 	Deprecated bool
 
+	// WriteOnly hold the configuration from the provider that indicates
+	// that the attribute configured so is allowed to use ephemeral values
+	// and the value returned for this attribute from the provider
+	// should be always expected to be nil.
 	WriteOnly bool
 }
 
