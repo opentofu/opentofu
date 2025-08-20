@@ -311,11 +311,8 @@ providerVertsLoop:
 			continue
 		}
 
-		edges := append(g.EdgesFrom(p), g.EdgesTo(p)...)
-		for _, edge := range edges {
-			// We just need to check `Source` since we're getting all edges both from
-			// `EdgesFrom` and `EdgesTo`.
-			if _, ok := edge.Source().(GraphNodeProviderConsumer); ok {
+		for _, edge := range g.EdgesFrom(p) {
+			if _, ok := edge.Target().(GraphNodeProviderConsumer); ok {
 				continue providerVertsLoop
 			}
 		}
