@@ -178,7 +178,7 @@ var DescriptionList = map[string]descriptionEntry{
 		ParamDescription: []string{"", ""},
 	},
 	"ephemeralasnull": {
-		Description:      "`ephemeralasnull` sanitizes the input, replacing any ephemeral values with the null value of the corresponding type.",
+		Description:      "`ephemeralasnull` replaces any ephemeral values in the given value with a null value of the corresponding type.",
 		ParamDescription: []string{""},
 	},
 	"file": {
