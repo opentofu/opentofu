@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
@@ -8772,10 +8773,10 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 }
 
-// TestContext2Apply_ephemeralResourcesLifecycleCheck checks that the
+// TestContext2Plan_ephemeralVariablesInPlan checks that the
 // ephemeral variables get configured correctly in the plan
 // to be used later to exclude values from being written into the plan object.
-func TestContext2Apply_ephemeralVariablesInPlan(t *testing.T) {
+func TestContext2Plan_ephemeralVariablesInPlan(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
 variable "regular_var" {
@@ -8823,6 +8824,340 @@ variable "ephemeral_var" {
 	}
 	if dv, ok := plan.VariableValues["regular_var"]; !ok || !slices.Equal(expectedRegularVal, dv) {
 		t.Errorf("wrong value stored in the plan for regular_var. expected: %s; got: %s", expectedRegularVal, dv)
+	}
+}
+
+// TestContext2Plan_writeOnlyReturnedWithValueFromPlan validates
+// that a diagnostic is returned when a write-only attribute is returned
+// with a non-nil value, which is forbidden.
+func TestContext2Plan_writeOnlyReturnedWithValueFromPlan(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "b" {
+				write_only_attribute = "random_value"
+			}
+		`,
+	})
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: simpleTestSchema()},
+			ResourceTypes: map[string]providers.Schema{
+				"test_object": {Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"write_only_attribute": {
+							Type:      cty.String,
+							Required:  true,
+							WriteOnly: true,
+						},
+					},
+				}},
+			},
+		},
+	}
+	hook := new(MockHook)
+	ctx := testContext2(t, &ContextOpts{
+		Hooks: []Hook{hook},
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	p.PlanResourceChangeResponse = &providers.PlanResourceChangeResponse{
+		PlannedState: cty.ObjectVal(map[string]cty.Value{
+			"write_only_attribute": cty.StringVal("random_value"),
+		}),
+	}
+
+	_, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+	if !diags.HasErrors() {
+		t.Fatal("expected to have an error but got none")
+	}
+	expectedErr := `Invalid provider response: Write-only attribute ".write_only_attribute" returned with a non-nil value. This is an issue in the provider SDK.`
+	if gotErr := diags.Err().Error(); expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
+// TestContext2Plan_writeOnlyReturnedWithValueFromUpgradeResourceState validates
+// that a diagnostic is returned when a write-only attribute is returned
+// with a non-nil value, which is forbidden.
+func TestContext2Plan_writeOnlyReturnedWithValueFromUpgradeResourceState(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+`,
+	})
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: simpleTestSchema()},
+			ResourceTypes: map[string]providers.Schema{
+				"test_object": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"arg":                  {Type: cty.String, Optional: true},
+							"write_only_attribute": {Type: cty.String, Optional: true, WriteOnly: true},
+						},
+					},
+				},
+			},
+		},
+	}
+	p.UpgradeResourceStateFn = func(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+		resp.UpgradedState = cty.ObjectVal(map[string]cty.Value{
+			"arg":                  cty.StringVal("previous_run"),
+			"write_only_attribute": cty.StringVal("foo"),
+		})
+		return resp
+	}
+
+	addr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"arg":"previous_run"}`),
+			Status:    states.ObjectTainted,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if !diags.HasErrors() {
+		t.Fatal("expected to have an error but got none")
+	}
+	expectedErr := `Invalid provider response: Write-only attribute ".write_only_attribute" returned with a non-nil value. This is an issue in the provider SDK.`
+	if gotErr := diags.Err().Error(); expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
+// TestContext2Plan_writeOnlyReturnedWithValueFromRefresh validates
+// that a diagnostic is returned when a write-only attribute is returned
+// with a non-nil value, which is forbidden.
+func TestContext2Plan_writeOnlyReturnedWithValueFromReadResource(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+`,
+	})
+
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{Block: simpleTestSchema()},
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"arg":                  {Type: cty.String, Optional: true},
+						"write_only_attribute": {Type: cty.String, Optional: true, WriteOnly: true},
+					},
+				},
+			},
+		},
+	}
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+		updatePath := cty.GetAttrPath("write_only_attribute")
+		v, err := cty.Transform(req.PriorState, func(path cty.Path, value cty.Value) (cty.Value, error) {
+			if !path.Equals(updatePath) {
+				return value, nil
+			}
+			return cty.StringVal("foo"), nil
+		})
+		if err != nil {
+			resp.Diagnostics = resp.Diagnostics.Append(err)
+			return resp
+		}
+		resp.NewState = v
+		return resp
+	}
+	p.UpgradeResourceStateFn = func(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+		resp.UpgradedState = cty.ObjectVal(map[string]cty.Value{
+			"arg":                  cty.StringVal("previous_run"),
+			"write_only_attribute": cty.NullVal(cty.String),
+		})
+		return resp
+	}
+
+	addr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"arg":"previous_run","write_only_attribute":null}`),
+			Status:    states.ObjectTainted,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if !diags.HasErrors() {
+		t.Fatal("expected to have an error but got none")
+	}
+	expectedErr := `Invalid provider response: Write-only attribute ".write_only_attribute" returned with a non-nil value. This is an issue in the provider SDK.`
+	if gotErr := diags.Err().Error(); expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
+// TestContext2Plan_writeOnlyReturnedWithValueFromRefresh validates
+// that a diagnostic is returned when a write-only attribute is returned
+// with a non-nil value, which is forbidden.
+func TestContext2Plan_writeOnlyReturnedWithValueFromMoveResource(t *testing.T) {
+	oldAddr := mustResourceInstanceAddr("test_object0.old")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "new" {
+}
+moved {
+	from = test_object0.old
+	to   = test_object.new
+}
+`})
+
+	providerAddr := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("test"),
+		Module:   addrs.RootModule,
+	}
+
+	state := states.BuildState(
+		func(s *states.SyncState) {
+			s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr)
+			s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(``),
+			}, providerAddr, addrs.NoKey)
+		})
+
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+				"write_only_attribute": {
+					Type:      cty.String,
+					Optional:  true,
+					WriteOnly: true,
+				},
+			}),
+			"test_object0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+				"write_only_attribute": {
+					Type:      cty.String,
+					Optional:  true,
+					WriteOnly: true,
+				},
+			}),
+		},
+	}
+	p.MoveResourceStateResponse = &providers.MoveResourceStateResponse{
+		TargetState: cty.ObjectVal(map[string]cty.Value{
+			"write_only_attribute": cty.StringVal("foo"),
+		}),
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+	if !diags.HasErrors() {
+		t.Fatal("expected to have an error but got none")
+	}
+	expectedErr := `Invalid provider response: Write-only attribute ".write_only_attribute" returned with a non-nil value. This is an issue in the provider SDK.`
+	if gotErr := diags.Err().Error(); expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
+func TestContext2Plan_writeOnlyReturnedWithValueFromForceReplace(t *testing.T) {
+	addrA := mustResourceInstanceAddr("test_object.a")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "a" {
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"write_only_attribute": {
+							Type:      cty.String,
+							Optional:  true,
+							WriteOnly: true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	called := &atomic.Bool{}
+	p.PlanResourceChangeFn = func(request providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		// When called the second time, return write-only attribute value to make it fail.
+		if called.Load() {
+			return providers.PlanResourceChangeResponse{
+				PlannedState: cty.ObjectVal(map[string]cty.Value{
+					"write_only_attribute": cty.StringVal("foo"),
+				}),
+			}
+		}
+		// When called for the first time, return the right nil write-only attribute
+		called.Store(true)
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(map[string]cty.Value{
+				"write_only_attribute": cty.NullVal(cty.String),
+			}),
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			addrA,
+		},
+	})
+	if !diags.HasErrors() {
+		t.Fatal("expected to have an error but got none")
+	}
+	expectedErr := `Invalid provider response: Write-only attribute ".write_only_attribute" returned with a non-nil value. This is an issue in the provider SDK.`
+	if gotErr := diags.Err().Error(); expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
