@@ -774,7 +774,6 @@ func TestContext2Functions_providerFunctionsVariableCustom(t *testing.T) {
 			},
 		},
 	}
-
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
