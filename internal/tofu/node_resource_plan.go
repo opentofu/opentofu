@@ -165,13 +165,19 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
 	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
+	// If the import target originated from the import command (instead of the import block), we don't need to
+	// resolve the import as it's already in the resolved form. But it still requires to be validated after the graph walk.
+	// The following loop adds CLI import targets for validation and expands and resolves config import targets.
 	for _, importTarget := range n.importTargets {
-		// If the import target originates from the import command (instead of the import block), we don't need to
-		// resolve the import as it's already in the resolved form
-		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// We add CLI import targets to the import resolver. Those targets are validated after the graph walk in Context.Import method.
+		// This was added to correctly validate the existence of the targeted resource instances in case for_each key is used, either on a module or on a resource.
+		if importTarget.IsFromImportCommandLine() {
+			importResolver.addCLIImportTarget(importTarget)
+			continue
+		}
+		// If PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
-		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
-		if skipImports {
+		if !n.preDestroyRefresh {
 			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
@@ -194,15 +200,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		return nil, diags.ErrWithWarnings()
 	}
 
-	// Import target validation, when the target address contains a for_each key,
-	// needs to happen after we have expanded all of the resource instances,
-	// since the target addresses might include references with non-existent keys.
-	importDiags := n.cliImportTargetValidation(instAddrs)
-	diags = diags.Append(importDiags)
-	if diags.HasErrors() {
-		return nil, diags.ErrWithWarnings()
-	}
-
 	// If this is a resource that participates in custom condition checks
 	// (i.e. it has preconditions or postconditions) then the check state
 	// wants to know the addresses of the checkable objects so that it can
@@ -215,38 +212,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	addRootNodeToGraph(&g)
 
 	return &g, diags.ErrWithWarnings()
-}
-
-// cliImportTargetValidation Checks if we have an import targets from the commandline
-// and the resources at the target addresses are referenced with a key corresponding to an existing instance.
-func (n *nodeExpandPlannableResource) cliImportTargetValidation(instAddrs addrs.Set[addrs.Checkable]) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	for _, importTarget := range n.importTargets {
-		if !importTarget.IsFromImportCommandLine() {
-			continue
-		}
-
-		cliTarget := importTarget.CommandLineImportTarget
-		key := cliTarget.Addr.Resource.Key
-		// We don't need to check if the resource address doesn't include a key
-		if key == nil || key.Value().IsNull() {
-			continue
-		}
-		exists := instAddrs.Has(cliTarget.Addr)
-		if !exists {
-			// We cannot resolve the import target address, as the key does not exist for the for_each expression
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid import target address",
-				fmt.Sprintf(
-					"Import target address %q is invalid, as the resource instance doesn't exist with the given key",
-					cliTarget.Addr,
-				),
-			))
-		}
-	}
-	return diags
 }
 
 // expandResourceInstances calculates the dynamic expansion for the resource

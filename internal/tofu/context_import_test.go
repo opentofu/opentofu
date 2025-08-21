@@ -579,7 +579,7 @@ func TestContextImport_providerModule(t *testing.T) {
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
-					Addr: addrs.RootModuleInstance.Child("child", addrs.NoKey).ResourceInstance(
+					Addr: addrs.RootModuleInstance.Child("child", addrs.IntKey(0)).ResourceInstance(
 						addrs.ManagedResourceMode, "aws_instance", "foo", addrs.NoKey,
 					),
 					ID: "bar",
