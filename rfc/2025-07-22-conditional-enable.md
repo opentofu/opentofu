@@ -36,11 +36,10 @@ module "modcall" {
 
 ## Proposed Solution
 
-1. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
-2. Support for conditional enabling on:
+1. Support for conditional enabling on:
     1. Resources - Add a new field on the `lifecycle` block called `enabled`;
     2. Modules - Add a new `lifecycle` block for modules but only supporting the new `enabled` field.
-
+2. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
 
 ## Technical Approach
 
@@ -50,9 +49,9 @@ The lifecycle block is currently not supported on `module` block, but in our doc
 
 > OpenTofu does not use the lifecycle argument. However, the lifecycle block is reserved for future versions.
 
-https://opentofu.org/docs/language/modules/syntax/#meta-arguments
+https://github.com/opentofu/opentofu/blob/main/website/docs/language/modules/syntax.mdx?plain=1#L133
 
-It would be the right timing to start supporting it, but only for the `enabled` field.
+This proposal could be the right time to start supporting this `lifecycle` block, but only to add the `enabled` field.
 
 ## Migration from existing resources
 
@@ -130,7 +129,7 @@ Semantically, this feature would be used for single-instance resources or module
 
 There's some discussion about this [topic](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2398120132), and the better compromise we found is that an enabled 
 resource can be `null` when it's disabled, but no errors are going to be shown statically,
-like when using `validate` or the language server, in an OpenTofu extension, like VSCode.
+like when using `tofu validate` or the `tofu-ls` language server
 Since we need to evaluate the `enabled` expression, these errors are going to be shown dynamically,
 when running `plan` or `apply`:
 
@@ -151,7 +150,7 @@ The only available data access patterns for possibly disabled resources are:
 - `try(null_resource.example.id, "default_value")`
 - `can(null_resource.example.id) ? null_resource.example.id : "default value"`
 
-Notice this can be extended by using custom provider functions. Let's say if someone would like to
+Notice this can be extended by using custom provider-defined functions. Let's say if someone would like to
 create a function that add a warning instead of raising an error when trying to access the attribute,
 they could do:
 
