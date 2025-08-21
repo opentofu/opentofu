@@ -288,33 +288,23 @@ func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFu
 
 // ProviderUnconfiguredTransformer converts NodeApplyableProvider nodes to NodeEvalableProvider
 // nodes so provider's functions can be used without configuration.
-type ProviderUnconfiguredTransformer struct {
-	Config *configs.Config
-}
+type ProviderUnconfiguredTransformer struct{}
 
 func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph) error {
-	if t.Config == nil {
-		// This is probably a test case, inherited from ProviderTransformer
-		log.Printf("[WARN] Skipping provider config and references transformer due to missing config")
-		return nil
-	}
-
 	// Locate all providerVerts in the graph
 	providerVerts := providerVertexMap(g)
 	// Iterate through the providers to identify their dependencies (edges). If a provider
 	// lacks both references and configuration, use a NodeEvalableProvider.
-providerVertsLoop:
 	for _, p := range providerVerts {
 		applyableProvider, ok := p.(*NodeApplyableProvider)
-		// If it's not an NodeApplyableProvider or there's existing configuration, we can skip it.
-		if !ok || applyableProvider.Config != nil {
+		// There are three conditions to skip the conversion
+		// from NodeApplyableProvider to NodeEvalableProvider:
+		//   1. The node is not an NodeApplyableProvider
+		//   2. The provider has existing configuration
+		//   3. The provider node is referenced by another node
+		edges := append(g.EdgesFrom(applyableProvider), g.EdgesTo(applyableProvider)...)
+		if !ok || applyableProvider.Config != nil || len(edges) > 0 {
 			continue
-		}
-
-		for _, edge := range g.EdgesFrom(p) {
-			if _, ok := edge.Target().(GraphNodeProviderConsumer); ok {
-				continue providerVertsLoop
-			}
 		}
 
 		pAddr := applyableProvider.ProviderAddr()
