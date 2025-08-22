@@ -93,6 +93,11 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
+
 		// After schema transformer, we can add function references
 		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 

@@ -47,7 +47,7 @@ const traceAttrProviderConfigAddr = "opentofu.provider_config.address"
 // together uniquely identify the provider instance.
 const traceAttrProviderInstanceAddr = "opentofu.provider_instance.address"
 
-// NodeApplyableProvider represents a provider during an apply.
+// NodeApplyableProvider represents a configured provider.
 type NodeApplyableProvider struct {
 	*NodeAbstractProvider
 }

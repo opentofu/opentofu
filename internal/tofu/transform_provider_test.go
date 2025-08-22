@@ -10,9 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
@@ -48,8 +51,13 @@ func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.C
 		&ProviderTransformer{
 			Config: config,
 		},
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
+
 		// After schema transformer, we can add function references
-		//  &ProviderFunctionTransformer{Config: config},
+		&ProviderFunctionTransformer{Config: config, ProviderFunctionTracker: ProviderFunctionMapping{}},
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
 	)
@@ -486,6 +494,78 @@ provider "test" {
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
 		t.Fatalf("expected:\n%s\n\ngot:\n%s", expected, actual)
+	}
+}
+
+// TestProviderFunctionTransformer_onlyFunctions tests that the
+// ProviderFunctionTransformer is removing NodeApplyableProvider
+// and adding a NodeEvalableProvider in its place instead.
+// This is useful so we can call functions without needing to
+// configure the provider.
+func TestProviderFunctionTransformer_onlyFunctions(t *testing.T) {
+	mod := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+	aws = {}
+  }
+}
+
+output "output_test" {
+  value = provider::aws::arn_build("aws", "s3", "", "", "test")
+}
+`})
+	concrete := func(a *NodeAbstractProvider) dag.Vertex {
+		return &NodeApplyableProvider{
+			a,
+		}
+	}
+
+	g := testProviderTransformerGraph(t, mod)
+
+	// Create a reference to the output
+	outputRef := &NodeApplyableOutput{
+		Addr: addrs.AbsOutputValue{
+			Module: addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{
+				Name: "output_test",
+			},
+		},
+		Config: &configs.Output{
+			Name: "output_test",
+			Expr: &hclsyntax.FunctionCallExpr{
+				Name: "provider::aws::arn_build",
+				Args: []hclsyntax.Expression{
+					&hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("aws"),
+					},
+				},
+			},
+		},
+	}
+
+	g.Add(outputRef)
+
+	tf := testTransformProviders(concrete, mod)
+	if err := tf.Transform(t.Context(), g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := `output.output_test
+  provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/aws"]`
+
+	actual := strings.TrimSpace(g.String())
+	if diff := cmp.Diff(actual, expected); diff != "" {
+		t.Fatalf("expected: %s", diff)
+	}
+	edges := g.EdgesFrom(outputRef)
+	if len(edges) != 1 {
+		t.Fatalf("expecting 1 edge, got %d", len(edges))
+	}
+	edge := edges[0]
+	if _, ok := edge.Target().(*NodeEvalableProvider); !ok {
+		t.Fatalf("expecting NodeEvalableProvider provider, got %T", edge.Target())
 	}
 }
 

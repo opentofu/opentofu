@@ -286,6 +286,39 @@ func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFu
 	return providedBy, ok
 }
 
+// ProviderUnconfiguredTransformer converts NodeApplyableProvider nodes to NodeEvalableProvider
+// nodes so provider's functions can be used without configuration.
+type ProviderUnconfiguredTransformer struct{}
+
+func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph) error {
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
+	// Iterate through the providers to identify their dependencies (edges). If a provider
+	// lacks both references and configuration, use a NodeEvalableProvider.
+	for _, p := range providerVerts {
+		applyableProvider, ok := p.(*NodeApplyableProvider)
+		// There are three conditions to skip the conversion
+		// from NodeApplyableProvider to NodeEvalableProvider:
+		//   1. The node is not an NodeApplyableProvider
+		//   2. The provider has existing configuration
+		//   3. The provider node is referenced by another node
+		edges := append(g.EdgesFrom(applyableProvider), g.EdgesTo(applyableProvider)...)
+		if !ok || applyableProvider.Config != nil || len(edges) > 0 {
+			continue
+		}
+
+		pAddr := applyableProvider.ProviderAddr()
+		log.Printf("[TRACE] ProviderFunctionTransformer: replacing NodeApplyableProvider with NodeEvalableProvider for %s since it's missing configuration and there are no consumers of it", pAddr)
+		unconfiguredProvider := &NodeEvalableProvider{
+			&NodeAbstractProvider{
+				Addr: pAddr,
+			},
+		}
+		g.Replace(applyableProvider, unconfiguredProvider)
+	}
+	return nil
+}
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
@@ -374,6 +407,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					} else {
 						// If this provider doesn't exist, stub it out with an init-only provider node
 						// This works for unconfigured functions only, but that validation is elsewhere
+						log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", absPc)
 						stubAddr := addrs.AbsProviderConfig{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
