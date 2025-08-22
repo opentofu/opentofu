@@ -33,7 +33,7 @@ type stateTransformArgs struct {
 	// currentSchemaVersion is the latest schema version of the resource
 	currentSchemaVersion uint64
 
-	resCfg *configs.Resource
+	resourceCfg *configs.Resource
 }
 
 // providerStateTransform transforms the state given the current and the previous AbsResourceInstance, Provider and ResourceInstanceObjectSrc
@@ -127,7 +127,7 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	// and there is no issue in the provider SDK when it comes to the write-only attributes.
 	// Returning those with actual values can create unknown behavior leading to possible confidential
 	// information exposure.
-	diags = diags.Append(validateWriteOnlyAttributes(args.currentSchema, resp.UpgradedState, args.resCfg))
+	diags = diags.Append(validateWriteOnlyAttributes(args.currentSchema, resp.UpgradedState, args.resourceCfg))
 
 	return resp.UpgradedState, args.objectSrc.Private, diags
 }
@@ -166,8 +166,8 @@ func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfd
 	// and there is no issue in the provider SDK when it comes to the write-only attributes.
 	// Returning those with actual values can create unknown behavior leading to possible confidential
 	// information exposure.
-	diags = diags.Append(validateWriteOnlyAttributes(args.currentSchema, resp.TargetState, args.resCfg))
-	
+	diags = diags.Append(validateWriteOnlyAttributes(args.currentSchema, resp.TargetState, args.resourceCfg))
+
 	return resp.TargetState, resp.TargetPrivate, diags
 }
 

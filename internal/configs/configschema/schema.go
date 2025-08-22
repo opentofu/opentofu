@@ -100,10 +100,9 @@ type Attribute struct {
 
 	Deprecated bool
 
-	// WriteOnly hold the configuration from the provider that indicates
-	// that the attribute configured so is allowed to use ephemeral values
-	// and the value returned for this attribute from the provider
-	// should be always expected to be nil.
+	// WriteOnly indicates that such an attribute can receive ephemeral values.
+	// When configured as true, these attributes cannot have values returned by
+	// the provider, and an error will be returned if OpenTofu detects such a thing.
 	WriteOnly bool
 }
 

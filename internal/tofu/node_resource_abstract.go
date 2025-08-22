@@ -573,7 +573,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 		objectSrc:            src,
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
-		resCfg:               n.Config,
+		resourceCfg:          n.Config,
 	}
 	if isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(transformArgs)
@@ -633,7 +633,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 		objectSrc:            src,
 		currentSchema:        schema,
 		currentSchemaVersion: currentVersion,
-		resCfg:               n.Config,
+		resourceCfg:          n.Config,
 	}
 	if isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(transformArgs)

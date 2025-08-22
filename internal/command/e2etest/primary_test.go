@@ -293,20 +293,12 @@ OpenTofu will perform the following actions:
   + resource "simple_resource" "test_res" {
       + value    = "test value"
       + value_wo = (write-only attribute)
-
-      ~ nested_block {
-          + nested_block_attr = (write-only attribute)
-        }
     }
 
   # simple_resource.test_res_second_provider will be created
   + resource "simple_resource" "test_res_second_provider" {
       + value    = "just a simple resource to ensure that the second provider it's working fine"
       + value_wo = (write-only attribute)
-
-      ~ nested_block {
-          + nested_block_attr = (write-only attribute)
-        }
     }
 
 Plan: 2 to add, 0 to change, 0 to destroy.
