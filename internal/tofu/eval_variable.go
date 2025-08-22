@@ -479,7 +479,7 @@ You can correct this by removing references to sensitive values, or by carefully
 					Summary: "Error message refers to ephemeral values",
 					Detail: `The error expression used to explain this condition refers to ephemeral values. OpenTofu will not display the resulting message.
 
-You can correct this by removing references to ephemeral values.`, // TODO ephemeral - update the message to include ephemeralasnull option too
+You can correct this by removing references to ephemeral values or by utilizing the builtin ephemeralasnull() function.`,
 
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
