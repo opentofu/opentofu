@@ -46,10 +46,6 @@ func processObject[T any](v structured.Change, attributes map[string]T, computeD
 	mapValue := v.AsMap()
 
 	currentAction := v.GetDefaultActionForIteration()
-	// When an attribute of the block is known to always produce a NoOp diff, we want
-	// to include it so we need the action of the parent block to force the renderers
-	// to include also the aforementioned attributes.
-	objectAction := v.CalculateAction()
 	for key, attribute := range attributes {
 		attributeValue := mapValue.GetChild(key)
 
@@ -62,7 +58,7 @@ func processObject[T any](v structured.Change, attributes map[string]T, computeD
 		attributeValue.BeforeExplicit = false
 		attributeValue.AfterExplicit = false
 
-		attributeDiff := computeDiff(attributeValue, attribute, objectAction)
+		attributeDiff := computeDiff(attributeValue, attribute, currentAction)
 		if attributeDiff.Action == plans.NoOp && attributeValue.Before == nil && attributeValue.After == nil {
 			// We skip attributes of objects that are null both before and
 			// after. We don't even count these as unchanged attributes.
