@@ -146,6 +146,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"distinct":         stdlib.DistinctFunc,
 		"element":          stdlib.ElementFunc,
 		"endswith":         funcs.EndsWithFunc,
+		"ephemeralasnull":  funcs.EphemeralAsNullFunc,
 		"chunklist":        stdlib.ChunklistFunc,
 		"file":             funcs.MakeFileFunc(baseDir, false),
 		"fileexists":       funcs.MakeFileExistsFunc(baseDir),
