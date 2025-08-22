@@ -54,7 +54,7 @@ func TestEphemeralErrors_variables(t *testing.T) {
 			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 		}
 		sanitized := SanitizeStderr(serr)
-		if !strings.Contains(sanitized, `The error expression used to explain this condition refers to ephemeral values. OpenTofu will not display the resulting message.  You can correct this by removing references to ephemeral values.`) {
+		if !strings.Contains(sanitized, `The error expression used to explain this condition refers to ephemeral values. OpenTofu will not display the resulting message.  You can correct this by removing references to ephemeral values or by utilizing the builtin ephemeralasnull() function.`) {
 			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized serr: %s", sanitized)
 		}
