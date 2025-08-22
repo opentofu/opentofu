@@ -76,7 +76,7 @@ require (
 	github.com/nishanths/exhaustive v0.7.11
 	github.com/openbao/openbao/api/v2 v2.3.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0
+	github.com/opencontainers/image-spec v1.1.1
 	github.com/opentofu/registry-address/v2 v2.0.0-20250611143131-d0a99bd8acdd
 	github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
@@ -117,7 +117,7 @@ require (
 	k8s.io/apimachinery v0.23.4
 	k8s.io/client-go v0.23.4
 	k8s.io/utils v0.0.0-20211116205334-6203023598ed
-	oras.land/oras-go/v2 v2.5.0
+	oras.land/oras-go/v2 v2.6.0
 )
 
 require (
