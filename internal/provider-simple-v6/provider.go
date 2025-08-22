@@ -169,13 +169,6 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 	if !ok {
 		m["id"] = cty.UnknownVal(cty.String)
 	}
-	// TODO ephemeral - remove this line after work will be done on write-only arguments.
-	// The problem now is that the value sent to ApplyResourceChange is always null as returned by the plan call.
-	// When the work on write-only arguments will be done, OpenTofu should send the actual value to
-	// the ApplyResourceChange too.
-	// To confirm that everything is ok, by removing this "waitIfRequested" call from here, theTestEphemeralWorkflowAndOutput
-	// should still work correctly without any warn logs in the test output
-	waitIfRequested(m)
 
 	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
 	m["value_wo"] = cty.NullVal(cty.String)
@@ -200,7 +193,7 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	if !ok {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
-	waitIfRequested(m)
+	waitIfRequested(req.Config.AsValueMap())
 
 	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
 	m["value_wo"] = cty.NullVal(cty.String)
