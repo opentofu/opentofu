@@ -1656,9 +1656,7 @@ variable "bar" {
 
   validation {
     condition     = length(var.bar) == 4
-	// error_message = "Bar must be 4 characters, not ${ephemeralasnull(length(var.bar))}."
-    // TODO ephemeral - enable the error_message above after ephemeralasnull is introduced
-	error_message = "Value for bar must be 4 characters"
+	error_message = "Bar must be 4 characters, not ${coalesce(ephemeralasnull(length(var.bar)), "(hidden ephemeral)")} characters."
   }
 }
 `
@@ -1716,9 +1714,7 @@ variable "bar" {
 			given:   cty.StringVal("bap"),
 			wantErr: []string{
 				"Invalid value for variable",
-				// "Bar must be 4 characters, not null.",
-				// TODO ephemeral - enable the line above after "ephemeralasnull" is introduced
-				"Value for bar must be 4 characters",
+				"Bar must be 4 characters, not (hidden ephemeral) characters.",
 			},
 			status: checks.StatusFail,
 		},
