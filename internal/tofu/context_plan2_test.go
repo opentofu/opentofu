@@ -9161,6 +9161,74 @@ func TestContext2Plan_writeOnlyReturnedWithValueFromForceReplace(t *testing.T) {
 	}
 }
 
+// TestContext2Plan_forceReplaceBecauseOfTheWriteOnly checks that when the provider requires replacement of
+// the resource based on a write-only attribute, this is getting executed correctly.
+func TestContext2Plan_forceReplaceBecauseOfTheWriteOnly(t *testing.T) {
+	addrA := mustResourceInstanceAddr("test_object.a")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "a" {
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"write_only_attr": {
+							Type:      cty.String,
+							Optional:  true,
+							WriteOnly: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	p.PlanResourceChangeFn = func(request providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(map[string]cty.Value{
+				"write_only_attr": cty.NullVal(cty.String),
+			}),
+			RequiresReplace: []cty.Path{cty.GetAttrPath("write_only_attr")},
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			addrA,
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+	if plan.Changes == nil {
+		t.Fatalf("expected changes but got none")
+	}
+	if got, want := len(plan.Changes.Resources), 1; got != want {
+		t.Fatalf("expected to have exactly %d change but got %d", got, want)
+	}
+	if got, want := plan.Changes.Resources[0].ChangeSrc.Action, plans.DeleteThenCreate; got != want {
+		t.Fatalf("expected the change for resource %s to be %s but got %s", plan.Changes.Resources[0].Addr.String(), want, got)
+	}
+}
+
 func mockProviderWithFeaturesBlock() *MockProvider {
 	return &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{

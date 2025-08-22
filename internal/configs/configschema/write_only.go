@@ -11,6 +11,18 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// PathSetContainsWriteOnly checks that the given cty.PathSet contains *at least* one
+// of write-only attribute from the given value's schema.
+func (b *Block) PathSetContainsWriteOnly(v cty.Value, ps cty.PathSet) bool {
+	paths := b.WriteOnlyPaths(v, nil)
+	for _, path := range paths {
+		if ps.Has(path) {
+			return true
+		}
+	}
+	return false
+}
+
 // WriteOnlyPaths returns the list of paths where write-only attributes
 // exist in the given value.
 // This logic is similar to the Block.ValueMarks since the logic of drilling into the
@@ -35,7 +47,7 @@ func (b *Block) WriteOnlyPaths(val cty.Value, path cty.Path) []cty.Path {
 	for name, attrS := range b.Attributes {
 		// If the attribute has no nested type, or the nested type doesn't
 		// contain any write-only attributes, skip inspecting it
-		if attrS.NestedType == nil || !attrS.NestedType.ContainsSensitive() {
+		if attrS.NestedType == nil || !attrS.NestedType.ContainsWriteOnly() {
 			continue
 		}
 
@@ -90,7 +102,7 @@ func (o *Object) WriteOnlyPaths(val cty.Value, path cty.Path) []cty.Path {
 
 	for name, attrS := range o.Attributes {
 		// Skip attributes which can never produce write-only paths
-		if !attrS.Sensitive && (attrS.NestedType == nil || !attrS.NestedType.ContainsWriteOnly()) {
+		if !attrS.WriteOnly && (attrS.NestedType == nil || !attrS.NestedType.ContainsWriteOnly()) {
 			continue
 		}
 
@@ -121,11 +133,11 @@ func (o *Object) WriteOnlyPaths(val cty.Value, path cty.Path) []cty.Path {
 				// representing multiple collection elements.
 				attrPath := copyAndExtendPath(path, cty.IndexStep{Key: idx}, cty.GetAttrStep{Name: name})
 
-				if attrS.Sensitive {
-					// If the entire attribute is sensitive, mark it so
+				if attrS.WriteOnly {
+					// If the entire attribute is configured as write only, mark it so
 					res = append(res, attrPath)
 				} else {
-					// The attribute has a nested type which contains sensitive
+					// The attribute has a nested type which contains write-only
 					// attributes, so recurse
 					res = append(res, attrS.NestedType.WriteOnlyPaths(attrV, attrPath)...)
 				}
