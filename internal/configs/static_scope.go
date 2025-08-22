@@ -212,6 +212,9 @@ func (s staticScopeData) GetTerraformAttr(_ context.Context, addr addrs.Terrafor
 	// TODO this is copied and trimmed down from tofu/evaluate.go GetTerraformAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
+	case "applying":
+		return cty.False.Mark(marks.Ephemeral), nil
+
 	case "workspace":
 		workspaceName := s.eval.call.workspace
 		return cty.StringVal(workspaceName), diags

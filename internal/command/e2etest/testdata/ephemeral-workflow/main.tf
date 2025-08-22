@@ -102,3 +102,8 @@ module "call" {
 output "final_output" {
   value = simple_resource.test_res_second_provider.value
 }
+
+provider "simple" {
+  alias       = "s3"
+  i_depend_on = tofu.applying
+}

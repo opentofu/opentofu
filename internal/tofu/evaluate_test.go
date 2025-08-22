@@ -54,6 +54,30 @@ func TestEvaluatorGetTerraformAttr(t *testing.T) {
 			t.Errorf("wrong result %q; want %q", got, want)
 		}
 	})
+
+	evaluator.Operation = walkPlan
+	t.Run("tofu.applying", func(t *testing.T) {
+		want := cty.False.Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "applying"), tfdiags.SourceRange{})
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %q; want %q", got, want)
+		}
+	})
+
+	evaluator.Operation = walkApply
+	t.Run("tofu.applying", func(t *testing.T) {
+		want := cty.True.Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "applying"), tfdiags.SourceRange{})
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %q; want %q", got, want)
+		}
+	})
 }
 
 func TestEvaluatorGetPathAttr(t *testing.T) {
