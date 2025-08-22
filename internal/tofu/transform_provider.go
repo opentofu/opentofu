@@ -314,8 +314,6 @@ func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph)
 				Addr: pAddr,
 			},
 		}
-
-		providerVerts[pAddr.String()] = unconfiguredProvider
 		g.Replace(applyableProvider, unconfiguredProvider)
 	}
 	return nil
