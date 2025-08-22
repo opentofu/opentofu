@@ -12,7 +12,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func redactIfSensitive(value interface{}, valueMarks ...cty.ValueMarks) string {
+func redactIfSensitiveOrEphemeral(value interface{}, valueMarks ...cty.ValueMarks) string {
+	if marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Ephemeral) {
+		return "(ephemeral value)"
+	}
 	if marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Sensitive) {
 		return "(sensitive value)"
 	}
