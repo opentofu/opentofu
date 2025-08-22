@@ -987,6 +987,12 @@ func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.
 func (d *evaluationStateData) GetTerraformAttr(_ context.Context, addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
+	case "applying":
+		if d.Evaluator.Operation == walkApply || d.Evaluator.Operation == walkDestroy {
+			return cty.True.Mark(marks.Ephemeral), nil
+		}
+		return cty.False.Mark(marks.Ephemeral), nil
+
 	case "workspace":
 		workspaceName := d.Evaluator.Meta.Env
 		return cty.StringVal(workspaceName), diags
