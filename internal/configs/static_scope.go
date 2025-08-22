@@ -213,8 +213,13 @@ func (s staticScopeData) GetTerraformAttr(_ context.Context, addr addrs.Terrafor
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
 	case "applying":
-		return cty.False.Mark(marks.Ephemeral), nil
-
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid attribute in static context`,
+			Detail:   `The applying attribute can not be used during static evaluation and is only valid in the plan and apply phases of execution`,
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
 	case "workspace":
 		workspaceName := s.eval.call.workspace
 		return cty.StringVal(workspaceName), diags
