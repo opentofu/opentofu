@@ -141,6 +141,31 @@ func (s *Filesystem) WriteState(state *states.State) error {
 	return s.writeState(state, nil)
 }
 
+func (s *Filesystem) MutateState(fn func(*states.State) *states.State) error {
+	defer s.mutex()()
+
+	if s.readFile == nil {
+		err := s.refreshState()
+		if err != nil {
+			return err
+		}
+	}
+
+	var state *states.State
+	if s.file != nil {
+		state = s.file.State
+	}
+
+	state = fn(state)
+
+	if s.file == nil {
+		s.file = NewStateFile()
+	}
+	s.file.State = state
+
+	return nil
+}
+
 func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 	s.file = s.file.DeepCopy()
 	if s.file == nil {
