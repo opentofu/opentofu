@@ -1,0 +1,5 @@
+// Running this configuration is expected to have an error since output blocks not configured as ephemeral
+// are not allowed to use ephemeral values.
+output "out" {
+  value = var.in
+}

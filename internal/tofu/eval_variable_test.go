@@ -1635,3 +1635,232 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 		})
 	}
 }
+
+func TestEvalVariableValidations_ephemeralValues(t *testing.T) {
+	cfgSrc := `
+variable "foo" {
+  type      = string
+  ephemeral = true
+  default   = "boop"
+
+  validation {
+    condition     = length(var.foo) == 4
+	error_message = "Foo must be 4 characters, not ${length(var.foo)}"
+  }
+}
+
+variable "bar" {
+  type      = string
+  ephemeral = true
+  default   = "boop"
+
+  validation {
+    condition     = length(var.bar) == 4
+	error_message = "Bar must be 4 characters, not ${coalesce(ephemeralasnull(length(var.bar)), "(hidden ephemeral)")} characters."
+  }
+}
+`
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": cfgSrc,
+	})
+	variableConfigs := cfg.Module.Variables
+
+	// Because we loaded our pseudo-module from a temporary file, the
+	// declaration source ranges will have unpredictable filenames. We'll
+	// fix that here just to make things easier below.
+	for _, vc := range variableConfigs {
+		vc.DeclRange.Filename = "main.tf"
+		for _, v := range vc.Validations {
+			v.DeclRange.Filename = "main.tf"
+		}
+	}
+
+	tests := []struct {
+		varName string
+		given   cty.Value
+		wantErr []string
+		status  checks.Status
+	}{
+		// There is no issue if the validation.error_message references an ephemeral value when the check passes.
+		// That is reported only when the validation fails, and we evaluate the error_message.
+		{
+			varName: "foo",
+			given:   cty.StringVal("boop"),
+			status:  checks.StatusPass,
+		},
+		// When the validation fails, trying to render the error_message will generate another
+		// error because the value resulted from error_message evaluation contains the ephemeral mark.
+		{
+			varName: "foo",
+			given:   cty.StringVal("bap"),
+			wantErr: []string{
+				"Invalid value for variable",
+				"The error message included an ephemeral value, so it will not be displayed.",
+				"Error message refers to ephemeral values",
+			},
+			status: checks.StatusFail,
+		},
+		// When error_message contains no ephemeral values, and the validation passes,
+		// there is no error expected to be returned.
+		{
+			varName: "bar",
+			given:   cty.StringVal("boop"),
+			status:  checks.StatusPass,
+		},
+		// When error_message contains no ephemeral values, and the validation fails,
+		// the value resulted from error_message evaluation is returned.
+		{
+			varName: "bar",
+			given:   cty.StringVal("bap"),
+			wantErr: []string{
+				"Invalid value for variable",
+				"Bar must be 4 characters, not (hidden ephemeral) characters.",
+			},
+			status: checks.StatusFail,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s %#v", test.varName, test.given), func(t *testing.T) {
+			varAddr := addrs.InputVariable{Name: test.varName}.Absolute(addrs.RootModuleInstance)
+			varCfg := variableConfigs[test.varName]
+			if varCfg == nil {
+				t.Fatalf("invalid variable name %q", test.varName)
+			}
+
+			// Build a mock context to allow the function under test to
+			// retrieve the variable value and evaluate the expressions
+			evalCtx := &MockEvalContext{}
+
+			// We need a minimal scope to allow basic functions to be passed to
+			// the HCL scope
+			evalCtx.EvaluationScopeScope = &lang.Scope{
+				Data: &evaluationStateData{Evaluator: &Evaluator{
+					Config:             cfg,
+					VariableValuesLock: &sync.Mutex{},
+					VariableValues: map[string]map[string]cty.Value{"": {
+						test.varName: cty.UnknownVal(cty.String),
+					}},
+				}},
+			}
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+				if got, want := addr.String(), varAddr.String(); got != want {
+					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+				}
+				// NOTE: This intentionally doesn't mark the result as ephemeral,
+				// because BuiltinEvalContext.GetVariableValue doesn't either.
+				// It's the responsibility of downstream code to detect and handle
+				// configured ephemerality.
+				return test.given
+			}
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+
+			gotDiags := evalVariableValidations(
+				t.Context(), varAddr, varCfg, nil, evalCtx,
+			)
+
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
+			}
+
+			if len(test.wantErr) == 0 {
+				if len(gotDiags) > 0 {
+					t.Errorf("no diags expected, got %s", gotDiags.Err().Error())
+				}
+			} else {
+			wantErrs:
+				for _, want := range test.wantErr {
+					for _, diag := range gotDiags {
+						if diag.Severity() != tfdiags.Error {
+							continue
+						}
+						desc := diag.Description()
+						if strings.Contains(desc.Summary, want) || strings.Contains(desc.Detail, want) {
+							continue wantErrs
+						}
+					}
+					t.Errorf("no error diagnostics found containing %q\ngot: %s", want, gotDiags.Err().Error())
+				}
+			}
+		})
+	}
+}
+
+// TestEvalVariableValidations_ephemeralValueDiagnostics verifies that values for ephemeral variables get captured
+// into diagnostic messages with the ephemeral mark intact, so that
+// the values won't be disclosed in the UI.
+func TestEvalVariableValidations_ephemeralValueDiagnostics(t *testing.T) {
+	cfgSrc := `
+		variable "foo" {
+			type      = string
+			ephemeral = true
+
+			validation {
+				condition     = length(var.foo) == 8 # intentionally fails
+				error_message = "Foo must have 8 characters."
+			}
+		}
+	`
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": cfgSrc,
+	})
+	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+
+	ctx := &MockEvalContext{}
+	ctx.EvaluationScopeScope = &lang.Scope{
+		Data: &evaluationStateData{Evaluator: &Evaluator{
+			Config:             cfg,
+			VariableValuesLock: &sync.Mutex{},
+			VariableValues: map[string]map[string]cty.Value{"": {
+				varAddr.Variable.Name: cty.UnknownVal(cty.String),
+			}},
+		}},
+	}
+	ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+		if got, want := addr.String(), varAddr.String(); got != want {
+			t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+		}
+		// NOTE: This intentionally doesn't mark the result as ephemeral,
+		// because BuiltinEvalContext.GetVariableValueFunc doesn't either.
+		// It's the responsibility of downstream code to detect and handle
+		// configured ephemerality.
+		return cty.StringVal("boop")
+	}
+	ctx.ChecksState = checks.NewState(cfg)
+	ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+
+	gotDiags := evalVariableValidations(
+		t.Context(), varAddr, cfg.Module.Variables["foo"], nil, ctx,
+	)
+	if !gotDiags.HasErrors() {
+		t.Fatalf("unexpected success; want validation error")
+	}
+
+	// The generated diagnostic(s) should all capture the evaluation context
+	// that was used to evaluate the condition, where the variable's value
+	// should be marked as ephemeral so it won't get displayed in clear
+	// in the UI output.
+	// (The HasErrors check above guarantees that there's at least one
+	// diagnostic here for us to iterate over.)
+	for _, diag := range gotDiags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		fromExpr := diag.FromExpr()
+		if fromExpr == nil {
+			t.Fatalf("diagnostic does not have source expression information at all")
+		}
+		allVarVals := fromExpr.EvalContext.Variables["var"]
+		if allVarVals == cty.NilVal || !allVarVals.Type().IsObjectType() {
+			t.Fatalf("diagnostic did not capture an object value for the top-level symbol 'var'")
+		}
+		gotVal := allVarVals.GetAttr("foo")
+		if gotVal == cty.NilVal {
+			t.Fatalf("diagnostic did not capture a value for var.foo")
+		}
+		if !gotVal.HasMark(marks.Ephemeral) {
+			t.Errorf("var.foo value is not marked as ephemeral in diagnostic")
+		}
+	}
+}

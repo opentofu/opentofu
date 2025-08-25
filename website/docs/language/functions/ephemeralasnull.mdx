@@ -1,0 +1,30 @@
+---
+sidebar_label: ephemeralasnull
+description: The ephemeral as null function replaces all ephemeral values within the given object with null.
+---
+
+# `ephemeralasnull` Function
+
+`ephemeralasnull` takes any value and returns a copy of it with any ephemeral values replaced with null.  Ephemeral
+values can come from variables and outputs marked as ephemeral, as well as ephemeral resources.
+
+## Examples
+
+```hcl
+> ephemeralasnull("Hello World")
+"Hello World"
+> ephemeralasnull(var.ephemeral_variable)
+null
+> ephemeralasnull(ephemeral.some_resource)
+null
+> ephemeralasnull([4, var.ephemeral_variable])
+[4, null]
+> ephemeralasnull({
+  "field": "value",
+  "ephemeral": var.ephemeral_variable,
+})
+{
+  "field": "value",
+  "ephemeral": null,
+}
+```

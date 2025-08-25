@@ -915,3 +915,18 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 
 	return diags
 }
+
+// EphemeralVariablesHints builds a map that indicates what variable name of the module
+// is ephemeral and which isn't.
+// This is used by the plan to know what variables are meant to be stored
+// and which ones should be skipped.
+func (m *Module) EphemeralVariablesHints() map[string]bool {
+	res := map[string]bool{}
+	if m == nil {
+		return res
+	}
+	for vn, vc := range m.Variables {
+		res[vn] = vc.Ephemeral
+	}
+	return res
+}

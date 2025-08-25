@@ -1,0 +1,6 @@
+// Running this configuration is expected to return an error since variables not configured as ephemeral
+// are not allowed to use ephemeral values.
+module "test" {
+  source = "./non-ephemeral-mod"
+  in     = var.in
+}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -176,6 +177,7 @@ func TestMarshalModule(t *testing.T) {
 							Description:    "description",
 							Deprecated:     "deprecation message",
 							Sensitive:      true,
+							Ephemeral:      true,
 							ConstraintType: cty.String,
 							Type:           cty.String, // similar to ConstraintType; unfortunate historical quirk
 							Default:        cty.StringVal("hello"),
@@ -195,6 +197,7 @@ func TestMarshalModule(t *testing.T) {
 						Description: "description",
 						Deprecated:  "deprecation message",
 						Sensitive:   true,
+						Ephemeral:   true,
 					},
 				},
 			},
@@ -347,6 +350,62 @@ func TestMarshalModule(t *testing.T) {
 						Expressions:       make(map[string]any),
 					},
 				},
+			},
+		},
+		"output, minimal": {
+			Input: &configs.Config{
+				Module: &configs.Module{
+					Outputs: map[string]*configs.Output{
+						"example": {
+							Name: "example",
+						},
+					},
+				},
+			},
+			Schemas: emptySchemas,
+			Want: module{
+				Outputs: map[string]output{
+					"example": {
+						Expression: ptrTo(marshalExpression(nil)),
+					},
+				},
+				ModuleCalls: map[string]moduleCall{},
+			},
+		},
+		"output, elaborate": {
+			Input: &configs.Config{
+				Module: &configs.Module{
+					Outputs: map[string]*configs.Output{
+						"example": {
+							Name:        "example",
+							Description: "description",
+							Expr:        &hclsyntax.LiteralValueExpr{Val: cty.StringVal("test")},
+							DependsOn:   []hcl.Traversal{},
+							Sensitive:   true,
+							Deprecated:  "deprecation message",
+							Ephemeral:   true,
+							Preconditions: []*configs.CheckRule{
+								{
+									Condition: &hclsyntax.ConditionalExpr{},
+								},
+							},
+							IsOverridden: false,
+						},
+					},
+				},
+			},
+			Schemas: emptySchemas,
+			Want: module{
+				Outputs: map[string]output{
+					"example": {
+						Sensitive:   true,
+						Ephemeral:   true,
+						Deprecated:  "deprecation message",
+						Expression:  ptrTo(marshalExpression(&hclsyntax.LiteralValueExpr{Val: cty.StringVal("test")})),
+						Description: "description",
+					},
+				},
+				ModuleCalls: map[string]moduleCall{},
 			},
 		},
 		// TODO: More test cases covering things other than input variables.

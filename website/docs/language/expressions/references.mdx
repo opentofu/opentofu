@@ -130,8 +130,13 @@ The following values are available:
   advanced cases where OpenTofu is run from a directory other than the root module
   directory. We recommend using `path.root` or `path.module` over `path.cwd` where
   possible.
-- `terraform.workspace` is the name of the currently selected
+- `terraform.workspace` / `tofu.workspace` is the name of the currently selected
   [workspace](../../language/state/workspaces.mdx).
+- `terraform.applying` / `tofu.applying` is true when the apply phase is running
+  and false in any other phase (plan, validate). This keyword is related to the
+  apply phase and not to the apply command, meaning that when running `tofu apply`,
+  it will first be set to false during the plan plase and then set to true during
+  the apply phase. This is an ephemeral value that should be handled accordingly.
 
 Use the values in this section carefully, because they include information
 about the context in which a configuration is being applied and so may

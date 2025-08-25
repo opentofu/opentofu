@@ -36,10 +36,10 @@ var Base64DecodeFunc = function.New(&function.Spec{
 		s := str.AsString()
 		sDec, err := base64.StdEncoding.DecodeString(s)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decode base64 data %s", redactIfSensitive(s, strMarks))
+			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decode base64 data %s", redactIfSensitiveOrEphemeral(s, strMarks))
 		}
 		if !utf8.Valid([]byte(sDec)) {
-			log.Printf("[DEBUG] the result of decoding the provided string is not valid UTF-8: %s", redactIfSensitive(sDec, strMarks))
+			log.Printf("[DEBUG] the result of decoding the provided string is not valid UTF-8: %s", redactIfSensitiveOrEphemeral(sDec, strMarks))
 			return cty.UnknownVal(cty.String), fmt.Errorf("the result of decoding the provided string is not valid UTF-8")
 		}
 		return cty.StringVal(string(sDec)).WithMarks(strMarks), nil
@@ -197,7 +197,7 @@ var Base64GunzipFunc = function.New(&function.Spec{
 		s := str.AsString()
 		sDec, err := base64.StdEncoding.DecodeString(s)
 		if err != nil {
-			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decode base64 data %s", redactIfSensitive(s, strMarks))
+			return cty.UnknownVal(cty.String), fmt.Errorf("failed to decode base64 data %s", redactIfSensitiveOrEphemeral(s, strMarks))
 		}
 		sDecBuffer := bytes.NewReader(sDec)
 		gzipReader, err := gzip.NewReader(sDecBuffer)
