@@ -29,7 +29,7 @@ type ResourceData struct {
 	// Settable (internally)
 	schema       map[string]*Schema
 	config       *tofu.ResourceConfig
-	state        *tofu.InstanceState
+	state        *tofu.InstanceState // legacy field; now always nil
 	diff         *tofu.InstanceDiff
 	meta         map[string]interface{}
 	timeouts     *ResourceTimeout
@@ -426,12 +426,16 @@ func (d *ResourceData) Timeout(key string) time.Duration {
 }
 
 func (d *ResourceData) init() {
-	// Initialize the field that will store our new state
-	var copyState tofu.InstanceState
 	if d.state != nil {
-		copyState = *d.state.DeepCopy()
+		// We no longer support ResourceData with prior state, because we
+		// maintain this package only for use by [Backend] and that never
+		// has prior state.
+		panic("ResourceData with state is no longer allowed")
 	}
-	d.newState = &copyState
+	// We place an uninitialized state here only because some existing code
+	// expects to be able to write into here, even though we don't actually
+	// make any use of the result now that we only care about [Backend].
+	d.newState = &tofu.InstanceState{}
 
 	// Initialize the map for storing set data
 	d.setWriter = &MapFieldWriter{Schema: d.schema}
@@ -439,14 +443,6 @@ func (d *ResourceData) init() {
 	// Initialize the reader for getting data from the
 	// underlying sources (config, diff, etc.)
 	readers := make(map[string]FieldReader)
-	var stateAttributes map[string]string
-	if d.state != nil {
-		stateAttributes = d.state.Attributes
-		readers["state"] = &MapFieldReader{
-			Schema: d.schema,
-			Map:    BasicMapReader(stateAttributes),
-		}
-	}
 	if d.config != nil {
 		readers["config"] = &ConfigFieldReader{
 			Schema: d.schema,
@@ -458,7 +454,10 @@ func (d *ResourceData) init() {
 			Schema: d.schema,
 			Diff:   d.diff,
 			Source: &MultiLevelFieldReader{
-				Levels:  []string{"state", "config"},
+				Levels: []string{
+					"state", // NOTE: this is vestigial; there is no longer ever any state reader in practice
+					"config",
+				},
 				Readers: readers,
 			},
 		}
@@ -469,7 +468,7 @@ func (d *ResourceData) init() {
 	}
 	d.multiReader = &MultiLevelFieldReader{
 		Levels: []string{
-			"state",
+			"state", // NOTE: this is vestigial; there is no longer ever any state reader in practice
 			"config",
 			"diff",
 			"set",

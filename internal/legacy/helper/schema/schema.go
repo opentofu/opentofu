@@ -445,15 +445,22 @@ func (m schemaMap) panicOnError() bool {
 	return false
 }
 
-// Data returns a ResourceData for the given schema, state, and diff.
+// Data returns a ResourceData for the given schema and diff.
 //
-// The diff is optional.
+// The state argument is vestigial; this function will panic if it's set to
+// anything other than nil.
 func (m schemaMap) Data(
 	s *tofu.InstanceState,
 	d *tofu.InstanceDiff) (*ResourceData, error) {
+	if s != nil {
+		// This package is now focused only on supporting the functionality
+		// of the [Backend] type, which never has prior state and therefore
+		// we guard this explicitly here so we can know that any remaining
+		// code that runs only when state != nil is definitely dead code.
+		panic("schemaMap.Data no longer accepts prior state")
+	}
 	return &ResourceData{
 		schema:       m,
-		state:        s,
 		diff:         d,
 		panicOnError: m.panicOnError(),
 	}, nil
