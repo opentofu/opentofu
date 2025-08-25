@@ -11,17 +11,17 @@ import (
 )
 
 // updateState calls the PostStateUpdate hook with the state modification function
-func updateStateHook(ctx EvalContext, addr addrs.AbsResourceInstance) error {
+func updateStateHook(evalCtx EvalContext, addr addrs.AbsResourceInstance) error {
 	// Call the hook
-	return ctx.Hook(func(h Hook) (HookAction, error) {
+	return evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostStateUpdate(func(s *states.SyncState) {
-			provider := ctx.State().ResourceProvider(addr.ContainingResource())
+			provider := evalCtx.State().ResourceProvider(addr.ContainingResource())
 			if provider == nil {
 				// If there is no provider currently defined for the resource, it has been removed
 				// See the documentation of ResourceProvider for more details
 				s.RemoveResource(addr.ContainingResource())
 			} else {
-				s.SetResourceInstance(addr, ctx.State().ResourceInstance(addr), *provider)
+				s.SetResourceInstance(addr, evalCtx.State().ResourceInstance(addr), *provider)
 			}
 		})
 	})
