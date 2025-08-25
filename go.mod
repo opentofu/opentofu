@@ -28,7 +28,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/kms v1.37.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.75.2
 	github.com/aws/smithy-go v1.22.2
-	github.com/bgentry/speakeasy v0.1.0
+	github.com/bgentry/speakeasy v0.2.0
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/chzyer/readline v1.5.1
 	github.com/cli/browser v1.3.0
