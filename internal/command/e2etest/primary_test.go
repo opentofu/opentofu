@@ -274,7 +274,6 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
-			// TODO ephemeral - this "value_wo" should be shown something like (write-only attribute). This will be handled during the work on the write-only attributes.
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
@@ -285,18 +284,21 @@ OpenTofu will perform the following actions:
   # data.simple_resource.test_data2 will be read during apply
   # (depends on a resource or a module with changes pending)
  <= data "simple_resource" "test_data2" {
-      + id    = (known after apply)
-      + value = "test"
+      + id       = (known after apply)
+      + value    = "test"
+      + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
-      + value = "test value"
+      + value    = "test value"
+      + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res_second_provider will be created
   + resource "simple_resource" "test_res_second_provider" {
-      + value = "just a simple resource to ensure that the second provider it's working fine"
+      + value    = "just a simple resource to ensure that the second provider it's working fine"
+      + value_wo = (write-only attribute)
     }
 
 Plan: 2 to add, 0 to change, 0 to destroy.
