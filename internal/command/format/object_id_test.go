@@ -48,6 +48,22 @@ func TestObjectValueIDOrName(t *testing.T) {
 		},
 		{
 			cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("foo-123").Mark(marks.Sensitive),
+			}),
+			[...]string{"", ""},
+			[...]string{"", ""},
+			[...]string{"", ""},
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("foo-123").Mark(marks.Ephemeral),
+			}),
+			[...]string{"", ""},
+			[...]string{"", ""},
+			[...]string{"", ""},
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
 				"id":   cty.StringVal("foo-123"),
 				"name": cty.StringVal("awesome-foo"),
 			}),
@@ -66,6 +82,14 @@ func TestObjectValueIDOrName(t *testing.T) {
 		{
 			cty.ObjectVal(map[string]cty.Value{
 				"name": cty.StringVal("awesome-foo").Mark(marks.Sensitive),
+			}),
+			[...]string{"", ""},
+			[...]string{"", ""},
+			[...]string{"", ""},
+		},
+		{
+			cty.ObjectVal(map[string]cty.Value{
+				"name": cty.StringVal("awesome-bar").Mark(marks.Ephemeral),
 			}),
 			[...]string{"", ""},
 			[...]string{"", ""},
