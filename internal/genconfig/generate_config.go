@@ -130,7 +130,6 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 	return diags
 }
 
-// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, stateVal cty.Value, attrs map[string]*configschema.Attribute, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if len(attrs) == 0 {
@@ -164,7 +163,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 				val = attrS.EmptyValue()
 			}
 			if attrS.Sensitive || val.HasMark(marks.Sensitive) {
-				buf.WriteString("null # sensitive")
+				buf.WriteString(fmt.Sprintf("null # sensitive%s", writeOnlyComment(attrS, false)))
 			} else {
 				if val.Type() == cty.String {
 					unmarked, marks := val.Unmark()
@@ -192,6 +191,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 					})
 					continue
 				}
+				fmt.Fprintf(buf, "%s", writeOnlyComment(attrS, true))
 			}
 
 			buf.WriteString("\n")
@@ -326,7 +326,6 @@ func writeConfigBlocksFromExisting(addr addrs.AbsResourceInstance, buf *strings.
 	return diags
 }
 
-// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, name string, schema *configschema.Attribute, stateVal cty.Value, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -334,7 +333,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	case configschema.NestingSingle:
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = {} # sensitive\n", name)
+			fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -350,7 +349,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 			// There is a difference between a null object, and an object with
 			// no attributes.
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null\n", name)
+			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
@@ -364,7 +363,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = [] # sensitive\n", name)
+			fmt.Fprintf(buf, "%s = [] # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -372,7 +371,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		if listVals == nil {
 			// There is a difference between an empty list and a null list
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null\n", name)
+			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
@@ -380,10 +379,9 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		fmt.Fprintf(buf, "%s = [\n", name)
 		for i := range listVals {
 			buf.WriteString(strings.Repeat(" ", indent+2))
-
 			// The entire element is marked.
 			if listVals[i].HasMark(marks.Sensitive) {
-				buf.WriteString("{}, # sensitive\n")
+				buf.WriteString(fmt.Sprintf("{}, # sensitive\n"))
 				continue
 			}
 
@@ -399,7 +397,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	case configschema.NestingMap:
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = {} # sensitive\n", name)
+			fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -407,7 +405,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		if attr.IsNull() {
 			// There is a difference between an empty map and a null map.
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null\n", name)
+			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
@@ -446,7 +444,6 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	}
 }
 
-// TODO ephemeral - check how ephemeral should be integrated in this function. Check also the unit tests
 func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *strings.Builder, name string, schema *configschema.NestedBlock, stateVal cty.Value, indent int) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -460,7 +457,7 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 
 		// If the entire value is marked, don't print any nested attributes
 		if stateVal.HasMark(marks.Sensitive) {
-			buf.WriteString("} # sensitive\n")
+			buf.WriteString("} # sensitive%s\n")
 			return diags
 		}
 		buf.WriteString("\n")
@@ -660,4 +657,14 @@ func wrapAsJSONEncodeFunctionCall(v cty.Value) (hclwrite.Tokens, error) {
 	tokens := hclwrite.TokensForFunctionCall("jsonencode", hclwrite.TokensForValue(v))
 
 	return tokens, nil
+}
+
+func writeOnlyComment(attr *configschema.Attribute, startComment bool) string {
+	if !attr.WriteOnly {
+		return ""
+	}
+	if startComment {
+		return " # write-only"
+	}
+	return " write-only"
 }
