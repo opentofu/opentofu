@@ -506,20 +506,11 @@ func (m schemaMap) Diff(
 		}
 	}
 
-	// If this is a non-destroy diff, call any custom diff logic that has been
-	// defined.
-	if !result.DestroyTainted && customizeDiff != nil {
-		mc := m.DeepCopy()
-		rd := newResourceDiff(mc, c, s, result)
-		if err := customizeDiff(rd, meta); err != nil {
-			return nil, err
-		}
-		for _, k := range rd.UpdatedKeys() {
-			err := m.diff(k, mc[k], result, rd, false)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if customizeDiff != nil {
+		// customizeDiff is no longer supported because that was for resources
+		// while we're only interested in the subset of functionality required
+		// for backends.
+		panic("customizeDiff is no longer supported")
 	}
 
 	if handleRequiresNew {
