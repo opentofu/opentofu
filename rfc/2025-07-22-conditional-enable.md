@@ -38,15 +38,15 @@ module "modcall" {
 
 1. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
 2. Support for conditional enabling on:
-  1. Resources - Add a new field on the `lifecycle` block called `enabled`;
-  2. Modules - Add a new `lifecycle` block for modules but only supporting the new `enabled` field.
+    1. Resources - Add a new field on the `lifecycle` block called `enabled`;
+    2. Modules - Add a new `lifecycle` block for modules but only supporting the new `enabled` field.
 
 
 ## Technical Approach
 
 ### `lifecycle` support on Modules
 
-The lifecycle block is currently not supported on `modules`, but in our docs we mention to users that it's reserved for future usage:
+The lifecycle block is currently not supported on `module` block, but in our docs we mention to users that it's reserved for future usage:
 
 > OpenTofu does not use the lifecycle argument. However, the lifecycle block is reserved for future versions.
 
@@ -76,7 +76,7 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 
 ### Migration from `for_each` to `enabled`
 
-Unlike `count`, implicit moves are not handled by OpenTofu. This means that the user should explicitly
+Unlike `count`, implicit moves are not handled by OpenTofu when migrating from `for_each`. This means that the user should explicitly
 tell OpenTofu what needs to be moved:
 
 ```
@@ -189,6 +189,7 @@ There are a few types of values that cannot be used in this conditional:
 2. Sensitive values
 3. Null values
 4. Conditionals that do not evaluate to true/bool values
+5. Ephemeral values
 
 ## Future considerations
 
