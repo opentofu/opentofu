@@ -8,7 +8,6 @@ package renderers
 import (
 	"maps"
 	"slices"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -117,30 +116,10 @@ func validateMapType(t *testing.T, actual map[string]computed.Diff, expected map
 }
 
 func validateKeys[C, V any](t *testing.T, actual map[string]C, expected map[string]V) {
-	if len(actual) != len(expected) {
-
-		var actualAttributes []string
-		var expectedAttributes []string
-
-		for key := range actual {
-			actualAttributes = append(actualAttributes, key)
-		}
-		for key := range expected {
-			expectedAttributes = append(expectedAttributes, key)
-		}
-
-		sort.Strings(actualAttributes)
-		sort.Strings(expectedAttributes)
-
-		if diff := cmp.Diff(actualAttributes, expectedAttributes); len(diff) > 0 {
-			t.Errorf("actual and expected attributes did not match: %s", diff)
-		}
-	} else {
-		gotKeys := slices.Sorted(maps.Keys(actual))
-		wantKeys := slices.Sorted(maps.Keys(expected))
-		if diff := cmp.Diff(wantKeys, gotKeys); len(diff) > 0 {
-			t.Errorf("keys not match: %s", diff)
-		}
+	gotKeys := slices.Sorted(maps.Keys(actual))
+	wantKeys := slices.Sorted(maps.Keys(expected))
+	if diff := cmp.Diff(wantKeys, gotKeys); len(diff) > 0 {
+		t.Errorf("keys not match: %s", diff)
 	}
 }
 
