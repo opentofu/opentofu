@@ -1938,6 +1938,390 @@ func TestAssertPlanValid(t *testing.T) {
 			}),
 			[]string{},
 		},
+
+		"write-only attributes": {
+			&configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"string_wo": {
+						Optional:  true,
+						WriteOnly: true,
+						Type:      cty.String,
+					},
+					"object_attribute": {
+						Optional:  true,
+						WriteOnly: true,
+						Type: cty.Object(map[string]cty.Type{
+							"inner": cty.String,
+						}),
+					},
+					"map_attribute": {
+						Optional:  true,
+						WriteOnly: true,
+						Type: cty.Object(map[string]cty.Type{
+							"inner": cty.String,
+						}),
+					},
+					"list_attribute": {
+						Optional:  true,
+						WriteOnly: true,
+						Type: cty.Object(map[string]cty.Type{
+							"inner": cty.String,
+						}),
+					},
+				},
+			},
+			cty.NilVal,
+			cty.ObjectVal(map[string]cty.Value{
+				"string_wo": cty.StringVal("test value"),
+				"object_attribute": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.StringVal("object_attribute inner value"),
+				}),
+				"map_attribute": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.StringVal("map_attribute inner value"),
+				}),
+				"list_attribute": cty.ListVal([]cty.Value{
+					cty.StringVal("list_attribute inner value"),
+				}),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"string_wo": cty.NullVal(cty.String),
+				"object_attribute": cty.NullVal(
+					cty.Object(
+						map[string]cty.Type{"inner": cty.Number},
+					),
+				),
+				"map_attribute": cty.NullVal(
+					cty.Map(cty.String),
+				),
+				"list_attribute": cty.NullVal(
+					cty.List(cty.String),
+				),
+			}),
+			[]string{},
+		},
+
+		"write-only nested attributes": {
+			&configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"single_nested_attribute_wo": {
+						Optional:  true,
+						WriteOnly: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSingle,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"single_nested_attribute": {
+						Optional: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSingle,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"list_nested_attribute_wo": {
+						Optional:  true,
+						WriteOnly: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingList,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"list_nested_attribute": {
+						Optional: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingList,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"map_nested_attribute_wo": {
+						Optional:  true,
+						WriteOnly: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingMap,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"map_nested_attribute": {
+						Optional: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingMap,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			cty.NilVal,
+			cty.ObjectVal(map[string]cty.Value{
+				"single_nested_attribute_wo": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.StringVal("a"),
+				}),
+				"single_nested_attribute": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.StringVal("a"),
+				}),
+				"list_nested_attribute_wo": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"list_nested_attribute": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"map_nested_attribute_wo": cty.MapVal(map[string]cty.Value{
+					"first": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					"second": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"map_nested_attribute": cty.MapVal(map[string]cty.Value{
+					"first": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					"second": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"single_nested_attribute_wo": cty.NullVal(cty.Object(map[string]cty.Type{"inner": cty.String})),
+				"single_nested_attribute": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.NullVal(cty.String),
+				}),
+				"list_nested_attribute_wo": cty.NullVal(cty.List(cty.Object(map[string]cty.Type{"inner": cty.String}))),
+				"list_nested_attribute": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+				}),
+				"map_nested_attribute_wo": cty.NullVal(cty.Map(cty.Object(map[string]cty.Type{"inner": cty.String}))),
+				"map_nested_attribute": cty.MapVal(map[string]cty.Value{
+					"first": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+					"second": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+				}),
+			}),
+			[]string{},
+		},
+		"write-only nested blocks": {
+			&configschema.Block{
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"single_nested_block": {
+						Nesting: configschema.NestingSingle,
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"list_nested_block": {
+						Nesting: configschema.NestingList,
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+					"map_nested_block": {
+						Nesting: configschema.NestingMap,
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			cty.NilVal,
+			cty.ObjectVal(map[string]cty.Value{
+				"single_nested_block": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.StringVal("a"),
+				}),
+				"list_nested_block": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"map_nested_block": cty.MapVal(map[string]cty.Value{
+					"first": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					"second": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"single_nested_block": cty.ObjectVal(map[string]cty.Value{
+					"inner": cty.NullVal(cty.String),
+				}),
+				"list_nested_block": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+				}),
+				"map_nested_block": cty.MapVal(map[string]cty.Value{
+					"first": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+					"second": cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+				}),
+			}),
+			[]string{},
+		},
+		// IRL, set-type attributes, and nested attributes/blocks cannot be or contain write-only attributes.
+		// This is checking that the AssertPlanValid works correctly with these types.
+		"write-only set attributes and blocks": {
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"set_attribute": {
+						Optional:  true,
+						WriteOnly: true,
+						Type:      cty.Set(cty.String),
+					},
+					"set_nested_attribute": {
+						Optional:  true,
+						WriteOnly: true,
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSet,
+							Attributes: map[string]*configschema.Attribute{
+								"inner": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
+							},
+						},
+					},
+				},
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"set_nested_block": {
+						Nesting: configschema.NestingSet,
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"val": {
+									Type: cty.String,
+								},
+							},
+						},
+					},
+				},
+			},
+			Prior: cty.NilVal,
+			Config: cty.ObjectVal(map[string]cty.Value{
+				"set_attribute": cty.ListVal([]cty.Value{
+					cty.StringVal("set_attribute inner value"),
+					cty.StringVal("set_attribute inner value 2"),
+				}),
+				"set_nested_attribute": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"set_nested_attribute_wo": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.StringVal("b"),
+					}),
+				}),
+				"set_nested_block": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"val": cty.StringVal("a"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"val": cty.StringVal("b"),
+					}),
+				}),
+			}),
+			Planned: cty.ObjectVal(map[string]cty.Value{
+				"set_attribute": cty.NullVal(
+					cty.Set(cty.String),
+				),
+				"set_nested_attribute_wo": cty.NullVal(cty.Set(cty.Object(map[string]cty.Type{"inner": cty.String}))),
+				"set_nested_attribute": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"inner": cty.NullVal(cty.String),
+					}),
+				}),
+				"set_nested_block": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"val": cty.NullVal(cty.String),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"val": cty.NullVal(cty.String),
+					}),
+				}),
+			}),
+			WantErrs: []string{".set_nested_attribute: count in plan (cty.NumberIntVal(1)) disagrees with count in config (cty.NumberIntVal(2))"},
+		},
 	}
 
 	for name, test := range tests {

@@ -8772,10 +8772,10 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 }
 
-// TestContext2Apply_ephemeralResourcesLifecycleCheck checks that the
+// TestContext2Plan_ephemeralVariablesInPlan checks that the
 // ephemeral variables get configured correctly in the plan
 // to be used later to exclude values from being written into the plan object.
-func TestContext2Apply_ephemeralVariablesInPlan(t *testing.T) {
+func TestContext2Plan_ephemeralVariablesInPlan(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
 variable "regular_var" {
