@@ -480,14 +480,14 @@ func (m schemaMap) Diff(
 	result := new(tofu.InstanceDiff)
 	result.Attributes = make(map[string]*tofu.ResourceAttrDiff)
 
-	// Make sure to mark if the resource is tainted
+	// We only care about the subset of functionality needed by backends now,
+	// and backends never have "prior state".
 	if s != nil {
-		result.DestroyTainted = s.Tainted
+		panic("unexpected prior state")
 	}
 
 	d := &ResourceData{
 		schema:       m,
-		state:        s,
 		config:       c,
 		panicOnError: m.panicOnError(),
 	}
@@ -513,90 +513,11 @@ func (m schemaMap) Diff(
 		panic("customizeDiff is no longer supported")
 	}
 
-	if handleRequiresNew {
-		// If the diff requires a new resource, then we recompute the diff
-		// so we have the complete new resource diff, and preserve the
-		// RequiresNew fields where necessary so the user knows exactly what
-		// caused that.
-		if result.RequiresNew() {
-			// Create the new diff
-			result2 := new(tofu.InstanceDiff)
-			result2.Attributes = make(map[string]*tofu.ResourceAttrDiff)
-
-			// Preserve the DestroyTainted flag
-			result2.DestroyTainted = result.DestroyTainted
-
-			// Reset the data to not contain state. We have to call init()
-			// again in order to reset the FieldReaders.
-			d.state = nil
-			d.init()
-
-			// Perform the diff again
-			for k, schema := range m {
-				err := m.diff(k, schema, result2, d, false)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			// Re-run customization
-			if !result2.DestroyTainted && customizeDiff != nil {
-				mc := m.DeepCopy()
-				rd := newResourceDiff(mc, c, d.state, result2)
-				if err := customizeDiff(rd, meta); err != nil {
-					return nil, err
-				}
-				for _, k := range rd.UpdatedKeys() {
-					err := m.diff(k, mc[k], result2, rd, false)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-
-			// Force all the fields to not force a new since we know what we
-			// want to force new.
-			for k, attr := range result2.Attributes {
-				if attr == nil {
-					continue
-				}
-
-				if attr.RequiresNew {
-					attr.RequiresNew = false
-				}
-
-				if s != nil {
-					attr.Old = s.Attributes[k]
-				}
-			}
-
-			// Now copy in all the requires new diffs...
-			for k, attr := range result.Attributes {
-				if attr == nil {
-					continue
-				}
-
-				newAttr, ok := result2.Attributes[k]
-				if !ok {
-					newAttr = attr
-				}
-
-				if attr.RequiresNew {
-					newAttr.RequiresNew = true
-				}
-
-				result2.Attributes[k] = newAttr
-			}
-
-			// And set the diff!
-			result = result2
-		}
-
-	}
-
-	// Go through and detect all of the ComputedWhens now that we've
-	// finished the diff.
-	// TODO
+	// We used to deal with handleRequiresNew here, but now that we only
+	// care about backends there's never any prior state and so there
+	// cannot possibly be any "RequiresNew" to handle here: we're always
+	// acting as if we're creating something for the first time, because
+	// that's the way that the backend schema code (ab)uses this function.
 
 	if result.Empty() {
 		// If we don't have any diff elements, just return nil
