@@ -6,16 +6,23 @@
 package tofu
 
 import (
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
-// updateState calls the PostStateUpdate hook with the state modification function and applies the change to the "live" state object
-func updateState(ctx EvalContext, fn func(*states.SyncState)) error {
-	// Since the EvalContext.State() is not in sync with the StateMgr hold one, we want to update both in the same call.
-	fn(ctx.State())
-
+// updateState calls the PostStateUpdate hook with the state modification function
+func updateStateHook(ctx EvalContext, addr addrs.AbsResourceInstance) error {
 	// Call the hook
 	return ctx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostStateUpdate(fn)
+		return h.PostStateUpdate(func(s *states.SyncState) {
+			provider := ctx.State().ResourceProvider(addr.ContainingResource())
+			if provider == nil {
+				// If there is no provider currently defined for the resource, it has been removed
+				// See the documentation of ResourceProvider for more details
+				s.RemoveResource(addr.ContainingResource())
+			} else {
+				s.SetResourceInstance(addr, ctx.State().ResourceInstance(addr), *provider)
+			}
+		})
 	})
 }

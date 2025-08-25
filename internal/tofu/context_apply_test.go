@@ -198,6 +198,7 @@ func TestContext2Apply_stop(t *testing.T) {
 		{"PreDiff", "indefinite.foo"},
 		{"PostDiff", "indefinite.foo"},
 		{"PreApply", "indefinite.foo"},
+		{"PostApply", "indefinite.foo"},
 		{"PostStateUpdate", ""},
 	}
 	// The "Stopping" event gets sent to the hook asynchronously from the others
@@ -1726,7 +1727,6 @@ func TestContext2Apply_destroyData(t *testing.T) {
 	wantHookCalls := []*testHookCall{
 		{"PreApply", "data.null_data_source.testing"},
 		{"PostApply", "data.null_data_source.testing"},
-		{"PostStateUpdate", ""},
 		{"PostStateUpdate", ""},
 	}
 	if !reflect.DeepEqual(hook.Calls, wantHookCalls) {

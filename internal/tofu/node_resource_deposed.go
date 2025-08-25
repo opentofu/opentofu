@@ -329,7 +329,9 @@ func (n *NodeDestroyDeposedResourceInstanceObject) Execute(ctx context.Context, 
 		return diags
 	}
 
-	return diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
+	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
+
+	return diags.Append(updateStateHook(evalCtx, n.Addr))
 }
 
 // GraphNodeDeposer is an optional interface implemented by graph nodes that
@@ -357,6 +359,7 @@ func (n *graphNodeDeposer) SetPreallocatedDeposedKey(key states.DeposedKey) {
 func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ctx context.Context, evalCtx EvalContext, obj *states.ResourceInstanceObject) error {
 	absAddr := n.Addr
 	key := n.DeposedKey
+	state := evalCtx.State()
 
 	if key == states.NotDeposed {
 		// should never happen
@@ -365,11 +368,9 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 
 	if obj == nil {
 		// No need to encode anything: we'll just write it directly.
-		err := updateState(evalCtx, func(state *states.SyncState) {
-			state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-		})
+		state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 		log.Printf("[TRACE] writeResourceInstanceStateDeposed: removing state object for %s deposed %s", absAddr, key)
-		return err
+		return nil
 	}
 
 	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
@@ -392,9 +393,8 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	}
 
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)
-	return updateState(evalCtx, func(state *states.SyncState) {
-		state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	})
+	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	return nil
 }
 
 // NodeForgetDeposedResourceInstanceObject represents deposed resource
@@ -456,7 +456,8 @@ func (n *NodeForgetDeposedResourceInstanceObject) Execute(ctx context.Context, e
 		log.Printf("[WARN] NodeForgetDeposedResourceInstanceObject for %s (%s) with no state", n.Addr, n.DeposedKey)
 	}
 
-	return diags.Append(updateState(evalCtx, func(state *states.SyncState) {
-		state.ForgetResourceInstanceDeposed(n.Addr, n.DeposedKey)
-	}))
+	contextState := evalCtx.State()
+	contextState.ForgetResourceInstanceDeposed(n.Addr, n.DeposedKey)
+
+	return diags.Append(updateStateHook(evalCtx, n.Addr))
 }
