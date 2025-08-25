@@ -6,11 +6,13 @@ UPGRADE NOTES:
 * The `issensitive` function previously incorrectly returned known results when given unknown values, which has now been corrected to avoid confusing consistency check failures during the apply phase, as reported in [issue #2415](https://github.com/opentofu/opentofu/issues/2415).
 
     If your module was previously assigning something derived from an `issensitive` result to a context where unknown values are not allowed during the planning phase, such as `count`/`for_each` arguments for resources or modules, this will now fail during the planning phase and so you will need to choose a new approach where either the `issensitive` argument is always known during the planning phase or where the sensitivity of an unknown value is not used as part of the decision.
-* OpenTofu no longer accepts SHA-1 signatures in TLS handshakes, as recommended in [RFC 9155](https://www.rfc-editor.org/rfc/rfc9155.html).
-
 * Testing mocks previously only followed a subset of the rules defined in provider schemas. The provider schema now drives the mocking to ensure the schema is correctly followed. ([#3069](https://github.com/opentofu/opentofu/pull/3069))
 
     In rare cases this change might result in some previously-passing tests now failing, due to invalid mocks or overrides that were not detected in earlier versions.
+* OpenTofu no longer accepts SHA-1 signatures in TLS handshakes, as recommended in [RFC 9155](https://www.rfc-editor.org/rfc/rfc9155.html).
+* OpenTofu's remote provisioners, when using SSH to connect to a remote server using certificate-based authentication, no longer accept a certificate key as the signature key for a certificate, as required by [draft-miller-ssh-cert-03 section 2.1.1](https://datatracker.ietf.org/doc/html/draft-miller-ssh-cert-03#section-2.1.1).
+
+    This may cause new failures if you are currently using an incorrectly-generated certificate, but does not affect correctly-generated certificates.
 
 ENHANCEMENTS:
 
@@ -41,6 +43,7 @@ BUG FIXES:
 * Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
 * Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
 * Ensure that generated mock values for testing correctly follows the provider schema. ([#3069](https://github.com/opentofu/opentofu/pull/3069))
+* Remote provisioners now reject SSH certificates whose signature key is a certificate key, as required by the current SSH Certificate Format specification draft. ([#3180](https://github.com/opentofu/opentofu/pull/3180))
 
 BREAKING CHANGES:
 
