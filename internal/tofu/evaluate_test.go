@@ -196,7 +196,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 		t.Errorf("wrong result %#v; want %#v", got, want)
 	}
 
-	// TODO ephemeral - uncomment the line with the ephemeral mark once the testing support implementation is done
+	// TODO ephemeral testing support - uncomment the line with the ephemeral mark once the testing support implementation is done
 	// want = cty.StringVal("third").Mark(marks.Ephemeral)
 	want = cty.StringVal("third")
 	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
