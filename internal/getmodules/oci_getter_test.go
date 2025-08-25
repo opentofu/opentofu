@@ -137,11 +137,11 @@ func TestOCIDistributionGetter(t *testing.T) {
 		},
 		{
 			source:    "oci://example.com/empty",
-			wantError: `error downloading 'oci://example.com/empty': resolving tag "latest": not found`,
+			wantError: `error downloading 'oci://example.com/empty': resolving tag: latest: not found`,
 		},
 		{
 			source:    "oci://example.com/empty?tag=baz",
-			wantError: `error downloading 'oci://example.com/empty?tag=baz': resolving tag "baz": not found`,
+			wantError: `error downloading 'oci://example.com/empty?tag=baz': resolving tag: baz: not found`,
 		},
 		{
 			source:    "oci://example.com/empty?tag=in$valid", // invalid tag name syntax, per OCI distribution spec
@@ -149,7 +149,7 @@ func TestOCIDistributionGetter(t *testing.T) {
 		},
 		{
 			source:    "oci://example.com/empty?digest=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac",
-			wantError: `error downloading 'oci://example.com/empty?digest=sha256%3A1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac': resolving digest "sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac": not found`,
+			wantError: `error downloading 'oci://example.com/empty?digest=sha256%3A1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac': resolving digest: sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac: not found`,
 		},
 		{
 			source:    "oci://example.com/empty?tag=",

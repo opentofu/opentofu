@@ -283,7 +283,7 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		)
 		desc, err = store.Resolve(ctx, wantTag)
 		if err != nil {
-			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", wantTag, err))
+			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag: %w", err))
 		}
 	} else {
 		// If we're requesting a specific digest then we still need to
@@ -298,7 +298,7 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		)
 		desc, err = store.Resolve(ctx, wantDigest.String())
 		if err != nil {
-			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving digest %q: %w", wantDigest, err))
+			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving digest: %w", err))
 		}
 	}
 
