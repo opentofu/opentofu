@@ -11,8 +11,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 )
 
-var _ computed.DiffRenderer = (*writeOnlyRenderer)(nil)
-
 func WriteOnly() computed.DiffRenderer {
 	return &writeOnlyRenderer{}
 }
