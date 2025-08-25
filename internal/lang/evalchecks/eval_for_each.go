@@ -135,9 +135,6 @@ func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 
 }
 
-// TODO ephemeral - check how ephemeral should impact this function. Check also the unit tests
-//
-//	Christian: it should follow the same conventions as Sensitive and only be allowed in each.value and not in each.key.
 func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, typeCheckVal cty.Value, errInvalidUnknownDetail string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
@@ -179,6 +176,18 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
 			Detail:      "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByConfidentialValues(true),
+		})
+		resultVal = cty.NullVal(ty)
+	}
+	if forEachVal.HasMark(marks.Ephemeral) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
