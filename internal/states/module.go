@@ -79,6 +79,20 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 	delete(ms.Resources, addr.String())
 }
 
+// SetResourceInstance saves the given full resource instance data within the
+// specified resource.  This both ensures that the resource exists and overwrites
+// any existing value for the resource instance.
+// Any value for the instance data should not be modified after being passed to
+// this function (deepcopy'd ahead of time).
+func (ms *Module) SetResourceInstance(addr addrs.ResourceInstance, inst *ResourceInstance, provider addrs.AbsProviderConfig) {
+	rs := ms.Resource(addr.Resource)
+	if rs == nil {
+		ms.SetResourceProvider(addr.Resource, provider)
+		rs = ms.Resource(addr.Resource)
+	}
+	rs.Instances[addr.Key] = inst
+}
+
 // SetResourceInstanceCurrent saves the given instance object as the current
 // generation of the resource instance with the given address, simultaneously
 // updating the recorded provider configuration address and dependencies.

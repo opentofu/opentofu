@@ -331,7 +331,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) Execute(ctx context.Context, 
 
 	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
 
-	return diags.Append(updateStateHook(evalCtx))
+	return diags.Append(updateStateHook(evalCtx, n.Addr))
 }
 
 // GraphNodeDeposer is an optional interface implemented by graph nodes that
@@ -459,5 +459,5 @@ func (n *NodeForgetDeposedResourceInstanceObject) Execute(ctx context.Context, e
 	contextState := evalCtx.State()
 	contextState.ForgetResourceInstanceDeposed(n.Addr, n.DeposedKey)
 
-	return diags.Append(updateStateHook(evalCtx))
+	return diags.Append(updateStateHook(evalCtx, n.Addr))
 }
