@@ -308,14 +308,20 @@ func assertPlannedValueValid(attrS *configschema.Attribute, priorV, configV, pla
 		return errs
 	}
 
+	// If there is a config value but there is nothing planned, we allow this in case of write only attributes.
+	// This validation covers all the cases:
+	//  - root resource attributes
+	//  - nested attributes object attributes
+	//  - nested blocks attributes
+	if !configV.IsNull() && plannedV.IsNull() && attrS.WriteOnly {
+		return errs
+	}
+
 	// If this attribute has a NestedType, validate the nested object
 	if attrS.NestedType != nil {
 		return assertPlannedObjectValid(attrS.NestedType, priorV, configV, plannedV, path)
 	}
 
-	if !configV.IsNull() && plannedV.IsNull() && attrS.WriteOnly {
-		return errs // TODO ephemeral - check other places that might need a validation like this (part of the write-only attributes work)
-	}
 	// If none of the above conditions match, the provider has made an invalid
 	// change to this attribute.
 	if priorV.IsNull() {

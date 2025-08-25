@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/opentofu/opentofu/internal/plugin6/validation"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
@@ -40,7 +41,12 @@ var clientCapabilities = &proto6.ClientCapabilities{
 	// satisfy the request. Setting this means that we need to be prepared
 	// for there to be a "deferred" object in the response from various
 	// other provider RPC functions.
-	DeferralAllowed:            true,
+	DeferralAllowed: true,
+	// WriteOnlyAttributesAllowed indicates that the current system version
+	// supports write-only attributes.
+	// This enables the SDK to run specific validations and enable the
+	// nullification of such configured attributes before returning the
+	// response back to the system.
 	WriteOnlyAttributesAllowed: true,
 }
 
@@ -385,6 +391,8 @@ func (p *GRPCProvider) UpgradeResourceState(ctx context.Context, r providers.Upg
 	}
 	resp.UpgradedState = state
 
+	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resSchema.Block, resp.UpgradedState, r.TypeName))
+
 	return resp
 }
 
@@ -498,6 +506,8 @@ func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourc
 	resp.NewState = state
 	resp.Private = protoResp.Private
 
+	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resSchema.Block, resp.NewState, r.TypeName))
+
 	return resp
 }
 
@@ -590,6 +600,8 @@ func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanR
 
 	resp.LegacyTypeSystem = protoResp.LegacyTypeSystem
 
+	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resSchema.Block, resp.PlannedState, r.TypeName))
+
 	return resp
 }
 
@@ -667,6 +679,8 @@ func (p *GRPCProvider) ApplyResourceChange(ctx context.Context, r providers.Appl
 	resp.NewState = state
 
 	resp.LegacyTypeSystem = protoResp.LegacyTypeSystem
+
+	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resSchema.Block, resp.NewState, r.TypeName))
 
 	return resp
 }
@@ -764,6 +778,8 @@ func (p *GRPCProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 	}
 	resp.TargetState = state
 	resp.TargetPrivate = protoResp.TargetPrivate
+
+	resp.Diagnostics = resp.Diagnostics.Append(validation.WriteOnlyAttributes(resourceSchema.Block, resp.TargetState, r.TargetTypeName))
 
 	return resp
 }
