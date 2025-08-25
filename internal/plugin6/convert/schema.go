@@ -289,6 +289,7 @@ func configschemaObjectToProto(b *configschema.Object) *proto.Schema_Object {
 			Computed:        a.Computed,
 			Required:        a.Required,
 			Sensitive:       a.Sensitive,
+			WriteOnly:       a.WriteOnly,
 			Deprecated:      a.Deprecated,
 		}
 
