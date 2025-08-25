@@ -1069,7 +1069,7 @@ func (d *evaluationStateData) GetOutput(_ context.Context, addr addrs.OutputValu
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
 		}
-		// TODO ephemeral - this GetOutput is used only during `tofu test` against root module outputs.
+		// TODO ephemeral testing support - this GetOutput is used only during `tofu test` against root module outputs.
 		//  Therefore, since only the root module outputs can get in here, there is no reason to mark
 		//  values with ephemeral. Reanalyse this when implementing the testing support.
 		// if config.Ephemeral {
