@@ -21,11 +21,13 @@ func TestMarshalAttribute(t *testing.T) {
 		Want  *Attribute
 	}{
 		{
-			&configschema.Attribute{Type: cty.String, Optional: true, Computed: true},
+			&configschema.Attribute{Type: cty.String, Optional: true, Computed: true, Sensitive: true, WriteOnly: true},
 			&Attribute{
 				AttributeType:   json.RawMessage(`"string"`),
 				Optional:        true,
 				Computed:        true,
+				Sensitive:       true,
+				WriteOnly:       true,
 				DescriptionKind: "plain",
 			},
 		},

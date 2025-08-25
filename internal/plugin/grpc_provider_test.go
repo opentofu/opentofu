@@ -7,6 +7,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,7 +17,9 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/msgpack"
 	"go.uber.org/mock/gomock"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -29,7 +32,24 @@ import (
 
 var _ providers.Interface = (*GRPCProvider)(nil)
 
+func mutateSchemaResponse(response *proto.GetProviderSchema_Response, mut ...func(schemaResponse *proto.GetProviderSchema_Response)) *proto.GetProviderSchema_Response {
+	for _, f := range mut {
+		f(response)
+	}
+	return response
+}
+
+func addAttributeToResource(resourceName string, attr *proto.Schema_Attribute) func(response *proto.GetProviderSchema_Response) {
+	return func(schemaResponse *proto.GetProviderSchema_Response) {
+		schemaResponse.ResourceSchemas[resourceName].Block.Attributes = append(schemaResponse.ResourceSchemas[resourceName].Block.Attributes, attr)
+	}
+}
+
 func mockProviderClient(t *testing.T) *mockproto.MockProviderClient {
+	return mockProviderClientWithSchema(t, providerProtoSchema())
+}
+
+func mockProviderClientWithSchema(t *testing.T, schema *proto.GetProviderSchema_Response) *mockproto.MockProviderClient {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
 
@@ -38,7 +58,7 @@ func mockProviderClient(t *testing.T) *mockproto.MockProviderClient {
 		gomock.Any(),
 		gomock.Any(),
 		gomock.Any(),
-	).Return(providerProtoSchema(), nil)
+	).Return(schema, nil)
 
 	return client
 }
@@ -442,6 +462,48 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_UpgradeResourceStateWithWriteOnlyReturned(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().UpgradeResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.UpgradeResourceState_Request, _ ...grpc.CallOption) (*proto.UpgradeResourceState_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.UpgradeResourceState_Response{
+			UpgradedState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
+		TypeName:     "resource",
+		Version:      0,
+		RawStateJSON: []byte(`{"attr":"bar"}`),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
 func TestGRPCProvider_MoveResourceState(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -475,6 +537,49 @@ func TestGRPCProvider_MoveResourceState(t *testing.T) {
 	}
 	if !bytes.Equal(expectedPrivate, resp.TargetPrivate) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.TargetPrivate)
+	}
+}
+
+func TestGRPCProvider_MoveResourceStateReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().MoveResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.MoveResourceState_Request, _ ...grpc.CallOption) (*proto.MoveResourceState_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return &proto.MoveResourceState_Response{
+			TargetState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
+		SourceTypeName:      "resource_old",
+		SourceSchemaVersion: 0,
+		TargetTypeName:      "resource",
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
@@ -578,6 +683,51 @@ func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 
 	if !cmp.Equal(expected, resp.NewState, typeComparer, valueComparer, equateEmpty) {
 		t.Fatal(cmp.Diff(expected, resp.NewState, typeComparer, valueComparer, equateEmpty))
+	}
+}
+
+func TestGRPCProvider_ReadResourceReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().ReadResource(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.ReadResource_Request, opts ...grpc.CallOption) (*proto.ReadResource_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.ReadResource_Response{
+			NewState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+	})
+
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
@@ -785,6 +935,56 @@ func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_PlanResourceChangeReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().PlanResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.PlanResourceChange_Request, opts ...grpc.CallOption) (*proto.PlanResourceChange_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.PlanResourceChange_Response{
+			PlannedState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
 func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -831,6 +1031,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.Private)
 	}
 }
+
 func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -875,6 +1076,58 @@ func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 
 	if !bytes.Equal(expectedPrivate, resp.Private) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.Private)
+	}
+}
+
+func TestGRPCProvider_ApplyResourceChangeReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().ApplyResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.ApplyResourceChange_Request, opts ...grpc.CallOption) (*proto.ApplyResourceChange_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.ApplyResourceChange_Response{
+			NewState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		PlannedState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.StringVal("foo"),
+		}),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
