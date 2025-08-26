@@ -79,7 +79,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 					DeclRange: tfdiags.SourceRange{
 						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/child/grandchild/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 66},
-						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 72},
+						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 73},
 					},
 				},
 			},
@@ -106,12 +106,6 @@ func TestGetEndpointsToRemove(t *testing.T) {
 			wantError:   `Removed resource block still exists: This statement declares a removal of the resource module.child.foo.basic_resource, but this resource block still exists in the configuration. Please remove the resource block.`,
 		}}
 
-	// This is needed to ensure Byte is ignored from `Start` and `End`,
-	// since these values are different on Windows.
-	sourceDiagsComparer := cmp.Comparer(func(a, b tfdiags.SourceRange) bool {
-		return a.Start.Line == b.Start.Line && a.Start.Column == b.Start.Column && a.End.Line == b.End.Line && a.End.Column == b.End.Column
-	})
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rootCfg, _ := loadRefactoringFixture(t, tt.fixtureName)
@@ -126,9 +120,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 					t.Fatalf("wrong error\ngot:  %s\nwant: %s", errStr, tt.wantError)
 				}
 			} else {
-				if diff := cmp.Diff(tt.want, got,
-					sourceDiagsComparer,
-				); diff != "" {
+				if diff := cmp.Diff(tt.want, got); diff != "" {
 					t.Errorf("wrong result\n%s", diff)
 				}
 			}
