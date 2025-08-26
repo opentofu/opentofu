@@ -95,7 +95,7 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 			if !hclsyntax.ValidIdentifier(name) {
 				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
 			}
-			fmt.Fprintf(buf, "%s = ", name)
+			_, _ = fmt.Fprintf(buf, "%s = ", name)
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {
 				diags = diags.Append(&hcl.Diagnostic{
@@ -113,7 +113,7 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 			if !hclsyntax.ValidIdentifier(name) {
 				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
 			}
-			fmt.Fprintf(buf, "%s = ", name)
+			_, _ = fmt.Fprintf(buf, "%s = ", name)
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {
 				diags = diags.Append(&hcl.Diagnostic{
@@ -154,7 +154,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 		// Exclude computed-only attributes
 		if attrS.Required || attrS.Optional {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = ", name)
+			_, _ = fmt.Fprintf(buf, "%s = ", name)
 
 			var val cty.Value
 			if !stateVal.IsNull() && stateVal.Type().HasAttribute(name) {
@@ -163,10 +163,10 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 				val = attrS.EmptyValue()
 			}
 			if attrS.Sensitive || val.HasMark(marks.Sensitive) {
-				buf.WriteString(fmt.Sprintf("null # sensitive%s", writeOnlyComment(attrS, false)))
+				_, _ = fmt.Fprintf(buf, "null # sensitive%s", writeOnlyComment(attrS, false))
 			} else {
 				if val.Type() == cty.String {
-					unmarked, marks := val.Unmark()
+					unmarked, valMarks := val.Unmark()
 
 					// SHAMELESS HACK: If we have "" for an optional value, assume
 					// it is actually null, due to the legacy SDK.
@@ -175,8 +175,8 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 					}
 
 					// re-mark the value if it was marked originally
-					if len(marks) > 0 {
-						val = unmarked.Mark(marks)
+					if len(valMarks) > 0 {
+						val = unmarked.Mark(valMarks)
 					}
 				}
 
@@ -191,7 +191,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 					})
 					continue
 				}
-				fmt.Fprintf(buf, "%s", writeOnlyComment(attrS, true))
+				_, _ = fmt.Fprintf(buf, "%s", writeOnlyComment(attrS, true))
 			}
 
 			buf.WriteString("\n")
@@ -228,7 +228,7 @@ func writeConfigNestedBlock(addr addrs.AbsResourceInstance, buf *strings.Builder
 	switch schema.Nesting {
 	case configschema.NestingSingle, configschema.NestingGroup:
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s {", name)
+		_, _ = fmt.Fprintf(buf, "%s {", name)
 		writeBlockTypeConstraint(buf, schema)
 		diags = diags.Append(writeConfigAttributes(addr, buf, schema.Attributes, indent+2))
 		diags = diags.Append(writeConfigBlocks(addr, buf, schema.BlockTypes, indent+2))
@@ -236,7 +236,7 @@ func writeConfigNestedBlock(addr addrs.AbsResourceInstance, buf *strings.Builder
 		return diags
 	case configschema.NestingList, configschema.NestingSet:
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s {", name)
+		_, _ = fmt.Fprintf(buf, "%s {", name)
 		writeBlockTypeConstraint(buf, schema)
 		diags = diags.Append(writeConfigAttributes(addr, buf, schema.Attributes, indent+2))
 		diags = diags.Append(writeConfigBlocks(addr, buf, schema.BlockTypes, indent+2))
@@ -245,7 +245,7 @@ func writeConfigNestedBlock(addr addrs.AbsResourceInstance, buf *strings.Builder
 	case configschema.NestingMap:
 		buf.WriteString(strings.Repeat(" ", indent))
 		// we use an arbitrary placeholder key (block label) "key"
-		fmt.Fprintf(buf, "%s \"key\" {", name)
+		_, _ = fmt.Fprintf(buf, "%s \"key\" {", name)
 		writeBlockTypeConstraint(buf, schema)
 		diags = diags.Append(writeConfigAttributes(addr, buf, schema.Attributes, indent+2))
 		diags = diags.Append(writeConfigBlocks(addr, buf, schema.BlockTypes, indent+2))
@@ -262,7 +262,7 @@ func writeConfigNestedTypeAttribute(addr addrs.AbsResourceInstance, buf *strings
 	var diags tfdiags.Diagnostics
 
 	buf.WriteString(strings.Repeat(" ", indent))
-	fmt.Fprintf(buf, "%s = ", name)
+	_, _ = fmt.Fprintf(buf, "%s = ", name)
 
 	switch schema.NestedType.Nesting {
 	case configschema.NestingSingle:
@@ -333,7 +333,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	case configschema.NestingSingle:
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
+			_, _ = fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -349,12 +349,12 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 			// There is a difference between a null object, and an object with
 			// no attributes.
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
+			_, _ = fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s = {\n", name)
+		_, _ = fmt.Fprintf(buf, "%s = {\n", name)
 		diags = diags.Append(writeConfigAttributesFromExisting(addr, buf, nestedVal, schema.NestedType.Attributes, indent+2))
 		buf.WriteString("}\n")
 		return diags
@@ -363,7 +363,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = [] # sensitive%s\n", name, writeOnlyComment(schema, false))
+			_, _ = fmt.Fprintf(buf, "%s = [] # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -371,17 +371,17 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		if listVals == nil {
 			// There is a difference between an empty list and a null list
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
+			_, _ = fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s = [\n", name)
+		_, _ = fmt.Fprintf(buf, "%s = [\n", name)
 		for i := range listVals {
 			buf.WriteString(strings.Repeat(" ", indent+2))
 			// The entire element is marked.
 			if listVals[i].HasMark(marks.Sensitive) {
-				buf.WriteString(fmt.Sprintf("{}, # sensitive\n"))
+				buf.WriteString("{}, # sensitive\n")
 				continue
 			}
 
@@ -397,7 +397,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 	case configschema.NestingMap:
 		if schema.Sensitive || stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
+			_, _ = fmt.Fprintf(buf, "%s = {} # sensitive%s\n", name, writeOnlyComment(schema, false))
 			return diags
 		}
 
@@ -405,7 +405,7 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		if attr.IsNull() {
 			// There is a difference between an empty map and a null map.
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
+			_, _ = fmt.Fprintf(buf, "%s = null%s\n", name, writeOnlyComment(schema, true))
 			return diags
 		}
 
@@ -418,10 +418,10 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 		sort.Strings(keys)
 
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s = {\n", name)
+		_, _ = fmt.Fprintf(buf, "%s = {\n", name)
 		for _, key := range keys {
 			buf.WriteString(strings.Repeat(" ", indent+2))
-			fmt.Fprintf(buf, "%s = {", key)
+			_, _ = fmt.Fprintf(buf, "%s = {", key)
 
 			// This entire value is marked
 			if vals[key].HasMark(marks.Sensitive) {
@@ -453,11 +453,11 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 			return diags
 		}
 		buf.WriteString(strings.Repeat(" ", indent))
-		fmt.Fprintf(buf, "%s {", name)
+		_, _ = fmt.Fprintf(buf, "%s {", name)
 
 		// If the entire value is marked, don't print any nested attributes
 		if stateVal.HasMark(marks.Sensitive) {
-			buf.WriteString("} # sensitive%s\n")
+			buf.WriteString("} # sensitive\n")
 			return diags
 		}
 		buf.WriteString("\n")
@@ -468,13 +468,13 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 	case configschema.NestingList, configschema.NestingSet:
 		if stateVal.HasMark(marks.Sensitive) {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s {} # sensitive\n", name)
+			_, _ = fmt.Fprintf(buf, "%s {} # sensitive\n", name)
 			return diags
 		}
 		listVals := ctyCollectionValues(stateVal)
 		for i := range listVals {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s {\n", name)
+			_, _ = fmt.Fprintf(buf, "%s {\n", name)
 			diags = diags.Append(writeConfigAttributesFromExisting(addr, buf, listVals[i], schema.Attributes, indent+2))
 			diags = diags.Append(writeConfigBlocksFromExisting(addr, buf, listVals[i], schema.BlockTypes, indent+2))
 			buf.WriteString("}\n")
@@ -483,7 +483,7 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 	case configschema.NestingMap:
 		// If the entire value is marked, don't print any nested attributes
 		if stateVal.HasMark(marks.Sensitive) {
-			fmt.Fprintf(buf, "%s {} # sensitive\n", name)
+			_, _ = fmt.Fprintf(buf, "%s {} # sensitive\n", name)
 			return diags
 		}
 
@@ -496,7 +496,7 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 		sort.Strings(keys)
 		for _, key := range keys {
 			buf.WriteString(strings.Repeat(" ", indent))
-			fmt.Fprintf(buf, "%s %q {", name, key)
+			_, _ = fmt.Fprintf(buf, "%s %q {", name, key)
 			// This entire map element is marked
 			if vals[key].HasMark(marks.Sensitive) {
 				buf.WriteString("} # sensitive\n")
@@ -523,9 +523,9 @@ func writeAttrTypeConstraint(buf *strings.Builder, schema *configschema.Attribut
 	}
 
 	if schema.NestedType != nil {
-		fmt.Fprintf(buf, "%s\n", schema.NestedType.ImpliedType().FriendlyName())
+		_, _ = fmt.Fprintf(buf, "%s\n", schema.NestedType.ImpliedType().FriendlyName())
 	} else {
-		fmt.Fprintf(buf, "%s\n", schema.Type.FriendlyName())
+		_, _ = fmt.Fprintf(buf, "%s\n", schema.Type.FriendlyName())
 	}
 }
 
@@ -543,15 +543,15 @@ func ctyCollectionValues(val cty.Value) []cty.Value {
 		return nil
 	}
 
-	var len int
+	var length int
 	if val.IsMarked() {
 		val, _ = val.Unmark()
-		len = val.LengthInt()
+		length = val.LengthInt()
 	} else {
-		len = val.LengthInt()
+		length = val.LengthInt()
 	}
 
-	ret := make([]cty.Value, 0, len)
+	ret := make([]cty.Value, 0, length)
 	for it := val.ElementIterator(); it.Next(); {
 		_, value := it.Element()
 		ret = append(ret, value)
@@ -577,7 +577,7 @@ func omitUnknowns(val cty.Value) cty.Value {
 	case ty.IsPrimitiveType():
 		return val
 	case ty.IsListType() || ty.IsTupleType() || ty.IsSetType():
-		unmarked, marks := val.Unmark()
+		unmarked, valMarks := val.Unmark()
 		var vals []cty.Value
 		it := unmarked.ElementIterator()
 		for it.Next() {
@@ -595,9 +595,9 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents all of these sequence types as an array.
-		return cty.TupleVal(vals).WithMarks(marks)
+		return cty.TupleVal(vals).WithMarks(valMarks)
 	case ty.IsMapType() || ty.IsObjectType():
-		unmarked, marks := val.Unmark()
+		unmarked, valMarks := val.Unmark()
 		vals := make(map[string]cty.Value)
 		it := unmarked.ElementIterator()
 		for it.Next() {
@@ -611,7 +611,7 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents both of these mapping types as an object.
-		return cty.ObjectVal(vals).WithMarks(marks)
+		return cty.ObjectVal(vals).WithMarks(valMarks)
 	default:
 		// Should never happen, since the above should cover all types
 		panic(fmt.Sprintf("omitUnknowns cannot handle %#v", val))
