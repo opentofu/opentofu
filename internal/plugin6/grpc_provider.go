@@ -102,7 +102,6 @@ type GRPCProvider struct {
 
 var _ providers.Interface = new(GRPCProvider)
 
-// TODO ephemeral - double check all of the usages of this to be sure that the block.ephemeral for ephemeral resources is used accordingly.
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider.v6: GetProviderSchema")
 	p.mu.Lock()
