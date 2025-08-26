@@ -55,8 +55,13 @@ func ComputeDiffForBlock(change structured.Change, block *jsonprovider.Block) co
 		// values returned will be null.
 		childChange := ComputeDiffForAttribute(childValue, attr, current)
 		if childChange.Action == plans.NoOp && childValue.Before == nil && childValue.After == nil {
-			// Don't record nil values at all in blocks.
-			continue
+			// This validation is specifically added for `tofu show`.
+			// Since "current" will be NoOp during rendering the output for `tofu show`,
+			// we need this validation to include the write-only attributes in the output.
+			if !attr.WriteOnly {
+				// Don't record nil values at all in blocks.
+				continue
+			}
 		}
 
 		attributes[key] = childChange
