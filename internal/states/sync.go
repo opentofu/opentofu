@@ -171,8 +171,8 @@ func (s *SyncState) Resource(addr addrs.AbsResource) *Resource {
 	return ret
 }
 
-// ResourceInstance returns the state for the resource instance with the given
-// address, or nil if no such resource is tracked in the state.
+// ResourceProvider returns the provider required by the resource if it exists, or
+// null if no such resource exists
 func (s *SyncState) ResourceProvider(addr addrs.AbsResource) *addrs.AbsProviderConfig {
 	s.lock.Lock()
 	defer s.lock.Unlock()

@@ -299,6 +299,7 @@ func (s *State) ResourceProvider(addr addrs.AbsResource) *addrs.AbsProviderConfi
 	if rs == nil {
 		return nil
 	}
+	// Intentionally copy the struct
 	pc := rs.ProviderConfig
 	return &pc
 }
