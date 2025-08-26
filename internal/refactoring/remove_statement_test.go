@@ -29,7 +29,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("foo.basic_resource"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -37,7 +37,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"basic_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 41},
 						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 48},
 					},
@@ -45,7 +45,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.foo.removed_resource_from_root_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 9, Column: 1, Byte: 83},
 						End:      tfdiags.SourcePos{Line: 9, Column: 8, Byte: 90},
 					},
@@ -53,7 +53,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.foo.removed_resource_from_child_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/child/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -61,7 +61,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"child", "removed_module_from_child_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/child/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 9, Column: 1, Byte: 112},
 						End:      tfdiags.SourcePos{Line: 9, Column: 8, Byte: 119},
 					},
@@ -69,7 +69,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.module.grandchild.foo.removed_resource_from_grandchild_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "grandchild", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/child/grandchild/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -77,7 +77,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"child", "grandchild", "removed_module_from_grandchild_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "grandchild", "main.tf"),
+						Filename: filepath.FromSlash("testdata/remove-statement/valid-remove-statements/child/grandchild/main.tf"),
 						Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 66},
 						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 72},
 					},
