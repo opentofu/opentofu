@@ -75,7 +75,7 @@ func (n *NodeForgetResourceInstance) Execute(ctx context.Context, evalCtx EvalCo
 	contextState := evalCtx.State()
 	contextState.ForgetResourceInstanceAll(n.Addr)
 
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, n.Addr))
 
 	return diags
 }

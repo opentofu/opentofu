@@ -199,7 +199,7 @@ func TestContext2Apply_stop(t *testing.T) {
 		{"PostDiff", "indefinite.foo"},
 		{"PreApply", "indefinite.foo"},
 		{"PostApply", "indefinite.foo"},
-		{"PostStateUpdate", ""}, // State gets updated one more time to include the apply result.
+		{"PostStateUpdate", ""},
 	}
 	// The "Stopping" event gets sent to the hook asynchronously from the others
 	// because it is triggered in the ctx.Stop call above, rather than from

@@ -5,20 +5,24 @@
 
 package tofu
 
-// updateStateHook calls the PostStateUpdate hook with the current state.
-func updateStateHook(ctx EvalContext) error {
-	// In principle we could grab the lock here just long enough to take a
-	// deep copy and then pass that to our hooks below, but we'll instead
-	// hold the hook for the duration to avoid the potential confusing
-	// situation of us racing to call PostStateUpdate concurrently with
-	// different state snapshots.
-	stateSync := ctx.State()
-	state := stateSync.Lock().DeepCopy()
-	defer stateSync.Unlock()
+import (
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/states"
+)
 
+// updateState calls the PostStateUpdate hook with the state modification function
+func updateStateHook(evalCtx EvalContext, addr addrs.AbsResourceInstance) error {
 	// Call the hook
-	err := ctx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostStateUpdate(state)
+	return evalCtx.Hook(func(h Hook) (HookAction, error) {
+		return h.PostStateUpdate(func(s *states.SyncState) {
+			provider := evalCtx.State().ResourceProvider(addr.ContainingResource())
+			if provider == nil {
+				// If there is no provider currently defined for the resource, it has been removed
+				// See the documentation of ResourceProvider for more details
+				s.RemoveResource(addr.ContainingResource())
+			} else {
+				s.SetResourceInstance(addr, evalCtx.State().ResourceInstance(addr), *provider)
+			}
+		})
 	})
-	return err
 }

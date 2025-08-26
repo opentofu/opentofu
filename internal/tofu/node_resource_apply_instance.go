@@ -256,7 +256,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	diags = diags.Append(n.writeChange(ctx, evalCtx, nil, ""))
 
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, n.Addr))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state/diff because we want to check against
@@ -439,7 +439,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	}
 
 	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(evalCtx))
+	diags = diags.Append(updateStateHook(evalCtx, n.Addr))
 
 	// Post-conditions might block further progress. We intentionally do this
 	// _after_ writing the state because we want to check against
