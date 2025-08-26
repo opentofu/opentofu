@@ -241,10 +241,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 }
 
 // This test is checking the workflow of the ephemeral resources.
-// Check also the configuration files for comments. The idea is that at the time of
-// writing, the configuration was done in such a way to fail later when the
-// marks will be introduced for ephemeral values. Therefore, this test will
-// fail later and will require adjustments.
+// Check also the configuration files for comments.
 //
 // We want to validate that the plan file, state file and the output contain
 // only the things that are needed:
