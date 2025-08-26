@@ -114,7 +114,7 @@ func isSubDirNonExistent(modDir string) (isNonExistent bool, missingDir string) 
 		missingParts = append([]string{filepath.Base(current)}, missingParts...)
 
 		info, err := os.Stat(parent)
-		if err == nil && info.IsDir() { // return the mising parts!
+		if err == nil && info.IsDir() { // return the missing parts!
 			if len(missingParts) > 0 {
 				return true, missingParts[0]
 			}
