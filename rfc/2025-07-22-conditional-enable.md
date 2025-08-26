@@ -51,7 +51,8 @@ module "modcall" {
 1. Support for conditional enabling on:
     1. Resources - Add a new field on the `lifecycle` block called `enabled`;
     2. Modules - Add a new `lifecycle` block for modules but only supporting the new `enabled` field.
-2. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
+2. By default, this field is enabled if not otherwise specified.
+3. Raise errors if a resource is used while being disabled and the dependent resources are not disabled too;
 
 ## Technical Approach
 
@@ -87,7 +88,8 @@ OpenTofu will perform the following actions:
 Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
-This behavior applies only to resources. For modules, you must write an explicit `move` block:
+This behavior only exists for resources at the moment. As part of the RFC, support will be written for implied moves within modules.
+Until then, this can be done with:
 
 ```
 moved {
@@ -165,7 +167,7 @@ The only available data access patterns for possibly disabled resources are:
 This can be extended using custom provider-defined functions. For example, if someone wanted to create a function that adds a warning instead of raising an error when trying to access the attribute,
 they could do:
 
-- `provider::custom::warning_enabled(null_resource.example.id, "default value")
+- `provider::custom::warning_enabled(null_resource.example.id, "default value")`
 
 For now, we offer the three options above. 
 `try` is the most concise option, but it should be used carefully since it can silently mask errors not caused by null value access. `can` and `!= null` are more verbose but more reliable for doing what you're trying to do.
