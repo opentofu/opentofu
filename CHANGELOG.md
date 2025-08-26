@@ -22,6 +22,7 @@ ENHANCEMENTS:
 * Multiline string updates in arrays are now diffed line-by-line, rather than as a single element, making it easier to see changes in the plan output. ([#3030](https://github.com/opentofu/opentofu/pull/3030))
 * Add full support for -var, -var-file, and TF_VARS during `tofu apply` to support plan encryption ([#1998](https://github.com/opentofu/opentofu/pull/1998))
 * The S3 state backend now supports arguments to specify tags of the state and lock files. [#3038](https://github.com/opentofu/opentofu/pull/3038)
+* Plan UI now explicitly states that the "update in-place" notation is "current -> planned", as part of the existing description of the meaning of each change type symbol. ([#3159](https://github.com/opentofu/opentofu/pull/3159))
 * Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
 * Improved error messages when a submodule is not found in a module ([#3144]https://github.com/opentofu/opentofu/pull/3144)
 * Add support for the `for_each` attribute in the `mock_provider` block. ([#3087](https://github.com/opentofu/opentofu/pull/3087))
