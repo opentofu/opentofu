@@ -8,10 +8,11 @@ package refactoring
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"path/filepath"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestGetEndpointsToRemove(t *testing.T) {
@@ -28,7 +29,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("foo.basic_resource"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -36,7 +37,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"basic_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 41},
 						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 48},
 					},
@@ -44,7 +45,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.foo.removed_resource_from_root_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 9, Column: 1, Byte: 83},
 						End:      tfdiags.SourcePos{Line: 9, Column: 8, Byte: 90},
 					},
@@ -52,7 +53,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.foo.removed_resource_from_child_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/child/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -60,7 +61,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"child", "removed_module_from_child_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/child/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 9, Column: 1, Byte: 112},
 						End:      tfdiags.SourcePos{Line: 9, Column: 8, Byte: 119},
 					},
@@ -68,7 +69,7 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: mustConfigResourceAddr("module.child.module.grandchild.foo.removed_resource_from_grandchild_module"),
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/child/grandchild/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "grandchild", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 1, Column: 1},
 						End:      tfdiags.SourcePos{Line: 1, Column: 8, Byte: 7},
 					},
@@ -76,9 +77,9 @@ func TestGetEndpointsToRemove(t *testing.T) {
 				{
 					From: addrs.Module{"child", "grandchild", "removed_module_from_grandchild_module"},
 					DeclRange: tfdiags.SourceRange{
-						Filename: "testdata/remove-statement/valid-remove-statements/child/grandchild/main.tf",
+						Filename: filepath.Join("testdata", "remove-statement", "valid-remove-statements", "child", "grandchild", "main.tf"),
 						Start:    tfdiags.SourcePos{Line: 5, Column: 1, Byte: 66},
-						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 73},
+						End:      tfdiags.SourcePos{Line: 5, Column: 8, Byte: 72},
 					},
 				},
 			},
@@ -104,6 +105,13 @@ func TestGetEndpointsToRemove(t *testing.T) {
 			want:        []*RemoveStatement{},
 			wantError:   `Removed resource block still exists: This statement declares a removal of the resource module.child.foo.basic_resource, but this resource block still exists in the configuration. Please remove the resource block.`,
 		}}
+
+	// This is needed to ensure Byte is ignored from `Start` and `End`,
+	// since these values are different on Windows.
+	sourceDiagsComparer := cmp.Comparer(func(a, b tfdiags.SourceRange) bool {
+		return a.Start.Line == b.Start.Line && a.Start.Column == b.Start.Column && a.End.Line == b.End.Line && a.End.Column == b.End.Column
+	})
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rootCfg, _ := loadRefactoringFixture(t, tt.fixtureName)
@@ -118,7 +126,9 @@ func TestGetEndpointsToRemove(t *testing.T) {
 					t.Fatalf("wrong error\ngot:  %s\nwant: %s", errStr, tt.wantError)
 				}
 			} else {
-				if diff := cmp.Diff(tt.want, got); diff != "" {
+				if diff := cmp.Diff(tt.want, got,
+					sourceDiagsComparer,
+				); diff != "" {
 					t.Errorf("wrong result\n%s", diff)
 				}
 			}
