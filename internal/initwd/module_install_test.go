@@ -945,7 +945,7 @@ func TestIsSubDirNonExistant(t *testing.T) {
 		},
 		{
 			name:           "multiple missing levels",
-			path:           filepath.Join(existingDir, "missing", "also", "missing"),
+			path:           filepath.Join(existingDir, "missing", "also", "missingtoo"),
 			wantExists:     true,
 			wantMissingDir: "missing",
 		},
