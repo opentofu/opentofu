@@ -23,7 +23,8 @@ import (
 func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
 	// Due to path handling differences between Windows and Unix-like
 	// systems, `/foo/bar` is an absolute path on Unix but is converted
-	// to `\foo\bar`, a relative path on Windows.
+	// to `\foo\bar`, a relative path on Windows. `filepath.Abs` is used to
+	// convert the path to an absolute path on Windows.
 	authJsonPath := "/foo/bar/auth.json"
 	if runtime.GOOS == "windows" {
 		authJsonPath, _ = filepath.Abs(filepath.FromSlash("testdata/foo/bar/auth.json"))
