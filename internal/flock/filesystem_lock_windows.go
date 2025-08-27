@@ -33,7 +33,7 @@ const (
 	ERROR_LOCK_VIOLATION = 33
 )
 
-// This still alows the file handle to be opened by another process for competing locks on the same file.
+// This still allows the file handle to be opened by another process for competing locks on the same file.
 func Lock(f *os.File) error {
 	// even though we're failing immediately, an overlapped event structure is
 	// required

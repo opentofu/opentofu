@@ -8,6 +8,7 @@ package local
 import (
 	"context"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -40,6 +41,13 @@ func TestLocal(t *testing.T) *Local {
 	local.StateBackupPath = filepath.Join(tempDir, "state.tfstate.bak")
 	local.StateWorkspaceDir = filepath.Join(tempDir, "state.tfstate.d")
 	local.ContextOpts = &tofu.ContextOpts{}
+
+	t.Cleanup(func() {
+		// Force garbage collection to help release any remaining
+		// file handles. This avoids TempDir RemoveAll cleanup errors
+		// on Windows.
+		runtime.GC()
+	})
 
 	return local
 }
