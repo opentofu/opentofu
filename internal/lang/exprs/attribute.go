@@ -32,6 +32,17 @@ func ValueOf(v Valuer) Attribute {
 	return valueOf{v}
 }
 
+// NestedSymbolTableFromAttribute returns the symbol table from an attribute
+// that was returned from [NestedSymbolTable], or nil for any other kind of
+// attribute.
+func NestedSymbolTableFromAttribute(attr Attribute) SymbolTable {
+	withTable, ok := attr.(nestedSymbolTable)
+	if !ok {
+		return nil
+	}
+	return withTable.SymbolTable
+}
+
 // nestedSymbolTable is the [Attribute] implementation for symbols that act as
 // nested symbol tables, resolving another set of child attributes within.
 type nestedSymbolTable struct {

@@ -29,6 +29,13 @@ var _ Valuer = (*Closure)(nil)
 // NewClosure associates the given [Evalable] with the given [Scope] so that
 // it can be evaluated somewhere else later without losing track of what symbols
 // and functions were available where it was declared.
+//
+// Passing a nil Scope is valid, and represents that there are absolutely no
+// symbols or functions available for use in the given Evalable. Note that HCL's
+// JSON syntax treats that situation quite differently by taking JSON strings
+// totally literally instead of trying to interpret them as HCL templates, and
+// so switching to or from a nil scope is typically a breaking change for what's
+// allowed in a particular position.
 func NewClosure(evalable Evalable, scope Scope) *Closure {
 	return &Closure{evalable, scope}
 }
@@ -48,4 +55,10 @@ func (c *Closure) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnost
 // of the given context.
 func (c *Closure) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	return Evaluate(ctx, c.evalable, c.scope)
+}
+
+// SourceRange returns the source range of the underlying [Evalable].
+func (c *Closure) ValueSourceRange() *tfdiags.SourceRange {
+	ret := c.evalable.EvalableSourceRange()
+	return &ret
 }

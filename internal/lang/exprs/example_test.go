@@ -263,6 +263,11 @@ func (t *testInputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 	return v, diags
 }
 
+// ValueSourceRange implements exprs.Valuer.
+func (t *testInputVariable) ValueSourceRange() *tfdiags.SourceRange {
+	return &t.valRange
+}
+
 // testInputVariables is an intermediate [SymbolTable] implementation dealing
 // with symbols under "resource.", "data.", and "ephemeral.".
 type testResourcesOfMode struct {
@@ -376,6 +381,11 @@ func (t *testResource) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Dia
 // Value implements exprs.Valuer.
 func (t *testResource) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	return t.config.Value(ctx)
+}
+
+// ValueSourceRange implements exprs.Valuer.
+func (t *testResource) ValueSourceRange() *tfdiags.SourceRange {
+	return t.config.ValueSourceRange()
 }
 
 // exampleMustParseTfvars is a helper function just to make these contrived
