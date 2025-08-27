@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -8667,7 +8668,7 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 			end:      hcl.InitialPos,
 		},
 		"insufficient-features-blocks-no-feats": {
-			filename: "testdata/insufficient-features-blocks-no-feats/main.tf",
+			filename: filepath.FromSlash("testdata/insufficient-features-blocks-no-feats/main.tf"),
 			start:    hcl.Pos{Line: 9, Column: 17, Byte: 146},
 			end:      hcl.Pos{Line: 9, Column: 17, Byte: 146},
 		},
