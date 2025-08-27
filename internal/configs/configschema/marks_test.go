@@ -57,20 +57,29 @@ func TestBlockValueMarks(t *testing.T) {
 			},
 		},
 	}
+	ephemeralSchema := func(s *Block) *Block {
+		cp := *s
+		cp.Ephemeral = true
+		return &cp
+	}(schema)
 
 	testCases := map[string]struct {
+		schema *Block
 		given  cty.Value
 		expect cty.Value
 	}{
 		"unknown object": {
+			schema,
 			cty.UnknownVal(schema.ImpliedType()),
 			cty.UnknownVal(schema.ImpliedType()),
 		},
 		"null object": {
+			schema,
 			cty.NullVal(schema.ImpliedType()),
 			cty.NullVal(schema.ImpliedType()),
 		},
 		"object with unknown attributes and blocks": {
+			schema,
 			cty.ObjectVal(map[string]cty.Value{
 				"sensitive":   cty.UnknownVal(cty.String),
 				"unsensitive": cty.UnknownVal(cty.String),
@@ -91,6 +100,7 @@ func TestBlockValueMarks(t *testing.T) {
 			}),
 		},
 		"object with block value": {
+			schema,
 			cty.ObjectVal(map[string]cty.Value{
 				"sensitive":   cty.NullVal(cty.String),
 				"unsensitive": cty.UnknownVal(cty.String),
@@ -129,6 +139,7 @@ func TestBlockValueMarks(t *testing.T) {
 			}),
 		},
 		"object with known values and nested attribute": {
+			schema,
 			cty.ObjectVal(map[string]cty.Value{
 				"sensitive":   cty.StringVal("foo"),
 				"unsensitive": cty.StringVal("bar"),
@@ -174,11 +185,58 @@ func TestBlockValueMarks(t *testing.T) {
 				}))),
 			}),
 		},
+		"object with known values and nested attribute for an ephemeral schema": {
+			ephemeralSchema,
+			cty.ObjectVal(map[string]cty.Value{
+				"sensitive":   cty.StringVal("foo"),
+				"unsensitive": cty.StringVal("bar"),
+				"nested": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.StringVal("foo"),
+						"honk": cty.StringVal("bar"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.NullVal(cty.String),
+						"honk": cty.NullVal(cty.String),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.UnknownVal(cty.String),
+						"honk": cty.UnknownVal(cty.String),
+					}),
+				}),
+				"list": cty.NullVal(cty.List(cty.Object(map[string]cty.Type{
+					"sensitive":   cty.String,
+					"unsensitive": cty.String,
+				}))),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"sensitive":   cty.StringVal("foo").Mark(marks.Sensitive),
+				"unsensitive": cty.StringVal("bar"),
+				"nested": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.StringVal("foo"),
+						"honk": cty.StringVal("bar").Mark(marks.Sensitive),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.NullVal(cty.String),
+						"honk": cty.NullVal(cty.String).Mark(marks.Sensitive),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"boop": cty.UnknownVal(cty.String),
+						"honk": cty.UnknownVal(cty.String).Mark(marks.Sensitive),
+					}),
+				}),
+				"list": cty.NullVal(cty.List(cty.Object(map[string]cty.Type{
+					"sensitive":   cty.String,
+					"unsensitive": cty.String,
+				}))),
+			}).Mark(marks.Ephemeral),
+		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.given.MarkWithPaths(schema.ValueMarks(tc.given, nil))
+			got := tc.given.MarkWithPaths(tc.schema.ValueMarks(tc.given, nil))
 			if !got.RawEquals(tc.expect) {
 				t.Fatalf("\nexpected: %#v\ngot:      %#v\n", tc.expect, got)
 			}

@@ -212,6 +212,14 @@ func (s staticScopeData) GetTerraformAttr(_ context.Context, addr addrs.Terrafor
 	// TODO this is copied and trimmed down from tofu/evaluate.go GetTerraformAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
+	case "applying":
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid attribute in static context`,
+			Detail:   `The applying attribute can not be used during static evaluation and is only valid in the plan and apply phases of execution`,
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
 	case "workspace":
 		workspaceName := s.eval.call.workspace
 		return cty.StringVal(workspaceName), diags
@@ -362,6 +370,11 @@ func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVa
 		// Sensitive input variables must always be marked on the way in, so
 		// that their sensitivity can propagate to derived expressions.
 		val = val.Mark(marks.Sensitive)
+	}
+	if variable.Ephemeral {
+		// Ephemeral input variables must always be marked as such, so
+		// that their ephemerality can propagate to derived expressions.
+		val = val.Mark(marks.Ephemeral)
 	}
 
 	// TODO: We should check the variable validations here too, since module

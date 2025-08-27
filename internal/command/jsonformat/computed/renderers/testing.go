@@ -6,7 +6,8 @@
 package renderers
 
 import (
-	"sort"
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -38,6 +39,18 @@ func ValidatePrimitive(before, after interface{}, action plans.Action, replace b
 
 		if len(beforeDiff) > 0 || len(afterDiff) > 0 {
 			t.Errorf("before diff: (%s), after diff: (%s)", beforeDiff, afterDiff)
+		}
+	}
+}
+
+func ValidateWriteOnly(action plans.Action, replace bool) ValidateDiffFunction {
+	return func(t *testing.T, diff computed.Diff) {
+		validateDiff(t, diff, action, replace)
+
+		_, ok := diff.Renderer.(*writeOnlyRenderer)
+		if !ok {
+			t.Errorf("invalid renderer type: %T", diff.Renderer)
+			return
 		}
 	}
 }
@@ -103,24 +116,10 @@ func validateMapType(t *testing.T, actual map[string]computed.Diff, expected map
 }
 
 func validateKeys[C, V any](t *testing.T, actual map[string]C, expected map[string]V) {
-	if len(actual) != len(expected) {
-
-		var actualAttributes []string
-		var expectedAttributes []string
-
-		for key := range actual {
-			actualAttributes = append(actualAttributes, key)
-		}
-		for key := range expected {
-			expectedAttributes = append(expectedAttributes, key)
-		}
-
-		sort.Strings(actualAttributes)
-		sort.Strings(expectedAttributes)
-
-		if diff := cmp.Diff(actualAttributes, expectedAttributes); len(diff) > 0 {
-			t.Errorf("actual and expected attributes did not match: %s", diff)
-		}
+	gotKeys := slices.Sorted(maps.Keys(actual))
+	wantKeys := slices.Sorted(maps.Keys(expected))
+	if diff := cmp.Diff(wantKeys, gotKeys); len(diff) > 0 {
+		t.Errorf("keys not match: %s", diff)
 	}
 }
 

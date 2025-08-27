@@ -84,6 +84,11 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 					type      = string
 					sensitive = true
 				}
+
+				variable "ephemeral_string" {
+					type      = string
+					ephemeral = true
+				}
 			`,
 		})
 
@@ -165,6 +170,10 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 			"sensitive_string": {
 				cty.StringVal("ssshhhhh it's a secret"),
 				cty.StringVal("ssshhhhh it's a secret").Mark(marks.Sensitive),
+			},
+			"ephemeral_string": {
+				cty.StringVal("ssshhhhh it's a secret"),
+				cty.StringVal("ssshhhhh it's a secret").Mark(marks.Ephemeral),
 			},
 		}
 

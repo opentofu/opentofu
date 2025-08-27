@@ -123,8 +123,8 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 					t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[idx]))
 				}
 
-				if got, want := tfdiags.DiagnosticCausedBySensitive(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
-					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+				if got, want := tfdiags.DiagnosticCausedByConfidentialValues(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
+					t.Errorf("wrong result from tfdiags.DiagnosticCausedByConfidentialValues\ngot:  %#v\nwant: %#v", got, want)
 				}
 			}
 		})
@@ -304,8 +304,8 @@ func assertDiagnosticMatch(t *testing.T, phase string, gotDiag tfdiags.Diagnosti
 	if got, want := tfdiags.DiagnosticCausedByUnknown(gotDiag), wantDiag.CausedByUnknown; got != want {
 		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
-	if got, want := tfdiags.DiagnosticCausedBySensitive(gotDiag), wantDiag.CausedBySensitive; got != want {
-		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
+	if got, want := tfdiags.DiagnosticCausedByConfidentialValues(gotDiag), wantDiag.CausedBySensitive; got != want {
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedByConfidentialValues on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
 
 	if fromExpr := gotDiag.FromExpr(); fromExpr != nil {

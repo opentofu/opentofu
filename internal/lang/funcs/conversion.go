@@ -75,6 +75,11 @@ func MakeToFunc(wantTy cty.Type) function.Function {
 				// once we note that the value isn't either "true" or "false".
 				gotTy := val.Type()
 				switch {
+				case marks.Contains(args[0], marks.Ephemeral):
+					// Generic message so we won't inadvertently disclose
+					// information about ephemeral values.
+					return cty.NilVal, function.NewArgErrorf(0, "cannot convert this ephemeral %s to %s", gotTy.FriendlyName(), wantTy.FriendlyNameForConstraint())
+
 				case marks.Contains(args[0], marks.Sensitive):
 					// Generic message so we won't inadvertently disclose
 					// information about sensitive values.

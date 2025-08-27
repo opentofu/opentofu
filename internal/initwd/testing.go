@@ -71,3 +71,20 @@ func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Co
 	}
 	return config, loader
 }
+
+// MustLoadConfigWithSnapshot is similar with MustLoadConfigForTests, but additionally it returns also the
+// snapshot of the config that is needed to create an actual plan file for tests.
+func MustLoadConfigWithSnapshot(t testing.TB, rootDir, testsDir string) (*configs.Config, *configload.Loader, *configload.Snapshot) {
+	t.Helper()
+
+	_, loader, diags := LoadConfigForTests(t, rootDir, testsDir)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	call := configs.RootModuleCallForTesting()
+	cfg, snap, nDiags := loader.LoadConfigWithSnapshot(t.Context(), rootDir, call)
+	if nDiags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	return cfg, loader, snap
+}

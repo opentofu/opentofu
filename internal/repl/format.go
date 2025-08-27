@@ -14,6 +14,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// TODO ephemeral - check how ephemeral marks can be integrated in this function. Don't forget about unit tests
+
 // FormatValue formats a value in a way that resembles OpenTofu language syntax
 // and uses the type conversion functions where necessary to indicate exactly
 // what type it is given, so that equality test failures can be quickly
