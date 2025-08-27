@@ -1,0 +1,2 @@
+internal/*.tf text eol=lf
+internal/*.tofu text eol=lf
