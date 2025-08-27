@@ -23,19 +23,36 @@ import (
 // Some [Evaluable] implementations (or the symbols they refer to) can block
 // on potentially-time-consuming operations, in which case they should respond
 // gracefully to cancellation of the given context.
+//
+// It's valid to pass a nil Scope, representing that no symbols or functions
+// are available at all. Note that HCL's JSON syntax treats that situation
+// quite differently by taking JSON strings totally literally instead of
+// trying to interpret them as HCL templates, and so switching to or from
+// a nil scope is typically a breaking change for what's allowed in a
+// particular position.
 func Evaluate(ctx context.Context, what Evalable, scope Scope) (cty.Value, tfdiags.Diagnostics) {
 	hclCtx, diags := buildHCLEvalContext(ctx, what, scope)
 	if diags.HasErrors() {
-		return cty.DynamicVal, diags
+		return cty.DynamicVal.Mark(EvalError), diags
 	}
 	val, moreDiags := what.Evaluate(ctx, hclCtx)
 	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		val = val.Mark(EvalError)
+	}
 	return val, diags
 }
 
 func buildHCLEvalContext(ctx context.Context, what Evalable, scope Scope) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &hcl.EvalContext{}
+	if scope == nil {
+		// A nil scope represents that nothing at all is available, which HCL
+		// represents as an EvalContext with nothing defined inside it.
+		// Note that this causes significantly different behavior for HCL's
+		// JSON syntax.
+		return ret, diags
+	}
 
 	symbols, moreDiags := buildSymbolTable(ctx, what.References(), scope)
 	ret.Variables = symbols
@@ -145,8 +162,17 @@ func valuesForSymbolTableTempNodes(ctx context.Context, symbols map[string]*symb
 				continue
 			}
 
-			val, moreDiags := node.val.Value(ctx)
-			diags = diags.Append(moreDiags)
+			// When we take the value of the object being referred to we
+			// intentionally ignore any _indirect_ diagnostics that might
+			// cause because we only want to report diagnostics that are
+			// directly related to the expression we're currently
+			// evaluating. Whatever problems might exist in the definition
+			// of what we're referring to must be caught by visiting
+			// that thing and evaluating it directly. This is safe to do
+			// because the definition of Valuer requires that Value must
+			// always return some reasonable placeholder value to use even
+			// when an error occurs.
+			val, _ := node.val.Value(ctx)
 			ret[name] = val
 			continue
 		}

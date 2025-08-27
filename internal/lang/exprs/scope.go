@@ -6,6 +6,8 @@
 package exprs
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty/function"
@@ -28,4 +30,19 @@ type Scope interface {
 	// ResolveFunc looks up a function by name, either returning its
 	// implementation or error diagnostics if no such function exists.
 	ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics)
+}
+
+// ChildScopeBuilder is the signature for a function that can build a child
+// scope that wraps some given parent scope.
+//
+// A nil [ChildScopeBuilder] represents that no child scope is needed and the
+// parent should just be used directly. Use [ChildScopeBuilder.Build] instead
+// of directly calling the function to obtain that behavior automatically.
+type ChildScopeBuilder func(ctx context.Context, parent Scope) Scope
+
+func (b ChildScopeBuilder) Build(ctx context.Context, parent Scope) Scope {
+	if b == nil {
+		return parent
+	}
+	return b(ctx, parent)
 }
