@@ -85,24 +85,44 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClien
 	}
 }
 
-// isSubDirNonExistant checks if the error is due to a non-existent subdirectory
+// isSubDirNonExistent checks if the error is due to a non-existent subdirectory
 // within an otherwise valid module. This helps distinguish between a genuine
 // OpenTofu bug when failing to get the module and a user configuration error where they've specified a
 // submodule path that doesn't exist.
-func isSubDirNonExistant(modDir string) bool {
-	parent := filepath.Dir(modDir)
-	if parent == modDir || parent == "." || parent == "/" {
-		return false
+func isSubDirNonExistent(modDir string) (isNonExistent bool, missingDir string) {
+	modDir = filepath.Clean(modDir)
+
+	_, err := os.Stat(modDir)
+	// If the directory exists, this isn't a missing subdir case
+	if err == nil {
+		return false, ""
+	}
+	// If it's not a "does not exist" error, return false (unexpected error)
+	if !os.IsNotExist(err) {
+		return false, ""
 	}
 
-	// Check if parent directory exists but the subdir doesn't
-	if _, err := os.Stat(parent); err == nil {
-		if _, err := os.Stat(modDir); os.IsNotExist(err) {
-			return true
+	var missingParts []string
+	current := modDir
+
+	for {
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false, "" // reached root without finding it
 		}
-	}
 
-	return false
+		missingParts = append([]string{filepath.Base(current)}, missingParts...)
+
+		info, err := os.Stat(parent)
+		if err == nil && info.IsDir() { // return the missing parts!
+			if len(missingParts) > 0 {
+				return true, missingParts[0]
+			}
+			return true, filepath.Base(current)
+		}
+
+		current = parent
+	}
 }
 
 // InstallModules analyses the root module in the given directory and installs
@@ -816,15 +836,17 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// Finally we are ready to try actually loading the module.
 	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
+
+		isMissingSubDir, missingDir := isSubDirNonExistent(modDir)
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
 		// error message here.
-		if subDir != "" && isSubDirNonExistant(modDir) {
+		if subDir != "" && isMissingSubDir {
 			// This may be a user error, or a submodule may have been removed between unpinned versions of the module (ie a module update)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Module subdirectory not found",
-				Detail:   fmt.Sprintf("The subdirectory %q does not exist in module %q. Please verify that the subdirectory path is correct.", subDir, instPath),
+				Detail:   fmt.Sprintf("Cannot find directory %q in module %q. The requested subdirectory was %q.", missingDir, instPath, subDir),
 				Subject:  req.CallRange.Ptr(),
 			})
 		} else {
@@ -941,12 +963,13 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
 		// error message here.
-		if addr.Subdir != "" && isSubDirNonExistant(modDir) {
+		isNonExistent, missingDir := isSubDirNonExistent(modDir)
+		if addr.Subdir != "" && isNonExistent {
 			// This is a user configuration error - they referenced a submodule that doesn't exist
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Module subdirectory not found",
-				Detail:   fmt.Sprintf("The subdirectory %q does not exist in the downloaded module. Verify that the subdirectory path is correct.", addr.Subdir),
+				Detail:   fmt.Sprintf("Cannot find directory %q in the module path %q. The requested subdirectory was %q.", missingDir, instPath, addr.Subdir),
 				Subject:  req.CallRange.Ptr(),
 			})
 		} else {

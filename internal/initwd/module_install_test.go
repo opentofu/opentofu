@@ -167,7 +167,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
-		err = os.WriteFile(rootFilename, final, 0644)
+		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -207,7 +207,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
-		err = os.WriteFile(rootFilename, final, 0644)
+		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -619,7 +619,6 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		gotTraces[path] = varDesc
 	})
 	assertResultDeepEqual(t, gotTraces, wantTraces)
-
 }
 
 func TestLoaderInstallModules_goGetter(t *testing.T) {
@@ -747,7 +746,6 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 		gotTraces[path] = varDesc
 	})
 	assertResultDeepEqual(t, gotTraces, wantTraces)
-
 }
 
 func TestModuleInstaller_fromTests(t *testing.T) {
@@ -895,6 +893,81 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	if config.Module.Tests["main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
 		t.Fatalf("should have loaded config into the relevant run block but did not")
+	}
+}
+
+func TestIsSubDirNonExistent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test directory structure
+	existingDir := filepath.Join(tmpDir, "existing")
+	nestedExistingDir := filepath.Join(existingDir, "nested", "deep")
+	err := os.MkdirAll(nestedExistingDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name           string
+		path           string
+		wantExists     bool
+		wantMissingDir string
+	}{
+		{
+			name:           "directory exists",
+			path:           existingDir,
+			wantExists:     false,
+			wantMissingDir: "",
+		},
+		{
+			name:           "nested directory exists",
+			path:           nestedExistingDir,
+			wantExists:     false,
+			wantMissingDir: "",
+		},
+		{
+			name:           "single missing directory with existing parent",
+			path:           filepath.Join(existingDir, "missing"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "nested missing directory",
+			path:           filepath.Join(existingDir, "missing", "nested"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "deeply nested missing with existing parent",
+			path:           filepath.Join(nestedExistingDir, "missing"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "multiple missing levels",
+			path:           filepath.Join(existingDir, "missing", "also", "missingtoo"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "completely non-existent path",
+			path:           filepath.Join(tmpDir, "completely", "missing", "path"),
+			wantExists:     true,
+			wantMissingDir: "completely",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotExists, gotMissingDir := isSubDirNonExistent(tt.path)
+
+			if gotExists != tt.wantExists {
+				t.Errorf("isSubDirNonExistent() exists = %v, want %v", gotExists, tt.wantExists)
+			}
+			if gotMissingDir != tt.wantMissingDir {
+				t.Errorf("isSubDirNonExistent() missingDir = %q, want %q", gotMissingDir, tt.wantMissingDir)
+			}
+		})
 	}
 }
 
