@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -2133,6 +2134,14 @@ func testMetaBackend(t *testing.T, args []string) *Meta {
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true
+
+	t.Cleanup(func() {
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 
 	return &m
 }
