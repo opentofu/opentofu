@@ -346,7 +346,7 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	// Once we have all instances expanded, we are able to do a complete validation for import targets
 	// This part validates imports of both types (import blocks and CLI imports)
 	allInstances := walker.InstanceExpander.AllInstances()
-	importValidateDiags := c.postPlanValidateImports(walker.ImportResolver, allInstances)
+	importValidateDiags := c.postExpansionImportValidation(walker.ImportResolver, allInstances)
 	if importValidateDiags.HasErrors() {
 		return nil, importValidateDiags
 	}
