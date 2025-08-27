@@ -50,6 +50,13 @@ type Evalable interface {
 	// may internally block on the completion of a potentially-time-consuming
 	// operation, in which case they should respond gracefully to the
 	// cancellation or deadline of the given context.
+	//
+	// If Evaluate returns diagnostics then it must also return a suitable
+	// placeholder value that could be use for downstream expression evaluation
+	// despite the error. Returning [cty.DynamicVal] is acceptable if all else
+	// fails, but returning an unknown value with a more specific type
+	// constraint can give more opportunities to proactively detect downstream
+	// errors in a single evaluation pass.
 	Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics)
 
 	// ResultTypeConstraint returns a type constrant that all possible results
@@ -63,6 +70,10 @@ type Evalable interface {
 	// knew the types of everything that'd be passed in hclCtx when calling
 	// Evaluate. Is there some way we can approximate that?
 	ResultTypeConstraint() cty.Type
+
+	// EvalableSourceRange returns a description of a source location that this
+	// Evalable was derived from.
+	EvalableSourceRange() tfdiags.SourceRange
 }
 
 func StaticCheckTraversal(traversal hcl.Traversal, evalable Evalable) tfdiags.Diagnostics {
@@ -97,6 +108,9 @@ func (h hclExpression) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (c
 	var diags tfdiags.Diagnostics
 	v, hclDiags := h.expr.Value(hclCtx)
 	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		v = cty.UnknownVal(h.ResultTypeConstraint()).WithSameMarks(v)
+	}
 	return v, diags
 }
 
@@ -125,6 +139,11 @@ func (h hclExpression) ResultTypeConstraint() cty.Type {
 	return v.Type()
 }
 
+// SourceRange implements Evalable.
+func (h hclExpression) EvalableSourceRange() tfdiags.SourceRange {
+	return tfdiags.SourceRangeFromHCL(h.expr.Range())
+}
+
 // hclBody implements [Evalable] for a [hcl.Body] and associated [hcldec.Spec].
 type hclBody struct {
 	body hcl.Body
@@ -142,6 +161,9 @@ func (h *hclBody) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Va
 	var diags tfdiags.Diagnostics
 	v, hclDiags := hcldec.Decode(h.body, h.spec, hclCtx)
 	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		v = cty.UnknownVal(h.ResultTypeConstraint()).WithSameMarks(v)
+	}
 	return v, diags
 }
 
@@ -160,4 +182,13 @@ func (h *hclBody) References() iter.Seq[hcl.Traversal] {
 // ResultTypeConstraint implements Evalable.
 func (h *hclBody) ResultTypeConstraint() cty.Type {
 	return hcldec.ImpliedType(h.spec)
+}
+
+// SourceRange implements Evalable.
+func (h *hclBody) EvalableSourceRange() tfdiags.SourceRange {
+	// The "missing item range" is not necessarily a good range to use here,
+	// but is the best we can do. At least in HCL native syntax this tends
+	// to be in the header of the block that contained the body and so
+	// is _close_ to the body being described.
+	return tfdiags.SourceRangeFromHCL(h.body.MissingItemRange())
 }
