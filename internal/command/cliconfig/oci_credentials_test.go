@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -20,6 +21,15 @@ import (
 )
 
 func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
+	// Due to path handling differences between Windows and Unix-like
+	// systems, `/foo/bar` is an absolute path on Unix but is converted
+	// to `\foo\bar`, a relative path on Windows. `filepath.Abs` is used to
+	// convert the path to an absolute path on Windows.
+	authJsonPath := "/foo/bar/auth.json"
+	if runtime.GOOS == "windows" {
+		authJsonPath, _ = filepath.Abs(filepath.FromSlash("testdata/foo/bar/auth.json"))
+	}
+
 	// The keys in this map correspond to fixture names under
 	// the "testdata" directory.
 	tests := map[string]struct {
@@ -30,7 +40,7 @@ func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
 			&OCIDefaultCredentials{
 				DiscoverAmbientCredentials: true,
 				DockerStyleConfigFiles: []string{
-					"/foo/bar/auth.json",
+					authJsonPath,
 				},
 				DefaultDockerCredentialHelper: "osxkeychain",
 			},
@@ -40,7 +50,7 @@ func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
 			&OCIDefaultCredentials{
 				DiscoverAmbientCredentials: true,
 				DockerStyleConfigFiles: []string{
-					"/foo/bar/auth.json",
+					authJsonPath,
 				},
 				DefaultDockerCredentialHelper: "osxkeychain",
 			},
@@ -374,7 +384,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 				`explicit oci_credentials "example.com" block`,
 				`explicit oci_credentials "example.com/foo" block`,
 				`oci_default_credentials block`,
-				`home/.config/containers/auth.json`,
+				filepath.FromSlash(`home/.config/containers/auth.json`),
 			},
 			subtests: map[string]Subtest{
 				"example.org": {
