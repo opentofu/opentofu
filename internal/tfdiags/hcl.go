@@ -6,6 +6,8 @@
 package tfdiags
 
 import (
+	"path/filepath"
+
 	"github.com/hashicorp/hcl/v2"
 )
 
@@ -63,7 +65,7 @@ func (d hclDiagnostic) ExtraInfo() interface{} {
 // type within the HCL package.
 func SourceRangeFromHCL(hclRange hcl.Range) SourceRange {
 	return SourceRange{
-		Filename: hclRange.Filename,
+		Filename: filepath.FromSlash(hclRange.Filename),
 		Start: SourcePos{
 			Line:   hclRange.Start.Line,
 			Column: hclRange.Start.Column,
