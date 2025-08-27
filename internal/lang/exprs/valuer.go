@@ -33,6 +33,13 @@ type Valuer interface {
 	// may internally block on the completion of a potentially-time-consuming
 	// operation, in which case they should respond gracefully to the
 	// cancellation or deadline of the given context.
+	//
+	// If Value returns diagnostics then it must also return a suitable
+	// placeholder value that could be use for downstream expression evaluation
+	// despite the error. Returning [cty.DynamicVal] is acceptable if all else
+	// fails, but returning an unknown value with a more specific type
+	// constraint can give more opportunities to proactively detect downstream
+	// errors in a single evaluation pass.
 	Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 
 	// StaticCheckTraversal checks whether the given relative traversal would
@@ -50,4 +57,82 @@ type Valuer interface {
 	// This function should only return errors that should not be interceptable
 	// by the "try" or "can" functions in the OpenTofu language.
 	StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics
+
+	// ValueSourceRange returns an optional source range where this value (or an
+	// expression that produced it) was declared in configuration.
+	//
+	// Returns nil for a valuer that does not come from configuration.
+	ValueSourceRange() *tfdiags.SourceRange
+}
+
+// ConstantValuer returns a [Valuer] that always succeeds and returns exactly
+// the value given.
+func ConstantValuer(v cty.Value) Valuer {
+	return constantValuer{v, nil}
+}
+
+// ConstantValuerWithSourceRange is like [ConstantValuer] except that the
+// result will also claim to have originated in the configuration at whatever
+// source range is given.
+func ConstantValuerWithSourceRange(v cty.Value, rng tfdiags.SourceRange) Valuer {
+	return constantValuer{v, &rng}
+}
+
+// ForcedErrorValuer returns a [Valuer] that always fails with [cty.DynamicVal]
+// as its placeholder result and with the given diagnostics, which must include
+// at least one error or this function will panic.
+//
+// This is primarily intended for unit testing purposes for creating
+// placeholders for upstream objects that have failed, but might also be useful
+// sometimes for handling unusual situations in "real" code.
+func ForcedErrorValuer(diags tfdiags.Diagnostics) Valuer {
+	if !diags.HasErrors() {
+		panic("ForcedErrorHandler without any error diagnostics")
+	}
+	return forcedErrorValuer{diags}
+}
+
+type constantValuer struct {
+	v           cty.Value
+	sourceRange *tfdiags.SourceRange
+}
+
+// StaticCheckTraversal implements Valuer.
+func (c constantValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	_, hclDiags := traversal.TraverseRel(c.v)
+	diags = diags.Append(hclDiags)
+	return diags
+}
+
+// Value implements Valuer.
+func (c constantValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return c.v, nil
+}
+
+// ValueSourceRange implements Valuer.
+func (c constantValuer) ValueSourceRange() *tfdiags.SourceRange {
+	return c.sourceRange
+}
+
+type forcedErrorValuer struct {
+	diags tfdiags.Diagnostics
+}
+
+// StaticCheckTraversal implements Valuer.
+func (f forcedErrorValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+	// This never actually produces a successful result, so there's nothing
+	// to check against and we'll just wait until Value is called to return
+	// our predefined diagnostics.
+	return nil
+}
+
+// Value implements Valuer.
+func (f forcedErrorValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return cty.DynamicVal, f.diags
+}
+
+// ValueSourceRange implements Valuer.
+func (f forcedErrorValuer) ValueSourceRange() *tfdiags.SourceRange {
+	return nil
 }
