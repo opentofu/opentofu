@@ -58,7 +58,8 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	plan := &plans.Plan{
-		VariableValues: map[string]plans.DynamicValue{},
+		VariableValues:     map[string]plans.DynamicValue{},
+		EphemeralVariables: map[string]bool{},
 		Changes: &plans.Changes{
 			Outputs:   []*plans.OutputChangeSrc{},
 			Resources: []*plans.ResourceInstanceChangeSrc{},
@@ -240,11 +241,19 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	for name, rawVal := range rawPlan.Variables {
+		// Since at the moment of introducing this, a variable's value could not be nil,
+		// starting with this, a variable found with a null value in the plan is handled as an ephemeral one.
+		if valueIsEmpty(rawVal) {
+			plan.VariableValues[name] = nil
+			plan.EphemeralVariables[name] = true
+			continue
+		}
 		val, err := valueFromTfplan(rawVal)
 		if err != nil {
 			return nil, fmt.Errorf("invalid value for input variable %q: %w", name, err)
 		}
 		plan.VariableValues[name] = val
+		plan.EphemeralVariables[name] = false
 	}
 
 	if rawBackend := rawPlan.Backend; rawBackend == nil {
@@ -470,11 +479,14 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 }
 
 func valueFromTfplan(rawV *planproto.DynamicValue) (plans.DynamicValue, error) {
-	if len(rawV.Msgpack) == 0 { // len(0) because that's the default value for a "bytes" in protobuf
+	if valueIsEmpty(rawV) {
 		return nil, fmt.Errorf("dynamic value does not have msgpack serialization")
 	}
-
 	return plans.DynamicValue(rawV.Msgpack), nil
+}
+
+func valueIsEmpty(rawV *planproto.DynamicValue) bool {
+	return rawV == nil || len(rawV.Msgpack) == 0 // len(0) because that's the default value for a "bytes" in protobuf
 }
 
 // writeTfplan serializes the given plan into the protobuf-based format used
@@ -630,6 +642,9 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 
 	for name, val := range plan.VariableValues {
 		if is, ok := plan.EphemeralVariables[name]; ok && is {
+			// We want to store only the names of the ephemeral variables to be able to recover these later.
+			// Even though we save the variable, it's mandatory not to save its value.
+			rawPlan.Variables[name] = valueToTfplan(nil)
 			continue
 		}
 		rawPlan.Variables[name] = valueToTfplan(val)

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -281,12 +282,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	// When the configuration contains ephemeral variables in the root module, we need
 	// to populate the values of those inside the plan with the values given in the
 	// current run.
-	epv, epvDiags := generateEphemeralPlanValues(op.Variables, config.Module.Variables)
-	diags = diags.Append(epvDiags)
-	if diags.HasErrors() {
-		return nil, snap, diags
-	}
-	diags = diags.Append(plan.StoreEphemeralVariablesValues(epv))
+	diags = diags.Append(loadEmptyPlanVariables(plan, op.Variables, config.Module.Variables))
 	if diags.HasErrors() {
 		return nil, snap, diags
 	}
@@ -416,50 +412,48 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	return run, snap, diags
 }
 
-// generateEphemeralPlanValues converts the user given variables into a format processable
-// by plans.Plan#StoreEphemeralVariablesValues.
-// This is needed because the ephemeral variables' values are not stored in the plan when saving it
+// loadEmptyPlanVariables tries to load the empty plan variables from the user input back into the plan.
+// This is needed because the ephemeral variables have only their name stored in the plan when saving it
 // after a `tofu plan -out <planfile>` run.
-// Therefore, for the ephemeral values that are required to be passed during plan creation,
-// we need to process those variables during apply too.
-func generateEphemeralPlanValues(vv map[string]backend.UnparsedVariableValue, vcfgs map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	parsedVars, varsParsingDiags := backend.ParseDeclaredVariableValues(vv, vcfgs)
+func loadEmptyPlanVariables(plan *plans.Plan, uvv map[string]backend.UnparsedVariableValue, vcfgs map[string]*configs.Variable) (diags tfdiags.Diagnostics) {
+	parsedVars, varsParsingDiags := backend.ParseDeclaredVariableValues(uvv, vcfgs)
 	diags = diags.Append(varsParsingDiags)
 	if diags.HasErrors() {
-		return nil, diags
+		return diags
 	}
-	ephemeralVars, ephemeralDiags := ephemeralValuesForPlanFromVariables(parsedVars, vcfgs)
-	diags = diags.Append(ephemeralDiags)
-	return ephemeralVars, diags
-}
-
-// ephemeralValuesForPlanFromVariables is creating a map ready to be given to the plan to merge these together
-// with the variables that are already in the plan.
-// This function is handling only the ephemeral variables since those are the only ones that are not
-// stored in the plan, so the only way to pass then into the apply phase is to provide them again
-// in the -var/-var-file.
-func ephemeralValuesForPlanFromVariables(parsedVars tofu.InputValues, variables map[string]*configs.Variable) (map[string]cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	out := make(map[string]cty.Value)
-	for vn, vc := range variables {
-		if !vc.Ephemeral {
-			log.Printf("[TRACE] variable %q is not ephemeral so not processing it to store in the plan", vn)
+	for name, val := range plan.VariableValues {
+		if len(val) != 0 {
+			// Load only the values that are empty in the plan.
+			// At the time of writing this, empty variables in the plan can be only ephemeral variables.
 			continue
 		}
-		vv, ok := parsedVars[vn]
+		vi, ok := parsedVars[name]
 		if !ok {
+			var subj *hcl.Range
+			if vc, ok := vcfgs[name]; ok && vc != nil {
+				subj = vc.DeclRange.Ptr()
+			}
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "No value for required variable",
-				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", vc.Name),
-				Subject:  vc.DeclRange.Ptr(),
+				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", name),
+				Subject:  subj,
 			})
 			continue
 		}
-		out[vn] = vv.Value
+		vdv, err := plans.NewDynamicValue(vi.Value, cty.DynamicPseudoType)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to prepare variable value for plan",
+				Detail:   fmt.Sprintf("The value for ephemeral variable %q could not be serialized to restore in the plan: %s.", name, err),
+			})
+			continue
+		}
+		plan.VariableValues[name] = vdv
 	}
-	return out, diags
+
+	return diags
 }
 
 // interactiveCollectVariables attempts to complete the given existing

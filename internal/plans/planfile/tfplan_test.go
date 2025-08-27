@@ -32,9 +32,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 			"bar": mustNewDynamicValueStr("bar value"),
 			"baz": mustNewDynamicValueStr("baz value"),
 		},
-		// foo omitted on purpose to ensure that ephemeral values filtering works well and does not break
-		// existing functionality
-		EphemeralVariables: map[string]bool{"bar": false, "baz": true},
+		EphemeralVariables: map[string]bool{"bar": false, "baz": true, "foo": false},
 		Changes: &plans.Changes{
 			Outputs: []*plans.OutputChangeSrc{
 				{
@@ -336,10 +334,8 @@ func TestTFPlanRoundTrip(t *testing.T) {
 		})
 		plan.Changes.Resources[i].After = nil
 		plan.Changes.Resources[i].Before = nil
-		// remove the variables that are meant to be skipped from writing into the plan so we expect the
-		// read plan to not contain those
-		delete(plan.VariableValues, "baz")
-		plan.EphemeralVariables = nil
+		// nullify the variables that are meant to be written only with the name but without a value
+		plan.VariableValues["baz"] = nil
 	}
 
 	newPlan, err := readTfplan(&buf)

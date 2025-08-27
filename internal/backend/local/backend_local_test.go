@@ -262,7 +262,8 @@ func TestLocalRun_ephemeralVariablesLoadedCorrectlyIntoThePlan(t *testing.T) {
 			PrevRunState: states.NewState(),
 			PriorState:   states.NewState(),
 			VariableValues: map[string]plans.DynamicValue{
-				"regular_var": encodeDynamicValueWithType(t, cty.StringVal("regular_var value"), cty.DynamicPseudoType),
+				"regular_var":   encodeDynamicValueWithType(t, cty.StringVal("regular_var value"), cty.DynamicPseudoType),
+				"ephemeral_var": encodeDynamicValueWithType(t, cty.StringVal("ephemeral_var value"), cty.DynamicPseudoType),
 			},
 			EphemeralVariables: map[string]bool{"regular_var": false, "ephemeral_var": true},
 		}
@@ -385,7 +386,7 @@ func TestLocalRun_ephemeralVariablesLoadedCorrectlyIntoThePlan(t *testing.T) {
 
 			_, _, diags := b.LocalRun(context.Background(), op)
 			if got, want := len(diags), len(tt.expectedDiags); got != want {
-				t.Fatalf("expected to have %d diags but got %d", want, got)
+				t.Fatalf("expected to have %d diags but got %d: %s", want, got, diags)
 			}
 			for i, gotDiag := range diags {
 				wantDiag := tt.expectedDiags[i]
