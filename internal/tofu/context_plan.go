@@ -653,7 +653,7 @@ func (c *Context) postPlanValidateMoves(config *configs.Config, stmts []refactor
 // All import target addresses with a key must already exist in config.
 // When we are able to generate config for expanded resources, this rule can be
 // relaxed.
-func (c *Context) postPlanValidateImports(importResolver *ImportResolver, allInst instances.Set) tfdiags.Diagnostics {
+func (c *Context) postExpansionImportValidation(importResolver *ImportResolver, allInst instances.Set) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range importResolver.GetAllImports() {
 		if !allInst.HasResourceInstance(importTarget.Addr) {
@@ -804,7 +804,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 
 	allInsts := walker.InstanceExpander.AllInstances()
 
-	importValidateDiags := c.postPlanValidateImports(walker.ImportResolver, allInsts)
+	importValidateDiags := c.postExpansionImportValidation(walker.ImportResolver, allInsts)
 	if importValidateDiags.HasErrors() {
 		return nil, importValidateDiags
 	}
