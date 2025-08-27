@@ -896,7 +896,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	}
 }
 
-func TestIsSubDirNonExistant(t *testing.T) {
+func TestIsSubDirNonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test directory structure
@@ -962,10 +962,10 @@ func TestIsSubDirNonExistant(t *testing.T) {
 			gotExists, gotMissingDir := isSubDirNonExistent(tt.path)
 
 			if gotExists != tt.wantExists {
-				t.Errorf("isSubDirNonExistant() exists = %v, want %v", gotExists, tt.wantExists)
+				t.Errorf("isSubDirNonExistent() exists = %v, want %v", gotExists, tt.wantExists)
 			}
 			if gotMissingDir != tt.wantMissingDir {
-				t.Errorf("isSubDirNonExistant() missingDir = %q, want %q", gotMissingDir, tt.wantMissingDir)
+				t.Errorf("isSubDirNonExistent() missingDir = %q, want %q", gotMissingDir, tt.wantMissingDir)
 			}
 		})
 	}
