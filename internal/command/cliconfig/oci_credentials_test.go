@@ -383,7 +383,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 				`explicit oci_credentials "example.com" block`,
 				`explicit oci_credentials "example.com/foo" block`,
 				`oci_default_credentials block`,
-				`home/.config/containers/auth.json`,
+				filepath.FromSlash(`home/.config/containers/auth.json`),
 			},
 			subtests: map[string]Subtest{
 				"example.org": {
