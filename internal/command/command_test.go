@@ -835,7 +835,12 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	source := filepath.Join(sourceDir, "statelocker.go")
 	lockBin := filepath.Join(buildDir, "statelocker")
 
+	if runtime.GOOS == "windows" {
+		lockBin = lockBin + ".exe"
+	}
+
 	cmd := exec.Command("go", "build", "-o", lockBin, source)
+
 	cmd.Dir = filepath.Dir(sourceDir)
 
 	out, err := cmd.CombinedOutput()
@@ -857,14 +862,24 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		return nil, err
 	}
 	deferFunc := func() {
-		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
-			t.Fatal(err)
+		if runtime.GOOS != "windows" {
+			if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
+				t.Fatal(err)
+			}
 		}
 		// Assume the sigterm above succeeds. The error here may represent
 		// the signal sent above, but is difficult to check in a platform
 		// agostic way
 		_ = locker.Wait()
 	}
+
+	defer func() {
+		if runtime.GOOS == "windows" {
+			// Trigger garbage collection to ensure that all open file handles are closed.
+			// This prevents TempDir RemoveAll cleanup errors on Windows.
+			runtime.GC()
+		}
+	}()
 
 	// wait for the process to lock
 	buf := make([]byte, 1024)
