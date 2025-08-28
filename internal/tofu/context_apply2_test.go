@@ -19,6 +19,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"golang.org/x/exp/slices"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -80,7 +81,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -167,7 +168,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -254,7 +255,7 @@ output "data" {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -277,7 +278,7 @@ output "data" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -339,7 +340,7 @@ resource "test_instance" "a" {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -451,7 +452,7 @@ resource "aws_instance" "bin" {
 		t.Fatalf("baz should depend on bam after refresh, but got %s", baz.Current.Dependencies)
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -535,7 +536,7 @@ resource "test_resource" "b" {
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -576,7 +577,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -639,7 +640,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// FINAL PLAN:
@@ -697,7 +698,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -753,7 +754,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -767,7 +768,7 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("plan: %s", diags.Err())
 	}
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -830,7 +831,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// destroy only a single instance not included in the moved statements
@@ -880,7 +881,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// destroy excluding the module in the moved statements
@@ -945,7 +946,7 @@ resource "test_object" "b" {
 	testObjA := plan.PriorState.Modules[""].Resources["test_object.a"].Instances[addrs.NoKey].Current
 	testObjA.Dependencies = append(testObjA.Dependencies, mustResourceInstanceAddr("test_object.b").ContainingResource().Config())
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if !diags.HasErrors() {
 		t.Fatal("expected cycle error from apply")
 	}
@@ -1031,7 +1032,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoErrors(t, diags)
 
 		wantResourceAttrs := map[string]struct{ value, output string }{
@@ -1087,7 +1088,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
@@ -1192,7 +1193,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 			}
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -1345,7 +1346,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'create' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoErrors(t, diags)
 
 		stateA := state.ResourceInstance(instA)
@@ -1382,7 +1383,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'no-op' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if !diags.HasErrors() {
 			t.Fatal("final apply succeeded, but should've failed with a postcondition error")
 		}
@@ -1520,7 +1521,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// Resource changes which have dependencies across providers which
@@ -1646,7 +1647,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -1692,7 +1693,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1774,7 +1775,7 @@ output "data" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// and destroy
@@ -1782,7 +1783,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// and destroy again with no state
@@ -1794,7 +1795,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1849,7 +1850,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1906,7 +1907,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	resCheck := state.CheckResults.GetObjectResult(mustResourceInstanceAddr("test_object.x"))
@@ -1994,7 +1995,7 @@ resource "test_object" "y" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2042,7 +2043,7 @@ output "a" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2089,7 +2090,7 @@ output "null_module_test" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// now destroy
@@ -2097,7 +2098,7 @@ output "null_module_test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2164,7 +2165,7 @@ output "resources" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2252,7 +2253,7 @@ resource "test_resource" "b" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2295,7 +2296,7 @@ resource "unused_resource" "test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2355,7 +2356,7 @@ import {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	if !hook.PreApplyImportCalled {
@@ -2398,7 +2399,7 @@ locals {
 		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("expected no errors, but got %s", diags)
 	}
@@ -2441,7 +2442,7 @@ locals {
 		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("expected no errors, but got %s", diags)
 	}
@@ -2500,7 +2501,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2569,7 +2570,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2755,7 +2756,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			assertResourceInstanceProviderInstance(
@@ -2823,7 +2824,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, makeStep2PlanOpts(plans.NormalMode))
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			// Because makeStep2PlanOpts told us to retain at least one
@@ -2896,7 +2897,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			// The whole resource state for mock.first should've been removed now.
@@ -2973,7 +2974,7 @@ func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3013,7 +3014,7 @@ func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3046,7 +3047,7 @@ func TestContext2Apply_moduleExclude(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3082,7 +3083,7 @@ func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3113,7 +3114,7 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3160,7 +3161,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3194,7 +3195,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3249,7 +3250,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3283,7 +3284,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3327,7 +3328,7 @@ func TestContext2Apply_excluded(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3367,7 +3368,7 @@ func TestContext2Apply_excludedCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3409,7 +3410,7 @@ func TestContext2Apply_excludedCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3459,7 +3460,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3482,7 +3483,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3523,7 +3524,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3544,7 +3545,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3634,7 +3635,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3712,7 +3713,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3796,7 +3797,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3881,7 +3882,7 @@ func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3915,7 +3916,7 @@ func TestContext2Apply_excludedModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3964,7 +3965,7 @@ func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3997,7 +3998,7 @@ func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4035,7 +4036,7 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4068,7 +4069,7 @@ func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4116,7 +4117,7 @@ func TestContext2Apply_excludedModuleResource(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4176,7 +4177,7 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4227,7 +4228,7 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4297,7 +4298,7 @@ func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4336,7 +4337,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4453,7 +4454,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4468,7 +4469,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`test_instance.a["primary"]`)
@@ -4682,7 +4683,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4697,7 +4698,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`module.mod["primary"].test_instance.a`)
@@ -4914,7 +4915,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, valid)
+		state, diags := ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4927,7 +4928,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, valid)
+		_, diags = ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -5002,7 +5003,7 @@ variable "res_data" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -5018,7 +5019,7 @@ variable "res_data" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		return diags
 	}
 
@@ -5375,7 +5376,7 @@ module "call" {
 		},
 	))
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
 }
 
@@ -5422,7 +5423,7 @@ check "http_check" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -5437,7 +5438,7 @@ check "http_check" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		return diags
 	}
 
@@ -5509,7 +5510,7 @@ check "http_check" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -5524,7 +5525,7 @@ check "http_check" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		return diags
 	}
 
@@ -5590,7 +5591,7 @@ check "http_check" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -5605,7 +5606,7 @@ check "http_check" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		return diags
 	}
 
@@ -5664,7 +5665,7 @@ ephemeral "test_ephemeral_resource" "a" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	newState, diags := apply(t, m, states.NewState())
@@ -5708,5 +5709,171 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 	if diff := cmp.Diff(wantCalls, h.Calls); diff != "" {
 		t.Fatalf("unexpected hook calls:\n%s", diff)
+	}
+}
+
+// TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly checks that
+// the variable values given in ApplyArgs are getting merged correctly with
+// the plan ones.
+func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+variable "regular_required" {
+  type = string
+}
+
+variable "ephemeral_required" {
+  type = string
+  ephemeral = true
+}
+
+variable "regular_optional" {
+  type = string
+  default = null
+}
+
+variable "ephemeral_optional" {
+  type = string
+  ephemeral = true
+  default = null
+}
+
+output "regular_required" {
+  value = var.regular_required
+}
+
+output "regular_optional" {
+  value = var.regular_optional
+}
+`,
+	})
+
+	cases := map[string]struct {
+		planSetVariables InputValues
+		applyOpts        *ApplyOpts
+		mutatePlan       func(plan *plans.Plan)
+
+		expectedErrorMessages []string
+		stateAssert           func(t *testing.T, state *states.State)
+	}{
+		"simulated loaded plan contains no ephemeral variables and apply opts do not provide any": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val")},
+				"ephemeral_optional": {},
+				"regular_required":   {Value: cty.StringVal("reg val")},
+				"regular_optional":   {},
+			},
+			applyOpts: nil,
+			mutatePlan: func(plan *plans.Plan) {
+				plan.VariableValues["ephemeral_required"] = nil
+			},
+			expectedErrorMessages: []string{"Missing variables values - Values missing for variables: ephemeral_required"},
+		},
+		"simulated loaded plan contains no ephemeral variables and apply opts contains it": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan},
+			},
+			applyOpts: &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
+			mutatePlan: func(plan *plans.Plan) {
+				plan.VariableValues["ephemeral_required"] = nil
+			},
+			expectedErrorMessages: nil,
+		},
+		"apply opts variables are not used when no definition of it in the plan": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+			},
+			applyOpts: &ApplyOpts{SetVariables: InputValues{
+				"ephemeral_optional": &InputValue{Value: cty.StringVal("eph from applyopts"), SourceType: ValueFromCLIArg},
+				"regular_optional":   &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
+			}},
+			expectedErrorMessages: nil,
+			stateAssert: func(t *testing.T, state *states.State) {
+				if state == nil {
+					t.Fatalf("invalid state. got nil but wanted an actual one")
+				}
+				rootMod := state.Modules[addrs.RootModule.String()]
+				// expect to have the value from the plan
+				rro := rootMod.OutputValues["regular_required"]
+				if rro == nil {
+					t.Errorf("expected 'regular_required' output to be in the state. Got none")
+				} else {
+					expectedVal := cty.StringVal("reg val")
+					eqV := rro.Value.Equals(expectedVal)
+					if eqV.False() {
+						t.Errorf("expected 'regular_required' output to have value %s but got %s", expectedVal, rro.Value)
+					}
+				}
+				// expect to have no value for this since this is what it was in the plan
+				roo := rootMod.OutputValues["regular_optional"]
+				if roo != nil {
+					t.Errorf("expected 'regular_optional' output to be missing from the state since it's value was null in the plan")
+				}
+			},
+		},
+		"apply opts variables are not used even when the required variable got a null value on plan": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+				"regular_required":   {Value: cty.NullVal(cty.String), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+			},
+			applyOpts: &ApplyOpts{SetVariables: InputValues{
+				"regular_required": &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
+			}},
+			expectedErrorMessages: nil,
+			stateAssert: func(t *testing.T, state *states.State) {
+				if state == nil {
+					t.Fatalf("invalid state. got nil but wanted an actual one")
+				}
+				rootMod := state.Modules[addrs.RootModule.String()]
+				// expect to have the value from the plan
+				rro := rootMod.OutputValues["regular_required"]
+				if rro != nil {
+					t.Errorf("expected 'regular_required' output to not be in the state but got %q", rro.Value)
+				}
+			},
+		},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := &testHook{}
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{h},
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+				Mode:         plans.NormalMode,
+				SetVariables: tt.planSetVariables,
+			})
+			if diags.HasErrors() {
+				t.Fatalf("unexepected diagnostics from plan: %s", diags)
+			}
+			if tt.mutatePlan != nil {
+				tt.mutatePlan(plan)
+			}
+
+			// We drop state since we are not interested in that
+			newState, diags := ctx.Apply(context.Background(), plan, m, tt.applyOpts)
+			var gotErrors []string
+			for _, diag := range diags {
+				gotErrors = append(gotErrors, fmt.Sprintf("%s - %s", diag.Description().Summary, diag.Description().Detail))
+			}
+			slices.Sort(gotErrors)
+			slices.Sort(tt.expectedErrorMessages)
+			if diff := cmp.Diff(tt.expectedErrorMessages, gotErrors); diff != "" {
+				t.Errorf("wrong errors received:\n%s", diff)
+			}
+			if tt.stateAssert != nil {
+				tt.stateAssert(t, newState)
+			}
+		})
 	}
 }

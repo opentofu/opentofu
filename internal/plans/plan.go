@@ -44,12 +44,12 @@ type Plan struct {
 	// checked carefully against existing destroy behaviors.
 	UIMode Mode
 
-	// EphemeralVariables is meant is used to determine what variables should
+	// EphemeralVariables is used to determine what variables should
 	// have their values stored into the plan and which shouldn't.
 	// Those marked as "true" should be written with a nil value.
 	// Later, when loading the plan from the file, this map will be populated
 	// with the same variable names found in the plan file.
-	// The variables with an empty value will be stored as ephemeral=true and
+	// The variables with a null value will be stored as ephemeral=true and
 	// any other with ephemeral=false.
 	EphemeralVariables map[string]bool
 

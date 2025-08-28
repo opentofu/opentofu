@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -279,20 +278,28 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	}
 	run.Config = config
 
-	// When the configuration contains ephemeral variables in the root module, we need
-	// to populate the values of those inside the plan with the values given in the
-	// current run.
-	diags = diags.Append(loadEmptyPlanVariables(plan, op.Variables, config.Module.Variables))
-	if diags.HasErrors() {
-		return nil, snap, diags
-	}
-
 	// Check that all provided variables are in the configuration
 	_, undeclaredDiags := backend.ParseUndeclaredVariableValues(op.Variables, config.Module.Variables)
 	diags = diags.Append(undeclaredDiags)
-	// Check that all variables provided match
+	declaredVars, declaredDiags := backend.ParseDeclaredVariableValues(op.Variables, config.Module.Variables)
+	diags = diags.Append(declaredDiags)
+	run.ApplyOpts = &tofu.ApplyOpts{SetVariables: declaredVars}
+	// Check that all variables are provided and do match the plan values
 	for varName, varCfg := range config.Module.Variables {
-		if _, ok := op.Variables[varName]; ok {
+		_, given := op.Variables[varName]
+		switch {
+		case !given && varCfg.Ephemeral && varCfg.Required():
+			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `No value for required variable`,
+				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", varName),
+				Subject:  varCfg.DeclRange.Ptr(),
+			})
+		case given && !varCfg.Ephemeral:
+			// We validate only non-ephemeral variables because at this point we only validate the plan variables,
+			// which include no values for the ephemeral ones.
+			
 			// Variable provided via cli/files/env/etc...
 			inputValue, inputDiags := op.RootCall.Variables()(varCfg)
 			// Variable provided via the plan
@@ -410,50 +417,6 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	}
 	run.Core = tfCtx
 	return run, snap, diags
-}
-
-// loadEmptyPlanVariables tries to load the empty plan variables from the user input back into the plan.
-// This is needed because the ephemeral variables have only their name stored in the plan when saving it
-// after a `tofu plan -out <planfile>` run.
-func loadEmptyPlanVariables(plan *plans.Plan, uvv map[string]backend.UnparsedVariableValue, vcfgs map[string]*configs.Variable) (diags tfdiags.Diagnostics) {
-	parsedVars, varsParsingDiags := backend.ParseDeclaredVariableValues(uvv, vcfgs)
-	diags = diags.Append(varsParsingDiags)
-	if diags.HasErrors() {
-		return diags
-	}
-	for name, val := range plan.VariableValues {
-		if len(val) != 0 {
-			// Load only the values that are empty in the plan.
-			// At the time of writing this, empty variables in the plan can be only ephemeral variables.
-			continue
-		}
-		vi, ok := parsedVars[name]
-		if !ok {
-			var subj *hcl.Range
-			if vc, ok := vcfgs[name]; ok && vc != nil {
-				subj = vc.DeclRange.Ptr()
-			}
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "No value for required variable",
-				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", name),
-				Subject:  subj,
-			})
-			continue
-		}
-		vdv, err := plans.NewDynamicValue(vi.Value, cty.DynamicPseudoType)
-		if err != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Failed to prepare variable value for plan",
-				Detail:   fmt.Sprintf("The value for ephemeral variable %q could not be serialized to restore in the plan: %s.", name, err),
-			})
-			continue
-		}
-		plan.VariableValues[name] = vdv
-	}
-
-	return diags
 }
 
 // interactiveCollectVariables attempts to complete the given existing
