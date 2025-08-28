@@ -57,7 +57,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 	// plugin executable in it is really just a text file placeholder so it
 	// cannot actually be executed after installation.
 	beepProvider := addrs.MustParseProviderSourceString("example.com/foo/beep")
-	beepProviderDir := getproviders.PackageLocalDir("testdata/beep-provider")
+	beepProviderDir := getproviders.PackageLocalDir(filepath.FromSlash("testdata/beep-provider"))
 	beepProviderHash := getproviders.HashScheme1.New("2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84=")
 
 	// We also derive a zip archive of the beep provider that we can use to test

@@ -29,7 +29,7 @@ func TestSearchLocalDirectory(t *testing.T) {
 						Version:        MustParseVersion("1.0.0"),
 						TargetPlatform: Platform{OS: "linux", Arch: "amd64"},
 						Filename:       "terraform-provider-bar_1.0.0_linux_amd64.zip",
-						Location:       PackageLocalDir("testdata/search-local-directory/symlinks/real/example.com/foo/bar/1.0.0/linux_amd64"),
+						Location:       PackageLocalDir(filepath.FromSlash("testdata/search-local-directory/symlinks/real/example.com/foo/bar/1.0.0/linux_amd64")),
 					},
 				},
 				// This search doesn't find example.net/foo/bar because only
