@@ -589,15 +589,15 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unlock()
-
 	// Attempt to migrate
 	args := []string{"-backend-config", "input.config", "-migrate-state", "-force-copy"}
 	if code := c.Run(args); code == 0 {
 		t.Fatalf("expected nonzero exit code: %s", ui.OutputWriter.String())
 	}
 
-	// Disabling locking should work
+	// Unlock before trying to migrate again
+	unlock()
+
 	args = []string{"-backend-config", "input.config", "-migrate-state", "-force-copy", "-lock=false"}
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("expected zero exit code, got %d: %s", code, ui.ErrorWriter.String())
