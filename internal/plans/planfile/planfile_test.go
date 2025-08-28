@@ -89,7 +89,7 @@ func TestRoundtrip(t *testing.T) {
 	nullifyEphemeralVariables := func(in plans.Plan) *plans.Plan {
 		for vn, eph := range in.EphemeralVariables {
 			if eph {
-				in.VariableValues[vn] = nil
+				delete(in.VariableValues, vn)
 			}
 		}
 		return &in

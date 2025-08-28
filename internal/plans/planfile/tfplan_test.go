@@ -334,8 +334,8 @@ func TestTFPlanRoundTrip(t *testing.T) {
 		})
 		plan.Changes.Resources[i].After = nil
 		plan.Changes.Resources[i].Before = nil
-		// nullify the variables that are meant to be written only with the name but without a value
-		plan.VariableValues["baz"] = nil
+		// delete the variables that are meant to be written only with the name but loaded only in the plan.EphemeralVariables
+		delete(plan.VariableValues, "baz")
 	}
 
 	newPlan, err := readTfplan(&buf)

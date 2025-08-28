@@ -242,23 +242,11 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 // # mergePlanAndApplyVariables
 // This gets the plan and the *ApplyOpts and builds the InputValues. The values saved in the plan have
 // priority *when defined*, but the variables found in the plan with a null value are considered to be
-// ephemeral and values are searched for those in the ApplyOpts.
+// ephemeral and values for those are searched in the ApplyOpts.
 func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	variables := map[string]*InputValue{}
-	// requiredFromApplyOpts stores the name of variables from the plan that are null. Any null plan variable
-	// is considered an ephemeral one and it needs to have a value defined again during the apply command.
-	// The other type of variables are not registered in this slice since their value will not change
-	// comparing cli args with the values saved in the plan. This is also validated before this place,
-	// in the backend logic that creates a LocalRun from an existing planfile.
-	var requiredFromApplyOpts []string
 	for name, dyVal := range plan.VariableValues {
-		if dyVal == nil {
-			// An existing plan variable with a null value it's handled as being an ephemeral one.
-			// Therefore, we need to have it defined in the ApplyOpts during the apply command.
-			requiredFromApplyOpts = append(requiredFromApplyOpts, name)
-			continue
-		}
 		val, err := dyVal.Decode(cty.DynamicPseudoType)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -277,20 +265,52 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	// Process the cli/env/etc variables after based on what was found in the plan as being null.
-	if (opts == nil || opts.SetVariables == nil) && len(requiredFromApplyOpts) > 0 {
+	// Try load the required ephemeral variables values from the ApplyOpts that don't have an actual value
+	// in the plan.
+	var requiredEphemeralVars []string
+	for name, isEph := range plan.EphemeralVariables {
+		// not ephemeral so this should have been processed in the loop above.
+		if !isEph {
+			continue
+		}
+		// when the plan is created on the spot and not loaded from a file, the loop above could have
+		// this processed already so don't process it again.
+		if _, ok := variables[name]; ok {
+			continue
+		}
+		// we need to check if the variable is required, only then we want to check the value in
+		// ApplyOpts. Otherwise, it needs to go with the cty.NilVal and have its default value
+		// used during graph walk
+		cfg, ok := config.Module.Variables[name]
+		if !ok {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Missing variable in configuration",
+				fmt.Sprintf("Variable %q not found in the given configuration", name),
+			))
+			continue
+		}
+		if !cfg.Required() {
+			continue
+		}
+		requiredEphemeralVars = append(requiredEphemeralVars, name)
+	}
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	if (opts == nil || opts.SetVariables == nil) && len(requiredEphemeralVars) > 0 {
 		return nil, diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Missing variables values",
-			fmt.Sprintf("Values missing for variables: %s", strings.Join(requiredFromApplyOpts, ", ")),
+			fmt.Sprintf("Values missing for variables: %s", strings.Join(requiredEphemeralVars, ", ")),
 		))
 	}
 	// To ensure that we don't overwrite the values from the plan with the ones given in the current
-	// command, we iterate only over the variables that are null in the plan. If there is no variable
+	// command, we iterate only over the variables that are ephemeral in the plan. If there is no variable
 	// in the plan, we don't use the value from the ApplyOpts. This is an inherent behavior of the logic
 	// here in this method and it is compatible with the validation logic from the place where ApplyOpts
 	// is populated initially.
-	for _, varName := range requiredFromApplyOpts {
+	for _, varName := range requiredEphemeralVars {
 		v, ok := opts.SetVariables[varName]
 		if !ok {
 			diags = diags.Append(tfdiags.Sourceless(
