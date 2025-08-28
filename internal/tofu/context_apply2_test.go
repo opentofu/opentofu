@@ -5767,7 +5767,7 @@ output "regular_optional" {
 			mutatePlan: func(plan *plans.Plan) {
 				delete(plan.VariableValues, "ephemeral_required")
 			},
-			expectedErrorMessages: []string{"Missing variables values - Values missing for variables: ephemeral_required"},
+			expectedErrorMessages: []string{"No value for required variable - Variable \"ephemeral_required\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`."},
 		},
 		"simulated loaded plan contains no ephemeral variables and apply opts contains it": {
 			planSetVariables: map[string]*InputValue{
@@ -5825,7 +5825,7 @@ output "regular_optional" {
 				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
 			},
 			applyOpts: &ApplyOpts{SetVariables: InputValues{
-				"regular_required": &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
+				"regular_required": &InputValue{Value: cty.NullVal(cty.String), SourceType: ValueFromCLIArg},
 			}},
 			expectedErrorMessages: nil,
 			stateAssert: func(t *testing.T, state *states.State) {
