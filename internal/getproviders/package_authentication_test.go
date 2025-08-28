@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -212,7 +213,7 @@ func TestPackageAuthenticationAll_failure(t *testing.T) {
 // result should be "verified checksum".
 func TestPackageHashAuthentication_success(t *testing.T) {
 	// Location must be a PackageLocalArchive path
-	location := PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64")
+	location := PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"))
 
 	wantHashes := []Hash{
 		// Known-good HashV1 result for this directory

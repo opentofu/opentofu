@@ -7,6 +7,7 @@ package getproviders
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -31,28 +32,28 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 				Version:        versions.MustParseVersion("2.0.0"),
 				TargetPlatform: Platform{"darwin", "amd64"},
 				Filename:       "terraform-provider-null_2.0.0_darwin_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/darwin_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/darwin_amd64")),
 			},
 			{
 				Provider:       nullProvider,
 				Version:        versions.MustParseVersion("2.0.0"),
 				TargetPlatform: Platform{"linux", "amd64"},
 				Filename:       "terraform-provider-null_2.0.0_linux_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64")),
 			},
 			{
 				Provider:       nullProvider,
 				Version:        versions.MustParseVersion("2.1.0"),
 				TargetPlatform: Platform{"linux", "amd64"},
 				Filename:       "terraform-provider-null_2.1.0_linux_amd64.zip",
-				Location:       PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
+				Location:       PackageLocalArchive(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")),
 			},
 			{
 				Provider:       nullProvider,
 				Version:        versions.MustParseVersion("2.0.0"),
 				TargetPlatform: Platform{"windows", "amd64"},
 				Filename:       "terraform-provider-null_2.0.0_windows_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/windows_amd64")),
 			},
 		},
 		randomBetaProvider: {
@@ -61,7 +62,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 				Version:        versions.MustParseVersion("1.2.0"),
 				TargetPlatform: Platform{"linux", "amd64"},
 				Filename:       "terraform-provider-random-beta_1.2.0_linux_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/random-beta/1.2.0/linux_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/random-beta/1.2.0/linux_amd64")),
 			},
 		},
 		randomProvider: {
@@ -70,7 +71,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 				Version:        versions.MustParseVersion("1.2.0"),
 				TargetPlatform: Platform{"linux", "amd64"},
 				Filename:       "terraform-provider-random_1.2.0_linux_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/random/1.2.0/linux_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/random/1.2.0/linux_amd64")),
 			},
 		},
 
@@ -80,7 +81,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 				Version:        versions.MustParseVersion("0.1.0-alpha.2"),
 				TargetPlatform: Platform{"darwin", "amd64"},
 				Filename:       "terraform-provider-happycloud_0.1.0-alpha.2_darwin_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/tfe.example.com/AwesomeCorp/happycloud/0.1.0-alpha.2/darwin_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/tfe.example.com/AwesomeCorp/happycloud/0.1.0-alpha.2/darwin_amd64")),
 			},
 		},
 		legacyProvider: {
@@ -89,7 +90,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 				Version:        versions.MustParseVersion("1.0.0"),
 				TargetPlatform: Platform{"linux", "amd64"},
 				Filename:       "terraform-provider-legacy_1.0.0_linux_amd64.zip",
-				Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/-/legacy/1.0.0/linux_amd64"),
+				Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/-/legacy/1.0.0/linux_amd64")),
 			},
 		},
 	}
@@ -168,7 +169,7 @@ func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 			Version:        versions.MustParseVersion("2.0.0"),
 			TargetPlatform: Platform{"linux", "amd64"},
 			Filename:       "terraform-provider-null_2.0.0_linux_amd64.zip",
-			Location:       PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
+			Location:       PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64")),
 		}
 
 		if diff := cmp.Diff(want, got); diff != "" {
