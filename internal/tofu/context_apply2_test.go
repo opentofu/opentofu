@@ -5765,7 +5765,7 @@ output "regular_optional" {
 			},
 			applyOpts: nil,
 			mutatePlan: func(plan *plans.Plan) {
-				plan.VariableValues["ephemeral_required"] = nil
+				delete(plan.VariableValues, "ephemeral_required")
 			},
 			expectedErrorMessages: []string{"Missing variables values - Values missing for variables: ephemeral_required"},
 		},
@@ -5778,7 +5778,7 @@ output "regular_optional" {
 			},
 			applyOpts: &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
 			mutatePlan: func(plan *plans.Plan) {
-				plan.VariableValues["ephemeral_required"] = nil
+				delete(plan.VariableValues, "ephemeral_required")
 			},
 			expectedErrorMessages: nil,
 		},

@@ -357,13 +357,10 @@ Changes to Outputs:
 			if expectedVal.Equals(varVal).False() {
 				t.Errorf("unexpected value saved in the plan object. expected: %s; got: %s", expectedVal.GoString(), varVal.GoString())
 			}
-			// ephemeral variables are expected to be null but have their names in the plan.VariableValues
+			// ephemeral variables are to be missing from plan.VariableValues but to be found in plan.EphemeralVariables
 			varDynVal, ok = plan.VariableValues["ephemeral_input"]
-			if !ok {
-				t.Errorf("expected the %q to exist but it does not", "ephemeral_input")
-			}
-			if len(varDynVal) != 0 {
-				t.Errorf("expected variable %q to exist but to have an empty value", "ephemeral_input")
+			if ok {
+				t.Errorf("expected variable %q to be missing from plan.VariableValues but got %s", "ephemeral_input", varDynVal)
 			}
 			// ensure that plan.EphemeralVariables is registered as expected
 			if plan.EphemeralVariables == nil {

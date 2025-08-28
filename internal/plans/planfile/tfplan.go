@@ -241,10 +241,9 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	for name, rawVal := range rawPlan.Variables {
-		// Since at the moment of introducing this, a variable's value could not be nil,
-		// starting with this, a variable found with a null value in the plan is handled as an ephemeral one.
+		// For the variables written in the plan with a null value, we only record that as ephemeral
+		// but we don't load its null value in the plan object since that would add some complexity later.
 		if valueIsEmpty(rawVal) {
-			plan.VariableValues[name] = nil
 			plan.EphemeralVariables[name] = true
 			continue
 		}
