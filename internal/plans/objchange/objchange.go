@@ -51,7 +51,7 @@ func ProposedNew(schema *configschema.Block, prior, config cty.Value) cty.Value 
 	return proposedNew(schema, prior, config)
 }
 
-// PlannedDataResourceObject is similar to proposedNewBlock but tailored for
+// PlannedUnknownObject is similar to proposedNewBlock but tailored for
 // planning data resources in particular. Specifically, it replaces the values
 // of any Computed attributes not set in the configuration with an unknown
 // value, which serves as a placeholder for a value to be filled in by the
@@ -63,22 +63,21 @@ func ProposedNew(schema *configschema.Block, prior, config cty.Value) cty.Value 
 // passing the proposedNewBlock result into a provider's PlanResourceChange
 // function, assuming a fixed implementation of PlanResourceChange that just
 // fills in unknown values as needed.
-func PlannedDataResourceObject(schema *configschema.Block, config cty.Value) cty.Value {
+//
+// This is also used for generating the planned value of an ephemeral resource when
+// that is deferred. By design, ephemeral resources opening requires the configuration
+// of the block to be fully known. Therefore, when there is at least one unknown
+// attribute, we defer the execution until we resolve all the unknowns, and only
+// then we open the ephemeral. Until then, this particular function helps with
+// generating a placeholder for the ephemeral resource based on its schema.
+// Ephemeral resources are not stored into the state, so every newly planned value
+// is based only on the configuration and its schema.
+func PlannedUnknownObject(schema *configschema.Block, config cty.Value) cty.Value {
 	// Our trick here is to run the proposedNewBlock logic with an
 	// entirely-unknown prior value. Because of cty's unknown short-circuit
 	// behavior, any operation on prior returns another unknown, and so
 	// unknown values propagate into all of the parts of the resulting value
 	// that would normally be filled in by preserving the prior state.
-	prior := cty.UnknownVal(schema.ImpliedType())
-	return proposedNew(schema, prior, config)
-}
-
-// PlannedEphemeralResourceObject is exactly as PlannedDataResourceObject, but we
-// want to have a different copy of it to emphasize the special handling of
-// this type of resource.
-// Ephemeral resources are not stored into the state, so every newly planned value
-// is based only on the configuration and its schema.
-func PlannedEphemeralResourceObject(schema *configschema.Block, config cty.Value) cty.Value {
 	prior := cty.UnknownVal(schema.ImpliedType())
 	return proposedNew(schema, prior, config)
 }

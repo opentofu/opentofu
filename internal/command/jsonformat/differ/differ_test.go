@@ -3451,6 +3451,34 @@ func TestWriteOnly_ComputeDiffForBlock(t *testing.T) {
 					},
 				}, plans.Create, false),
 		},
+		"write-only are shown during no-op too": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attr": {
+						WriteOnly:     true,
+						AttributeType: unmarshalType(t, cty.String),
+					},
+					"regular_attr": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_attr": nil,
+					"regular_attr":    "test",
+				},
+				Before: map[string]any{
+					"write_only_attr": nil,
+					"regular_attr":    "test",
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_attr": renderers.ValidateWriteOnly(plans.NoOp, false),
+					"regular_attr":    renderers.ValidatePrimitive("test", "test", plans.NoOp, false),
+				}, nil, nil, nil, nil, plans.NoOp, false),
+		},
 	}
 
 	for name, tt := range cases {
