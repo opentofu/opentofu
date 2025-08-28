@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -940,6 +941,14 @@ func testCopyDir(t *testing.T, src, dst string) {
 			}
 		}
 	}
+
+	t.Cleanup(func() {
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 }
 
 // normalizeJSON removes all insignificant whitespace from the given JSON buffer
