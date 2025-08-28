@@ -1096,12 +1096,12 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		if res.Mode != overrideRes.Mode {
-			// TODO ephemeral - include also the ephemeral resource and the test_file.go#override_ephemeral
+			// TODO ephemeral testing support - include also the ephemeral resource and the test_file.go#override_ephemeral
 			blockName, targetMode := blockNameOverrideResource, "data"
 			if overrideRes.Mode == addrs.DataResourceMode {
 				blockName, targetMode = blockNameOverrideData, "resource"
 			}
-			//It could be a warning, but for the sake of consistent UX let's make it an error
+			// It could be a warning, but for the sake of consistent UX let's make it an error
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Unsupported `%v` target in `%v` block", targetMode, blockName),

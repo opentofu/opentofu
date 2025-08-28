@@ -2080,7 +2080,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 		}
 
 		unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+		proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 		proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
 		// Apply detects that the data source will need to be read by the After
@@ -2141,7 +2141,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 			// If we had errors, then we can cover that up by marking the new
 			// state as unknown.
 			unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-			newVal = objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+			newVal = objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 			newVal = newVal.MarkWithPaths(configMarkPaths)
 
 			// We still want to report the check as failed even if we are still
@@ -3346,7 +3346,7 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 ) {
 
 	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-	proposedNewVal := objchange.PlannedEphemeralResourceObject(schema, unmarkedConfigVal)
+	proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
 	plannedChange = &plans.ResourceInstanceChange{

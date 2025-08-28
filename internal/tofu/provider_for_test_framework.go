@@ -114,17 +114,17 @@ func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataS
 }
 
 func (p providerForTest) OpenEphemeralResource(_ context.Context, _ providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
-	//TODO ephemeral - implement me when adding testing support
+	// TODO ephemeral testing support - implement me when adding testing support
 	panic("implement me")
 }
 
 func (p providerForTest) RenewEphemeralResource(_ context.Context, _ providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
-	//TODO ephemeral - implement me when adding testing support
+	// TODO ephemeral testing support - implement me when adding testing support
 	panic("implement me")
 }
 
 func (p providerForTest) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
-	//TODO ephemeral - implement me when adding testing support
+	// TODO ephemeral testing support - implement me when adding testing support
 	panic("implement me")
 }
 

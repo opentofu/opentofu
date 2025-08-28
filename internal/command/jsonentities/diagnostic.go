@@ -369,8 +369,9 @@ func newDiagnosticDifference(diag tfdiags.Diagnostic) *jsonplan.Change {
 	// we cannot generate the same diff when the values involved are marked as ephemeral.
 	// Therefore, for situations like this, we will return no diagnostic diff, making
 	// the rendering of this to skip the diff part.
-	// TODO ephemeral - later we can find a better solution for this, like changing the type
-	//   of the Diagnostic.Difference so that it can hold a generic type that can do this.
+	// Later edit: As decided in opentofu/opentofu#3151, we decided
+	// on not improving this diff rendering since it will show just a hint nonetheless.
+	// If later will be needed, we can reconsider.
 	if marks.Contains(lhs, marks.Ephemeral) || marks.Contains(rhs, marks.Ephemeral) {
 		return nil
 	}

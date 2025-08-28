@@ -242,7 +242,7 @@ func (s simple) Close(_ context.Context) error {
 
 func waitIfRequested(m map[string]cty.Value) {
 	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
-	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
+	// When the "value_wo" attribute of the resource is containing "with-renew" it will return later to allow
 	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
 	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
 		<-time.After(time.Second)

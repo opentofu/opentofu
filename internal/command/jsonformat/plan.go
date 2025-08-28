@@ -79,7 +79,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			continue
 		}
 		if diff.change.Mode == jsonstate.EphemeralResourceMode {
-			// Do not render ephemeral changes. // TODO ephemeral add e2e test for this
+			// Do not render ephemeral changes.
 			continue
 		}
 
