@@ -242,7 +242,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 			}
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -265,7 +265,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)

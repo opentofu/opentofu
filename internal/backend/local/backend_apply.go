@@ -270,7 +270,7 @@ func (b *Local) opApply(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
-		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config)
+		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config, lr.ApplyOpts)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {

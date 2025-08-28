@@ -717,7 +717,7 @@ data "test_data_source" "a" {
 	// This is primarily a plan-time test, since the special handling of
 	// data resources is a plan-time concern, but we'll still try applying the
 	// plan here just to make sure it's valid.
-	newState, diags := ctx.Apply(context.Background(), plan, m)
+	newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	if rs := newState.ResourceInstance(dataAddr); rs != nil {
@@ -4718,7 +4718,7 @@ resource "test_object" "b" {
 	opts := SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables))
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// Resource changes which have dependencies across providers which
@@ -8773,9 +8773,10 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 }
 
-// TestContext2Plan_ephemeralVariablesInPlan checks that the
-// ephemeral variables get configured correctly in the plan
-// to be used later to exclude values from being written into the plan object.
+// TestContext2Plan_ephemeralVariablesInPlan checks that the variables
+// are handled correctly. The additional information generated will allow
+// the plan writing flow to handle the variables that are not meant to
+// have their values stored in the plan (ephemeral variables)
 func TestContext2Plan_ephemeralVariablesInPlan(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
