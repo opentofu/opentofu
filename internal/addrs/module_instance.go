@@ -236,6 +236,21 @@ func (m ModuleInstance) Parent() ModuleInstance {
 	return m[:len(m)-1]
 }
 
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the module it belongs to, rather than for
+// an actual module instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (m ModuleInstance) IsPlaceholder() bool {
+	for _, step := range m {
+		if _, ok := step.InstanceKey.(WildcardKey); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // String returns a string representation of the receiver, in the format used
 // within e.g. user-provided resource addresses.
 //

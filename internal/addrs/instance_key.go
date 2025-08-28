@@ -89,6 +89,61 @@ func (k StringKey) Value() cty.Value {
 	return cty.StringVal(string(k))
 }
 
+// WildcardKey is a special [InstanceKey] type used to represent zero or more
+// _hypothetical_ instances in unusual situations where we don't yet have
+// enough information to determine which instance keys exist.
+//
+// This can be used for [ModuleInstance] and [ResourceInstance] keys, but only
+// in situations that are documented as being able to handle placeholder
+// addresses for not-yet-expanded objects. No _actual_ object has an address
+// with an instance key of this type.
+type WildcardKey [1]InstanceKeyType
+
+func (k WildcardKey) instanceKeySigil() {}
+
+// ExpectedKeyType returns the type of key that this wildcard is acting as
+// a placeholder for.
+//
+// If this returns a concrete key type (not [UnknownKeyType]) then we do at
+// least know that all of the potential instance keys are of that type,
+// even though we don't yet know their values or number.
+func (k WildcardKey) ExpectedKeyType() InstanceKeyType {
+	return k[0]
+}
+
+func (k WildcardKey) String() string {
+	// There isn't any real way to write down a wildcard key because they
+	// represent an absense of information rather than something directly
+	// configured, but as a compromise we'll use something resembling HCL's
+	// "splat expression" syntax since it's at least hopefully somewhat
+	// familiar to OpenTofu users, and * is a character commonly used
+	// to represent wildcards in other systems.
+	return "[*]"
+}
+
+// Value returns an unknown value that's possibly constrained to be either
+// a number or string if we at least know what instance key type we're
+// expecting.
+func (k WildcardKey) Value() cty.Value {
+	switch k.ExpectedKeyType() {
+	case NoKeyType:
+		// This case represents an object using the "enabled" meta-argument
+		// with an unknown value and so there isn't really any sensible
+		// answer here because we're representing either zero or one instances
+		// with no key at all, but we'll arbitrarily just return DynamicVal
+		// as a placeholder.
+		return cty.DynamicVal
+	case IntKeyType:
+		return cty.UnknownVal(cty.Number).RefineNotNull()
+	case StringKeyType:
+		return cty.UnknownVal(cty.String).RefineNotNull()
+	default: // (only UnknownKeyType should be left to handle here)
+		// If we don't even know what type of instance key we're expecting
+		// then we can't really say anything about the value at all.
+		return cty.DynamicVal
+	}
+}
+
 // InstanceKeyLess returns true if the first given instance key i should sort
 // before the second key j, and false otherwise.
 func InstanceKeyLess(i, j InstanceKey) bool {
@@ -126,6 +181,13 @@ func instanceKeyType(k InstanceKey) InstanceKeyType {
 	if _, ok := k.(IntKey); ok {
 		return IntKeyType
 	}
+	if k, ok := k.(WildcardKey); ok {
+		// Because WildcardKey values are placeholders for instance keys
+		// of some other type rather than keys themselves, there is no
+		// InstanceKeyType value representing "wildcard" and instead the
+		// key type of a wildcard key is whatever it's a placeholder for.
+		return k.ExpectedKeyType()
+	}
 	return NoKeyType
 }
 
@@ -140,6 +202,11 @@ const (
 	NoKeyType     InstanceKeyType = 0
 	IntKeyType    InstanceKeyType = 'I'
 	StringKeyType InstanceKeyType = 'S'
+
+	// UnknownKeyType is a special [InstanceKeyType] used only with
+	// [WildcardKey] in situations where we don't even know what type of
+	// key we're expecting.
+	UnknownKeyType InstanceKeyType = '?'
 )
 
 // toHCLQuotedString is a helper which formats the given string in a way that
