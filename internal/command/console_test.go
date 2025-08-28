@@ -32,11 +32,13 @@ func TestConsole_basic(t *testing.T) {
 	p := testProvider()
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
+	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
