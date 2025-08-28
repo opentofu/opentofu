@@ -9,8 +9,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
@@ -246,95 +246,99 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	variables := map[string]*InputValue{}
-	for name, dyVal := range plan.VariableValues {
-		val, err := dyVal.Decode(cty.DynamicPseudoType)
-		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid variable value in plan",
-				fmt.Sprintf("Invalid value for variable %q recorded in plan file: %s.", name, err),
-			))
-			continue
-		}
 
-		variables[name] = &InputValue{
-			Value:      val,
-			SourceType: ValueFromPlan,
-		}
+	var inputVars map[string]*InputValue
+	if opts != nil && opts.SetVariables != nil {
+		inputVars = opts.SetVariables
 	}
-	if diags.HasErrors() {
-		return nil, diags
-	}
-	// Try load the required ephemeral variables values from the ApplyOpts that don't have an actual value
-	// in the plan.
-	var requiredEphemeralVars []string
-	for name, isEph := range plan.EphemeralVariables {
-		// not ephemeral so this should have been processed in the loop above.
-		if !isEph {
-			continue
-		}
-		// when the plan is created on the spot and not loaded from a file, the loop above could have
-		// this processed already so don't process it again.
-		if _, ok := variables[name]; ok {
-			continue
-		}
-		// we need to check if the variable is required, only then we want to check the value in
-		// ApplyOpts. Otherwise, it needs to go with the cty.NilVal and have its default value
-		// used during graph walk
-		cfg, ok := config.Module.Variables[name]
-		if !ok {
+
+	// Check for variables not in configuration (bug)
+	for name := range plan.VariableValues {
+		if _, ok := config.Module.Variables[name]; !ok {
+			// This should already be validated elsewhere, but we have this here just in case
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Missing variable in configuration",
 				fmt.Sprintf("Variable %q not found in the given configuration", name),
 			))
-			continue
 		}
-		if !cfg.Required() {
-			continue
-		}
-		requiredEphemeralVars = append(requiredEphemeralVars, name)
 	}
-	if diags.HasErrors() {
-		return nil, diags
-	}
-	if (opts == nil || opts.SetVariables == nil) && len(requiredEphemeralVars) > 0 {
-		return nil, diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Missing variables values",
-			fmt.Sprintf("Values missing for variables: %s", strings.Join(requiredEphemeralVars, ", ")),
-		))
-	}
-	// To ensure that we don't overwrite the values from the plan with the ones given in the current
-	// command, we iterate only over the variables that are ephemeral in the plan. If there is no variable
-	// in the plan, we don't use the value from the ApplyOpts. This is an inherent behavior of the logic
-	// here in this method and it is compatible with the validation logic from the place where ApplyOpts
-	// is populated initially.
-	for _, varName := range requiredEphemeralVars {
-		v, ok := opts.SetVariables[varName]
-		if !ok {
+	for name := range inputVars {
+		if _, ok := config.Module.Variables[name]; !ok {
+			// This should already be validated elsewhere, but we have this here just in case
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Missing variable value",
-				fmt.Sprintf("Missing value for variable %q. Ephemeral variables need to be given during `tofu plan` and also during `tofu apply`.", varName),
+				"Missing variable in configuration",
+				fmt.Sprintf("Variable %q not found in the given configuration", name),
 			))
-			continue
 		}
-		variables[varName] = v
 	}
 
-	// The plan.VariableValues field only records variables that were actually
-	// set by the caller in the PlanOpts, so we may need to provide
-	// placeholders for any other variables that the user didn't set, in
-	// which case OpenTofu will once again use the default value from the
-	// configuration when we visit these variables during the graph walk.
-	for name := range config.Module.Variables {
-		if _, ok := variables[name]; ok {
-			continue
-		}
+	for name, cfg := range config.Module.Variables {
+		// The plan.VariableValues field only records variables that were actually
+		// set by the caller in the PlanOpts, so we may need to provide
+		// placeholders for any other variables that the user didn't set, in
+		// which case OpenTofu will once again use the default value from the
+		// configuration when we visit these variables during the graph walk.
 		variables[name] = &InputValue{
 			Value:      cty.NilVal,
 			SourceType: ValueFromPlan,
+		}
+
+		// Pull the var value from the input vars
+		var inputValue cty.Value
+		inputVar, inputOk := inputVars[name]
+		if inputOk {
+			inputValue = inputVar.Value
+
+			// Record the var in our return value
+			variables[name] = inputVar
+		}
+
+		// Pull the var value from the plan vars
+		var planValue cty.Value
+		planVar, planOk := plan.VariableValues[name]
+		if planOk {
+			val, err := planVar.Decode(cty.DynamicPseudoType)
+			if err != nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid variable value in plan",
+					fmt.Sprintf("Invalid value for variable %q recorded in plan file: %s.", name, err),
+				))
+				continue
+			}
+			planValue = val
+
+			// Record the var in our return value (potentially overriding the above set)
+			variables[name] = &InputValue{
+				Value:      val,
+				SourceType: ValueFromPlan,
+			}
+		}
+
+		// If both are set, ensure they are identical
+		if planOk && inputOk {
+			if inputValue.Equals(planValue).False() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Mismatch between input and plan variable value",
+					fmt.Sprintf("Value saved in the plan file for variable %q is different from the one given to the current command.", name),
+				))
+				continue
+			}
+		}
+
+		// If ephemeral, required, and not given as input
+		if plan.EphemeralVariables[name] && cfg.Required() && !(inputOk || planOk) {
+			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `No value for required variable`,
+				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", name),
+				Subject:  cfg.DeclRange.Ptr(),
+			})
+			continue
 		}
 	}
 

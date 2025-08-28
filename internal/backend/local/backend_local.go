@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -284,45 +283,6 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	declaredVars, declaredDiags := backend.ParseDeclaredVariableValues(op.Variables, config.Module.Variables)
 	diags = diags.Append(declaredDiags)
 	run.ApplyOpts = &tofu.ApplyOpts{SetVariables: declaredVars}
-	// Check that all variables are provided and do match the plan values
-	for varName, varCfg := range config.Module.Variables {
-		_, given := op.Variables[varName]
-		switch {
-		case !given && varCfg.Ephemeral && varCfg.Required():
-			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `No value for required variable`,
-				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", varName),
-				Subject:  varCfg.DeclRange.Ptr(),
-			})
-		case given && !varCfg.Ephemeral:
-			// We validate only non-ephemeral variables because at this point we only validate the plan variables,
-			// which include no values for the ephemeral ones.
-			
-			// Variable provided via cli/files/env/etc...
-			inputValue, inputDiags := op.RootCall.Variables()(varCfg)
-			// Variable provided via the plan
-			planValue, planDiags := subCall.Variables()(varCfg)
-
-			diags = diags.Append(inputDiags).Append(planDiags)
-			if inputDiags.HasErrors() || planDiags.HasErrors() {
-				return nil, snap, diags
-			}
-
-			if inputValue.Equals(planValue).False() {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					"Mismatch between input and plan variable value",
-					fmt.Sprintf("Value saved in the plan file for variable %q is different from the one given to the current command.", varName),
-				))
-			}
-		}
-	}
-
-	if diags.HasErrors() {
-		return nil, snap, diags
-	}
 
 	// NOTE: We're intentionally comparing the current locks with the
 	// configuration snapshot, rather than the lock snapshot in the plan file,
