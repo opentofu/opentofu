@@ -149,7 +149,7 @@ jobs:
       - name: "go.mod and go.sum consistency check"
         run: |
           go mod tidy
-          if [[ -n "$(git status --porcelain)" ]]; then
+          if [[ -n "$(git status --porcelain go.mod go.sum)" ]]; then
             echo >&2 "ERROR: go.mod/go.sum are not up-to-date. Run 'go mod tidy' and then commit the updated files."
             exit 1
           fi
