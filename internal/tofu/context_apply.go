@@ -330,7 +330,7 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 		}
 
 		// If ephemeral, required, and not given as input
-		if plan.EphemeralVariables[name] && cfg.Required() && !(inputOk || planOk) {
+		if plan.EphemeralVariables[name] && cfg.Required() && !inputOk && !planOk {
 			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
