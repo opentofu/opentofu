@@ -2,3 +2,13 @@ providers {
   aws = "foo"
   do = "bar"
 }
+
+provisioners {
+  local = "$TFTEST"
+}
+
+host "example.com" {
+  services = {
+    "modules.v1" = "https://example.com/",
+  }
+}

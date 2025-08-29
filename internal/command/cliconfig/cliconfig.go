@@ -37,9 +37,6 @@ const pluginCacheMayBreakLockFileEnvVar = "TF_PLUGIN_CACHE_MAY_BREAK_DEPENDENCY_
 // This is not the configuration for OpenTofu itself. That is in the
 // "config" package.
 type Config struct {
-	Providers    map[string]string
-	Provisioners map[string]string
-
 	// If set, enables local caching of plugins in this directory to
 	// avoid repeatedly re-downloading over the Internet.
 	PluginCacheDir string `hcl:"plugin_cache_dir"`
@@ -200,14 +197,6 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	ociCredsBlocks, ociCredsDiags := decodeOCIRepositoryCredentialsFromConfig(obj)
 	diags = diags.Append(ociCredsDiags)
 	result.OCIRepositoryCredentials = ociCredsBlocks
-
-	// Replace all env vars
-	for k, v := range result.Providers {
-		result.Providers[k] = os.ExpandEnv(v)
-	}
-	for k, v := range result.Provisioners {
-		result.Provisioners[k] = os.ExpandEnv(v)
-	}
 
 	if result.PluginCacheDir != "" {
 		result.PluginCacheDir = os.ExpandEnv(result.PluginCacheDir)
@@ -381,26 +370,6 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 // new configuration with the two merged.
 func (c *Config) Merge(c2 *Config) *Config {
 	var result Config
-	result.Providers = make(map[string]string)
-	result.Provisioners = make(map[string]string)
-	for k, v := range c.Providers {
-		result.Providers[k] = v
-	}
-	for k, v := range c2.Providers {
-		if v1, ok := c.Providers[k]; ok {
-			log.Printf("[INFO] Local %s provider configuration '%s' overrides '%s'", k, v, v1)
-		}
-		result.Providers[k] = v
-	}
-	for k, v := range c.Provisioners {
-		result.Provisioners[k] = v
-	}
-	for k, v := range c2.Provisioners {
-		if v1, ok := c.Provisioners[k]; ok {
-			log.Printf("[INFO] Local %s provisioner configuration '%s' overrides '%s'", k, v, v1)
-		}
-		result.Provisioners[k] = v
-	}
 
 	result.PluginCacheDir = c.PluginCacheDir
 	if result.PluginCacheDir == "" {
