@@ -5718,6 +5718,7 @@ ephemeral "test_ephemeral_resource" "a" {
 func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		`main.tf`: `
+# NOTE: When a variable do have a default value as null it is not written to the plan, doesn't matter if it's ephemeral or not
 variable "regular_required" {
   type = string
 }
@@ -5751,38 +5752,43 @@ output "regular_optional" {
 	cases := map[string]struct {
 		planSetVariables InputValues
 		applyOpts        *ApplyOpts
-		mutatePlan       func(plan *plans.Plan)
+		// Set this to "true" to test a flow similar with the one ran when running `tofu plan -out <planfile>` followed by `tofu apply <planfile>`.
+		// "False" it means that it will run the test like running directly `tofu apply -auto-approve`
+		simulatePlanRoundtrip bool
 
-		expectedErrorMessages []string
-		stateAssert           func(t *testing.T, state *states.State)
+		expectedApplyErrors []string
+		expectedOutputs     map[string]*states.OutputValue
 	}{
-		"simulated loaded plan contains no ephemeral variables and apply opts do not provide any": {
+		// //////// The tests in this section check real life scenarios, where a plan is written and
+		// then read from the file during `tofu apply <planfile>`. This is the only way for the
+		// ApplyOpts to be passed into the context.Apply()
+		"mutate plan to be similar with the one loaded from file and apply without any opts": {
 			planSetVariables: map[string]*InputValue{
 				"ephemeral_required": {Value: cty.StringVal("eph val")},
 				"ephemeral_optional": {},
 				"regular_required":   {Value: cty.StringVal("reg val")},
 				"regular_optional":   {},
 			},
-			applyOpts: nil,
-			mutatePlan: func(plan *plans.Plan) {
-				delete(plan.VariableValues, "ephemeral_required")
-			},
-			expectedErrorMessages: []string{"No value for required variable - Variable \"ephemeral_required\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`."},
+			simulatePlanRoundtrip: true,
+			applyOpts:             nil,
+			expectedApplyErrors:   []string{"No value for required variable - Variable \"ephemeral_required\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`."},
 		},
-		"simulated loaded plan contains no ephemeral variables and apply opts contains it": {
+		"mutate plan to be similar with the one loaded from file and apply with opts containing the ephemeral_required": {
 			planSetVariables: map[string]*InputValue{
 				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
 				"ephemeral_optional": {SourceType: ValueFromPlan},
 				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
 				"regular_optional":   {SourceType: ValueFromPlan},
 			},
-			applyOpts: &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
-			mutatePlan: func(plan *plans.Plan) {
-				delete(plan.VariableValues, "ephemeral_required")
-			},
-			expectedErrorMessages: nil,
+			applyOpts:             &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
+			simulatePlanRoundtrip: true,
+			expectedApplyErrors:   nil,
 		},
-		"apply opts variables are not used when no definition of it in the plan": {
+		// //////// The tests below are not actually reproducible IRL, they just test the defensive implementation of mergePlanAndApplyVariables.
+		// These are not reproducible IRL because in a direct `tofu apply` command, the ApplyOpts and PlanOpts will not exist together.
+
+		// Validates that even when the optional variables have null values during plan creation, the applyOpts do not override the null values.
+		"apply configuration directly where planOpts satisfies completely the variables therefore applyOpts don't get used": {
 			planSetVariables: map[string]*InputValue{
 				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
 				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
@@ -5793,51 +5799,47 @@ output "regular_optional" {
 				"ephemeral_optional": &InputValue{Value: cty.StringVal("eph from applyopts"), SourceType: ValueFromCLIArg},
 				"regular_optional":   &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
 			}},
-			expectedErrorMessages: nil,
-			stateAssert: func(t *testing.T, state *states.State) {
-				if state == nil {
-					t.Fatalf("invalid state. got nil but wanted an actual one")
-				}
-				rootMod := state.Modules[addrs.RootModule.String()]
-				// expect to have the value from the plan
-				rro := rootMod.OutputValues["regular_required"]
-				if rro == nil {
-					t.Errorf("expected 'regular_required' output to be in the state. Got none")
-				} else {
-					expectedVal := cty.StringVal("reg val")
-					eqV := rro.Value.Equals(expectedVal)
-					if eqV.False() {
-						t.Errorf("expected 'regular_required' output to have value %s but got %s", expectedVal, rro.Value)
-					}
-				}
-				// expect to have no value for this since this is what it was in the plan
-				roo := rootMod.OutputValues["regular_optional"]
-				if roo != nil {
-					t.Errorf("expected 'regular_optional' output to be missing from the state since it's value was null in the plan")
-				}
+			expectedApplyErrors: nil,
+			expectedOutputs: map[string]*states.OutputValue{
+				"regular_required": {Value: cty.StringVal("reg val")},
 			},
 		},
-		"apply opts variables are not used even when the required variable got a null value on plan": {
+		"apply setVariables contain value for undefined variable": {
 			planSetVariables: map[string]*InputValue{
 				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
-				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
-				"regular_required":   {Value: cty.NullVal(cty.String), SourceType: ValueFromPlan},
-				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+				"ephemeral_optional": {SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan},
 			},
-			applyOpts: &ApplyOpts{SetVariables: InputValues{
-				"regular_required": &InputValue{Value: cty.NullVal(cty.String), SourceType: ValueFromCLIArg},
-			}},
-			expectedErrorMessages: nil,
-			stateAssert: func(t *testing.T, state *states.State) {
-				if state == nil {
-					t.Fatalf("invalid state. got nil but wanted an actual one")
-				}
-				rootMod := state.Modules[addrs.RootModule.String()]
-				// expect to have the value from the plan
-				rro := rootMod.OutputValues["regular_required"]
-				if rro != nil {
-					t.Errorf("expected 'regular_required' output to not be in the state but got %q", rro.Value)
-				}
+			applyOpts: &ApplyOpts{
+				SetVariables: map[string]*InputValue{
+					"undefined_variable": {SourceType: ValueFromCLIArg, Value: cty.StringVal("test")},
+				},
+			},
+			expectedApplyErrors: []string{
+				`Missing variable in configuration - Variable "undefined_variable" not found in the given configuration`,
+			},
+		},
+		"same variable has different values in applyOpts and planOpts": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {Value: cty.StringVal("eph optional val"), SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {Value: cty.StringVal("reg optional val"), SourceType: ValueFromPlan},
+			},
+			applyOpts: &ApplyOpts{
+				SetVariables: map[string]*InputValue{
+					"ephemeral_required": {Value: cty.StringVal("eph val 2"), SourceType: ValueFromPlan},
+					"ephemeral_optional": {Value: cty.StringVal("eph optional val 2"), SourceType: ValueFromPlan},
+					"regular_required":   {Value: cty.StringVal("reg val 2"), SourceType: ValueFromPlan},
+					"regular_optional":   {Value: cty.StringVal("reg optional val 2"), SourceType: ValueFromPlan},
+				},
+			},
+			expectedApplyErrors: []string{
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "ephemeral_required" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "ephemeral_optional" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "regular_required" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "regular_optional" is different from the one given to the current command.`,
 			},
 		},
 	}
@@ -5849,6 +5851,7 @@ output "regular_optional" {
 				Hooks: []Hook{h},
 			})
 
+			// check plan
 			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 				Mode:         plans.NormalMode,
 				SetVariables: tt.planSetVariables,
@@ -5856,23 +5859,39 @@ output "regular_optional" {
 			if diags.HasErrors() {
 				t.Fatalf("unexepected diagnostics from plan: %s", diags)
 			}
-			if tt.mutatePlan != nil {
-				tt.mutatePlan(plan)
+
+			if tt.simulatePlanRoundtrip {
+				// By deleting the ephemeral variables from the VariableValues, we change the given plan
+				// to match a plan read from the file. While loading the plan, the variables stored with
+				// a null value are only stored in EphemeralVariables but not in VariableValues.
+				for vName, ok := range plan.EphemeralVariables {
+					if !ok {
+						continue
+					}
+					delete(plan.VariableValues, vName)
+				}
 			}
 
-			// We drop state since we are not interested in that
+			// check apply
 			newState, diags := ctx.Apply(context.Background(), plan, m, tt.applyOpts)
 			var gotErrors []string
 			for _, diag := range diags {
 				gotErrors = append(gotErrors, fmt.Sprintf("%s - %s", diag.Description().Summary, diag.Description().Detail))
 			}
 			slices.Sort(gotErrors)
-			slices.Sort(tt.expectedErrorMessages)
-			if diff := cmp.Diff(tt.expectedErrorMessages, gotErrors); diff != "" {
+			slices.Sort(tt.expectedApplyErrors)
+			if diff := cmp.Diff(tt.expectedApplyErrors, gotErrors); diff != "" {
 				t.Errorf("wrong errors received:\n%s", diff)
 			}
-			if tt.stateAssert != nil {
-				tt.stateAssert(t, newState)
+			if tt.expectedOutputs != nil {
+				cp := newState.DeepCopy()
+				cp.Modules[addrs.RootModule.String()].OutputValues = tt.expectedOutputs
+
+				gotState := newState.String()
+				wantState := cp.String()
+				if diff := cmp.Diff(gotState, wantState); diff != "" {
+					t.Fatalf("got different state than expected:\n%s", diff)
+				}
 			}
 		})
 	}
