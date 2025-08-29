@@ -27,7 +27,7 @@ type InputVariable struct {
 
 	// RawValue produces the "raw" value, as chosen by the caller of the
 	// module, which has not yet been type-converted or validated.
-	RawValue exprs.Valuer
+	RawValue *OnceValuer
 
 	// TargetType and targetDefaults together represent the type conversion
 	// and default object attribute value insertions that must be applied

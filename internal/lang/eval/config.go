@@ -78,7 +78,7 @@ func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, 
 	rootModuleCall := &moduleInstanceCall{
 		inputValues: call.InputValues,
 	}
-	rootModuleInstance := compileModuleInstance(rootModule, call.RootModuleSource, rootModuleCall, evalCtx)
+	rootModuleInstance := compileModuleInstance(ctx, rootModule, call.RootModuleSource, rootModuleCall, evalCtx)
 	return &ConfigInstance{
 		rootModuleInstance: rootModuleInstance,
 	}, nil
