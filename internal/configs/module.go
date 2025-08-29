@@ -161,15 +161,15 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 	return mod, diags
 }
 
-// NewModule takes a list of primary files and a list of override files and
-// produces a *Module by combining the files together.
+// NewModuleUneval is a variation of [NewModule] which performs only the
+// static decoding steps and stops before performing any of the "early eval"
+// steps, instead just returning with the results of early eval unpopulated.
 //
-// If there are any conflicting declarations in the given files -- for example,
-// if the same variable name is defined twice -- then the resulting module
-// will be incomplete and error diagnostics will be returned. Careful static
-// analysis of the returned Module is still possible in this case, but the
-// module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+// This is currently here only in support of the experiment in
+// internal/lang/eval, which wants to handle the situations where we currently
+// rely on early eval in a different way. Outside of that experiment we should
+// keep using [NewModule] in its entirety for now.
+func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -235,6 +235,20 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		fileDiags := mod.mergeFile(file)
 		diags = append(diags, fileDiags...)
 	}
+
+	return mod, diags
+}
+
+// NewModule takes a list of primary files and a list of override files and
+// produces a *Module by combining the files together.
+//
+// If there are any conflicting declarations in the given files -- for example,
+// if the same variable name is defined twice -- then the resulting module
+// will be incomplete and error diagnostics will be returned. Careful static
+// analysis of the returned Module is still possible in this case, but the
+// module will probably not be semantically valid.
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, load)
 
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
 	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
