@@ -84,11 +84,13 @@ func TestConsole_tfvars(t *testing.T) {
 	}
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
+	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
@@ -136,11 +138,13 @@ func TestConsole_unsetRequiredVars(t *testing.T) {
 	}
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
+	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
@@ -169,11 +173,13 @@ func TestConsole_variables(t *testing.T) {
 	p := testProvider()
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
+	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
@@ -211,12 +217,13 @@ func TestConsole_modules(t *testing.T) {
 	p := applyFixtureProvider()
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
-
+	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
