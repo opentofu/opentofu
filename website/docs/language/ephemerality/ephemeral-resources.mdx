@@ -1,7 +1,6 @@
 ---
 description: >-
-  Ephemeral resources enables access to confidential information that can
-  be used in other blocks to configure other resources.
+  Ephemeral resources enable access to transient and/or confidential information.
 ---
 
 # Ephemeral resources
@@ -13,30 +12,29 @@ Ephemeral resources can be used only with OpenTofu from v1.11 onwards.
 The `ephemeral` block defines a temporary value that OpenTofu will not store in state or plan.
 This block works only with providers that already offer such capability and is not meant to be used
 as a drop-in replacement of other blocks (`data` or `resource`). To understand if providers offer
-such capability, the provider documentation should be consulted.
+such capability, the provider documentation or schema should be consulted.
 
 ## Lifecycle
-The lifecycle of an ephemeral resource is totally different than the lifecycle of other resource types.
+The lifecycle of an ephemeral resource is different than the lifecycle of other resource types.
 When OpenTofu encounters such a block, it will execute the following sequence:
-* Validate the configuration by calling the provider.
-* Open it before executing a resource that references it.
-* When the resource has been opened, provider could have pass back to OpenTofu a renewal interval. If that is reached, OpenTofu will ask the provider to renew the backing information of the returned result.
-* Right before ending the execution of the current phase, OpenTofu closes the ephemeral resource by calling this specifically on the provider.
+* Validate the configuration using the specified provider.
+* Open the ephemeral resource to retrieve the value from the provider.
+* Close the the ephemeral resource when is no longer needed in the execution of the current phase
 
-Any attribute of the response returned by opening the ephemeral resource, is marked as `ephemeral` and the user will be able to be use these only in specific contexts:
-* other ephemeral resources
-* `provider` blocks
-* [write-only attributes](./write-only-attributes.mdx)
-* [ephemeral variables](../values/variables.mdx#ephemerality)
-* [ephemeral outputs](../values/outputs.mdx#ephemerality)
-* [locals](../values/locals.mdx#ephemerality)
-* [`provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
-* [`connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+Any attribute of the response returned by opening the ephemeral resource, is marked as `ephemeral` and can only be used in specific contexts:
+* Ephemeral Resource Configuration
+* [Provider Configuration](../providers/configuration.mdx)
+* Values for [write-only attributes](./write-only-attributes.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Resource `provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
 
-Any usage of such an `ephemeral` value in contexts where is not allowed will generate an error.
+Any usage of an `ephemeral` value in contexts where is not allowed will generate an error.
 
 ## Configuration structure
-Besides the attributes in a schema of an ephemeral resource, the block supports also the meta-arguments already existing in OpenTofu:
+Besides the attributes in the schema of an ephemeral resource, the block supports also the following meta-arguments:
 * [`depends_on`](../../language/meta-arguments/depends_on.mdx)
 * [`count`](../../language/meta-arguments/count.mdx)
 * [`for_each`](../../language/meta-arguments/for_each.mdx)

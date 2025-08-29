@@ -423,7 +423,7 @@ resource "null_resource" "test" {
 }
 ```
 
-Using ephemeral values in the `error_message` will not be errored out when the condition passes, but it will fail rendering the message if an ephemeral value is used:
+Using ephemeral values in the `error_message` will cause rendering the message to fail:
 ```shell
 │ Warning: Error message refers to ephemeral values
 │

@@ -93,9 +93,9 @@ Review the generated configuration and update it as needed. You may wish to move
 
 #### Generated hints
 
-In specific cases, the attributes of the generated blocks can be suffixed with a comment. That comment can contain different hints
-on what to expect and how to use it.
-For example, if the generated `resource` block contains sensitive and write-only attributes, you will something similar to this:
+In specific cases, the attributes of the generated blocks can be suffixed with a comment. That comment may contain hints as to why
+a value was omitted.
+For example, the following will be generated if the generated `resource` block contains sensitive and write-only attributes:
 ```hcl
 resource "test_resource" "test" {
   attr1 = null # sensitive

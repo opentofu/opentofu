@@ -1,55 +1,58 @@
 ---
 description: >-
-  An overview on the ephemeral concept and the general usability
+  An overview on the ephemeral concept and general usability
 ---
 
 # Ephemerality
 
-Ephemerality refers to the nature of a value to be "ephemeral", meaning that it will not be stored in the state or the plan.
+Ephemerality refers to the nature of a value to be "ephemeral", meaning that it will not be stored in the state or the plan. With this concept, transient and/or confidental information can be safely handled within OpenTofu.
 
-This concept offers another way to tackle the confidential information security, adding one more option to choose for securing the plan and state.
-Here are the other existing options in OpenTofu, providing different levels of safety:
-* sensitive marked outputs and variables
-  * Marking the values this way ensures only that the information is sanitized from the user interface, but these are still stored in plaintext in the state and plan.
-* state encryption (recommended way)
-  * This is meant to provide in transit and at rest encryption of the state and plan files, regardless of what providers/modules offer.
-  * By using this you don't need to choose what to store and what not, but everything is safely stored.
-  * This is also preventing state tempering and privilege escalation.
+Related concepts:
+* [Sensitive](../state/sensitive-data/) resource fields, outputs and variables
+  * Marking values as sensitive ensures the contents are sanitized from the user interface.
+  * Sensitive values will still be stored in plaintext in the state and plan.
+* [State Encryption](../state/encryption/)
+  * Encryption of state and plan data can be configured to prevent unauthorized access and tampering.
+  * Security of this data is determined by the encryption methods used and access to the encryption keys.
+
+
+In contrast, Ephemeral values only exist for the duration of single execution of the `tofu` command and are never stored in state or plan data. This enables representation of transient concepts, such as temporary network tunnels
+or confidential keys managed by an external system.
+
+It is recommended that all three concepts are considered when working with confidential information. If possible use ephemeral values/resources to prevent storing the data at all.  If confidential data must be stored, ensure that it is marked as
+sensitive and that state and plan encryption are enabled and properly configured.
+
 
 As part of this concept, the following constructs can be used:
-* [`ephemeral` resources](./ephemeral-resources.mdx)
-* [`resource`'s `write-only` attributes](./write-only-attributes.mdx)
-* [variables](../values/variables.mdx#ephemerality)
-* [outputs](../values/outputs.mdx#ephemerality)
-* [locals](../values/locals.mdx#ephemerality)
-* [providers](../providers/configuration.mdx)
-* [provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
-* [`connection` block](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Ephemeral Resources](./ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` block](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](./write-only-attributes.mdx)
 
 ## Compatibility
 :::warning
-This concept is meant to be as compatible as possible with the same idea from Terraform v1.12.
-Therefore, if any incompatibility discovered, we will strive to get it fixed,
-even if that risks to create breaking changes from the initial
-implementation of the concept in OpenTofu v1.11.
+This concept is inspired by and aims for compatibility with the equivalent "Ephemeral" concept in Terraform v1.12.
+If incompatibilities are discovered, we will consider accepting breaking changes in subsequent versions
+of OpenTofu to ensure compatibility.
 :::
 
-## Easy access
-In addition to the information already linked above, here is a list of other topics you should explore regarding ephemerality:
+## Additional Topics
 * [Providing values for root module ephemeral variables](../../cli/commands/apply.mdx#ephemeral-variables)
 * [Validations interaction with ephemeral values](../expressions/custom-conditions.mdx#ephemeral-values-usage)
-* [`ephemeralasnull`](../functions/ephemeralasnull.mdx)
-* [`tofu.applying`](../expressions/references.mdx#filesystem-and-workspace-info)
-* [How configuration generation helps with write-only attributes](../import/generating-configuration.mdx#generated-hints)
-* [`moved` block does not work with `ephemeral` blocks](../modules/develop/refactoring.mdx#moved-block-syntax)
+* [Sanitizing values using `ephemeralasnull()`](../functions/ephemeralasnull.mdx)
+* [Differentiating plan/apply with `tofu.applying`](../expressions/references.mdx#filesystem-and-workspace-info)
+* [How configuration generation handles write-only attributes](../import/generating-configuration.mdx#generated-hints)
 
 ## Usage example
 :::note
-The following example is meant to showcase how ephemeral concepts listed above work together and it's not meant to be
-executed in real environments.
+The following example is meant to showcase how ephemeral concepts listed above work together and is not intended to be used directly in real environments
 :::
 
-### The module
+### A module to handle various usage patterns of secrets
 In the following example you can see a module that can handle secret creation and retrieval by using ephemeral variables, ephemeral resources, write-only attributes, ephemeral outputs and validations using ephemeral values in their `condition`.
 ```hcl
 terraform {
@@ -128,7 +131,7 @@ output "secret_manager_arn" {
 
 ### Using the module in a configuration to store a secret
 
-The following configuration uses the module above to create a new secret where it stores some aws credentials and
+The following configuration uses the module above to create a new secret where it stores the given aws credentials and
 outputs the ARN of the created secret manager:
 ```hcl
 terraform {
@@ -163,7 +166,7 @@ locals {
 
 module "secret_management" {
   providers = {
-    aws : aws.secrets-read-write
+    aws = aws.secrets-read-write
   }
   source         = "../mod"
   secret_map     = local.secrets
@@ -175,7 +178,7 @@ output "secret_manager_arn" {
 }
 ```
 
-### Using the module in a configuration to retrieve a secret and configure a provider with
+### Using the module in a configuration to retrieve a secret and configure a provider
 
 The following configuration uses the module above to read the secret, configure a provider with
 the credentials retrieved and store the same credentials in a write-only attribute `value_wo`
@@ -201,7 +204,7 @@ variable "secret_manager_arn" {
 
 module "secret_management" {
   providers = {
-    aws : aws.read-secrets
+    aws = aws.read-secrets
   }
   source             = "../mod"
   secret_manager_arn = var.secret_manager_arn
