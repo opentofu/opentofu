@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
-	ctymsgpack "github.com/zclconf/go-cty/cty/msgpack"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -281,12 +280,4 @@ func (s *stateStorageThatFailsRefresh) RefreshState(_ context.Context) error {
 
 func (s *stateStorageThatFailsRefresh) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	return fmt.Errorf("unimplemented")
-}
-
-func encodeDynamicValueWithType(t *testing.T, value cty.Value, ty cty.Type) []byte {
-	data, err := ctymsgpack.Marshal(value, ty)
-	if err != nil {
-		t.Fatalf("failed to marshal cty msgpack value: %s", err)
-	}
-	return data
 }
