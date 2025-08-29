@@ -22,7 +22,6 @@ func TestResourceDataGet(t *testing.T) {
 		Key    string
 		Value  interface{}
 	}{
-		// #0
 		{
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
@@ -49,7 +48,6 @@ func TestResourceDataGet(t *testing.T) {
 			Value: "",
 		},
 
-		// #1
 		{
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
@@ -77,7 +75,6 @@ func TestResourceDataGet(t *testing.T) {
 			Value: "foo",
 		},
 
-		// #2
 		{
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
@@ -104,134 +101,6 @@ func TestResourceDataGet(t *testing.T) {
 			Value: "foo",
 		},
 
-		// #3
-		{
-			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"availability_zone": "bar",
-				},
-			},
-
-			Diff: nil,
-
-			Key: "availability_zone",
-
-			Value: "bar",
-		},
-
-		// #4
-		{
-			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"availability_zone": "foo",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"availability_zone": &tofu.ResourceAttrDiff{
-						Old:         "foo",
-						New:         "bar",
-						NewComputed: true,
-					},
-				},
-			},
-
-			Key:   "availability_zone",
-			Value: "",
-		},
-
-		// #5
-		{
-			Schema: map[string]*Schema{
-				"port": &Schema{
-					Type:     TypeInt,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"port": "80",
-				},
-			},
-
-			Diff: nil,
-
-			Key: "port",
-
-			Value: 80,
-		},
-
-		// #6
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem:     &Schema{Type: TypeInt},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "3",
-					"ports.0": "1",
-					"ports.1": "2",
-					"ports.2": "5",
-				},
-			},
-
-			Key: "ports.1",
-
-			Value: 2,
-		},
-
-		// #7
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem:     &Schema{Type: TypeInt},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "3",
-					"ports.0": "1",
-					"ports.1": "2",
-					"ports.2": "5",
-				},
-			},
-
-			Key: "ports.#",
-
-			Value: 3,
-		},
-
-		// #8
 		{
 			Schema: map[string]*Schema{
 				"ports": &Schema{
@@ -248,31 +117,6 @@ func TestResourceDataGet(t *testing.T) {
 			Value: 0,
 		},
 
-		// #9
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem:     &Schema{Type: TypeInt},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "3",
-					"ports.0": "1",
-					"ports.1": "2",
-					"ports.2": "5",
-				},
-			},
-
-			Key: "ports",
-
-			Value: []interface{}{1, 2, 5},
-		},
-
-		// #10
 		{
 			Schema: map[string]*Schema{
 				"ingress": &Schema{
@@ -311,7 +155,6 @@ func TestResourceDataGet(t *testing.T) {
 			},
 		},
 
-		// #11
 		{
 			Schema: map[string]*Schema{
 				"ingress": &Schema{
@@ -352,27 +195,7 @@ func TestResourceDataGet(t *testing.T) {
 			},
 		},
 
-		// #12 Computed get
-		{
-			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Computed: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"availability_zone": "foo",
-				},
-			},
-
-			Key: "availability_zone",
-
-			Value: "foo",
-		},
-
-		// #13 Full object
+		// Full object
 		{
 			Schema: map[string]*Schema{
 				"availability_zone": &Schema{
@@ -402,7 +225,7 @@ func TestResourceDataGet(t *testing.T) {
 			},
 		},
 
-		// #14 List of maps
+		// List of maps
 		{
 			Schema: map[string]*Schema{
 				"config_vars": &Schema{
@@ -446,161 +269,7 @@ func TestResourceDataGet(t *testing.T) {
 			},
 		},
 
-		// #15 List of maps in state
-		{
-			Schema: map[string]*Schema{
-				"config_vars": &Schema{
-					Type:     TypeList,
-					Optional: true,
-					Computed: true,
-					Elem: &Schema{
-						Type: TypeMap,
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "2",
-					"config_vars.0.foo": "baz",
-					"config_vars.1.bar": "bar",
-				},
-			},
-
-			Diff: nil,
-
-			Key: "config_vars",
-
-			Value: []interface{}{
-				map[string]interface{}{
-					"foo": "baz",
-				},
-				map[string]interface{}{
-					"bar": "bar",
-				},
-			},
-		},
-
-		// #16 List of maps with removal in diff
-		{
-			Schema: map[string]*Schema{
-				"config_vars": &Schema{
-					Type:     TypeList,
-					Optional: true,
-					Computed: true,
-					Elem: &Schema{
-						Type: TypeMap,
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "1",
-					"config_vars.0.FOO": "bar",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"config_vars.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "0",
-					},
-					"config_vars.0.FOO": &tofu.ResourceAttrDiff{
-						Old:        "bar",
-						NewRemoved: true,
-					},
-				},
-			},
-
-			Key: "config_vars",
-
-			Value: []interface{}{},
-		},
-
-		// #17 Sets
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":  "1",
-					"ports.80": "80",
-				},
-			},
-
-			Diff: nil,
-
-			Key: "ports",
-
-			Value: []interface{}{80},
-		},
-
-		// #18
-		{
-			Schema: map[string]*Schema{
-				"data": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Elem: &Resource{
-						Schema: map[string]*Schema{
-							"index": &Schema{
-								Type:     TypeInt,
-								Required: true,
-							},
-
-							"value": &Schema{
-								Type:     TypeString,
-								Required: true,
-							},
-						},
-					},
-					Set: func(a interface{}) int {
-						m := a.(map[string]interface{})
-						return m["index"].(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"data.#":        "1",
-					"data.10.index": "10",
-					"data.10.value": "50",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"data.10.value": &tofu.ResourceAttrDiff{
-						Old: "50",
-						New: "80",
-					},
-				},
-			},
-
-			Key: "data",
-
-			Value: []interface{}{
-				map[string]interface{}{
-					"index": 10,
-					"value": "80",
-				},
-			},
-		},
-
-		// #19 Empty Set
+		// Empty Set
 		{
 			Schema: map[string]*Schema{
 				"ports": &Schema{
@@ -623,7 +292,7 @@ func TestResourceDataGet(t *testing.T) {
 			Value: []interface{}{},
 		},
 
-		// #20 Float zero
+		// Float zero
 		{
 			Schema: map[string]*Schema{
 				"ratio": &Schema{
@@ -640,103 +309,6 @@ func TestResourceDataGet(t *testing.T) {
 			Key: "ratio",
 
 			Value: 0.0,
-		},
-
-		// #21 Float given
-		{
-			Schema: map[string]*Schema{
-				"ratio": &Schema{
-					Type:     TypeFloat,
-					Optional: true,
-					Computed: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ratio": "0.5",
-				},
-			},
-
-			Diff: nil,
-
-			Key: "ratio",
-
-			Value: 0.5,
-		},
-
-		// #22 Float diff
-		{
-			Schema: map[string]*Schema{
-				"ratio": &Schema{
-					Type:     TypeFloat,
-					Optional: true,
-					Computed: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ratio": "-0.5",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ratio": &tofu.ResourceAttrDiff{
-						Old: "-0.5",
-						New: "33.0",
-					},
-				},
-			},
-
-			Key: "ratio",
-
-			Value: 33.0,
-		},
-
-		// #23 Sets with removed elements
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":  "1",
-					"ports.80": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.#": &tofu.ResourceAttrDiff{
-						Old: "2",
-						New: "1",
-					},
-					"ports.80": &tofu.ResourceAttrDiff{
-						Old: "80",
-						New: "80",
-					},
-					"ports.8080": &tofu.ResourceAttrDiff{
-						Old:        "8080",
-						New:        "0",
-						NewRemoved: true,
-					},
-				},
-			},
-
-			Key: "ports",
-
-			Value: []interface{}{80},
 		},
 	}
 
@@ -791,38 +363,6 @@ func TestResourceDataGetChange(t *testing.T) {
 			Key: "availability_zone",
 
 			OldValue: "",
-			NewValue: "foo",
-		},
-
-		{
-			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"availability_zone": "foo",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"availability_zone": &tofu.ResourceAttrDiff{
-						Old:         "",
-						New:         "foo",
-						RequiresNew: true,
-					},
-				},
-			},
-
-			Key: "availability_zone",
-
-			OldValue: "foo",
 			NewValue: "foo",
 		},
 	}
@@ -1452,37 +992,6 @@ func TestResourceDataHasChange(t *testing.T) {
 
 		{
 			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"availability_zone": "foo",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"availability_zone": &tofu.ResourceAttrDiff{
-						Old:         "",
-						New:         "foo",
-						RequiresNew: true,
-					},
-				},
-			},
-
-			Key: "availability_zone",
-
-			Change: false,
-		},
-
-		{
-			Schema: map[string]*Schema{
 				"tags": &Schema{
 					Type:     TypeMap,
 					Optional: true,
@@ -1504,69 +1013,6 @@ func TestResourceDataHasChange(t *testing.T) {
 			Key: "tags",
 
 			Change: true,
-		},
-
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set:      func(a interface{}) int { return a.(int) },
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":  "1",
-					"ports.80": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "0",
-					},
-				},
-			},
-
-			Key: "ports",
-
-			Change: true,
-		},
-
-		// https://github.com/hashicorp/terraform/issues/927
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set:      func(a interface{}) int { return a.(int) },
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":  "1",
-					"ports.80": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"tags.foo": &tofu.ResourceAttrDiff{
-						Old: "",
-						New: "bar",
-					},
-				},
-			},
-
-			Key: "ports",
-
-			Change: false,
 		},
 	}
 
@@ -1781,98 +1227,6 @@ func TestResourceDataSet(t *testing.T) {
 					"bar": "baz",
 				},
 			},
-		},
-		{
-			TestName: "Set, with list",
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "3",
-					"ports.0": "100",
-					"ports.1": "80",
-					"ports.2": "80",
-				},
-			},
-
-			Key:   "ports",
-			Value: []interface{}{100, 125, 125},
-
-			GetKey:   "ports",
-			GetValue: []interface{}{100, 125},
-		},
-		{
-			TestName: " Set, with Set",
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.100": "100",
-					"ports.80":  "80",
-					"ports.81":  "81",
-				},
-			},
-
-			Key: "ports",
-			Value: &Set{
-				m: map[string]interface{}{
-					"1": 1,
-					"2": 2,
-				},
-			},
-
-			GetKey:   "ports",
-			GetValue: []interface{}{1, 2},
-		},
-		{
-			TestName: "Set single item",
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "2",
-					"ports.100": "100",
-					"ports.80":  "80",
-				},
-			},
-
-			Key:   "ports.100",
-			Value: 256,
-			Err:   true,
-
-			GetKey:   "ports",
-			GetValue: []interface{}{100, 80},
 		},
 		{
 			TestName: "Set with nested set",
@@ -2353,261 +1707,6 @@ func TestResourceDataState_schema(t *testing.T) {
 			},
 		},
 
-		// #4 List
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem:     &Schema{Type: TypeInt},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "1",
-					"ports.0": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "2",
-					},
-					"ports.1": &tofu.ResourceAttrDiff{
-						Old: "",
-						New: "100",
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "2",
-					"ports.0": "80",
-					"ports.1": "100",
-				},
-			},
-		},
-
-		// #5 List of resources
-		{
-			Schema: map[string]*Schema{
-				"ingress": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem: &Resource{
-						Schema: map[string]*Schema{
-							"from": &Schema{
-								Type:     TypeInt,
-								Required: true,
-							},
-						},
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ingress.#":      "1",
-					"ingress.0.from": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ingress.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "2",
-					},
-					"ingress.0.from": &tofu.ResourceAttrDiff{
-						Old: "80",
-						New: "150",
-					},
-					"ingress.1.from": &tofu.ResourceAttrDiff{
-						Old: "",
-						New: "100",
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ingress.#":      "2",
-					"ingress.0.from": "150",
-					"ingress.1.from": "100",
-				},
-			},
-		},
-
-		// #6 List of maps
-		{
-			Schema: map[string]*Schema{
-				"config_vars": &Schema{
-					Type:     TypeList,
-					Optional: true,
-					Computed: true,
-					Elem: &Schema{
-						Type: TypeMap,
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "2",
-					"config_vars.0.%":   "2",
-					"config_vars.0.foo": "bar",
-					"config_vars.0.bar": "bar",
-					"config_vars.1.%":   "1",
-					"config_vars.1.bar": "baz",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"config_vars.0.bar": &tofu.ResourceAttrDiff{
-						NewRemoved: true,
-					},
-				},
-			},
-
-			Set: map[string]interface{}{
-				"config_vars": []map[string]interface{}{
-					map[string]interface{}{
-						"foo": "bar",
-					},
-					map[string]interface{}{
-						"baz": "bang",
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "2",
-					"config_vars.0.%":   "1",
-					"config_vars.0.foo": "bar",
-					"config_vars.1.%":   "1",
-					"config_vars.1.baz": "bang",
-				},
-			},
-		},
-
-		// #7 List of maps with removal in diff
-		{
-			Schema: map[string]*Schema{
-				"config_vars": &Schema{
-					Type:     TypeList,
-					Optional: true,
-					Computed: true,
-					Elem: &Schema{
-						Type: TypeMap,
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "1",
-					"config_vars.0.FOO": "bar",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"config_vars.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "0",
-					},
-					"config_vars.0.FOO": &tofu.ResourceAttrDiff{
-						Old:        "bar",
-						NewRemoved: true,
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#": "0",
-				},
-			},
-		},
-
-		// #8 Basic state with other keys
-		{
-			Schema: map[string]*Schema{
-				"availability_zone": &Schema{
-					Type:     TypeString,
-					Optional: true,
-					Computed: true,
-					ForceNew: true,
-				},
-			},
-
-			State: &tofu.InstanceState{
-				ID: "bar",
-				Attributes: map[string]string{
-					"id": "bar",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"availability_zone": &tofu.ResourceAttrDiff{
-						Old:         "",
-						New:         "foo",
-						RequiresNew: true,
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				ID: "bar",
-				Attributes: map[string]string{
-					"id":                "bar",
-					"availability_zone": "foo",
-				},
-			},
-		},
-
-		// #9 Sets
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.100": "100",
-					"ports.80":  "80",
-					"ports.81":  "81",
-				},
-			},
-
-			Diff: nil,
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.80":  "80",
-					"ports.81":  "81",
-					"ports.100": "100",
-				},
-			},
-		},
-
 		// #10
 		{
 			Schema: map[string]*Schema{
@@ -2635,77 +1734,6 @@ func TestResourceDataState_schema(t *testing.T) {
 					"ports.#":   "2",
 					"ports.80":  "80",
 					"ports.100": "100",
-				},
-			},
-		},
-
-		// #11
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem: &Resource{
-						Schema: map[string]*Schema{
-							"order": &Schema{
-								Type: TypeInt,
-							},
-
-							"a": &Schema{
-								Type: TypeList,
-								Elem: &Schema{Type: TypeInt},
-							},
-
-							"b": &Schema{
-								Type: TypeList,
-								Elem: &Schema{Type: TypeInt},
-							},
-						},
-					},
-					Set: func(a interface{}) int {
-						m := a.(map[string]interface{})
-						return m["order"].(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":        "2",
-					"ports.10.order": "10",
-					"ports.10.a.#":   "1",
-					"ports.10.a.0":   "80",
-					"ports.20.order": "20",
-					"ports.20.b.#":   "1",
-					"ports.20.b.0":   "100",
-				},
-			},
-
-			Set: map[string]interface{}{
-				"ports": []interface{}{
-					map[string]interface{}{
-						"order": 20,
-						"b":     []interface{}{100},
-					},
-					map[string]interface{}{
-						"order": 10,
-						"a":     []interface{}{80},
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":        "2",
-					"ports.10.order": "10",
-					"ports.10.a.#":   "1",
-					"ports.10.a.0":   "80",
-					"ports.10.b.#":   "0",
-					"ports.20.order": "20",
-					"ports.20.a.#":   "0",
-					"ports.20.b.#":   "1",
-					"ports.20.b.0":   "100",
 				},
 			},
 		},
@@ -2744,46 +1772,6 @@ func TestResourceDataState_schema(t *testing.T) {
 			},
 		},
 
-		// #13 List
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem:     &Schema{Type: TypeInt},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "1",
-					"ports.0": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "2",
-					},
-					"ports.1": &tofu.ResourceAttrDiff{
-						Old: "",
-						New: "100",
-					},
-				},
-			},
-
-			Partial: []string{},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "1",
-					"ports.0": "80",
-				},
-			},
-		},
-
 		// #14
 		{
 			Schema: map[string]*Schema{
@@ -2814,156 +1802,6 @@ func TestResourceDataState_schema(t *testing.T) {
 
 			Result: &tofu.InstanceState{
 				Attributes: map[string]string{},
-			},
-		},
-
-		// #15 List of resources
-		{
-			Schema: map[string]*Schema{
-				"ingress": &Schema{
-					Type:     TypeList,
-					Required: true,
-					Elem: &Resource{
-						Schema: map[string]*Schema{
-							"from": &Schema{
-								Type:     TypeInt,
-								Required: true,
-							},
-						},
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ingress.#":      "1",
-					"ingress.0.from": "80",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ingress.#": &tofu.ResourceAttrDiff{
-						Old: "1",
-						New: "2",
-					},
-					"ingress.0.from": &tofu.ResourceAttrDiff{
-						Old: "80",
-						New: "150",
-					},
-					"ingress.1.from": &tofu.ResourceAttrDiff{
-						Old: "",
-						New: "100",
-					},
-				},
-			},
-
-			Partial: []string{},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ingress.#":      "1",
-					"ingress.0.from": "80",
-				},
-			},
-		},
-
-		// #16 List of maps
-		{
-			Schema: map[string]*Schema{
-				"config_vars": &Schema{
-					Type:     TypeList,
-					Optional: true,
-					Computed: true,
-					Elem: &Schema{
-						Type: TypeMap,
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"config_vars.#":     "2",
-					"config_vars.0.foo": "bar",
-					"config_vars.0.bar": "bar",
-					"config_vars.1.bar": "baz",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"config_vars.0.bar": &tofu.ResourceAttrDiff{
-						NewRemoved: true,
-					},
-				},
-			},
-
-			Set: map[string]interface{}{
-				"config_vars": []map[string]interface{}{
-					map[string]interface{}{
-						"foo": "bar",
-					},
-					map[string]interface{}{
-						"baz": "bang",
-					},
-				},
-			},
-
-			Partial: []string{},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					// TODO: broken, shouldn't bar be removed?
-					"config_vars.#":     "2",
-					"config_vars.0.%":   "2",
-					"config_vars.0.foo": "bar",
-					"config_vars.0.bar": "bar",
-					"config_vars.1.%":   "1",
-					"config_vars.1.bar": "baz",
-				},
-			},
-		},
-
-		// #17 Sets
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.100": "100",
-					"ports.80":  "80",
-					"ports.81":  "81",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.120": &tofu.ResourceAttrDiff{
-						New: "120",
-					},
-				},
-			},
-
-			Partial: []string{},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.80":  "80",
-					"ports.81":  "81",
-					"ports.100": "100",
-				},
 			},
 		},
 
@@ -3163,45 +2001,6 @@ func TestResourceDataState_schema(t *testing.T) {
 					"ports.10.index":    "10",
 					"ports.10.uuids.%":  "1",
 					"ports.10.uuids.80": "value",
-				},
-			},
-		},
-
-		// #24
-		{
-			Schema: map[string]*Schema{
-				"ports": &Schema{
-					Type:     TypeSet,
-					Optional: true,
-					Computed: true,
-					Elem:     &Schema{Type: TypeInt},
-					Set: func(a interface{}) int {
-						return a.(int)
-					},
-				},
-			},
-
-			State: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#":   "3",
-					"ports.100": "100",
-					"ports.80":  "80",
-					"ports.81":  "81",
-				},
-			},
-
-			Diff: &tofu.InstanceDiff{
-				Attributes: map[string]*tofu.ResourceAttrDiff{
-					"ports.#": &tofu.ResourceAttrDiff{
-						Old: "3",
-						New: "0",
-					},
-				},
-			},
-
-			Result: &tofu.InstanceState{
-				Attributes: map[string]string{
-					"ports.#": "0",
 				},
 			},
 		},
@@ -3487,56 +2286,6 @@ func TestResourceDataSetMeta_Timeouts(t *testing.T) {
 	actual := d.State()
 	if !reflect.DeepEqual(actual.Meta[TimeoutKey], expected) {
 		t.Fatalf("Bad Meta_timeout match:\n\texpected: %#v\n\tgot: %#v", expected, actual.Meta[TimeoutKey])
-	}
-}
-
-func TestResourceDataSetId(t *testing.T) {
-	d := &ResourceData{
-		state: &tofu.InstanceState{
-			ID: "test",
-			Attributes: map[string]string{
-				"id": "test",
-			},
-		},
-	}
-	d.SetId("foo")
-
-	actual := d.State()
-
-	// SetId should set both the ID field as well as the attribute, to aid in
-	// transitioning to the new type system.
-	if actual.ID != "foo" || actual.Attributes["id"] != "foo" {
-		t.Fatalf("bad: %#v", actual)
-	}
-
-	d.SetId("")
-	actual = d.State()
-	if actual != nil {
-		t.Fatalf("bad: %#v", actual)
-	}
-}
-
-func TestResourceDataSetId_clear(t *testing.T) {
-	d := &ResourceData{
-		state: &tofu.InstanceState{ID: "bar"},
-	}
-	d.SetId("")
-
-	actual := d.State()
-	if actual != nil {
-		t.Fatalf("bad: %#v", actual)
-	}
-}
-
-func TestResourceDataSetId_override(t *testing.T) {
-	d := &ResourceData{
-		state: &tofu.InstanceState{ID: "bar"},
-	}
-	d.SetId("foo")
-
-	actual := d.State()
-	if actual.ID != "foo" {
-		t.Fatalf("bad: %#v", actual)
 	}
 }
 
