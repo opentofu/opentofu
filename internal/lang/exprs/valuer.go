@@ -7,6 +7,7 @@ package exprs
 
 import (
 	"context"
+	"iter"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -87,9 +88,16 @@ func ConstantValuerWithSourceRange(v cty.Value, rng tfdiags.SourceRange) Valuer 
 // sometimes for handling unusual situations in "real" code.
 func ForcedErrorValuer(diags tfdiags.Diagnostics) Valuer {
 	if !diags.HasErrors() {
-		panic("ForcedErrorHandler without any error diagnostics")
+		panic("ForcedErrorValuer without any error diagnostics")
 	}
-	return forcedErrorValuer{diags}
+	return forcedErrorValuer{diags, nil}
+}
+
+// ConstantValuerWithSourceRange is like [ForcedErrorValuer] except that the
+// result will also claim to have originated in the configuration at whatever
+// source range is given.
+func ForcedErrorValuerWithSourceRange(diags tfdiags.Diagnostics, rng tfdiags.SourceRange) Valuer {
+	return forcedErrorValuer{diags, &rng}
 }
 
 type constantValuer struct {
@@ -115,8 +123,14 @@ func (c constantValuer) ValueSourceRange() *tfdiags.SourceRange {
 	return c.sourceRange
 }
 
+// forcedErrorValuer implements both [Valuer] and [Evalable], in both cases
+// just immediately returning diagnostics when asked to produce a value and
+// producing safe, inert results for other operations.
 type forcedErrorValuer struct {
 	diags tfdiags.Diagnostics
+	// sourceRange is optional for implementing [Valuer] but MUST be non-nil
+	// when implementing [Evalable].
+	sourceRange *tfdiags.SourceRange
 }
 
 // StaticCheckTraversal implements Valuer.
@@ -134,5 +148,31 @@ func (f forcedErrorValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 
 // ValueSourceRange implements Valuer.
 func (f forcedErrorValuer) ValueSourceRange() *tfdiags.SourceRange {
-	return nil
+	return f.sourceRange
+}
+
+// EvalableSourceRange implements Evalable.
+func (f forcedErrorValuer) EvalableSourceRange() tfdiags.SourceRange {
+	// When used as an Evaler the sourceRange field should always be populated.
+	return *f.sourceRange
+}
+
+// Evaluate implements Evalable.
+func (f forcedErrorValuer) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
+	return cty.DynamicVal, f.diags
+}
+
+// FunctionCalls implements Evalable.
+func (f forcedErrorValuer) FunctionCalls() iter.Seq[*hcl.StaticCall] {
+	return func(yield func(*hcl.StaticCall) bool) {}
+}
+
+// References implements Evalable.
+func (f forcedErrorValuer) References() iter.Seq[hcl.Traversal] {
+	return func(yield func(hcl.Traversal) bool) {}
+}
+
+// ResultTypeConstraint implements Evalable.
+func (f forcedErrorValuer) ResultTypeConstraint() cty.Type {
+	return cty.DynamicPseudoType
 }

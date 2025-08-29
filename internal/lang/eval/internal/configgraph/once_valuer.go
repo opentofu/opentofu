@@ -8,6 +8,7 @@ package configgraph
 import (
 	"context"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// OnceValuer wraps the given [exprs.Valuer] so that the underlying [Value]
+// ValuerOnce wraps the given [exprs.Valuer] so that the underlying [Value]
 // method will be called only once and reused for all future calls.
 //
 // Calls to Value on the result must be made with a context derived from
@@ -27,28 +28,35 @@ import (
 // The StaticCheckTraversal method is _not_ wrapped and so should be a
 // relatively cheap operation as usual and must not interact (directly or
 // indirectly) with any grapheval helpers.
-func OnceValuer(valuer exprs.Valuer) exprs.Valuer {
-	return &onceValuer{inner: valuer}
+func ValuerOnce(valuer exprs.Valuer) *OnceValuer {
+	return &OnceValuer{inner: valuer}
 }
 
-type onceValuer struct {
+type OnceValuer struct {
 	once  grapheval.Once[cty.Value]
 	inner exprs.Valuer
 }
 
 // StaticCheckTraversal implements exprs.Valuer.
-func (v *onceValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+func (v *OnceValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
 	return v.inner.StaticCheckTraversal(traversal)
 }
 
 // Value implements exprs.Valuer.
-func (v *onceValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+func (v *OnceValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	return v.once.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 		return v.inner.Value(ctx)
 	})
 }
 
 // ValueSourceRange implements exprs.Valuer.
-func (v *onceValuer) ValueSourceRange() *tfdiags.SourceRange {
+func (v *OnceValuer) ValueSourceRange() *tfdiags.SourceRange {
 	return v.inner.ValueSourceRange()
+}
+
+// RequestID returns the workgraph package's tracking identifier for the
+// request to return the value, or [workgraph.NoRequest] if nobody has
+// called the Value method yet.
+func (v *OnceValuer) RequestID() workgraph.RequestID {
+	return v.once.RequestID()
 }
