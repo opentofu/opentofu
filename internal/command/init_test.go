@@ -1772,8 +1772,8 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.4"),
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
-				getproviders.HashSchemeZip.New("ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31"),
+				generatePackageHash(t, wantPackages[addrs.NewDefaultProvider("test-beta")][0].PackageDir),
+				generatePackageZipHash(t, wantPackages[addrs.NewDefaultProvider("test-beta")][0].PackageDir),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -3312,4 +3312,30 @@ func expectedPackageInstallPath(name, version string) string {
 	return filepath.ToSlash(filepath.Join(
 		baseDir, fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s", name, version, platform),
 	))
+}
+
+// We calculate this particular hash dynamically, rather than hard-coding it
+// as we normally do for these situations in tests, because archive/zip
+// can generate slightly different entry metadata depending on the platform
+// where the test is running and other details of the execution environment.
+// We only care that the final result uses a hash that matches the zip file.
+func generatePackageHash(t *testing.T, dir string) getproviders.Hash {
+	hash, err := getproviders.PackageHashV1(getproviders.PackageLocalDir(dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hash
+}
+
+// We calculate this particular hash dynamically, rather than hard-coding it
+// as we normally do for these situations in tests, because archive/zip
+// can generate slightly different entry metadata depending on the platform
+// where the test is running and other details of the execution environment.
+// We only care that the final result uses a hash that matches the zip file.
+func generatePackageZipHash(t *testing.T, zipFile string) getproviders.Hash {
+	hash, err := getproviders.PackageHashLegacyZipSHA(getproviders.PackageLocalArchive(zipFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hash
 }
