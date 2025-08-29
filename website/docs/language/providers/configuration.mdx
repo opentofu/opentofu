@@ -56,6 +56,10 @@ configuration is applied. This means you can safely reference input variables,
 but not attributes exported by resources unless they are defined directly in
 the configuration or documented as being available during the planning phase.
 
+You can use [ephemeral values](../ephemerality/index.mdx) to configure a provider. These can come
+from multiple places, such as variables, outputs or ephemeral resources.
+A provider configuration example is included in the [ephemeral documentation](../ephemerality/index.mdx#using-the-module-in-a-configuration-to-retrieve-a-secret-and-configure-a-provider).
+
 A provider's documentation should list which configuration arguments it expects.
 For providers distributed on the
 [Public OpenTofu Registry](https://registry.opentofu.org), versioned documentation is

@@ -90,7 +90,15 @@ The `connection` block supports the following arguments. Some arguments are only
 | `use_ntlm` | WinRM | Set to `true` to use NTLM authentication rather than default (basic authentication), removing the requirement for basic authentication to be enabled within the target guest. Refer to [Authentication for Remote Connections](https://docs.microsoft.com/en-us/windows/win32/winrm/authentication-for-remote-connections) in the Windows App Development documentation for more details. | |
 | `cacert` | WinRM | The CA certificate to validate against. | |
 
+### Ephemeral usage
 
+This type of block can be configured by using [ephemeral values](../../ephemerality/index.mdx) such as variables, outputs and even ephemeral resource's attributes.
+:::warning
+The connection is having no output, but the provisioner that is using it do have output.
+If the provisioner does not use other ephemeral values in its configuration, that will trigger the
+suppressing of the output, then the output will be shown, risking
+on exposing confidential information from the connection details.
+:::
 <a id="bastion"></a>
 
 ## Connecting through a Bastion Host with SSH

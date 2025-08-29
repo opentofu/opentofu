@@ -402,3 +402,45 @@ will prevent OpenTofu from implementing planned actions for the associated resou
 
 OpenTofu typically has less information during the initial creation of a
 full configuration than when applying subsequent changes. Therefore, OpenTofu may check conditions during apply for initial creation and then check them during planning for subsequent updates.
+
+## Ephemeral values usage
+
+To ensure that information is not disclosed during condition failures, custom conditions blocks can make use of ephemeral values too but only in the `condition` field.
+```hcl
+variable "my_ephemeral_variable" {
+  type      = string
+  ephemeral = true
+}
+
+resource "null_resource" "test" {
+  // ...
+  lifecycle {
+    precondition {
+      condition = var.my_ephemeral_variable != "forbidden-value"
+      error_message = "cannot be used when this variable points to a value that is not allowed"
+    }
+  }
+}
+```
+
+Using ephemeral values in the `error_message` will cause rendering the message to fail:
+```shell
+│ Warning: Error message refers to ephemeral values
+│
+│   on main.tf line 63, in resource "null_resources" "test":
+│   63:       error_message = "cannot be used when this variable points to a value that is not allowed ${var.my_ephemeral_variable}"
+│
+│ The error expression used to explain this condition refers to ephemeral values, so OpenTofu will not display the
+│ resulting message.
+│
+│ You can correct this by removing references to ephemeral values or by utilizing the builtin ephemeralasnull()
+│ function.
+╵
+╷
+│ Error: Resource precondition failed
+│
+│   on main.tf line 62, in resource "null_resource" "test":
+│   62:       condition = var.my_ephemeral_variable != "forbidden-value"
+│
+│ This check failed, but has an invalid error message as described in the other accompanying messages.
+```
