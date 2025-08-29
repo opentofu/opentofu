@@ -23,6 +23,7 @@ type ModuleInstance struct {
 	InputVariableNodes map[addrs.InputVariable]*InputVariable
 	LocalValueNodes    map[addrs.LocalValue]*LocalValue
 	OutputValueNodes   map[addrs.OutputValue]*OutputValue
+	ResourceNodes      map[addrs.Resource]*Resource
 
 	CoreFunctions map[string]function.Function
 
