@@ -83,7 +83,7 @@ OpenTofu CLI defines the following optional arguments for variable declarations:
 * [`description`][inpage-description] - This specifies the input variable's documentation.
 * [`validation`][inpage-validation] - A block to define validation rules, usually in addition to type constraints.
 * [`sensitive`][inpage-sensitive] - Limits OpenTofu UI output when the variable is used in configuration.
-* [`ephemeral`][inpage-ephemeral] - Limits the usage of the variable only to ephemeral contexts.
+* [`ephemeral`][inpage-ephemeral] - Limits the usage of the variable to ephemeral contexts.
 * [`nullable`][inpage-nullable] - Specify if the variable can be `null` within the module.
 * [`deprecated`][inpage-deprecated] - Mark the variable as deprecated to warn callers about migration.
 
@@ -272,15 +272,16 @@ random_pet.animal: Creation complete after 0s [id=jae-known-mongoose]
 ### Ephemerality
 [inpage-ephemeral]: #ephemeral-variables
 
-Setting a variable as `ephemeral`, OpenTofu will prevent its usage in other contexts than the ephemeral ones:
-* other ephemeral variables
-* `provider` blocks
-* [ephemeral resources](../ephemerality/ephemeral-resources.mdx)
-* [write-only attributes](../ephemerality/write-only-attributes.mdx)
-* [ephemeral outputs](./outputs.mdx#ephemerality)
-* [local values](./locals.mdx#ephemerality)
-* [`provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
-* [`connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+If a variable is set to `ephemeral`, the module author will limit its usage
+only to the allowed ephemeral contexts:
+* [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
+* [Provider Configuration](../providers/configuration.mdx)
+* Values for [write-only attributes](../ephemerality/write-only-attributes.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Resource `provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
 
 OpenTofu will not store this type of variables in the [state](../../language/state/index.mdx) at all.
 These will be saved in the plan only by their name for further processing during apply.

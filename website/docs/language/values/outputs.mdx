@@ -174,7 +174,7 @@ values in cleartext. For more information, see
 
 <a id="ephemerality"></a>
 
-### `ephemerality` — Control what outputs can be stored to state and plan
+### `ephemeral` — Control what outputs can be stored to state and plan
 
 An output can be marked as ephemeral using the optional
 `ephemeral` argument:
@@ -189,19 +189,19 @@ output "db_password" {
 
 By configuring an `output` block with the `ephemeral` attribute, the module author will limit its usage
 only to the allowed ephemeral contexts:
-* other ephemeral outputs
-* `provider` blocks
-* [ephemeral resources](../ephemerality/ephemeral-resources.mdx)
-* [write-only attributes](../ephemerality/write-only-attributes.mdx)
-* [ephemeral variables](./variables.mdx#ephemerality)
-* [locals](./locals.mdx#ephemerality)
-* [`provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
-* [`connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
+* [Provider Configuration](../providers/configuration.mdx)
+* Values for [write-only attributes](../ephemerality/write-only-attributes.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Resource `provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
 
-Here are the rules around an `ephemeral` output:
-* If an output is wanted to return an ephemeral value, the output needs to be configured with the `ephemeral` attribute.
-* An `ephemeral=true` configured output can reference also non-ephemeral values, but the value will be converted into an ephemeral one, restricting its further usage.
-* A root module `output` block cannot be configured with such an attribute. This is a configuration intended only for child modules.
+
+:::note
+A root module `output` block cannot be configured with such an attribute. This is a configuration intended only for child modules.
+:::
 
 ```hcl
 # main.tf
