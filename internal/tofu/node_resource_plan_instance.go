@@ -63,8 +63,9 @@ type NodePlannableResourceInstance struct {
 // an import block, after everything regarding the configuration has been evaluated.
 // At this point, the import target is of a single resource instance
 type EvaluatedConfigImportTarget struct {
-	// Config is the original import block for this import. This might be null
-	// if the import did not originate in config.
+	// Config is the original import block for this import. This might be nil if the import did not originate in config.
+	// Example of this is explicitly setting config as nil in ImportResolver.addCLIImportTarget.
+	// It is done during nodeExpandPlannableResource.DynamicExpand and there should be no possible paths to dereference this with a nil value.
 	Config *configs.Import
 
 	// Addr is the actual address of the resource instance that we should import into. At this point, the address
