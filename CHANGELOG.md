@@ -32,6 +32,7 @@ ENHANCEMENTS:
   * The upgrade is necessary to silence the security scanner and does not affect the actual state encryption provided by OpenBao.
 * Add logs for the DynamoDB operations in the S3 backend ([#3103](https://github.com/opentofu/opentofu/pull/3103))
 * When running the `stty` program to disable or reenable local echo at a sensitive input prompt, OpenTofu will now search `PATH` for the program rather than requiring it to be at exactly `/bin/stty`. ([#3182](https://github.com/opentofu/opentofu/pull/3182))
+* The module installer will run faster when installing copies of a module during init ([#3214](https://github.com/opentofu/opentofu/pull/3214))
 
 BUG FIXES:
 

@@ -6,11 +6,14 @@
 package copy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // CopyDir recursively copies all of the files within the directory given in
@@ -44,6 +47,8 @@ func CopyDir(dst, src string) error {
 		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", src, err)
 	}
 
+	var errg errgroup.Group
+
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error walking the path %q: %w", path, err)
@@ -65,13 +70,6 @@ func CopyDir(dst, src string) error {
 		// destination with the path without the src on it.
 		dstPath := filepath.Join(dst, path[len(src):])
 
-		// we don't want to try and copy the same file over itself.
-		if eq, err := SameFile(path, dstPath); err != nil {
-			return fmt.Errorf("failed to check if files are the same: %w", err)
-		} else if eq {
-			return nil
-		}
-
 		// If we have a directory, make that subdirectory, then continue
 		// the walk.
 		if info.IsDir() {
@@ -87,22 +85,35 @@ func CopyDir(dst, src string) error {
 			return nil
 		}
 
-		// If the current path is a symlink, recreate the symlink relative to
-		// the dst directory
-		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
-			target, err := os.Readlink(path)
-			if err != nil {
-				return fmt.Errorf("failed to read symlink %q: %w", path, err)
+		errg.Go(func() error {
+
+			// we don't want to try and copy the same file over itself.
+			if eq, err := SameFile(path, dstPath); err != nil {
+				return fmt.Errorf("failed to check if files are the same: %w", err)
+			} else if eq {
+				return nil
 			}
 
-			if err := os.Symlink(target, dstPath); err != nil {
-				return fmt.Errorf("failed to create symlink %q: %w", dstPath, err)
+			// If the current path is a symlink, recreate the symlink relative to
+			// the dst directory
+			if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+				target, err := os.Readlink(path)
+				if err != nil {
+					return fmt.Errorf("failed to read symlink %q: %w", path, err)
+				}
+
+				if err := os.Symlink(target, dstPath); err != nil {
+					return fmt.Errorf("failed to create symlink %q: %w", dstPath, err)
+				}
+				return nil
 			}
-			return nil
-		}
-		return copyFile(dstPath, path, info.Mode())
+			return copyFile(dstPath, path, info.Mode())
+		})
+		return nil
 	}
-	return filepath.Walk(src, walkFn)
+	err = filepath.Walk(src, walkFn)
+	waitErr := errg.Wait()
+	return errors.Join(waitErr, err)
 }
 
 // copyFile copies the contents and mode of the file from src to dst.
