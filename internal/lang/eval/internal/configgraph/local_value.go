@@ -16,7 +16,7 @@ import (
 )
 
 type LocalValue struct {
-	RawValue exprs.Valuer
+	RawValue *OnceValuer
 }
 
 var _ exprs.Valuer = (*LocalValue)(nil)

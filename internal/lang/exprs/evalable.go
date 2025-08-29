@@ -76,6 +76,22 @@ type Evalable interface {
 	EvalableSourceRange() tfdiags.SourceRange
 }
 
+// ForcedErrorEvalable returns an [Evalable] that always fails with
+// [cty.DynamicVal] as its placeholder result and with the given diagnostics,
+// which must include at least one error or this function will panic.
+//
+// This is primarily intended for unit testing purposes for creating
+// placeholders for upstream objects that have failed, but might also be useful
+// sometimes for handling early-detected error situations in "real" code.
+func ForcedErrorEvalable(diags tfdiags.Diagnostics, sourceRange tfdiags.SourceRange) Evalable {
+	if !diags.HasErrors() {
+		panic("ForcedErrorEvalable without any error diagnostics")
+	}
+	// We reuse the same type as ForcedErrorValuer here because it can
+	// implement both interfaces just fine with the information available here.
+	return forcedErrorValuer{diags, &sourceRange}
+}
+
 func StaticCheckTraversal(traversal hcl.Traversal, evalable Evalable) tfdiags.Diagnostics {
 	return StaticCheckTraversalThroughType(traversal, evalable.ResultTypeConstraint())
 }

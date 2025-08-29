@@ -24,6 +24,7 @@ func TestCompileModuleInstance_valuesOnly(t *testing.T) {
 	// correctly. This is far from exhaustive but covers some of
 	// the fundamentals that more complex situations rely on.
 
+	ctx := grapheval.ContextWithNewWorker(t.Context())
 	module := configs.ModuleFromStringForTesting(t, `
 		variable "a" {
 			type = string
@@ -40,9 +41,8 @@ func TestCompileModuleInstance_valuesOnly(t *testing.T) {
 			"a": cty.True,
 		}),
 	}
-	inst := compileModuleInstance(module, addrs.ModuleSourceLocal("."), call, nil)
+	inst := compileModuleInstance(ctx, module, addrs.ModuleSourceLocal("."), call, nil)
 
-	ctx := grapheval.ContextWithNewWorker(t.Context())
 	got, diags := inst.Value(ctx)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err().Error())
