@@ -3309,11 +3309,6 @@ func installFakeProviderPackagesElsewhere(t *testing.T, cacheDir *providercache.
 func expectedPackageInstallPath(name, version string) string {
 	platform := getproviders.CurrentPlatform
 	baseDir := ".terraform/providers"
-	if platform.OS == "windows" {
-		p := fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
-		p += ".exe"
-		return filepath.ToSlash(filepath.Join(baseDir, p))
-	}
 	return filepath.ToSlash(filepath.Join(
 		baseDir, fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s", name, version, platform),
 	))
