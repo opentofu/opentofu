@@ -218,6 +218,15 @@ type LocalRun struct {
 	//
 	// This is nil when we're not applying a saved plan.
 	Plan *plans.Plan
+
+	// ApplyOpts are options that are passed into the Apply operation.
+	//
+	// This will be nil most of the times except when the apply command is
+	// executed with a plan file. In that particular case, the opts will
+	// contain the variable values given by the user to the `tofu apply`
+	// command. This is later used to merge the variable values defined in
+	// the plan with the ones defined in the CLI.
+	ApplyOpts *tofu.ApplyOpts
 }
 
 // An operation represents an operation for OpenTofu to execute.

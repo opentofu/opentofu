@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
@@ -22,6 +23,18 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
+type ApplyOpts struct {
+	// SetVariables are the raw values for root module variables as provided
+	// by the user who is requesting the run, prior to any normalization or
+	// substitution of defaults.
+	// In localRunForPlanFile, where the initialization of this was initially
+	// introduced, there is a validation to ensure that the values from the cli
+	// do not differ from the ones saved in the plan. The place where this is used,
+	// in Context#mergePlanAndApplyVariables, the merging of this with the plan variable values
+	// follows the same logic and rules of the validation mentioned above.
+	SetVariables InputValues
+}
+
 // Apply performs the actions described by the given Plan object and returns
 // the resulting updated state.
 //
@@ -30,7 +43,7 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config, opts *ApplyOpts) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
@@ -89,7 +102,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
-	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker)
+	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker, opts)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -155,43 +168,13 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping, applyOpts *ApplyOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	variables := InputValues{}
-	for name, dyVal := range plan.VariableValues {
-		val, err := dyVal.Decode(cty.DynamicPseudoType)
-		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid variable value in plan",
-				fmt.Sprintf("Invalid value for variable %q recorded in plan file: %s.", name, err),
-			))
-			continue
-		}
-
-		variables[name] = &InputValue{
-			Value:      val,
-			SourceType: ValueFromPlan,
-		}
-	}
+	variables, vDiags := c.mergePlanAndApplyVariables(config, plan, applyOpts)
+	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		return nil, walkApply, diags
-	}
-
-	// The plan.VariableValues field only records variables that were actually
-	// set by the caller in the PlanOpts, so we may need to provide
-	// placeholders for any other variables that the user didn't set, in
-	// which case OpenTofu will once again use the default value from the
-	// configuration when we visit these variables during the graph walk.
-	for name := range config.Module.Variables {
-		if _, ok := variables[name]; ok {
-			continue
-		}
-		variables[name] = &InputValue{
-			Value:      cty.NilVal,
-			SourceType: ValueFromPlan,
-		}
 	}
 
 	operation := walkApply
@@ -242,7 +225,122 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, make(ProviderFunctionMapping))
+	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, make(ProviderFunctionMapping), nil)
 	diags = diags.Append(moreDiags)
 	return graph, diags
+}
+
+// mergePlanAndApplyVariables is meant to prepare InputValues for the apply phase.
+//
+// # Context:
+// As requested in opentofu/opentofu#1922, we had to add the ability to specify variable's values
+// during the apply too, not only during the plan command.
+// Therefore, when a plan is created via `tofu plan -out <planfile>` and then applied with `tofu apply <planfile>`
+// we need to be able to specify -var/-var-file/etc to allow configuring the variables that are not kept in the
+// plan (encryption configuration, ephemeral variables).
+//
+// # mergePlanAndApplyVariables
+// This gets the plan and the *ApplyOpts and builds the InputValues. The values saved in the plan have
+// priority *when defined*, but the variables found in the plan with a null value are considered to be
+// ephemeral and values for those are searched in the ApplyOpts.
+func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (InputValues, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	variables := map[string]*InputValue{}
+
+	var inputVars map[string]*InputValue
+	if opts != nil && opts.SetVariables != nil {
+		inputVars = opts.SetVariables
+	}
+
+	// Check for variables not in configuration (bug)
+	for name := range plan.VariableValues {
+		if _, ok := config.Module.Variables[name]; !ok {
+			// This should already be validated elsewhere, but we have this here just in case
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Missing variable in configuration",
+				fmt.Sprintf("Variable %q not found in the given configuration", name),
+			))
+		}
+	}
+	for name := range inputVars {
+		if _, ok := config.Module.Variables[name]; !ok {
+			// This should already be validated elsewhere, but we have this here just in case
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Missing variable in configuration",
+				fmt.Sprintf("Variable %q not found in the given configuration", name),
+			))
+		}
+	}
+
+	for name, cfg := range config.Module.Variables {
+		// The plan.VariableValues field only records variables that were actually
+		// set by the caller in the PlanOpts, so we may need to provide
+		// placeholders for any other variables that the user didn't set, in
+		// which case OpenTofu will once again use the default value from the
+		// configuration when we visit these variables during the graph walk.
+		variables[name] = &InputValue{
+			Value:      cty.NilVal,
+			SourceType: ValueFromPlan,
+		}
+
+		// Pull the var value from the input vars
+		var inputValue cty.Value
+		inputVar, inputOk := inputVars[name]
+		if inputOk {
+			inputValue = inputVar.Value
+
+			// Record the var in our return value
+			variables[name] = inputVar
+		}
+
+		// Pull the var value from the plan vars
+		var planValue cty.Value
+		planVar, planOk := plan.VariableValues[name]
+		if planOk {
+			val, err := planVar.Decode(cty.DynamicPseudoType)
+			if err != nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Invalid variable value in plan",
+					fmt.Sprintf("Invalid value for variable %q recorded in plan file: %s.", name, err),
+				))
+				continue
+			}
+			planValue = val
+
+			// Record the var in our return value (potentially overriding the above set)
+			variables[name] = &InputValue{
+				Value:      val,
+				SourceType: ValueFromPlan,
+			}
+		}
+
+		// If both are set, ensure they are identical
+		if planOk && inputOk {
+			if inputValue.Equals(planValue).False() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Mismatch between input and plan variable value",
+					fmt.Sprintf("Value saved in the plan file for variable %q is different from the one given to the current command.", name),
+				))
+				continue
+			}
+		}
+
+		// If ephemeral, required, and not given as input
+		if plan.EphemeralVariables[name] && cfg.Required() && !inputOk && !planOk {
+			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `No value for required variable`,
+				Detail:   fmt.Sprintf("Variable %q is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.", name),
+				Subject:  cfg.DeclRange.Ptr(),
+			})
+			continue
+		}
+	}
+
+	return variables, diags
 }
