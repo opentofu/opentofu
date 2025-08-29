@@ -1,0 +1,48 @@
+---
+description: >-
+  Write-only attributes are resource special attributes that can work with ephemeral
+  values. As the name suggests, these are meant to be sent to the provider and not
+  ever returned back, giving the chance to the provider to write them on the
+  configured resource.
+---
+
+# Write-only attributes
+
+:::info
+Write-only attributes can be used only with OpenTofu from v1.11 onwards.
+:::
+
+This is a new type of attribute only found in [`managed resources`](../resources/index.mdx) (`resource` blocks)
+designed to accept temporary values that will never be stored in the state or plan.
+
+This has been added as a side kick for the ephemeral values to be able to pass these in a managed
+resource, being the only way in which a managed resource can use an ephemeral value.
+For example, a secret can be read by using an ephemeral resource and then passed into the write-only
+attribute `password_wo` of the `aws_db_instance` resource.
+
+The lifecycle of these attributes is quite different compared with other types of attributes:
+* A write-only attribute exists only in the configuration section of a resource
+* A write-only attribute will always be written into the state and plan with a null value
+* A write-only attribute will always be returned as null from the provider even if in the configuration it had an actual value
+* A write-only attribute can reference regular and ephemeral values (normal attributes cannot reference ephemeral values)
+
+## Plan vs apply value
+Since a write-only attribute is always null in the plan and in state and also returned as null from the provider, between
+these 2 phases the value of this type of attribute can be inconsistent so there is no validation around this.
+Therefore, in the rendered plan, it will *always* be display as `(write-only attribute)`.
+
+## Updating a write-only attribute
+Because OpenTofu has no way to know what value is currently in the remote resource (ie: null value in the state) and
+doesn't know what value has been (or planned to be) stored remotely (ie: provider returns null value for these attributes), it
+cannot generate a change for such attributes.
+As a recommendation for the provider authors, alongside the write-only attribute, there should be included
+also a non-write-only attribute meant to instruct the provider that the value given in the configuration
+of the write-only attribute should be updated.
+
+For example, [aws_secretsmanager_secret_version](https://search.opentofu.org/provider/hashicorp/aws/latest/docs/resources/secretsmanager_secret_version)
+offers 2 fields for this: `secret_string_wo` which is the write-only attribute and `secret_string_wo_version` that is
+the non-write-only attribute. By changing the value of `secret_string_wo_version` from what is stored currently in the state,
+provider will trigger an update of the `secret_string_wo` attribute with the value provided in the configuration.
+
+## Example
+For an in-depth example on how to use write-only attributes, please refer to [this example](./index.mdx#usage-example).

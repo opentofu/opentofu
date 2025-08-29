@@ -56,6 +56,11 @@ configuration is applied. This means you can safely reference input variables,
 but not attributes exported by resources unless they are defined directly in
 the configuration or documented as being available during the planning phase.
 
+You can also use ephemeral values now to configure a provider. These can come
+from multiple places, like variables, outputs or even ephemeral resources, but
+that depends on the dependency graph and how the dependencies are structured
+for it. For an example, you can check the [ephemeral constructs example](../ephemerality/index.mdx#usage-example).
+
 A provider's documentation should list which configuration arguments it expects.
 For providers distributed on the
 [Public OpenTofu Registry](https://registry.opentofu.org), versioned documentation is

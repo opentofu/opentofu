@@ -36,6 +36,19 @@ When using a saved plan, you cannot specify any additional planning modes or opt
 actions to take, and the plan file contains the final results of those
 decisions.
 
+#### Ephemeral variables
+When a plan is created based on a configuration where ephemeral variables are defined on the root module, applying it will require providing
+again values for those. This is because the values of this type of variables are not saved into the plan while the other variables are saved.
+
+For example, if `-var-file` has been used to create the planfile (`tofu plan -var-file=dev.tf -out planfile`), the same argument _needs_
+to be used for the apply command too (`tofu apply -var-file=dev.tf planfile`).
+Not doing so when the root configuration contains ephemeral variables, OpenTofu will exit with a clear message of what is missing.
+
+:::note
+Since this customization is required by the existence of ephemeral variables, those are the only ones that can get a different
+value between `tofu plan` and `tofu apply`. Providing different values for regular variables will raise an error.
+:::
+
 ### Plan Options
 
 Without a saved plan file, `tofu apply` supports all planning modes and planning options available for `tofu plan`.

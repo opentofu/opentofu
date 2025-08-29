@@ -54,6 +54,9 @@ for each situation.
 * [Splitting One Module into Multiple](#splitting-one-module-into-multiple)
 * [Removing `moved` blocks](#removing-moved-blocks)
 
+:::note
+`moved` block cannot be used with `ephemeral` blocks since these are not stored in the state.
+:::
 ### Renaming a Resource
 
 Consider this example module with a resource configuration:
