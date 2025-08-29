@@ -21,47 +21,6 @@ import (
 // This is the directory where our test fixtures are.
 const fixtureDir = "./testdata"
 
-func TestLoadConfig(t *testing.T) {
-	c, err := loadConfigFile(filepath.Join(fixtureDir, "config"))
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	expected := &Config{
-		Providers: map[string]string{
-			"aws": "foo",
-			"do":  "bar",
-		},
-	}
-
-	if !reflect.DeepEqual(c, expected) {
-		t.Fatalf("bad: %#v", c)
-	}
-}
-
-func TestLoadConfig_envSubst(t *testing.T) {
-	t.Setenv("TFTEST", "hello")
-
-	c, err := loadConfigFile(filepath.Join(fixtureDir, "config-env"))
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	expected := &Config{
-		Providers: map[string]string{
-			"aws":    "hello",
-			"google": "bar",
-		},
-		Provisioners: map[string]string{
-			"local": "hello",
-		},
-	}
-
-	if !reflect.DeepEqual(c, expected) {
-		t.Fatalf("bad: %#v", c)
-	}
-}
-
 func TestLoadConfig_non_existing_file(t *testing.T) {
 	tmpDir := os.TempDir()
 	cliTmpFile := filepath.Join(tmpDir, "dev.tfrc")
@@ -382,14 +341,6 @@ func TestConfigValidate(t *testing.T) {
 
 func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
-		Providers: map[string]string{
-			"foo": "bar",
-			"bar": "blah",
-		},
-		Provisioners: map[string]string{
-			"local":  "local",
-			"remote": "bad",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
 				Services: map[string]interface{}{
@@ -432,13 +383,6 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	c2 := &Config{
-		Providers: map[string]string{
-			"bar": "baz",
-			"baz": "what",
-		},
-		Provisioners: map[string]string{
-			"remote": "remote",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.net": {
 				Services: map[string]interface{}{
@@ -476,15 +420,6 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	expected := &Config{
-		Providers: map[string]string{
-			"foo": "bar",
-			"bar": "baz",
-			"baz": "what",
-		},
-		Provisioners: map[string]string{
-			"local":  "local",
-			"remote": "remote",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
 				Services: map[string]interface{}{
