@@ -909,40 +909,92 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 		return nil, diags
 	}
 
-	err := fetcher.FetchPackage(ctx, instPath, packageAddr.String())
-	if err != nil {
-		// go-getter generates a poor error for an invalid relative path, so
-		// we'll detect that case and generate a better one.
-		if _, ok := err.(*getmodules.MaybeRelativePathErr); ok {
-			log.Printf(
-				"[TRACE] ModuleInstaller: %s looks like a local path but is missing ./ or ../",
-				req.SourceAddr,
-			)
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Module not found",
-				Detail: fmt.Sprintf(
-					"The module address %q could not be resolved.\n\n"+
-						"If you intended this as a path relative to the current "+
-						"module, use \"./%s\" instead. The \"./\" prefix "+
-						"indicates that the address is a relative filesystem path.",
-					req.SourceAddr, req.SourceAddr,
-				),
-			})
-		} else {
-			// Errors returned by go-getter have very inconsistent quality as
-			// end-user error messages, but for now we're accepting that because
-			// we have no way to recognize any specific errors to improve them
-			// and masking the error entirely would hide valuable diagnostic
-			// information from the user.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Failed to download module",
-				Detail:   fmt.Sprintf("Could not download module %q (%s:%d) source code from %q: %s", req.Name, req.CallRange.Filename, req.CallRange.Start.Line, packageAddr, err),
-				Subject:  req.CallRange.Ptr(),
-			})
+	fetchFunc := func(path string) hcl.Diagnostics {
+		var diags hcl.Diagnostics
+
+		err := fetcher.FetchPackage(ctx, path, packageAddr.String())
+		if err != nil {
+			rmErr := os.RemoveAll(path)
+			if rmErr != nil {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Failed to clean up failed download of module",
+					Detail:   rmErr.Error(),
+					Subject:  req.CallRange.Ptr(),
+				})
+			}
+
+			// go-getter generates a poor error for an invalid relative path, so
+			// we'll detect that case and generate a better one.
+			if _, ok := err.(*getmodules.MaybeRelativePathErr); ok {
+				log.Printf(
+					"[TRACE] ModuleInstaller: %s looks like a local path but is missing ./ or ../",
+					req.SourceAddr,
+				)
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Module not found",
+					Detail: fmt.Sprintf(
+						"The module address %q could not be resolved.\n\n"+
+							"If you intended this as a path relative to the current "+
+							"module, use \"./%s\" instead. The \"./\" prefix "+
+							"indicates that the address is a relative filesystem path.",
+						req.SourceAddr, req.SourceAddr,
+					),
+				})
+			} else {
+				// Errors returned by go-getter have very inconsistent quality as
+				// end-user error messages, but for now we're accepting that because
+				// we have no way to recognize any specific errors to improve them
+				// and masking the error entirely would hide valuable diagnostic
+				// information from the user.
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Failed to download module",
+					Detail:   fmt.Sprintf("Could not download module %q (%s:%d) source code from %q: %s", req.Name, req.CallRange.Filename, req.CallRange.Start.Line, packageAddr, err),
+					Subject:  req.CallRange.Ptr(),
+				})
+			}
 		}
-		return nil, diags
+		return diags
+	}
+
+	if os.Getenv("TOFU_EXPERIMENT_MODULE_INSTALL_LINKED") == "I_AM_SURE" {
+		// This is *NOT* safe in parallel
+
+		re := regexp.MustCompile("[^\\w\\d\\.-]")
+		commonInstName := re.ReplaceAllString(addr.Package.String(), "_")
+		commonInstPath := filepath.Join(i.modsDir, commonInstName)
+
+		if _, err := os.Stat(commonInstPath); errors.Is(err, os.ErrNotExist) {
+			diags = diags.Extend(fetchFunc(commonInstPath))
+			if diags.HasErrors() {
+				return nil, diags
+			}
+		} else if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to determine if module installation is usable",
+				Detail:   err.Error(),
+			})
+			return nil, diags
+		}
+
+		err := os.Symlink(commonInstName, instPath)
+		if err != nil {
+			// TODO copy fallback!
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to symlink module",
+				Detail:   err.Error(),
+			})
+			return nil, diags
+		}
+	} else {
+		diags = diags.Extend(fetchFunc(instPath))
+		if diags.HasErrors() {
+			return nil, diags
+		}
 	}
 
 	modDir, err := getmodules.ExpandSubdirGlobs(instPath, addr.Subdir)
