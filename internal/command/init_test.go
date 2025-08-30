@@ -1789,11 +1789,11 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+					windows: "ozjxc9yUgF+m7s0sCXPN83nTdzVYUsW2DV0hXd+Id0g",
 					linux:   "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+					windows: "9e2b8467dded89b85aa271561a2e913543f59643f601785981ddaed0a182c813",
 					linux:   "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
 				})),
 			},
@@ -1804,7 +1804,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "3bAYmLQMCiu4o/yhFxm2EmnfVXpX4fLl+PgZohrlV0=",
+					windows: "3bAYmLQMCiu4o/yhFxm2EmnfVXpX4fLl+PgZohrlVe0=",
 					linux:   "ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
