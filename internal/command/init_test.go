@@ -1774,11 +1774,11 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+					windows: "/dyBt3WaisluLlSpOENiVJAEbIokRW+QtTNCHjZtEX8=",
 					linux:   "vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI=",
+					windows: "f775fac6a9cfc81f74ffd8b6a803d212c0cde0d97a2f5c8cdb47f37f8ea59cd1",
 					linux:   "ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31",
 				})),
 			},
@@ -1804,11 +1804,11 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0=",
+					windows: "3bAYmLQMCiu4o/yhFxm2EmnfVXpX4fLl+PgZohrlV0=",
 					linux:   "ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba",
+					windows: "599f3f0ecfdbe255f5560eb177a8ba0d9091af93291d4c99f707ad8f8eb7f4f0",
 					linux:   "69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba",
 				})),
 			},
@@ -2050,11 +2050,11 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk=",
+					windows: "HBLrdZys0HCQ8qO+Jty0sn0neSjc0ExpjsOjsx8NAlQ=",
 					linux:   "ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258",
+					windows: "8d097e83a6ce9c6f83754e3c19e4af9337f512b7acd50a11ea6eea6a1ce15b4b",
 					linux:   "29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258",
 				})),
 			},
@@ -2065,11 +2065,11 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
+					windows: "B75BmVQvrHgtkrEwiQI7ALadRQLwz/QpyVzYLdgbKMw=",
 					linux:   "Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
+					windows: "0aa0ad387a092f16cdd998432ae3862f2070880d2692ef0b8948936ad1ea96d4",
 					linux:   "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
 				})),
 			},
@@ -2080,11 +2080,11 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New(getHash(expectedHash{
-					windows: "8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4=",
+					windows: "RcVlVgb5iQ5x6gMHGKAOhpPezPBGw0TBq+oPs5vI894=",
 					linux:   "8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4=",
 				})),
 				getproviders.HashSchemeZip.New(getHash(expectedHash{
-					windows: "bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02",
+					windows: "58f57c608fc83a06f876e28219c03e2191c0d2be23385c7498042510211adbcd",
 					linux:   "bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02",
 				})),
 			},
@@ -2271,11 +2271,11 @@ provider "registry.opentofu.org/hashicorp/test" {
     %q,
   ]
 }`, getproviders.HashScheme1.New(getHash(expectedHash{
-		windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+		windows: "ozjxc9yUgF+m7s0sCXPN83nTdzVYUsW2DV0hXd+Id0g=",
 		linux:   "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
 	})),
 		getproviders.HashSchemeZip.New(getHash(expectedHash{
-			windows: "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+			windows: "9e2b8467dded89b85aa271561a2e913543f59643f601785981ddaed0a182c813",
 			linux:   "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
 		})),
 	))
@@ -2600,7 +2600,10 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "HBLrdZys0HCQ8qO+Jty0sn0neSjc0ExpjsOjsx8NAlQ=",
+					linux:   "ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk=",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2608,7 +2611,10 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "B75BmVQvrHgtkrEwiQI7ALadRQLwz/QpyVzYLdgbKMw=",
+					linux:   "Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU=",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2616,7 +2622,10 @@ func TestInit_pluginDirProviders(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "RcVlVgb5iQ5x6gMHGKAOhpPezPBGw0TBq+oPs5vI894=",
+					linux:   "8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4=",
+				})),
 			},
 		),
 	}
