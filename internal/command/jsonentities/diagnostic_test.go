@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -94,7 +95,7 @@ func TestNewDiagnostic(t *testing.T) {
 				Summary:  "Bad news",
 				Detail:   "It went wrong",
 				Subject: &hcl.Range{
-					Filename: "modules/oops/missing.tf",
+					Filename: filepath.FromSlash("modules/oops/missing.tf"),
 					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
 					End:      hcl.Pos{Line: 2, Column: 12, Byte: 33},
 				},
@@ -104,7 +105,7 @@ func TestNewDiagnostic(t *testing.T) {
 				Summary:  "Bad news",
 				Detail:   "It went wrong",
 				Range: &DiagnosticRange{
-					Filename: "modules/oops/missing.tf",
+					Filename: filepath.FromSlash("modules/oops/missing.tf"),
 					Start: Pos{
 						Line:   1,
 						Column: 6,
