@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1772,8 +1773,14 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.4"),
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
-				generatePackageHash(t, wantPackages[addrs.NewDefaultProvider("test-beta")][0].PackageDir),
-				generatePackageZipHash(t, wantPackages[addrs.NewDefaultProvider("test-beta")][0].PackageDir),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+					linux:   "vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI=",
+					linux:   "ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1781,8 +1788,14 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
-				getproviders.HashSchemeZip.New("6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2"),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+					linux:   "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+					linux:   "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1790,8 +1803,14 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
-				getproviders.HashSchemeZip.New("69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba"),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0=",
+					linux:   "ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba",
+					linux:   "69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba",
+				})),
 			},
 		),
 	}
@@ -2030,8 +2049,14 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
-				getproviders.HashSchemeZip.New("29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258"),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk=",
+					linux:   "ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258",
+					linux:   "29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2039,8 +2064,14 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("1.2.3"),
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
-				getproviders.HashSchemeZip.New("9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870"),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
+					linux:   "Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
+					linux:   "9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870",
+				})),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2048,8 +2079,14 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersion("2.3.4"),
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
-				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
-				getproviders.HashSchemeZip.New("bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02"),
+				getproviders.HashScheme1.New(getHash(expectedHash{
+					windows: "8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4=",
+					linux:   "8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4=",
+				})),
+				getproviders.HashSchemeZip.New(getHash(expectedHash{
+					windows: "bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02",
+					linux:   "bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02",
+				})),
 			},
 		),
 	}
@@ -2222,7 +2259,7 @@ func TestInit_providerLockFile(t *testing.T) {
 	buf = bytes.TrimSpace(buf)
 	// The hashes in here are for the fake package that newMockProviderSource produces
 	// (so they'll change if newMockProviderSource starts producing different contents)
-	wantLockFile := strings.TrimSpace(`
+	wantLockFile := strings.TrimSpace(fmt.Sprintf(`
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 
@@ -2230,11 +2267,18 @@ provider "registry.opentofu.org/hashicorp/test" {
   version     = "1.2.3"
   constraints = "1.2.3"
   hashes = [
-    "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
-    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+    %q,
+    %q,
   ]
-}
-`)
+}`, getproviders.HashScheme1.New(getHash(expectedHash{
+		windows: "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+		linux:   "8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+	})),
+		getproviders.HashSchemeZip.New(getHash(expectedHash{
+			windows: "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+			linux:   "6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
+		})),
+	))
 	if diff := cmp.Diff(wantLockFile, string(buf)); diff != "" {
 		t.Errorf("wrong dependency lock file contents\n%s", diff)
 	}
@@ -3314,28 +3358,16 @@ func expectedPackageInstallPath(name, version string) string {
 	))
 }
 
-// We calculate this particular hash dynamically, rather than hard-coding it
-// as we normally do for these situations in tests, because archive/zip
-// can generate slightly different entry metadata depending on the platform
-// where the test is running and other details of the execution environment.
-// We only care that the final result uses a hash that matches the zip file.
-func generatePackageHash(t *testing.T, dir string) getproviders.Hash {
-	hash, err := getproviders.PackageHashV1(getproviders.PackageLocalDir(dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return hash
+type expectedHash struct {
+	windows string
+	linux   string
 }
 
-// We calculate this particular hash dynamically, rather than hard-coding it
-// as we normally do for these situations in tests, because archive/zip
-// can generate slightly different entry metadata depending on the platform
-// where the test is running and other details of the execution environment.
-// We only care that the final result uses a hash that matches the zip file.
-func generatePackageZipHash(t *testing.T, zipFile string) getproviders.Hash {
-	hash, err := getproviders.PackageHashLegacyZipSHA(getproviders.PackageLocalArchive(zipFile))
-	if err != nil {
-		t.Fatal(err)
+func getHash(expected expectedHash) string {
+	switch runtime.GOOS {
+	case "windows":
+		return expected.windows
+	default:
+		return expected.linux
 	}
-	return hash
 }
