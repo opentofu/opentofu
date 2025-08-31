@@ -1176,11 +1176,6 @@ func TestNewDiagnostic(t *testing.T) {
 	}
 }
 
-// Function to normalise newlines in a string for Windows
-func normaliseNewlines(s string) string {
-	return strings.ReplaceAll(s, "\r\n", "\n")
-}
-
 // Helper function to make constructing literal Diagnostics easier. There
 // are fields which are pointer-to-string to ensure that the rendered JSON
 // results in `null` for an empty value, rather than `""`.
