@@ -1096,6 +1096,22 @@ func TestNewDiagnostic(t *testing.T) {
 		},
 	}
 
+	// This transformer is needed to convert the filename to the proper OS path
+	// for the comparison.
+	cmpOpt := cmp.FilterPath(
+		func(p cmp.Path) bool {
+			field := p.Last().String()
+			return field == `["filename"]`
+		},
+		cmp.Transformer("filename", func(filename interface{}) string {
+			convertedFilename, ok := filename.(string)
+			if !ok {
+				t.Fatalf("failed to convert filename to string: %v", filename)
+			}
+			return filepath.FromSlash(convertedFilename)
+		}),
+	)
+
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			// Convert the diag into a tfdiags.Diagnostic
@@ -1142,12 +1158,19 @@ func TestNewDiagnostic(t *testing.T) {
 				t.Fatalf("failed to read output file: %s", err)
 			}
 
-			// Don't care about leading or trailing whitespace
-			gotString := normaliseNewlines(strings.TrimSpace(string(gotBytes)))
-			wantString := normaliseNewlines(strings.TrimSpace(string(wantBytes)))
+			var gotJson, wantJson map[string]interface{}
+			err = json.Unmarshal(gotBytes, &gotJson)
+			if err != nil {
+				t.Fatalf("failed to unmarshal got: %s", err)
+			}
 
-			if !cmp.Equal(wantString, gotString) {
-				t.Fatalf("wrong result\n:%s", cmp.Diff(wantString, gotString))
+			err = json.Unmarshal(wantBytes, &wantJson)
+			if err != nil {
+				t.Fatalf("failed to unmarshal want: %s", err)
+			}
+
+			if !cmp.Equal(wantJson, gotJson, cmpOpt) {
+				t.Fatalf("wrong result\n:%s", cmp.Diff(wantJson, gotJson))
 			}
 		})
 	}
