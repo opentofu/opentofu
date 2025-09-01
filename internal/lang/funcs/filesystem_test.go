@@ -677,7 +677,7 @@ func TestDirname(t *testing.T) {
 		},
 		{
 			cty.StringVal("testdata/foo/hello.txt"),
-			cty.StringVal("testdata/foo"),
+			cty.StringVal(filepath.FromSlash("testdata/foo")),
 			false,
 		},
 		{
