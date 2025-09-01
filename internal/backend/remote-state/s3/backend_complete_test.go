@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -1819,11 +1818,7 @@ web_identity_token_file = no-such-file
 					t.Fatalf("error making path relative: %s", err)
 				}
 				t.Logf("relative: %s", rel)
-				if runtime.GOOS == "windows" {
-					tokenFileName = filepath.Join(tmpdir, rel)
-				} else {
-					tokenFileName = filepath.Join("$TMPDIR", rel)
-				}
+				tokenFileName = fmt.Sprintf("$TMPDIR%c%s", filepath.Separator, rel)
 				t.Logf("env tempfile: %s", tokenFileName)
 			}
 
