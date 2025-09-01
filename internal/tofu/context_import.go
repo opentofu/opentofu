@@ -277,12 +277,16 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 	return nil
 }
 
+// addCLIImportTarget adds a new import target originating from the CLI
+// this is done to reuse Context.postExpansionImportValidation for CLI import validation
 func (ri *ImportResolver) addCLIImportTarget(importTarget *ImportTarget) {
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
 	importAddress := importTarget.CommandLineImportTarget.Addr
 	ri.imports[importAddress.String()] = EvaluatedConfigImportTarget{
 		// Since this import target originates from the CLI, and we have no config block for it
+		// setting nil value to Config here to reuse Context.postExpansionImportValidation,
+		// and there should be no possible paths to dereference this with a nil value during the import command
 		Config: nil,
 		Addr:   importAddress,
 		ID:     importTarget.CommandLineImportTarget.ID,

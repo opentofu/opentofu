@@ -175,9 +175,9 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 			importResolver.addCLIImportTarget(importTarget)
 			continue
 		}
-		// If PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// If we have import from import block and PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
-		if !n.preDestroyRefresh {
+		if importTarget.IsFromImportBlock() && !n.preDestroyRefresh {
 			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
