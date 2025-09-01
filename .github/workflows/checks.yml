@@ -41,7 +41,7 @@ jobs:
       - id: diff 
         run: |
           git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin ${{github.event.pull_request.base.ref}}
-          echo "go=$(git diff --name-only origin/${{github.event.pull_request.base.ref}} | grep -e '\.go' -e '\.github' -e 'go\.mod' -e 'go\.sum' -e '\.gitattributes' | wc -l)" | tee -a "$GITHUB_OUTPUT"
+          echo "go=$(git diff --name-only origin/${{github.event.pull_request.base.ref}} | grep -e '\.go' -e '\.github' -e 'go\.mod' -e 'go\.sum' -e '\.tf' -e '\.gitattributes' | wc -l)" | tee -a "$GITHUB_OUTPUT"
     outputs:
       go: ${{ steps.diff.outputs.go }}
     
