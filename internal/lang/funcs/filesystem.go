@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -244,6 +245,14 @@ func MakeFileExistsFunc(baseDir string) function.Function {
 					return cty.False.WithMarks(pathMarks), nil
 				}
 				return cty.UnknownVal(cty.Bool), fmt.Errorf("failed to stat %s", redactIfSensitive(path, pathMarks))
+			}
+
+			if runtime.GOOS == "windows" {
+				f, err := os.OpenFile(path, os.O_RDONLY, 0)
+				if err != nil {
+					return cty.UnknownVal(cty.Bool), fmt.Errorf("failed to stat %s", redactIfSensitive(path, pathMarks))
+				}
+				f.Close()
 			}
 
 			if fi.Mode().IsRegular() {
