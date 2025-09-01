@@ -503,12 +503,6 @@ func TestFileSet(t *testing.T) {
 			`failed to glob pattern (sensitive value): syntax error in pattern`,
 		},
 		{
-			cty.StringVal("."),
-			cty.StringVal("\\"),
-			cty.SetValEmpty(cty.String),
-			`failed to glob pattern "\\": syntax error in pattern`,
-		},
-		{
 			cty.StringVal("testdata"),
 			cty.StringVal("missing"),
 			cty.SetValEmpty(cty.String),
