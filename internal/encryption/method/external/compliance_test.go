@@ -57,8 +57,12 @@ func runTest(t *testing.T, cmd []string) {
 				Validate: func(config *Config, method *command) error {
 					// We need to normalize in order to match with the decoded config
 					if runtime.GOOS == "windows" {
-						encryptCommand[0] = strings.ReplaceAll(encryptCommand[0], `\\`, "\\")
-						decryptCommand[0] = strings.ReplaceAll(decryptCommand[0], `\\`, "\\")
+						for i, v := range encryptCommand {
+							encryptCommand[i] = strings.ReplaceAll(v, `\\`, "\\")
+						}
+						for i, v := range decryptCommand {
+							decryptCommand[i] = strings.ReplaceAll(v, `\\`, "\\")
+						}
 					}
 					if diff := cmp.Diff(config.EncryptCommand, encryptCommand); diff != "" {
 						return fmt.Errorf("incorrect encrypt command after HCL parsing: %s", diff)

@@ -72,10 +72,15 @@ func Python(t *testing.T) []string {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testmethod.py")
+	if runtime.GOOS == "windows" {
+		// If we do not use raw backslashes below, the binary won't be found by HCL after parsing.
+		target = strings.ReplaceAll(target, "\\", `\\`)
+	}
 	if err := ejectFile("testmethod.py", target); err != nil {
 		t.Errorf("%v", err)
 	}
 	python := findExecutable(t, []string{"python", "python3"}, []string{"--version"})
+
 	return []string{python, target}
 }
 
