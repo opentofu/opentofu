@@ -20,7 +20,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -91,7 +90,7 @@ func newHttpServer(opts ...httpServerOpt) *httpServer {
 }
 
 func (h *httpServer) getResource(req *http.Request) string {
-	switch pathParts := strings.SplitN(req.URL.Path, string(filepath.Separator), 3); len(pathParts) {
+	switch pathParts := strings.SplitN(req.URL.Path, "/", 3); len(pathParts) {
 	case 3:
 		return pathParts[2]
 	default:
