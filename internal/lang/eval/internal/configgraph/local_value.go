@@ -12,12 +12,14 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type LocalValue struct {
+	Addr     addrs.AbsLocalValue
 	RawValue *OnceValuer
 }
 
@@ -52,7 +54,7 @@ func (l *LocalValue) AnnounceAllGraphevalRequests(announce func(workgraph.Reques
 	announce(l.RawValue.RequestID(), grapheval.RequestInfo{
 		// FIXME: Have the "compiler" in package eval put an
 		// addrs.AbsLocalValue in here so we can generate a useful name.
-		Name:        "local value",
+		Name:        l.Addr.String(),
 		SourceRange: l.RawValue.ValueSourceRange(),
 	})
 }

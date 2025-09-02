@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -23,9 +24,8 @@ import (
 )
 
 type OutputValue struct {
-	// DeclName is the name of the variable as written in the header of its
-	// declaration block.
-	DeclName string
+	// Addr is the absolute address of this output value.
+	Addr addrs.AbsOutputValue
 
 	// Preconditions are user-defined checks that must succeed before OpenTofu
 	// will evaluate the output value's expression.
@@ -121,7 +121,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid value for output value",
-			Detail:   fmt.Sprintf("Unsuitable value for output value %q: %s.", o.DeclName, tfdiags.FormatError(err)),
+			Detail:   fmt.Sprintf("Unsuitable value for output value %q: %s.", o.Addr.OutputValue.Name, tfdiags.FormatError(err)),
 			Subject:  maybeHCLSourceRange(o.ValueSourceRange()),
 		})
 		finalV = cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())
@@ -156,7 +156,7 @@ func (o *OutputValue) AnnounceAllGraphevalRequests(announce func(workgraph.Reque
 	announce(o.RawValue.RequestID(), grapheval.RequestInfo{
 		// FIXME: Have the "compiler" in package eval put an
 		// addrs.AbsOutputValue in here so we can generate a useful name.
-		Name:        fmt.Sprintf("output value %q", o.DeclName),
+		Name:        o.Addr.String(),
 		SourceRange: o.RawValue.ValueSourceRange(),
 	})
 	// FIXME: This doesn't currently cover any of the preconditions because
