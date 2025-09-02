@@ -37,15 +37,11 @@ actions to take, and the plan file contains the final results of those
 decisions.
 
 #### Ephemeral variables
-As ephemeral variables can not be stored within in a planfile, any ephemeral variables set during the generation of a planfile from tofu plan must be set to the same values when running tofu apply.
+As ephemeral variables can not be stored within in a planfile, any ephemeral variables set during the generation of a planfile from tofu plan must also be set when running tofu apply.
 
-For example, if `-var-file` has been used to create the planfile (`tofu plan -var-file=dev.tf -out planfile`), the same argument _must_
-to be used for the apply command (`tofu apply -var-file=dev.tf planfile`).
-If required ephemeral variables are not provided to the apply command, OpenTofu will exit with a clear message of what is missing.
-
-:::note
-Ephemeral variables are not stored within a planfile, it is up to the user to ensure that the values are identical between plan and apply.
-:::
+For example, if `-var` has been used to create the planfile (`tofu plan -var "token=$MY_TOKEN"`), the same argument _must_
+be set for the apply command (`tofu apply -var "token=$MY_TOKEN" planfile`).
+If required ephemeral variables are not provided to the apply command, OpenTofu will exit with a clear message of additional variables that must be specified.
 
 ### Plan Options
 
