@@ -60,7 +60,7 @@ func TestInstallPackage(t *testing.T) {
 
 				Version: versions.MustParseVersion("2.1.0"),
 
-				PackageDir: tmpDirPath + "/registry.opentofu.org/hashicorp/null/2.1.0/linux_amd64",
+				PackageDir: filepath.ToSlash(tmpDirPath + "/registry.opentofu.org/hashicorp/null/2.1.0/linux_amd64"),
 			},
 		},
 	}
