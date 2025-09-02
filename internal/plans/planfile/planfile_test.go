@@ -192,11 +192,9 @@ func TestWrappedError(t *testing.T) {
 	}
 
 	// Open something that doesn't exist: should error
-	var missingFileError string
+	missingFileError := "no such file or directory"
 	if runtime.GOOS == "windows" {
 		missingFileError = "The system cannot find the file specified"
-	} else {
-		missingFileError = "no such file or directory"
 	}
 	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"), encryption.PlanEncryptionDisabled())
 	if !strings.Contains(err.Error(), missingFileError) {

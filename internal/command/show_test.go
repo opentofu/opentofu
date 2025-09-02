@@ -207,6 +207,9 @@ func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
 			got := output.Stderr()
 			want1 := `couldn't load the provided path`
 			want2 := `open doesNotExist.tfplan: no such file or directory`
+			if runtime.GOOS == "windows" {
+				want2 = "open doesNotExist.tfplan: The system cannot find the file specified"
+			}
 			if !strings.Contains(got, want1) {
 				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
 			}
