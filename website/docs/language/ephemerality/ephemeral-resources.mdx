@@ -11,7 +11,7 @@ Ephemeral resources can be used only with OpenTofu from v1.11 onwards.
 
 The `ephemeral` block defines a temporary value that OpenTofu will not store in state or plan.
 This block works only with providers that already offer such capability and is not meant to be used
-as a drop-in replacement of other blocks (`data` or `resource`). To understand if providers offer
+as a drop-in replacement for other blocks (`data` or `resource`). To understand if providers offer
 such capability, the provider documentation or schema should be consulted.
 
 ## Lifecycle
@@ -19,7 +19,7 @@ The lifecycle of an ephemeral resource is different than the lifecycle of other 
 When OpenTofu encounters such a block, it will execute the following sequence:
 * Validate the configuration using the specified provider.
 * Open the ephemeral resource to retrieve the value from the provider.
-* Close the the ephemeral resource when is no longer needed in the execution of the current phase
+* Close the ephemeral resource when it is no longer needed in the execution of the current phase
 
 Any attribute of the response returned by opening the ephemeral resource, is marked as `ephemeral` and can only be used in specific contexts:
 * [Ephemeral Resources](./ephemeral-resources.mdx)

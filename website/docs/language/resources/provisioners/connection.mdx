@@ -92,7 +92,7 @@ The `connection` block supports the following arguments. Some arguments are only
 
 ### Ephemeral usage
 
-This type of block can be configured by using [ephemeral values](../../ephemerality/index.mdx) such as variables, outputs and even ephemeral resource's attributes.
+This type of block can be configured using [ephemeral values](../../ephemerality/index.mdx) such as variables, outputs, and even ephemeral resource attributes.
 :::warning
 Although the connection block's values are not referenceable in other contexts, the provisioner may produce output logs that contain values referenced in it's configuration.
 This output is suppressed when the provisioner's configuration block contains sensitive or ephemeral values, but will *not* perform this check on connection blocks inherited from
