@@ -401,10 +401,10 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 	if err := legacy.WriteState(originalState, f); err != nil {
 		t.Fatal(err)
 	}
+	f.Close()
 
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
