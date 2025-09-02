@@ -36,12 +36,15 @@ func TestCompileModuleInstance_valuesOnly(t *testing.T) {
 			value = "${local.b}/${local.b}"
 		}
 	`)
+	evalCtx := &EvalContext{}
+	evalCtx.init()
 	call := &moduleInstanceCall{
 		inputValues: InputValuesForTesting(map[string]cty.Value{
 			"a": cty.True,
 		}),
+		evalContext: evalCtx,
 	}
-	inst := compileModuleInstance(ctx, module, addrs.ModuleSourceLocal("."), call, nil)
+	inst := compileModuleInstance(ctx, module, addrs.ModuleSourceLocal("."), call)
 
 	got, diags := inst.Value(ctx)
 	if diags.HasErrors() {

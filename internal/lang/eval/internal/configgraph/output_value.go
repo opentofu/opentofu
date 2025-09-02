@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -139,4 +141,26 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 // ValueSourceRange implements exprs.Valuer.
 func (o *OutputValue) ValueSourceRange() *tfdiags.SourceRange {
 	return o.RawValue.ValueSourceRange()
+}
+
+// CheckAll implements allChecker.
+func (o *OutputValue) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg checkGroup
+	// We just check our overall Value method because it covers everything,
+	// including the preconditions.
+	cg.CheckValuer(ctx, o)
+	return cg.Complete(ctx)
+}
+
+func (o *OutputValue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	announce(o.RawValue.RequestID(), grapheval.RequestInfo{
+		// FIXME: Have the "compiler" in package eval put an
+		// addrs.AbsOutputValue in here so we can generate a useful name.
+		Name:        fmt.Sprintf("output value %q", o.DeclName),
+		SourceRange: o.RawValue.ValueSourceRange(),
+	})
+	// FIXME: This doesn't currently cover any of the preconditions because
+	// we're not currently using a distinct workgraph request for each of
+	// those. Should our Value method be evaluating those through a
+	// grapheval.Once so that they can have their own RequestInfo values?
 }

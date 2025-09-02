@@ -7,7 +7,9 @@ package configgraph
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -112,4 +114,41 @@ func (r *Resource) compileInstance(ctx context.Context, key addrs.InstanceKey, r
 		)),
 	}
 	return ret
+}
+
+// CheckAll implements allChecker.
+func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg checkGroup
+	// Our InstanceSelector itself might block on expression evaluation,
+	// so we'll run it async as part of the checkGroup.
+	cg.Await(ctx, func(ctx context.Context) {
+		for _, inst := range r.Instances(ctx) {
+			cg.CheckValuer(ctx, inst)
+		}
+	})
+	// We'll also check our final value for the overall resource, which
+	// is where we report any problems with the resource's InstanceSelector.
+	// (e.g. this is where an invalid for_each expression would be reported)
+	cg.CheckValuer(ctx, r)
+	return cg.Complete(ctx)
+}
+
+func (r *Resource) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// There might be other grapheval requests in our dynamic instances, but
+	// they are hidden behind another request themselves so we'll try to
+	// report them only if that request was already started.
+	instancesReqId := r.instancesResult.RequestID()
+	if instancesReqId == workgraph.NoRequest {
+		return
+	}
+	announce(instancesReqId, grapheval.RequestInfo{
+		Name:        fmt.Sprintf("decide instances for %s", r.Addr),
+		SourceRange: r.InstanceSelector.InstancesSourceRange(),
+	})
+	// The Instances method potentially starts a new request, but we already
+	// confirmed above that this request was already started and so we
+	// can safely just await its result here.
+	for _, inst := range r.Instances(grapheval.ContextWithNewWorker(context.Background())) {
+		inst.AnnounceAllGraphevalRequests(announce)
+	}
 }
