@@ -92,14 +92,13 @@ advantage of local values.
 A local value can be computed by evaluating an expressions which contains ephemeral values.
 If so, the local value will be allowed to be used only in other ephemeral contexts:
 * [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
-* [Provider Configuration](../providers/configuration.mdx)
-* Values for [write-only attributes](../ephemerality/write-only-attributes.mdx)
 * [Ephemeral Variables](../values/variables.mdx#ephemerality)
 * [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
 * [Locals](../values/locals.mdx#ephemerality)
-* [Resource `provisioner` blocks](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
 * [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
-
+* [Resource `write-only` attributes](../ephemerality/write-only-attributes.mdx)
 
 :::note
 Any inclusion of an ephemeral value in an expression will make the local value ephemeral. Some examples:
