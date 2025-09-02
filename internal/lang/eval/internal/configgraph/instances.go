@@ -57,6 +57,18 @@ type InstanceSelector interface {
 	// instance keys is ignored but the returned marks will still be
 	// retained and used for building a placeholder result.
 	Instances(ctx context.Context) (Maybe[iter.Seq2[addrs.InstanceKey, instances.RepetitionData]], cty.ValueMarks, tfdiags.Diagnostics)
+
+	// InstancesSourceRange optionally reports a source range for something in
+	// the configuration that the author would consider as representing the
+	// rule for deciding which instances exist.
+	//
+	// For example, this could be the source range of the expression
+	// associated with a "for_each" argument, if that was what the
+	// selector was based on.
+	//
+	// If there is no single obvious configuration construct to report
+	// then prefer to return nil rather than returning something strange.
+	InstancesSourceRange() *tfdiags.SourceRange
 }
 
 type compiledInstances[T any] struct {
