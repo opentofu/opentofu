@@ -16,6 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -23,9 +24,8 @@ import (
 )
 
 type InputVariable struct {
-	// DeclName is the name of the variable as written in the header of its
-	// declaration block.
-	DeclName string
+	// Addr is the absolute address of this input variable.
+	Addr addrs.AbsInputVariableInstance
 
 	// RawValue produces the "raw" value, as chosen by the caller of the
 	// module, which has not yet been type-converted or validated.
@@ -77,7 +77,7 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid value for input variable",
-			Detail:   fmt.Sprintf("Unsuitable value for variable %q: %s.", i.DeclName, tfdiags.FormatError(err)),
+			Detail:   fmt.Sprintf("Unsuitable value for variable %q: %s.", i.Addr.Variable.Name, tfdiags.FormatError(err)),
 			Subject:  maybeHCLSourceRange(i.ValueSourceRange()),
 		})
 		finalV = cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep())
@@ -89,7 +89,7 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 	// that because it's pretty rarely-used functionality.
 	scopeBuilder := func(ctx context.Context, parent exprs.Scope) exprs.Scope {
 		return &inputVariableValidationScope{
-			wantName:    i.DeclName,
+			wantName:    i.Addr.Variable.Name,
 			parentScope: parent,
 			finalVal:    finalV,
 		}
@@ -141,7 +141,7 @@ func (i *InputVariable) AnnounceAllGraphevalRequests(announce func(workgraph.Req
 		// FIXME: Have the "compiler" in package eval put an
 		// addrs.AbsInputVariable in here so we can better avoid ambiguity
 		// between module instances using variables of the same name.
-		Name:        fmt.Sprintf("value for variable %q", i.DeclName),
+		Name:        fmt.Sprintf("value for %s", i.Addr),
 		SourceRange: i.RawValue.ValueSourceRange(),
 	})
 	// FIXME: This doesn't currently cover any of the validation rules because
