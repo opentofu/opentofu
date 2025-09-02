@@ -6,7 +6,9 @@
 package command
 
 import (
+	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -675,15 +677,15 @@ managed resources and data sources.
 
 Failure! 0 passed, 1 failed, 1 skipped.
 `,
-			expectedErr: `
+			expectedErr: fmt.Sprintf(`
 Error: Reference to undeclared input variable
 
-  on setup/main.tf line 3, in resource "test_resource" "setup":
+  on %s line 3, in resource "test_resource" "setup":
    3:     value = var.not_real // Oh no!
 
 An input variable with the name "not_real" has not been declared. This
 variable can be declared with a variable "not_real" {} block.
-`,
+`, filepath.FromSlash("setup/main.tf")),
 		},
 		"missing-provider": {
 			expectedOut: `main.tftest.hcl... fail
@@ -1210,7 +1212,7 @@ func TestTest_LocalVariables(t *testing.T) {
 		skip     bool
 	}{
 		"pass_with_local_variable": {
-			expected: `tests/test.tftest.hcl... pass
+			expected: fmt.Sprintf(`%s... pass
   run "first"... pass
 
 
@@ -1225,7 +1227,7 @@ OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 
 Success! 2 passed, 0 failed.
-`,
+`, filepath.FromSlash("tests/test.tftest.hcl")),
 			code: 0,
 		},
 		"pass_var_inside_variables": {
