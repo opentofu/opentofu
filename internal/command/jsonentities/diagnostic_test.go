@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -94,7 +95,7 @@ func TestNewDiagnostic(t *testing.T) {
 				Summary:  "Bad news",
 				Detail:   "It went wrong",
 				Subject: &hcl.Range{
-					Filename: "modules/oops/missing.tf",
+					Filename: filepath.FromSlash("modules/oops/missing.tf"),
 					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
 					End:      hcl.Pos{Line: 2, Column: 12, Byte: 33},
 				},
@@ -104,7 +105,7 @@ func TestNewDiagnostic(t *testing.T) {
 				Summary:  "Bad news",
 				Detail:   "It went wrong",
 				Range: &DiagnosticRange{
-					Filename: "modules/oops/missing.tf",
+					Filename: filepath.FromSlash("modules/oops/missing.tf"),
 					Start: Pos{
 						Line:   1,
 						Column: 6,
@@ -1095,6 +1096,22 @@ func TestNewDiagnostic(t *testing.T) {
 		},
 	}
 
+	// This transformer is needed to convert the filename to the proper OS path
+	// for the comparison.
+	cmpOpt := cmp.FilterPath(
+		func(p cmp.Path) bool {
+			field := p.Last().String()
+			return field == `["filename"]`
+		},
+		cmp.Transformer("filename", func(filename interface{}) string {
+			convertedFilename, ok := filename.(string)
+			if !ok {
+				t.Fatalf("failed to convert filename to string: %v", filename)
+			}
+			return filepath.FromSlash(convertedFilename)
+		}),
+	)
+
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			// Convert the diag into a tfdiags.Diagnostic
@@ -1141,20 +1158,22 @@ func TestNewDiagnostic(t *testing.T) {
 				t.Fatalf("failed to read output file: %s", err)
 			}
 
-			// Don't care about leading or trailing whitespace
-			gotString := normaliseNewlines(strings.TrimSpace(string(gotBytes)))
-			wantString := normaliseNewlines(strings.TrimSpace(string(wantBytes)))
+			var gotJson, wantJson map[string]interface{}
+			err = json.Unmarshal(gotBytes, &gotJson)
+			if err != nil {
+				t.Fatalf("failed to unmarshal got: %s", err)
+			}
 
-			if !cmp.Equal(wantString, gotString) {
-				t.Fatalf("wrong result\n:%s", cmp.Diff(wantString, gotString))
+			err = json.Unmarshal(wantBytes, &wantJson)
+			if err != nil {
+				t.Fatalf("failed to unmarshal want: %s", err)
+			}
+
+			if !cmp.Equal(wantJson, gotJson, cmpOpt) {
+				t.Fatalf("wrong result\n:%s", cmp.Diff(wantJson, gotJson))
 			}
 		})
 	}
-}
-
-// Function to normalise newlines in a string for Windows
-func normaliseNewlines(s string) string {
-	return strings.ReplaceAll(s, "\r\n", "\n")
 }
 
 // Helper function to make constructing literal Diagnostics easier. There
