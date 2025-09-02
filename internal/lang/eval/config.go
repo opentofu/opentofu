@@ -16,11 +16,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ConfigInstance represents an instance ofan already-assembled configuration
-// tree, bound to some input variable values and other context that were
-// provided when it was built.
+// ConfigInstance represents the combination of a configuration and some
+// input variables used to call into its root module, along with related
+// context such as available providers and module packages.
 type ConfigInstance struct {
-	rootModuleInstance *configgraph.ModuleInstance
+	rootModuleSource addrs.ModuleSource
+	inputValues      map[addrs.InputVariable]exprs.Valuer
+	evalContext      *EvalContext
 }
 
 // ConfigCall describes a call to a root module that acts conceptually like
@@ -58,28 +60,56 @@ type ConfigCall struct {
 // in the given [ConfigCall] object.
 //
 // If the returned diagnostics has errors then the first result is invalid
-// and must not be used. Diagnostics returned directly by this function
-// are focused only on the process of obtaining the root module; all other
-// problems are deferred until subsequent evaluation.
+// and must not be used.
+//
+// Note that this function focuses only on checking that the call itself seems
+// sensible, and does not perform any immediate evaluation of the configuration,
+// so success of this function DOES NOT imply that the configuration is valid.
+// Use methods of a valid [`ConfigInstance`] produced by this function to
+// gather more information about the configuration.
 func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, tfdiags.Diagnostics) {
 	// The following compensations are for the convenience of unit tests, but
 	// real callers should explicitly set all of this.
-	if call.EvalContext == nil {
-		call.EvalContext = &EvalContext{}
-	}
-	call.EvalContext.init()
-
 	evalCtx := call.EvalContext
+	if evalCtx == nil {
+		evalCtx = &EvalContext{}
+	}
+	evalCtx.init()
 
-	rootModule, diags := evalCtx.Modules.ModuleConfig(ctx, call.RootModuleSource, versions.All, nil)
+	inst := &ConfigInstance{
+		rootModuleSource: call.RootModuleSource,
+		inputValues:      call.InputValues,
+		evalContext:      evalCtx,
+	}
+
+	// We currently don't do any other early work here and instead just wait
+	// until we're asked a more specific question using one of the methods
+	// of the result. If that continues to be true then perhaps we'll drop
+	// the tfdiags.Diagnostics result from this function to be clearer
+	// that it's purely a constructor and doesn't do any "real work".
+	return inst, nil
+}
+
+// newRootModuleInstance prepares a [configgraph.ModuleInstance] object based
+// on the [ConfigInstance] and the given evaluation glue, as a shared building
+// block for various exported methods on [ConfigInstance].
+//
+// This returns diagnostics encountered when loading the root module, but
+// does not perform any further checks. Callers must then drive evaluation of
+// the resulting configuration tree by calling
+// [configgraph.ModuleInstance.CheckBeneath] to ensure that everything in
+// the configuration gets a chance to report errors.
+func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evaluationGlue) (*configgraph.ModuleInstance, tfdiags.Diagnostics) {
+	rootModule, diags := c.evalContext.Modules.ModuleConfig(ctx, c.rootModuleSource, versions.All, nil)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 	rootModuleCall := &moduleInstanceCall{
-		inputValues: call.InputValues,
+		calleeAddr:     addrs.RootModuleInstance,
+		inputValues:    c.inputValues,
+		evaluationGlue: glue,
+		evalContext:    c.evalContext,
 	}
-	rootModuleInstance := compileModuleInstance(ctx, rootModule, call.RootModuleSource, rootModuleCall, evalCtx)
-	return &ConfigInstance{
-		rootModuleInstance: rootModuleInstance,
-	}, nil
+	rootModuleInstance := compileModuleInstance(ctx, rootModule, c.rootModuleSource, rootModuleCall)
+	return rootModuleInstance, diags
 }

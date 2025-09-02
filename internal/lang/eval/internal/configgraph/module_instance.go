@@ -10,16 +10,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type ModuleInstance struct {
+	// Any other kinds of "node" we add in future will likely need coverage
+	// added in both [ModuleInstance.CheckAll] and
+	// [ModuleInstance.AnnounceAllGraphevalRequests].
 	InputVariableNodes map[addrs.InputVariable]*InputVariable
 	LocalValueNodes    map[addrs.LocalValue]*LocalValue
 	OutputValueNodes   map[addrs.OutputValue]*OutputValue
@@ -251,6 +256,65 @@ func (m *ModuleInstance) ResolveFunc(call *hcl.StaticCall) (function.Function, t
 	}
 
 	return fn, diags
+}
+
+// CheckAll visits this module and everything it contains to drive evaluation
+// of all of the expressions in the configuration and collect any diagnostics
+// they return.
+//
+// We can implement this as a just concurrent _tree_ walk rather than as a
+// graph walk because the expression dependency relationships will get handled
+// automatically behind the scenes as the different objects try to resolve
+// their [OnceValuer] objects.
+//
+// This function, and the other downstream CheckAll methods it delegates to,
+// therefore only need to worry about making sure that every blocking evaluation
+// is happening in a separate goroutine so that the blocking calls can all
+// resolve in whatever order makes sense for the dependency graph implied by the
+// configuration.
+func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	// This method is an implementation of [allChecker], but we don't mention
+	// that in the docs above because it's an unexported type that would
+	// therefore be weird to mention in our exported docs.
+	var cg checkGroup
+	for _, n := range m.InputVariableNodes {
+		cg.CheckChild(ctx, n)
+	}
+	for _, n := range m.LocalValueNodes {
+		cg.CheckChild(ctx, n)
+	}
+	for _, n := range m.OutputValueNodes {
+		cg.CheckChild(ctx, n)
+	}
+	for _, n := range m.ResourceNodes {
+		cg.CheckChild(ctx, n)
+	}
+	return cg.Complete(ctx)
+}
+
+// AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
+// [OnceValuer], or other [workgraph.RequestID] anywhere in the tree under this
+// object.
+//
+// This is used only when [workgraph] detects a self-dependency or failure to
+// resolve and we want to find a nice human-friendly name and optional source
+// range to use to describe each of the requests that were involved in the
+// problem.
+func (m *ModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	// A ModuleInstance does not have any grapheval requests of its own,
+	// but all of our child nodes might.
+	for _, n := range m.InputVariableNodes {
+		n.AnnounceAllGraphevalRequests(announce)
+	}
+	for _, n := range m.LocalValueNodes {
+		n.AnnounceAllGraphevalRequests(announce)
+	}
+	for _, n := range m.OutputValueNodes {
+		n.AnnounceAllGraphevalRequests(announce)
+	}
+	for _, n := range m.ResourceNodes {
+		n.AnnounceAllGraphevalRequests(announce)
+	}
 }
 
 // moduleInstNestedSymbolTable is a common implementation for all of the

@@ -8,11 +8,13 @@ package configgraph
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/lang/exprs"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type LocalValue struct {
@@ -37,4 +39,20 @@ func (l *LocalValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 // ValueSourceRange implements exprs.Valuer.
 func (l *LocalValue) ValueSourceRange() *tfdiags.SourceRange {
 	return l.RawValue.ValueSourceRange()
+}
+
+// CheckAll implements allChecker.
+func (l *LocalValue) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg checkGroup
+	cg.CheckValuer(ctx, l) // We just check our overall Valuer method because it aggregates everything
+	return cg.Complete(ctx)
+}
+
+func (l *LocalValue) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	announce(l.RawValue.RequestID(), grapheval.RequestInfo{
+		// FIXME: Have the "compiler" in package eval put an
+		// addrs.AbsLocalValue in here so we can generate a useful name.
+		Name:        "local value",
+		SourceRange: l.RawValue.ValueSourceRange(),
+	})
 }

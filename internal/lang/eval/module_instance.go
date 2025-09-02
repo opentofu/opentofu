@@ -53,6 +53,21 @@ type moduleInstanceCall struct {
 	// for provider configs and instances in package addrs first so
 	// that we finally have a proper address type for a provider
 	// instance with an instance key.
+
+	// evaluationGlue is the [evaluationGlue] implementation to use when
+	// the evaluator needs information from outside of the configuration.
+	//
+	// All module instances belonging to a single configuration tree should
+	// typically share the same evaluationGlue.
+	evaluationGlue evaluationGlue
+
+	// evalContext is the [EvalContext] to use to interact with the context.
+	//
+	// Compared to evaluationGlue, evalContext deals with concerns that
+	// are typically held constant throughout sequential validate, plan, and
+	// apply phases, whereas evaluationGlue is where we deal with behaviors
+	// that need to vary between phases.
+	evalContext *EvalContext
 }
 
 // compileModuleInstance is the main entry point for binding a module
@@ -82,7 +97,6 @@ func compileModuleInstance(
 	moduleSourceAddr addrs.ModuleSource,
 
 	call *moduleInstanceCall,
-	evalCtx *EvalContext,
 ) *configgraph.ModuleInstance {
 	// -----------------------------------------------------------------------
 	// This intentionally has no direct error return path, because:
@@ -116,7 +130,7 @@ func compileModuleInstance(
 	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, ret, call.declRange)
 	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, ret)
 	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, ret)
-	ret.ResourceNodes = compileModuleInstanceResources(ctx, module.ManagedResources, module.DataResources, module.EphemeralResources, ret, call.calleeAddr, evalCtx.Providers)
+	ret.ResourceNodes = compileModuleInstanceResources(ctx, module.ManagedResources, module.DataResources, module.EphemeralResources, ret, call.calleeAddr, call.evalContext.Providers)
 
 	return ret
 }
