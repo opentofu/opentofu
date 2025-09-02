@@ -47,7 +47,6 @@ BUG FIXES:
 * Remote provisioners now reject SSH certificates whose signature key is a certificate key, as required by the current SSH Certificate Format specification draft. ([#3180](https://github.com/opentofu/opentofu/pull/3180))
 
 BREAKING CHANGES:
-=======
 * `tofu import` command now correctly validates when the target address contains non-existent for_each key ([#3106](https://github.com/opentofu/opentofu/pull/3106))
 
 ## Previous Releases
