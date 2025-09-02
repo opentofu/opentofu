@@ -170,7 +170,7 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	otel.SetLogger(logger)
 
 	otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
-		panic(fmt.Sprintf("OpenTelemetry error: %v", err))
+		log.Printf("[ERROR] OpenTelemetry error: %s", err)
 	}))
 
 	return ctx, nil
