@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -32,10 +33,12 @@ const mockStsAssumeRolePolicy = `{
   }`
 
 func ExpectNoDiags(t *testing.T, diags tfdiags.Diagnostics) {
+	t.Helper()
 	expectDiagsCount(t, diags, 0)
 }
 
 func expectDiagsCount(t *testing.T, diags tfdiags.Diagnostics, c int) {
+	t.Helper()
 	if l := len(diags); l != c {
 		t.Fatalf("Diagnostics: expected %d element, got %d\n%#v", c, l, diags)
 	}
@@ -43,6 +46,7 @@ func expectDiagsCount(t *testing.T, diags tfdiags.Diagnostics, c int) {
 
 func ExpectDiagsEqual(expected tfdiags.Diagnostics) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
+		t.Helper()
 		if diff := cmp.Diff(diags, expected, cmp.Comparer(diagnosticComparer)); diff != "" {
 			t.Fatalf("unexpected diagnostics difference: %s", diff)
 		}
@@ -54,6 +58,7 @@ type diagsValidator func(*testing.T, tfdiags.Diagnostics)
 // ExpectDiagsMatching returns a validator expecting a single Diagnostic with fields matching the expectation
 func ExpectDiagsMatching(severity tfdiags.Severity, summary matcher, detail matcher) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
+		t.Helper()
 		for _, d := range diags {
 			if !summary.Match(d.Description().Summary) || !detail.Match(d.Description().Detail) {
 				t.Fatalf("expected Diagnostic matching %#v, got %#v",
@@ -75,6 +80,7 @@ type diagValidator func(*testing.T, tfdiags.Diagnostic)
 
 func ExpectDiagMatching(severity tfdiags.Severity, summary matcher, detail matcher) diagValidator {
 	return func(t *testing.T, d tfdiags.Diagnostic) {
+		t.Helper()
 		if !summary.Match(d.Description().Summary) || !detail.Match(d.Description().Detail) {
 			t.Fatalf("expected Diagnostic matching %#v, got %#v",
 				tfdiags.Sourceless(
@@ -90,6 +96,7 @@ func ExpectDiagMatching(severity tfdiags.Severity, summary matcher, detail match
 
 func ExpectMultipleDiags(validators ...diagValidator) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
+		t.Helper()
 		count := len(validators)
 		if diagCount := len(diags); diagCount < count {
 			count = diagCount
@@ -631,7 +638,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
@@ -1097,7 +1104,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
@@ -1497,7 +1504,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
@@ -1768,7 +1775,7 @@ web_identity_token_file = no-such-file
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
@@ -1811,7 +1818,7 @@ web_identity_token_file = no-such-file
 					t.Fatalf("error making path relative: %s", err)
 				}
 				t.Logf("relative: %s", rel)
-				tokenFileName = filepath.Join("$TMPDIR", rel)
+				tokenFileName = fmt.Sprintf("$TMPDIR%c%s", filepath.Separator, rel)
 				t.Logf("env tempfile: %s", tokenFileName)
 			}
 
@@ -2025,7 +2032,7 @@ region = us-west-2
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["bucket"] = "bucket"
@@ -2134,7 +2141,7 @@ func TestBackendConfig_RetryMode(t *testing.T) {
 		tc := tc
 
 		t.Run(name, func(t *testing.T) {
-			servicemocks.InitSessionTestEnv(t)
+			initSessionTestEnv(t)
 
 			// Populate required fields
 			tc.config["bucket"] = "bucket"
@@ -2185,4 +2192,14 @@ func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Di
 	diags = diags.Append(confDiags)
 
 	return b, diags
+}
+
+func initSessionTestEnv(t *testing.T) {
+	envVars := os.Environ()
+	for _, envVar := range envVars {
+		if strings.HasPrefix(envVar, "AWS_") {
+			pair := strings.SplitN(envVar, "=", 2)
+			t.Setenv(pair[0], "")
+		}
+	}
 }
