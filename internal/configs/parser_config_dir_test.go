@@ -249,7 +249,10 @@ func TestParserLoadConfigDirFailure(t *testing.T) {
 
 func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 	expectedVariablesToOverride := []string{"should_override", "should_override_json"}
-	expectedLoadedTestFiles := []string{"test/resources_test.tofutest.hcl", "test/resources_test_json.tofutest.json"}
+	expectedLoadedTestFiles := []string{
+		filepath.FromSlash("test/resources_test.tofutest.hcl"),
+		filepath.FromSlash("test/resources_test_json.tofutest.json"),
+	}
 
 	tests := []struct {
 		name              string
@@ -258,12 +261,12 @@ func TestParserLoadConfigDirWithTests_TofuFiles(t *testing.T) {
 	}{
 		{
 			name:              "only .tofu files",
-			path:              "testdata/tofu-only-files",
+			path:              filepath.FromSlash("testdata/tofu-only-files"),
 			expectedResources: []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu"},
 		},
 		{
 			name:              ".tofu and .tf files",
-			path:              "testdata/tofu-and-tf-files",
+			path:              filepath.FromSlash("testdata/tofu-and-tf-files"),
 			expectedResources: []string{"aws_security_group.firewall_tofu", "aws_instance.web_tofu", "test_object.a_tofu", "test_object.b_tofu", "tf_resource.first", "tf_json_resource.a"},
 		},
 	}
