@@ -277,6 +277,22 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 	return nil
 }
 
+// addCLIImportTarget adds a new import target originating from the CLI
+// this is done to reuse Context.postExpansionImportValidation for CLI import validation
+func (ri *ImportResolver) addCLIImportTarget(importTarget *ImportTarget) {
+	ri.mu.Lock()
+	defer ri.mu.Unlock()
+	importAddress := importTarget.CommandLineImportTarget.Addr
+	ri.imports[importAddress.String()] = EvaluatedConfigImportTarget{
+		// Since this import target originates from the CLI, and we have no config block for it
+		// setting nil value to Config here to reuse Context.postExpansionImportValidation,
+		// and there should be no possible paths to dereference this with a nil value during the import command
+		Config: nil,
+		Addr:   importAddress,
+		ID:     importTarget.CommandLineImportTarget.ID,
+	}
+}
+
 // Import takes already-created external resources and brings them
 // under OpenTofu management. Import requires the exact type, name, and ID
 // of the resources to import.
@@ -329,6 +345,14 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
 		return state, diags
+	}
+
+	// Once we have all instances expanded, we are able to do a complete validation for import targets
+	// This part validates imports of both types (import blocks and CLI imports)
+	allInstances := walker.InstanceExpander.AllInstances()
+	importValidateDiags := c.postExpansionImportValidation(walker.ImportResolver, allInstances)
+	if importValidateDiags.HasErrors() {
+		return nil, importValidateDiags
 	}
 
 	// Data sources which could not be read during the import plan will be

@@ -165,13 +165,19 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
 	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
+	// If the import target originated from the import command (instead of the import block), we don't need to
+	// resolve the import as it's already in the resolved form. But it still requires to be validated after the graph walk.
+	// The following loop adds CLI import targets for validation and expands and resolves config import targets.
 	for _, importTarget := range n.importTargets {
-		// If the import target originates from the import command (instead of the import block), we don't need to
-		// resolve the import as it's already in the resolved form
-		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// We add CLI import targets to the import resolver. Those targets are validated after the graph walk in Context.Import method.
+		// This was added to correctly validate the existence of the targeted resource instances in case for_each key is used, either on a module or on a resource.
+		if importTarget.IsFromImportCommandLine() {
+			importResolver.addCLIImportTarget(importTarget)
+			continue
+		}
+		// If we have import from import block and PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
-		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
-		if skipImports {
+		if importTarget.IsFromImportBlock() && !n.preDestroyRefresh {
 			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
