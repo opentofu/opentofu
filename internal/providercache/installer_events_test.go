@@ -6,6 +6,8 @@
 package providercache
 
 import (
+	"path/filepath"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
@@ -160,7 +162,7 @@ func installerLogEventsForTests(into chan<- *testInstallerEventLogItem) *Install
 					Version    string
 					LocalDir   string
 					AuthResult string
-				}{version.String(), localDir, authResult.String()},
+				}{version.String(), filepath.ToSlash(localDir), authResult.String()},
 			}
 		},
 		FetchPackageFailure: func(provider addrs.Provider, version getproviders.Version, err error) {
