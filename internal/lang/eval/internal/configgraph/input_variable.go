@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/zclconf/go-cty/cty"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -122,6 +124,30 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 // ValueSourceRange implements exprs.Valuer.
 func (i *InputVariable) ValueSourceRange() *tfdiags.SourceRange {
 	return i.RawValue.ValueSourceRange()
+}
+
+func (i *InputVariable) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg checkGroup
+	// We do a check on the InputVariable as a whole here, rather than
+	// treating its CheckRules as children, because a CheckRule isn't
+	// a standalone object that can self-check but rather just a detail
+	// of our own evaluation that might contribute additional errors.
+	cg.CheckValuer(ctx, i)
+	return cg.Complete(ctx)
+}
+
+func (i *InputVariable) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	announce(i.RawValue.RequestID(), grapheval.RequestInfo{
+		// FIXME: Have the "compiler" in package eval put an
+		// addrs.AbsInputVariable in here so we can better avoid ambiguity
+		// between module instances using variables of the same name.
+		Name:        fmt.Sprintf("value for variable %q", i.DeclName),
+		SourceRange: i.RawValue.ValueSourceRange(),
+	})
+	// FIXME: This doesn't currently cover any of the validation rules because
+	// we're not currently using a distinct workgraph request for each of
+	// those. Should our Value method be evaluating those through a
+	// grapheval.Once so that they can have their own RequestInfo values?
 }
 
 // inputVariableValidationScope is a specialized [exprs.Scope] implementation

@@ -7,12 +7,15 @@ package configgraph
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -99,4 +102,18 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 // ValueSourceRange implements exprs.Valuer.
 func (ri *ResourceInstance) ValueSourceRange() *tfdiags.SourceRange {
 	return ri.ConfigValuer.ValueSourceRange()
+}
+
+// CheckAll implements allChecker.
+func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg checkGroup
+	cg.CheckValuer(ctx, ri)
+	return cg.Complete(ctx)
+}
+
+func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	announce(ri.ConfigValuer.RequestID(), grapheval.RequestInfo{
+		Name:        fmt.Sprintf("configuration for %s", ri.Addr),
+		SourceRange: ri.ConfigValuer.ValueSourceRange(),
+	})
 }

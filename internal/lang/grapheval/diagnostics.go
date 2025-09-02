@@ -56,8 +56,7 @@ func diagnosticsForWorkgraphErrorTracked(err error, tracker RequestTracker) tfdi
 		// correctly but the configuration contains an expression that depends
 		// on its own result, directly or indirectly.
 		reqInfos := collectRequestsInfo(slices.Values(err.RequestIDs), tracker)
-		var detailBuf strings.Builder
-		detailBuf.WriteString("The following objects in the configuration form a dependency cycle, so there is no valid order to evaluate them in:\n")
+		reqDescs := make([]string, 0, len(reqInfos))
 		for _, reqID := range err.RequestIDs {
 			desc := "<unknown object> (failing to report this is a bug in OpenTofu)"
 			if info := reqInfos[reqID]; info != nil {
@@ -67,13 +66,20 @@ func diagnosticsForWorkgraphErrorTracked(err error, tracker RequestTracker) tfdi
 					desc = info.Name
 				}
 			}
+			reqDescs = append(reqDescs, desc)
+		}
+		slices.Sort(reqDescs)
+
+		var detailBuf strings.Builder
+		detailBuf.WriteString("The following objects in the configuration form a dependency cycle, so there is no valid order to evaluate them in:\n")
+		for _, desc := range reqDescs {
 			fmt.Fprintf(&detailBuf, "  - %s\n", desc)
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Self-referential expressions",
-			"The configuration contains expressions that form a dependency cycle.",
+			strings.TrimSpace(detailBuf.String()),
 		))
 	case workgraph.ErrUnresolved:
 		reqName := "<unknown request>"
