@@ -127,15 +127,15 @@ func compileModuleInstance(
 		ModuleSourceAddr: moduleSourceAddr,
 		CallDeclRange:    call.declRange,
 	}
-	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, ret, call.declRange)
-	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, ret)
-	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, ret)
+	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, ret, call.calleeAddr, call.declRange)
+	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, ret, call.calleeAddr)
+	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, ret, call.calleeAddr)
 	ret.ResourceNodes = compileModuleInstanceResources(ctx, module.ManagedResources, module.DataResources, module.EphemeralResources, ret, call.calleeAddr, call.evalContext.Providers)
 
 	return ret
 }
 
-func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*configs.Variable, values map[addrs.InputVariable]exprs.Valuer, declScope exprs.Scope, missingDefRange *tfdiags.SourceRange) map[addrs.InputVariable]*configgraph.InputVariable {
+func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*configs.Variable, values map[addrs.InputVariable]exprs.Valuer, declScope exprs.Scope, moduleInstAddr addrs.ModuleInstance, missingDefRange *tfdiags.SourceRange) map[addrs.InputVariable]*configgraph.InputVariable {
 	ret := make(map[addrs.InputVariable]*configgraph.InputVariable, len(configs))
 	for name, vc := range configs {
 		addr := addrs.InputVariable{Name: name}
@@ -174,7 +174,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 			}
 		}
 		ret[addr] = &configgraph.InputVariable{
-			DeclName:        name,
+			Addr:            moduleInstAddr.InputVariable(name),
 			RawValue:        configgraph.ValuerOnce(rawValue),
 			TargetType:      vc.ConstraintType,
 			TargetDefaults:  vc.TypeDefaults,
@@ -184,7 +184,7 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 	return ret
 }
 
-func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*configs.Local, declScope exprs.Scope) map[addrs.LocalValue]*configgraph.LocalValue {
+func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*configs.Local, declScope exprs.Scope, moduleInstAddr addrs.ModuleInstance) map[addrs.LocalValue]*configgraph.LocalValue {
 	ret := make(map[addrs.LocalValue]*configgraph.LocalValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.LocalValue{Name: name}
@@ -193,13 +193,14 @@ func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*con
 			declScope,
 		))
 		ret[addr] = &configgraph.LocalValue{
+			Addr:     moduleInstAddr.LocalValue(name),
 			RawValue: value,
 		}
 	}
 	return ret
 }
 
-func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*configs.Output, declScope *configgraph.ModuleInstance) map[addrs.OutputValue]*configgraph.OutputValue {
+func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*configs.Output, declScope *configgraph.ModuleInstance, moduleInstAddr addrs.ModuleInstance) map[addrs.OutputValue]*configgraph.OutputValue {
 	ret := make(map[addrs.OutputValue]*configgraph.OutputValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.OutputValue{Name: name}
@@ -208,7 +209,7 @@ func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*co
 			declScope,
 		))
 		ret[addr] = &configgraph.OutputValue{
-			DeclName: name,
+			Addr:     moduleInstAddr.OutputValue(name),
 			RawValue: value,
 
 			// Our current language doesn't allow specifying a type constraint
