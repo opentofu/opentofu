@@ -94,10 +94,9 @@ The `connection` block supports the following arguments. Some arguments are only
 
 This type of block can be configured by using [ephemeral values](../../ephemerality/index.mdx) such as variables, outputs and even ephemeral resource's attributes.
 :::warning
-The connection is having no output, but the provisioner that is using it do have output.
-If the provisioner does not use other ephemeral values in its configuration, that will trigger the
-suppressing of the output, then the output will be shown, risking
-on exposing confidential information from the connection details.
+Although the connection block's values are not referenceable in other contexts, the provisioner may produce output logs that contain values referenced in it's configuration.
+This output is suppressed when the provisioner's configuration block contains sensitive or ephemeral values, but will *not* perform this check on connection blocks inherited from
+a resource. If not correctly configured, sensitive or ephemeral information may be leaked via the logs.
 :::
 <a id="bastion"></a>
 
