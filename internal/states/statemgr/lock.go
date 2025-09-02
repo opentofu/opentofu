@@ -35,6 +35,10 @@ func (s *LockDisabled) WriteState(v *states.State) error {
 	return s.Inner.WriteState(v)
 }
 
+func (s *LockDisabled) MutateState(fn func(*states.State) *states.State) error {
+	return s.Inner.MutateState(fn)
+}
+
 func (s *LockDisabled) RefreshState(ctx context.Context) error {
 	return s.Inner.RefreshState(ctx)
 }

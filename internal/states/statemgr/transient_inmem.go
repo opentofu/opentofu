@@ -44,3 +44,11 @@ func (m *transientInMemory) WriteState(new *states.State) error {
 	m.current = new.DeepCopy()
 	return nil
 }
+
+func (m *transientInMemory) MutateState(fn func(*states.State) *states.State) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.current = fn(m.current)
+	return nil
+}

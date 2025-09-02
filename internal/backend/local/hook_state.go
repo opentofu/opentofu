@@ -22,8 +22,7 @@ type StateHook struct {
 	tofu.NilHook
 	sync.Mutex
 
-	StateMgr    statemgr.Writer
-	workingCopy *states.SyncState
+	StateMgr statemgr.Writer
 
 	// If PersistInterval is nonzero then for any new state update after
 	// the duration has elapsed we'll try to persist a state snapshot
@@ -78,13 +77,16 @@ func (h *StateHook) PostStateUpdate(mutate func(*states.SyncState)) (tofu.HookAc
 	}
 
 	if h.StateMgr != nil {
-		mutate(h.workingCopy)
-
-		if err := h.StateMgr.WriteState(h.workingCopy.Lock()); err != nil {
-			h.workingCopy.Unlock()
+		err := h.StateMgr.MutateState(func(state *states.State) *states.State {
+			if state == nil {
+				state = states.NewState()
+			}
+			mutate(state.SyncWrapper())
+			return state
+		})
+		if err != nil {
 			return tofu.HookActionHalt, err
 		}
-		h.workingCopy.Unlock()
 
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
