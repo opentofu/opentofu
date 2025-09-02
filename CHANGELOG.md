@@ -39,6 +39,7 @@ ENHANCEMENTS:
 * The module installer will copy files in parallel to improve performance of `init` ([#3214](https://github.com/opentofu/opentofu/pull/3214))
 * The following option has been added to the `azurerm` backend:
   * `use_cli`: set to true by default, this can be set to false to disable command line authentcation. ([#3034](https://github.com/opentofu/opentofu/pull/3034))
+* Upgrade github.com/go-viper/mapstructure/v2 to v2.4.0 to fix [GO-2025-3900](https://pkg.go.dev/vuln/GO-2025-3900). ([#3229](https://github.com/opentofu/opentofu/pull/3229))
 
 BUG FIXES:
 
