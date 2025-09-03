@@ -1,4 +1,6 @@
-## 1.10.6 (unreleased)
+## 1.10.7 (unreleased)
+
+## 1.10.6
 
 UPGRADE NOTES:
 
