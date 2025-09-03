@@ -4,12 +4,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -36,20 +35,34 @@ func main() {
 	}
 
 	// signal to the caller that we're locked
-	io.WriteString(os.Stdout, "LOCKID "+lockID)
+	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID)
 
-	defer func() {
-		if err := s.Unlock(context.Background(), lockID); err != nil {
-			io.WriteString(os.Stderr, err.Error())
-		}
-	}()
+	if err != nil {
+		io.WriteString(os.Stderr, err.Error())
+		return
+	}
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	c := make(chan struct{})
+	go waitForInput(c)
 
 	// timeout after 10 second in case we don't get cleaned up by the test
 	select {
 	case <-time.After(10 * time.Second):
 	case <-c:
 	}
+
+	if err := s.Unlock(context.Background(), lockID); err != nil {
+		io.WriteString(os.Stderr, err.Error())
+		return
+	}
+	io.WriteString(os.Stdout, "StateLocker: unlocked")
+}
+
+func waitForInput(resultChan chan struct{}) {
+	// Attempt to read a line with a delimiter
+	_, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		io.WriteString(os.Stderr, err.Error())
+	}
+	resultChan <- struct{}{}
 }

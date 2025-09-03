@@ -22,7 +22,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -853,24 +852,36 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
-	defer pw.Close()
+	tr, tw, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
 	locker.Stderr = pw
 	locker.Stdout = pw
+	locker.Stdin = tr
 
 	if err := locker.Start(); err != nil {
 		return nil, err
 	}
 	deferFunc := func() {
-		if runtime.GOOS != "windows" {
-			if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
-				t.Fatal(err)
-			}
+		defer tr.Close()
+		defer tw.Close()
+		defer pr.Close()
+		defer pw.Close()
+
+		_, err = io.WriteString(tw, "UNLOCK\n")
+		if err != nil {
+			t.Fatalf("write to statelocker returned: %v", err)
 		}
-		// Assume the sigterm above succeeds. The error here may represent
-		// the signal sent above, but is difficult to check in a platform
-		// agostic way
-		_ = locker.Wait()
+
+		// wait for the process to unlock
+		buf := make([]byte, 1024)
+		n, err := pr.Read(buf)
+		if err != nil {
+			t.Fatalf("read from statelocker returned: %v", err)
+		}
+		output := string(buf[:n])
+		t.Logf("statelocker wrote: %s", output)
 	}
 
 	defer func() {
