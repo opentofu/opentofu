@@ -86,3 +86,38 @@ Use local values only in moderation, in situations where a single value or
 result is used in many places _and_ that value is likely to be changed in
 future. The ability to easily change the value in a central place is the key
 advantage of local values.
+
+## Ephemerality
+
+A local value can be computed by evaluating an expressions which contains ephemeral values.
+If so, the local value will be allowed to be used only in other ephemeral contexts:
+* [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](../ephemerality/write-only-attributes.mdx)
+
+:::note
+Any inclusion of an ephemeral value in an expression will make the local value ephemeral. Some examples:
+```
+variable "var1" {
+  type = string
+}
+
+variable "var2" {
+  type      = string
+  ephemeral = true
+}
+
+locals {
+  l1 = var.var1 == "" ? "" : var.var1 // => not ephemeral
+  l2 = var.var2 // => ephemeral
+  l3 = var.var2 == "" ? "" : var.var1 // => ephemeral
+}
+```
+:::
+
+For an in-depth example on how to use ephemeral locals, please refer to [this example](../ephemerality/index.mdx#usage-example).

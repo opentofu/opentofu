@@ -249,3 +249,9 @@ The set of configurable operations is chosen by each resource type. Most
 resource types do not support the `timeouts` block at all. Consult the
 documentation for each resource type to see which operations it offers
 for configuration, if any.
+
+## Write-only attributes
+
+Many managed resources now offer write-only attributes as an alternative to older attributes which existed before the concept of ephemeral was added.
+As an example, see [aws_secretsmanager_secret_version](https://search.opentofu.org/provider/hashicorp/aws/v6.11.0/docs/resources/secretsmanager_secret_version) and its `secret_string_wo` alternative for `secret_string`).
+Additional documentation is available for [write-only attributes](../ephemerality/write-only-attributes.mdx)
