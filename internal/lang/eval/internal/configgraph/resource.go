@@ -31,6 +31,10 @@ type Resource struct {
 	// and addresses we cannot determine yet.
 	Addr addrs.AbsResource
 
+	// Provider is the provider that this resource's type belongs to. This
+	// is the provider to use when asking for config validation, etc.
+	Provider addrs.Provider
+
 	// Each instance of a resource gets evaluated in its own local scope
 	// with extra symbols each.key, etc decided on a per-instance basis,
 	// so initially we just track the unevaluated config and the parent
@@ -38,6 +42,10 @@ type Resource struct {
 	// each child [ResourceInstance].
 	ConfigEvalable exprs.Evalable
 	ParentScope    exprs.Scope
+
+	// GetInstanceResultValue is the callback that child instances of this
+	// resource should use to obtain their result values.
+	GetInstanceResultValue func(ctx context.Context, inst *ResourceInstance) func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 
 	// InstanceSelector represents a rule for deciding which instances of
 	// this resource have been declared.
@@ -106,8 +114,11 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 }
 
 func (r *Resource) compileInstance(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance {
-	ret := &ResourceInstance{
-		Addr: r.Addr.Instance(key),
+	var ret *ResourceInstance
+	ret = &ResourceInstance{
+		Addr:           r.Addr.Instance(key),
+		Provider:       r.Provider,
+		GetResultValue: r.GetInstanceResultValue(ctx, ret),
 		ConfigValuer: ValuerOnce(exprs.NewClosure(
 			r.ConfigEvalable,
 			instanceLocalScope(r.ParentScope, repData),

@@ -8,7 +8,6 @@ package configgraph
 import (
 	"context"
 	"fmt"
-	"iter"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -56,7 +55,7 @@ type InstanceSelector interface {
 	// If the returned diagnostics contains an error then the set of
 	// instance keys is ignored but the returned marks will still be
 	// retained and used for building a placeholder result.
-	Instances(ctx context.Context) (Maybe[iter.Seq2[addrs.InstanceKey, instances.RepetitionData]], cty.ValueMarks, tfdiags.Diagnostics)
+	Instances(ctx context.Context) (Maybe[InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics)
 
 	// InstancesSourceRange optionally reports a source range for something in
 	// the configuration that the author would consider as representing the
@@ -70,6 +69,8 @@ type InstanceSelector interface {
 	// then prefer to return nil rather than returning something strange.
 	InstancesSourceRange() *tfdiags.SourceRange
 }
+
+type InstancesSeq = func(yield func(addrs.InstanceKey, instances.RepetitionData) bool)
 
 type compiledInstances[T any] struct {
 	KeyType addrs.InstanceKeyType
