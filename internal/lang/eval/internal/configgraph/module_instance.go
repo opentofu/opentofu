@@ -166,13 +166,56 @@ func (m *ModuleInstance) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfd
 		})
 		return nil, diags
 
+		// All of these resource-related symbols ultimately end up in
+		// [ModuleInstance.resolveResourceAttr] after indirecting through
+		// one or two more attribute steps.
+	case "resource":
+		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
+			mode:       addrs.ManagedResourceMode,
+			moduleInst: m,
+			startRng:   ref.SrcRange,
+		}), diags
+	case "data":
+		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
+			mode:       addrs.DataResourceMode,
+			moduleInst: m,
+		}), diags
+	case "ephemeral":
+		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
+			mode:       addrs.EphemeralResourceMode,
+			moduleInst: m,
+		}), diags
 	default:
-		// TODO: Once we support resource references this case should be treated
-		// as the beginning of a reference to a managed resource, as a
-		// shorthand omitting the "resource." prefix.
-		diags = diags.Append(fmt.Errorf("no support for %q references yet", ref.Name))
+		// We treat all unrecognized prefixes as a shorthand for "resource."
+		// where the first segment is the resource type name.
+		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
+			mode:       addrs.ManagedResourceMode,
+			typeName:   ref.Name,
+			moduleInst: m,
+		}), diags
+	}
+}
+
+func (m *ModuleInstance) resolveResourceAttr(addr addrs.Resource, rng tfdiags.SourceRange) (exprs.Attribute, tfdiags.Diagnostics) {
+	// This function handles references like "aws_instance.foo" and
+	// "data.aws_subnet.bar" after the intermediate steps have been
+	// collected using [moduleInstanceResourceSymbolTable]. Refer to
+	// [ModuleInstance.ResourceAttr] for the beginning of this process.
+
+	var diags tfdiags.Diagnostics
+	r, ok := m.ResourceNodes[addr]
+	if !ok {
+		// TODO: Try using "didyoumean" with resource types and names that
+		// _are_ declared in the module to see if we can suggest an alternatve.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Reference to undeclared resource variable",
+			Detail:   fmt.Sprintf("There is no declaration of resource %s in this module.", addr),
+			Subject:  rng.ToHCL().Ptr(),
+		})
 		return nil, diags
 	}
+	return exprs.ValueOf(r), diags
 }
 
 func (m *ModuleInstance) resolveSimpleChildAttr(topSymbol string, ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
@@ -315,6 +358,77 @@ func (m *ModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.Re
 	for _, n := range m.ResourceNodes {
 		n.AnnounceAllGraphevalRequests(announce)
 	}
+}
+
+type moduleInstanceResourceSymbolTable struct {
+	mode addrs.ResourceMode
+	// We reuse this type for both the first step like "data." and the
+	// second step like "data.foo.". typeName is the empty string for
+	// the first step, and then populated in the second step.
+	typeName   string
+	moduleInst *ModuleInstance
+	startRng   hcl.Range
+}
+
+var _ exprs.SymbolTable = (*moduleInstanceResourceSymbolTable)(nil)
+
+// HandleInvalidStep implements exprs.SymbolTable.
+func (m *moduleInstanceResourceSymbolTable) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if m.typeName == "" {
+		// We're at the first step and expecting a resource type name, then.
+		adjective := ""
+		switch m.mode {
+		case addrs.ManagedResourceMode:
+			adjective = "managed "
+		case addrs.DataResourceMode:
+			adjective = "data "
+		case addrs.EphemeralResourceMode:
+			adjective = "ephemeral "
+		default:
+			// We'll just omit any adjective if it isn't one we know, though
+			// we should ideally update the above if we add a new resource mode.
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference to resource",
+			Detail:   fmt.Sprintf("An attribute access is required here, naming the type of %sresource to refer to.", adjective),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	} else {
+		// We're at the second step and expecting a resource name.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference to resource",
+			Detail:   fmt.Sprintf("An attribute access is required here, giving the name of the %q resource to refer to.", m.typeName),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	}
+	return diags
+}
+
+// ResolveAttr implements exprs.SymbolTable.
+func (m *moduleInstanceResourceSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if m.typeName == "" {
+		// We're at the first step and expecting a resource type name, then.
+		// We'll return a new instance with the given type name populated
+		// so that we can collect the resource name from the next step.
+		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
+			mode:       m.mode,
+			typeName:   ref.Name,
+			moduleInst: m.moduleInst,
+			startRng:   m.startRng,
+		}), diags
+	}
+	// We're at the second step and expecting a resource name. We'll now
+	// delegate back to the main module instance to handle the reference.
+	addr := addrs.Resource{
+		Mode: m.mode,
+		Type: m.typeName,
+		Name: ref.Name,
+	}
+	return m.moduleInst.resolveResourceAttr(addr, tfdiags.SourceRangeFromHCL(hcl.RangeBetween(m.startRng, ref.SrcRange)))
 }
 
 // moduleInstNestedSymbolTable is a common implementation for all of the

@@ -122,7 +122,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 			Severity: hcl.DiagError,
 			Summary:  "Invalid value for output value",
 			Detail:   fmt.Sprintf("Unsuitable value for output value %q: %s.", o.Addr.OutputValue.Name, tfdiags.FormatError(err)),
-			Subject:  maybeHCLSourceRange(o.ValueSourceRange()),
+			Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
 		})
 		finalV = cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())
 	}
