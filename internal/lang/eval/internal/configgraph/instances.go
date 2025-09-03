@@ -206,6 +206,8 @@ func valueForInstances[T exprs.Valuer](ctx context.Context, insts *compiledInsta
 		attrs := make(map[string]cty.Value, len(insts.Instances))
 		for key, obj := range insts.Instances {
 			attrName := string(key.(addrs.StringKey)) // panic here means buggy [InstanceSelector]
+			// Diagnostics for this are collected directly from the instance
+			// when the CheckAll tree walk visits it.
 			attrs[attrName] = diagsHandledElsewhere(obj.Value(ctx))
 		}
 		return cty.ObjectVal(attrs).WithMarks(insts.ValueMarks)
@@ -214,11 +216,23 @@ func valueForInstances[T exprs.Valuer](ctx context.Context, insts *compiledInsta
 		if _, ok := insts.Instances[addrs.WildcardKey{addrs.StringKeyType}]; ok {
 			// In this case we cannot predict anything about the placeholder
 			// result because if we don't know how many instances we have
-			// // then we cannot even predict the tuple type.
+			// then we cannot even predict the tuple type.
 			return cty.DynamicVal.WithMarks(insts.ValueMarks)
 		}
-		// TODO: Implement
-		panic("value construction for \"count\" resources not yet implemented")
+		elems := make([]cty.Value, len(insts.Instances))
+		for i := range elems {
+			inst, ok := insts.Instances[addrs.IntKey(i)]
+			if !ok {
+				// This should not be possible for a correct [InstanceSelector]
+				// but this is not the place to deal with that.
+				elems[i] = cty.DynamicVal
+				continue
+			}
+			// Diagnostics for this are collected directly from the instance
+			// when the CheckAll tree walk visits it.
+			elems[i] = diagsHandledElsewhere(inst.Value(ctx))
+		}
+		return cty.TupleVal(elems).WithMarks(insts.ValueMarks)
 
 	default:
 		// Should not get here because [InstanceSelector] is not allowed to
