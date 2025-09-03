@@ -91,6 +91,19 @@ resource aws_iot_thing "bar" {
 
 Review the generated configuration and update it as needed. You may wish to move the generated configuration to another file, add or remove resource arguments, or update it to reference input variables or other resources in your configuration. 
 
+#### Generated hints
+
+In specific cases, the attributes of the generated blocks can be suffixed with a comment. That comment may contain hints as to why
+a value was omitted.
+For example, the following will be generated if the generated `resource` block contains sensitive and write-only attributes:
+```hcl
+resource "test_resource" "test" {
+  attr1 = null # sensitive
+  attr2 = null # write-only
+  attr3 = null # sensitive write-only
+}
+```
+
 ### 4. Apply
 
 Run `tofu apply` to import your infrastructure.
