@@ -8,7 +8,11 @@ package eval
 import (
 	"context"
 
+	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -53,4 +57,37 @@ type validationGlue struct {
 	// "final state" values for resource instances because validation does
 	// not use information from the state.
 	providers Providers
+}
+
+// ResourceInstanceValue implements evaluationGlue.
+func (v *validationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+	schema, diags := v.providers.ResourceTypeSchema(ctx,
+		ri.Provider,
+		ri.Addr.Resource.Resource.Mode,
+		ri.Addr.Resource.Resource.Type,
+	)
+	if diags.HasErrors() {
+		// If we can't get schema then we'll return a fully-unknown value
+		// as a placeholder because we don't even know what type we need.
+		return cty.DynamicVal, diags
+	}
+
+	// During the validation phase we always just use a placeholder value
+	// based on the config value, inserting unknown values in all of the
+	// locations where a provider could potentially choose a value during
+	// the plan or apply phases.
+	configVal, moreDiags := ri.ConfigValue(ctx)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		// In practice we shouldn't even get called when the config value
+		// isn't valid, so the following is just for robustness.
+		return cty.UnknownVal(schema.Block.ImpliedType()), diags
+	}
+
+	// We now have enough information to produce a placeholder "planned new
+	// state" by placing unknown values in any location that the provider
+	// would be allowed to choose a value.
+	return objchange.ProposedNew(
+		schema.Block, cty.NullVal(schema.Block.ImpliedType()), configVal,
+	), diags
 }
