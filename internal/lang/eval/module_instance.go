@@ -130,7 +130,7 @@ func compileModuleInstance(
 	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, ret, call.calleeAddr, call.declRange)
 	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, ret, call.calleeAddr)
 	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, ret, call.calleeAddr)
-	ret.ResourceNodes = compileModuleInstanceResources(ctx, module.ManagedResources, module.DataResources, module.EphemeralResources, ret, call.calleeAddr, call.evalContext.Providers)
+	ret.ResourceNodes = compileModuleInstanceResources(ctx, module.ManagedResources, module.DataResources, module.EphemeralResources, ret, call.calleeAddr, call.evalContext.Providers, call.evaluationGlue.ResourceInstanceValue)
 
 	return ret
 }
@@ -236,18 +236,19 @@ func compileModuleInstanceResources(
 	declScope exprs.Scope,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers Providers,
+	getResultValue func(context.Context, *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range dataConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	for _, rc := range ephemeralConfigs {
-		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers)
+		addr, rsrc := compileModuleInstanceResource(ctx, rc, declScope, moduleInstanceAddr, providers, getResultValue)
 		ret[addr] = rsrc
 	}
 	return ret
@@ -259,6 +260,7 @@ func compileModuleInstanceResource(
 	declScope exprs.Scope,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers Providers,
+	getResultValue func(context.Context, *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
 	absAddr := moduleInstanceAddr.Resource(resourceAddr.Mode, resourceAddr.Type, resourceAddr.Name)
@@ -278,9 +280,27 @@ func compileModuleInstanceResource(
 
 	ret := &configgraph.Resource{
 		Addr:           absAddr,
+		Provider:       config.Provider,
 		ConfigEvalable: configEvalable,
 		ParentScope:    declScope,
-		// TODO: Everything else
+
+		// Our instance selector depends on which of the repetition metaarguments
+		// are set, if any. We assume that package configs allows at most one
+		// of these to be set for each resource config.
+		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, nil),
+
+		// The following is a little complicated because it represents a rule
+		// for deciding the rule for deciding the result value. The
+		// Resource implementation calls this during resource instance
+		// compilation to get a resource-instance-specific value fetcher
+		// for each of its instances.
+		GetInstanceResultValue: func(ctx context.Context, inst *configgraph.ResourceInstance) func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+			return func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+				return getResultValue(ctx, inst)
+			}
+		},
+
+		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
 	}
 	return resourceAddr, ret
 }

@@ -9,6 +9,7 @@ import (
 	"iter"
 
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -81,6 +82,28 @@ func PrepareOutgoingValue(v cty.Value) cty.Value {
 	return WithoutResourceInstanceMarks(exprs.WithoutEvalErrorMarks(v))
 }
 
+// prepareResourceInstanceResult returns a modified version of the given value
+// that has had its marks adjusted so that derived values will track that
+// they depend on this resource instance's result.
+//
+// The result is also marked as depending on all of the other resource instances
+// that the configuration value depends on, which is important because a
+// provider is allowed to decide results of other attributes based on anything
+// in the configuration and so we must conservatively assume that all parts
+// of the result could be derived from any part of the config.
+func prepareResourceInstanceResult(resultVal cty.Value, thisRI *ResourceInstance, configVal cty.Value) cty.Value {
+	v := resultVal.Mark(ResourceInstanceMark{thisRI})
+	for ri := range ContributingResourceInstances(configVal) {
+		v = v.Mark(ResourceInstanceMark{ri})
+	}
+	// TODO: We need to transfer certain other marks from the configVal too,
+	// but others need to be transferred more surgically. For example,
+	// any path that is "sensitive" in configVal should also be sensitive
+	// in the result, but we mustn't hoist _that_ mark up to toplevel because
+	// that would be too conservative and make our plan diffs useless.
+	return v
+}
+
 // WithoutResourceInstanceMarks returns a copy of the given value with
 // any [ResourceInstanceMark] marks removed from it, but with all other marks
 // left intact.
@@ -90,20 +113,13 @@ func PrepareOutgoingValue(v cty.Value) cty.Value {
 // detail of our evaluation strategy that the rest of the system does not
 // expect to encounter.
 func WithoutResourceInstanceMarks(v cty.Value) cty.Value {
-	unmarked, pathMarks := v.UnmarkDeepWithPaths()
-	var filteredPathMarks []cty.PathValueMarks
-	// Locate EvalError marks and filter them out
-	for _, pm := range pathMarks {
-		for m := range pm.Marks {
-			if _, isOurMark := m.(ResourceInstanceMark); isOurMark {
-				delete(pm.Marks, m)
-			}
+	v, _ = v.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+		if _, isOurMark := mark.(ResourceInstanceMark); isOurMark {
+			return ctymarks.WrangleDrop, nil
 		}
-		if len(pm.Marks) > 0 {
-			filteredPathMarks = append(filteredPathMarks, pm)
-		}
-	}
-	return unmarked.MarkWithPaths(filteredPathMarks)
+		return nil, nil // leave all other marks alone
+	})
+	return v
 }
 
 // ResourceInstanceAddrs maps a sequence of [ResourceInstance] pointers into
