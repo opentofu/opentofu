@@ -114,16 +114,15 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 }
 
 func (r *Resource) compileInstance(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance {
-	var ret *ResourceInstance
-	ret = &ResourceInstance{
-		Addr:           r.Addr.Instance(key),
-		Provider:       r.Provider,
-		GetResultValue: r.GetInstanceResultValue(ctx, ret),
+	ret := &ResourceInstance{
+		Addr:     r.Addr.Instance(key),
+		Provider: r.Provider,
 		ConfigValuer: ValuerOnce(exprs.NewClosure(
 			r.ConfigEvalable,
 			instanceLocalScope(r.ParentScope, repData),
 		)),
 	}
+	ret.GetResultValue = r.GetInstanceResultValue(ctx, ret)
 	return ret
 }
 
