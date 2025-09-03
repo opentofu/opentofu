@@ -45,7 +45,7 @@ type Resource struct {
 
 	// GetInstanceResultValue is the callback that child instances of this
 	// resource should use to obtain their result values.
-	GetInstanceResultValue func(ctx context.Context, inst *ResourceInstance) func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
+	GetInstanceResultValue func(ctx context.Context, inst *ResourceInstance) func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
 
 	// InstanceSelector represents a rule for deciding which instances of
 	// this resource have been declared.
