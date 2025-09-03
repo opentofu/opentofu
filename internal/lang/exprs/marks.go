@@ -7,6 +7,7 @@ package exprs
 
 import (
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/ctymarks"
 )
 
 // evaluationMark is the type used for a few cty marks we use to help
@@ -78,14 +79,11 @@ func HasEvalErrors(v cty.Value) bool {
 // this extra complexity to callers that are merely consuming the finalized
 // results.
 func WithoutEvalErrorMarks(v cty.Value) cty.Value {
-	unmarked, pathMarks := v.UnmarkDeepWithPaths()
-	var filteredPathMarks []cty.PathValueMarks
-	// Locate EvalError marks and filter them out
-	for _, pm := range pathMarks {
-		delete(pm.Marks, EvalError)
-		if len(pm.Marks) > 0 {
-			filteredPathMarks = append(filteredPathMarks, pm)
+	v, _ = v.WrangleMarksDeep(func(mark any, path cty.Path) (ctymarks.WrangleAction, error) {
+		if mark == EvalError {
+			return ctymarks.WrangleDrop, nil
 		}
-	}
-	return unmarked.MarkWithPaths(filteredPathMarks)
+		return nil, nil // Leave all other marks alone.
+	})
+	return v
 }

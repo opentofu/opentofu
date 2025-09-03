@@ -29,5 +29,10 @@ type evaluationGlue interface {
 	//
 	// What "result value" means depends on the phase. For example, during
 	// the planning phase it's the "planned new state".
-	ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics)
+	//
+	// The given configVal is the result of calling ConfigValue on the given
+	// resource instance object, but guaranteed to have already been validated.
+	// The implementation of this method should not call ConfigValue again
+	// and should instead just trust the value given as an argument.
+	ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
 }

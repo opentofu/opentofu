@@ -60,7 +60,7 @@ type validationGlue struct {
 }
 
 // ResourceInstanceValue implements evaluationGlue.
-func (v *validationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (v *validationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	schema, diags := v.providers.ResourceTypeSchema(ctx,
 		ri.Provider,
 		ri.Addr.Resource.Resource.Mode,
@@ -70,18 +70,6 @@ func (v *validationGlue) ResourceInstanceValue(ctx context.Context, ri *configgr
 		// If we can't get schema then we'll return a fully-unknown value
 		// as a placeholder because we don't even know what type we need.
 		return cty.DynamicVal, diags
-	}
-
-	// During the validation phase we always just use a placeholder value
-	// based on the config value, inserting unknown values in all of the
-	// locations where a provider could potentially choose a value during
-	// the plan or apply phases.
-	configVal, moreDiags := ri.ConfigValue(ctx)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		// In practice we shouldn't even get called when the config value
-		// isn't valid, so the following is just for robustness.
-		return cty.UnknownVal(schema.Block.ImpliedType()), diags
 	}
 
 	// We now have enough information to produce a placeholder "planned new

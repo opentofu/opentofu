@@ -236,7 +236,7 @@ func compileModuleInstanceResources(
 	declScope exprs.Scope,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers Providers,
-	getResultValue func(context.Context, *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics),
+	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
 	for _, rc := range managedConfigs {
@@ -260,7 +260,7 @@ func compileModuleInstanceResource(
 	declScope exprs.Scope,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers Providers,
-	getResultValue func(context.Context, *configgraph.ResourceInstance) (cty.Value, tfdiags.Diagnostics),
+	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
 	absAddr := moduleInstanceAddr.Resource(resourceAddr.Mode, resourceAddr.Type, resourceAddr.Name)
@@ -294,9 +294,23 @@ func compileModuleInstanceResource(
 		// Resource implementation calls this during resource instance
 		// compilation to get a resource-instance-specific value fetcher
 		// for each of its instances.
-		GetInstanceResultValue: func(ctx context.Context, inst *configgraph.ResourceInstance) func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-			return func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-				return getResultValue(ctx, inst)
+		GetInstanceResultValue: func(ctx context.Context, inst *configgraph.ResourceInstance) func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics) {
+			return func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+				schema, moreDiags := providers.ResourceTypeSchema(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type)
+				diags = diags.Append(moreDiags)
+				if moreDiags.HasErrors() {
+					return cty.DynamicVal, diags
+				}
+
+				moreDiags = providers.ValidateResourceConfig(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type, configVal)
+				diags = diags.Append(moreDiags)
+				if diags.HasErrors() {
+					return cty.UnknownVal(schema.Block.ImpliedType()), diags
+				}
+
+				// The real getResultValue function can now assume that
+				// the given configuration is valid.
+				return getResultValue(ctx, inst, configVal)
 			}
 		},
 
