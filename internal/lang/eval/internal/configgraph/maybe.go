@@ -14,9 +14,9 @@ import (
 // than a [cty.Value] is derived from such a value but only when the original
 // value is known.
 //
-// The only implementation of this interface is [Known], representing a known
+// The only implementation of this interface is [KnownValue], representing a known
 // value. An unknown value is represented as a nil value of this type. Use
-// a conditional type assertion to [Known] to check whether the value is
+// a conditional type assertion to [KnownValue] to check whether the value is
 // known, or use the other helper functions in this package to derive new
 // Maybe values from existing Maybe values.
 type Maybe[T any] interface {
@@ -37,7 +37,7 @@ func MapValue[T any](v cty.Value, f func(cty.Value) T) Maybe[T] {
 	if !v.IsKnown() {
 		return nil
 	}
-	return Known[T]{f(v)}
+	return KnownValue[T]{f(v)}
 }
 
 // MapValueDeep is like [MapValue] except that it returns an unknown
@@ -47,7 +47,7 @@ func MapValueDeep[T any](v cty.Value, f func(cty.Value) T) Maybe[T] {
 	if !v.IsWhollyKnown() {
 		return nil
 	}
-	return Known[T]{f(v)}
+	return KnownValue[T]{f(v)}
 }
 
 // MapMaybe takes a [Maybe] value of one type and, if it's known, uses
@@ -57,11 +57,11 @@ func MapValueDeep[T any](v cty.Value, f func(cty.Value) T) Maybe[T] {
 // If the given Maybe is unknown then this immediately returns a new
 // maybe of the target type, without calling f.
 func MapMaybe[T, R any](input Maybe[T], f func(T) R) Maybe[R] {
-	known, ok := input.(Known[T])
+	known, ok := input.(KnownValue[T])
 	if !ok {
 		return nil
 	}
-	return Known[R]{f(known.Value)}
+	return KnownValue[R]{f(known.Value)}
 }
 
 // GetKnown checks whether the given Maybe is known and if so returns the
@@ -73,13 +73,17 @@ func MapMaybe[T, R any](input Maybe[T], f func(T) R) Maybe[R] {
 // because the Go compiler can infer T automatically based on the type of
 // input.
 func GetKnown[T any](input Maybe[T]) (T, bool) {
-	known, ok := input.(Known[T])
+	known, ok := input.(KnownValue[T])
 	return known.Value, ok
 }
 
-type Known[T any] struct {
+func Known[T any](v T) KnownValue[T] {
+	return KnownValue[T]{v}
+}
+
+type KnownValue[T any] struct {
 	Value T
 }
 
 // maybeImpl implements Maybe.
-func (k Known[T]) maybeImpl(T) {}
+func (k KnownValue[T]) maybeImpl(T) {}

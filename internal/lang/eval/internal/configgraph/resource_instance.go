@@ -30,6 +30,10 @@ type ResourceInstance struct {
 	// and addresses we cannot determine yet.
 	Addr addrs.AbsResourceInstance
 
+	// Provider is the provider that this resource's type belongs to. This
+	// is the provider to use when asking for config validation, etc.
+	Provider addrs.Provider
+
 	// ConfigValuer is a valuer for producing the object value representing
 	// the configuration for this object. How the final configuration value
 	// is chosen is decided by whatever created this object, but most typically
@@ -55,7 +59,7 @@ type ResourceInstance struct {
 	// MUST use the mechanisms from package grapheval in order to cooperate
 	// with the self-dependency detection used by this package to prevent
 	// deadlocks.
-	GetResultValue func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
+	GetResultValue func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)
@@ -72,20 +76,23 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 	return ri.ConfigValuer.StaticCheckTraversal(traversal)
 }
 
+// ConfigValue returns the validated configuration value, or a placeholder
+// to use instead of an invalid configuration value.
+func (ri *ResourceInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	// TODO: Check preconditions before calling Value, and then call the
+	// provider's own validate function after calling Value.
+	return ri.ConfigValuer.Value(ctx)
+}
+
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	// NOTE WELL: All values returned from this function MUST be marked with
-	// ResourceInstanceMark{ri} to achieve correct resource instance dependency
-	// tracking.
-
-	configVal, diags := ri.ConfigValuer.Value(ctx)
+	configVal, diags := ri.ConfigValue(ctx)
 	if diags.HasErrors() {
-		// We don't return the placeholder configVal here because a correct
-		// final value for a resource instance needs to have had state
-		// or provider-planned values injected into it and so configVal
-		// alone (where unset arguments are always null) is not a correct
-		// placeholder.
-		return cty.DynamicVal.Mark(ResourceInstanceMark{ri}), diags
+		// If we don't have a valid config value then we'll stop early
+		// with an unknown value placeholder so that the external process
+		// responsible for providing the result value can assume that it
+		// will only ever recieve validated configuration values.
+		return cty.DynamicVal, diags
 	}
 
 	// We need some help from outside this package to prepare the final
@@ -94,9 +101,10 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 	// this evaluation in support of. Refer to the documentation of
 	// the GetResultValue field for details on what we're expecting this
 	// function to do.
-	resultVal, moreDiags := ri.GetResultValue(ctx, configVal)
-	diags = diags.Append(moreDiags)
-	return resultVal.Mark(ResourceInstanceMark{ri}), diags
+	resultVal, diags := ri.GetResultValue(ctx)
+	// The result must always be marked with ResourceInstanceMark{ri} so that
+	// we can detect when another value elsewhere is derived from this one.
+	return prepareResourceInstanceResult(resultVal, ri, configVal), diags
 }
 
 // ValueSourceRange implements exprs.Valuer.
