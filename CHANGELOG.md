@@ -13,6 +13,7 @@ UPGRADE NOTES:
 * OpenTofu's remote provisioners, when using SSH to connect to a remote server using certificate-based authentication, no longer accept a certificate key as the signature key for a certificate, as required by [draft-miller-ssh-cert-03 section 2.1.1](https://datatracker.ietf.org/doc/html/draft-miller-ssh-cert-03#section-2.1.1).
 
     This may cause new failures if you are currently using an incorrectly-generated certificate, but does not affect correctly-generated certificates.
+* The `azurerm` backend has been heavily rewritten. Deprecated Azure libraries for the `azurerm` backend have been swapped out for modern, offically supported ones. ([#3034](https://github.com/opentofu/opentofu/pull/3034))
 
 ENHANCEMENTS:
 
@@ -36,6 +37,8 @@ ENHANCEMENTS:
   * These improvements are primarilly visible in projects with thousands of resources
 * Upgrade github.com/hashicorp/go-getter to v1.7.9 to fix [GO-2025-3892](https://pkg.go.dev/vuln/GO-2025-3892). ([#3227](https://github.com/opentofu/opentofu/pull/3227))
 * The module installer will copy files in parallel to improve performance of `init` ([#3214](https://github.com/opentofu/opentofu/pull/3214))
+* The following option has been added to the `azurerm` backend:
+  * `use_cli`: set to true by default, this can be set to false to disable command line authentcation. ([#3034](https://github.com/opentofu/opentofu/pull/3034))
 
 BUG FIXES:
 
@@ -52,6 +55,10 @@ BUG FIXES:
 * `tofu import` command now correctly validates when the target address contains non-existent for_each key ([#3106](https://github.com/opentofu/opentofu/pull/3106))
 
 BREAKING CHANGES:
+* In the `azurerm` backend, the following backend variables have been changed ([#3034](https://github.com/opentofu/opentofu/pull/3034)):
+  * `endpoint` and the `ARM_ENDPOINT` environment variable are deprecated: these are now unused and have no affect on execution
+  * `msi_endpoint` and the `ARM_MSI_ENDPOINT` environment variable deprecated: please use the `MSI_ENDPOINT` environment variable instead
+  * You cannot set both an `environment` and `metadata_host`.
 
 ## Previous Releases
 

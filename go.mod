@@ -8,8 +8,7 @@ godebug tlsmlkem=0
 require (
 	cloud.google.com/go/kms v1.15.5
 	cloud.google.com/go/storage v1.36.0
-	github.com/Azure/azure-sdk-for-go v59.2.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.24
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.19.0
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
 	github.com/ProtonMail/go-crypto v0.0.0-20230619160724-3fbb1f12458c
 	github.com/agext/levenshtein v1.2.3
@@ -45,7 +44,6 @@ require (
 	github.com/hashicorp/consul/sdk v0.8.0
 	github.com/hashicorp/copywrite v0.16.3
 	github.com/hashicorp/errwrap v1.1.0
-	github.com/hashicorp/go-azure-helpers v0.43.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-getter v1.7.9
 	github.com/hashicorp/go-hclog v1.6.3
@@ -61,7 +59,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.10.3
-	github.com/manicminer/hamilton v0.44.0
 	github.com/masterzen/winrm v0.0.0-20200615185753-c42b5136ff88
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-shellwords v1.0.4
@@ -87,7 +84,6 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.0.587-0.20230206000712-97469a3dcd4e
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.0.233-0.20210823002710-8078545fa058
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.29
-	github.com/tombuildsstuff/giovanni v0.15.1
 	github.com/xanzy/ssh-agent v0.3.1
 	github.com/xlab/treeprint v0.0.0-20161029104018-1d6e34225557
 	github.com/zclconf/go-cty v1.16.3
@@ -122,16 +118,28 @@ require (
 )
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
+	github.com/Azure/go-autorest/autorest v0.11.24 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.4.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
+)
+
+require (
 	cloud.google.com/go v0.112.0 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.1.5 // indirect
 	github.com/AlecAivazis/survey/v2 v2.3.6 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.10.1
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.2.0
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage v1.8.0
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.1
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.18 // indirect
-	github.com/Azure/go-autorest/autorest/azure/cli v0.4.4 // indirect
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
-	github.com/Azure/go-autorest/autorest/to v0.4.0 // indirect
-	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20200615164410-66371956d46c // indirect
@@ -174,7 +182,6 @@ require (
 	github.com/cli/shurcooL-graphql v0.0.2 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/creack/pty v1.1.18 // indirect
-	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -219,7 +226,6 @@ require (
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/knadh/koanf v1.5.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/manicminer/hamilton-autorest v0.2.0 // indirect
 	github.com/masterzen/simplexml v0.0.0-20190410153822-31eea3082786 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
