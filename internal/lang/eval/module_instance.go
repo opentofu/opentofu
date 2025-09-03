@@ -275,7 +275,7 @@ func compileModuleInstanceResource(
 		configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
 	} else {
 		spec := resourceTypeSchema.Block.DecoderSpec()
-		configEvalable = exprs.EvalableHCLBody(config.Config, spec)
+		configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
 	}
 
 	ret := &configgraph.Resource{
