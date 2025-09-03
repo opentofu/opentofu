@@ -129,6 +129,17 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 	}
 	sort.Strings(callNames)
 
+	var parentSafety *ModuleAccessSafety
+	for iter := parent; iter != nil; iter = iter.Parent {
+		parentSafety = iter.Module.Access
+		if parentSafety != nil {
+			break
+		}
+	}
+	if parentSafety != nil && *parentSafety != "tree" {
+		parentSafety = nil
+	}
+
 	for _, callName := range callNames {
 		call := calls[callName]
 		path := make([]string, len(parent.Path)+1)
@@ -143,6 +154,7 @@ func buildChildModules(ctx context.Context, parent *Config, walker ModuleWalker)
 			Parent:            parent,
 			CallRange:         call.DeclRange,
 			Call:              NewStaticModuleCall(path, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
+			AccessSafety:      parentSafety,
 		}
 		if call.Source != nil {
 			// Invalid modules sometimes have a nil source field which is handled through loadModule below
@@ -307,6 +319,8 @@ type ModuleRequest struct {
 	// This is where variables and other information from the calling module
 	// are propagated to the child module for use in the static evaluator
 	Call StaticModuleCall
+
+	AccessSafety *ModuleAccessSafety
 }
 
 // DisabledModuleWalker is a ModuleWalker that doesn't support

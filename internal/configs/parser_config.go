@@ -80,7 +80,7 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 			content, contentDiags := block.Body.Content(terraformBlockSchema)
 			diags = append(diags, contentDiags...)
 
-			if attr, ok := content.Attributes["safety"]; ok {
+			if attr, ok := content.Attributes["access_safety"]; ok {
 				var safety ModuleAccessSafety
 				decodeDiags := gohcl.DecodeExpression(attr.Expr, nil, &safety)
 				diags = diags.Extend(decodeDiags)
@@ -342,7 +342,7 @@ var terraformBlockSchema = &hcl.BodySchema{
 		{Name: "required_version"},
 		{Name: "experiments"},
 		{Name: "language"},
-		{Name: "safety"},
+		{Name: "access_safety"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{

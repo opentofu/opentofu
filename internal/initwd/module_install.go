@@ -969,10 +969,11 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 		// Determine if module is safe to copy
 		// TODO sniff instead
 		mod, _ := i.loader.Parser().LoadConfigDir(modDir, req.Call)
-		if mod != nil {
+		if mod != nil && mod.Access != nil {
 			return mod.Access
 		}
-		return nil
+		// Fallback
+		return req.AccessSafety
 	}
 
 	// This is *NOT* safe in parallel
