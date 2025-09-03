@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -959,27 +960,44 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 		return diags
 	}
 
-	if os.Getenv("TOFU_EXPERIMENT_MODULE_INSTALL_LINKED") == "I_AM_SURE" {
-		// This is *NOT* safe in parallel
-
-		re := regexp.MustCompile("[^\\w\\d\\.-]")
-		commonInstName := re.ReplaceAllString(addr.Package.String(), "_")
-		commonInstPath := filepath.Join(i.modsDir, commonInstName)
-
-		if _, err := os.Stat(commonInstPath); errors.Is(err, os.ErrNotExist) {
-			diags = diags.Extend(fetchFunc(commonInstPath))
-			if diags.HasErrors() {
-				return nil, diags
-			}
-		} else if err != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Failed to determine if module installation is usable",
-				Detail:   err.Error(),
-			})
-			return nil, diags
+	getSafety := func(dir string) *configs.ModuleAccessSafety {
+		modDir, err := getmodules.ExpandSubdirGlobs(dir, addr.Subdir)
+		if err != nil {
+			return nil
 		}
 
+		// Determine if module is safe to copy
+		// TODO sniff instead
+		mod, _ := i.loader.Parser().LoadConfigDir(modDir, req.Call)
+		if mod != nil {
+			return mod.Access
+		}
+		return nil
+	}
+
+	// This is *NOT* safe in parallel
+
+	re := regexp.MustCompile("[^\\w\\d\\.-]")
+	commonInstName := re.ReplaceAllString(addr.Package.String(), "_")
+	commonInstPath := filepath.Join(i.modsDir, commonInstName)
+
+	if _, err := os.Stat(commonInstPath); errors.Is(err, os.ErrNotExist) {
+		diags = diags.Extend(fetchFunc(commonInstPath))
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	} else if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Failed to determine if module installation is usable",
+			Detail:   err.Error(),
+		})
+		return nil, diags
+	}
+
+	safety := getSafety(commonInstPath)
+
+	if safety != nil && (*safety == configs.ModuleAccessSafeModule || *safety == configs.ModuleAccessSafeTree) {
 		err := os.Symlink(commonInstName, instPath)
 		if err != nil {
 			// TODO copy fallback!
@@ -991,8 +1009,23 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 			return nil, diags
 		}
 	} else {
-		diags = diags.Extend(fetchFunc(instPath))
-		if diags.HasErrors() {
+		println(commonInstPath)
+		err := os.MkdirAll(instPath, 0755)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to create module directory",
+				Detail:   err.Error(),
+			})
+			return nil, diags
+		}
+		err = copy.CopyDir(instPath, commonInstPath)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Failed to install module",
+				Detail:   err.Error(),
+			})
 			return nil, diags
 		}
 	}

@@ -32,6 +32,8 @@ type Module struct {
 	// values.
 	SourceDir string
 
+	Access *ModuleAccessSafety
+
 	CoreVersionConstraints []VersionConstraint
 
 	ActiveExperiments experiments.Set
@@ -77,6 +79,14 @@ func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
 	return p, ok
 }
 
+type ModuleAccessSafety string
+
+const (
+	ModuleAccessSafeModule = ModuleAccessSafety("module")
+	ModuleAccessSafeTree   = ModuleAccessSafety("tree")
+	ModuleAccessUnsafe     = ModuleAccessSafety("unsafe")
+)
+
 // File describes the contents of a single configuration file.
 //
 // Individual files are not usually used alone, but rather combined together
@@ -90,6 +100,8 @@ func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
 // duplicate declarations.
 type File struct {
 	CoreVersionConstraints []VersionConstraint
+
+	Access *ModuleAccessSafety
 
 	ActiveExperiments experiments.Set
 
@@ -285,6 +297,11 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 
 func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
+	// TODO better
+	if file.Access != nil {
+		m.Access = file.Access
+	}
 
 	// If there are any conflicting requirements then we'll catch them
 	// when we actually check these constraints.
@@ -587,6 +604,11 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
+	// TODO better
+	if file.Access != nil {
+		m.Access = file.Access
+	}
 
 	if len(file.CoreVersionConstraints) != 0 {
 		// This is a bit of a strange case for overriding since we normally

@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -78,6 +79,15 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 		case "terraform":
 			content, contentDiags := block.Body.Content(terraformBlockSchema)
 			diags = append(diags, contentDiags...)
+
+			if attr, ok := content.Attributes["safety"]; ok {
+				var safety ModuleAccessSafety
+				decodeDiags := gohcl.DecodeExpression(attr.Expr, nil, &safety)
+				diags = diags.Extend(decodeDiags)
+				if !decodeDiags.HasErrors() {
+					file.Access = &safety
+				}
+			}
 
 			// We ignore the "terraform_version", "language" and "experiments"
 			// attributes here because sniffCoreVersionRequirements and
@@ -332,6 +342,7 @@ var terraformBlockSchema = &hcl.BodySchema{
 		{Name: "required_version"},
 		{Name: "experiments"},
 		{Name: "language"},
+		{Name: "safety"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{
