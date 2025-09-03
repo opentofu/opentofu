@@ -53,12 +53,12 @@ func TestFunction_Simple(t *testing.T) {
 	}
 }
 
-func TestFunction_ProviderDefinedFunctionWithoutConfigure(t *testing.T) {
+func TestFunction_ProviderUnconfigured(t *testing.T) {
 	// This test reaches out to registry.opentofu.org to download the
 	// test functions provider, so it can only run if network access is allowed
 	skipIfCannotAccessNetwork(t)
 
-	fixturePath := filepath.Join("testdata", "functions_aws")
+	fixturePath := filepath.Join("testdata", "provider_unconfigured_functions")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
 	// tofu init
@@ -88,8 +88,8 @@ func TestFunction_ProviderDefinedFunctionWithoutConfigure(t *testing.T) {
 	}
 
 	for _, out := range plan.Changes.Outputs {
-		if !strings.Contains(string(out.After), "arn:aws:s3:::bucket-prod") {
-			t.Fatalf("unexpected plan output: %s", string(out.After))
+		if !strings.Contains(string(out.After), "exists") {
+			t.Fatalf("unexpected plan output: %s", out.After)
 		}
 	}
 }
