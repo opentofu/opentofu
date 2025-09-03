@@ -1,4 +1,6 @@
-## 1.9.4 (Unreleased)
+## 1.9.5 (Unreleased)
+
+## 1.9.4
 
 BUG FIXES:
 
