@@ -59,7 +59,7 @@ type ResourceInstance struct {
 	// MUST use the mechanisms from package grapheval in order to cooperate
 	// with the self-dependency detection used by this package to prevent
 	// deadlocks.
-	GetResultValue func(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
+	GetResultValue func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)
@@ -86,6 +86,8 @@ func (ri *ResourceInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags
 
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	// We use the configuration value here only for its marks, since that
+	// allows us to propagate any
 	configVal, diags := ri.ConfigValue(ctx)
 	if diags.HasErrors() {
 		// If we don't have a valid config value then we'll stop early
@@ -101,9 +103,10 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 	// this evaluation in support of. Refer to the documentation of
 	// the GetResultValue field for details on what we're expecting this
 	// function to do.
-	resultVal, diags := ri.GetResultValue(ctx)
-	// The result must always be marked with ResourceInstanceMark{ri} so that
-	// we can detect when another value elsewhere is derived from this one.
+	resultVal, diags := ri.GetResultValue(ctx, configVal)
+
+	// The result needs some additional preparation to make sure it's
+	// marked correctly for ongoing use in other expressions.
 	return prepareResourceInstanceResult(resultVal, ri, configVal), diags
 }
 
