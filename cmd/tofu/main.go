@@ -155,12 +155,14 @@ func realMain() int {
 		log.Printf("[TRACE] Stdin is not a terminal")
 	}
 
+	fileSystem := cliconfig.RootFileSystem()
+
 	// NOTE: We're intentionally calling LoadConfig _before_ handling a possible
 	// -chdir=... option on the command line, so that a possible relative
 	// path in the TERRAFORM_CONFIG_FILE environment variable (though probably
 	// ill-advised) will be resolved relative to the true working directory,
 	// not the overridden one.
-	config, diags := cliconfig.LoadConfig(ctx)
+	config, diags := cliconfig.LoadConfig(ctx, fileSystem)
 
 	if len(diags) > 0 {
 		// Since we haven't instantiated a command.Meta yet, we need to do
@@ -186,7 +188,7 @@ func realMain() int {
 
 	// Get any configured credentials from the config and initialize
 	// a service discovery object.
-	credsSrc, err := credentialsSource(config)
+	credsSrc, err := credentialsSource(fileSystem, config)
 	if err != nil {
 		// Most commands don't actually need credentials, and most situations
 		// that would get us here would already have been reported by the config
@@ -241,6 +243,7 @@ func realMain() int {
 	}
 
 	providerSrc, diags := providerSource(ctx,
+		fileSystem,
 		config.ProviderInstallation,
 		config.RegistryProtocols,
 		services,
@@ -269,11 +272,11 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, fileSystem, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
 	// Attempt to ensure the config directory exists.
-	configDir, err := cliconfig.ConfigDir()
+	configDir, err := cliconfig.ConfigDir(fileSystem)
 	if err != nil {
 		log.Printf("[ERROR] Failed to find the path to the config directory: %v", err)
 	} else if err := mkConfigDir(configDir); err != nil {

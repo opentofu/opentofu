@@ -7,10 +7,10 @@ package cliconfig
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
+	"testing/fstest"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
@@ -22,10 +22,11 @@ import (
 const fixtureDir = "./testdata"
 
 func TestLoadConfig_ignore_providers_provisioners(t *testing.T) {
+	fileSystem := RootFileSystem()
 	// There used to be providers and provisioners in cli config files
 	// We want to make sure config files load properly despite their
 	// possible presence.
-	c, err := loadConfigFile(filepath.Join(fixtureDir, "config"))
+	c, err := loadConfigFile(fileSystem, filepath.Join(fixtureDir, "config"))
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -46,13 +47,13 @@ func TestLoadConfig_ignore_providers_provisioners(t *testing.T) {
 }
 
 func TestLoadConfig_non_existing_file(t *testing.T) {
-	tmpDir := os.TempDir()
-	cliTmpFile := filepath.Join(tmpDir, "dev.tfrc")
+	fileSystem := fstest.MapFS{}
+	cliTmpFile := filepath.Join("tmp", "dev.tfrc")
 
 	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
-	c, errs := LoadConfig(context.Background())
-	if errs.HasErrors() || c.Validate().HasErrors() {
+	c, errs := LoadConfig(context.Background(), fileSystem)
+	if errs.HasErrors() || c.Validate(fileSystem).HasErrors() {
 		t.Fatalf("err: %s", errs)
 	}
 
@@ -205,7 +206,8 @@ func TestMakeEnvMap(t *testing.T) {
 }
 
 func TestLoadConfig_hosts(t *testing.T) {
-	got, diags := loadConfigFile(filepath.Join(fixtureDir, "hosts"))
+	fileSystem := RootFileSystem()
+	got, diags := loadConfigFile(fileSystem, filepath.Join(fixtureDir, "hosts"))
 	if len(diags) != 0 {
 		t.Fatalf("%s", diags.Err())
 	}
@@ -226,23 +228,24 @@ func TestLoadConfig_hosts(t *testing.T) {
 }
 
 func TestLoadConfig_credentials(t *testing.T) {
-	got, err := loadConfigFile(filepath.Join(fixtureDir, "credentials"))
+	fileSystem := RootFileSystem()
+	got, err := loadConfigFile(fileSystem, filepath.Join(fixtureDir, "credentials"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	want := &Config{
 		Credentials: map[string]map[string]interface{}{
-			"example.com": map[string]interface{}{
+			"example.com": {
 				"token": "foo the bar baz",
 			},
-			"example.net": map[string]interface{}{
+			"example.net": {
 				"username": "foo",
 				"password": "baz",
 			},
 		},
 		CredentialsHelpers: map[string]*ConfigCredentialsHelper{
-			"foo": &ConfigCredentialsHelper{
+			"foo": {
 				Args: []string{"bar", "baz"},
 			},
 		},
@@ -285,7 +288,7 @@ func TestConfigValidate(t *testing.T) {
 		"credentials good": {
 			&Config{
 				Credentials: map[string]map[string]interface{}{
-					"example.com": map[string]interface{}{
+					"example.com": {
 						"token": "foo",
 					},
 				},
@@ -295,7 +298,7 @@ func TestConfigValidate(t *testing.T) {
 		"credentials with bad hostname": {
 			&Config{
 				Credentials: map[string]map[string]interface{}{
-					"example..com": map[string]interface{}{
+					"example..com": {
 						"token": "foo",
 					},
 				},
@@ -352,7 +355,8 @@ func TestConfigValidate(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			diags := test.Config.Validate()
+			fileSystem := fstest.MapFS{}
+			diags := test.Config.Validate(fileSystem)
 			if len(diags) != test.DiagCount {
 				t.Errorf("wrong number of diagnostics %d; want %d", len(diags), test.DiagCount)
 				for _, diag := range diags {

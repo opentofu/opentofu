@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"os/signal"
 
@@ -58,6 +59,7 @@ var Ui cli.Ui
 
 func initCommands(
 	ctx context.Context,
+	fileSystem fs.FS,
 	originalWorkingDir string,
 	streams *terminal.Streams,
 	config *cliconfig.Config,
@@ -82,7 +84,7 @@ func initCommands(
 		services.ForceHostServices(host, hostConfig.Services)
 	}
 
-	configDir, err := cliconfig.ConfigDir()
+	configDir, err := cliconfig.ConfigDir(fileSystem)
 	if err != nil {
 		configDir = "" // No config dir available (e.g. looking up a home directory failed)
 	}
@@ -95,7 +97,7 @@ func initCommands(
 		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),
 
 		Color:            true,
-		GlobalPluginDirs: globalPluginDirs(),
+		GlobalPluginDirs: globalPluginDirs(fileSystem),
 		Ui:               Ui,
 
 		Services:        services,
@@ -486,9 +488,9 @@ func makeShutdownCh() <-chan struct{} {
 	return resultCh
 }
 
-func credentialsSource(config *cliconfig.Config) (svcauth.CredentialsSource, error) {
-	helperPlugins := pluginDiscovery.FindPlugins("credentials", globalPluginDirs())
-	return config.CredentialsSource(helperPlugins)
+func credentialsSource(fileSystem fs.FS, config *cliconfig.Config) (svcauth.CredentialsSource, error) {
+	helperPlugins := pluginDiscovery.FindPlugins("credentials", globalPluginDirs(fileSystem))
+	return config.CredentialsSource(fileSystem, helperPlugins)
 }
 
 func getAliasCommandKeys() []string {

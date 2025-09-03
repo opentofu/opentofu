@@ -9,10 +9,11 @@
 package cliconfig
 
 import (
-	"os"
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"testing"
+	"testing/fstest"
 )
 
 func TestConfigFileConfigDir(t *testing.T) {
@@ -22,7 +23,7 @@ func TestConfigFileConfigDir(t *testing.T) {
 		name          string
 		xdgConfigHome string
 		files         []string
-		testFunc      func() (string, error)
+		testFunc      func(fs.FS) (string, error)
 		expect        string
 	}{
 		{
@@ -84,13 +85,14 @@ func TestConfigFileConfigDir(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			fileSystem := fstest.MapFS{}
 			t.Setenv("HOME", homeDir)
 			t.Setenv("XDG_CONFIG_HOME", test.xdgConfigHome)
 			for _, f := range test.files {
-				createFile(t, f)
+				createFile(t, fileSystem, f)
 			}
 
-			file, err := test.testFunc()
+			file, err := test.testFunc(fileSystem)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -127,10 +129,12 @@ func TestDataDirs(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			fileSystem := fstest.MapFS{}
+
 			t.Setenv("HOME", homeDir)
 			t.Setenv("XDG_DATA_HOME", test.xdgDataHome)
 
-			dirs, err := dataDirs()
+			dirs, err := dataDirs(fileSystem)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -141,13 +145,14 @@ func TestDataDirs(t *testing.T) {
 	}
 }
 
-func createFile(t *testing.T, path string) {
+func createFile(t *testing.T, fileSystem fstest.MapFS, path string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
+	fileSystem[fsRelativize(path)] = &fstest.MapFile{
+		Data: nil,
+		Mode: 0o600,
 	}
-	if err := os.WriteFile(path, nil, 0o600); err != nil {
-		t.Fatal(err)
+	fileSystem[fsRelativize(filepath.Dir(path))] = &fstest.MapFile{
+		Data: nil,
+		Mode: fs.ModeDir | 0o755,
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(filepath.Dir(path)) })
 }

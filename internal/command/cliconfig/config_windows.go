@@ -9,7 +9,11 @@
 package cliconfig
 
 import (
+	"io/fs"
+	"log"
+	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 )
@@ -20,8 +24,16 @@ var (
 )
 
 const CSIDL_APPDATA = 26
+const SYSTEM_DRIVE = "SystemDrive"
 
-func configFile() (string, error) {
+func rootFileSystem() fs.FS {
+	// https://learn.microsoft.com/en-us/windows/deployment/usmt/usmt-recognized-environment-variables
+	// Note that this will resolve to "C:", not "C:\"
+	drive := os.Getenv(SYSTEM_DRIVE)
+	return os.DirFS(drive + string(os.PathSeparator))
+}
+
+func configFile(fileSystem fs.FS) (string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return "", err
@@ -30,10 +42,10 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, "tofu.rc")
 	legacyConfigFile := filepath.Join(dir, "terraform.rc")
 
-	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
+	return getNewOrLegacyPath(fileSystem, newConfigFile, legacyConfigFile)
 }
 
-func configDir() (string, error) {
+func configDir(_ fs.FS) (string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return "", err
@@ -42,8 +54,8 @@ func configDir() (string, error) {
 	return filepath.Join(dir, "terraform.d"), nil
 }
 
-func dataDirs() ([]string, error) {
-	dir, err := configDir()
+func dataDirs(fileSystem fs.FS) ([]string, error) {
+	dir, err := configDir(fileSystem)
 	if err != nil {
 		return nil, err
 	}
@@ -60,4 +72,24 @@ func homeDir() (string, error) {
 	}
 
 	return syscall.UTF16ToString(b), nil
+}
+
+// fsRelativize removes the leading drive letter and trailing backslash from the file path. The fs.FS filesystem type only works with
+// "relative directories". So, a DirFS based at "C:\" will take a file path like "Users/username/tofu.rc" and
+// look in the operating system file system at "C:\Users\username\tofu.rc".
+// Note the slashes: fs.FS does not accept a backslash as an acceptable path separator.
+// More details in this documentation: https://pkg.go.dev/io/fs#ValidPath
+func fsRelativize(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		log.Printf("[WARNING] Attempted to form absolute representation of relative path \"%s\", but ran into an error: %v", dir, err)
+	}
+	// https://learn.microsoft.com/en-us/windows/deployment/usmt/usmt-recognized-environment-variables
+	// Note that this will resolve to "C:", not "C:\"
+	drive := os.Getenv(SYSTEM_DRIVE)
+	driveRemovedPath := strings.TrimPrefix(absDir, drive)
+	return filepath.ToSlash(strings.Trim(driveRemovedPath, string(os.PathSeparator)))
 }

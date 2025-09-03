@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/url"
 	"os"
@@ -28,6 +29,7 @@ import (
 // command, unless overridden by the special -plugin-dir option.
 func providerSource(
 	ctx context.Context,
+	fileSystem fs.FS,
 	configs []*cliconfig.ProviderInstallation,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
@@ -38,7 +40,7 @@ func providerSource(
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
 		// some automatically-selected local filesystem mirrors.
-		return implicitProviderSource(ctx, registryClientConfig, services, originalWorkingDir), nil
+		return implicitProviderSource(ctx, fileSystem, registryClientConfig, services, originalWorkingDir), nil
 	}
 
 	// There should only be zero or one configurations, which is checked by
@@ -107,6 +109,7 @@ func explicitProviderSource(
 // "exclude" argument in the direct provider source in the CLI config.
 func implicitProviderSource(
 	ctx context.Context,
+	fileSystem fs.FS,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
 	originalWorkingDir string,
@@ -170,7 +173,7 @@ func implicitProviderSource(
 	// Check and add the "terraform.d/plugins" directory in the original working directory
 	addLocalDir(filepath.Join(originalWorkingDir, "terraform.d/plugins"))
 
-	cliDataDirs, err := cliconfig.DataDirs()
+	cliDataDirs, err := cliconfig.DataDirs(fileSystem)
 	if err == nil {
 		for _, cliDataDir := range cliDataDirs {
 			addLocalDir(filepath.Join(cliDataDir, "plugins"))
