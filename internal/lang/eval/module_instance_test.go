@@ -44,7 +44,7 @@ func TestCompileModuleInstance_valuesOnly(t *testing.T) {
 			"a": cty.True,
 		}),
 		evalContext: evalCtx,
-		evaluationGlue: &validationGlue{
+		evaluationGlue: &preparationGlue{
 			providers: ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{}),
 		},
 	}

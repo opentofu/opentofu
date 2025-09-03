@@ -46,5 +46,11 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) tfdia
 	// as the initial worker node in the work graph.
 	ctx = grapheval.ContextWithNewWorker(ctx)
 
+	relationships, diags := c.PrepareToPlan(ctx)
+	if diags.HasErrors() {
+		return diags
+	}
+	_ = relationships
+	// TODO: implement!
 	panic("unimplemented")
 }
