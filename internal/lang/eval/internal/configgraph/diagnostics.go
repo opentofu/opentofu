@@ -13,7 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func maybeHCLSourceRange(maybeRng *tfdiags.SourceRange) *hcl.Range {
+func MaybeHCLSourceRange(maybeRng *tfdiags.SourceRange) *hcl.Range {
 	if maybeRng == nil {
 		return nil
 	}

@@ -76,19 +76,11 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 	return ri.ConfigValuer.StaticCheckTraversal(traversal)
 }
 
-// ConfigValue returns the validated configuration value, or a placeholder
-// to use instead of an invalid configuration value.
-func (ri *ResourceInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	// TODO: Check preconditions before calling Value, and then call the
-	// provider's own validate function after calling Value.
-	return ri.ConfigValuer.Value(ctx)
-}
-
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
 	// We use the configuration value here only for its marks, since that
 	// allows us to propagate any
-	configVal, diags := ri.ConfigValue(ctx)
+	configVal, diags := ri.ConfigValuer.Value(ctx)
 	if diags.HasErrors() {
 		// If we don't have a valid config value then we'll stop early
 		// with an unknown value placeholder so that the external process
