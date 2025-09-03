@@ -78,7 +78,7 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			Severity: hcl.DiagError,
 			Summary:  "Invalid value for input variable",
 			Detail:   fmt.Sprintf("Unsuitable value for variable %q: %s.", i.Addr.Variable.Name, tfdiags.FormatError(err)),
-			Subject:  maybeHCLSourceRange(i.ValueSourceRange()),
+			Subject:  MaybeHCLSourceRange(i.ValueSourceRange()),
 		})
 		finalV = cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep())
 	}
