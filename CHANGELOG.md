@@ -10,6 +10,7 @@ BUG FIXES:
 
 - Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
 - Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
+- When OpenTelemetry encounters errors, log it at the warning level instead of panic ([#3235](https://github.com/opentofu/opentofu/pull/3235))
 
 ## 1.10.5
 
