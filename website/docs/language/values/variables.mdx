@@ -83,6 +83,7 @@ OpenTofu CLI defines the following optional arguments for variable declarations:
 * [`description`][inpage-description] - This specifies the input variable's documentation.
 * [`validation`][inpage-validation] - A block to define validation rules, usually in addition to type constraints.
 * [`sensitive`][inpage-sensitive] - Limits OpenTofu UI output when the variable is used in configuration.
+* [`ephemeral`][inpage-ephemeral] - Limits the usage of the variable to ephemeral contexts.
 * [`nullable`][inpage-nullable] - Specify if the variable can be `null` within the module.
 * [`deprecated`][inpage-deprecated] - Mark the variable as deprecated to warn callers about migration.
 
@@ -268,6 +269,46 @@ random_pet.animal: Creating...
 random_pet.animal: Creation complete after 0s [id=jae-known-mongoose]
 ```
 
+### Ephemerality
+[inpage-ephemeral]: #ephemeral-variables
+
+If a variable is set to `ephemeral`, the module author will limit its usage
+only to the allowed ephemeral contexts:
+* [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](../ephemerality/write-only-attributes.mdx)
+
+OpenTofu will not store this type of variables in the [state](../../language/state/index.mdx) at all.
+These will be saved in the plan only by their name for further processing during apply.
+
+Declare a variable as ephemeral by setting the `ephemeral` argument to `true`:
+```hcl
+variable "user_password" {
+  type      = string
+  ephemeral = true
+}
+```
+
+Any expressions whose result depends on the ephemeral variable will be treated
+as ephemeral themselves.
+```hcl
+locals {
+  sanitized = trimspace(var.user_password) # `sanitized` is an ephemeral local now
+}
+```
+
+If you use an ephemeral value as part of an
+[output value](../../language/values/outputs.mdx) then OpenTofu will require
+you to also configure the output block as ephemeral too.
+
+:::note
+Ephemeral variables on root modules require careful handling around `-var`/`-var-file`. Please refer to [`tofu apply` docs](../../cli/commands/apply.mdx#ephemeral-variables)
+:::
 ### Disallowing Null Input Values
 
 [inpage-nullable]: #disallowing-null-input-values
@@ -310,7 +351,7 @@ instructions on how to migrate away from usage of this variable. Here is an exam
 configuration:
 
 ```hcl
-variable "examle" {
+variable "example" {
   type       = string
   deprecated = "'examle' variable must no longer be used due to a typo, use 'example' instead"
 }

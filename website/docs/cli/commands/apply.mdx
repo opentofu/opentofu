@@ -36,6 +36,13 @@ When using a saved plan, you cannot specify any additional planning modes or opt
 actions to take, and the plan file contains the final results of those
 decisions.
 
+#### Ephemeral variables
+Since ephemeral variables can't be stored in a planfile, any ephemeral variables set during the generation of a planfile from `tofu plan` must also be set when running tofu apply.
+
+For example, if `-var` has been used to create the planfile (`tofu plan -var "token=$MY_TOKEN"`), the same argument _must_
+be set for the apply command (`tofu apply -var "token=$MY_TOKEN" planfile`).
+If required ephemeral variables are not provided to the apply command, OpenTofu will exit with a clear message of additional variables that must be specified.
+
 ### Plan Options
 
 Without a saved plan file, `tofu apply` supports all planning modes and planning options available for `tofu plan`.

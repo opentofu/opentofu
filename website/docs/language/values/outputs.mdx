@@ -84,7 +84,7 @@ Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.
 
 ## Optional Arguments
 
-`output` blocks can optionally include `description`, `sensitive`, and `depends_on` arguments, which are described in the following sections.
+`output` blocks can optionally include `description`, `sensitive`, `ephemeral` and `depends_on` arguments, which are described in the following sections.
 
 <a id="description"></a>
 
@@ -172,6 +172,67 @@ and so anyone who can access the state data will have access to the sensitive
 values in cleartext. For more information, see
 [_Sensitive Data in State_](../../language/state/sensitive-data.mdx).
 
+<a id="ephemerality"></a>
+
+### `ephemeral` — Control what outputs can be stored to state and plan
+
+An output can be marked as ephemeral using the optional
+`ephemeral` argument:
+
+```hcl
+output "db_password" {
+  value       = aws_db_instance.db.password
+  description = "The password for logging in to the database."
+  ephemeral   = true
+}
+```
+
+By configuring an `output` block with the `ephemeral` attribute, the module author will limit its usage
+only to the allowed ephemeral contexts:
+* [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](../ephemerality/write-only-attributes.mdx)
+
+:::note
+A root module `output` block cannot be configured with such an attribute. This is a configuration intended only for child modules.
+:::
+
+```hcl
+# main.tf
+
+module "foo" {
+  source = "./mod"
+}
+
+resource "test_instance" "x" {
+  secret_wo = module.foo.a # the "secret_wo", which is a write only attribute configured by the "test_instance" managed resource can reference this
+}
+
+# mod/main.tf, our module containing a sensitive output
+
+output "a" {
+  value     = "secret"
+  ephemeral = true
+}
+```
+
+When we run a plan or apply, the value used in the `resource` block is suppressed from the output:
+
+```
+OpenTofu will perform the following actions:
+
+  # test_instance.x will be created
+  + resource "test_instance" "x" {
+      + secret_wo = (write-only attribute)
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+```
 <a id="depends_on"></a>
 
 ### `depends_on` — Explicit Output Dependencies
