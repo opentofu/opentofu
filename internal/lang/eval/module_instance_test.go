@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/providers"
 )
 
 func TestCompileModuleInstance_valuesOnly(t *testing.T) {
@@ -43,6 +44,9 @@ func TestCompileModuleInstance_valuesOnly(t *testing.T) {
 			"a": cty.True,
 		}),
 		evalContext: evalCtx,
+		evaluationGlue: &validationGlue{
+			providers: ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{}),
+		},
 	}
 	inst := compileModuleInstance(ctx, module, addrs.ModuleSourceLocal("."), call)
 
