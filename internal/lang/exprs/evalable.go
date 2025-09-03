@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
 
@@ -162,20 +163,43 @@ func (h hclExpression) EvalableSourceRange() tfdiags.SourceRange {
 
 // hclBody implements [Evalable] for a [hcl.Body] and associated [hcldec.Spec].
 type hclBody struct {
-	body hcl.Body
-	spec hcldec.Spec
+	body     hcl.Body
+	spec     hcldec.Spec
+	dynblock bool
 }
 
 // EvalableHCLBody returns an [Evalable] that evaluates the given HCL body
 // using the given [hcldec] specification.
 func EvalableHCLBody(body hcl.Body, spec hcldec.Spec) Evalable {
-	return &hclBody{body, spec}
+	return &hclBody{
+		body:     body,
+		spec:     spec,
+		dynblock: false,
+	}
+}
+
+// EvalableHCLBodyWithDynamicBlocks is a variant of [EvalableHCLBody] that
+// calls [dynblock.Expand] before evaluating the body so that "dynamic" blocks
+// would be supported and expanded to their equivalent static blocks.
+func EvalableHCLBodyWithDynamicBlocks(body hcl.Body, spec hcldec.Spec) Evalable {
+	return &hclBody{
+		body:     body,
+		spec:     spec,
+		dynblock: true,
+	}
 }
 
 // Evaluate implements Evalable.
 func (h *hclBody) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	v, hclDiags := hcldec.Decode(h.body, h.spec, hclCtx)
+	body := h.body
+	if h.dynblock {
+		// [dynblock.Expand] wraps our body so that hcldec.Decode below will
+		// indirectly cause the "dynamic" blocks to be expanded, using the
+		// same evaluation context for the for_each expressions.
+		body = dynblock.Expand(body, hclCtx)
+	}
+	v, hclDiags := hcldec.Decode(body, h.spec, hclCtx)
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		v = cty.UnknownVal(h.ResultTypeConstraint()).WithSameMarks(v)
@@ -192,6 +216,14 @@ func (h hclBody) FunctionCalls() iter.Seq[*hcl.StaticCall] {
 
 // References implements Evalable.
 func (h *hclBody) References() iter.Seq[hcl.Traversal] {
+	if h.dynblock {
+		// When we're doing dynblock expansion we need to do a little
+		// more work to also detect references from the for_each
+		// arguments in the "dynamic" blocks. The dynblock package
+		// does this additional work for us as long as we ask its
+		// wrapper function instead of hcldec.Variables directly.
+		return slices.Values(dynblock.VariablesHCLDec(h.body, h.spec))
+	}
 	return slices.Values(hcldec.Variables(h.body, h.spec))
 }
 
