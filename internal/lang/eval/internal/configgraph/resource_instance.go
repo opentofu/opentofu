@@ -96,7 +96,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 		// with an unknown value placeholder so that the external process
 		// responsible for providing the result value can assume that it
 		// will only ever recieve validated configuration values.
-		return cty.DynamicVal, diags
+		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 
 	// We need some help from outside this package to prepare the final
@@ -113,7 +113,7 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 
 	// The result needs some additional preparation to make sure it's
 	// marked correctly for ongoing use in other expressions.
-	return prepareResourceInstanceResult(resultVal, ri, configVal), diags
+	return exprs.EvalResult(prepareResourceInstanceResult(resultVal, ri, configVal), diags)
 }
 
 // ResourceInstanceDependencies returns a sequence of any other resource

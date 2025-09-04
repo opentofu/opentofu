@@ -6,6 +6,7 @@
 package exprs
 
 import (
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/ctymarks"
 )
@@ -42,6 +43,33 @@ type evalResultMark rune
 // it's exposed as an exported symbol so that logic elsewhere that is performing
 // non-expression-based evaluation can participate in this marking scheme.
 const EvalError = evalResultMark('E')
+
+// AsEvalError returns the given value with [EvalError] applied to it as a mark.
+//
+// The expression evaluator in this package automatically adds this mark when
+// expression evaluation fails, but code elsewhere in the system should use this
+// to also treat other kinds of errors as evaluation errors if they are
+// returning a placeholder value alongside at least one error diagnostic.
+func AsEvalError(v cty.Value) cty.Value {
+	return v.Mark(EvalError)
+}
+
+// EvalResult is a helper that checks whether the given diags contains errors
+// and if so returns the given value with [EvalError] applied to it as a
+// mark.
+//
+// Otherwise it returns the value unmodified. In all cases it returns exactly
+// the diagnostics it was given.
+//
+// This is designed for concise use in a return statement in a function that's
+// returning both a value and some diagnostics produced from somewhere else,
+// to ensure that the [EvalError] mark still gets applied when appropriate.
+func EvalResult(v cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics) {
+	if diags.HasErrors() {
+		return AsEvalError(v), diags
+	}
+	return v, diags
+}
 
 // IsEvalError returns true if the given value is directly marked with
 // [EvalError], indicating that it's acting as a placeholder for an upstream

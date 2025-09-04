@@ -37,10 +37,7 @@ func Evaluate(ctx context.Context, what Evalable, scope Scope) (cty.Value, tfdia
 	}
 	val, moreDiags := what.Evaluate(ctx, hclCtx)
 	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		val = val.Mark(EvalError)
-	}
-	return val, diags
+	return EvalResult(val, diags)
 }
 
 func buildHCLEvalContext(ctx context.Context, what Evalable, scope Scope) (*hcl.EvalContext, tfdiags.Diagnostics) {
@@ -158,7 +155,7 @@ func valuesForSymbolTableTempNodes(ctx context.Context, symbols map[string]*symb
 			moreDiags := node.val.StaticCheckTraversal(node.remain)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
-				ret[name] = cty.DynamicVal
+				ret[name] = AsEvalError(cty.DynamicVal)
 				continue
 			}
 
