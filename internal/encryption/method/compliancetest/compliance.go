@@ -71,7 +71,6 @@ func (cfg *TestConfiguration[TDescriptor, TConfig, TMethod]) testHCL(t *testing.
 	hasValidHCLInvalidBuild := false
 	hasValidBuild := false
 	for name, tc := range cfg.HCLParseTestCases {
-		tc := tc
 		if !tc.ValidHCL {
 			hasInvalidHCL = true
 		} else {
@@ -109,7 +108,6 @@ func (cfg *TestConfiguration[TDescriptor, TConfig, TMethod]) testConfigStruct(t 
 	}
 
 	for name, tc := range cfg.ConfigStructTestCases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			tc.execute(t)
 		})

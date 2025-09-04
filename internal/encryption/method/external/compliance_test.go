@@ -7,10 +7,12 @@ package external
 
 import (
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method/compliancetest"
 	"github.com/opentofu/opentofu/internal/encryption/method/external/testmethod"
@@ -53,11 +55,20 @@ func runTest(t *testing.T, cmd []string) {
 				ValidHCL:   true,
 				ValidBuild: true,
 				Validate: func(config *Config, method *command) error {
-					if !slices.Equal(config.EncryptCommand, encryptCommand) {
-						return fmt.Errorf("incorrect encrypt command after HCL parsing")
+					// We need to normalize in order to match with the decoded config
+					if runtime.GOOS == "windows" {
+						for i, v := range encryptCommand {
+							encryptCommand[i] = strings.ReplaceAll(v, `\\`, "\\")
+						}
+						for i, v := range decryptCommand {
+							decryptCommand[i] = strings.ReplaceAll(v, `\\`, "\\")
+						}
 					}
-					if !slices.Equal(config.DecryptCommand, decryptCommand) {
-						return fmt.Errorf("incorrect decrypt command after HCL parsing")
+					if diff := cmp.Diff(config.EncryptCommand, encryptCommand); diff != "" {
+						return fmt.Errorf("incorrect encrypt command after HCL parsing: %s", diff)
+					}
+					if diff := cmp.Diff(config.DecryptCommand, decryptCommand); diff != "" {
+						return fmt.Errorf("incorrect decrypt command after HCL parsing: %s", diff)
 					}
 					return nil
 				},
