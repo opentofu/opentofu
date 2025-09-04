@@ -13,7 +13,6 @@ import (
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
@@ -30,8 +29,6 @@ type ModuleInstance struct {
 	OutputValueNodes    map[addrs.OutputValue]*OutputValue
 	ResourceNodes       map[addrs.Resource]*Resource
 	ProviderConfigNodes map[addrs.LocalProviderConfig]*ProviderConfig
-
-	CoreFunctions map[string]function.Function
 
 	// moduleSourceAddr is the source address of the module this is an
 	// instance of, which will be used as the base address for resolving

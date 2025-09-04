@@ -375,7 +375,7 @@ func compileModuleInstanceResource(
 		// allowing us to finalize all of the details for a specific instance
 		// of this resource.
 		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
-			localScope := configgraph.InstanceLocalScope(declScope, repData)
+			localScope := instanceLocalScope(declScope, repData)
 			inst := &configgraph.ResourceInstance{
 				Addr:     absAddr.Instance(key),
 				Provider: config.Provider,
