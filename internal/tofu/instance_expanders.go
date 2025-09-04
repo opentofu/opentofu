@@ -8,7 +8,8 @@ package tofu
 // graphNodeRetainedByPruneUnusedNodesTransformer is a marker interface.
 // A Node implementing this interface means it should not be pruned during pruneUnusedNodesTransformer.
 // This interface is primarily used by nodes that expand instances but not restricted to them.
-// Two node types implementing this interface without implementing GraphNodeDynamicExpandable are nodeExpandModule and
+// (Two node types implementing this interface without implementing GraphNodeDynamicExpandable are
+// nodeExpandModule and nodeExpandApplyableResource)
 //
 // Keep in mind that due to how this is used by pruneUnusedNodesTransformer, the node must have `UpEdges`
 // (Graph vertices coming into it), one of which must be either of the following:
