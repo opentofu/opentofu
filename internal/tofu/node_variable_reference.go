@@ -34,15 +34,15 @@ type nodeVariableReference struct {
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeVariableReference)(nil)
-	_ GraphNodeReferenceable     = (*nodeVariableReference)(nil)
-	_ GraphNodeReferencer        = (*nodeVariableReference)(nil)
-	_ graphNodeExpandsInstances  = (*nodeVariableReference)(nil)
-	_ graphNodeTemporaryValue    = (*nodeVariableReference)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeVariableReference)(nil)
+	_ GraphNodeReferenceable                         = (*nodeVariableReference)(nil)
+	_ GraphNodeReferencer                            = (*nodeVariableReference)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeVariableReference)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeVariableReference)(nil)
 )
 
-// graphNodeExpandsInstances
-func (n *nodeVariableReference) expandsInstances() {}
+// graphNodeRetainedByPruneUnusedNodesTransformer
+func (n *nodeVariableReference) retainDuringUnusedPruning() {}
 
 // Abuse graphNodeTemporaryValue to keep the validation rule around
 func (n *nodeVariableReference) temporaryValue(op walkOperation) bool {

@@ -28,13 +28,13 @@ type nodeExpandModule struct {
 }
 
 var (
-	_ GraphNodeExecutable       = (*nodeExpandModule)(nil)
-	_ GraphNodeReferencer       = (*nodeExpandModule)(nil)
-	_ GraphNodeReferenceOutside = (*nodeExpandModule)(nil)
-	_ graphNodeExpandsInstances = (*nodeExpandModule)(nil)
+	_ GraphNodeExecutable                            = (*nodeExpandModule)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandModule)(nil)
+	_ GraphNodeReferenceOutside                      = (*nodeExpandModule)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandModule)(nil)
 )
 
-func (n *nodeExpandModule) expandsInstances() {}
+func (n *nodeExpandModule) retainDuringUnusedPruning() {}
 
 func (n *nodeExpandModule) Name() string {
 	return n.Addr.String() + " (expand)"

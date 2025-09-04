@@ -21,16 +21,16 @@ type nodeExpandApplyableResource struct {
 }
 
 var (
-	_ GraphNodeExecutable           = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeReferenceable        = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeReferencer           = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeConfigResource       = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeAttachResourceConfig = (*nodeExpandApplyableResource)(nil)
-	_ graphNodeExpandsInstances     = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeTargetable           = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeExecutable                            = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeConfigResource                        = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeAttachResourceConfig                  = (*nodeExpandApplyableResource)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandApplyableResource)(nil)
 )
 
-func (n *nodeExpandApplyableResource) expandsInstances() {
+func (n *nodeExpandApplyableResource) retainDuringUnusedPruning() {
 }
 
 func (n *nodeExpandApplyableResource) References() []*addrs.Reference {

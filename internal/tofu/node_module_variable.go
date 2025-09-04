@@ -31,15 +31,15 @@ type nodeExpandModuleVariable struct {
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceable     = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceOutside                      = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandModuleVariable)(nil)
 )
 
-func (n *nodeExpandModuleVariable) expandsInstances() {}
+func (n *nodeExpandModuleVariable) retainDuringUnusedPruning() {}
 
 func (n *nodeExpandModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true

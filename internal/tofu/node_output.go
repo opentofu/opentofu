@@ -42,15 +42,15 @@ type nodeExpandOutput struct {
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandOutput)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandOutput)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandOutput)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceOutside                      = (*nodeExpandOutput)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandOutput)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandOutput)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandOutput)(nil)
 )
 
-func (n *nodeExpandOutput) expandsInstances() {}
+func (n *nodeExpandOutput) retainDuringUnusedPruning() {}
 
 func (n *nodeExpandOutput) temporaryValue(_ walkOperation) bool {
 	// non root outputs are temporary
