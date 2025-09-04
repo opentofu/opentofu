@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -435,4 +436,139 @@ func (i *inputVariableValidationScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.
 // ResolveFunc implements exprs.Scope.
 func (i *inputVariableValidationScope) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
 	return i.parentScope.ResolveFunc(call)
+}
+
+func instanceLocalScope(parentScope exprs.Scope, repData instances.RepetitionData) exprs.Scope {
+	return &instanceOverlayScope{
+		repData: repData,
+		parent:  parentScope,
+	}
+}
+
+type instanceOverlayScope struct {
+	repData instances.RepetitionData
+	parent  exprs.Scope
+}
+
+// HandleInvalidStep implements exprs.Scope.
+func (i *instanceOverlayScope) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
+	return i.parent.HandleInvalidStep(rng)
+}
+
+// ResolveAttr implements exprs.Scope.
+func (i *instanceOverlayScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+	// NOTE: The error messages we return here make some assumptions about
+	// what surface language features cause each of these fields to be
+	// popualated, which is technically a layering violation because that's
+	// the responsibility of whatever provided the [InstanceSelector] that
+	// led us here, but we accept it for now out of pragmatism and will make
+	// this more complex only if a future edition of the language significantly
+	// changes how these things work.
+	switch ref.Name {
+	case "each":
+		var diags tfdiags.Diagnostics
+		if i.repData.EachKey == cty.NilVal {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reference to unavailable local symbol",
+				Detail:   "The symbol \"each\" is available only when defining multiple instances using the \"for_each\" meta-argument.",
+				Subject:  ref.SrcRange.Ptr(),
+			})
+			return nil, diags
+		}
+	case "count":
+		var diags tfdiags.Diagnostics
+		if i.repData.CountIndex == cty.NilVal {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reference to unavailable local symbol",
+				Detail:   "The symbol \"count\" is available only when defining multiple instances using the \"count\" meta-argument.",
+				Subject:  ref.SrcRange.Ptr(),
+			})
+			return nil, diags
+		}
+	default:
+		// Everything else is delegated to the parent scope.
+		return i.parent.ResolveAttr(ref)
+	}
+
+	return exprs.NestedSymbolTable(&instanceLocalSymbolTable{
+		repData:     i.repData,
+		firstSymbol: ref.Name,
+	}), nil
+}
+
+// ResolveFunc implements exprs.Scope.
+func (i *instanceOverlayScope) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
+	// no extra functions in this local scope
+	return i.parent.ResolveFunc(call)
+}
+
+type instanceLocalSymbolTable struct {
+	repData     instances.RepetitionData
+	firstSymbol string
+}
+
+// HandleInvalidStep implements exprs.SymbolTable.
+func (i *instanceLocalSymbolTable) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	switch i.firstSymbol {
+	case "each":
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference",
+			Detail:   "The \"each\" object only has the attributes \"key\" and \"value\".",
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	case "count":
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference",
+			Detail:   "The \"count\" object only has the attribute \"index\".",
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	default:
+		// There aren't any other top-level symbols that should get delegated
+		// into here, so this should be unreachable.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference",
+			Detail:   "This reference is invalid, but we cannot explain why due to a bug in OpenTofu.",
+			Subject:  rng.ToHCL().Ptr(),
+		})
+	}
+	return diags
+}
+
+// ResolveAttr implements exprs.SymbolTable.
+func (i *instanceLocalSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	switch i.firstSymbol {
+	case "each":
+		switch ref.Name {
+		case "key":
+			return exprs.ValueOf(exprs.ConstantValuer(i.repData.EachKey)), diags
+		case "value":
+			return exprs.ValueOf(exprs.ConstantValuer(i.repData.EachValue)), diags
+		default:
+			return nil, i.HandleInvalidStep(tfdiags.SourceRangeFromHCL(ref.SourceRange()))
+		}
+	case "count":
+		switch ref.Name {
+		case "index":
+			return exprs.ValueOf(exprs.ConstantValuer(i.repData.CountIndex)), diags
+		default:
+			return nil, i.HandleInvalidStep(tfdiags.SourceRangeFromHCL(ref.SourceRange()))
+		}
+	default:
+		// There aren't any other top-level symbols that should get delegated
+		// into here, so this should be unreachable.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid reference",
+			Detail:   "This reference is invalid, but we cannot explain why due to a bug in OpenTofu.",
+			Subject:  &ref.SrcRange,
+		})
+		return nil, diags
+	}
 }
