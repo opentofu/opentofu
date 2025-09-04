@@ -6,6 +6,7 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -864,6 +865,8 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		return nil, err
 	}
 
+	reader := bufio.NewReader(pr)
+
 	// callback function to unlock the state file
 	cbFunc := func() {
 		defer tr.Close()
@@ -877,31 +880,24 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		}
 
 		// wait for the process to unlock
-		buf := make([]byte, 1024)
-		n, err := pr.Read(buf)
+		buf, err := reader.ReadString('\n')
 		if err != nil {
 			t.Fatalf("read from statelocker returned: %v", err)
 		}
-		output := string(buf[:n])
-		t.Logf("statelocker wrote: %s", output)
 
-		if runtime.GOOS == "windows" {
-			// Trigger garbage collection to ensure that all open file handles are closed.
-			// This prevents TempDir RemoveAll cleanup errors on Windows.
-			runtime.GC()
-		}
+		output := string(buf)
+		t.Logf("statelocker wrote: %s", output)
 	}
 
 	// wait for the process to lock
-	buf := make([]byte, 1024)
-	n, err := pr.Read(buf)
+	buf, err := reader.ReadString('\n')
 	if err != nil {
 		return cbFunc, fmt.Errorf("read from statelocker returned: %w", err)
 	}
 
-	output := string(buf[:n])
+	output := string(buf)
 	if !strings.HasPrefix(output, "LOCKID") {
-		return cbFunc, fmt.Errorf("statelocker wrote: %s", string(buf[:n]))
+		return cbFunc, fmt.Errorf("statelocker wrote: %s", output)
 	}
 	return cbFunc, nil
 }

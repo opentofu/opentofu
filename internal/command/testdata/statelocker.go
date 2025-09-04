@@ -30,23 +30,23 @@ func main() {
 
 	lockID, err := s.Lock(context.Background(), info)
 	if err != nil {
-		io.WriteString(os.Stderr, err.Error())
+		io.WriteString(os.Stderr, err.Error()+"\n")
 		return
 	}
 
 	// signal to the caller that we're locked
-	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID)
+	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID+"\n")
 
 	defer func() {
 		if err := s.Unlock(context.Background(), lockID); err != nil {
-			io.WriteString(os.Stderr, err.Error())
+			io.WriteString(os.Stderr, err.Error()+"\n")
 			return
 		}
-		io.WriteString(os.Stdout, "StateLocker: unlocked")
+		io.WriteString(os.Stdout, "StateLocker: unlocked"+"\n")
 	}()
 
 	if err != nil {
-		io.WriteString(os.Stderr, err.Error())
+		io.WriteString(os.Stderr, err.Error()+"\n")
 		return
 	}
 
@@ -64,7 +64,7 @@ func waitForInput(resultChan chan struct{}) {
 	// Attempt to read a line with a delimiter
 	_, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil {
-		io.WriteString(os.Stderr, err.Error())
+		io.WriteString(os.Stderr, err.Error()+"\n")
 	}
 	resultChan <- struct{}{}
 }
