@@ -41,26 +41,11 @@ type ResourceInstance struct {
 	// it's by the instance-compilation logic in the parent [Resource].
 	ConfigValuer *OnceValuer
 
-	// GetResultValue is callback glue provided from outside this package
-	// to integrate with any resource instance side-effects that are
-	// being orchestrated elsewhere, such as getting the "planned new state"
-	// of the resource instance during the plan phase, while keeping this
-	// package focused only on the general concern of evaluating expressions
-	// in the configuration.
-	//
-	// If this returns error diagnostics then it MUST also return a suitable
-	// placeholder unknown value to use when evaluating downstream expressions.
-	// If there's not enough information to return anything more precise
-	// then returning [cty.DynamicVal] is an acceptable last resort.
-	//
-	// Real implementations of this are likely to block until some side-effects
-	// have occured elsewhere, such as asking a provider to produce a planned
-	// new state. If that external work depends on information coming from
-	// any other part of this package's API then the implementation of that
-	// MUST use the mechanisms from package grapheval in order to cooperate
-	// with the self-dependency detection used by this package to prevent
-	// deadlocks.
-	GetResultValue func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
+	// Glue is provided by the system that "compiled" this [ResourceInstance]
+	// object to allow calling back into that system to ask further questions
+	// that arise dynamically during evaluation but whose results vary based
+	// on concerns that our outside this package's scope.
+	Glue ResourceInstanceGlue
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)
@@ -99,13 +84,21 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 
-	// We need some help from outside this package to prepare the final
-	// value to return here, because it should reflect the outcome of
-	// whatever resource-instance-related side effects we're doing
-	// this evaluation in support of. Refer to the documentation of
-	// the GetResultValue field for details on what we're expecting this
-	// function to do.
-	resultVal, diags := ri.GetResultValue(ctx, configVal)
+	// We need some help from our caller to validate the configuration,
+	// which typically involves asking whatever provider this type of
+	// resource belongs to.
+	moreDiags := ri.Glue.ValidateConfig(ctx, configVal)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
+
+	// We also need help from our caller to prepare the final value to
+	// return here, because it should reflect the outcome of whatever
+	// resource-instance-related side effects we're doing this evaluation in
+	// support of. Refer to the documentation of the ResultValue method
+	// for details on what we're expecting this to do.
+	resultVal, diags := ri.Glue.ResultValue(ctx, configVal)
 
 	// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
 	// the check rule expressions onto resultVal because the presence of

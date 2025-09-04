@@ -288,7 +288,7 @@ func staticCheckTraversalForInstances(selector InstanceSelector, traversal hcl.T
 	return diags
 }
 
-func instanceLocalScope(parentScope exprs.Scope, repData instances.RepetitionData) exprs.Scope {
+func InstanceLocalScope(parentScope exprs.Scope, repData instances.RepetitionData) exprs.Scope {
 	return &instanceOverlayScope{
 		repData: repData,
 		parent:  parentScope,
