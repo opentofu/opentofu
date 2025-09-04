@@ -8,6 +8,8 @@ package eval
 import (
 	"context"
 	"fmt"
+	"iter"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -239,11 +241,25 @@ func compileModuleInstanceInputVariables(_ context.Context, configs map[string]*
 			}
 		}
 		ret[addr] = &configgraph.InputVariable{
-			Addr:            moduleInstAddr.InputVariable(name),
-			RawValue:        configgraph.ValuerOnce(rawValue),
-			TargetType:      vc.ConstraintType,
-			TargetDefaults:  vc.TypeDefaults,
-			ValidationRules: compileCheckRules(vc.Validations, declScope, vc.Ephemeral),
+			Addr:           moduleInstAddr.InputVariable(name),
+			RawValue:       configgraph.ValuerOnce(rawValue),
+			TargetType:     vc.ConstraintType,
+			TargetDefaults: vc.TypeDefaults,
+			CompileValidationRules: func(ctx context.Context, value cty.Value) iter.Seq[*configgraph.CheckRule] {
+				// For variable validation we need to use a special overlay
+				// scope that resolves the single variable we are validating
+				// to the given constant value but delegates everything else
+				// to the parent scope. This overlay is important because
+				// these checks are run as part of the normal process of
+				// handling a reference to this variable, and so if we used
+				// the normal scope here we'd be depending on our own result.
+				childScope := &inputVariableValidationScope{
+					wantName:    name,
+					parentScope: declScope,
+					finalVal:    value,
+				}
+				return compileCheckRules(vc.Validations, childScope)
+			},
 		}
 	}
 	return ret
@@ -287,7 +303,7 @@ func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*co
 
 			ForceSensitive: vc.Sensitive,
 			ForceEphemeral: vc.Ephemeral,
-			Preconditions:  compileCheckRules(vc.Preconditions, declScope, vc.Ephemeral),
+			Preconditions:  slices.Collect(compileCheckRules(vc.Preconditions, declScope)),
 		}
 	}
 	return ret
@@ -424,20 +440,38 @@ func compileModuleInstanceProviderConfigs(ctx context.Context, configs map[strin
 	}
 }
 
-func compileCheckRules(configs []*configs.CheckRule, declScope exprs.Scope, ephemeralAllowed bool) []configgraph.CheckRule {
-	ret := make([]configgraph.CheckRule, 0, len(configs))
-	for _, config := range configs {
-		ret = append(ret, configgraph.CheckRule{
-			Condition:        exprs.EvalableHCLExpression(config.Condition),
-			ErrorMessageRaw:  exprs.EvalableHCLExpression(config.ErrorMessage),
-			ParentScope:      declScope,
-			EphemeralAllowed: ephemeralAllowed,
-			DeclSourceRange:  tfdiags.SourceRangeFromHCL(config.DeclRange),
-		})
+func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter.Seq[*configgraph.CheckRule] {
+	// TODO: Maybe we need to allow the caller to impose additional constraints
+	// on the result of the ConditionValuer here, such as disallowing the
+	// use of ephemeral values outside of ephemeral resource
+	// preconditions/postconditions. If so, perhaps we'd take an additional
+	// argument for an optional callback function that takes the result of
+	// the condition expression and can return additional diagnostics that
+	// make sense for the specific context where the check rules are being used.
+	return func(yield func(*configgraph.CheckRule) bool) {
+		for _, config := range configs {
+			compiled := &configgraph.CheckRule{
+				ConditionValuer: exprs.NewClosure(
+					exprs.EvalableHCLExpression(config.Condition),
+					evalScope,
+				),
+				ErrorMessageValuer: exprs.NewClosure(
+					exprs.EvalableHCLExpression(config.ErrorMessage),
+					evalScope,
+				),
+				DeclSourceRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
+			}
+			if !yield(compiled) {
+				return
+			}
+		}
 	}
-	return ret
 }
 
+// resourceInstanceGlue is our implementation of [configgraph.ResourceInstanceGlue],
+// allowing our compiled [configgraph.ResourceInstance] objects to call back
+// to us for needs that require interacting with outside concerns like
+// provider plugins, an active plan or apply process, etc.
 type resourceInstanceGlue struct {
 	validateConfig func(context.Context, cty.Value) tfdiags.Diagnostics
 	getResultValue func(context.Context, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics)
