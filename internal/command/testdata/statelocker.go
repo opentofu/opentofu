@@ -37,6 +37,14 @@ func main() {
 	// signal to the caller that we're locked
 	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID)
 
+	defer func() {
+		if err := s.Unlock(context.Background(), lockID); err != nil {
+			io.WriteString(os.Stderr, err.Error())
+			return
+		}
+		io.WriteString(os.Stdout, "StateLocker: unlocked")
+	}()
+
 	if err != nil {
 		io.WriteString(os.Stderr, err.Error())
 		return
@@ -50,12 +58,6 @@ func main() {
 	case <-time.After(10 * time.Second):
 	case <-c:
 	}
-
-	if err := s.Unlock(context.Background(), lockID); err != nil {
-		io.WriteString(os.Stderr, err.Error())
-		return
-	}
-	io.WriteString(os.Stdout, "StateLocker: unlocked")
 }
 
 func waitForInput(resultChan chan struct{}) {

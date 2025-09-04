@@ -863,7 +863,9 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	if err := locker.Start(); err != nil {
 		return nil, err
 	}
-	deferFunc := func() {
+
+	// callback function to unlock the state file
+	cbFunc := func() {
 		defer tr.Close()
 		defer tw.Close()
 		defer pr.Close()
@@ -882,28 +884,26 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		}
 		output := string(buf[:n])
 		t.Logf("statelocker wrote: %s", output)
-	}
 
-	defer func() {
 		if runtime.GOOS == "windows" {
 			// Trigger garbage collection to ensure that all open file handles are closed.
 			// This prevents TempDir RemoveAll cleanup errors on Windows.
 			runtime.GC()
 		}
-	}()
+	}
 
 	// wait for the process to lock
 	buf := make([]byte, 1024)
 	n, err := pr.Read(buf)
 	if err != nil {
-		return deferFunc, fmt.Errorf("read from statelocker returned: %w", err)
+		return cbFunc, fmt.Errorf("read from statelocker returned: %w", err)
 	}
 
 	output := string(buf[:n])
 	if !strings.HasPrefix(output, "LOCKID") {
-		return deferFunc, fmt.Errorf("statelocker wrote: %s", string(buf[:n]))
+		return cbFunc, fmt.Errorf("statelocker wrote: %s", string(buf[:n]))
 	}
-	return deferFunc, nil
+	return cbFunc, nil
 }
 
 // testCopyDir recursively copies a directory tree, attempting to preserve
