@@ -8,11 +8,13 @@ package eval
 import (
 	"context"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // PrepareToPlan implements an extra preparation phase we perform before
@@ -37,13 +39,31 @@ import (
 // evaluate using real resource planning results. The planning phase will
 // then be able to produce its own tighter version of this information to
 // use when building the execution graph for the apply phase.
-//
-// This must be called with a [context.Context] that's associated with a
-// [grapheval.Worker].
 func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationships, tfdiags.Diagnostics) {
+	// All of our work will be associated with a workgraph worker that serves
+	// as the initial worker node in the work graph.
+	ctx = grapheval.ContextWithNewWorker(ctx)
+
 	rootModuleInstance, diags := c.precheckedModuleInstance(ctx)
-	ret := &ResourceRelationships{}
-	_ = rootModuleInstance // TODO: Actually analyze this to find the information to return
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	ret := &ResourceRelationships{
+		EphemeralResourceUsers: addrs.MakeMap[addrs.AbsResourceInstance, addrs.Set[addrs.AbsResourceInstance]](),
+	}
+	for depender := range rootModuleInstance.ResourceInstancesDeep(ctx) {
+		dependerAddr := depender.Addr
+		for dependee := range depender.ResourceInstanceDependencies(ctx) {
+			dependeeAddr := dependee.Addr
+			if dependeeAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				if !ret.EphemeralResourceUsers.Has(dependeeAddr) {
+					ret.EphemeralResourceUsers.Put(dependeeAddr, addrs.MakeSet[addrs.AbsResourceInstance]())
+				}
+				set := ret.EphemeralResourceUsers.Get(dependeeAddr)
+				set.Add(dependerAddr)
+			}
+		}
+	}
 	return ret, diags
 }
 

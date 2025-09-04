@@ -8,6 +8,7 @@ package configgraph
 import (
 	"context"
 	"fmt"
+	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -78,6 +79,15 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	// TODO: Preconditions? Or should that be handled in the parent [Resource]
+	// before we even attempt instance expansion? (Need to check the current
+	// behavior in the existing system, to see whether preconditions guard
+	// instance expansion.)
+	// If we take preconditions into account here then we must transfer
+	// [ResourceInstanceMark] marks from the check rule expressions into
+	// configVal because config evaluation indirectly depends on those
+	// references.
+
 	// We use the configuration value here only for its marks, since that
 	// allows us to propagate any
 	configVal, diags := ri.ConfigValuer.Value(ctx)
@@ -97,9 +107,53 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 	// function to do.
 	resultVal, diags := ri.GetResultValue(ctx, configVal)
 
+	// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
+	// the check rule expressions onto resultVal because the presence of
+	// a valid result value indirectly depends on those references.
+
 	// The result needs some additional preparation to make sure it's
 	// marked correctly for ongoing use in other expressions.
 	return prepareResourceInstanceResult(resultVal, ri, configVal), diags
+}
+
+// ResourceInstanceDependencies returns a sequence of any other resource
+// instances whose results this resource instance depends on.
+//
+// The result of this is trustworthy only if [ResourceInstance.CheckAll]
+// returns without diagnostics. If errors are present then the result is
+// best-effort but likely to be incomplete.
+func (ri *ResourceInstance) ResourceInstanceDependencies(ctx context.Context) iter.Seq[*ResourceInstance] {
+	// FIXME: This should also take into account:
+	// - indirect references through the configuration of the provider instance
+	//   this resource instance uses (which should arrive as marks on the
+	//   [ProviderInstanceRefType] value that represents the provider instance),
+	//   once we've actually got a Valuer to return the provider instance
+	//   reference value.
+	// - explicit dependencies in the depends_on argument
+	// - ....anything else?
+	//
+	// We should NOT need to take into account dependencies of the parent
+	// resource's InstanceSelector because substitutions of
+	// count.index/each.key/each.value will transfer those in automatically by
+	// the RepetitionData values being marked.
+
+	// We ignore diagnostics here because callers should always perform a
+	// CheckAll tree walk, including a visit to this resource instance object,
+	// before trusting anything else that any configgraph nodes report.
+	resultVal := diagsHandledElsewhere(ri.Value(ctx))
+
+	// Our Value method always marks its result as depending on this
+	// resource instance so that any expressions that refer to it will
+	// be treated as depending on this resource instance, but we want
+	// to filter that out here because otherwise we'd be reporting that
+	// this resource depends on itself, which is impossible and confusing.
+	return func(yield func(*ResourceInstance) bool) {
+		for depInst := range ContributingResourceInstances(resultVal) {
+			if depInst != ri {
+				yield(depInst)
+			}
+		}
+	}
 }
 
 // ValueSourceRange implements exprs.Valuer.

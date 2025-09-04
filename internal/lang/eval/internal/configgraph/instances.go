@@ -106,6 +106,22 @@ func compileInstances[T any](
 		ValueMarks: valueMarks,
 	}
 	for key, repData := range insts {
+		// We transfer valueMarks to the each.key, each.value and count.index
+		// values because valueMarks are the marks on whatever value we used to
+		// decide which instances exist, and so any reference to those
+		// should carry along mark information.
+		// In particular this propagates resource instance dependency
+		// information in case the count or for_each expression was derived
+		// from resource instance attributes.
+		if repData.EachKey != cty.NilVal {
+			repData.EachKey = repData.EachKey.WithMarks(valueMarks)
+		}
+		if repData.EachValue != cty.NilVal {
+			repData.EachValue = repData.EachValue.WithMarks(valueMarks)
+		}
+		if repData.CountIndex != cty.NilVal {
+			repData.CountIndex = repData.CountIndex.WithMarks(valueMarks)
+		}
 		obj := compileInstance(ctx, key, repData)
 		ret.Instances[key] = obj
 	}
@@ -127,10 +143,10 @@ func compilePlaceholderInstance[T any](
 	repData := instances.RepetitionData{}
 	switch keyType {
 	case addrs.StringKeyType:
-		repData.EachKey = cty.UnknownVal(cty.String)
-		repData.EachValue = cty.DynamicVal
+		repData.EachKey = cty.UnknownVal(cty.String).WithMarks(valueMarks)
+		repData.EachValue = cty.DynamicVal.WithMarks(valueMarks)
 	case addrs.IntKeyType:
-		repData.CountIndex = cty.UnknownVal(cty.Number)
+		repData.CountIndex = cty.UnknownVal(cty.Number).WithMarks(valueMarks)
 	}
 	key := addrs.WildcardKey{keyType}
 	placeholder := compileInstance(ctx, key, repData)
