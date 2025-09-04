@@ -3,27 +3,62 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package configgraph
+package eval
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty/function"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
-// This file contains methods of [ModuleInstance] related to its
-// implementation of [exprs.Scope], and other supporting functions and types
-// used by module instances when acting in that role.
-var _ exprs.Scope = (*ModuleInstance)(nil)
+// The symbols in this file are what define the shape of the top-level symbol
+// table in a module instance, containing symbols like "var", "local", "module",
+// etc.
+//
+// This lives out here alongside the functionality in module_instance.go because
+// the naming scheme used for these symbols is a surface-language-level concern
+// that could vary based on language edition and language experiments, including
+// potentially using different symbol table shapes in different modules of
+// the same configuration, and so it seems thematically coupled to the
+// logic for "compiling" configs.Module into the configgraph types, whereas
+// configgraph tries to be relatively agnostic to the design of the surface
+// syntax so that it can support configuration trees where different modules
+// use different surface language design details.
+//
+// There's some related context about this in:
+//    https://github.com/opentofu/opentofu/pull/2262
+
+type moduleInstanceScope struct {
+	inst          *configgraph.ModuleInstance
+	coreFunctions map[string]function.Function
+
+	// TODO: some way to interact with provider-defined functions too, but
+	// that's tricky since OpenTofu decided to call them on _configured_
+	// providers rather than unconfigured ones and this evaluator otherwise
+	// only uses unconfigured providers... so I guess we'll need some sort of
+	// upcall glue to ask whatever code is orchestrating the plan or apply
+	// phase to call a function on our behalf, or similar, and arrange
+	// for functions in the [ConfigInstance.PrepareToPlan] phase to return
+	// marked values so we can detect the additional
+	// resource-to-provider-instance dependencies those calls imply.
+	//
+	// (It seems unfortunate that this additional complexity only really
+	// currently benefits the opentofu/lua provider, which doesn't seem
+	// to be widely used. It would be far simpler if we could just always
+	// call functions on the same unconfigured providers we're using for
+	// schema fetching and config validation.)
+}
+
+var _ exprs.Scope = (*moduleInstanceScope)(nil)
 
 // ResolveFunc implements exprs.Scope.
-func (m *ModuleInstance) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
+func (m *moduleInstanceScope) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if strings.Contains(call.Name, "::") {
@@ -38,7 +73,7 @@ func (m *ModuleInstance) ResolveFunc(call *hcl.StaticCall) (function.Function, t
 		return function.Function{}, diags
 	}
 
-	fn, ok := m.CoreFunctions[call.Name]
+	fn, ok := m.coreFunctions[call.Name]
 	if !ok {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -53,7 +88,7 @@ func (m *ModuleInstance) ResolveFunc(call *hcl.StaticCall) (function.Function, t
 }
 
 // ResolveAttr implements exprs.Scope.
-func (m *ModuleInstance) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+func (m *moduleInstanceScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch ref.Name {
 
@@ -63,7 +98,7 @@ func (m *ModuleInstance) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfd
 		// implementation which then just delegates back to
 		// [ModuleInstance.resolveSimpleChildAttr] once it has collected the
 		// nested symbol name. Refer to that function for more details on these.
-		return exprs.NestedSymbolTable(&moduleInstNestedSymbolTable{topSymbol: ref.Name, moduleInst: m}), diags
+		return exprs.NestedSymbolTable(&moduleInstNestedSymbolTable{topSymbol: ref.Name, topScope: m}), diags
 
 	case "each", "count", "self":
 		// These symbols are not included in a module instance's global symbol
@@ -88,39 +123,39 @@ func (m *ModuleInstance) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfd
 		// one or two more attribute steps.
 	case "resource":
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
-			mode:       addrs.ManagedResourceMode,
-			moduleInst: m,
-			startRng:   ref.SrcRange,
+			mode:     addrs.ManagedResourceMode,
+			topScope: m,
+			startRng: ref.SrcRange,
 		}), diags
 	case "data":
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
-			mode:       addrs.DataResourceMode,
-			moduleInst: m,
+			mode:     addrs.DataResourceMode,
+			topScope: m,
 		}), diags
 	case "ephemeral":
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
-			mode:       addrs.EphemeralResourceMode,
-			moduleInst: m,
+			mode:     addrs.EphemeralResourceMode,
+			topScope: m,
 		}), diags
 	default:
 		// We treat all unrecognized prefixes as a shorthand for "resource."
 		// where the first segment is the resource type name.
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
-			mode:       addrs.ManagedResourceMode,
-			typeName:   ref.Name,
-			moduleInst: m,
+			mode:     addrs.ManagedResourceMode,
+			typeName: ref.Name,
+			topScope: m,
 		}), diags
 	}
 }
 
-func (m *ModuleInstance) resolveResourceAttr(addr addrs.Resource, rng tfdiags.SourceRange) (exprs.Attribute, tfdiags.Diagnostics) {
+func (m *moduleInstanceScope) resolveResourceAttr(addr addrs.Resource, rng tfdiags.SourceRange) (exprs.Attribute, tfdiags.Diagnostics) {
 	// This function handles references like "aws_instance.foo" and
 	// "data.aws_subnet.bar" after the intermediate steps have been
 	// collected using [moduleInstanceResourceSymbolTable]. Refer to
 	// [ModuleInstance.ResourceAttr] for the beginning of this process.
 
 	var diags tfdiags.Diagnostics
-	r, ok := m.ResourceNodes[addr]
+	r, ok := m.inst.ResourceNodes[addr]
 	if !ok {
 		// TODO: Try using "didyoumean" with resource types and names that
 		// _are_ declared in the module to see if we can suggest an alternatve.
@@ -135,7 +170,7 @@ func (m *ModuleInstance) resolveResourceAttr(addr addrs.Resource, rng tfdiags.So
 	return exprs.ValueOf(r), diags
 }
 
-func (m *ModuleInstance) resolveSimpleChildAttr(topSymbol string, ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+func (m *moduleInstanceScope) resolveSimpleChildAttr(topSymbol string, ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// NOTE: This function only handles top-level symbol names which are
@@ -145,7 +180,7 @@ func (m *ModuleInstance) resolveSimpleChildAttr(topSymbol string, ref hcl.Traver
 	switch topSymbol {
 
 	case "var":
-		v, ok := m.InputVariableNodes[addrs.InputVariable{Name: ref.Name}]
+		v, ok := m.inst.InputVariableNodes[addrs.InputVariable{Name: ref.Name}]
 		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -158,7 +193,7 @@ func (m *ModuleInstance) resolveSimpleChildAttr(topSymbol string, ref hcl.Traver
 		return exprs.ValueOf(v), diags
 
 	case "local":
-		v, ok := m.LocalValueNodes[addrs.LocalValue{Name: ref.Name}]
+		v, ok := m.inst.LocalValueNodes[addrs.LocalValue{Name: ref.Name}]
 		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -189,7 +224,7 @@ func (m *ModuleInstance) resolveSimpleChildAttr(topSymbol string, ref hcl.Traver
 }
 
 // HandleInvalidStep implements exprs.Scope.
-func (m *ModuleInstance) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (m *moduleInstanceScope) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	// We can't actually get here in normal use because this is a top-level
 	// scope and HCL only allows attribute-shaped access to top-level symbols,
 	// which would be handled by [ModuleInstance.ResolveAttr] instead.
@@ -212,9 +247,9 @@ type moduleInstanceResourceSymbolTable struct {
 	// We reuse this type for both the first step like "data." and the
 	// second step like "data.foo.". typeName is the empty string for
 	// the first step, and then populated in the second step.
-	typeName   string
-	moduleInst *ModuleInstance
-	startRng   hcl.Range
+	typeName string
+	topScope *moduleInstanceScope
+	startRng hcl.Range
 }
 
 var _ exprs.SymbolTable = (*moduleInstanceResourceSymbolTable)(nil)
@@ -262,10 +297,10 @@ func (m *moduleInstanceResourceSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (e
 		// We'll return a new instance with the given type name populated
 		// so that we can collect the resource name from the next step.
 		return exprs.NestedSymbolTable(&moduleInstanceResourceSymbolTable{
-			mode:       m.mode,
-			typeName:   ref.Name,
-			moduleInst: m.moduleInst,
-			startRng:   m.startRng,
+			mode:     m.mode,
+			typeName: ref.Name,
+			topScope: m.topScope,
+			startRng: m.startRng,
 		}), diags
 	}
 	// We're at the second step and expecting a resource name. We'll now
@@ -275,7 +310,7 @@ func (m *moduleInstanceResourceSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (e
 		Type: m.typeName,
 		Name: ref.Name,
 	}
-	return m.moduleInst.resolveResourceAttr(addr, tfdiags.SourceRangeFromHCL(hcl.RangeBetween(m.startRng, ref.SrcRange)))
+	return m.topScope.resolveResourceAttr(addr, tfdiags.SourceRangeFromHCL(hcl.RangeBetween(m.startRng, ref.SrcRange)))
 }
 
 // moduleInstNestedSymbolTable is a common implementation for all of the
@@ -288,8 +323,8 @@ func (m *moduleInstanceResourceSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (e
 // [ModuleInstance.ResolveAttr] to learn how each of the top-level symbols
 // is handled, and what subset of them are handled by this type.
 type moduleInstNestedSymbolTable struct {
-	topSymbol  string
-	moduleInst *ModuleInstance
+	topSymbol string
+	topScope  *moduleInstanceScope
 }
 
 var _ exprs.SymbolTable = (*moduleInstNestedSymbolTable)(nil)
@@ -312,7 +347,7 @@ func (m *moduleInstNestedSymbolTable) ResolveAttr(ref hcl.TraverseAttr) (exprs.A
 	// Now we just delegate back to the original module instance, so that
 	// we can keep all of the symbol-table-related code relatively close
 	// together.
-	return m.moduleInst.resolveSimpleChildAttr(m.topSymbol, ref)
+	return m.topScope.resolveSimpleChildAttr(m.topSymbol, ref)
 }
 
 func nounForModuleInstanceGlobalSymbol(symbol string) string {
