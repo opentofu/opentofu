@@ -25,10 +25,11 @@ type ModuleInstance struct {
 	// Any other kinds of "node" we add in future will likely need coverage
 	// added in both [ModuleInstance.CheckAll] and
 	// [ModuleInstance.AnnounceAllGraphevalRequests].
-	InputVariableNodes map[addrs.InputVariable]*InputVariable
-	LocalValueNodes    map[addrs.LocalValue]*LocalValue
-	OutputValueNodes   map[addrs.OutputValue]*OutputValue
-	ResourceNodes      map[addrs.Resource]*Resource
+	InputVariableNodes  map[addrs.InputVariable]*InputVariable
+	LocalValueNodes     map[addrs.LocalValue]*LocalValue
+	OutputValueNodes    map[addrs.OutputValue]*OutputValue
+	ResourceNodes       map[addrs.Resource]*Resource
+	ProviderConfigNodes map[addrs.LocalProviderConfig]*ProviderConfig
 
 	CoreFunctions map[string]function.Function
 
@@ -173,6 +174,9 @@ func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 		cg.CheckChild(ctx, n)
 	}
 	for _, n := range m.ResourceNodes {
+		cg.CheckChild(ctx, n)
+	}
+	for _, n := range m.ProviderConfigNodes {
 		cg.CheckChild(ctx, n)
 	}
 	return cg.Complete(ctx)
