@@ -143,7 +143,7 @@ func (f forcedErrorValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags
 
 // Value implements Valuer.
 func (f forcedErrorValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	return cty.DynamicVal, f.diags
+	return EvalResult(cty.DynamicVal, f.diags)
 }
 
 // ValueSourceRange implements Valuer.
@@ -159,7 +159,7 @@ func (f forcedErrorValuer) EvalableSourceRange() tfdiags.SourceRange {
 
 // Evaluate implements Evalable.
 func (f forcedErrorValuer) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
-	return cty.DynamicVal, f.diags
+	return EvalResult(cty.DynamicVal, f.diags)
 }
 
 // FunctionCalls implements Evalable.
