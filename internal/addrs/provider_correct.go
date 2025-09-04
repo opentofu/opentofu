@@ -5,6 +5,11 @@
 
 package addrs
 
+import (
+	"fmt"
+	"strings"
+)
+
 // This file contains some provider address types that are arguably more
 // "correct" than the ones used in most of the system due to following the
 // same naming conventions used elsewhere in package addrs.
@@ -33,6 +38,20 @@ func (pc AbsProviderConfigCorrect) Instance(key InstanceKey) AbsProviderInstance
 	}
 }
 
+func (pc AbsProviderConfigCorrect) String() string {
+	var buf strings.Builder
+	if !pc.Module.IsRoot() {
+		buf.WriteString(pc.Module.String())
+		buf.WriteByte('.')
+	}
+	fmt.Fprintf(&buf, "provider[%q]", pc.Provider)
+	if pc.Alias != "" {
+		buf.WriteByte('.')
+		buf.WriteString(pc.Alias)
+	}
+	return buf.String()
+}
+
 // AbsProviderInstanceCorrect is an experimental "correct" representation of
 // the absolute address of an instance of an [AbsProviderConfigCorrect].
 //
@@ -42,6 +61,25 @@ type AbsProviderInstanceCorrect struct {
 	Config AbsProviderConfigCorrect
 	Key    InstanceKey
 }
+
+var _ UniqueKeyer = AbsProviderInstanceCorrect{}
+
+func (a AbsProviderInstanceCorrect) String() string {
+	if a.Key == nil {
+		return a.Config.String()
+	}
+	return a.Config.String() + a.Key.String()
+}
+
+// UniqueKey implements UniqueKeyer.
+func (a AbsProviderInstanceCorrect) UniqueKey() UniqueKey {
+	return absProviderInstanceCorrectKey(a.String())
+}
+
+type absProviderInstanceCorrectKey string
+
+// uniqueKeySigil implements UniqueKey.
+func (a absProviderInstanceCorrectKey) uniqueKeySigil() {}
 
 // The [LocalProviderConfig] type is still reasonable to use to represent
 // the special expression syntax we use for referring to provider configs
