@@ -29,14 +29,14 @@ type nodeExpandLocal struct {
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandLocal)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandLocal)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandLocal)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandLocal)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandLocal)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandLocal)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandLocal)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandLocal)(nil)
 )
 
-func (n *nodeExpandLocal) expandsInstances() {}
+func (n *nodeExpandLocal) retainDuringUnusedPruning() {}
 
 // graphNodeTemporaryValue
 func (n *nodeExpandLocal) temporaryValue(_ walkOperation) bool {

@@ -59,23 +59,23 @@ type nodeExpandPlannableResource struct {
 }
 
 var (
-	_ GraphNodeDestroyerCBD         = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeDynamicExpandable    = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeReferenceable        = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeReferencer           = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeConfigResource       = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeAttachResourceConfig = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeAttachDependencies   = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeTargetable           = (*nodeExpandPlannableResource)(nil)
-	_ graphNodeExpandsInstances     = (*nodeExpandPlannableResource)(nil)
-	_ closableResource              = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeDestroyerCBD                          = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeConfigResource                        = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachResourceConfig                  = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachDependencies                    = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandPlannableResource)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandPlannableResource)(nil)
+	_ closableResource                               = (*nodeExpandPlannableResource)(nil)
 )
 
 func (n *nodeExpandPlannableResource) Name() string {
 	return n.NodeAbstractResource.Name() + " (expand)"
 }
 
-func (n *nodeExpandPlannableResource) expandsInstances() {
+func (n *nodeExpandPlannableResource) retainDuringUnusedPruning() {
 }
 
 // GraphNodeAttachDependencies

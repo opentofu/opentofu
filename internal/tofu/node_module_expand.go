@@ -21,6 +21,8 @@ type ConcreteModuleNodeFunc func(n *nodeExpandModule) dag.Vertex
 // nodeExpandModule represents a module call in the configuration that
 // might expand into multiple module instances depending on how it is
 // configured.
+//
+// "Expand" in the name refers to instances.Expander usage. This node doesn't generate a dynamic subgraph.
 type nodeExpandModule struct {
 	Addr       addrs.Module
 	Config     *configs.Module
@@ -31,10 +33,11 @@ var (
 	_ GraphNodeExecutable       = (*nodeExpandModule)(nil)
 	_ GraphNodeReferencer       = (*nodeExpandModule)(nil)
 	_ GraphNodeReferenceOutside = (*nodeExpandModule)(nil)
-	_ graphNodeExpandsInstances = (*nodeExpandModule)(nil)
+	// nodeExpandModule needs to be retained during unused nodes pruning to register the module in instances.Expander
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandModule)(nil)
 )
 
-func (n *nodeExpandModule) expandsInstances() {}
+func (n *nodeExpandModule) retainDuringUnusedPruning() {}
 
 func (n *nodeExpandModule) Name() string {
 	return n.Addr.String() + " (expand)"

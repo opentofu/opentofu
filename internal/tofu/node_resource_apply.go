@@ -13,9 +13,11 @@ import (
 )
 
 // nodeExpandApplyableResource handles the first layer of resource
-// expansion during apply. Even though the resource instances themselves are
-// already expanded from the plan, we still need to expand the
-// NodeApplyableResource nodes into their respective modules.
+// expansion during apply. Even though the resource instances themselves are already expanded from the plan,
+// we still need to register resource nodes in instances.Expander with their absolute addresses
+// based on the expanded module instances.
+//
+// "Expand" in the name refers to instances.Expander usage. This node doesn't generate a dynamic subgraph.
 type nodeExpandApplyableResource struct {
 	*NodeAbstractResource
 }
@@ -26,11 +28,13 @@ var (
 	_ GraphNodeReferencer           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeConfigResource       = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeAttachResourceConfig = (*nodeExpandApplyableResource)(nil)
-	_ graphNodeExpandsInstances     = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeTargetable           = (*nodeExpandApplyableResource)(nil)
+	// nodeExpandApplyableResource needs to be retained during unused nodes pruning
+	// to register the resource for expanded module instances in `instances.Expander`
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandApplyableResource)(nil)
 )
 
-func (n *nodeExpandApplyableResource) expandsInstances() {
+func (n *nodeExpandApplyableResource) retainDuringUnusedPruning() {
 }
 
 func (n *nodeExpandApplyableResource) References() []*addrs.Reference {

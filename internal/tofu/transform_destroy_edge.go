@@ -330,12 +330,12 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 						}
 					}
 
-				case graphNodeExpandsInstances:
+				case graphNodeRetainedByPruneUnusedNodesTransformer:
 					// Any nodes that expand instances are kept when their
 					// instances may need to be evaluated.
 					for _, v := range g.UpEdges(n) {
 						switch v.(type) {
-						case graphNodeExpandsInstances, GraphNodeDynamicExpandable:
+						case graphNodeRetainedByPruneUnusedNodesTransformer, GraphNodeDynamicExpandable:
 							// Root module output values or checks (which the following
 							// condition matches) are exempt because we know
 							// there is only ever exactly one instance of the
