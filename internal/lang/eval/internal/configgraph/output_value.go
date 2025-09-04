@@ -109,7 +109,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 	if diags.HasErrors() {
 		// If the preconditions caused at least one error then we must
 		// not proceed any further.
-		return cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep()), diags
+		return exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())), diags
 	}
 
 	rawV, diags := o.RawValue.Value(ctx)
@@ -124,7 +124,7 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 			Detail:   fmt.Sprintf("Unsuitable value for output value %q: %s.", o.Addr.OutputValue.Name, tfdiags.FormatError(err)),
 			Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
 		})
-		finalV = cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())
+		finalV = exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep()))
 	}
 
 	if o.ForceSensitive {
