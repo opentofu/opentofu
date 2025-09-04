@@ -32,6 +32,42 @@ func ValueOf(v Valuer) Attribute {
 	return valueOf{v}
 }
 
+// ### Regarding the possibility of instances of one resource being able to ###
+// ### refer to each other without that being treated as a "self-reference" ###
+// ### error...                                                             ###
+//
+// TODO: We could potentially have two more implementations of [Attribute] here
+// which represent object and tuple values (respectively) that can potentially
+// be partially-constructed when all of the references include a known
+// index step underneath the attribute, but behave like a normal
+// [ValueOf] if there's at least one reference that doesn't include a known
+// index step. In principle that could be used for multi-instance objects
+// like resources to allow instances to refer to each other without it being
+// treated as a self-reference.
+//
+// If the hcl.EvalContext builder has known index steps then it can build
+// an object or tuple where any indices not accessed are either not populated
+// at all (for an object) or set to [cty.DynamicVal] (for a tuple, where we
+// need to populate any "gaps" between the indices being used).
+//
+// However, there's various other groundwork we'd need to do before we could
+// make that work, including but probably not limited to:
+// - Have some alternative to hcl.Traversal that can support index steps whose
+//   keys are [Valuer] instead of static [cty.Value], so that a reference
+//   like aws_instance.example[each.key] can have that each.key evaluated
+//   as part of preparing the hcl.EvalContext and we can dynamically decide
+//   which individual index to populate to satisfy that reference.
+// - Some way to make sure that any marks that would normally be placed on
+//   naked aws_instance.example still get applied to the result even when
+//   we skip calling the [Valuer] for aws_instance.example as a whole.
+//
+// As long as we're using [hcl.Traversal] in its current form we would only
+// be able to do this partial-building trick when the index key is a constant,
+// like in aws_instance.example["foo"], but that's such an unusual situation
+// to be not worth the complexity of handling it. It would only be worth it
+// if we could support dynamic index keys, so that e.g. a single resource can
+// represent a tree by having child nodes refer to the ids of their parents.
+
 // NestedSymbolTableFromAttribute returns the symbol table from an attribute
 // that was returned from [NestedSymbolTable], or nil for any other kind of
 // attribute.

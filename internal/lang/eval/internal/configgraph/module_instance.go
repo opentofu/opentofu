@@ -8,6 +8,7 @@ package configgraph
 import (
 	"context"
 	"fmt"
+	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -116,6 +117,31 @@ func (m *ModuleInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnost
 // ValueSourceRange implements exprs.Valuer.
 func (m *ModuleInstance) ValueSourceRange() *tfdiags.SourceRange {
 	return m.CallDeclRange
+}
+
+// ResourceInstancesDeep returns a sequence of all of the resource instances
+// declared both in this module instance and across all child resource
+// instances.
+//
+// The result is trustworthy only if [ModuleInstance.CheckAll] returns without
+// errors. When errors are present the result is best-effort and likely to
+// be incomplete.
+func (m *ModuleInstance) ResourceInstancesDeep(ctx context.Context) iter.Seq[*ResourceInstance] {
+	return func(yield func(*ResourceInstance) bool) {
+		for _, r := range m.ResourceNodes {
+			// NOTE: r.Instances will block if the resource's [InstanceSelector]
+			// depends on other parts of the configuration that aren't yet
+			// ready to produce their value.
+			for _, inst := range r.Instances(ctx) {
+				if !yield(inst) {
+					return
+				}
+			}
+		}
+
+		// TODO: Once we actually support child module calls, ask for the
+		// instances of each one and then collect its resource instances too.
+	}
 }
 
 // CheckAll visits this module and everything it contains to drive evaluation
