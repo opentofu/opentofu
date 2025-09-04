@@ -35,7 +35,7 @@ require (
 	github.com/dylanmei/winrmtest v0.0.0-20210303004826-fbc9ae56efb6
 	github.com/go-logr/stdr v1.2.2
 	github.com/go-test/deep v1.1.0
-	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.12.0
