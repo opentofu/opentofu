@@ -80,7 +80,7 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 			Detail:   fmt.Sprintf("Unsuitable value for variable %q: %s.", i.Addr.Variable.Name, tfdiags.FormatError(err)),
 			Subject:  MaybeHCLSourceRange(i.ValueSourceRange()),
 		})
-		finalV = cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep())
+		finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
 	}
 
 	// TODO: Probably need to factor this part out into a separate function
@@ -116,7 +116,7 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 		// expected type so that downstream expressions will only report
 		// new problems and not consequences of the problems we already
 		// reported.
-		finalV = cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep())
+		finalV = exprs.AsEvalError(cty.UnknownVal(i.TargetType.WithoutOptionalAttributesDeep()))
 	}
 	return finalV, diags
 }
