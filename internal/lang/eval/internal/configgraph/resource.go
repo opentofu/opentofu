@@ -31,25 +31,19 @@ type Resource struct {
 	// and addresses we cannot determine yet.
 	Addr addrs.AbsResource
 
-	// Provider is the provider that this resource's type belongs to. This
-	// is the provider to use when asking for config validation, etc.
-	Provider addrs.Provider
-
-	// Each instance of a resource gets evaluated in its own local scope
-	// with extra symbols each.key, etc decided on a per-instance basis,
-	// so initially we just track the unevaluated config and the parent
-	// scope we'll eventually use when we are ready to lazily "compile"
-	// each child [ResourceInstance].
-	ConfigEvalable exprs.Evalable
-	ParentScope    exprs.Scope
-
-	// GetInstanceResultValue is the callback that child instances of this
-	// resource should use to obtain their result values.
-	GetInstanceResultValue func(ctx context.Context, inst *ResourceInstance) func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
-
 	// InstanceSelector represents a rule for deciding which instances of
 	// this resource have been declared.
 	InstanceSelector InstanceSelector
+
+	// CompileResourceInstance is a callback function provided by whatever
+	// compiled this [Resource] object that knows how to produce a compiled
+	// [ResourceInstance] object once we know of the instance key and associated
+	// repetition data for it.
+	//
+	// This indirection allows the caller to take into account the same
+	// context it had available when it built this [Resource] object, while
+	// incorporating the new information about this specific instance.
+	CompileResourceInstance func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance
 
 	DeclRange tfdiags.SourceRange
 
@@ -109,21 +103,8 @@ func (r *Resource) ValueSourceRange() *tfdiags.SourceRange {
 
 func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
 	return r.instancesResult.Do(ctx, func(ctx context.Context) (*compiledInstances[*ResourceInstance], tfdiags.Diagnostics) {
-		return compileInstances(ctx, r.InstanceSelector, r.compileInstance)
+		return compileInstances(ctx, r.InstanceSelector, r.CompileResourceInstance)
 	})
-}
-
-func (r *Resource) compileInstance(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *ResourceInstance {
-	ret := &ResourceInstance{
-		Addr:     r.Addr.Instance(key),
-		Provider: r.Provider,
-		ConfigValuer: ValuerOnce(exprs.NewClosure(
-			r.ConfigEvalable,
-			instanceLocalScope(r.ParentScope, repData),
-		)),
-	}
-	ret.GetResultValue = r.GetInstanceResultValue(ctx, ret)
-	return ret
 }
 
 // CheckAll implements allChecker.

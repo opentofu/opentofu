@@ -14,10 +14,29 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// The functions and types in this file are concerned with "compiling" the
+// representation of modules in [configs] into the representation used by
+// [configgraph].
+//
+// The design idea here is that [configgraph] works in terms of OpenTofu's
+// langage concepts and [cty.Value] but is not aware of the current physical
+// syntax or how [configs] represents it, so that in theory we could have
+// different translations to those concepts for different editions of the
+// language in future. This is unlike traditional "package tofu" where
+// everything is very tightly coupled to [configs], making it hard to evolve
+// (or replace) that package over time.
+//
+// The code in here could probably move into another package under the
+// "internal" directory rather than being inline here, since this logic
+// is thematically separate from the "config eval" functionality provided
+// by the rest of this package, but it's here for now just to avoid
+// overthinking too much while this is still evolving.
 
 type moduleInstanceCall struct {
 	// calleeAddr is the absolute address of this module instance that should
@@ -279,42 +298,43 @@ func compileModuleInstanceResource(
 	}
 
 	ret := &configgraph.Resource{
-		Addr:           absAddr,
-		Provider:       config.Provider,
-		ConfigEvalable: configEvalable,
-		ParentScope:    declScope,
+		Addr:      absAddr,
+		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
 
 		// Our instance selector depends on which of the repetition metaarguments
 		// are set, if any. We assume that package configs allows at most one
 		// of these to be set for each resource config.
 		InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, nil),
 
-		// The following is a little complicated because it represents a rule
-		// for deciding the rule for deciding the result value. The
-		// Resource implementation calls this during resource instance
-		// compilation to get a resource-instance-specific value fetcher
-		// for each of its instances.
-		GetInstanceResultValue: func(ctx context.Context, inst *configgraph.ResourceInstance) func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics) {
-			return func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
-				schema, moreDiags := providers.ResourceTypeSchema(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type)
-				diags = diags.Append(moreDiags)
-				if moreDiags.HasErrors() {
-					return cty.DynamicVal, diags
-				}
-
-				moreDiags = providers.ValidateResourceConfig(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type, configVal)
-				diags = diags.Append(moreDiags)
-				if diags.HasErrors() {
-					return cty.UnknownVal(schema.Block.ImpliedType()), diags
-				}
-
-				// The real getResultValue function can now assume that
-				// the given configuration is valid.
-				return getResultValue(ctx, inst, configVal)
+		// The [configgraph.Resource] implementation will call back to this
+		// for each child instance it discovers through [InstanceSelector],
+		// allowing us to finalize all of the details for a specific instance
+		// of this resource.
+		CompileResourceInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ResourceInstance {
+			inst := &configgraph.ResourceInstance{
+				Addr:     absAddr.Instance(key),
+				Provider: config.Provider,
+				ConfigValuer: configgraph.ValuerOnce(exprs.NewClosure(
+					configEvalable,
+					configgraph.InstanceLocalScope(declScope, repData),
+				)),
 			}
+			// Again the [ResourceInstance] implementation will call back
+			// through this object so we can help it interact with the
+			// appropriate provider and collect the result of whatever
+			// side-effects our caller is doing with this resource instance
+			// in the current phase. (The planned new state during the plan
+			// phase, for example.)
+			inst.Glue = &resourceInstanceGlue{
+				validateConfig: func(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
+					return providers.ValidateResourceConfig(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type, configVal)
+				},
+				getResultValue: func(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+					return getResultValue(ctx, inst, configVal)
+				},
+			}
+			return inst
 		},
-
-		DeclRange: tfdiags.SourceRangeFromHCL(config.DeclRange),
 	}
 	return resourceAddr, ret
 }
@@ -331,4 +351,19 @@ func compileCheckRules(configs []*configs.CheckRule, declScope exprs.Scope, ephe
 		})
 	}
 	return ret
+}
+
+type resourceInstanceGlue struct {
+	validateConfig func(context.Context, cty.Value) tfdiags.Diagnostics
+	getResultValue func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics)
+}
+
+// ValidateConfig implements configgraph.ResourceInstanceGlue.
+func (r *resourceInstanceGlue) ValidateConfig(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
+	return r.validateConfig(ctx, configVal)
+}
+
+// ResultValue implements configgraph.ResourceInstanceGlue.
+func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	return r.getResultValue(ctx, configVal)
 }
