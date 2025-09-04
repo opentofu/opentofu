@@ -50,6 +50,7 @@ func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationsh
 	}
 	ret := &ResourceRelationships{
 		EphemeralResourceUsers: addrs.MakeMap[addrs.AbsResourceInstance, addrs.Set[addrs.AbsResourceInstance]](),
+		ProviderInstanceUsers:  addrs.MakeMap[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]](),
 	}
 	for depender := range rootModuleInstance.ResourceInstancesDeep(ctx) {
 		dependerAddr := depender.Addr
@@ -63,6 +64,15 @@ func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationsh
 				set.Add(dependerAddr)
 			}
 		}
+		providerInst, _, _ := depender.ProviderInstance(ctx)
+		if providerInst, known := configgraph.GetKnown(providerInst); known {
+			providerInstAddr := providerInst.Addr
+			if !ret.ProviderInstanceUsers.Has(providerInstAddr) {
+				ret.ProviderInstanceUsers.Put(providerInstAddr, addrs.MakeSet[addrs.AbsResourceInstance]())
+			}
+			set := ret.ProviderInstanceUsers.Get(providerInstAddr)
+			set.Add(dependerAddr)
+		}
 	}
 	return ret, diags
 }
@@ -75,15 +85,19 @@ type ResourceRelationships struct {
 	// A subsequent plan phase can use this to detect when all of the
 	// downstream users of an ephemeral resource instance have finished
 	// their work and so it's okay to close the ephemeral resource instance.
+	//
+	// TODO: This should be a map of EphemeralResourceUsers and also capture
+	// the provider instances that are depending on each ephemeral resource
+	// instance.
 	EphemeralResourceUsers addrs.Map[addrs.AbsResourceInstance, addrs.Set[addrs.AbsResourceInstance]]
 
-	// TODO: ProviderInstanceUsers
-	// This should be a map from provider instance address to set of resource
-	// instances that use it, but we don't currently have a single addrs
-	// type for "absolute provider instance" -- [addrs.AbsProviderInstance]
-	// is a misnomer and should really be named [addrs.ConfigProviderConfig]
-	// or similar -- and we also haven't got support for resolving provider
-	// instance references in package [configgraph] anyway.
+	// EphemeralResourceUsers is a map from provider instance addresses to the
+	// sets of addresses of resource instances which a provided by them.
+	//
+	// A subsequent plan phase can use this to detect when all of the
+	// downstream users of a provider instance have finished their work and so
+	// it's okay to close the provider instance.
+	ProviderInstanceUsers addrs.Map[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]]
 }
 
 type EphemeralResourceUsers struct {
@@ -146,7 +160,7 @@ type preparationGlue struct {
 }
 
 // ResourceInstanceValue implements evaluationGlue.
-func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {
 	schema, diags := v.providers.ResourceTypeSchema(ctx,
 		ri.Provider,
 		ri.Addr.Resource.Resource.Mode,
