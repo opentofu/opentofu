@@ -6,6 +6,8 @@
 package configgraph
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/exprs"
 )
 
 // providerInstanceTypes is a global repository of all of the provider instance
@@ -27,6 +30,8 @@ import (
 var providerInstanceRefTypes = make(map[addrs.Provider]cty.Type)
 var providerInstanceRefTypesMu sync.Mutex
 
+type providerInstanceRefTypeMarker struct{}
+
 // ProviderInstanceType returns the cty capsule type representing references
 // to instances of a particular provider.
 func ProviderInstanceRefType(provider addrs.Provider) cty.Type {
@@ -38,10 +43,28 @@ func ProviderInstanceRefType(provider addrs.Provider) cty.Type {
 	}
 
 	ty := cty.CapsuleWithOps("instance of "+provider.String(), reflect.TypeOf(ProviderInstance{}), &cty.CapsuleOps{
+		TypeGoString: func(_ reflect.Type) string {
+			return fmt.Sprintf("configgraph.ProviderInstanceRefType(%#v)", provider)
+		},
+		GoString: func(val any) string {
+			return fmt.Sprintf("configgraph.ProviderInstanceRefValue(%#v)", val)
+		},
+		ExtensionData: func(key any) any {
+			switch key {
+			// [IsProviderInstanceRefType] relies on this to distinguish our
+			// capsule types from others defined elsewhere.
+			case providerInstanceRefTypeMarker{}:
+				return provider
+			default:
+				return nil
+			}
+		},
+
 		// TODO: Implement the conversion ops to give better error messages
 		// when trying to use a reference to an instance of the wrong provider,
 		// saying something like "have instance of FOO, but BAR is required".
 		// (The default error message would just be "instance of BAR required".)
+
 	})
 	providerInstanceRefTypes[provider] = ty
 	return ty
@@ -59,11 +82,30 @@ func ProviderInstanceRefValue(inst *ProviderInstance) cty.Value {
 // ProviderInstanceFromValue attempts to extract an instance of the given
 // provider from the given value, returning it if successful or returning
 // an error if not.
-func ProviderInstanceFromValue(v cty.Value, forProvider addrs.Provider) (*ProviderInstance, error) {
+func ProviderInstanceFromValue(v cty.Value, forProvider addrs.Provider) (Maybe[*ProviderInstance], cty.ValueMarks, error) {
+	v, marks := v.UnmarkDeep()
 	ty := ProviderInstanceRefType(forProvider)
 	v, err := convert.Convert(v, ty)
 	if err != nil {
-		return nil, err
+		marks[exprs.EvalError] = struct{}{}
+		return nil, marks, err
 	}
-	return v.EncapsulatedValue().(*ProviderInstance), nil
+	if v.IsNull() {
+		marks[exprs.EvalError] = struct{}{}
+		return nil, marks, errors.New("value must not be null")
+	}
+	if !v.IsKnown() {
+		return nil, marks, nil
+	}
+	return Known(v.EncapsulatedValue().(*ProviderInstance)), marks, nil
+}
+
+// IsProviderInstanceRefValue returns true if the given type represents a
+// reference to an instance of any provider.
+func IsProviderInstanceRefType(ty cty.Type) bool {
+	if !ty.IsCapsuleType() {
+		return false
+	}
+	marker := ty.CapsuleExtensionData(providerInstanceRefTypeMarker{})
+	return marker != nil
 }
