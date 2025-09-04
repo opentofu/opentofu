@@ -240,6 +240,7 @@ func MakeFileExistsFunc(baseDir string) function.Function {
 			path = filepath.Clean(path)
 
 			fi, err := os.Stat(path)
+			// These checks only works on Unix-Like Systems
 			if err != nil {
 				if os.IsNotExist(err) {
 					return cty.False.WithMarks(pathMarks), nil
@@ -248,6 +249,8 @@ func MakeFileExistsFunc(baseDir string) function.Function {
 			}
 
 			if runtime.GOOS == "windows" {
+				// On Windows, chmod(0) is simulated by denying with icacls. So we need to see if the
+				// file is accessible. Calling os.Stat will work fine that's why an extra check is needed.
 				f, err := os.OpenFile(path, os.O_RDONLY, 0)
 				if err != nil {
 					return cty.UnknownVal(cty.Bool), fmt.Errorf("failed to stat %s", redactIfSensitive(path, pathMarks))
