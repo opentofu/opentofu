@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
@@ -369,4 +370,69 @@ func nounForModuleInstanceGlobalSymbol(symbol string) string {
 	default:
 		return "attribute" // generic fallback that we should avoid using by adding new names above as needed
 	}
+}
+
+// inputVariableValidationScope is a specialized [exprs.Scope] implementation
+// that forces returning a constant value when accessing a specific input
+// variable directly, but otherwise just passes everything else through from
+// a parent scope.
+//
+// This is used for evaluating validation rules for an [InputVariable], where
+// we need to be able to evaluate an expression referring to the variable
+// as part of deciding the final value of the variable and so if we didn't
+// handle it directly then there would be a self-reference error.
+type inputVariableValidationScope struct {
+	varTable    exprs.SymbolTable
+	wantName    string
+	parentScope exprs.Scope
+	finalVal    cty.Value
+}
+
+var _ exprs.Scope = (*inputVariableValidationScope)(nil)
+var _ exprs.SymbolTable = (*inputVariableValidationScope)(nil)
+
+// HandleInvalidStep implements exprs.Scope.
+func (i *inputVariableValidationScope) HandleInvalidStep(rng tfdiags.SourceRange) tfdiags.Diagnostics {
+	return i.parentScope.HandleInvalidStep(rng)
+}
+
+// ResolveAttr implements exprs.Scope.
+func (i *inputVariableValidationScope) ResolveAttr(ref hcl.TraverseAttr) (exprs.Attribute, tfdiags.Diagnostics) {
+	if i.varTable == nil {
+		// We're currently at the top-level scope where we're looking for
+		// the "var." prefix to represent accessing any input variable at all.
+		attr, diags := i.parentScope.ResolveAttr(ref)
+		if diags.HasErrors() {
+			return attr, diags
+		}
+		nestedTable := exprs.NestedSymbolTableFromAttribute(attr)
+		if nestedTable != nil && ref.Name == "var" {
+			// We'll return another instance of ourselves but with i.varTable
+			// now populated to represent that the next step should try
+			// to look up an input variable.
+			return exprs.NestedSymbolTable(&inputVariableValidationScope{
+				varTable:    nestedTable,
+				wantName:    i.wantName,
+				parentScope: i.parentScope,
+				finalVal:    i.finalVal,
+			}), diags
+		}
+		// If it's anything other than the "var" prefix then we'll just return
+		// whatever the parent scope returned directly, because we don't
+		// need to be involved anymore.
+		return attr, diags
+	}
+
+	// If we get here then we're now nested under the "var." prefix, but
+	// we only need to get involved if the reference is to the variable
+	// we're currently validating.
+	if ref.Name == i.wantName {
+		return exprs.ValueOf(exprs.ConstantValuer(i.finalVal)), nil
+	}
+	return i.varTable.ResolveAttr(ref)
+}
+
+// ResolveFunc implements exprs.Scope.
+func (i *inputVariableValidationScope) ResolveFunc(call *hcl.StaticCall) (function.Function, tfdiags.Diagnostics) {
+	return i.parentScope.ResolveFunc(call)
 }
