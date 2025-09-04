@@ -54,7 +54,7 @@ func (c *Closure) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnost
 // operations, in which case they should respond gracefully to cancellation
 // of the given context.
 func (c *Closure) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	return Evaluate(ctx, c.evalable, c.scope)
+	return EvalResult(Evaluate(ctx, c.evalable, c.scope))
 }
 
 // SourceRange returns the source range of the underlying [Evalable].
