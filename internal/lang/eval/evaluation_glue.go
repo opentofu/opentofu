@@ -34,5 +34,5 @@ type evaluationGlue interface {
 	// resource instance object, but guaranteed to have already been validated.
 	// The implementation of this method should not call ConfigValue again
 	// and should instead just trust the value given as an argument.
-	ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value) (cty.Value, tfdiags.Diagnostics)
+	ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics)
 }

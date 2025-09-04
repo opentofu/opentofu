@@ -41,6 +41,14 @@ type ResourceInstance struct {
 	// it's by the instance-compilation logic in the parent [Resource].
 	ConfigValuer *OnceValuer
 
+	// ProviderInstanceValuer is a valuer for producing a value representing
+	// the provider instance that this resource instance is associated with.
+	//
+	// This valuer should return a value of the capsule type produced by passing
+	// the address from the Provider field into [ProviderInstanceRefType],
+	// or else type mismatch errors will be reported during evaluation.
+	ProviderInstanceValuer *OnceValuer
+
 	// Glue is provided by the system that "compiled" this [ResourceInstance]
 	// object to allow calling back into that system to ask further questions
 	// that arise dynamically during evaluation but whose results vary based
@@ -93,12 +101,23 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 
+	providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
+
 	// We also need help from our caller to prepare the final value to
 	// return here, because it should reflect the outcome of whatever
 	// resource-instance-related side effects we're doing this evaluation in
 	// support of. Refer to the documentation of the ResultValue method
 	// for details on what we're expecting this to do.
-	resultVal, diags := ri.Glue.ResultValue(ctx, configVal)
+	resultVal, diags := ri.Glue.ResultValue(ctx, configVal, providerInst)
+
+	// We must pass the marks from the provider instance selection into the
+	// result because the values that were returned may vary depending on
+	// the provider configuration.
+	resultVal = resultVal.WithMarks(providerInstMarks)
 
 	// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
 	// the check rule expressions onto resultVal because the presence of
@@ -107,6 +126,25 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 	// The result needs some additional preparation to make sure it's
 	// marked correctly for ongoing use in other expressions.
 	return exprs.EvalResult(prepareResourceInstanceResult(resultVal, ri, configVal), diags)
+}
+
+func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (Maybe[*ProviderInstance], cty.ValueMarks, tfdiags.Diagnostics) {
+	v, diags := ri.ProviderInstanceValuer.Value(ctx)
+	if diags.HasErrors() {
+		return nil, cty.NewValueMarks(exprs.EvalError), diags
+	}
+	inst, marks, err := ProviderInstanceFromValue(v, ri.Provider)
+	if err != nil {
+		marks[exprs.EvalError] = struct{}{}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance reference",
+			Detail:   fmt.Sprintf("Unsuitable provider selection for %s: %s.", ri.Addr, tfdiags.FormatError(err)),
+			Subject:  MaybeHCLSourceRange(ri.ProviderInstanceValuer.ValueSourceRange()),
+		})
+		return nil, marks, diags
+	}
+	return inst, marks, diags
 }
 
 // ResourceInstanceDependencies returns a sequence of any other resource
@@ -143,7 +181,9 @@ func (ri *ResourceInstance) ResourceInstanceDependencies(ctx context.Context) it
 	return func(yield func(*ResourceInstance) bool) {
 		for depInst := range ContributingResourceInstances(resultVal) {
 			if depInst != ri {
-				yield(depInst)
+				if !yield(depInst) {
+					return
+				}
 			}
 		}
 	}
@@ -165,5 +205,9 @@ func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph
 	announce(ri.ConfigValuer.RequestID(), grapheval.RequestInfo{
 		Name:        fmt.Sprintf("configuration for %s", ri.Addr),
 		SourceRange: ri.ConfigValuer.ValueSourceRange(),
+	})
+	announce(ri.ProviderInstanceValuer.RequestID(), grapheval.RequestInfo{
+		Name:        fmt.Sprintf("provider instance selection for %s", ri.Addr),
+		SourceRange: ri.ProviderInstanceValuer.ValueSourceRange(),
 	})
 }

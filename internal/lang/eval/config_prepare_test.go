@@ -138,6 +138,10 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 	}.Absolute(addrs.RootModuleInstance)
 	inst0 := addrs.IntKey(0)
 	inst1 := addrs.IntKey(1)
+	providerInstAddr := addrs.AbsProviderConfigCorrect{
+		Module:   addrs.RootModuleInstance,
+		Provider: addrs.MustParseProviderSourceString("test/foo"),
+	}.Instance(addrs.NoKey)
 
 	// The analysis should detect that:
 	// - ephemeral.foo.a[0] is used by ephemeral.foo.b[0] and foo.c[0]
@@ -175,6 +179,20 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 				fooC.Instance(inst0),
 			)),
 			addrs.MakeMapElem(fooB.Instance(inst1), addrs.MakeSet(
+				fooC.Instance(inst1),
+			)),
+		),
+
+		// PrepareToPlan also finds the resources that belong to each
+		// provider instance, which is not the focus of this test but
+		// are part of the result nonetheless.
+		ProviderInstanceUsers: addrs.MakeMap(
+			addrs.MakeMapElem(providerInstAddr, addrs.MakeSet(
+				fooA.Instance(inst0),
+				fooA.Instance(inst1),
+				fooB.Instance(inst0),
+				fooB.Instance(inst1),
+				fooC.Instance(inst0),
 				fooC.Instance(inst1),
 			)),
 		),
