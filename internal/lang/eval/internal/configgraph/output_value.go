@@ -8,6 +8,7 @@ package configgraph
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -29,7 +30,11 @@ type OutputValue struct {
 
 	// Preconditions are user-defined checks that must succeed before OpenTofu
 	// will evaluate the output value's expression.
-	Preconditions []CheckRule
+	//
+	// Unlike some other uses of [CheckRule], output value preconditions don't
+	// have any special local symbols in scope and so are precompiled as part of
+	// the [OutputValue] they belong to.
+	Preconditions []*CheckRule
 
 	// RawValue produces the "raw" value, as chosen by the caller of the
 	// module, which has not yet been type-converted or validated.
@@ -86,30 +91,30 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 	// would then replace a more general error message that might otherwise
 	// be produced by expression evaluation.
 	//
-	// TODO: Probably need to factor this part out into a separate function
-	// so that we can collect up check results for inclusion in the checks
-	// summary in the plan or state, but for now we're not worrying about
-	// that because it's pretty rarely-used functionality.
-	for _, rule := range o.Preconditions {
-		status, moreDiags := rule.Check(ctx, nil)
-		diags = diags.Append(moreDiags)
-		if status == checks.StatusFail {
-			errMsg, moreDiags := rule.ErrorMessage(ctx, nil)
-			diags = diags.Append(moreDiags)
-			if !moreDiags.HasErrors() {
+	// TODO: We probably need to find some way to collect up check results for
+	// inclusion in the checks summary in the plan or state, but for now we're
+	// not worrying about that because it's pretty rarely-used functionality.
+	preconditionMarks, moreDiags := CheckAllRules(ctx,
+		slices.Values(o.Preconditions),
+		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+			var diags tfdiags.Diagnostics
+			if status == checks.StatusFail {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Output value precondition failed",
-					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, rule.DeclRange().StartString()),
-					Subject:  rule.ConditionRange().ToHCL().Ptr(),
+					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the precondition at %s.", errMsg, ruleDeclRange.StartString()),
+					Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
 				})
 			}
-		}
-	}
+			return diags
+		},
+	)
+	diags = diags.Append(moreDiags)
+
 	if diags.HasErrors() {
 		// If the preconditions caused at least one error then we must
 		// not proceed any further.
-		return exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())), diags
+		return exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())).WithMarks(preconditionMarks), diags
 	}
 
 	rawV, diags := o.RawValue.Value(ctx)
@@ -124,16 +129,16 @@ func (o *OutputValue) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics
 			Detail:   fmt.Sprintf("Unsuitable value for output value %q: %s.", o.Addr.OutputValue.Name, tfdiags.FormatError(err)),
 			Subject:  MaybeHCLSourceRange(o.ValueSourceRange()),
 		})
-		finalV = exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep()))
+		finalV = exprs.AsEvalError(cty.UnknownVal(o.TargetType.WithoutOptionalAttributesDeep())).WithMarks(preconditionMarks)
 	}
 
+	finalV = finalV.WithMarks(preconditionMarks)
 	if o.ForceSensitive {
 		finalV = finalV.Mark(marks.Sensitive)
 	}
 	if o.ForceEphemeral {
 		finalV = finalV.Mark(marks.Ephemeral)
 	}
-	// TODO: deprecation marks
 
 	return finalV, diags
 }
