@@ -164,22 +164,33 @@ func compileModuleInstance(
 		ModuleSourceAddr: moduleSourceAddr,
 		CallDeclRange:    call.declRange,
 	}
+	// topScope is the top-level scope that defines what all normal expressions
+	// within the module can refer to, such as the top-level "var" and "local"
+	// symbols and all of the available functions.
+	topScope := &moduleInstanceScope{
+		inst: ret,
+
+		// TODO: Populate this, but to do so we'll need some way for the
+		// caller to specify whether "impure functions" are allowed and
+		// what base directory to use for the filesystem functions.
+		coreFunctions: nil,
+	}
 
 	// We have some shims in here to deal with the unusual way the existing
 	// OpenTofu language deals with references to provider instances, since
 	// [configgraph] is designed to support treating them as "normal" values
 	// in future but we want to keep existing modules working for now.
-	ret.ProviderConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, ret, module.ProviderLocalNames, call.evalContext.Providers)
+	ret.ProviderConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, topScope, module.ProviderLocalNames, call.evalContext.Providers)
 	providersSidechannel := compileModuleProvidersSidechannel(ctx, ret, call.providersFromParent, ret.ProviderConfigNodes)
 
-	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, ret, call.calleeAddr, call.declRange)
-	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, ret, call.calleeAddr)
-	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, ret, call.calleeAddr)
+	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, topScope, call.calleeAddr, call.declRange)
+	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.calleeAddr)
+	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, topScope, call.calleeAddr)
 	ret.ResourceNodes = compileModuleInstanceResources(ctx,
 		module.ManagedResources,
 		module.DataResources,
 		module.EphemeralResources,
-		ret,
+		topScope,
 		providersSidechannel,
 		call.calleeAddr,
 		call.evalContext.Providers,
@@ -254,7 +265,7 @@ func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*con
 	return ret
 }
 
-func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*configs.Output, declScope *configgraph.ModuleInstance, moduleInstAddr addrs.ModuleInstance) map[addrs.OutputValue]*configgraph.OutputValue {
+func compileModuleInstanceOutputValues(_ context.Context, configs map[string]*configs.Output, declScope exprs.Scope, moduleInstAddr addrs.ModuleInstance) map[addrs.OutputValue]*configgraph.OutputValue {
 	ret := make(map[addrs.OutputValue]*configgraph.OutputValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.OutputValue{Name: name}
