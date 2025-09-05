@@ -40,9 +40,9 @@ type OutputValue struct {
 	// module, which has not yet been type-converted or validated.
 	RawValue *OnceValuer
 
-	// TargetType and targetDefaults together represent the type conversion
+	// TargetType and TargetDefaults together represent the type conversion
 	// and default object attribute value insertions that must be applied
-	// to rawValue to produce the final result.
+	// to RawValue to produce the final result.
 	TargetType     cty.Type
 	TargetDefaults *typeexpr.Defaults
 
