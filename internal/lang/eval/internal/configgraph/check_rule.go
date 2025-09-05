@@ -171,7 +171,7 @@ func (r *CheckRule) DeclRange() tfdiags.SourceRange {
 // that the final value was effectively "derived from" the check results.
 func CheckAllRules(ctx context.Context, rules iter.Seq[*CheckRule], handleResult func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics) (cty.ValueMarks, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	marks := cty.NewValueMarks()
+	marks := make(cty.ValueMarks)
 	for rule := range rules {
 		status, moreMarks, moreDiags := rule.Check(ctx)
 		maps.Copy(marks, moreMarks)

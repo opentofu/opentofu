@@ -44,6 +44,10 @@ type evalResultMark rune
 // non-expression-based evaluation can participate in this marking scheme.
 const EvalError = evalResultMark('E')
 
+func (ee evalResultMark) GoString() string {
+	return "exprs.EvalError"
+}
+
 // AsEvalError returns the given value with [EvalError] applied to it as a mark.
 //
 // The expression evaluator in this package automatically adds this mark when
