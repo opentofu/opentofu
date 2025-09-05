@@ -176,3 +176,34 @@ func (f forcedErrorValuer) References() iter.Seq[hcl.Traversal] {
 func (f forcedErrorValuer) ResultTypeConstraint() cty.Type {
 	return cty.DynamicPseudoType
 }
+
+// DerivedValuer returns a [Valuer] that first evaluates the source valuer
+// and then passes its results to the "project" function, before returning
+// whatever that returns.
+//
+// The source range of the returned valuer is the same as the source valuer.
+func DerivedValuer(source Valuer, project func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)) Valuer {
+	return derivedValuer{source, project}
+}
+
+type derivedValuer struct {
+	source  Valuer
+	project func(cty.Value, tfdiags.Diagnostics) (cty.Value, tfdiags.Diagnostics)
+}
+
+// StaticCheckTraversal implements Valuer.
+func (d derivedValuer) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
+	// We can't predict what the "project" function will return, so we'll
+	// just wait until dynamic eval time to check.
+	return nil
+}
+
+// Value implements Valuer.
+func (d derivedValuer) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	return d.project(d.source.Value(ctx))
+}
+
+// ValueSourceRange implements Valuer.
+func (d derivedValuer) ValueSourceRange() *tfdiags.SourceRange {
+	return d.source.ValueSourceRange()
+}
