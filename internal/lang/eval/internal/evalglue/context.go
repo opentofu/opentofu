@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package eval
+package evalglue
 
 // EvalContext is a collection of contextual information provided by an
 // external caller of this package to help it to interact with the surrounding
@@ -27,10 +27,10 @@ type EvalContext struct {
 	Provisioners Provisioners
 }
 
-// init must be called early on entry to any exported function that accepts
+// Init must be called early on entry to any exported function that accepts
 // an [EvalContext] as an argument to prepare it for use, before accessing
 // any of its fields or calling any of its other methods.
-func (c *EvalContext) init() {
+func (c *EvalContext) Init() {
 	// If any of the external dependency fields were left nil (likely in
 	// unit tests which aren't intending to use a particular kind of dependency)
 	// we'll replace it with a non-nil implementation that just returns an
