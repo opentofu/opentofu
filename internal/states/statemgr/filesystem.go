@@ -198,6 +198,9 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 		if err := s.createStateFiles(); err != nil {
 			return nil
 		}
+		if err := s.prepareBackupFile(); err != nil {
+			return nil
+		}
 	}
 	defer func() {
 		if err := s.stateFileOut.Sync(); err != nil {
@@ -385,6 +388,10 @@ func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 		return "", lockErr
 	}
 
+	if err := s.prepareBackupFile(); err != nil {
+		return "", fmt.Errorf("failed to write backup file: %w", err)
+	}
+
 	s.lockID = info.ID
 	return s.lockID, s.writeLockInfo(info)
 }
@@ -525,9 +532,13 @@ func (s *Filesystem) createStateFiles() error {
 	}
 
 	s.stateFileOut = f
+	return nil
+}
 
+func (s *Filesystem) prepareBackupFile() error {
 	// If the file already existed with content then that'll be the content
 	// of our backup file if we write a change later.
+	var err error
 	s.backupFile, err = statefile.Read(s.stateFileOut, s.encryption)
 	if err != nil {
 		if err != statefile.ErrNoState {
