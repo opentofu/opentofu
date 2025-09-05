@@ -196,7 +196,7 @@ func (ri *ResourceInstance) ValueSourceRange() *tfdiags.SourceRange {
 
 // CheckAll implements allChecker.
 func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	cg.CheckValuer(ctx, ri)
 	return cg.Complete(ctx)
 }

@@ -45,7 +45,7 @@ func (l *LocalValue) ValueSourceRange() *tfdiags.SourceRange {
 
 // CheckAll implements allChecker.
 func (l *LocalValue) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	cg.CheckValuer(ctx, l) // We just check our overall Valuer method because it aggregates everything
 	return cg.Complete(ctx)
 }
