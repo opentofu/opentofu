@@ -30,15 +30,11 @@ type ModuleInstanceCall struct {
 	// InputValues describes how to build the values for the input variables
 	// for this instance of the module.
 	//
-	// For a call caused by a "module" block in a parent module, these would
-	// be closures binding the expressions written in the module block to
-	// the scope of the module block. The scope of the module block should
-	// include the each.key/each.value/count.index symbols initialized as
-	// appropriate for this specific instance of the module call. It's
-	// the caller of [CompileModuleInstance]'s responsibility to set these
-	// up correctly so that the child module can be compiled with no direct
-	// awareness of where it's being called from.
-	InputValues map[addrs.InputVariable]exprs.Valuer
+	// This is a single valuer because when constructing this the caller
+	// doesn't yet know what input variables the child module is expecting,
+	// and so it just sends over whatever was present in the call and expects
+	// the callee to reject it if it isn't compatible with the callee's API.
+	InputValues exprs.Valuer
 
 	// ProvidersFromParent are values representing provider instances passed in
 	// through our side-channel using the "providers" meta argument in the
