@@ -117,6 +117,12 @@ func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 // DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
 // from module output specific data.
 func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFromRemoteModule bool) cty.Value {
+	if addr.Module.IsRoot() {
+		// Marking a root output as deprecated has no impact.
+		// We hit this case when using the test framework on a module however.
+		// This is requried as the ModuleCallOutput() below will panic on the root module.
+		return v
+	}
 	_, callOutAddr := addr.ModuleCallOutput()
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
