@@ -96,7 +96,7 @@ func (p *ProviderConfig) ValueSourceRange() *tfdiags.SourceRange {
 
 // CheckAll implements allChecker.
 func (p *ProviderConfig) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	// Our InstanceSelector itself might block on expression evaluation,
 	// so we'll run it async as part of the checkGroup.
 	cg.Await(ctx, func(ctx context.Context) {

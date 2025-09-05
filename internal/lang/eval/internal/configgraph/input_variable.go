@@ -118,7 +118,7 @@ func (i *InputVariable) ValueSourceRange() *tfdiags.SourceRange {
 }
 
 func (i *InputVariable) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	// We do a check on the InputVariable as a whole here, rather than
 	// treating its CheckRules as children, because a CheckRule isn't
 	// a standalone object that can self-check but rather just a detail
