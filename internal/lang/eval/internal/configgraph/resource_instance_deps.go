@@ -58,13 +58,10 @@ func ContributingResourceInstances(v cty.Value) iter.Seq[*ResourceInstance] {
 	// multiple references to the same resource instance as long as the
 	// pointers are unique, but the doc comment above reserves the right
 	// to change our approach here in future, if needed.)
-	_, marks := v.UnmarkDeep()
 	return func(yield func(*ResourceInstance) bool) {
-		for mark := range marks {
-			if mark, ok := mark.(ResourceInstanceMark); ok {
-				if !yield(mark.instance) {
-					break
-				}
+		for mark := range cty.ValueMarksOfTypeDeep[ResourceInstanceMark](v) {
+			if !yield(mark.instance) {
+				break
 			}
 		}
 	}
