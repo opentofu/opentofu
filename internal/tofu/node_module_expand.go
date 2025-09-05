@@ -141,7 +141,24 @@ func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op 
 				return diags
 			}
 			expander.SetModuleForEach(module, call, forEach)
-
+		// TODO: Conditional enable work: Plumbing with modules
+		// case n.ModuleCall.Enabled != nil:
+		// 	// For enabled expressions, we need to evaluate in the parent module context
+		// 	// since the expression may reference variables defined in the parent module. e.g.
+		// 	// variable "on" { type = bool }
+		// 	// module "mod1" {
+		// 	// 	 source = "./mod1"
+		// 	// 	 lifecycle {
+		// 	// 	   enabled = var.on
+		// 	// 	 }
+		// 	// }
+		// 	parentEvalCtx := evalCtx.WithPath(module.Parent())
+		// 	enabled, enDiags := evaluateEnabledExpression(ctx, n.ModuleCall.Enabled, parentEvalCtx)
+		// 	diags = diags.Append(enDiags)
+		// 	if diags.HasErrors() {
+		// 		return diags
+		// 	}
+		// 	expander.SetModuleEnabled(module, call, enabled)
 		default:
 			expander.SetModuleSingle(module, call)
 		}
