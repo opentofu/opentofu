@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -129,7 +130,7 @@ type EphemeralResourceUsers struct {
 //
 // This must be called with a [context.Context] that's associated with a
 // [grapheval.Worker].
-func (c *ConfigInstance) precheckedModuleInstance(ctx context.Context) (*configgraph.ModuleInstance, tfdiags.Diagnostics) {
+func (c *ConfigInstance) precheckedModuleInstance(ctx context.Context) (evalglue.CompiledModuleInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	internalGlue := &preparationGlue{

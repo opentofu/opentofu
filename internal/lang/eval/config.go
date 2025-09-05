@@ -11,7 +11,8 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/tofu2024"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -22,7 +23,7 @@ import (
 type ConfigInstance struct {
 	rootModuleSource addrs.ModuleSource
 	inputValues      map[addrs.InputVariable]exprs.Valuer
-	evalContext      *EvalContext
+	evalContext      *evalglue.EvalContext
 }
 
 // ConfigCall describes a call to a root module that acts conceptually like
@@ -53,7 +54,7 @@ type ConfigCall struct {
 	// EvalContext describes the context where the call is being made, dealing
 	// with cross-cutting concerns like which providers are available and how
 	// to load them.
-	EvalContext *EvalContext
+	EvalContext *evalglue.EvalContext
 }
 
 // NewConfigInstance builds a new [ConfigInstance] based on the information
@@ -72,9 +73,9 @@ func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, 
 	// real callers should explicitly set all of this.
 	evalCtx := call.EvalContext
 	if evalCtx == nil {
-		evalCtx = &EvalContext{}
+		evalCtx = &evalglue.EvalContext{}
 	}
-	evalCtx.init()
+	evalCtx.Init()
 
 	inst := &ConfigInstance{
 		rootModuleSource: call.RootModuleSource,
@@ -99,17 +100,17 @@ func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, 
 // the resulting configuration tree by calling
 // [configgraph.ModuleInstance.CheckBeneath] to ensure that everything in
 // the configuration gets a chance to report errors.
-func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evaluationGlue) (*configgraph.ModuleInstance, tfdiags.Diagnostics) {
+func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglue.Glue) (evalglue.CompiledModuleInstance, tfdiags.Diagnostics) {
 	rootModule, diags := c.evalContext.Modules.ModuleConfig(ctx, c.rootModuleSource, versions.All, nil)
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	rootModuleCall := &moduleInstanceCall{
-		calleeAddr:     addrs.RootModuleInstance,
-		inputValues:    c.inputValues,
-		evaluationGlue: glue,
-		evalContext:    c.evalContext,
+	rootModuleCall := &tofu2024.ModuleInstanceCall{
+		CalleeAddr:     addrs.RootModuleInstance,
+		InputValues:    c.inputValues,
+		EvaluationGlue: glue,
+		EvalContext:    c.evalContext,
 	}
-	rootModuleInstance := compileModuleInstance(ctx, rootModule, c.rootModuleSource, rootModuleCall)
+	rootModuleInstance := tofu2024.CompileModuleInstance(ctx, rootModule, c.rootModuleSource, rootModuleCall)
 	return rootModuleInstance, diags
 }

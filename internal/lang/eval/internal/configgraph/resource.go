@@ -109,7 +109,7 @@ func (r *Resource) decideInstances(ctx context.Context) (*compiledInstances[*Res
 
 // CheckAll implements allChecker.
 func (r *Resource) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	// Our InstanceSelector itself might block on expression evaluation,
 	// so we'll run it async as part of the checkGroup.
 	cg.Await(ctx, func(ctx context.Context) {

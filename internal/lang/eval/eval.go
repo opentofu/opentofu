@@ -10,7 +10,8 @@ import (
 	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
-	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -25,7 +26,7 @@ import (
 // because it arranges for tracking workgraph request IDs so we can return
 // helpful error messages when expression evaluation encounters a
 // self-dependency problem.
-func checkAll(ctx context.Context, rootModuleInstance *configgraph.ModuleInstance) tfdiags.Diagnostics {
+func checkAll(ctx context.Context, rootModuleInstance evalglue.CompiledModuleInstance) tfdiags.Diagnostics {
 	// If the grapheval package detects a self-dependency problem during
 	// evaluation then it'll use this tracker to find human-friendly names
 	// for all of the requests involved in the error.
@@ -43,7 +44,7 @@ func checkAll(ctx context.Context, rootModuleInstance *configgraph.ModuleInstanc
 // to do this request-tracking work unless a grapheval-related error actually
 // occurs, since such errors ought to be rare.
 type workgraphRequestTracker struct {
-	rootModuleInstance *configgraph.ModuleInstance
+	rootModuleInstance evalglue.CompiledModuleInstance
 }
 
 // ActiveRequests implements grapheval.RequestTracker.

@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package eval
+package tofu2024
 
 import (
 	"fmt"
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -37,7 +36,7 @@ import (
 //    https://github.com/opentofu/opentofu/pull/2262
 
 type moduleInstanceScope struct {
-	inst          *configgraph.ModuleInstance
+	inst          *CompiledModuleInstance
 	coreFunctions map[string]function.Function
 
 	// TODO: some way to interact with provider-defined functions too, but
@@ -157,7 +156,7 @@ func (m *moduleInstanceScope) resolveResourceAttr(addr addrs.Resource, rng tfdia
 	// [ModuleInstance.ResourceAttr] for the beginning of this process.
 
 	var diags tfdiags.Diagnostics
-	r, ok := m.inst.ResourceNodes[addr]
+	r, ok := m.inst.resourceNodes[addr]
 	if !ok {
 		// TODO: Try using "didyoumean" with resource types and names that
 		// _are_ declared in the module to see if we can suggest an alternatve.
@@ -182,7 +181,7 @@ func (m *moduleInstanceScope) resolveSimpleChildAttr(topSymbol string, ref hcl.T
 	switch topSymbol {
 
 	case "var":
-		v, ok := m.inst.InputVariableNodes[addrs.InputVariable{Name: ref.Name}]
+		v, ok := m.inst.inputVariableNodes[addrs.InputVariable{Name: ref.Name}]
 		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -195,7 +194,7 @@ func (m *moduleInstanceScope) resolveSimpleChildAttr(topSymbol string, ref hcl.T
 		return exprs.ValueOf(v), diags
 
 	case "local":
-		v, ok := m.inst.LocalValueNodes[addrs.LocalValue{Name: ref.Name}]
+		v, ok := m.inst.localValueNodes[addrs.LocalValue{Name: ref.Name}]
 		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,

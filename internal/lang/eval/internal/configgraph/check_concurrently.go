@@ -24,21 +24,21 @@ import (
 //
 // The expected pattern is something like this:
 //
-//	var cg checkGroup
+//	var cg CheckGroup
 //	cg.CheckValuer(ctx, thisObject.SomeValuer)
 //	cg.CheckChild(ctx, thisObject.SomeChildObject)
 //	return cg.Complete(ctx)
 //
 // The Complete method then waits for all of the requested checks to complete
 // and returns all of the diagnostics collected across them all.
-type checkGroup struct {
+type CheckGroup struct {
 	wg sync.WaitGroup
 
 	diags tfdiags.Diagnostics // must lock mu to access, until wg.Wait returns.
 	mu    sync.Mutex
 }
 
-func (g *checkGroup) CheckChild(ctx context.Context, child allChecker) {
+func (g *CheckGroup) CheckChild(ctx context.Context, child allChecker) {
 	g.wg.Go(func() {
 		diags := child.CheckAll(grapheval.ContextWithNewWorker(ctx))
 		g.mu.Lock()
@@ -47,7 +47,7 @@ func (g *checkGroup) CheckChild(ctx context.Context, child allChecker) {
 	})
 }
 
-func (g *checkGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
+func (g *CheckGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
 	g.wg.Go(func() {
 		// We use Value to make sure we're running the same codepath that
 		// normal evaluation would use, but we only care about the diags.
@@ -63,7 +63,7 @@ func (g *checkGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
 // given callback can block on arbitrary workgraph-coordinated operations
 // but should eventually make zero or more calls to Check* methods on the
 // same [checkGroup] before it returns.
-func (g *checkGroup) Await(ctx context.Context, cb func(ctx context.Context)) {
+func (g *CheckGroup) Await(ctx context.Context, cb func(ctx context.Context)) {
 	g.wg.Go(func() {
 		// We give the waiter its own worker since it may run concurrently
 		// with other Awaits or with Check* calls.
@@ -76,7 +76,7 @@ func (g *checkGroup) Await(ctx context.Context, cb func(ctx context.Context)) {
 //
 // After calling Complete the [checkGroup] is closed and must not be used
 // anymore.
-func (g *checkGroup) Complete(_ context.Context) tfdiags.Diagnostics {
+func (g *CheckGroup) Complete(_ context.Context) tfdiags.Diagnostics {
 	g.wg.Wait()
 	return g.diags
 }
