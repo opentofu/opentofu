@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package eval
+package tofu2024
 
 import (
 	"context"
@@ -12,102 +12,15 @@ import (
 	"slices"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
-
-// The functions and types in this file are concerned with "compiling" the
-// representation of modules in [configs] into the representation used by
-// [configgraph].
-//
-// The design idea here is that [configgraph] works in terms of OpenTofu's
-// langage concepts and [cty.Value] but is not aware of the current physical
-// syntax or how [configs] represents it, so that in theory we could have
-// different translations to those concepts for different editions of the
-// language in future. This is unlike traditional "package tofu" where
-// everything is very tightly coupled to [configs], making it hard to evolve
-// (or replace) that package over time.
-//
-// The code in here could probably move into another package under the
-// "internal" directory rather than being inline here, since this logic
-// is thematically separate from the "config eval" functionality provided
-// by the rest of this package, but it's here for now just to avoid
-// overthinking too much while this is still evolving.
-
-type moduleInstanceCall struct {
-	// calleeAddr is the absolute address of this module instance that should
-	// be used as the basis for calculating addresses of resources within
-	// and beneath it.
-	calleeAddr addrs.ModuleInstance
-
-	// declRange is the source location of the header of the module block
-	// that is making this call, or some similar config construct that's
-	// acting like a module call.
-	//
-	// This should be nil for calls that are caused by something other than
-	// configuration, such as a top-level call to a root module caused by
-	// running an OpenTofu CLI command.
-	declRange *tfdiags.SourceRange
-
-	// inputValues describes how to build the values for the input variables
-	// for this instance of the module.
-	//
-	// For a call caused by a "module" block in a parent module, these would
-	// be closures binding the expressions written in the module block to
-	// the scope of the module block. The scope of the module block should
-	// include the each.key/each.value/count.index symbols initialized as
-	// appropriate for this specific instance of the module call. It's
-	// the caller of [compileModuleInstance]'s responsibility to set these
-	// up correctly so that the child module can be compiled with no direct
-	// awareness of where it's being called from.
-	inputValues map[addrs.InputVariable]exprs.Valuer
-
-	// providersFromParent are values representing provider instances passed in
-	// through our side-channel using the "providers" meta argument in the
-	// calling module block.
-	//
-	// These valuers MUST return values of types returned by
-	// [configgraph.ProviderInstanceRefType], which are capsule types that
-	// carry [configgraph.ProviderInstance] values. It's implemented this
-	// way so that [configgraph] can think of provider instance references as
-	// just normal values and not be aware of the current weird situation where
-	// they have their own special reference expression syntax and pass
-	// between modules via completely different rules than other values.
-	//
-	// (One day we'd like to actually offer provider instance references as
-	// normal values in the surface language too, but it's not obvious how
-	// to get there from our current language without splitting the ecosystem
-	// between old-style and new-style modules.)
-	providersFromParent map[addrs.LocalProviderConfig]exprs.Valuer
-
-	// TODO: provider instances from the "providers" argument in the
-	// calling module, once we have enough of this implemented for that
-	// to be useful. Will need to straighten out the address types
-	// for provider configs and instances in package addrs first so
-	// that we finally have a proper address type for a provider
-	// instance with an instance key.
-
-	// evaluationGlue is the [evaluationGlue] implementation to use when
-	// the evaluator needs information from outside of the configuration.
-	//
-	// All module instances belonging to a single configuration tree should
-	// typically share the same evaluationGlue.
-	evaluationGlue evaluationGlue
-
-	// evalContext is the [EvalContext] to use to interact with the context.
-	//
-	// Compared to evaluationGlue, evalContext deals with concerns that
-	// are typically held constant throughout sequential validate, plan, and
-	// apply phases, whereas evaluationGlue is where we deal with behaviors
-	// that need to vary between phases.
-	evalContext *EvalContext
-}
 
 // compileModuleInstance is the main entry point for binding a module
 // configuration to information from an instance of a module call and
@@ -120,7 +33,7 @@ type moduleInstanceCall struct {
 // a single module (no state, no other modules) and is written as much
 // as possible as straightforward linear code, with inversion of control
 // techniques only where it's useful to separate concerns.
-func compileModuleInstance(
+func CompileModuleInstance(
 	ctx context.Context,
 	module *configs.Module,
 
@@ -135,8 +48,8 @@ func compileModuleInstance(
 	// extra argument.
 	moduleSourceAddr addrs.ModuleSource,
 
-	call *moduleInstanceCall,
-) *configgraph.ModuleInstance {
+	call *ModuleInstanceCall,
+) *CompiledModuleInstance {
 	// -----------------------------------------------------------------------
 	// This intentionally has no direct error return path, because:
 	// 1. The code that builds *configs.Module should already have reported
@@ -160,12 +73,15 @@ func compileModuleInstance(
 	// declared in this module, represented either directly by pointers or
 	// indirectly through expressions, and so for the remainder of this
 	// function we need to be careful in how we interact with the methods of
-	// [configgraph.ModuleInstance] since many of them only make sense to
-	// call everything has been completely assembled.
-	ret := &configgraph.ModuleInstance{
-		ModuleSourceAddr: moduleSourceAddr,
-		CallDeclRange:    call.declRange,
+	// [CompiledModuleInstance] since many of them only make sense to call
+	// after everything has been completely assembled.
+	ret := &CompiledModuleInstance{
+		moduleInstanceNode: &configgraph.ModuleInstance{
+			Addr:          call.CalleeAddr,
+			CallDeclRange: call.DeclRange,
+		},
 	}
+
 	// topScope is the top-level scope that defines what all normal expressions
 	// within the module can refer to, such as the top-level "var" and "local"
 	// symbols and all of the available functions.
@@ -182,21 +98,21 @@ func compileModuleInstance(
 	// OpenTofu language deals with references to provider instances, since
 	// [configgraph] is designed to support treating them as "normal" values
 	// in future but we want to keep existing modules working for now.
-	ret.ProviderConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, topScope, module.ProviderLocalNames, call.evalContext.Providers)
-	providersSidechannel := compileModuleProvidersSidechannel(ctx, ret, call.providersFromParent, ret.ProviderConfigNodes)
+	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, topScope, module.ProviderLocalNames, call.EvalContext.Providers)
+	providersSidechannel := compileModuleProvidersSidechannel(ctx, ret.moduleInstanceNode, call.ProvidersFromParent, ret.providerConfigNodes)
 
-	ret.InputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.inputValues, topScope, call.calleeAddr, call.declRange)
-	ret.LocalValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.calleeAddr)
-	ret.OutputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, topScope, call.calleeAddr)
-	ret.ResourceNodes = compileModuleInstanceResources(ctx,
+	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
+	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)
+	ret.outputValueNodes = compileModuleInstanceOutputValues(ctx, module.Outputs, topScope, call.CalleeAddr)
+	ret.resourceNodes = compileModuleInstanceResources(ctx,
 		module.ManagedResources,
 		module.DataResources,
 		module.EphemeralResources,
 		topScope,
 		providersSidechannel,
-		call.calleeAddr,
-		call.evalContext.Providers,
-		call.evaluationGlue.ResourceInstanceValue,
+		call.CalleeAddr,
+		call.EvalContext.Providers,
+		call.EvaluationGlue.ResourceInstanceValue,
 	)
 
 	return ret
@@ -317,7 +233,7 @@ func compileModuleInstanceResources(
 	declScope exprs.Scope,
 	providersSideChannel *moduleProvidersSideChannel,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers Providers,
+	providers evalglue.Providers,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
@@ -342,7 +258,7 @@ func compileModuleInstanceResource(
 	declScope exprs.Scope,
 	providersSideChannel *moduleProvidersSideChannel,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers Providers,
+	providers evalglue.Providers,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()
@@ -408,7 +324,13 @@ func compileModuleInstanceResource(
 	return resourceAddr, ret
 }
 
-func compileModuleInstanceProviderConfigs(ctx context.Context, configs map[string]*configs.Provider, declScope exprs.Scope, localNames map[addrs.Provider]string, providers Providers) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
+func compileModuleInstanceProviderConfigs(
+	ctx context.Context,
+	configs map[string]*configs.Provider,
+	declScope exprs.Scope,
+	localNames map[addrs.Provider]string,
+	providers evalglue.Providers,
+) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
 	// TODO: Implement this properly, mimicking the logic that the current
 	// system follows for inferring implied configurations for providers
 	// that have an empty config schema.

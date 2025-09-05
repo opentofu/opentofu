@@ -150,7 +150,7 @@ func (o *OutputValue) ValueSourceRange() *tfdiags.SourceRange {
 
 // CheckAll implements allChecker.
 func (o *OutputValue) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	var cg checkGroup
+	var cg CheckGroup
 	// We just check our overall Value method because it covers everything,
 	// including the preconditions.
 	cg.CheckValuer(ctx, o)

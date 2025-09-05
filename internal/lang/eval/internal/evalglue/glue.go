@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package eval
+package evalglue
 
 import (
 	"context"
@@ -14,16 +14,16 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// evaluationGlue is an interface used internally by this package to deal
+// Glue is an interface used internally by the lang/eval packages to deal
 // with situations where evaluation relies on the results of side-effects
 // managed outside of this package, so that our generalized evaluation
 // logic can get the information it needs in a generic way.
 //
-// We export higher-level interfaces like [PlanGlue] and [ApplyGlue] that
+// We export higher-level interfaces like PlanGlue and ApplyGlue that
 // are more tailored for specific operations, and then we use implementations
-// of [evaluationGlue] to adapt that into the minimal set of operations
+// of [Glue] to adapt that into the minimal set of operations
 // that are needed regardless of what overall operation we're currently driving.
-type evaluationGlue interface {
+type Glue interface {
 	// ResourceInstanceValue returns the result value for the given resource
 	// instance.
 	//
