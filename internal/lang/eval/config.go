@@ -22,7 +22,7 @@ import (
 // context such as available providers and module packages.
 type ConfigInstance struct {
 	rootModuleSource addrs.ModuleSource
-	inputValues      map[addrs.InputVariable]exprs.Valuer
+	inputValues      exprs.Valuer
 	evalContext      *evalglue.EvalContext
 }
 
@@ -39,7 +39,7 @@ type ConfigCall struct {
 	// InputValues describes how to obtain values for the input variables
 	// declared in the root module.
 	//
-	// In typical use the InputValues map is assembled based on a combination
+	// In typical use the InputValues object is assembled based on a combination
 	// of ".tfvars" files, CLI arguments, and environment variables, but that's
 	// the responsibility of the Tofu CLI layer and so this package is totally
 	// unopinionated about how those are provided, so e.g. for .tftest.hcl "run"
@@ -49,7 +49,7 @@ type ConfigCall struct {
 	// In unit tests where the source of input variables is immaterial,
 	// [InputValuesForTesting] might be useful to build values for this
 	// field inline in the test code.
-	InputValues map[addrs.InputVariable]exprs.Valuer
+	InputValues exprs.Valuer
 
 	// EvalContext describes the context where the call is being made, dealing
 	// with cross-cutting concerns like which providers are available and how
