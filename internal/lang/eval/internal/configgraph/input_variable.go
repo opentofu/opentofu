@@ -68,7 +68,10 @@ func (i *InputVariable) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Di
 
 // Value implements exprs.Valuer.
 func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	rawV, diags := i.RawValue.Value(ctx)
+	var diags tfdiags.Diagnostics
+
+	rawV, moreDiags := i.RawValue.Value(ctx)
+	diags = diags.Append(moreDiags)
 	if i.TargetDefaults != nil {
 		rawV = i.TargetDefaults.Apply(rawV)
 	}
@@ -85,22 +88,25 @@ func (i *InputVariable) Value(ctx context.Context) (cty.Value, tfdiags.Diagnosti
 
 	// Once we have our converted and prepared value we can finally compile
 	// the validation rules against it and then check them.
-	validationMarks, moreDiags := CheckAllRules(ctx,
-		i.CompileValidationRules(ctx, finalV),
-		func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
-			var diags tfdiags.Diagnostics
-			if status == checks.StatusFail {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid value for input variable",
-					Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the validation rule at %s.", errMsg, ruleDeclRange.StartString()),
-					Subject:  i.ValueSourceRange().ToHCL().Ptr(),
-				})
-			}
-			return diags
-		},
-	)
-	diags = diags.Append(moreDiags)
+	var validationMarks cty.ValueMarks
+	if i.CompileValidationRules != nil {
+		validationMarks, moreDiags = CheckAllRules(ctx,
+			i.CompileValidationRules(ctx, finalV),
+			func(ruleDeclRange tfdiags.SourceRange, status checks.Status, errMsg string) tfdiags.Diagnostics {
+				var diags tfdiags.Diagnostics
+				if status == checks.StatusFail {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid value for input variable",
+						Detail:   fmt.Sprintf("%s\n\nThis problem was reported by the validation rule at %s.", errMsg, ruleDeclRange.StartString()),
+						Subject:  i.ValueSourceRange().ToHCL().Ptr(),
+					})
+				}
+				return diags
+			},
+		)
+		diags = diags.Append(moreDiags)
+	}
 
 	if diags.HasErrors() {
 		// If we found any problems then we'll use an unknown result of the
