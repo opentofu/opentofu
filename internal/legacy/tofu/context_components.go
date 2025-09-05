@@ -57,7 +57,7 @@ func (c *basicComponentFactory) ResourceProvider(typ addrs.Provider) (providers.
 		return nil, fmt.Errorf("unknown provider %q", typ.String())
 	}
 
-	return f()
+	return f(nil, nil)
 }
 
 func (c *basicComponentFactory) ResourceProvisioner(typ string) (provisioners.Interface, error) {
