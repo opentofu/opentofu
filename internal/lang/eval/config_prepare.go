@@ -181,6 +181,14 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 	// We now have enough information to produce a placeholder "planned new
 	// state" by placing unknown values in any location that the provider
 	// would be allowed to choose a value.
+	// NOTE: With the implementation of this function as of commit
+	// dd5257d58e27b1af3b8dde97c80daec97f6ca55e this shows as a pretty
+	// hot path in CPU profiling, which is not a huge surprise -- we've
+	// known it as relatively expensive from its use in "package tofu"
+	// already -- but it stands out more in this new implementation because
+	// it's not competing with other expensive work like performing transitive
+	// reduction on a dag, etc. The main problem seems to be that it allocates
+	// a _lot_ of temporary objects, and so there's lots of GC pressure.
 	return objchange.ProposedNew(
 		schema.Block, cty.NullVal(schema.Block.ImpliedType()), configVal,
 	), diags
