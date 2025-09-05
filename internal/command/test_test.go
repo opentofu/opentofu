@@ -1609,3 +1609,27 @@ func TestTest_MockProviderValidationForEach(t *testing.T) {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }
+
+// See https://github.com/opentofu/opentofu/issues/3246
+func TestTest_DeprecatedOutputs(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/deprecated_outputs"), td)
+	t.Chdir(td)
+
+	view, done := testView(t)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		Ui:   ui,
+		View: view,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+}
