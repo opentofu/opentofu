@@ -240,3 +240,94 @@ func (h *hclBody) EvalableSourceRange() tfdiags.SourceRange {
 	// is _close_ to the body being described.
 	return tfdiags.SourceRangeFromHCL(h.body.MissingItemRange())
 }
+
+// hclBodyJustAttributes implements [Evalable] for a [hcl.Body] using HCL's
+// "just attributes" evaluation mode.
+type hclBodyJustAttributes struct {
+	body hcl.Body
+}
+
+// EvalableHCLBody returns an [Evalable] that evaluates the given HCL body
+// in HCL's "just attributes" mode, and then returns an object value whose
+// attribute names and values are derived from the result.
+func EvalableHCLBodyJustAttributes(body hcl.Body) Evalable {
+	return &hclBodyJustAttributes{
+		body: body,
+	}
+}
+
+// EvalableSourceRange implements Evalable.
+func (h *hclBodyJustAttributes) EvalableSourceRange() tfdiags.SourceRange {
+	return tfdiags.SourceRangeFromHCL(h.body.MissingItemRange())
+}
+
+// Evaluate implements Evalable.
+func (h *hclBodyJustAttributes) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	attrs, hclDiags := h.body.JustAttributes()
+	diags = diags.Append(hclDiags)
+	// If we have errors already then we might not have the full set of
+	// attributes that were declared, so we'll return cty.DynamicVal below
+	// to avoid overpromising that we know the result type. However,
+	// we'll still visit all of the attributes we _did_ find in case
+	// that allows us to collect up some more expression-errors to return so we
+	// can tell the module author about as much as possible at once.
+	typeKnown := true
+	if hclDiags.HasErrors() {
+		typeKnown = false
+	}
+	retAttrs := make(map[string]cty.Value, len(attrs))
+	for name, attr := range attrs {
+		val, hclDiags := attr.Expr.Value(hclCtx)
+		diags = diags.Append(hclDiags)
+		if hclDiags.HasErrors() {
+			val = AsEvalError(cty.DynamicVal)
+		}
+		retAttrs[name] = val
+	}
+	if !typeKnown {
+		return EvalResult(cty.DynamicVal, diags)
+	}
+	// We don't use a top-level EvalError here because we selectively
+	// marked individual attribute values above, and we're confident
+	// that the set of attribute names in this object is correct because
+	// the original JustAttributes call succeeded.
+	return cty.ObjectVal(retAttrs), diags
+}
+
+// FunctionCalls implements Evalable.
+func (h *hclBodyJustAttributes) FunctionCalls() iter.Seq[*hcl.StaticCall] {
+	// For now this is not implemented because the underlying HCL API
+	// isn't the right shape to implement this method.
+	return func(yield func(*hcl.StaticCall) bool) {}
+}
+
+// References implements Evalable.
+func (h *hclBodyJustAttributes) References() iter.Seq[hcl.Traversal] {
+	// This case is annoying because we need to perform the shallow
+	// JustAttributes call to get the expressions to analyze, but then
+	// we'll need to call it again in Evaluate once the scope has
+	// been built. But only if we find this being a performance problem
+	// should we consider trying to cache this result.
+	//
+	// We ignore the diagnostics here because we're just making a best
+	// effort to learn what traversals we might need and then we'll
+	// return the same set of diagnostics from Evaluate.
+	attrs, _ := h.body.JustAttributes()
+	return func(yield func(hcl.Traversal) bool) {
+		for _, attr := range attrs {
+			for _, traversal := range attr.Expr.Variables() {
+				if !yield(traversal) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ResultTypeConstraint implements Evalable.
+func (h *hclBodyJustAttributes) ResultTypeConstraint() cty.Type {
+	// We cannot predict a result type in "just attributes" mode because
+	// the type depends on the results of the expressions in the body.
+	return cty.DynamicPseudoType
+}
