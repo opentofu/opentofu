@@ -99,7 +99,7 @@ func CompileModuleInstance(
 	// [configgraph] is designed to support treating them as "normal" values
 	// in future but we want to keep existing modules working for now.
 	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, topScope, module.ProviderLocalNames, call.EvalContext.Providers)
-	providersSidechannel := compileModuleProvidersSidechannel(ctx, ret.moduleInstanceNode, call.ProvidersFromParent, ret.providerConfigNodes)
+	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes)
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
 	ret.localValueNodes = compileModuleInstanceLocalValues(ctx, module.Locals, topScope, call.CalleeAddr)

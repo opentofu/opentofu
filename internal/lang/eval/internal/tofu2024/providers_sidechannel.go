@@ -47,7 +47,7 @@ type moduleProvidersSideChannel struct {
 	instanceVals map[addrs.LocalProviderConfig]exprs.Valuer
 }
 
-func compileModuleProvidersSidechannel(_ context.Context, moduleInst *configgraph.ModuleInstance, fromParent map[addrs.LocalProviderConfig]exprs.Valuer, local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig) *moduleProvidersSideChannel {
+func compileModuleProvidersSidechannel(_ context.Context, fromParent map[addrs.LocalProviderConfig]exprs.Valuer, local map[addrs.LocalProviderConfig]*configgraph.ProviderConfig) *moduleProvidersSideChannel {
 	instanceVals := make(map[addrs.LocalProviderConfig]exprs.Valuer, len(fromParent)+len(local))
 	maps.Copy(instanceVals, fromParent)
 	for addr, node := range local {
