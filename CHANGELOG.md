@@ -1,5 +1,9 @@
 ## 1.10.7 (unreleased)
 
+BUG FIXES:
+
+* Fix crash in tofu test when using deprecated outputs ([#3249](https://github.com/opentofu/opentofu/pull/3249))
+
 ## 1.10.6
 
 UPGRADE NOTES:
