@@ -31,6 +31,7 @@ type CompiledModuleInstance struct {
 	localValueNodes     map[addrs.LocalValue]*configgraph.LocalValue
 	outputValueNodes    map[addrs.OutputValue]*configgraph.OutputValue
 	resourceNodes       map[addrs.Resource]*configgraph.Resource
+	moduleCallNodes     map[addrs.ModuleCall]*configgraph.ModuleCall
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
 }
 
@@ -50,6 +51,9 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 		cg.CheckChild(ctx, n)
 	}
 	for _, n := range c.resourceNodes {
+		cg.CheckChild(ctx, n)
+	}
+	for _, n := range c.moduleCallNodes {
 		cg.CheckChild(ctx, n)
 	}
 	for _, n := range c.providerConfigNodes {
@@ -103,6 +107,9 @@ func (c *CompiledModuleInstance) AnnounceAllGraphevalRequests(announce func(work
 		n.AnnounceAllGraphevalRequests(announce)
 	}
 	for _, n := range c.resourceNodes {
+		n.AnnounceAllGraphevalRequests(announce)
+	}
+	for _, n := range c.moduleCallNodes {
 		n.AnnounceAllGraphevalRequests(announce)
 	}
 	for _, n := range c.providerConfigNodes {
