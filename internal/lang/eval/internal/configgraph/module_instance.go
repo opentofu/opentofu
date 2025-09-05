@@ -8,7 +8,6 @@ package configgraph
 import (
 	"context"
 	"fmt"
-	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -21,26 +20,22 @@ import (
 )
 
 type ModuleInstance struct {
-	// Any other kinds of "node" we add in future will likely need coverage
-	// added in both [ModuleInstance.CheckAll] and
-	// [ModuleInstance.AnnounceAllGraphevalRequests].
-	InputVariableNodes  map[addrs.InputVariable]*InputVariable
-	LocalValueNodes     map[addrs.LocalValue]*LocalValue
-	OutputValueNodes    map[addrs.OutputValue]*OutputValue
-	ResourceNodes       map[addrs.Resource]*Resource
-	ProviderConfigNodes map[addrs.LocalProviderConfig]*ProviderConfig
+	Addr addrs.ModuleInstance
 
-	// moduleSourceAddr is the source address of the module this is an
-	// instance of, which will be used as the base address for resolving
-	// any relative local source addresses in child calls.
-	//
-	// This must always be either [addrs.ModuleSourceLocal] or
-	// [addrs.ModuleSourceRemote]. If the module was discovered indirectly
-	// through an [addrs.ModuleSourceRegistry] then this records the
-	// remote address that the registry address was resolved to, to ensure
-	// that local source addresses will definitely resolve within exactly
-	// the same remote package.
-	ModuleSourceAddr addrs.ModuleSource
+	// For the sake of this package a [ModuleInstance] is really just here
+	// to be an [exprs.Valuer] to expose as part of the value of a module
+	// call in the parent module, and so it doesn't know anything about
+	// what might have been declared inside the module instance. The
+	// relationships between child objects and their containing module
+	// instance are represented in the "compiler" packages, such as
+	// package tofu2024, to allow the details to vary between language
+	// editions as long as somehow the module instance is able to return
+	// a set of output values.
+
+	// OutputValuers are the valuers for each of the output values declared
+	// in the module. The result value of a module instance is an object
+	// value with an attribute for each element in this map.
+	OutputValuers map[addrs.OutputValue]*OnceValuer
 
 	// callDeclRange is used for module instances that are produced because
 	// of a "module" block in a parent module, or by some similar mechanism
@@ -82,7 +77,7 @@ func (m *ModuleInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 		return diags
 	}
 
-	output, ok := m.OutputValueNodes[addrs.OutputValue{Name: outputName}]
+	valuer, ok := m.OutputValuers[addrs.OutputValue{Name: outputName}]
 	if !ok {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -92,9 +87,8 @@ func (m *ModuleInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.D
 		})
 		return diags
 	}
-	diags = diags.Append(
-		exprs.StaticCheckTraversalThroughType(traversal[1:], output.ResultTypeConstraint()),
-	)
+
+	diags = diags.Append(valuer.StaticCheckTraversal(traversal[1:]))
 	return diags
 }
 
@@ -105,9 +99,9 @@ func (m *ModuleInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnost
 	// object, but because we're not using the expression evaluator to do it
 	// we need to explicitly discard indirect diagnostics with
 	// [diagsHandledElsewhere].
-	attrs := make(map[string]cty.Value, len(m.OutputValueNodes))
-	for addr, ov := range m.OutputValueNodes {
-		attrs[addr.Name] = diagsHandledElsewhere(ov.Value(ctx))
+	attrs := make(map[string]cty.Value, len(m.OutputValuers))
+	for addr, valuer := range m.OutputValuers {
+		attrs[addr.Name] = diagsHandledElsewhere(valuer.Value(ctx))
 	}
 	return cty.ObjectVal(attrs), nil
 }
@@ -117,66 +111,19 @@ func (m *ModuleInstance) ValueSourceRange() *tfdiags.SourceRange {
 	return m.CallDeclRange
 }
 
-// ResourceInstancesDeep returns a sequence of all of the resource instances
-// declared both in this module instance and across all child resource
-// instances.
+// CheckAll for a ModuleInstance doesn't actually really do anything at all
+// because a module instance only acts as a place to aggregate some output
+// value [exprs.Valuers] and so it doesn't actually have any "children" in
+// the sense this package means that. ("children" in this package means,
+// for example, the relationship between a resource and its instances where
+// we think of the instances as being more tightly coupled to the resource they
+// belong to, likely to all be sharing the same configuration etc.)
 //
-// The result is trustworthy only if [ModuleInstance.CheckAll] returns without
-// errors. When errors are present the result is best-effort and likely to
-// be incomplete.
-func (m *ModuleInstance) ResourceInstancesDeep(ctx context.Context) iter.Seq[*ResourceInstance] {
-	return func(yield func(*ResourceInstance) bool) {
-		for _, r := range m.ResourceNodes {
-			// NOTE: r.Instances will block if the resource's [InstanceSelector]
-			// depends on other parts of the configuration that aren't yet
-			// ready to produce their value.
-			for _, inst := range r.Instances(ctx) {
-				if !yield(inst) {
-					return
-				}
-			}
-		}
-
-		// TODO: Once we actually support child module calls, ask for the
-		// instances of each one and then collect its resource instances too.
-	}
-}
-
-// CheckAll visits this module and everything it contains to drive evaluation
-// of all of the expressions in the configuration and collect any diagnostics
-// they return.
-//
-// We can implement this as a just concurrent _tree_ walk rather than as a
-// graph walk because the expression dependency relationships will get handled
-// automatically behind the scenes as the different objects try to resolve
-// their [OnceValuer] objects.
-//
-// This function, and the other downstream CheckAll methods it delegates to,
-// therefore only need to worry about making sure that every blocking evaluation
-// is happening in a separate goroutine so that the blocking calls can all
-// resolve in whatever order makes sense for the dependency graph implied by the
-// configuration.
+// However, callers implementing [evalglue.CompiledModuleInstance.CheckAll]
+// should still call this method for completeness, just in case it begins
+// doing something in future.
 func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
-	// This method is an implementation of [allChecker], but we don't mention
-	// that in the docs above because it's an unexported type that would
-	// therefore be weird to mention in our exported docs.
-	var cg checkGroup
-	for _, n := range m.InputVariableNodes {
-		cg.CheckChild(ctx, n)
-	}
-	for _, n := range m.LocalValueNodes {
-		cg.CheckChild(ctx, n)
-	}
-	for _, n := range m.OutputValueNodes {
-		cg.CheckChild(ctx, n)
-	}
-	for _, n := range m.ResourceNodes {
-		cg.CheckChild(ctx, n)
-	}
-	for _, n := range m.ProviderConfigNodes {
-		cg.CheckChild(ctx, n)
-	}
-	return cg.Complete(ctx)
+	return nil
 }
 
 // AnnounceAllGraphevalRequests calls announce for each [grapheval.Once],
@@ -188,18 +135,10 @@ func (m *ModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 // range to use to describe each of the requests that were involved in the
 // problem.
 func (m *ModuleInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	// A ModuleInstance does not have any grapheval requests of its own,
-	// but all of our child nodes might.
-	for _, n := range m.InputVariableNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range m.LocalValueNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range m.OutputValueNodes {
-		n.AnnounceAllGraphevalRequests(announce)
-	}
-	for _, n := range m.ResourceNodes {
-		n.AnnounceAllGraphevalRequests(announce)
+	for addr, valuer := range m.OutputValuers {
+		announce(valuer.RequestID(), grapheval.RequestInfo{
+			Name:        fmt.Sprintf("%s value for %s", m.Addr, addr),
+			SourceRange: m.ValueSourceRange(),
+		})
 	}
 }
