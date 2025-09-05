@@ -3,7 +3,7 @@ page_title: 'Backend Type: oci'
 description: tofu can store and lock state remotely in OCI object storage.
 ---
 
-# oci
+# oracle-oci
 
 The oci backend stores the Terraform state file in [Oracle Cloud Infrastructure (OCI) Object Storage](https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm#overview), allowing multiple users to collaborate using a shared remote state and benefit from features such as [state locking](../../state/locking.mdx) and [workspaces](../../state/workspaces.mdx).
 
@@ -15,7 +15,7 @@ The oci backend stores the Terraform state file in [Oracle Cloud Infrastructure 
 
 ```hcl
 terraform {
-  backend "oci" {
+  backend "oracle-oci" {
     # Required
     bucket            = "mybucket"
     namespace         = "my-namespace"
@@ -91,7 +91,7 @@ use the [`terraform_remote_state` data source](../../state/remote-state-data.mdx
 
 ```hcl
 data "terraform_remote_state" "mystate" {
-  backend = "oci"
+  backend = "oracle-oci"
   config = {
     bucket            = "mybucket"
     key               = "path/to/my/key"
@@ -110,10 +110,10 @@ outputs defined in the referenced remote state (but not any outputs from
 nested modules unless they are explicitly output again in the root). An
 example output might look like:
 
-```
+```hcl
 # data.terraform_remote_state.mystate:
 data "terraform_remote_state" "mystate" {
-    backend = "oci"
+    backend = "oracle-oci"
     config  = {
         bucket            = "mybucket"
         key               = "path/to/my/key"

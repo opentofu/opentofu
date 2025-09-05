@@ -23,7 +23,7 @@ import (
 	backendHTTP "github.com/opentofu/opentofu/internal/backend/remote-state/http"
 	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
-	backendOCI "github.com/opentofu/opentofu/internal/backend/remote-state/oci"
+	backendOracleOCI "github.com/opentofu/opentofu/internal/backend/remote-state/oracle_oci"
 	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
@@ -77,8 +77,8 @@ func Init(services *disco.Disco) {
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
-		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
-		"oci":   func(enc encryption.StateEncryption) backend.Backend { return backendOCI.New(enc) },
+		"cloud":      func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
+		"oracle-oci": func(enc encryption.StateEncryption) backend.Backend { return backendOracleOCI.New(enc) },
 	}
 
 	RemovedBackends = map[string]string{
