@@ -17,6 +17,7 @@ func _() {
 	_ = x[ResourceInstanceDeleteBecauseWrongRepetition-87]
 	_ = x[ResourceInstanceDeleteBecauseCountIndex-67]
 	_ = x[ResourceInstanceDeleteBecauseEachKey-69]
+	_ = x[ResourceInstanceDeleteBecauseEnabledFalse-76]
 	_ = x[ResourceInstanceDeleteBecauseNoModule-77]
 	_ = x[ResourceInstanceDeleteBecauseNoMoveTarget-65]
 	_ = x[ResourceInstanceReadBecauseConfigUnknown-63]
@@ -31,7 +32,7 @@ const (
 	_ResourceInstanceChangeActionReason_name_3 = "ResourceInstanceReadBecauseConfigUnknown"
 	_ResourceInstanceChangeActionReason_name_4 = "ResourceInstanceDeleteBecauseNoMoveTarget"
 	_ResourceInstanceChangeActionReason_name_5 = "ResourceInstanceDeleteBecauseCountIndexResourceInstanceReplaceByTriggersResourceInstanceDeleteBecauseEachKeyResourceInstanceReplaceBecauseCannotUpdate"
-	_ResourceInstanceChangeActionReason_name_6 = "ResourceInstanceDeleteBecauseNoModuleResourceInstanceDeleteBecauseNoResourceConfig"
+	_ResourceInstanceChangeActionReason_name_6 = "ResourceInstanceDeleteBecauseEnabledFalseResourceInstanceDeleteBecauseNoModuleResourceInstanceDeleteBecauseNoResourceConfig"
 	_ResourceInstanceChangeActionReason_name_7 = "ResourceInstanceReplaceByRequest"
 	_ResourceInstanceChangeActionReason_name_8 = "ResourceInstanceReplaceBecauseTainted"
 	_ResourceInstanceChangeActionReason_name_9 = "ResourceInstanceDeleteBecauseWrongRepetition"
@@ -39,7 +40,7 @@ const (
 
 var (
 	_ResourceInstanceChangeActionReason_index_5 = [...]uint8{0, 39, 72, 108, 150}
-	_ResourceInstanceChangeActionReason_index_6 = [...]uint8{0, 37, 82}
+	_ResourceInstanceChangeActionReason_index_6 = [...]uint8{0, 41, 78, 123}
 )
 
 func (i ResourceInstanceChangeActionReason) String() string {
@@ -57,8 +58,8 @@ func (i ResourceInstanceChangeActionReason) String() string {
 	case 67 <= i && i <= 70:
 		i -= 67
 		return _ResourceInstanceChangeActionReason_name_5[_ResourceInstanceChangeActionReason_index_5[i]:_ResourceInstanceChangeActionReason_index_5[i+1]]
-	case 77 <= i && i <= 78:
-		i -= 77
+	case 76 <= i && i <= 78:
+		i -= 76
 		return _ResourceInstanceChangeActionReason_name_6[_ResourceInstanceChangeActionReason_index_6[i]:_ResourceInstanceChangeActionReason_index_6[i+1]]
 	case i == 82:
 		return _ResourceInstanceChangeActionReason_name_7

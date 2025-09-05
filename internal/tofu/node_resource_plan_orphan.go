@@ -271,6 +271,11 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(evalCtx EvalCon
 
 	switch n.Addr.Resource.Key.(type) {
 	case nil: // no instance key at all
+		// TODO: Conditional enable work
+		// Uncomment this when Enabled field exists on Cfg
+		// if cfg.Enabled != nil {
+		// 	return plans.ResourceInstanceDeleteBecauseEnabledFalse
+		// }
 		if cfg.Count != nil || cfg.ForEach != nil {
 			return plans.ResourceInstanceDeleteBecauseWrongRepetition
 		}

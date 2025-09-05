@@ -448,6 +448,10 @@ const (
 	// "for_each" value.
 	ResourceInstanceDeleteBecauseEachKey ResourceInstanceChangeActionReason = 'E'
 
+	// ResourceInstanceDeleteBecauseEnabledFalse indicates that the resource
+	// instance is planned to be deleted because its enabled argument is false.
+	ResourceInstanceDeleteBecauseEnabledFalse ResourceInstanceChangeActionReason = 'L'
+
 	// ResourceInstanceDeleteBecauseNoModule indicates that the resource
 	// instance is planned to be deleted because it belongs to a module
 	// instance that's no longer declared in the configuration.
