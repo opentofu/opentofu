@@ -42,8 +42,8 @@ func (cred *azureCLICredentialAuth) Validate(ctx context.Context, config *Config
 	if !config.CLIAuthEnabled {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Command Line Auth: use_cli set to false",
-			"Use of command-line auth (az) has been prevented by setting use_cli to false.",
+			"Invalid Azure Command Line Auth",
+			"Setting use_cli to false prevents the use of command-line auth (az).",
 		))
 		return diags
 	}
@@ -51,7 +51,7 @@ func (cred *azureCLICredentialAuth) Validate(ctx context.Context, config *Config
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Command Line Auth: az not found in PATH",
+			"Invalid Azure Command Line Auth",
 			"Error looking for command az in your PATH. Make sure the Azure Command Line tool is installed and executable.",
 		))
 		return diags
@@ -61,8 +61,8 @@ func (cred *azureCLICredentialAuth) Validate(ctx context.Context, config *Config
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Command Line Auth: az command error",
-			fmt.Sprintf("Error using the az command: %s", err.Error()),
+			"Invalid Azure Command Line Auth",
+			fmt.Sprintf("Error using the az command: %s.", tfdiags.FormatError(err)),
 		))
 	}
 	return diags

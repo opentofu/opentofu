@@ -1,3 +1,4 @@
 .terraform*
 terraform.tfstate*
 certs.pfx
+test.env
