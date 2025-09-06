@@ -8,11 +8,9 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -38,22 +36,27 @@ func (cred *oidcAuth) Name() string {
 
 func (cred *oidcAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
 	client := httpclient.New(ctx)
+
+	clientId, err := consolidateClientId(config)
+	if err != nil {
+		// This should never happen; this is checked in the Validate function
+		return nil, err
+	}
 	var token string
-	var err error
 	if config.OIDCToken == "" && config.OIDCTokenFilePath == "" {
 		token, err = getTokenFromRemote(client, config.OIDCAuthConfig)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		token, err = consolidateToken(config.OIDCAuthConfig)
+		token, err = consolidateToken(config)
 		if err != nil {
 			return nil, err
 		}
 	}
 	return azidentity.NewClientAssertionCredential(
 		config.TenantID,
-		config.ClientID,
+		clientId,
 		func(_ context.Context) (string, error) {
 			return token, nil
 		},
@@ -103,22 +106,8 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	return token.Value, nil
 }
 
-func consolidateToken(config OIDCAuthConfig) (string, error) {
-	token := config.OIDCToken
-	if config.OIDCTokenFilePath == "" {
-		return token, nil
-	}
-
-	b, err := os.ReadFile(config.OIDCTokenFilePath)
-	if err != nil {
-		return "", fmt.Errorf("error reading token file: %w", err)
-	}
-
-	fileToken := string(b)
-	if token != "" && token != fileToken {
-		return "", errors.New("token provided directly and through file do not match; either make them the same value or only provide one")
-	}
-	return fileToken, nil
+func consolidateToken(config *Config) (string, error) {
+	return consolidateFileAndValue(config.OIDCToken, config.OIDCTokenFilePath, "token")
 }
 
 func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diagnostics {
@@ -138,7 +127,15 @@ func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diag
 			"Tenant ID is required",
 		))
 	}
-	if config.ClientID == "" {
+	clientId, err := consolidateClientId(config)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Azure OpenID Connect Auth: error in Client ID configuration",
+			fmt.Sprintf("The following error was encountered: %s", err.Error()),
+		))
+	}
+	if clientId == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Azure OpenID Connect Auth: missing Client ID",
@@ -166,7 +163,7 @@ func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diag
 		}
 	}
 	// This will work, even if both token and file path are empty
-	if _, err := consolidateToken(config.OIDCAuthConfig); err != nil {
+	if _, err := consolidateToken(config); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Azure OpenID Connect Auth: error in token configuration",

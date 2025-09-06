@@ -221,5 +221,6 @@ func emptyAuthConfig() *auth.Config {
 		OIDCAuthConfig:                   auth.OIDCAuthConfig{},
 		MSIAuthConfig:                    auth.MSIAuthConfig{},
 		StorageAddresses:                 auth.StorageAddresses{},
+		WorkloadIdentityAuthConfig:       auth.WorkloadIdentityAuthConfig{},
 	}
 }
