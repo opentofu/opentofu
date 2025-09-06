@@ -101,6 +101,71 @@ func TestValue_SimpleBlocks(t *testing.T) {
 				"normal_attribute": renderers.ValidatePrimitive(nil, "some value", plans.Create, false),
 			}, nil, nil, nil, nil, plans.Create, false),
 		},
+
+		"delete_with_write_only_value": {
+			input: structured.Change{
+				Before:          map[string]any{},
+				After:           nil,
+				BeforeSensitive: false,
+				AfterSensitive:  false,
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_with_write_only": {
+						NestingMode: "single",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"inner_write_only": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_attribute": renderers.ValidateWriteOnly(plans.Delete, false),
+			}, nil, nil, nil, nil, plans.Delete, false),
+		},
+		"create_with_write_only_value": {
+			input: structured.Change{
+				Before:          nil,
+				After:           map[string]any{},
+				BeforeSensitive: false,
+				AfterSensitive:  false,
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_with_write_only": {
+						NestingMode: "single",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"inner_write_only": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_attribute": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
 	}
 	for name, tc := range tcs {
 		// Set some default values
@@ -746,17 +811,17 @@ func TestValue_ObjectAttributes(t *testing.T) {
 				}
 
 				if tc.validateObject != nil {
-					tc.validateObject(t, ComputeDiffForAttribute(tc.input, attribute))
+					tc.validateObject(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 					return
 				}
 
 				if tc.validateSingleDiff != nil {
-					tc.validateSingleDiff(t, ComputeDiffForAttribute(tc.input, attribute))
+					tc.validateSingleDiff(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateObject(tc.validateDiffs, tc.validateAction, tc.validateReplace)
-				validate(t, ComputeDiffForAttribute(tc.input, attribute))
+				validate(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 			})
 
 			t.Run("map", func(t *testing.T) {
@@ -770,7 +835,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 						"element": tc.validateObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -778,14 +843,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 						"element": tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 					"element": renderers.ValidateObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("list", func(t *testing.T) {
@@ -796,7 +861,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 				input := wrapChangeInSlice(tc.input)
 
 				if tc.validateList != nil {
-					tc.validateList(t, ComputeDiffForAttribute(input, attribute))
+					tc.validateList(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -804,7 +869,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateList([]renderers.ValidateDiffFunction{
 						tc.validateObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -812,14 +877,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateList([]renderers.ValidateDiffFunction{
 						tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateList([]renderers.ValidateDiffFunction{
 					renderers.ValidateObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("set", func(t *testing.T) {
@@ -836,7 +901,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 						ret = append(ret, tc.validateSetDiffs.After.Validate(renderers.ValidateObject))
 						return ret
 					}(), collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -844,7 +909,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 						tc.validateObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -852,14 +917,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 						tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 					renderers.ValidateObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 		})
 
@@ -881,17 +946,17 @@ func TestValue_ObjectAttributes(t *testing.T) {
 				}
 
 				if tc.validateNestedObject != nil {
-					tc.validateNestedObject(t, ComputeDiffForAttribute(tc.input, attribute))
+					tc.validateNestedObject(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 					return
 				}
 
 				if tc.validateSingleDiff != nil {
-					tc.validateSingleDiff(t, ComputeDiffForAttribute(tc.input, attribute))
+					tc.validateSingleDiff(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateNestedObject(tc.validateDiffs, tc.validateAction, tc.validateReplace)
-				validate(t, ComputeDiffForAttribute(tc.input, attribute))
+				validate(t, ComputeDiffForAttribute(tc.input, attribute, tc.input.CalculateAction()))
 			})
 
 			t.Run("map", func(t *testing.T) {
@@ -916,7 +981,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 						"element": tc.validateNestedObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -924,14 +989,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 						"element": tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 					"element": renderers.ValidateNestedObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("list", func(t *testing.T) {
@@ -956,7 +1021,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateNestedList([]renderers.ValidateDiffFunction{
 						tc.validateNestedObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -964,14 +1029,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateNestedList([]renderers.ValidateDiffFunction{
 						tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateNestedList([]renderers.ValidateDiffFunction{
 					renderers.ValidateNestedObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("set", func(t *testing.T) {
@@ -999,7 +1064,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 						ret = append(ret, tc.validateSetDiffs.After.Validate(renderers.ValidateNestedObject))
 						return ret
 					}(), collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -1007,7 +1072,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 						tc.validateNestedObject,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
@@ -1015,14 +1080,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 					validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 						tc.validateSingleDiff,
 					}, collectionDefaultAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 					renderers.ValidateNestedObject(tc.validateDiffs, tc.validateAction, tc.validateReplace),
 				}, collectionDefaultAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 		})
 	}
@@ -1840,9 +1905,9 @@ func TestValue_PrimitiveAttributes(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			t.Run("direct", func(t *testing.T) {
-				tc.validateDiff(t, ComputeDiffForAttribute(tc.input, &jsonprovider.Attribute{
-					AttributeType: unmarshalType(t, tc.attribute),
-				}))
+				attr := &jsonprovider.Attribute{AttributeType: unmarshalType(t, tc.attribute)}
+				diff := ComputeDiffForAttribute(tc.input, attr, tc.input.CalculateAction())
+				tc.validateDiff(t, diff)
 			})
 
 			t.Run("map", func(t *testing.T) {
@@ -1854,7 +1919,7 @@ func TestValue_PrimitiveAttributes(t *testing.T) {
 				validate := renderers.ValidateMap(map[string]renderers.ValidateDiffFunction{
 					"element": tc.validateDiff,
 				}, defaultCollectionsAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("list", func(t *testing.T) {
@@ -1865,14 +1930,14 @@ func TestValue_PrimitiveAttributes(t *testing.T) {
 
 				if tc.validateSliceDiffs != nil {
 					validate := renderers.ValidateList(tc.validateSliceDiffs, defaultCollectionsAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateList([]renderers.ValidateDiffFunction{
 					tc.validateDiff,
 				}, defaultCollectionsAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 
 			t.Run("set", func(t *testing.T) {
@@ -1883,14 +1948,14 @@ func TestValue_PrimitiveAttributes(t *testing.T) {
 
 				if tc.validateSliceDiffs != nil {
 					validate := renderers.ValidateSet(tc.validateSliceDiffs, defaultCollectionsAction, false)
-					validate(t, ComputeDiffForAttribute(input, attribute))
+					validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 					return
 				}
 
 				validate := renderers.ValidateSet([]renderers.ValidateDiffFunction{
 					tc.validateDiff,
 				}, defaultCollectionsAction, false)
-				validate(t, ComputeDiffForAttribute(input, attribute))
+				validate(t, ComputeDiffForAttribute(input, attribute, input.CalculateAction()))
 			})
 		})
 	}
@@ -2261,7 +2326,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
-			tc.validateDiff(t, ComputeDiffForAttribute(tc.input, tc.attribute))
+			tc.validateDiff(t, ComputeDiffForAttribute(tc.input, tc.attribute, tc.input.CalculateAction()))
 		})
 	}
 }
@@ -3001,6 +3066,432 @@ func TestSpecificCases(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			tc.validate(t, ComputeDiffForBlock(tc.input, tc.block))
+		})
+	}
+}
+
+func TestWriteOnly_ComputeDiffForBlock(t *testing.T) {
+	// NOTE: The write-only change will *always* have the after change null.
+	// We set specific values in this test for the after change to ensure that,
+	// based on the attribute's schema, we use the correct renderers for these attributes.
+	cases := map[string]struct {
+		block     jsonprovider.Block
+		change    structured.Change
+		validator renderers.ValidateDiffFunction
+	}{
+		// ---> Attributes with basic types
+		// attributes with basic types
+		"write_only_primitive_attribute": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+						Optional:      true,
+						WriteOnly:     true,
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_attribute": "dummy value", // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_attribute": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		"write_only_list": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_list": {
+						AttributeType: unmarshalType(t, cty.List(cty.Object(map[string]cty.Type{"val": cty.String}))),
+						Optional:      true,
+						WriteOnly:     true,
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_list": []string{"val", "b"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_list": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		"write_only_set": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_set": {
+						AttributeType: unmarshalType(t, cty.Set(cty.Object(map[string]cty.Type{"val": cty.String}))),
+						Optional:      true,
+						WriteOnly:     true,
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_set": []string{"val", "b"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_set": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		"write_only_map": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_map": {
+						AttributeType: unmarshalType(t, cty.Map(cty.String)),
+						Optional:      true,
+						WriteOnly:     true,
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_map": map[string]string{"bar": "barv", "baz": "bazv"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_map": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		"write_only_object": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_obj": {
+						AttributeType: unmarshalType(t, cty.Object(map[string]cty.Type{"val": cty.String})),
+						Optional:      true,
+						WriteOnly:     true,
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_obj": map[string]string{"bar": "barv"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_obj": renderers.ValidateWriteOnly(plans.Create, false),
+			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		// ---> Attributes with nested types
+		"attribute_single_nested_contains_write_only_attribute": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_obj": {
+						AttributeNestedType: &jsonprovider.NestedType{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"val": {
+									AttributeType: unmarshalType(t, cty.Object(map[string]cty.Type{"val": cty.String})),
+									Optional:      true,
+									WriteOnly:     true,
+								},
+							},
+							NestingMode: "single",
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_obj": map[string]any{"val": "foo"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_obj": renderers.ValidateNestedObject(
+						map[string]renderers.ValidateDiffFunction{
+							"val": renderers.ValidateWriteOnly(plans.Create, false),
+						},
+						plans.Create, false),
+				},
+				nil, nil, nil, nil, plans.Create, false),
+		},
+		"attribute_map_nested_contains_write_only_attribute": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_map": {
+						AttributeNestedType: &jsonprovider.NestedType{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"val": {
+									AttributeType: unmarshalType(t, cty.Object(map[string]cty.Type{"val": cty.String})),
+									Optional:      true,
+									WriteOnly:     true,
+								},
+							},
+							NestingMode: "map",
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_map": map[string]any{"val": "val value"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_map": renderers.ValidateMap(
+						map[string]renderers.ValidateDiffFunction{
+							"val": renderers.ValidateNestedObject(
+								map[string]renderers.ValidateDiffFunction{
+									"val": renderers.ValidateWriteOnly(plans.Create, false),
+								},
+								plans.Create, false),
+						},
+						plans.Create, false),
+				},
+				nil, nil, nil, nil, plans.Create, false),
+		},
+		"attribute_list_nested_contains_write_only_attribute": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_list": {
+						AttributeNestedType: &jsonprovider.NestedType{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"val": {
+									AttributeType: unmarshalType(t, cty.Object(map[string]cty.Type{"val": cty.String})),
+									Optional:      true,
+									WriteOnly:     true,
+								},
+							},
+							NestingMode: "list",
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_list": []any{map[string]any{"val": "foo value"}}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_list": renderers.ValidateNestedList(
+						[]renderers.ValidateDiffFunction{
+							renderers.ValidateNestedObject(
+								map[string]renderers.ValidateDiffFunction{
+									"val": renderers.ValidateWriteOnly(plans.Create, false),
+								},
+								plans.Create, false),
+						},
+						plans.Create, false),
+				},
+				nil, nil, nil, nil, plans.Create, false),
+		},
+		"attribute_set_nested_contains_write_only_attribute": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_set": {
+						AttributeNestedType: &jsonprovider.NestedType{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"val": {
+									AttributeType: unmarshalType(t, cty.Object(map[string]cty.Type{"val": cty.String})),
+									Optional:      true,
+									WriteOnly:     true,
+								},
+							},
+							NestingMode: "set",
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_set": []any{map[string]any{"val": "foo value"}}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_set": renderers.ValidateSet(
+						[]renderers.ValidateDiffFunction{
+							renderers.ValidateNestedObject(
+								map[string]renderers.ValidateDiffFunction{
+									"val": renderers.ValidateWriteOnly(plans.Create, false),
+								},
+								plans.Create, false),
+						},
+						plans.Create, false),
+				},
+				nil, nil, nil, nil, plans.Create, false),
+		},
+		// ---> Nested blocks
+		"single_nested_block": {
+			block: jsonprovider.Block{
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_block": {
+						NestingMode: "single",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"write_only_attr": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"nested_block": map[string]any{"write_only_attr": "foo"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				nil,
+				map[string]renderers.ValidateDiffFunction{
+					"nested_block": renderers.ValidateBlock(
+						map[string]renderers.ValidateDiffFunction{
+							"write_only_attr": renderers.ValidateWriteOnly(plans.Create, false),
+						},
+						nil, nil, nil, nil, plans.Create, false),
+				},
+				nil, nil, nil, plans.Create, false),
+		},
+		"map_nested_block": {
+			block: jsonprovider.Block{
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_block": {
+						NestingMode: "map",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"write_only_attr": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"nested_block": map[string]any{"write_only_attr": "foo"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				nil, nil, nil,
+				map[string]map[string]renderers.ValidateDiffFunction{
+					"nested_block": {
+						"write_only_attr": renderers.ValidateBlock(
+							map[string]renderers.ValidateDiffFunction{
+								"write_only_attr": renderers.ValidateWriteOnly(plans.Create, false),
+							},
+							nil, nil, nil, nil, plans.Create, false),
+					},
+				},
+				nil, plans.Create, false),
+		},
+		"list_nested_block": {
+			block: jsonprovider.Block{
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_block": {
+						NestingMode: "list",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"write_only_attr": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"nested_block": []any{"value"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				nil, nil,
+				map[string][]renderers.ValidateDiffFunction{
+					"nested_block": {
+						renderers.ValidateBlock(
+							map[string]renderers.ValidateDiffFunction{
+								"write_only_attr": renderers.ValidateWriteOnly(plans.Create, false),
+							},
+							nil, nil, nil, nil, plans.Create, false),
+					},
+				},
+				nil, nil, plans.Create, false),
+		},
+		"set_nested_block": {
+			block: jsonprovider.Block{
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_block": {
+						NestingMode: "set",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"write_only_attr": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"nested_block": []any{"value"}, // NOTE: since this is WO attr, IRL it's nil
+				},
+			},
+			validator: renderers.ValidateBlock(
+				nil, nil, nil, nil,
+				map[string][]renderers.ValidateDiffFunction{
+					"nested_block": {
+						renderers.ValidateBlock(
+							map[string]renderers.ValidateDiffFunction{
+								"write_only_attr": renderers.ValidateWriteOnly(plans.Create, false),
+							},
+							nil, nil, nil, nil, plans.Create, false),
+					},
+				}, plans.Create, false),
+		},
+		"write-only are shown during no-op too": {
+			block: jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attr": {
+						WriteOnly:     true,
+						AttributeType: unmarshalType(t, cty.String),
+					},
+					"regular_attr": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+			},
+			change: structured.Change{
+				After: map[string]any{
+					"write_only_attr": nil,
+					"regular_attr":    "test",
+				},
+				Before: map[string]any{
+					"write_only_attr": nil,
+					"regular_attr":    "test",
+				},
+			},
+			validator: renderers.ValidateBlock(
+				map[string]renderers.ValidateDiffFunction{
+					"write_only_attr": renderers.ValidateWriteOnly(plans.NoOp, false),
+					"regular_attr":    renderers.ValidatePrimitive("test", "test", plans.NoOp, false),
+				}, nil, nil, nil, nil, plans.NoOp, false),
+		},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			if tt.change.ReplacePaths == nil {
+				tt.change.ReplacePaths = &attribute_path.PathMatcher{}
+			}
+			if tt.change.RelevantAttributes == nil {
+				tt.change.RelevantAttributes = attribute_path.AlwaysMatcher()
+
+			}
+			diff := ComputeDiffForBlock(tt.change, &tt.block)
+			tt.validator(t, diff)
 		})
 	}
 }

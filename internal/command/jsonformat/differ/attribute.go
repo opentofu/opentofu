@@ -6,7 +6,9 @@
 package differ
 
 import (
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
@@ -15,7 +17,20 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 )
 
-func ComputeDiffForAttribute(change structured.Change, attribute *jsonprovider.Attribute) computed.Diff {
+// ComputeDiffForAttribute generates the diff for the change.
+// It handles 3 specific cases:
+//   - When the attribute for which the change is generated is a nested object,
+//     it generates the diff for each attribute
+//     of the nested object.
+//   - If the attribute is write-only, due to the fact that its changes will always be null, we want
+//     to return a diff with the same action as the parent's.
+//     If we use change.CalculateAction(), then the action will always be NoOp because of the
+//     which will skip from showing this in the diff.
+//   - If none above, it tries to generate the diff by using the specific generator for the attr type.
+func ComputeDiffForAttribute(change structured.Change, attribute *jsonprovider.Attribute, parentAction plans.Action) computed.Diff {
+	if attribute.WriteOnly {
+		return computeAttributeDiffAsWriteOnly(change, parentAction)
+	}
 	if attribute.AttributeNestedType != nil {
 		return computeDiffForNestedAttribute(change, attribute.AttributeNestedType)
 	}
@@ -86,4 +101,8 @@ func unmarshalAttribute(attribute *jsonprovider.Attribute) cty.Type {
 		panic("could not unmarshal attribute type: " + err.Error())
 	}
 	return ctyType
+}
+
+func computeAttributeDiffAsWriteOnly(change structured.Change, parentAction plans.Action) computed.Diff {
+	return asDiffWithInheritedAction(change, parentAction, renderers.WriteOnly())
 }

@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/e2e"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -42,7 +43,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 	fixturePath := filepath.Join("testdata", "full-workflow-null")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
-	//// INIT
+	// INIT
 	stdout, stderr, err := tf.Run("init")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
@@ -59,7 +60,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 		t.Logf("(this can happen if you have a copy of the plugin in one of the global plugin search dirs)")
 	}
 
-	//// PLAN
+	// PLAN
 	stdout, stderr, err = tf.Run("plan", "-out=tfplan")
 	if err != nil {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
@@ -100,7 +101,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 		}
 	}
 
-	//// APPLY
+	// APPLY
 	stdout, stderr, err = tf.Run("apply", "tfplan")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
@@ -131,7 +132,7 @@ func TestPrimarySeparatePlan(t *testing.T) {
 		t.Errorf("wrong resources in state\ngot: %#v\nwant: %#v", gotResources, wantResources)
 	}
 
-	//// DESTROY
+	// DESTROY
 	stdout, stderr, err = tf.Run("destroy", "-auto-approve")
 	if err != nil {
 		t.Fatalf("unexpected destroy error: %s\nstderr:\n%s", err, stderr)
@@ -162,13 +163,13 @@ func TestPrimaryChdirOption(t *testing.T) {
 	fixturePath := filepath.Join("testdata", "chdir-option")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 
-	//// INIT
+	// INIT
 	_, stderr, err := tf.Run("-chdir=subdir", "init")
 	if err != nil {
 		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 	}
 
-	//// PLAN
+	// PLAN
 	stdout, stderr, err := tf.Run("-chdir=subdir", "plan", "-out=tfplan")
 	if err != nil {
 		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
@@ -196,7 +197,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 		t.Errorf("incorrect diff in plan; want no resource changes, but have:\n%s", spew.Sdump(diffResources))
 	}
 
-	//// APPLY
+	// APPLY
 	stdout, stderr, err = tf.Run("-chdir=subdir", "apply", "tfplan")
 	if err != nil {
 		t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
@@ -228,7 +229,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 		t.Errorf("unexpected resources in state")
 	}
 
-	//// DESTROY
+	// DESTROY
 	stdout, stderr, err = tf.Run("-chdir=subdir", "destroy", "-auto-approve")
 	if err != nil {
 		t.Fatalf("unexpected destroy error: %s\nstderr:\n%s", err, stderr)
@@ -240,10 +241,7 @@ func TestPrimaryChdirOption(t *testing.T) {
 }
 
 // This test is checking the workflow of the ephemeral resources.
-// Check also the configuration files for comments. The idea is that at the time of
-// writing, the configuration was done in such a way to fail later when the
-// marks will be introduced for ephemeral values. Therefore, this test will
-// fail later and will require adjustments.
+// Check also the configuration files for comments.
 //
 // We want to validate that the plan file, state file and the output contain
 // only the things that are needed:
@@ -261,20 +259,18 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 		tf := e2e.NewBinary(t, tofuBin, testdataPath)
 		providerBuilderFunc(t, tf.WorkDir())
 
-		{ //// INIT
+		{ // INIT
 			_, stderr, err := tf.Run("init", "-plugin-dir=cache")
 			if err != nil {
 				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
 			}
 		}
 
-		{ //// PLAN
-			stdout, stderr, err := tf.Run("plan", "-out=tfplan")
+		{ // PLAN
+			stdout, stderr, err := tf.Run("plan", "-out=tfplan", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`)
 			if err != nil {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
-			// TODO ephemeral - this "value_wo" should be shown something like (write-only attribute). This will be handled during the work on the write-only attributes.
-			// TODO ephemeral - "out_ephemeral" should fail later when the marking of the outputs is implemented fully, so that should not be visible in the output
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
@@ -285,25 +281,27 @@ OpenTofu will perform the following actions:
   # data.simple_resource.test_data2 will be read during apply
   # (depends on a resource or a module with changes pending)
  <= data "simple_resource" "test_data2" {
-      + id    = (known after apply)
-      + value = "test"
+      + id       = (known after apply)
+      + value    = "test"
+      + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
-      + value = "test value"
+      + value    = "test value"
+      + value_wo = (write-only attribute)
     }
 
   # simple_resource.test_res_second_provider will be created
   + resource "simple_resource" "test_res_second_provider" {
-      + value = "just a simple resource to ensure that the second provider it's working fine"
+      + value    = "just a simple resource to ensure that the second provider it's working fine"
+      + value_wo = (write-only attribute)
     }
 
 Plan: 2 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
-  + final_output  = "just a simple resource to ensure that the second provider it's working fine"
-  + out_ephemeral = "rawvalue"`
+  + final_output = "just a simple resource to ensure that the second provider it's working fine"`
 
 			entriesChecker := &outputEntriesChecker{phase: "plan"}
 			entriesChecker.addChecks(outputEntry{[]string{"data.simple_resource.test_data1: Reading..."}, true},
@@ -321,6 +319,7 @@ Changes to Outputs:
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
+				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
 			entriesChecker.check(t, out)
 
@@ -345,10 +344,46 @@ Changes to Outputs:
 			if got, want := res.Action, plans.Open; got != want {
 				t.Errorf("ephemeral resource %q from plan contains wrong actions. want %q; got %q", res.Addr.String(), want, got)
 			}
+			// variables check
+			varDynVal, ok := plan.VariableValues["simple_input"]
+			if !ok {
+				t.Fatalf("expected the %q to exist but it does not", "simple_input")
+			}
+			varVal, diags := varDynVal.Decode(cty.DynamicPseudoType)
+			if diags != nil {
+				t.Fatalf("expected no diags from decoding the variable value but got one: %s", diags)
+			}
+			expectedVal := cty.StringVal("plan_val")
+			if expectedVal.Equals(varVal).False() {
+				t.Fatalf("unexpected value saved in the plan object. expected: %s; got: %s", expectedVal.GoString(), varVal.GoString())
+			}
+			// no more vars expected in the plan
+			if got, want := len(plan.VariableValues), 1; got != want {
+				t.Fatalf("expected to have only %d variables in the plan but got %d: %s", want, got, plan.VariableValues)
+			}
+			// ensure that the ephemeral variable is registered as expected
+			if plan.EphemeralVariables != nil {
+				t.Fatalf("plan.EphemeralVariables is not meant to be initialised when reading the plan since there is no way to say which variable is ephemeral without having the configuration available")
+			}
 		}
 
-		{ //// APPLY
-			stdout, stderr, err := tf.Run("apply", "tfplan")
+		{ // APPLY with wrong variables
+			expectedToContain := `╷ Error: Mismatch between input and plan variable value  Value saved in the plan file for variable "simple_input" is different from the one given to the current command.╵`
+			expectedErr := fmt.Errorf("exit status 1")
+			_, stderr, err := tf.Run("apply", `-var=simple_input=different_from_the_plan_one`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
+			if err == nil {
+				t.Fatalf("expected an error but got nothing")
+			}
+			if got, want := err.Error(), expectedErr.Error(); got != want {
+				t.Fatalf("expected err %q but got %q", want, got)
+			}
+			cleanStderr := SanitizeStderr(stderr)
+			if cleanStderr != expectedToContain {
+				t.Errorf("expected an error message but didn't get it.\nexpected:\n%s\n\ngot:\n%s\n", expectedToContain, cleanStderr)
+			}
+		}
+		{ // APPLY
+			stdout, stderr, err := tf.Run("apply", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
 			if err != nil {
 				t.Fatalf("unexpected apply error: %s\nstderr:\n%s", err, stderr)
 			}
@@ -407,11 +442,12 @@ Changes to Outputs:
 
 			if !strings.Contains(out, expectedChangesOutput) {
 				t.Errorf("wrong apply output:\nstdout:%s\nstderr%s", stdout, stderr)
+				t.Log(cmp.Diff(out, expectedChangesOutput))
 			}
 			entriesChecker.check(t, out)
 		}
-		{ //// DESTROY
-			stdout, stderr, err := tf.Run("destroy", "-auto-approve")
+		{ // DESTROY
+			stdout, stderr, err := tf.Run("destroy", `-var=simple_input=plan_val`, `-var=ephemeral_input=ephemeral_val`, "-auto-approve")
 			if err != nil {
 				t.Fatalf("unexpected destroy error: %s\nstderr:\n%s", err, stderr)
 			}

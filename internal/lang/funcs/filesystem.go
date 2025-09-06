@@ -53,7 +53,7 @@ func MakeFileFunc(baseDir string, encBase64 bool) function.Function {
 				return cty.StringVal(enc).WithMarks(pathMarks), nil
 			default:
 				if !utf8.Valid(src) {
-					return cty.UnknownVal(cty.String), fmt.Errorf("contents of %s are not valid UTF-8; use the filebase64 function to obtain the Base64 encoded contents or the other file functions (e.g. filemd5, filesha256) to obtain file hashing results instead", redactIfSensitive(path, pathMarks))
+					return cty.UnknownVal(cty.String), fmt.Errorf("contents of %s are not valid UTF-8; use the filebase64 function to obtain the Base64 encoded contents or the other file functions (e.g. filemd5, filesha256) to obtain file hashing results instead", redactIfSensitiveOrEphemeral(path, pathMarks))
 				}
 				return cty.StringVal(string(src)).WithMarks(pathMarks), nil
 			}
@@ -243,7 +243,7 @@ func MakeFileExistsFunc(baseDir string) function.Function {
 				if os.IsNotExist(err) {
 					return cty.False.WithMarks(pathMarks), nil
 				}
-				return cty.UnknownVal(cty.Bool), fmt.Errorf("failed to stat %s", redactIfSensitive(path, pathMarks))
+				return cty.UnknownVal(cty.Bool), fmt.Errorf("failed to stat %s", redactIfSensitiveOrEphemeral(path, pathMarks))
 			}
 
 			if fi.Mode().IsRegular() {
@@ -253,7 +253,7 @@ func MakeFileExistsFunc(baseDir string) function.Function {
 			// The Go stat API only provides convenient access to whether it's
 			// a directory or not, so we need to do some bit fiddling to
 			// recognize other irregular file types.
-			filename := redactIfSensitive(path, pathMarks)
+			filename := redactIfSensitiveOrEphemeral(path, pathMarks)
 			fileType := fi.Mode().Type()
 			switch {
 			case (fileType & os.ModeDir) != 0:
@@ -315,7 +315,7 @@ func MakeFileSetFunc(baseDir string) function.Function {
 
 			matches, err := doublestar.FilepathGlob(pattern)
 			if err != nil {
-				return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to glob pattern %s: %w", redactIfSensitive(pattern, marks...), err)
+				return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to glob pattern %s: %w", redactIfSensitiveOrEphemeral(pattern, marks...), err)
 			}
 
 			var matchVals []cty.Value
@@ -323,7 +323,7 @@ func MakeFileSetFunc(baseDir string) function.Function {
 				fi, err := os.Stat(match)
 
 				if err != nil {
-					return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to stat %s: %w", redactIfSensitive(match, marks...), err)
+					return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to stat %s: %w", redactIfSensitiveOrEphemeral(match, marks...), err)
 				}
 
 				if !fi.Mode().IsRegular() {
@@ -334,7 +334,7 @@ func MakeFileSetFunc(baseDir string) function.Function {
 				match, err = filepath.Rel(path, match)
 
 				if err != nil {
-					return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to trim path of match %s: %w", redactIfSensitive(match, marks...), err)
+					return cty.UnknownVal(cty.Set(cty.String)), fmt.Errorf("failed to trim path of match %s: %w", redactIfSensitiveOrEphemeral(match, marks...), err)
 				}
 
 				// Replace any remaining file separators with forward slash (/)
@@ -439,7 +439,7 @@ func readFileBytes(baseDir, path string, marks cty.ValueMarks) ([]byte, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// An extra OpenTofu-specific hint for this situation
-			return nil, fmt.Errorf("no file exists at %s; this function works only with files that are distributed as part of the configuration source code, so if this file will be created by a resource in this configuration you must instead obtain this result from an attribute of that resource", redactIfSensitive(path, marks))
+			return nil, fmt.Errorf("no file exists at %s; this function works only with files that are distributed as part of the configuration source code, so if this file will be created by a resource in this configuration you must instead obtain this result from an attribute of that resource", redactIfSensitiveOrEphemeral(path, marks))
 		}
 		return nil, err
 	}

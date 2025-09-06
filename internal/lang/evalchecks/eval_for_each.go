@@ -179,7 +179,19 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByConfidentialValues(true),
+		})
+		resultVal = cty.NullVal(ty)
+	}
+	if forEachVal.HasMark(marks.Ephemeral) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByConfidentialValues(true),
 		})
 		resultVal = cty.NullVal(ty)
 	}

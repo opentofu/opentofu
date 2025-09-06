@@ -546,6 +546,64 @@ func TestNewDiagnostic(t *testing.T) {
 				},
 			},
 		},
+		"error with source code subject and expression referring to ephemeral value": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Wrong noises",
+				Detail:   "Biological sounds are not allowed",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 2, Column: 9, Byte: 42},
+					End:      hcl.Pos{Line: 2, Column: 26, Byte: 59},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "var"},
+					hcl.TraverseAttr{Name: "boop"},
+					hcl.TraverseIndex{Key: cty.StringVal("hello!")},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"var": cty.ObjectVal(map[string]cty.Value{
+							"boop": cty.MapVal(map[string]cty.Value{
+								"hello!": cty.StringVal("bleurgh").Mark(marks.Ephemeral),
+							}),
+						}),
+					},
+				},
+				Extra: diagnosticCausedBySensitive(true),
+			},
+			&Diagnostic{
+				Severity: "error",
+				Summary:  "Wrong noises",
+				Detail:   "Biological sounds are not allowed",
+				Range: &DiagnosticRange{
+					Filename: "test.tf",
+					Start: Pos{
+						Line:   2,
+						Column: 9,
+						Byte:   42,
+					},
+					End: Pos{
+						Line:   2,
+						Column: 26,
+						Byte:   59,
+					},
+				},
+				Snippet: &DiagnosticSnippet{
+					Context:              strPtr(`resource "test_resource" "test"`),
+					Code:                 (`  foo = var.boop["hello!"]`),
+					StartLine:            (2),
+					HighlightStartOffset: (8),
+					HighlightEndOffset:   (25),
+					Values: []DiagnosticExpressionValue{
+						{
+							Traversal: `var.boop["hello!"]`,
+							Statement: `has an ephemeral value`,
+						},
+					},
+				},
+			},
+		},
 		"error with source code subject and expression referring to sensitive value when not caused by sensitive values": {
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -1197,8 +1255,8 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // diagnostics that are explicitly marked as being caused by sensitive values.
 type diagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = diagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e diagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }

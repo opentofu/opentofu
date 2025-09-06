@@ -1,0 +1,52 @@
+---
+description: >-
+  Ephemeral resources enable access to transient and/or confidential information.
+---
+
+# Ephemeral resources
+
+:::info
+Ephemeral resources can be used only with OpenTofu from v1.11 onwards.
+:::
+
+The `ephemeral` block defines a temporary value that OpenTofu will not store in state or plan.
+This block works only with providers that already offer such capability and is not meant to be used
+as a drop-in replacement for other blocks (`data` or `resource`). To understand if providers offer
+such capability, the provider documentation or schema should be consulted.
+
+## Lifecycle
+The lifecycle of an ephemeral resource is different than the lifecycle of other resource types.
+When OpenTofu encounters such a block, it will execute the following sequence:
+* Validate the configuration using the specified provider.
+* Open the ephemeral resource to retrieve the value from the provider.
+* Close the ephemeral resource when it is no longer needed in the execution of the current phase
+
+Any attribute of the response returned by opening the ephemeral resource, is marked as `ephemeral` and can only be used in specific contexts:
+* [Ephemeral Resources](./ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](./write-only-attributes.mdx)
+
+Any usage of an `ephemeral` value in contexts where is not allowed will generate an error.
+
+## Configuration structure
+Besides the attributes in the schema of an ephemeral resource, the block supports also the following meta-arguments:
+* [`depends_on`](../../language/meta-arguments/depends_on.mdx)
+* [`count`](../../language/meta-arguments/count.mdx)
+* [`for_each`](../../language/meta-arguments/for_each.mdx)
+* [`provider`](../../language/meta-arguments/resource-provider.mdx)
+* [`lifecycle`](../../language/meta-arguments/lifecycle.mdx)
+  * Only [`precondition` and `postcondition`](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions)
+
+## Deferred opening
+By design, the ephemeral resources cannot be opened if the configuration is not fully known.
+When that happens during planning, the ephemeral resource will be postponed (deferred) for the apply phase.
+On the apply phase, based on the dependency graph, the ephemeral resource will be opened only
+after all of its dependencies will be satisfied.
+
+## Example
+For an in-depth example on how to use ephemeral resources, please refer to [this example](./index.mdx#usage-example).

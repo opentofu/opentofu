@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -8769,6 +8770,60 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Fatalf("unexpected diff in the ephemeral resource recorded change:\n%s", diff)
+	}
+}
+
+// TestContext2Plan_ephemeralVariablesInPlan checks that the
+// ephemeral variables get configured correctly in the plan
+// to be used later to exclude values from being written into the plan object.
+func TestContext2Plan_ephemeralVariablesInPlan(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+variable "regular_var" {
+   type = string
+}
+
+variable "ephemeral_var" {
+   type      = string
+   ephemeral = true
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{})
+
+	newState := states.NewState()
+	plan, diags := ctx.Plan(context.Background(), m, newState, &PlanOpts{
+		Mode: plans.NormalMode,
+		SetVariables: InputValues{
+			"regular_var": &InputValue{
+				Value:      cty.StringVal("regular var value"),
+				SourceType: ValueFromEnvVar,
+			},
+			"ephemeral_var": &InputValue{
+				Value:      cty.StringVal("ephemeral var value"),
+				SourceType: ValueFromCLIArg,
+			},
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected plan error: %s", diags)
+	}
+
+	if isEph, ok := plan.EphemeralVariables["ephemeral_var"]; !ok || !isEph {
+		t.Errorf("expected ephemeral_var to be recorded as ephemeral in the plan but its found status is %t and its ephemerality status is %t", ok, isEph)
+	}
+	if isEph, ok := plan.EphemeralVariables["regular_var"]; !ok || isEph {
+		t.Errorf("expected regular_var to be recorded as non-ephemeral in the plan but its found status is %t and its ephemerality status is %t", ok, isEph)
+	}
+
+	expectedEphemeralVal, _ := plans.NewDynamicValue(cty.StringVal("ephemeral var value"), cty.DynamicPseudoType)
+	expectedRegularVal, _ := plans.NewDynamicValue(cty.StringVal("regular var value"), cty.DynamicPseudoType)
+	if dv, ok := plan.VariableValues["ephemeral_var"]; !ok || !slices.Equal(expectedEphemeralVal, dv) {
+		t.Errorf("wrong value stored in the plan for ephemeral_var. expected: %s; got: %s", expectedEphemeralVal, dv)
+	}
+	if dv, ok := plan.VariableValues["regular_var"]; !ok || !slices.Equal(expectedRegularVal, dv) {
+		t.Errorf("wrong value stored in the plan for regular_var. expected: %s; got: %s", expectedRegularVal, dv)
 	}
 }
 

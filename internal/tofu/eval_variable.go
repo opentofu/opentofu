@@ -261,13 +261,18 @@ func evalVariableValidations(ctx context.Context, addr addrs.AbsInputVariableIns
 		})
 		return diags
 	}
+
+	// Normally this marking is handled automatically during construction
+	// of the HCL eval context the evaluation scope, but this code path
+	// augments that scope with the not-yet-finalized input variable
+	// value, so we need to apply these marks separately.
 	if config.Sensitive {
-		// Normally this marking is handled automatically during construction
-		// of the HCL eval context the evaluation scope, but this codepath
-		// augments that scope with the not-yet-finalized input variable
-		// value, so we need to apply this mark separately.
 		val = val.Mark(marks.Sensitive)
 	}
+	if config.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
+	}
+
 	for ix, validation := range config.Validations {
 		condRefs, condDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
 		diags = diags.Append(condDiags)
@@ -412,7 +417,7 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	}
 
 	// Validation condition may be marked if the input variable is bound to
-	// a sensitive value. This is irrelevant to the validation process, so
+	// a sensitive or ephemeral value. This is irrelevant to the validation process, so
 	// we discard the marks now.
 	result, _ = result.Unmark()
 	status := checks.StatusForCtyValue(result)
@@ -451,7 +456,8 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 				EvalContext: hclCtx,
 			})
 		} else {
-			if marks.Has(errorValue, marks.Sensitive) {
+			switch {
+			case marks.Has(errorValue, marks.Sensitive):
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 
@@ -463,10 +469,25 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
-					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
-			} else {
+			case marks.Has(errorValue, marks.Ephemeral):
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+
+					Summary: "Error message refers to ephemeral values",
+					Detail: `The error expression used to explain this condition refers to ephemeral values. OpenTofu will not display the resulting message.
+
+You can correct this by removing references to ephemeral values or by utilizing the builtin ephemeralasnull() function.`,
+
+					Subject:     validation.ErrorMessage.Range().Ptr(),
+					Expression:  validation.ErrorMessage,
+					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
+				})
+				errorMessage = "The error message included an ephemeral value, so it will not be displayed."
+			default:
 				// errorValue could have deprecated marks as well,
 				// so we need to unmark to not get panic from AsString()
 				errorValue = marks.RemoveDeepDeprecated(errorValue)

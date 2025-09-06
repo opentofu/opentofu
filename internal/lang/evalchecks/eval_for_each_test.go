@@ -56,6 +56,25 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 				},
 			},
 		},
+		"ephemeral marked list": {
+			hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Ephemeral)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type list",
+					false,
+				},
+			},
+		},
 		"marked tuple": {
 			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
 			[]struct {
@@ -75,6 +94,25 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 				},
 			},
 		},
+		"ephemeral marked tuple": {
+			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Ephemeral)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type tuple",
+					false,
+				},
+			},
+		},
 		"marked string": {
 			hcltest.MockExprLiteral(cty.StringVal("a").Mark(marks.Sensitive)),
 			[]struct {
@@ -85,6 +123,25 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 				{
 					"Invalid for_each argument",
 					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type string",
+					false,
+				},
+			},
+		},
+		"ephemeral marked string": {
+			hcltest.MockExprLiteral(cty.StringVal("a").Mark(marks.Ephemeral)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
 					true,
 				},
 				{
@@ -123,8 +180,8 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 					t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[idx]))
 				}
 
-				if got, want := tfdiags.DiagnosticCausedBySensitive(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
-					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+				if got, want := tfdiags.DiagnosticCausedByConfidentialValues(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
+					t.Errorf("wrong result from tfdiags.DiagnosticCausedByConfidentialValues\ngot:  %#v\nwant: %#v", got, want)
 				}
 			}
 		})
@@ -160,6 +217,17 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				},
+			},
+		},
+		"ephemeral tuple": {
+			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Ephemeral),
+			expectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
 					CausedByUnknown:   false,
 					CausedBySensitive: true,
 				},
@@ -304,8 +372,8 @@ func assertDiagnosticMatch(t *testing.T, phase string, gotDiag tfdiags.Diagnosti
 	if got, want := tfdiags.DiagnosticCausedByUnknown(gotDiag), wantDiag.CausedByUnknown; got != want {
 		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
-	if got, want := tfdiags.DiagnosticCausedBySensitive(gotDiag), wantDiag.CausedBySensitive; got != want {
-		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
+	if got, want := tfdiags.DiagnosticCausedByConfidentialValues(gotDiag), wantDiag.CausedBySensitive; got != want {
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedByConfidentialValues on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
 
 	if fromExpr := gotDiag.FromExpr(); fromExpr != nil {
@@ -777,6 +845,77 @@ func TestEvaluateForEach(t *testing.T) {
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"ephemeral_tuple": {
+			Input: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Ephemeral),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String, cty.String})),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"ephemeral_set": {
+			Input: cty.SetVal([]cty.Value{cty.StringVal("a")}).Mark(marks.Ephemeral),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"ephemeral_set_elements": {
+			Input: cty.SetVal([]cty.Value{cty.StringVal("a").Mark(marks.Ephemeral)}),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments",
 					CausedByUnknown:   false,
 					CausedBySensitive: true,
 				}},

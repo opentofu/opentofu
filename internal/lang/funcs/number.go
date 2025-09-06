@@ -149,8 +149,8 @@ var ParseIntFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.Number), function.NewArgErrorf(
 				0,
 				"cannot parse %s as a base %s integer",
-				redactIfSensitive(numstr, numMarks),
-				redactIfSensitive(base, baseMarks),
+				redactIfSensitiveOrEphemeral(numstr, numMarks),
+				redactIfSensitiveOrEphemeral(base, baseMarks),
 			)
 		}
 

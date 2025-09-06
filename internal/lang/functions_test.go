@@ -376,7 +376,13 @@ func TestFunctions(t *testing.T) {
 				cty.False,
 			},
 		},
-
+		"ephemeralasnull": {
+			{
+				// We have more specific tests in the funcs package
+				`ephemeralasnull("foo")`,
+				cty.StringVal("foo"),
+			},
+		},
 		"file": {
 			{
 				`file("hello.txt")`,

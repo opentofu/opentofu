@@ -273,6 +273,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 	// targets and provider SHAs.
 	if plan != nil {
 		plan.VariableValues = varVals
+		plan.EphemeralVariables = config.Module.EphemeralVariablesHints()
 		plan.TargetAddrs = opts.Targets
 		plan.ExcludeAddrs = opts.Excludes
 	} else if !diags.HasErrors() {

@@ -324,7 +324,7 @@ var LookupFunc = function.New(&function.Spec{
 		}
 
 		return cty.UnknownVal(cty.DynamicPseudoType), fmt.Errorf(
-			"lookup failed to find key %s", redactIfSensitive(lookupKey, keyMarks))
+			"lookup failed to find key %s", redactIfSensitiveOrEphemeral(lookupKey, keyMarks))
 	},
 })
 

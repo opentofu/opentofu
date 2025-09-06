@@ -1222,6 +1222,18 @@ func (n *NodeAbstractResourceInstance) plan(
 			eqV := unmarkedPlannedChangedVal.Equals(priorChangedVal)
 			if !eqV.IsKnown() || eqV.False() {
 				reqRep.Add(path)
+				// we continue here to avoid the lookup for the attribute on the next section
+				continue
+			}
+
+			// If a write-only requests the replacement of the resource, we add that to the
+			// reqRep just because it's write-only.
+			// Needed because there is no way to apply the path based on the equivalence
+			// of the before/after values of this, since both are meant to always be null.
+			schemaAttr := schema.AttributeByPath(path)
+			isWo := schemaAttr != nil && schemaAttr.WriteOnly
+			if isWo {
+				reqRep.Add(path)
 			}
 		}
 		if diags.HasErrors() {
@@ -1254,12 +1266,7 @@ func (n *NodeAbstractResourceInstance) plan(
 
 	var action plans.Action
 	var actionReason plans.ResourceInstanceChangeActionReason
-	switch {
-	case priorVal.IsNull():
-		action = plans.Create
-	case eq && !matchedForceReplace:
-		action = plans.NoOp
-	case matchedForceReplace || !reqRep.Empty():
+	replaceResAction := func() {
 		// If the user "forced replace" of this instance of if there are any
 		// "requires replace" paths left _after our filtering above_ then this
 		// is a replace action.
@@ -1274,6 +1281,16 @@ func (n *NodeAbstractResourceInstance) plan(
 		case !reqRep.Empty():
 			actionReason = plans.ResourceInstanceReplaceBecauseCannotUpdate
 		}
+	}
+	switch {
+	case priorVal.IsNull():
+		action = plans.Create
+	case schema.PathSetContainsWriteOnly(unmarkedPlannedNewVal, reqRep):
+		replaceResAction()
+	case eq && !matchedForceReplace:
+		action = plans.NoOp
+	case matchedForceReplace || !reqRep.Empty():
+		replaceResAction()
 	default:
 		action = plans.Update
 		// "Delete" is never chosen here, because deletion plans are always
@@ -2063,7 +2080,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 		}
 
 		unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+		proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 		proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
 		// Apply detects that the data source will need to be read by the After
@@ -2124,7 +2141,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 			// If we had errors, then we can cover that up by marking the new
 			// state as unknown.
 			unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-			newVal = objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+			newVal = objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 			newVal = newVal.MarkWithPaths(configMarkPaths)
 
 			// We still want to report the check as failed even if we are still
@@ -3329,7 +3346,7 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 ) {
 
 	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-	proposedNewVal := objchange.PlannedEphemeralResourceObject(schema, unmarkedConfigVal)
+	proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
 	plannedChange = &plans.ResourceInstanceChange{

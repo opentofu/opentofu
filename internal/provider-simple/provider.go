@@ -38,9 +38,23 @@ func Provider() providers.Interface {
 		},
 	}
 	// Only managed resource should have write-only arguments.
-	withWriteOnlyAttribute := func(s providers.Schema) providers.Schema {
+	withWriteOnlyBlocks := func(s providers.Schema) providers.Schema {
 		b := *s.Block
 
+		b.BlockTypes = map[string]*configschema.NestedBlock{
+			"nested_block": {
+				Nesting: configschema.NestingSingle,
+				Block: configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"nested_block_attr": {
+							Type:      cty.String,
+							Optional:  true,
+							WriteOnly: true,
+						},
+					},
+				},
+			},
+		}
 		b.Attributes["value_wo"] = &configschema.Attribute{
 			Optional:  true,
 			Type:      cty.String,
@@ -69,7 +83,7 @@ func Provider() providers.Interface {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"simple_resource": withWriteOnlyAttribute(simpleResource),
+				"simple_resource": withWriteOnlyBlocks(simpleResource),
 			},
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
@@ -152,13 +166,6 @@ func (s simple) PlanResourceChange(_ context.Context, req providers.PlanResource
 		m["id"] = cty.UnknownVal(cty.String)
 	}
 
-	// TODO ephemeral - remove this line after work will be done on write-only arguments.
-	// The problem now is that the value sent to ApplyResourceChange is always null as returned by the plan call.
-	// When the work on write-only arguments will be done, OpenTofu should send the actual value to
-	// the ApplyResourceChange too.
-	// To confirm that everything is ok, by removing this "waitIfRequested" call from here, theTestEphemeralWorkflowAndOutput
-	// should still work correctly without any warn logs in the test output
-	waitIfRequested(m)
 	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
 	m["value_wo"] = cty.NullVal(cty.String)
 
@@ -177,7 +184,7 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	if !ok {
 		m["id"] = cty.StringVal(time.Now().String())
 	}
-	waitIfRequested(m)
+	waitIfRequested(req.Config.AsValueMap())
 
 	// Simulate what the terraform-plugin-go should do. Nullify the write-only attributes.
 	m["value_wo"] = cty.NullVal(cty.String)
@@ -235,7 +242,7 @@ func (s simple) Close(_ context.Context) error {
 
 func waitIfRequested(m map[string]cty.Value) {
 	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
-	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
+	// When the "value_wo" attribute of the resource is containing "with-renew" it will return later to allow
 	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
 	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
 		<-time.After(time.Second)
