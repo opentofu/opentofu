@@ -72,10 +72,10 @@ func TestStatePush_lockedState(t *testing.T) {
 
 	args := []string{"replace.tfstate"}
 	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d", code)
+		t.Fatalf("bad code: %d, expected 1\n:%s", code, ui.OutputWriter)
 	}
 	if !strings.Contains(ui.ErrorWriter.String(), "Error acquiring the state lock") {
-		t.Fatalf("expected a lock error, got: %s", ui.ErrorWriter.String())
+		t.Fatalf("expected a lock error, got: %s", ui.ErrorWriter)
 	}
 }
 

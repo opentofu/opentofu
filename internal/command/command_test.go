@@ -6,6 +6,7 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -22,7 +23,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -835,7 +835,12 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	source := filepath.Join(sourceDir, "statelocker.go")
 	lockBin := filepath.Join(buildDir, "statelocker")
 
+	if runtime.GOOS == "windows" {
+		lockBin = lockBin + ".exe"
+	}
+
 	cmd := exec.Command("go", "build", "-o", lockBin, source)
+
 	cmd.Dir = filepath.Dir(sourceDir)
 
 	out, err := cmd.CombinedOutput()
@@ -844,40 +849,43 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	}
 
 	locker := exec.Command(lockBin, path)
-	pr, pw, err := os.Pipe()
+	stdin, err := locker.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
-	defer pw.Close()
-	locker.Stderr = pw
-	locker.Stdout = pw
+	stdout, err := locker.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
 
 	if err := locker.Start(); err != nil {
 		return nil, err
 	}
-	deferFunc := func() {
-		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
-			t.Fatal(err)
-		}
-		// Assume the sigterm above succeeds. The error here may represent
-		// the signal sent above, but is difficult to check in a platform
-		// agostic way
+
+	reader := bufio.NewReader(stdout)
+
+	// callback function to unlock the state file
+	cbFunc := func() {
+		stdin.Close()
+		stdout.Close()
+
 		_ = locker.Wait()
+
+		t.Logf("closed statelocker stdin and finished.")
 	}
 
 	// wait for the process to lock
-	buf := make([]byte, 1024)
-	n, err := pr.Read(buf)
+	buf, err := reader.ReadString('\n')
 	if err != nil {
-		return deferFunc, fmt.Errorf("read from statelocker returned: %w", err)
+		return cbFunc, fmt.Errorf("read from statelocker returned: %w", err)
 	}
 
-	output := string(buf[:n])
+	output := string(buf)
 	if !strings.HasPrefix(output, "LOCKID") {
-		return deferFunc, fmt.Errorf("statelocker wrote: %s", string(buf[:n]))
+		return cbFunc, fmt.Errorf("statelocker wrote: %s", output)
 	}
-	return deferFunc, nil
+	t.Logf("statelocker locked %s", output)
+	return cbFunc, nil
 }
 
 // testCopyDir recursively copies a directory tree, attempting to preserve
