@@ -115,6 +115,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	var orphans []*states.Resource
 	for _, res := range state.Resources(n.Addr) {
 		found := false
+
 		for _, m := range moduleInstances {
 			if m.Equal(res.Addr.Module) {
 				found = true
@@ -142,7 +143,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
-		a.Dependencies = n.dependencies
 
 		return &NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: a,
