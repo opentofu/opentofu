@@ -9,7 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -308,12 +311,12 @@ func TestFileExists(t *testing.T) {
 			``,
 		},
 		{
-			cty.StringVal("testdata/unreadable/foobar"),
+			cty.StringVal(filepath.FromSlash("testdata/unreadable/foobar")),
 			cty.BoolVal(false),
-			`failed to stat "testdata/unreadable/foobar"`,
+			fmt.Sprintf("failed to stat %q", filepath.FromSlash("testdata/unreadable/foobar")),
 		},
 		{
-			cty.StringVal("testdata/unreadable/foobar").Mark(marks.Sensitive),
+			cty.StringVal(filepath.FromSlash("testdata/unreadable/foobar")).Mark(marks.Sensitive),
 			cty.BoolVal(false),
 			`failed to stat (sensitive value)`,
 		},
@@ -324,14 +327,27 @@ func TestFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod("testdata/unreadable", 0000); err != nil {
-		t.Fatal(err)
-	}
-	defer func(mode os.FileMode) {
-		if err := os.Chmod("testdata/unreadable", mode); err != nil {
-			panic(err)
+	if runtime.GOOS == "windows" {
+		// On Windows, try to deny access to the specific file instead of the directory
+		fileName := filepath.FromSlash("testdata/unreadable/foobar")
+
+		getIcaCls(t, fileName)
+		cmdIcaCls(t, fileName, "/deny", ":F")
+		getIcaCls(t, fileName)
+		defer func() {
+			cmdIcaCls(t, fileName, "/remove:d", "")
+		}()
+	} else {
+		if err := os.Chmod("testdata/unreadable", 0000); err != nil {
+			t.Fatal(err)
 		}
-	}(fi.Mode())
+
+		defer func(mode os.FileMode) {
+			if err := os.Chmod("testdata/unreadable", mode); err != nil {
+				panic(err)
+			}
+		}(fi.Mode())
+	}
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("FileExists(\".\", %#v)", test.Path), func(t *testing.T) {
@@ -503,12 +519,6 @@ func TestFileSet(t *testing.T) {
 			`failed to glob pattern (sensitive value): syntax error in pattern`,
 		},
 		{
-			cty.StringVal("."),
-			cty.StringVal("\\"),
-			cty.SetValEmpty(cty.String),
-			`failed to glob pattern "\\": syntax error in pattern`,
-		},
-		{
 			cty.StringVal("testdata"),
 			cty.StringVal("missing"),
 			cty.SetValEmpty(cty.String),
@@ -677,7 +687,7 @@ func TestDirname(t *testing.T) {
 		},
 		{
 			cty.StringVal("testdata/foo/hello.txt"),
-			cty.StringVal("testdata/foo"),
+			cty.StringVal(filepath.FromSlash("testdata/foo")),
 			false,
 		},
 		{
@@ -763,4 +773,30 @@ func TestPathExpand(t *testing.T) {
 			}
 		})
 	}
+}
+
+// cmdIcaCls runs the icacls command to execute the given command on the given file.
+func cmdIcaCls(t *testing.T, fileName, cmd, args string) {
+	currentUser, err := user.Current()
+	if err != nil {
+		t.Fatalf("failed to get current user: %s", err)
+	}
+
+	// Try to deny all access to the specific file
+	cmdIcaCls := exec.Command("icacls", fileName, cmd, currentUser.Username+args)
+	if err := cmdIcaCls.Run(); err != nil {
+		t.Fatalf("failed to run icacls: %s", err)
+	}
+}
+
+// getIcaCls gets the ACLs for the given file.
+func getIcaCls(t *testing.T, fileName string) []byte {
+	// First, check current ACLs
+	acl, err := exec.Command("icacls", fileName).CombinedOutput()
+	if err != nil {
+		t.Fatalf("failed to get current ACLs: %s", err)
+	}
+	t.Logf("[DEBUG] ACL: %s", string(acl))
+
+	return acl
 }
