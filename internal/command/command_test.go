@@ -849,44 +849,29 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	}
 
 	locker := exec.Command(lockBin, path)
-	pr, pw, err := os.Pipe()
+	stdin, err := locker.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
-	tr, tw, err := os.Pipe()
+	stdout, err := locker.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	locker.Stderr = pw
-	locker.Stdout = pw
-	locker.Stdin = tr
 
 	if err := locker.Start(); err != nil {
 		return nil, err
 	}
 
-	reader := bufio.NewReader(pr)
+	reader := bufio.NewReader(stdout)
 
 	// callback function to unlock the state file
 	cbFunc := func() {
-		defer tr.Close()
-		defer tw.Close()
-		defer pr.Close()
-		defer pw.Close()
+		stdin.Close()
+		stdout.Close()
 
-		_, err = io.WriteString(tw, "UNLOCK\n")
-		if err != nil {
-			t.Fatalf("write to statelocker returned: %v", err)
-		}
+		_ = locker.Wait()
 
-		// wait for the process to unlock
-		buf, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("read from statelocker returned: %v", err)
-		}
-
-		output := string(buf)
-		t.Logf("statelocker wrote: %s", output)
+		t.Logf("closed statelocker stdin and finished.")
 	}
 
 	// wait for the process to lock
@@ -899,6 +884,7 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	if !strings.HasPrefix(output, "LOCKID") {
 		return cbFunc, fmt.Errorf("statelocker wrote: %s", output)
 	}
+	t.Logf("statelocker locked %s", output)
 	return cbFunc, nil
 }
 

@@ -4,8 +4,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -34,24 +34,22 @@ func main() {
 		return
 	}
 
-	// signal to the caller that we're locked
-	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID+"\n")
-
 	defer func() {
 		if err := s.Unlock(context.Background(), lockID); err != nil {
 			io.WriteString(os.Stderr, err.Error()+"\n")
 			return
 		}
-		io.WriteString(os.Stdout, "StateLocker: unlocked"+"\n")
 	}()
 
+	// signal to the caller that we're locked
+	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID+"\n")
 	if err != nil {
 		io.WriteString(os.Stderr, err.Error()+"\n")
 		return
 	}
 
 	c := make(chan struct{})
-	go waitForInput(c)
+	go waitForEOF(c)
 
 	// timeout after 10 second in case we don't get cleaned up by the test
 	select {
@@ -60,11 +58,11 @@ func main() {
 	}
 }
 
-func waitForInput(resultChan chan struct{}) {
-	// Attempt to read a line with a delimiter
-	_, err := bufio.NewReader(os.Stdin).ReadString('\n')
+func waitForEOF(resultChan chan struct{}) {
+	_, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		io.WriteString(os.Stderr, err.Error()+"\n")
+		fmt.Errorf("on waiting for input: %s", err.Error())
 	}
-	resultChan <- struct{}{}
+
+	close(resultChan)
 }
