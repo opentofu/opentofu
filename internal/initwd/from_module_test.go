@@ -186,7 +186,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a.child_b",
-			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a/child_b"),
+			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a", "child_b"),
 		},
 	}
 
@@ -341,7 +341,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a.child_b",
-			LocalPath:  filepath.Join(sourceDir, "child_a/child_b"),
+			LocalPath:  filepath.Join(sourceDir, "child_a", "child_b"),
 		},
 	}
 

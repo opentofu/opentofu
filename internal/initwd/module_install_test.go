@@ -1063,7 +1063,7 @@ func tempChdir(t testing.TB, sourceDir string) string {
 	t.Chdir(tmpDir)
 
 	// Most of the tests need this, so we'll make it just in case.
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform", "modules"), os.ModePerm); err != nil {
 		t.Fatalf("failed to make module cache directory: %s", err)
 		return ""
 	}
