@@ -175,7 +175,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	modulesDir := filepath.Join(dir, ".terraform/modules")
+	modulesDir := filepath.Join(dir, ".terraform", "modules")
 
 	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
@@ -215,7 +215,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	modulesDir := filepath.Join(dir, ".terraform/modules")
+	modulesDir := filepath.Join(dir, ".terraform", "modules")
 
 	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
