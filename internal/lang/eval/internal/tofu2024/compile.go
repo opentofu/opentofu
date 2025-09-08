@@ -12,14 +12,17 @@ import (
 	"slices"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // compileModuleInstance is the main entry point for binding a module
@@ -86,12 +89,8 @@ func CompileModuleInstance(
 	// within the module can refer to, such as the top-level "var" and "local"
 	// symbols and all of the available functions.
 	topScope := &moduleInstanceScope{
-		inst: ret,
-
-		// TODO: Populate this, but to do so we'll need some way for the
-		// caller to specify whether "impure functions" are allowed and
-		// what base directory to use for the filesystem functions.
-		coreFunctions: nil,
+		inst:          ret,
+		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir),
 	}
 
 	// We have some shims in here to deal with the unusual way the existing
@@ -505,6 +504,19 @@ func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter
 			}
 		}
 	}
+}
+
+// compileCoreFunctions prepares the table of core functions for inclusion in
+// a module instance scope.
+func compileCoreFunctions(ctx context.Context, allowImpureFuncs bool, baseDir string) map[string]function.Function {
+	// For now we just borrow the functions table setup from the previous
+	// system's concept of "scope".
+	oldScope := lang.Scope{
+		PureOnly: !allowImpureFuncs,
+		BaseDir:  baseDir,
+		// TODO: PlanTimestamp?
+	}
+	return oldScope.Functions()
 }
 
 // resourceInstanceGlue is our implementation of [configgraph.ResourceInstanceGlue],

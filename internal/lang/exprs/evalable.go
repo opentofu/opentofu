@@ -133,9 +133,28 @@ func (h hclExpression) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (c
 
 // FunctionCalls implements Evalable.
 func (h hclExpression) FunctionCalls() iter.Seq[*hcl.StaticCall] {
-	// For now this is not implemented because the underlying HCL API
-	// isn't the right shape to implement this method.
-	return func(yield func(*hcl.StaticCall) bool) {}
+	// FIXME: The underlying HCL API somewhat-misuses [hcl.Traversal] to
+	// enumerate the names of the functions without providing any
+	// information about their arguments. We can get away with leaving
+	// the args unpopulated for now since we're not actually relying on
+	// them but it would be nice to update HCL to return [hcl.StaticCall]
+	// for the function analysis instead, for consistency with how
+	// [hcl.ExprCall] works.
+	expr, ok := h.expr.(hcl.ExpressionWithFunctions)
+	if !ok {
+		return func(yield func(*hcl.StaticCall) bool) {}
+	}
+	return func(yield func(*hcl.StaticCall) bool) {
+		for _, traversal := range expr.Functions() {
+			wantMore := yield(&hcl.StaticCall{
+				Name:      traversal.RootName(),
+				NameRange: traversal.SourceRange(),
+			})
+			if !wantMore {
+				return
+			}
+		}
+	}
 }
 
 // References implements Evalable.
@@ -209,9 +228,24 @@ func (h *hclBody) Evaluate(ctx context.Context, hclCtx *hcl.EvalContext) (cty.Va
 
 // FunctionCalls implements Evalable.
 func (h hclBody) FunctionCalls() iter.Seq[*hcl.StaticCall] {
-	// For now this is not implemented because the underlying HCL API
-	// isn't the right shape to implement this method.
-	return func(yield func(*hcl.StaticCall) bool) {}
+	// FIXME: The underlying HCL API somewhat-misuses [hcl.Traversal] to
+	// enumerate the names of the functions without providing any
+	// information about their arguments. We can get away with leaving
+	// the args unpopulated for now since we're not actually relying on
+	// them but it would be nice to update HCL to return [hcl.StaticCall]
+	// for the function analysis instead, for consistency with how
+	// [hcl.ExprCall] works.
+	return func(yield func(*hcl.StaticCall) bool) {
+		for _, traversal := range hcldec.Functions(h.body, h.spec) {
+			wantMore := yield(&hcl.StaticCall{
+				Name:      traversal.RootName(),
+				NameRange: traversal.SourceRange(),
+			})
+			if !wantMore {
+				return
+			}
+		}
+	}
 }
 
 // References implements Evalable.

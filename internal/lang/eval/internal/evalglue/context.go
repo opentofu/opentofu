@@ -12,6 +12,14 @@ import (
 // EvalContext is a collection of contextual information provided by an
 // external caller of this package to help it to interact with the surrounding
 // environment.
+//
+// This type should be used only for settings that would typically remain
+// equivalent throughout an entire validate/plan/apply round, and NOT for
+// phase-specific settings. Specifically, it should be possible for a caller
+// like the OpenTofu CLI layer to construct a single [EvalContext] object
+// based on whole-process concerns like command line arguments and the current
+// CLI configuration, and then reuse it without modification across multiple
+// calls into different execution phases.
 type EvalContext struct {
 	// This type should only contain broad stuff that'd typically be set up
 	// only once for a particular OpenTofu CLI command, and NOT
