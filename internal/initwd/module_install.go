@@ -451,16 +451,16 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 	// For local sources we don't actually need to modify the
 	// filesystem at all because the parent already wrote
 	// the files we need, and so we just load up what's already here.
-	newDir := filepath.Join(parentRecord.Dir, req.SourceAddr.String())
+	oldDir := filepath.Join(parentRecord.Dir, req.SourceAddr.String())
 
-	log.Printf("[TRACE] ModuleInstaller: %s uses directory from parent: %s", key, newDir)
+	log.Printf("[TRACE] ModuleInstaller: %s uses directory from parent: %s", key, oldDir)
 	// it is possible that the local directory is a symlink
-	newDir, err := filepath.EvalSymlinks(newDir)
+	newDir, err := filepath.EvalSymlinks(oldDir)
 	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("Unable to evaluate directory symlink: %s", err.Error()),
+			Detail:   fmt.Sprintf("Unable to evaluate directory symlink %s: %s", oldDir, err.Error()),
 		})
 	}
 
