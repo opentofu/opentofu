@@ -12,7 +12,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -31,7 +30,7 @@ type ExternalModules interface {
 	// the implementation can potentially use a lock file to determine which
 	// version has been selected for that call in particular. forCall is
 	// nil when requesting the root module.
-	ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (*configs.Module, tfdiags.Diagnostics)
+	ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (UncompiledModule, tfdiags.Diagnostics)
 }
 
 // Providers is implemented by callers of this package to provide access
@@ -120,7 +119,7 @@ func ensureProvisioners(given Provisioners) Provisioners {
 }
 
 // ModuleConfig implements ExternalModules.
-func (e emptyDependencies) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (*configs.Module, tfdiags.Diagnostics) {
+func (e emptyDependencies) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (UncompiledModule, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
 		tfdiags.Error,

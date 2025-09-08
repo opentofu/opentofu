@@ -220,3 +220,68 @@ func TestValidate_resourceValid(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }
+
+func TestValidate_childModuleCallValuesOnly(t *testing.T) {
+	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
+			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
+				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
+					variable "in" {
+						type = string
+					}
+					module "child" {
+						source = "./child"
+
+						input = var.in
+					}
+					output "out" {
+						value = module.child.result
+					}
+				`),
+				addrs.ModuleSourceLocal("./child"): configs.ModuleFromStringForTesting(t, `
+					variable "input" {
+						type = string
+					}
+					output "result" {
+						value = var.input
+					}
+				`),
+			}),
+			Providers: eval.ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
+				addrs.MustParseProviderSourceString("test/foo"): {
+					Provider: providers.Schema{
+						Block: &configschema.Block{},
+					},
+					ResourceTypes: map[string]providers.Schema{
+						"foo": {
+							Block: &configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"name": {
+										Type:     cty.String,
+										Required: true,
+									},
+									"id": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			}),
+		}),
+		RootModuleSource: addrs.ModuleSourceLocal("."),
+		InputValues: eval.InputValuesForTesting(map[string]cty.Value{
+			"in": cty.StringVal("foo bar baz"),
+		}),
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	diags = configInst.Validate(t.Context())
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+}

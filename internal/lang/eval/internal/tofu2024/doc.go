@@ -23,6 +23,32 @@ import (
 	_ "github.com/opentofu/opentofu/internal/configs"
 )
 
+// === SOME HISTORICAL NOTES ===
+//
+// For those who are coming here with familiarity with the original runtime
+// in "package tofu", you might like to think of the types in this package as
+// being _roughly_ analogous to the "graph builder" mechanism in package tofu.
+//
+// There are some notable differences that are worth knowing before you dive
+// in here, though:
+//
+// - The "compile" code here is intentionally written as much as possible as
+//   straight-through code that runs to completion and returns a value, whereas
+//   package tofu's graph builders instead follow an inversion-of-control style
+//   where a bunch of transformers are run sequentially and each make arbitrary
+//   modifications to a shared mutable data structure.
+// - The "graph" that this code is building is based on the types in the sibling
+//   package "configgraph", which at the time of writing has its own "historical
+//   notes" like this describing how it relates to the traditional graph model.
+// - An express goal of this "compiler" layer is to create an abstraction
+//   boundary between the current surface language, presently implemented in
+//   "package configs", and the execution engine which ideally cares only about
+//   the relationships between objects and the values flowing between them.
+//   Therefore nothing in package configgraph should depend on anything from
+//   package configs, and configgraph should also only be using HCL directly for
+//   some ancillary concepts like diagnostics and traversals, and even those
+//   maybe we'll replace with some OpenTofu-specific wrapper types in future.
+
 // Temporary note about possible future plans:
 //
 // Currently this package is working with [configs.Module] and the other types

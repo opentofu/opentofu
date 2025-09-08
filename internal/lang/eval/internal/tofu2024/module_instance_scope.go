@@ -207,14 +207,17 @@ func (m *moduleInstanceScope) resolveSimpleChildAttr(topSymbol string, ref hcl.T
 		return exprs.ValueOf(v), diags
 
 	case "module":
-		// TODO: Handle this
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Module call references not yet supported",
-			Detail:   "This experimental new implementation does not yet support referring to module calls.",
-			Subject:  &ref.SrcRange,
-		})
-		return nil, diags
+		v, ok := m.inst.moduleCallNodes[addrs.ModuleCall{Name: ref.Name}]
+		if !ok {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reference to undeclared module call",
+				Detail:   fmt.Sprintf("There is no module call named %q declared in this module.", ref.Name),
+				Subject:  &ref.SrcRange,
+			})
+			return nil, diags
+		}
+		return exprs.ValueOf(v), diags
 
 	default:
 		// We should not get here because there should be a case above for
