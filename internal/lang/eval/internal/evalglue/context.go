@@ -5,6 +5,10 @@
 
 package evalglue
 
+import (
+	"testing"
+)
+
 // EvalContext is a collection of contextual information provided by an
 // external caller of this package to help it to interact with the surrounding
 // environment.
@@ -25,21 +29,87 @@ type EvalContext struct {
 	// Provisioners gives access to all of the provisioners available for
 	// use in this context.
 	Provisioners Provisioners
+
+	// RootModuleDir and OriginalWorkingDir both represent local filesystem
+	// directories whose paths are exposed in various ways to expressions
+	// in modules.
+	//
+	// RootModuleDir is the local directory containing the root module, to
+	// be used for "path.root" and for the base directory of
+	// filesystem-interacting core functions, while OriginalWorkingDir
+	// is used for "path.cwd". These tend to differ only when someone uses
+	// the "-chdir" command line option, which causes RootModuleDir to change
+	// but leaves OriginalWorkingDir unchanged.
+	RootModuleDir, OriginalWorkingDir string
 }
 
-// Init must be called early on entry to any exported function that accepts
-// an [EvalContext] as an argument to prepare it for use, before accessing
-// any of its fields or calling any of its other methods.
-func (c *EvalContext) Init() {
-	// If any of the external dependency fields were left nil (likely in
-	// unit tests which aren't intending to use a particular kind of dependency)
-	// we'll replace it with a non-nil implementation that just returns an
-	// error immediately on call, so that accidental reliance on these will
-	// return an error instead of panicking.
-	//
-	// "Real" callers (performing operations on behalf of end-users) should
-	// avoid relying on this because it returns low-quality error messages.
-	c.Modules = ensureExternalModules(c.Modules)
-	c.Providers = ensureProviders(c.Providers)
-	c.Provisioners = ensureProvisioners(c.Provisioners)
+// AssertValid must be called early on entry to any exported function that
+// accepts an [EvalContext] from outside of the lang/eval family of packages,
+// to fail quickly if the caller has not populated the fields in a valid
+// way.
+func (c *EvalContext) AssertValid() {
+	// ----------------------------------------------------------------------
+	// NOTE: If you're looking here because you tried to write a test that
+	// panicked on one of the following, consider whether
+	// [EvalContextForTesting] would be a good compromise for your test so
+	// that we can add new requirements here in future without having to
+	// immediatately update all of the tests to conform to them.
+	// ----------------------------------------------------------------------
+
+	if c.Modules == nil {
+		panic("EvalContext.Modules must be set")
+	}
+	if c.Providers == nil {
+		panic("EvalContext.Providers must be set")
+	}
+	if c.Provisioners == nil {
+		panic("EvalContext.Provisioners must be set")
+	}
+	if c.RootModuleDir == "" {
+		panic("EvalContext.RootModuleDir must be set")
+	}
+	if c.OriginalWorkingDir == "" {
+		panic("EvalContext.OriginalWorkingDir must be set")
+	}
+}
+
+// EvalContextForTesting is a test-only helper which takes a
+// possibly-partially-initialized [EvalContext] and substitutes some reasonable
+// inert test implementations for anything that isn't populated.
+//
+// Passing a nil pointer is allowed and means that the calling test doesn't
+// have any specific requirements for any part of the EvalContext and so
+// _everything_ should be set to the inert defaults.
+//
+// This is intended to reduce the maintenence overhead for our tests as we
+// grow EvalContext over time while still forcing "normal" code to be updated
+// to set whatever new fields are required in future. Do not use this outside
+// of test code, but also avoid changing this in ways that are overly-tailored
+// for the needs of individual tests; add more specific test helpers if a family
+// of tests have a common need but that need does not generalize across tests
+// of many different parts of the system.
+//
+// If any changes need to be made then the given EvalContext may be modified
+// in-place, but callers should not rely on this and should instead use
+// the return value as their final EvalContext.
+func EvalContextForTesting(t testing.TB, initial *EvalContext) *EvalContext {
+	t.Helper()
+
+	ret := initial
+	if ret == nil {
+		ret = &EvalContext{}
+	}
+
+	ret.Modules = ensureExternalModules(ret.Modules)
+	ret.Providers = ensureProviders(ret.Providers)
+	ret.Provisioners = ensureProvisioners(ret.Provisioners)
+
+	if ret.RootModuleDir == "" {
+		ret.RootModuleDir = "."
+	}
+	if ret.OriginalWorkingDir == "" {
+		ret.OriginalWorkingDir = "."
+	}
+
+	return ret
 }
