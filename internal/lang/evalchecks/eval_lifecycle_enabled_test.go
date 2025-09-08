@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -142,6 +143,15 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 				{
 					"Invalid enabled argument",
 					`The given "enabled" argument value is derived from a value that won't be known until the apply phase, so OpenTofu cannot determine whether an instance of this object is declared or not.`,
+				},
+			},
+		},
+		"ephemeral": {
+			cty.StringVal("1").Mark(marks.Ephemeral),
+			[]WantedError{
+				{
+					"Invalid enabled argument",
+					`The given "enabled" argument value is unsuitable: the given value is ephemeral.`,
 				},
 			},
 		},

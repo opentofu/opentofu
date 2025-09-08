@@ -62,6 +62,17 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
+	if rawEnabledVal.HasMark(marks.Ephemeral) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid enabled argument",
+			Detail:      `The given "enabled" argument value is unsuitable: the given value is ephemeral.`,
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+	}
+
 	if rawEnabledVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
