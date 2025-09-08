@@ -30,32 +30,9 @@ type ModuleCallInstance struct {
 	// a separate address type for an "absolute module call instance".
 	ModuleInstanceAddr addrs.ModuleInstance
 
-	// SourceAddrValuer and VersionConstraintValuer together describe how
-	// to select the module to be called.
-	//
-	// Allowing the entire module content to vary between phases is too
-	// much chaos for our plan/apply model to really support, so we make
-	// a pragmatic compromise here of disallowing the results from these
-	// to be derived from any resource instances (even if the value happens
-	// to be currently known) and just generally disallowing unknown
-	// values regardless of where they are coming from. In practice resource
-	// instances are the main place unknown values come from, but this
-	// also excludes specifying the module to use based on impure functions
-	// like "timestamp" whose results aren't decided until the apply step.
-	//
-	// These are associated with call instances rather than the main call,
-	// and so it's possible for different instances of the same call to
-	// select completely different modules. While that's a somewhat esoteric
-	// thing to do, it would make it possible to e.g. write a module call that
-	// uses for_each where the associated values choose between multiple
-	// implementations of the same general abstraction. However, our surface
-	// language doesn't currently allow that -- it always evaluates these
-	// in the global scope rather than per-instance scope -- because the
-	// way module blocks are currently designed means that HCL wants the
-	// set of arguments to be fixed statically rather than chosen
-	// dynamically.
-	SourceAddrValuer        *OnceValuer
-	VersionConstraintValuer *OnceValuer
+	// Glue is provided by whatever compiled this object to allow us to learn
+	// more about the module that is being called.
+	Glue ModuleCallInstanceGlue
 
 	// InputsValuer is a valuer for all of the input variable values taken
 	// together as a single object. It's structured this way mainly for
@@ -65,26 +42,45 @@ type ModuleCallInstance struct {
 	// that allows constructing the entire map dynamically using expression
 	// syntax.
 	InputsValuer *OnceValuer
+
+	// TODO: Also something for the "providers side-channel", as represented
+	// by the "providers" meta-argument in the current language.
 }
 
 var _ exprs.Valuer = (*ModuleCallInstance)(nil)
 
 // StaticCheckTraversal implements exprs.Valuer.
 func (m *ModuleCallInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags.Diagnostics {
-	// We only do dynamic checks of accessing a module call because we
-	// can't know what result type it will return without fetching and
-	// compiling the child module source code, and that's too heavy
-	// an operation for "static check".
+	// We don't perform any static type checking of accesses to a module's
+	// output value. Instead, we just wait until we have the final result
+	// in Value.
 	return nil
 }
 
 // Value implements exprs.Valuer.
 func (m *ModuleCallInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	// TODO: Evaluate the source address and version constraint and then
-	// use a new field with a callback to ask the compile layer to compile
-	// us a [evalglue.CompiledModuleInstance] for the child module, and
-	// then ask for its result value and return it.
-	panic("unimplemented")
+	inputsVal, diags := m.InputsValuer.Value(ctx)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+
+	moreDiags := m.Glue.ValidateInputs(ctx, inputsVal)
+	// FIXME: Our "contextual diagnostics" mechanism, where the callee provides
+	// an attribute path and then the caller discovers a suitable source range
+	// for each diagnostic based on information in the body, can only work
+	// when we have direct access to a [hcl.Body], but we intentionally
+	// abstracted that away here. We'll need to find a different design for
+	// contextual diagnostics that can work through the [exprs.Valuer]
+	// abstraction to make a best effort to interpret attribute paths against
+	// whatever the valuer was evaluating.
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+
+	// The actual result value is decided by our caller, which is expected
+	// to know how to actually find, compile, and evaluate the target module.
+	return exprs.EvalResult(m.Glue.OutputsValue(ctx, inputsVal))
 }
 
 // ValueSourceRange implements exprs.Valuer.
@@ -100,14 +96,6 @@ func (c *ModuleCallInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 }
 
 func (m *ModuleCallInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	announce(m.SourceAddrValuer.RequestID(), grapheval.RequestInfo{
-		Name:        m.ModuleInstanceAddr.String() + " source address",
-		SourceRange: m.SourceAddrValuer.ValueSourceRange(),
-	})
-	announce(m.VersionConstraintValuer.RequestID(), grapheval.RequestInfo{
-		Name:        m.ModuleInstanceAddr.String() + " version constraint",
-		SourceRange: m.VersionConstraintValuer.ValueSourceRange(),
-	})
 	announce(m.InputsValuer.RequestID(), grapheval.RequestInfo{
 		Name:        m.ModuleInstanceAddr.String() + " input variable values",
 		SourceRange: m.InputsValuer.ValueSourceRange(),
