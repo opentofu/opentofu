@@ -54,6 +54,17 @@ type ModuleInstanceCall struct {
 	// between old-style and new-style modules.)
 	ProvidersFromParent map[addrs.LocalProviderConfig]exprs.Valuer
 
+	// AllowImpureFunctions controls whether to allow full use of a small
+	// number of functions that produce different results each time they are
+	// called, such as "timestamp". This should be set to true only during
+	// the apply phase and in some more contrived situations such as in the
+	// "tofu console" command's REPL.
+	//
+	// This setting should typically be propagated verbatim to any child
+	// module instances because there's little reason for one module to
+	// allow impure functions while another does not.
+	AllowImpureFunctions bool
+
 	// EvaluationGlue is the [evalconfig.Glue] implementation to use when
 	// the evaluator needs information from outside of the configuration.
 	//
