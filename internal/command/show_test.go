@@ -10,8 +10,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -206,10 +206,7 @@ func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
 
 			got := output.Stderr()
 			want1 := `couldn't load the provided path`
-			want2 := `open doesNotExist.tfplan: no such file or directory`
-			if runtime.GOOS == "windows" {
-				want2 = "open doesNotExist.tfplan: The system cannot find the file specified"
-			}
+			want2 := `open doesNotExist.tfplan: ` + syscall.ENOENT.Error()
 			if !strings.Contains(got, want1) {
 				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
 			}
@@ -272,10 +269,7 @@ func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
 			got := output.Stderr()
 			want1 := `couldn't load the provided path`
 
-			want2 := `open doesNotExist.tfplan: no such file or directory`
-			if runtime.GOOS == "windows" {
-				want2 = `open doesNotExist.tfplan: The system cannot find the file specified`
-			}
+			want2 := `open doesNotExist.tfplan: ` + syscall.ENOENT.Error()
 
 			if !strings.Contains(got, want1) {
 				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)

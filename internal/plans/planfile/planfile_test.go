@@ -7,8 +7,8 @@ package planfile
 
 import (
 	"path/filepath"
-	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -191,11 +191,8 @@ func TestWrappedError(t *testing.T) {
 		t.Fatalf("expected  %q, got %q", wrongFile, err)
 	}
 
-	// Open something that doesn't exist: should error
-	missingFileError := "no such file or directory"
-	if runtime.GOOS == "windows" {
-		missingFileError = "The system cannot find the file specified"
-	}
+	missingFileError := syscall.ENOENT.Error()
+
 	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"), encryption.PlanEncryptionDisabled())
 	if !strings.Contains(err.Error(), missingFileError) {
 		t.Fatalf("expected  %q, got %q", missingFileError, err)
