@@ -21,9 +21,10 @@ import (
 // input variables used to call into its root module, along with related
 // context such as available providers and module packages.
 type ConfigInstance struct {
-	rootModuleSource addrs.ModuleSource
-	inputValues      exprs.Valuer
-	evalContext      *evalglue.EvalContext
+	rootModuleSource     addrs.ModuleSource
+	inputValues          exprs.Valuer
+	evalContext          *evalglue.EvalContext
+	allowImpureFunctions bool
 }
 
 // ConfigCall describes a call to a root module that acts conceptually like
@@ -51,6 +52,13 @@ type ConfigCall struct {
 	// field inline in the test code.
 	InputValues exprs.Valuer
 
+	// AllowImpureFunctions controls whether to allow full use of a small
+	// number of functions that produce different results each time they are
+	// called, such as "timestamp". This should be set to true only during
+	// the apply phase and in some more contrived situations such as in the
+	// "tofu console" command's REPL.
+	AllowImpureFunctions bool
+
 	// EvalContext describes the context where the call is being made, dealing
 	// with cross-cutting concerns like which providers are available and how
 	// to load them.
@@ -69,18 +77,13 @@ type ConfigCall struct {
 // Use methods of a valid [`ConfigInstance`] produced by this function to
 // gather more information about the configuration.
 func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, tfdiags.Diagnostics) {
-	// The following compensations are for the convenience of unit tests, but
-	// real callers should explicitly set all of this.
-	evalCtx := call.EvalContext
-	if evalCtx == nil {
-		evalCtx = &evalglue.EvalContext{}
-	}
-	evalCtx.AssertValid()
+	call.EvalContext.AssertValid()
 
 	inst := &ConfigInstance{
-		rootModuleSource: call.RootModuleSource,
-		inputValues:      call.InputValues,
-		evalContext:      evalCtx,
+		rootModuleSource:     call.RootModuleSource,
+		inputValues:          call.InputValues,
+		allowImpureFunctions: call.AllowImpureFunctions,
+		evalContext:          call.EvalContext,
 	}
 
 	// We currently don't do any other early work here and instead just wait
@@ -106,10 +109,11 @@ func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglu
 		return nil, diags
 	}
 	rootModuleCall := &tofu2024.ModuleInstanceCall{
-		CalleeAddr:     addrs.RootModuleInstance,
-		InputValues:    c.inputValues,
-		EvaluationGlue: glue,
-		EvalContext:    c.evalContext,
+		CalleeAddr:           addrs.RootModuleInstance,
+		InputValues:          c.inputValues,
+		EvaluationGlue:       glue,
+		AllowImpureFunctions: c.allowImpureFunctions,
+		EvalContext:          c.evalContext,
 	}
 	rootModuleInstance := tofu2024.CompileModuleInstance(ctx, rootModule, c.rootModuleSource, rootModuleCall)
 	return rootModuleInstance, diags
