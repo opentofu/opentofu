@@ -1052,7 +1052,7 @@ func (h *testInstallHooks) Install(moduleAddr string, version *version.Version, 
 // working directory restored after the calling test is complete.
 //
 // Tests using this helper cannot safely be run in parallel with other tests.
-func tempChdir(t testing.TB, sourceDir string) string {
+func tempChdir(t *testing.T, sourceDir string) string {
 	t.Helper()
 
 	tmpDir := t.TempDir()
