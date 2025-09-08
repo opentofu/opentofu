@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
@@ -65,7 +66,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 	// Since there are two resources, there are 2*instanceCount instances total.
 	const instanceCount = 2500
 	configInst, diags := eval.NewConfigInstance(b.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(b, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(b, `
 					# This test has two resources that each have a lot of instances
@@ -112,7 +113,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 					},
 				},
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues: eval.InputValuesForTesting(map[string]cty.Value{
 			"instance_count": cty.NumberIntVal(instanceCount),

@@ -75,7 +75,7 @@ func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, 
 	if evalCtx == nil {
 		evalCtx = &evalglue.EvalContext{}
 	}
-	evalCtx.Init()
+	evalCtx.AssertValid()
 
 	inst := &ConfigInstance{
 		rootModuleSource: call.RootModuleSource,
