@@ -146,6 +146,15 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 				},
 			},
 		},
+		"sensitive": {
+			cty.StringVal("1").Mark(marks.Sensitive),
+			[]WantedError{
+				{
+					"Invalid enabled argument",
+					`Sensitive values, or values derived from sensitive values, cannot be used in "enabled" arguments. If used, the sensitive value would be exposed by whether an instance is present.`,
+				},
+			},
+		},
 		"ephemeral": {
 			cty.StringVal("1").Mark(marks.Ephemeral),
 			[]WantedError{
