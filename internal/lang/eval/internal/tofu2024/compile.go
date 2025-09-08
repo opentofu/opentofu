@@ -107,7 +107,10 @@ func CompileModuleInstance(
 		module.ModuleCalls,
 		topScope,
 		providersSidechannel,
+		moduleSourceAddr,
 		call.CalleeAddr,
+		call.EvalContext.Modules,
+		call,
 	)
 	ret.resourceNodes = compileModuleInstanceResources(ctx,
 		module.ManagedResources,
@@ -119,6 +122,15 @@ func CompileModuleInstance(
 		call.EvalContext.Providers,
 		call.EvaluationGlue.ResourceInstanceValue,
 	)
+
+	// Now that we've assembled all of the innards of the module instance,
+	// we'll wire the output values up to the top-level module instance
+	// node so that it can produce the overall result object for this module
+	// instance.
+	ret.moduleInstanceNode.OutputValuers = make(map[addrs.OutputValue]*configgraph.OnceValuer, len(ret.outputValueNodes))
+	for addr, node := range ret.outputValueNodes {
+		ret.moduleInstanceNode.OutputValuers[addr] = configgraph.ValuerOnce(node)
+	}
 
 	return ret
 }
@@ -378,61 +390,107 @@ func compileModuleInstanceModuleCalls(
 	configs map[string]*configs.ModuleCall,
 	declScope exprs.Scope,
 	providersSidechannel *moduleProvidersSideChannel,
+	parentSourceAddr addrs.ModuleSource,
 	moduleInstanceAddr addrs.ModuleInstance,
+	externalModules evalglue.ExternalModules,
+	parentCall *ModuleInstanceCall,
 ) map[addrs.ModuleCall]*configgraph.ModuleCall {
 	ret := make(map[addrs.ModuleCall]*configgraph.ModuleCall, len(configs))
 	for name, config := range configs {
 		addr := addrs.ModuleCall{Name: name}
+		absAddr := addr.Absolute(moduleInstanceAddr)
+
+		var versionConstraintValuer exprs.Valuer
+		if config.VersionAttr != nil {
+			versionConstraintValuer = exprs.NewClosure(
+				exprs.EvalableHCLExpression(config.VersionAttr.Expr),
+				declScope,
+			)
+		} else {
+			versionConstraintValuer = exprs.ConstantValuer(cty.NullVal(cty.String))
+		}
+
 		ret[addr] = &configgraph.ModuleCall{
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
+			ParentSourceAddr: parentSourceAddr,
 			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, nil),
-			CompileCallInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ModuleCallInstance {
-				var versionConstraintValuer exprs.Valuer
-				if config.VersionAttr != nil {
-					versionConstraintValuer = exprs.NewClosure(
-						exprs.EvalableHCLExpression(config.VersionAttr.Expr),
-						declScope,
-					)
-				} else {
-					versionConstraintValuer = exprs.ConstantValuer(cty.NullVal(cty.String))
+			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
+				exprs.EvalableHCLExpression(config.Source),
+				declScope,
+			)),
+			VersionConstraintValuer: configgraph.ValuerOnce(
+				versionConstraintValuer,
+			),
+			ValidateSourceArguments: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments) tfdiags.Diagnostics {
+				// We'll try to use the given source address with our
+				// [ExternalModules] object, and consider the arguments to be
+				// valid if this succeeds.
+				//
+				// If the [ExternalModules] object is one that fetches the
+				// requested module over the network on first request then we
+				// expect that it'll cache what it fetched somewhere so that
+				// a subsequent call with the same arguments will be relatively
+				// cheap.
+				_, diags := externalModules.ModuleConfig(ctx, sourceArgs.Source, sourceArgs.AllowedVersions, &absAddr)
+				return diags
+			},
+			CompileCallInstance: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ModuleCallInstance {
+
+				// The contract for [configgraph.ModuleCall] is that it should only
+				// call this function when sourceArgs is something that was previously
+				// accepted by [ValidateSourceArguments]. We assume that the module
+				// dependencies object is doing some sort of caching so that if
+				// ValidateSourceArguments caused something to be downloaded over
+				// the network then we can re-request that same object cheaply here.
+				mod, diags := externalModules.ModuleConfig(ctx, sourceArgs.Source, sourceArgs.AllowedVersions, &absAddr)
+				if diags.HasErrors() {
+					// We should not typically find errors here because we would've
+					// already tried this in ValidateSourceArguments above, but
+					// we _do_ encounter problems here then we'll return a stubby
+					// object that just returns whatever diagnostics we found as
+					// soon as it tries to evaluate its inputs.
+					return &configgraph.ModuleCallInstance{
+						ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
+						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags)),
+						Glue: &moduleCallInstanceGlue{
+							validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+								return diags
+							},
+							getOutputsValue: func(ctx context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {
+								return cty.DynamicVal, diags
+							},
+						},
+					}
 				}
 
 				instanceScope := instanceLocalScope(declScope, repData)
 				return &configgraph.ModuleCallInstance{
 					ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
 
-					// We _could_ potentially allow the source address and
-					// version constraint to vary between instances by
-					// binding these to the instance local scope, but we
-					// choose not to for now because the syntax for module
-					// blocks means it's not possible to vary which input
-					// variables are defined on a per-instance basis and so
-					// selecting different modules wouldn't work well unless
-					// they all had exactly the same input variable names.
-					SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
-						exprs.EvalableHCLExpression(config.Source),
-						declScope,
-					)),
-					VersionConstraintValuer: configgraph.ValuerOnce(
-						versionConstraintValuer,
-					),
-
-					// The inputs value _can_ be derived from per-instance
-					// values though, of course! We use "just attributes"
-					// mode here because on the caller side we don't yet know
-					// what input variables the callee is expecting. We'll
-					// just send this whole value over to it and let it
-					// check whether the object type is acceptable.
 					InputsValuer: configgraph.ValuerOnce(exprs.NewClosure(
 						exprs.EvalableHCLBodyJustAttributes(config.Config),
 						instanceScope,
 					)),
-
-					// TODO: valuers for the "providers side-channel" from
-					// the "providers" meta-argument, or automatic passing
-					// of all of the default (unaliased) providers from
-					// the parent module if "providers" isn't present.
+					Glue: &moduleCallInstanceGlue{
+						validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+							return mod.ValidateModuleInputs(ctx, v)
+						},
+						getOutputsValue: func(ctx context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {
+							modInst, diags := mod.CompileModuleInstance(ctx, &evalglue.ModuleCall{
+								InputValues:          exprs.ConstantValuer(v),
+								AllowImpureFunctions: parentCall.AllowImpureFunctions,
+								EvalContext:          parentCall.EvalContext,
+								EvaluationGlue:       parentCall.EvaluationGlue,
+							})
+							if diags.HasErrors() {
+								return cty.DynamicVal, diags
+							}
+							ret, moreDiags := modInst.ResultValuer(ctx).Value(ctx)
+							diags = diags.Append(moreDiags)
+							return ret, diags
+						},
+					},
 				}
 			},
 		}
@@ -536,4 +594,17 @@ func (r *resourceInstanceGlue) ValidateConfig(ctx context.Context, configVal cty
 // ResultValue implements configgraph.ResourceInstanceGlue.
 func (r *resourceInstanceGlue) ResultValue(ctx context.Context, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {
 	return r.getResultValue(ctx, configVal, providerInst)
+}
+
+type moduleCallInstanceGlue struct {
+	validateInputs  func(context.Context, cty.Value) tfdiags.Diagnostics
+	getOutputsValue func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics)
+}
+
+func (g *moduleCallInstanceGlue) ValidateInputs(ctx context.Context, inputsVal cty.Value) tfdiags.Diagnostics {
+	return g.validateInputs(ctx, inputsVal)
+}
+
+func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context, inputsVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	return g.getOutputsValue(ctx, inputsVal)
 }

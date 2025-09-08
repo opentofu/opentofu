@@ -12,7 +12,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
-	"github.com/opentofu/opentofu/internal/lang/eval/internal/tofu2024"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -108,13 +107,12 @@ func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglu
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	rootModuleCall := &tofu2024.ModuleInstanceCall{
-		CalleeAddr:           addrs.RootModuleInstance,
+	ret, moreDiags := rootModule.CompileModuleInstance(ctx, &evalglue.ModuleCall{
 		InputValues:          c.inputValues,
-		EvaluationGlue:       glue,
 		AllowImpureFunctions: c.allowImpureFunctions,
+		EvaluationGlue:       glue,
 		EvalContext:          c.evalContext,
-	}
-	rootModuleInstance := tofu2024.CompileModuleInstance(ctx, rootModule, c.rootModuleSource, rootModuleCall)
-	return rootModuleInstance, diags
+	})
+	diags = diags.Append(moreDiags)
+	return ret, diags
 }
