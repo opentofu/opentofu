@@ -136,7 +136,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 func TestDirFromModule_submodules(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/empty")
-	fromModuleDir, err := filepath.Abs("./testdata/local-modules")
+	fromModuleDir, err := filepath.Abs(filepath.Clean("./testdata/local-modules"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	modInstallDir := filepath.Join(dir, ".terraform/modules")
+	modInstallDir := filepath.Join(dir, ".terraform", "modules")
 
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
@@ -282,7 +282,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	if err := os.Mkdir(fromModuleDir, os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err := copy.CopyDir(fromModuleDir, "testdata/local-modules"); err != nil {
+	if err := copy.CopyDir(fromModuleDir, filepath.Clean("testdata/local-modules")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Mkdir(workDir, os.ModePerm); err != nil {
@@ -315,8 +315,8 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	modInstallDir := ".terraform/modules"
-	sourceDir := "../local-modules"
+	modInstallDir := filepath.Join(".terraform", "modules")
+	sourceDir := filepath.Join("..", "local-modules")
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
