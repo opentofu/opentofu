@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -24,7 +25,7 @@ func TestValidate_valuesOnlySuccess(t *testing.T) {
 	// basics, so that we don't necessarily need to repeat these basics
 	// across all of the other tests.
 	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					variable "a" {
@@ -38,7 +39,7 @@ func TestValidate_valuesOnlySuccess(t *testing.T) {
 					}
 				`),
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues: eval.InputValuesForTesting(map[string]cty.Value{
 			"a": cty.True,
@@ -59,7 +60,7 @@ func TestValidate_valuesOnlyError(t *testing.T) {
 	// basics, so that we don't necessarily need to repeat these basics
 	// across all of the other tests.
 	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					variable "a" {
@@ -73,7 +74,7 @@ func TestValidate_valuesOnlyError(t *testing.T) {
 					}
 				`),
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues: eval.InputValuesForTesting(map[string]cty.Value{
 			"a": cty.EmptyObjectVal, // not valid for how the variable is used elsewhere in the module
@@ -115,7 +116,7 @@ func TestValidate_valuesOnlyCycle(t *testing.T) {
 	// basics, so that we don't necessarily need to repeat these basics
 	// across all of the other tests.
 	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					locals {
@@ -124,7 +125,7 @@ func TestValidate_valuesOnlyCycle(t *testing.T) {
 					}
 				`),
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues:      eval.InputValuesForTesting(map[string]cty.Value{}),
 	})
@@ -160,7 +161,7 @@ func TestValidate_valuesOnlyCycle(t *testing.T) {
 
 func TestValidate_resourceValid(t *testing.T) {
 	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					terraform {
@@ -204,7 +205,7 @@ func TestValidate_resourceValid(t *testing.T) {
 					},
 				},
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues: eval.InputValuesForTesting(map[string]cty.Value{
 			"in": cty.StringVal("foo bar baz"),

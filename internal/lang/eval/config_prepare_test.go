@@ -15,12 +15,13 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
 func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: &eval.EvalContext{
+		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
 			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					terraform {
@@ -108,7 +109,7 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 					},
 				},
 			}),
-		},
+		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
 		InputValues:      eval.InputValuesForTesting(map[string]cty.Value{}),
 	})
