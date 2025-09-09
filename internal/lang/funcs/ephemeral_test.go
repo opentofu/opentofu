@@ -124,5 +124,4 @@ func TestEphemeralAsNullFunc(t *testing.T) {
 			}
 		})
 	}
-
 }
