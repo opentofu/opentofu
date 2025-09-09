@@ -35,6 +35,7 @@ ENHANCEMENTS:
 * When running the `stty` program to disable or reenable local echo at a sensitive input prompt, OpenTofu will now search `PATH` for the program rather than requiring it to be at exactly `/bin/stty`. ([#3182](https://github.com/opentofu/opentofu/pull/3182))
 * Reduced the CPU and Memory overhead of managing large state files in OpenTofu. ([#3110](https://github.com/opentofu/opentofu/pull/3110))
   * These improvements are primarilly visible in projects with thousands of resources
+* It is now possible to configure the registry protocol retry count and request timeout settings in the CLI configuration, in addition to the previously-available environment variables. ([#3256](https://github.com/opentofu/opentofu/pull/3256))
 * Upgrade github.com/hashicorp/go-getter to v1.7.9 to fix [GO-2025-3892](https://pkg.go.dev/vuln/GO-2025-3892). ([#3227](https://github.com/opentofu/opentofu/pull/3227))
 * The module installer will copy files in parallel to improve performance of `init` ([#3214](https://github.com/opentofu/opentofu/pull/3214))
 * The following option has been added to the `azurerm` backend:
