@@ -207,6 +207,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
+		t.Logf("final being written: %s", string(final))
 		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
