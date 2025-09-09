@@ -228,7 +228,7 @@ func valueForInstances[T exprs.Valuer](ctx context.Context, insts *compiledInsta
 		return cty.ObjectVal(attrs).WithMarks(insts.ValueMarks)
 
 	case addrs.IntKeyType:
-		if _, ok := insts.Instances[addrs.WildcardKey{addrs.StringKeyType}]; ok {
+		if _, ok := insts.Instances[addrs.WildcardKey{addrs.IntKeyType}]; ok {
 			// In this case we cannot predict anything about the placeholder
 			// result because if we don't know how many instances we have
 			// then we cannot even predict the tuple type.

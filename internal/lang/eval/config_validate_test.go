@@ -20,6 +20,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// This file is in "package eval_test" in order to integration-test the
+// validation phase through the same exported API that external callers would
+// use.
+
 func TestValidate_valuesOnlySuccess(t *testing.T) {
 	// This test has an intentionally limited scope covering just the
 	// basics, so that we don't necessarily need to repeat these basics

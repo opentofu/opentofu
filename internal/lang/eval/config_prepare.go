@@ -18,7 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// PrepareToPlan implements an extra preparation phase we perform before
+// prepareToPlan implements an extra preparation phase we perform before
 // running the main plan phase so we can deal with the "chicken or the egg"
 // problem of needing to evaluate configuraton to learn the relationships
 // between resources instances and provider instances but needing to already
@@ -40,7 +40,7 @@ import (
 // evaluate using real resource planning results. The planning phase will
 // then be able to produce its own tighter version of this information to
 // use when building the execution graph for the apply phase.
-func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationships, tfdiags.Diagnostics) {
+func (c *ConfigInstance) prepareToPlan(ctx context.Context) (*ResourceRelationships, tfdiags.Diagnostics) {
 	// All of our work will be associated with a workgraph worker that serves
 	// as the initial worker node in the work graph.
 	ctx = grapheval.ContextWithNewWorker(ctx)
@@ -50,8 +50,8 @@ func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationsh
 		return nil, diags
 	}
 	ret := &ResourceRelationships{
-		EphemeralResourceUsers: addrs.MakeMap[addrs.AbsResourceInstance, addrs.Set[addrs.AbsResourceInstance]](),
-		ProviderInstanceUsers:  addrs.MakeMap[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]](),
+		EphemeralResourceUsers: addrs.MakeMap[addrs.AbsResourceInstance, EphemeralResourceInstanceUsers](),
+		ProviderInstanceUsers:  addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ProviderInstanceUsers](),
 	}
 	for depender := range rootModuleInstance.ResourceInstancesDeep(ctx) {
 		dependerAddr := depender.Addr
@@ -59,9 +59,11 @@ func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationsh
 			dependeeAddr := dependee.Addr
 			if dependeeAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
 				if !ret.EphemeralResourceUsers.Has(dependeeAddr) {
-					ret.EphemeralResourceUsers.Put(dependeeAddr, addrs.MakeSet[addrs.AbsResourceInstance]())
+					ret.EphemeralResourceUsers.Put(dependeeAddr, EphemeralResourceInstanceUsers{
+						ResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
+					})
 				}
-				set := ret.EphemeralResourceUsers.Get(dependeeAddr)
+				set := ret.EphemeralResourceUsers.Get(dependeeAddr).ResourceInstances
 				set.Add(dependerAddr)
 			}
 		}
@@ -69,9 +71,11 @@ func (c *ConfigInstance) PrepareToPlan(ctx context.Context) (*ResourceRelationsh
 		if providerInst, known := configgraph.GetKnown(providerInst); known {
 			providerInstAddr := providerInst.Addr
 			if !ret.ProviderInstanceUsers.Has(providerInstAddr) {
-				ret.ProviderInstanceUsers.Put(providerInstAddr, addrs.MakeSet[addrs.AbsResourceInstance]())
+				ret.ProviderInstanceUsers.Put(providerInstAddr, ProviderInstanceUsers{
+					ResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
+				})
 			}
-			set := ret.ProviderInstanceUsers.Get(providerInstAddr)
+			set := ret.ProviderInstanceUsers.Get(providerInstAddr).ResourceInstances
 			set.Add(dependerAddr)
 		}
 	}
@@ -87,10 +91,9 @@ type ResourceRelationships struct {
 	// downstream users of an ephemeral resource instance have finished
 	// their work and so it's okay to close the ephemeral resource instance.
 	//
-	// TODO: This should be a map of EphemeralResourceUsers and also capture
-	// the provider instances that are depending on each ephemeral resource
-	// instance.
-	EphemeralResourceUsers addrs.Map[addrs.AbsResourceInstance, addrs.Set[addrs.AbsResourceInstance]]
+	// TODO: This should also capture the provider instances that are depending
+	// on each ephemeral resource instance.
+	EphemeralResourceUsers addrs.Map[addrs.AbsResourceInstance, EphemeralResourceInstanceUsers]
 
 	// EphemeralResourceUsers is a map from provider instance addresses to the
 	// sets of addresses of resource instances which a provided by them.
@@ -98,10 +101,10 @@ type ResourceRelationships struct {
 	// A subsequent plan phase can use this to detect when all of the
 	// downstream users of a provider instance have finished their work and so
 	// it's okay to close the provider instance.
-	ProviderInstanceUsers addrs.Map[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]]
+	ProviderInstanceUsers addrs.Map[addrs.AbsProviderInstanceCorrect, ProviderInstanceUsers]
 }
 
-type EphemeralResourceUsers struct {
+type EphemeralResourceInstanceUsers struct {
 	ResourceInstances addrs.Set[addrs.AbsResourceInstance]
 
 	// TODO: ProviderInstances
@@ -120,6 +123,10 @@ type EphemeralResourceUsers struct {
 	// which resource instances belong to a particular provider instance.
 	// (The orphan-to-provider-instance relationships are tracked in the
 	// state, rather than in the config.)
+}
+
+type ProviderInstanceUsers struct {
+	ResourceInstances addrs.Set[addrs.AbsResourceInstance]
 }
 
 // precheckedModuleInstance deals with the common part of both
