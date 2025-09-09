@@ -57,6 +57,15 @@ type Config struct {
 	Credentials        map[string]map[string]interface{}   `hcl:"credentials"`
 	CredentialsHelpers map[string]*ConfigCredentialsHelper `hcl:"credentials_helper"`
 
+	// RegistryProtocols contains some settings for tailoring the request
+	// timeout and retry count for metadata requests made by our registry
+	// protocol clients.
+	//
+	// [LoadConfig] guarantees that this will always be present and contain
+	// values. If these settings are not configured either in files or the
+	// environment then we use some reasonable default settings.
+	RegistryProtocols *RegistryProtocolsConfig
+
 	// ProviderInstallation represents any provider_installation blocks
 	// in the configuration. Only one of these is allowed across the whole
 	// configuration, but we decode into a slice here so that we can handle
@@ -122,7 +131,14 @@ func LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
 		if _, err := os.Stat(mainFilename); err == nil {
 			mainConfig, mainDiags := loadConfigFile(mainFilename)
 			diags = diags.Append(mainDiags)
-			config = config.Merge(mainConfig)
+			// NOTE: The order of arguments to merge below seems confusing
+			// given that below we tend to do it the other way around, but
+			// this was a historical inconsistency that we only discovered
+			// after making BuiltinConfig not just be completely empty and
+			// so we've swapped these but left the others unswapped to avoid
+			// changing those behaviors. It was unfortunately never well
+			// specified what is overriding what here.
+			config = mainConfig.Merge(config)
 		}
 	} else {
 		diags = diags.Append(mainFileDiags)
@@ -188,6 +204,9 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	// using a structure that is not compatible with HCL 1's DecodeObject,
 	// or HCL 1 would be too liberal in parsing and thus make it harder
 	// for us to potentially transition to using HCL 2 later.
+	registryProtocolsConfig, registryProtocolsDiags := decodeRegistryProtocolsConfigFromConfig(obj)
+	diags = diags.Append(registryProtocolsDiags)
+	result.RegistryProtocols = registryProtocolsConfig
 	providerInstBlocks, providerInstDiags := decodeProviderInstallationFromConfig(obj)
 	diags = diags.Append(providerInstDiags)
 	result.ProviderInstallation = providerInstBlocks
@@ -262,6 +281,11 @@ func envConfig(env map[string]string) *Config {
 		// true.
 		config.PluginCacheMayBreakDependencyLockFile = true
 	}
+
+	// The environment config _always_ has opinions about the registry
+	// protocols, because we include the default values in here if the
+	// relevant environment variables aren't set.
+	config.RegistryProtocols = decodeRegistryProtocolsConfigFromEnvironment()
 
 	return config
 }
@@ -414,6 +438,8 @@ func (c *Config) Merge(c2 *Config) *Config {
 			result.CredentialsHelpers[name] = helper
 		}
 	}
+
+	result.RegistryProtocols = mergeRegistryProtocolConfigs(c2.RegistryProtocols, c.RegistryProtocols)
 
 	if (len(c.ProviderInstallation) + len(c2.ProviderInstallation)) > 0 {
 		result.ProviderInstallation = append(result.ProviderInstallation, c.ProviderInstallation...)

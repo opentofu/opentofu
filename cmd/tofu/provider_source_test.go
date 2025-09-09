@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -121,7 +122,19 @@ func TestProviderSource(t *testing.T) {
 			}
 
 			// Call the function under test
-			source, diags := providerSource(context.Background(), []*cliconfig.ProviderInstallation{}, services, ociCredsPolicy, originalWorkingDir)
+			source, diags := providerSource(
+				context.Background(),
+				[]*cliconfig.ProviderInstallation{},
+				&cliconfig.RegistryProtocolsConfig{
+					RetryCount:        1,
+					RetryCountSet:     true,
+					RequestTimeout:    10 * time.Second,
+					RequestTimeoutSet: true,
+				},
+				services,
+				ociCredsPolicy,
+				originalWorkingDir,
+			)
 
 			// Verify no diagnostics were returned
 			if len(diags) > 0 {

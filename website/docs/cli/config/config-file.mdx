@@ -75,6 +75,11 @@ The following settings can be set in the CLI configuration file:
   `tofu init` when installing provider plugins. See
   [Provider Installation](#provider-installation) below for more information.
 
+* `registry_protocols` - configures some infrequently-needed settings
+  controlling how OpenTofu requests metadata from module and provider
+  registries.
+  Refer to [Registry Protocol Settings](#registry-protocol-settings) below for more information.
+
 ## Credentials
 
 When interacting with OpenTofu-specific network services, OpenTofu expects
@@ -513,3 +518,42 @@ configure it, and how it interacts with the dependency lock file may all evolve
 in future OpenTofu releases, including possible breaking changes. We therefore
 recommend using development overrides only temporarily during provider
 development work.
+
+## Registry Protocol Settings
+
+The CLI configuration block `registry_protocols` controls a small number of
+rarely-needed settings for customizing the retry behavior and request timeouts
+when OpenTofu makes metadata requests to module and provider registries.
+
+```hcl
+registry_protocols {
+
+  # retry_count specifies how many times OpenTofu can
+  # retry a registry metadata request when the response
+  # is a retry-eligible error.
+  #
+  # This can also be set using an environment variable:
+  #    TF_REGISTRY_DISCOVERY_RETRY=1
+  retry_count = 1
+
+  # request_timeout_seconds specifies how long OpenTofu
+  # should wait for a response to a registry metadata
+  # request, in seconds.
+  #
+  # This can also be set using an environment variable:
+  #    TF_REGISTRY_CLIENT_TIMEOUT=10
+  request_timeout_seconds = 10
+
+}
+```
+
+The values in the example above are the current defaults, although the
+defaults are subject to change in future versions of OpenTofu.
+
+These settings are used only when making requests to the _OpenTofu-native_
+registry protocols, and when performing service discovery to find service
+endpoints for a particular hostname.
+
+These settings do not affect any other requests made by OpenTofu, including
+requests to download the actual module or provider packages, or requests to
+other kinds of installation sources such as OCI registries.

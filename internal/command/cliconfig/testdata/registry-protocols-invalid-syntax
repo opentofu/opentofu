@@ -1,0 +1,3 @@
+# The following is intentionally invalid: registry_protocols is supposed to be
+# a block, not a single argument.
+registry_protocols = "invalid"

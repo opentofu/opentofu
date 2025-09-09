@@ -128,17 +128,13 @@ exact output differences can change between minor OpenTofu versions.
 
 ## TF_REGISTRY_DISCOVERY_RETRY
 
-Set `TF_REGISTRY_DISCOVERY_RETRY` to configure the max number of request retries
-the remote registry client will attempt for client connection errors or
-500-range responses that are safe to retry.
+Equivalent to the `retry_count` setting in the
+[Registry Protocol Settings](../../cli/config/config-file.mdx#registry-protocol-settings).
 
 ## TF_REGISTRY_CLIENT_TIMEOUT
 
-The default client timeout for requests to the remote registry is 10s. `TF_REGISTRY_CLIENT_TIMEOUT` can be configured and increased during exceptional circumstances.
-
-```shell
-export TF_REGISTRY_CLIENT_TIMEOUT=15
-```
+Equivalent to the `request_timeout_seconds` setting in the
+[Registry Protocol Settings](../../cli/config/config-file.mdx#registry-protocol-settings).
 
 ## TF_CLI_CONFIG_FILE
 
