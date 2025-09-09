@@ -22,6 +22,7 @@ import (
 // and there is no issue in the provider SDK when it comes to the write-only attributes.
 // Returning those with actual values can create unknown behavior leading to possible confidential
 // information exposure.
+// NOTE: Keep this in sync with the equivalent in internal/plugin6/validation/write_only.go
 func WriteOnlyAttributes(schema *configschema.Block, v cty.Value, resAddr string) (diags tfdiags.Diagnostics) {
 	if !schema.ContainsWriteOnly() {
 		return diags
@@ -32,7 +33,7 @@ func WriteOnlyAttributes(schema *configschema.Block, v cty.Value, resAddr string
 
 		pathVal, err := path.Apply(v)
 		if err != nil {
-			log.Printf("[WARN] Error when tried to get the path (%s) value from the given object: %s", pathAsString, err)
+			log.Printf("[WARN] Error when trying to get the path (%s) value from the given object: %s", pathAsString, err)
 			continue
 		}
 		if pathVal.IsNull() {

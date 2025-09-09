@@ -51,7 +51,7 @@ func TestRedactIfSensitive(t *testing.T) {
 		"ephemeral and sensitive string": {
 			value: "foo",
 			marks: []cty.ValueMarks{cty.NewValueMarks(marks.Ephemeral, marks.Sensitive)},
-			want:  "(ephemeral value)",
+			want:  "(ephemeral sensitive value)",
 		},
 	}
 

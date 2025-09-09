@@ -11,8 +11,7 @@ description: >-
 Write-only attributes can be used only with OpenTofu v1.11 onwards.
 :::
 
-This attribute is only found in [`managed resources`](../resources/index.mdx)
-designed to accept transient values that will never be stored in the state or plan.
+This attribute is only found in [`managed resources`](../resources/index.mdx) that are designed to accept transient values that will never be stored in the state or plan.
 For example, a secret can be read by using an ephemeral resource and then passed into the write-only
 attribute `password_wo` of a managed resource.
 

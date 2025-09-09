@@ -13,10 +13,15 @@ import (
 )
 
 func redactIfSensitiveOrEphemeral(value interface{}, valueMarks ...cty.ValueMarks) string {
-	if marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Ephemeral) {
+	isEphemeral := marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Ephemeral)
+	isSensitive := marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Sensitive)
+	if isEphemeral && isSensitive {
+		return "(ephemeral sensitive value)"
+	}
+	if isEphemeral {
 		return "(ephemeral value)"
 	}
-	if marks.Has(cty.DynamicVal.WithMarks(valueMarks...), marks.Sensitive) {
+	if isSensitive {
 		return "(sensitive value)"
 	}
 	switch v := value.(type) {
