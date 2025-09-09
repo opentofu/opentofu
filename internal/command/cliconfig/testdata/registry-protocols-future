@@ -1,0 +1,5 @@
+registry_protocols {
+  # This is to test that we silently ignore unrecognized arguments, so that
+  # future versions of OpenTofu could potentially add more options in here.
+  hypothetical_future_option = "..."
+}

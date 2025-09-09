@@ -1,0 +1,5 @@
+# This is intentionally empty, representing the absense of any
+# registry_protocols block.
+#
+# This file is used both for testing the defaults and for overriding the
+# defaults using environment variables.

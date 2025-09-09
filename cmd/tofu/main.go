@@ -195,7 +195,7 @@ func realMain() int {
 		log.Printf("[WARN] Cannot initialize remote host credentials manager: %s", err)
 		credsSrc = nil // must be an untyped nil for newServiceDiscovery to understand "no credentials available"
 	}
-	services := newServiceDiscovery(ctx, credsSrc)
+	services := newServiceDiscovery(ctx, config.RegistryProtocols, credsSrc)
 
 	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
@@ -240,7 +240,13 @@ func realMain() int {
 		}
 	}
 
-	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy, originalWd)
+	providerSrc, diags := providerSource(ctx,
+		config.ProviderInstallation,
+		config.RegistryProtocols,
+		services,
+		config.OCICredentialsPolicy,
+		originalWd,
+	)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
 		for _, diag := range diags {

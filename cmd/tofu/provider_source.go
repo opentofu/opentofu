@@ -26,28 +26,41 @@ import (
 // CLI configuration and some default search locations. This will be the
 // provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
-func providerSource(ctx context.Context, configs []*cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder, originalWorkingDir string) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSource(
+	ctx context.Context,
+	configs []*cliconfig.ProviderInstallation,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	getOCICredsPolicy ociCredsPolicyBuilder,
+	originalWorkingDir string,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
 		// some automatically-selected local filesystem mirrors.
-		return implicitProviderSource(ctx, services, originalWorkingDir), nil
+		return implicitProviderSource(ctx, registryClientConfig, services, originalWorkingDir), nil
 	}
 
 	// There should only be zero or one configurations, which is checked by
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	config := configs[0]
-	return explicitProviderSource(ctx, config, services, getOCICredsPolicy)
+	return explicitProviderSource(ctx, config, registryClientConfig, services, getOCICredsPolicy)
 }
 
-func explicitProviderSource(ctx context.Context, config *cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func explicitProviderSource(
+	ctx context.Context,
+	config *cliconfig.ProviderInstallation,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	getOCICredsPolicy ociCredsPolicyBuilder,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var searchRules []getproviders.MultiSourceSelector
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, services, getOCICredsPolicy)
+		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, registryClientConfig, services, getOCICredsPolicy)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -92,7 +105,12 @@ func explicitProviderSource(ctx context.Context, config *cliconfig.ProviderInsta
 // one version available in a local directory are implicitly excluded from
 // direct installation, as if the user had listed them explicitly in the
 // "exclude" argument in the direct provider source in the CLI config.
-func implicitProviderSource(ctx context.Context, services *disco.Disco, originalWorkingDir string) getproviders.Source {
+func implicitProviderSource(
+	ctx context.Context,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	originalWorkingDir string,
+) getproviders.Source {
 	// The local search directories we use for implicit configuration are:
 	// - The "terraform.d/plugins" directory in the current working directory,
 	//   which we've historically documented as a place to put plugins as a
@@ -189,7 +207,7 @@ func implicitProviderSource(ctx context.Context, services *disco.Disco, original
 	// local copy will take precedence.
 	searchRules = append(searchRules, getproviders.MultiSourceSelector{
 		Source: getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx)),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig)),
 		),
 		Exclude: directExcluded,
 	})
@@ -197,10 +215,16 @@ func implicitProviderSource(ctx context.Context, services *disco.Disco, original
 	return getproviders.MultiSource(searchRules)
 }
 
-func providerSourceForCLIConfigLocation(ctx context.Context, loc cliconfig.ProviderInstallationLocation, services *disco.Disco, makeOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSourceForCLIConfigLocation(
+	ctx context.Context,
+	loc cliconfig.ProviderInstallationLocation,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	makeOCICredsPolicy ociCredsPolicyBuilder,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx)),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig)),
 		), nil
 	}
 
@@ -233,7 +257,7 @@ func providerSourceForCLIConfigLocation(ctx context.Context, loc cliconfig.Provi
 		// even though this isn't actually a registry. The other behavior of
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
-		httpTimeout := newRegistryHTTPClient(ctx).HTTPClient.Timeout
+		httpTimeout := newRegistryHTTPClient(ctx, registryClientConfig).HTTPClient.Timeout
 		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:

@@ -114,7 +114,7 @@ func initCommands(
 			// This ctx is used only to choose global configuration settings
 			// for the client, and is not retained as part of the result for
 			// making individual HTTP requests.
-			return newRegistryHTTPClient(ctx)
+			return newRegistryHTTPClient(ctx, config.RegistryProtocols)
 		},
 		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,

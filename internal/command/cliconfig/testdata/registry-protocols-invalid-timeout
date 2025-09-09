@@ -1,0 +1,3 @@
+registry_protocols {
+  request_timeout_seconds = "not a number"
+}
