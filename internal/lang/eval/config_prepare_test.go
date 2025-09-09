@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package eval_test
+package eval
 
 import (
 	"testing"
@@ -14,15 +14,23 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
+// NOTE: Unlike many of the _test.go files in this package, this one is in
+// "package eval" itself rather than in "package eval_test", because it's
+// testing the "prepareToPlan" implementation detail that isn't part of the
+// public API.
+//
+// If you bring test code from other files into here then you'll probably
+// need to remove some "eval." prefixes from references to avoid making this
+// package import itself.
+
 func TestPrepare_ephemeralResourceUsers(t *testing.T) {
-	configInst, diags := eval.NewConfigInstance(t.Context(), &eval.ConfigCall{
-		EvalContext: evalglue.EvalContextForTesting(t, &eval.EvalContext{
-			Modules: eval.ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
+	configInst, diags := NewConfigInstance(t.Context(), &ConfigCall{
+		EvalContext: evalglue.EvalContextForTesting(t, &EvalContext{
+			Modules: ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
 				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
 					terraform {
 						required_providers {
@@ -73,7 +81,7 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 					}
 				`),
 			}),
-			Providers: eval.ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
+			Providers: ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
 				addrs.MustParseProviderSourceString("test/foo"): {
 					Provider: providers.Schema{
 						Block: &configschema.Block{},
@@ -111,13 +119,13 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 			}),
 		}),
 		RootModuleSource: addrs.ModuleSourceLocal("."),
-		InputValues:      eval.InputValuesForTesting(map[string]cty.Value{}),
+		InputValues:      InputValuesForTesting(map[string]cty.Value{}),
 	})
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	got, diags := configInst.PrepareToPlan(t.Context())
+	got, diags := configInst.prepareToPlan(t.Context())
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -159,7 +167,7 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 	// analysis. Refer to [configgraph.ContributingResourceInstances]
 	// to learn more about how that's meant to work, if you're trying to
 	// debug a regression here that made the analysis less precise.
-	want := &eval.ResourceRelationships{
+	want := &ResourceRelationships{
 		// Note that this field captures _inverse_ dependencies: the values
 		// are instances that depend on the keys.
 		//
@@ -168,34 +176,44 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 		// of the instances identified in the element's value have finished
 		// planning.
 		EphemeralResourceUsers: addrs.MakeMap(
-			addrs.MakeMapElem(fooA.Instance(inst0), addrs.MakeSet(
-				fooB.Instance(inst0),
-				fooC.Instance(inst0),
-			)),
-			addrs.MakeMapElem(fooA.Instance(inst1), addrs.MakeSet(
-				fooB.Instance(inst1),
-				fooC.Instance(inst1),
-			)),
-			addrs.MakeMapElem(fooB.Instance(inst0), addrs.MakeSet(
-				fooC.Instance(inst0),
-			)),
-			addrs.MakeMapElem(fooB.Instance(inst1), addrs.MakeSet(
-				fooC.Instance(inst1),
-			)),
+			addrs.MakeMapElem(fooA.Instance(inst0), EphemeralResourceInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooB.Instance(inst0),
+					fooC.Instance(inst0),
+				),
+			}),
+			addrs.MakeMapElem(fooA.Instance(inst1), EphemeralResourceInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooB.Instance(inst1),
+					fooC.Instance(inst1),
+				),
+			}),
+			addrs.MakeMapElem(fooB.Instance(inst0), EphemeralResourceInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooC.Instance(inst0),
+				),
+			}),
+			addrs.MakeMapElem(fooB.Instance(inst1), EphemeralResourceInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooC.Instance(inst1),
+				),
+			}),
 		),
 
 		// PrepareToPlan also finds the resources that belong to each
 		// provider instance, which is not the focus of this test but
 		// are part of the result nonetheless.
 		ProviderInstanceUsers: addrs.MakeMap(
-			addrs.MakeMapElem(providerInstAddr, addrs.MakeSet(
-				fooA.Instance(inst0),
-				fooA.Instance(inst1),
-				fooB.Instance(inst0),
-				fooB.Instance(inst1),
-				fooC.Instance(inst0),
-				fooC.Instance(inst1),
-			)),
+			addrs.MakeMapElem(providerInstAddr, ProviderInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooA.Instance(inst0),
+					fooA.Instance(inst1),
+					fooB.Instance(inst0),
+					fooB.Instance(inst1),
+					fooC.Instance(inst0),
+					fooC.Instance(inst1),
+				),
+			}),
 		),
 	}
 
