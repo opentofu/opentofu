@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -167,4 +168,50 @@ func TestHasDeprecated(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractDeprecatedDiagnosticsWithExpr(t *testing.T) {
+	// This is a small unit test focused just on how we detect a deprecation
+	// mark and translate it into a diagnostic message. The main tests for
+	// the overall dynamic deprecation handling are in
+	// [tofu.TestContext2Apply_deprecationWarnings].
+
+	input := cty.ObjectVal(map[string]cty.Value{
+		"okay": cty.StringVal("not deprecated").Mark(Sensitive),
+		"warn": DeprecatedOutput(
+			cty.StringVal("deprecated"),
+			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("child", addrs.StringKey("beep"))),
+			"Blah blah blah don't use this!",
+			false,
+		),
+	})
+	got, gotDiags := ExtractDeprecatedDiagnosticsWithExpr(
+		input,
+		// This expression is used just for its source location information.
+		hcl.StaticExpr(cty.DynamicVal, hcl.Range{Filename: "test.tofu"}),
+	)
+	want := cty.ObjectVal(map[string]cty.Value{
+		"okay": cty.StringVal("not deprecated").Mark(Sensitive), // non-deprecation marks should be preserved
+		"warn": cty.StringVal("deprecated"),                     // deprecation marks are removed
+	})
+	if diff := cmp.Diff(want, got, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong result value\n" + diff)
+	}
+
+	// We'll use the "ForRPC" representation of diagnostics just because it
+	// compares well with cmp. We don't actually care what type of diagnostic
+	// is returned here, only that it has the expected content.
+	gotDiags = gotDiags.ForRPC()
+	var wantDiags tfdiags.Diagnostics
+	wantDiags = wantDiags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Value derived from a deprecated source",
+		Detail:   "This value's attribute warn is derived from module.child[\"beep\"].foo, which is deprecated with the following message:\n\nBlah blah blah don't use this!",
+		Subject:  &hcl.Range{Filename: "test.tofu"}, // source location should come from the given expression
+	})
+	wantDiags = wantDiags.ForRPC()
+	if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+		t.Error("wrong diagnostics\n" + diff)
+	}
+
 }
