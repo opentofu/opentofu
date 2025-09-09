@@ -166,10 +166,6 @@ func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protoc
 
 	if execFilename == "" {
 		execFilename = fmt.Sprintf("terraform-provider-%s_%s", provider.Type, version.String())
-		if target.OS == "windows" {
-			// For a little more (technically unnecessary) realism...
-			execFilename += ".exe"
-		}
 	}
 
 	zw := zip.NewWriter(f)
