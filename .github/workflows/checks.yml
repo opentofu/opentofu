@@ -83,6 +83,8 @@ jobs:
 
       - name: "Unit tests"
         run: |
+          set TF_LOG=TRACE
+          $env:TF_LOG="TRACE"
           go test -v ./internal/initwd/
 
   race-tests:
