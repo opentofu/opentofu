@@ -55,7 +55,7 @@ func (e expansionEnabled) instanceKeys() []addrs.InstanceKey {
 
 func (e expansionEnabled) repetitionData(key addrs.InstanceKey) RepetitionData {
 	if key != addrs.NoKey {
-		panic("cannot use instance key with non-repeating object")
+		panic("cannot use instance keys, as it's a single instance or a nil object.")
 	}
 	return RepetitionData{}
 }

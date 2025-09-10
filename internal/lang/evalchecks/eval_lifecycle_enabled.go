@@ -23,7 +23,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
-		return false, diags
+		panic("EvaluateEnabledExpression should be called with a non-nil expr. This is a programming error in OpenTofu.")
 	}
 
 	refs, refsDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
@@ -46,7 +46,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByConfidentialValues(true),
 		})
 	}
 
