@@ -31,18 +31,31 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// Backends are hardcoded into OpenTofu because the API for backends uses
+// complex structures and supporting that over the plugin system is currently
+// prohibitively difficult. For those wanting to implement a custom backend,
+// they can do so with recompilation.
+
 // backends is the list of available backends. This is a global variable
 // because backends are currently hardcoded into OpenTofu and can't be
 // modified without recompilation.
 //
 // To read an available backend, use the Backend function. This ensures
-// safe concurrent read access to the list of built-in backends.
-//
-// Backends are hardcoded into OpenTofu because the API for backends uses
-// complex structures and supporting that over the plugin system is currently
-// prohibitively difficult. For those wanting to implement a custom backend,
-// they can do so with recompilation.
+// safe concurrent read access to the list of built-in backends by holding
+// [backendsLock].
 var backends map[string]backend.InitFn
+
+// backendAliases complements [backends] by allowing alternative names for some
+// backends. The keys are the alias names and the values are the canonical
+// names. OpenTofu always normalizes any use of an alias into its canonical
+// name so that the two are effectively interchangable.
+//
+// [backendsLock] also covers access to backendAliases. Use the Backend function
+// to safely access both of these maps.
+var backendAliases map[string]string
+
+// backendsLock is a mutex that must be held when accessing either [backends]
+// or [backendAliases].
 var backendsLock sync.Mutex
 
 // RemovedBackends is a record of previously supported backends which have
@@ -78,6 +91,9 @@ func Init(services *disco.Disco) {
 		// This is an implementation detail only, used for the cloud package
 		"cloud": func(enc encryption.StateEncryption) backend.Backend { return backendCloud.New(services, enc) },
 	}
+	backendAliases = map[string]string{
+		// There are currently no backend aliases
+	}
 
 	RemovedBackends = map[string]string{
 		"artifactory": `The "artifactory" backend is not supported in OpenTofu v1.3 or later.`,
@@ -91,10 +107,17 @@ func Init(services *disco.Disco) {
 
 // Backend returns the initialization factory for the given backend, or
 // nil if none exists.
-func Backend(name string) backend.InitFn {
+//
+// The second return value is the canonical name for the selected backend,
+// if any, which should be used in the UI and in OpenTofu's records of which
+// backend is active in a particular working directory.
+func Backend(name string) (backend.InitFn, string) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
-	return backends[name]
+	if alias, ok := backendAliases[name]; ok {
+		name = alias
+	}
+	return backends[name], name
 }
 
 // Set sets a new backend in the list of backends. If f is nil then the

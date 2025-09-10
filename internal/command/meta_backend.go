@@ -311,9 +311,16 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	f := backendInit.Backend(settings.Type)
+	f, canonType := backendInit.Backend(settings.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), settings.Type))
+		return nil, diags
+	}
+	if canonType != settings.Type {
+		// We should always save the canonical name in a plan -- never an alias
+		// name -- so getting here suggests a bug in the code that generated
+		// this plan.
+		diags = diags.Append(fmt.Errorf("saved plan should use canonical backend type %q, not alias %q; this is a bug in OpenTofu", canonType, settings.Type))
 		return nil, diags
 	}
 	b := f(enc)
@@ -484,7 +491,7 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 		return nil, 0, nil
 	}
 
-	bf := backendInit.Backend(c.Type)
+	bf, canonType := backendInit.Backend(c.Type)
 	if bf == nil {
 		detail := fmt.Sprintf("There is no backend type named %q.", c.Type)
 		if msg, removed := backendInit.RemovedBackends[c.Type]; removed {
@@ -521,6 +528,10 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 	// body without affecting others that hold this reference.
 	configCopy := *c
 	configCopy.Config = configBody
+	if c.Type != canonType {
+		log.Printf("[DEBUG] Meta.Backend: using canonical backend type %q instead of alias %q", canonType, c.Type)
+		configCopy.Type = canonType
+	}
 	return &configCopy, configHash, diags
 }
 
@@ -538,6 +549,11 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 // which case this function will error.
 func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	// Get the local backend configuration.
+	// Note that [Meta.backendConfig] returns a possibly-modified copy of
+	// the original configuration, and in particular has the backend type
+	// already translated from an alias to the canonical name so everything
+	// using "c" after this can assume that c.Type is definitely the canonical
+	// name for a backend that actually exists and is not an alias.
 	c, cHash, diags := m.backendConfig(ctx, opts)
 	if diags.HasErrors() {
 		return nil, diags
@@ -814,9 +830,17 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	if s.Backend.Type == "" {
 		return backendLocal.New(enc), diags
 	}
-	f := backendInit.Backend(s.Backend.Type)
+	f, canonType := backendInit.Backend(s.Backend.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), s.Backend.Type))
+		return nil, diags
+	}
+	if canonType != s.Backend.Type {
+		// The "state" (really: the working directory state managed by
+		// the clistate package) should always record the canonical backend
+		// type, not an alias for it. If we get here then there's a bug in
+		// the code that generated the s.Backend values.
+		diags = diags.Append(fmt.Errorf("working directory is configured for backend alias %q instead of the canonical name %q; this is a bug in OpenTofu", s.Backend.Type, canonType))
 		return nil, diags
 	}
 	b := f(enc)
@@ -1272,9 +1296,15 @@ func (m *Meta) savedBackend(ctx context.Context, sMgr *clistate.LocalState, enc 
 	s := sMgr.State()
 
 	// Get the backend
-	f := backendInit.Backend(s.Backend.Type)
+	f, canonName := backendInit.Backend(s.Backend.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), s.Backend.Type))
+		return nil, diags
+	}
+	if s.Backend.Type != canonName {
+		// We should always save the canonical name in the clistate, so if we
+		// get here then it's a bug in whatever generated the clistate.
+		diags = diags.Append(fmt.Errorf("working directory state uses alias %q instead of canonical backend type %q; this is a bug in OpenTofu", s.Backend.Type, canonName))
 		return nil, diags
 	}
 	b := f(enc)
@@ -1354,16 +1384,19 @@ func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backe
 		log.Print("[TRACE] backendConfigNeedsMigration: no cached config, so migration is required")
 		return true
 	}
-	if c.Type != s.Type {
-		log.Printf("[TRACE] backendConfigNeedsMigration: type changed from %q to %q, so migration is required", s.Type, c.Type)
-		return true
-	}
 
 	// We need the backend's schema to do our comparison here.
-	f := backendInit.Backend(c.Type)
+	f, canonType := backendInit.Backend(c.Type)
 	if f == nil {
 		log.Printf("[TRACE] backendConfigNeedsMigration: no backend of type %q, which migration codepath must handle", c.Type)
 		return true // let the migration codepath deal with the missing backend
+	}
+	if canonType != c.Type {
+		log.Printf("[TRACE] backendConfigNeedsMigration: using canonical backend type %q instead of configured alias %q", canonType, c.Type)
+	}
+	if canonType != s.Type {
+		log.Printf("[TRACE] backendConfigNeedsMigration: type changed from %q to %q, so migration is required", s.Type, canonType)
+		return true
 	}
 	b := f(nil) // We don't need encryption here as it's only used for config/schema
 
@@ -1401,9 +1434,16 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 	var diags tfdiags.Diagnostics
 
 	// Get the backend
-	f := backendInit.Backend(c.Type)
+	// Note that Meta.backendConfig should already have rewritten c.Type to be
+	// canonical before we were called, so we are expecting canonType to
+	// match c.Type now.
+	f, canonType := backendInit.Backend(c.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendNewUnknown), c.Type))
+		return nil, cty.NilVal, diags
+	}
+	if c.Type != canonType {
+		diags = diags.Append(fmt.Errorf("backend configuration still contains alias type %q instead of canonical %q; this is a bug in OpenTofu", c.Type, canonType))
 		return nil, cty.NilVal, diags
 	}
 	b := f(enc)
@@ -1428,7 +1468,7 @@ func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, en
 		var err error
 		configVal, err = m.inputForSchema(configVal, schema)
 		if err != nil {
-			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", c.Type, err))
+			diags = diags.Append(fmt.Errorf("Error asking for input to configure backend %q: %w", canonType, err))
 		}
 
 		// We get an unknown here if the if the user aborted input, but we can't
