@@ -278,5 +278,9 @@ func getBackendFactory(backendType string) backend.InitFn {
 		return overrideBackendFactories[backendType]
 	}
 
-	return backendInit.Backend(backendType)
+	// For the sake of this data source we don't care about the canonical
+	// name of the backend: canonical names or alias names are both accepted
+	// and are treated as interchangeable.
+	factory, _ := backendInit.Backend(backendType)
+	return factory
 }

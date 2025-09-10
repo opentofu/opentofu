@@ -495,7 +495,7 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 			return nil, true, diags
 		}
 
-		bf := backendInit.Backend(backendType)
+		bf, canonType := backendInit.Backend(backendType)
 		if bf == nil {
 			detail := fmt.Sprintf("There is no backend type named %q.", backendType)
 			if msg, removed := backendInit.RemovedBackends[backendType]; removed {
@@ -509,6 +509,9 @@ func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, ext
 				Subject:  &root.Backend.TypeRange,
 			})
 			return nil, true, diags
+		}
+		if backendType != canonType {
+			c.Ui.Output(fmt.Sprintf("- %q is an alias for backend type %q", backendType, canonType))
 		}
 
 		b := bf(nil) // This is only used to get the schema, encryption should panic if attempted

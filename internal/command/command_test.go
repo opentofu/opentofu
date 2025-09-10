@@ -752,7 +752,8 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
 		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
 	}
-	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
+	httpBackendInit, _ := backendInit.Backend("http")
+	b := httpBackendInit(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
 	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 

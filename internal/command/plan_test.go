@@ -518,7 +518,8 @@ func TestPlan_outBackend(t *testing.T) {
 		t.Errorf("wrong backend workspace %q; want %q", got, want)
 	}
 	{
-		httpBackend := backendinit.Backend("http")(encryption.StateEncryptionDisabled())
+		httpBackendInit, _ := backendinit.Backend("http")
+		httpBackend := httpBackendInit(encryption.StateEncryptionDisabled())
 		schema := httpBackend.ConfigSchema()
 		got, err := plan.Backend.Config.Decode(schema.ImpliedType())
 		if err != nil {
