@@ -7,6 +7,7 @@ package e2etest
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -185,7 +186,8 @@ func TestEphemeralErrors_outputs(t *testing.T) {
 			t.Errorf("unexpected err: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 		}
 		sanitized := SanitizeStderr(serr)
-		if !strings.Contains(sanitized, `Output does not allow ephemeral value    on __mod-with-regular-output-got-ephemeral-value/main.tf`) ||
+		filename := filepath.FromSlash("__mod-with-regular-output-got-ephemeral-value/main.tf")
+		if !strings.Contains(sanitized, `Output does not allow ephemeral value    on `+filename) ||
 			!strings.Contains(sanitized, `The value that was generated for the output is ephemeral, but it is not configured to allow one`) {
 			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized serr: %s", sanitized)
@@ -200,15 +202,16 @@ func TestEphemeralErrors_outputs(t *testing.T) {
 		}
 		sanitizedSerr := SanitizeStderr(serr)
 		sanitizedSout := SanitizeStderr(sout)
-		if !strings.Contains(sanitizedSerr, `Module output value precondition failed    on __mod-ephemeral-output-with-precondition/main.tf`) ||
+		filename := filepath.FromSlash("__mod-ephemeral-output-with-precondition/main.tf")
+		if !strings.Contains(sanitizedSerr, `Module output value precondition failed    on `+filename) ||
 			!strings.Contains(sanitizedSerr, `This check failed, but has an invalid error message as described in the other accompanying messages`) ||
 			strings.Contains(sanitizedSerr, `"notdefaultvalue" -> "default value"`) {
 			t.Errorf("unexpected stderr: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized serr: %s", sanitizedSerr)
 		}
-		if !strings.Contains(sanitizedSout, `Warning: Error message refers to ephemeral values    on __mod-ephemeral-output-with-precondition/main.tf`) ||
+		if !strings.Contains(sanitizedSout, `Warning: Error message refers to ephemeral values    on `+filename) ||
 			!strings.Contains(sanitizedSout, `The error expression used to explain this condition refers to ephemeral values, so OpenTofu will not display the resulting message.  You can correct this by removing references to ephemeral values`) {
-			t.Errorf("unexpected stdout: %s;\nstdout:\n%s\nstdout:\n%s", err, serr, sout)
+			t.Errorf("unexpected stdout: %s;\nstderr:\n%s\nstdout:\n%s", err, serr, sout)
 			t.Logf("sanitized sout: %s", sanitizedSerr)
 		}
 	})
