@@ -148,8 +148,10 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 	inst0 := addrs.IntKey(0)
 	inst1 := addrs.IntKey(1)
 	providerInstAddr := addrs.AbsProviderConfigCorrect{
-		Module:   addrs.RootModuleInstance,
-		Provider: addrs.MustParseProviderSourceString("test/foo"),
+		Module: addrs.RootModuleInstance,
+		Config: addrs.ProviderConfigCorrect{
+			Provider: addrs.MustParseProviderSourceString("test/foo"),
+		},
 	}.Instance(addrs.NoKey)
 
 	// The analysis should detect that:

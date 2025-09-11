@@ -53,7 +53,7 @@ func (c *ConfigInstance) prepareToPlan(ctx context.Context) (*ResourceRelationsh
 		EphemeralResourceUsers: addrs.MakeMap[addrs.AbsResourceInstance, EphemeralResourceInstanceUsers](),
 		ProviderInstanceUsers:  addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ProviderInstanceUsers](),
 	}
-	for depender := range rootModuleInstance.ResourceInstancesDeep(ctx) {
+	for depender := range evalglue.ResourceInstancesDeep(ctx, rootModuleInstance) {
 		dependerAddr := depender.Addr
 		for dependee := range depender.ResourceInstanceDependencies(ctx) {
 			dependeeAddr := dependee.Addr
