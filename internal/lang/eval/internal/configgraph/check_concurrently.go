@@ -58,6 +58,15 @@ func (g *CheckGroup) CheckValuer(ctx context.Context, v exprs.Valuer) {
 	})
 }
 
+func (g *CheckGroup) CheckDiagsFunc(ctx context.Context, f func(ctx context.Context) tfdiags.Diagnostics) {
+	g.wg.Go(func() {
+		diags := f(grapheval.ContextWithNewWorker(ctx))
+		g.mu.Lock()
+		g.diags = g.diags.Append(diags)
+		g.mu.Unlock()
+	})
+}
+
 // Await is for situations where we must wait for some other worker-blocking
 // operation to complete to decide what other Check* calls to make. The
 // given callback can block on arbitrary workgraph-coordinated operations

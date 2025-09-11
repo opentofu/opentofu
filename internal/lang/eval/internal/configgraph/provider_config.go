@@ -101,7 +101,7 @@ func (p *ProviderConfig) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	// so we'll run it async as part of the checkGroup.
 	cg.Await(ctx, func(ctx context.Context) {
 		for _, inst := range p.Instances(ctx) {
-			cg.CheckValuer(ctx, inst)
+			cg.CheckChild(ctx, inst)
 		}
 	})
 	// This is where an invalid for_each expression would be reported.
