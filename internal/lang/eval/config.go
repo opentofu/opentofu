@@ -107,7 +107,7 @@ func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglu
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	ret, moreDiags := rootModule.CompileModuleInstance(ctx, &evalglue.ModuleCall{
+	ret, moreDiags := rootModule.CompileModuleInstance(ctx, addrs.RootModuleInstance, &evalglue.ModuleCall{
 		InputValues:          c.inputValues,
 		AllowImpureFunctions: c.allowImpureFunctions,
 		EvaluationGlue:       glue,

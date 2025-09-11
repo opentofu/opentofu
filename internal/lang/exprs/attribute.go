@@ -43,7 +43,11 @@ func ValueOf(v Valuer) Attribute {
 // [ValueOf] if there's at least one reference that doesn't include a known
 // index step. In principle that could be used for multi-instance objects
 // like resources to allow instances to refer to each other without it being
-// treated as a self-reference.
+// treated as a self-reference. This also seems like a necessary building block
+// to replicate the traditional language runtime's ability for an input variable
+// of a module call to depend on an output value from the same module call,
+// because that means the input variable must be able to evaluate against a
+// not-yet-complete object representing the module instance's output values.
 //
 // If the hcl.EvalContext builder has known index steps then it can build
 // an object or tuple where any indices not accessed are either not populated
@@ -63,10 +67,7 @@ func ValueOf(v Valuer) Attribute {
 //
 // As long as we're using [hcl.Traversal] in its current form we would only
 // be able to do this partial-building trick when the index key is a constant,
-// like in aws_instance.example["foo"], but that's such an unusual situation
-// to be not worth the complexity of handling it. It would only be worth it
-// if we could support dynamic index keys, so that e.g. a single resource can
-// represent a tree by having child nodes refer to the ids of their parents.
+// like in aws_instance.example["foo"].
 
 // NestedSymbolTableFromAttribute returns the symbol table from an attribute
 // that was returned from [NestedSymbolTable], or nil for any other kind of

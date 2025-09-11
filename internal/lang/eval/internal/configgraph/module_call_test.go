@@ -33,7 +33,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("https://example.com/foo"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
@@ -52,7 +51,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("example.com/foo/bar/baz"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
@@ -73,7 +71,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("example.com/foo/bar/baz"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
@@ -92,7 +89,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("./modules/boop"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
@@ -111,7 +107,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("https://example.com/foo.tar.gz//beep/boop"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
@@ -150,7 +145,6 @@ func TestModuleCall_Value(t *testing.T) {
 			},
 			cty.ObjectVal(map[string]cty.Value{
 				"source": cty.StringVal("example.com/foo/bar/baz//beep/boop"),
-				"config": cty.EmptyObjectVal,
 			}),
 			nil,
 		},
