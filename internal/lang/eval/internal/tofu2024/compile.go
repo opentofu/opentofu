@@ -97,7 +97,14 @@ func CompileModuleInstance(
 	// OpenTofu language deals with references to provider instances, since
 	// [configgraph] is designed to support treating them as "normal" values
 	// in future but we want to keep existing modules working for now.
-	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx, module.ProviderConfigs, topScope, module.ProviderLocalNames, call.EvalContext.Providers)
+	ret.providerConfigNodes = compileModuleInstanceProviderConfigs(ctx,
+		module.ProviderConfigs,
+		allResourcesFromModule(module),
+		topScope,
+		module.ProviderRequirements.RequiredProviders,
+		call.CalleeAddr,
+		call.EvalContext.Providers,
+	)
 	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes)
 
 	ret.inputVariableNodes = compileModuleInstanceInputVariables(ctx, module.Variables, call.InputValues, topScope, call.CalleeAddr, call.DeclRange)
@@ -501,39 +508,89 @@ func compileModuleInstanceModuleCalls(
 func compileModuleInstanceProviderConfigs(
 	ctx context.Context,
 	configs map[string]*configs.Provider,
+	allResources iter.Seq[*configs.Resource],
 	declScope exprs.Scope,
-	localNames map[addrs.Provider]string,
+	reqdProviders map[string]*configs.RequiredProvider,
+	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.Providers,
 ) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
-	// TODO: Implement this properly, mimicking the logic that the current
-	// system follows for inferring implied configurations for providers
-	// that have an empty config schema.
-	//
-	// For now this is just enough to repair some tests that existed before
-	// we added provider instance resolution, which all happen to rely
-	// on implied references to providers with the local name "foo".
-	return map[addrs.LocalProviderConfig]*configgraph.ProviderConfig{
-		{LocalName: "foo"}: {
+	// FIXME: The following is just enough to make simple examples work, but
+	// doesn't closely match the rather complicated way that OpenTofu has
+	// traditionally dealt with provider configurations inheriting between
+	// modules, etc. If we decide to move forward with this then we should
+	// study this and the old behavior carefully and make sure they achieve
+	// equivalent results. (But note that this function is only part of the
+	// process: compileModuleProvidersSidechannel also deals with part of
+	// this problem.)
+
+	ret := make(map[addrs.LocalProviderConfig]*configgraph.ProviderConfig, len(configs))
+
+	// First we'll deal with the explicitly-declared ones.
+	for _, config := range configs {
+		providerAddr := addrs.NewDefaultProvider(config.Name)
+		if reqd, ok := reqdProviders[config.Name]; ok {
+			providerAddr = reqd.Type
+		}
+		localAddr := addrs.LocalProviderConfig{
+			LocalName: config.Name,
+			Alias:     config.Alias,
+		}
+		ret[localAddr] = &configgraph.ProviderConfig{
 			Addr: addrs.AbsProviderConfigCorrect{
-				Module:   addrs.RootModuleInstance,
-				Provider: addrs.MustParseProviderSourceString("test/foo"),
+				Module:   moduleInstanceAddr,
+				Provider: providerAddr,
 			},
-			ProviderAddr:     addrs.MustParseProviderSourceString("test/foo"),
-			InstanceSelector: compileInstanceSelector(ctx, declScope, nil, nil, nil),
+			ProviderAddr:     providerAddr,
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil),
 			CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 				return &configgraph.ProviderInstance{
 					Addr: addrs.AbsProviderInstanceCorrect{
 						Config: addrs.AbsProviderConfigCorrect{
 							Module:   addrs.RootModuleInstance,
-							Provider: addrs.MustParseProviderSourceString("test/foo"),
+							Provider: providerAddr,
 						},
 						Key: key,
 					},
-					ProviderAddr: addrs.MustParseProviderSourceString("test/foo"),
+					ProviderAddr: providerAddr,
 				}
 			},
-		},
+		}
 	}
+
+	// Now we'll add the implied ones with empty configs, but only if we're
+	// in the root module because implied configs are not supposed to appear
+	// in other modules.
+	if moduleInstanceAddr.IsRoot() {
+		for resourceConfig := range allResources {
+			localAddr := resourceConfig.ProviderConfigAddr()
+			providerAddr := addrs.NewDefaultProvider(localAddr.LocalName)
+			if reqd, ok := reqdProviders[localAddr.LocalName]; ok {
+				providerAddr = reqd.Type
+			}
+			ret[localAddr] = &configgraph.ProviderConfig{
+				Addr: addrs.AbsProviderConfigCorrect{
+					Module:   moduleInstanceAddr,
+					Provider: providerAddr,
+				},
+				ProviderAddr:     providerAddr,
+				InstanceSelector: compileInstanceSelector(ctx, declScope, nil, nil, nil),
+				CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
+					return &configgraph.ProviderInstance{
+						Addr: addrs.AbsProviderInstanceCorrect{
+							Config: addrs.AbsProviderConfigCorrect{
+								Module:   addrs.RootModuleInstance,
+								Provider: providerAddr,
+							},
+							Key: key,
+						},
+						ProviderAddr: providerAddr,
+					}
+				},
+			}
+		}
+	}
+
+	return ret
 }
 
 func compileCheckRules(configs []*configs.CheckRule, evalScope exprs.Scope) iter.Seq[*configgraph.CheckRule] {
@@ -575,6 +632,29 @@ func compileCoreFunctions(ctx context.Context, allowImpureFuncs bool, baseDir st
 		// TODO: PlanTimestamp?
 	}
 	return oldScope.Functions()
+}
+
+// allResourcesFromModule is a helper to collect all of the resources from
+// a module configuration regardless of mode, since the underlying
+// representation uses a separate map per mode.
+func allResourcesFromModule(mod *configs.Module) iter.Seq[*configs.Resource] {
+	return func(yield func(*configs.Resource) bool) {
+		for _, r := range mod.ManagedResources {
+			if !yield(r) {
+				return
+			}
+		}
+		for _, r := range mod.DataResources {
+			if !yield(r) {
+				return
+			}
+		}
+		for _, r := range mod.EphemeralResources {
+			if !yield(r) {
+				return
+			}
+		}
+	}
 }
 
 // resourceInstanceGlue is our implementation of [configgraph.ResourceInstanceGlue],

@@ -60,11 +60,25 @@ func ProviderInstanceRefType(provider addrs.Provider) cty.Type {
 			}
 		},
 
-		// TODO: Implement the conversion ops to give better error messages
-		// when trying to use a reference to an instance of the wrong provider,
-		// saying something like "have instance of FOO, but BAR is required".
-		// (The default error message would just be "instance of BAR required".)
-
+		ConversionTo: func(src cty.Type) func(cty.Value, cty.Path) (any, error) {
+			gotProvider, isProviderInstRef := ProviderInstanceRefTypeProvider(src)
+			if !isProviderInstRef {
+				// If converting from anything other than a provider instance
+				// reference type then we'll just let the convert package
+				// provide a default conversion error.
+				return nil
+			}
+			// For conversions between different provider instance reference
+			// types we use a custom convert function purely to return a
+			// customized error, because converting between different provider
+			// types is not allowed.
+			return func(_ cty.Value, path cty.Path) (any, error) {
+				// We would not get in here if the source type were the same
+				// as our type, so we can assume that if we get here then
+				// there's definitely a type mismatch.
+				return nil, path.NewErrorf("must be an instance of %s, but given %s", provider, gotProvider)
+			}
+		},
 	})
 	providerInstanceRefTypes[provider] = ty
 	return ty
@@ -108,4 +122,18 @@ func IsProviderInstanceRefType(ty cty.Type) bool {
 	}
 	marker := ty.CapsuleExtensionData(providerInstanceRefTypeMarker{})
 	return marker != nil
+}
+
+// ProviderInstanceRefTypeProvider returns the provider that the given
+// type represents instances of, or sets the second result to false if
+// the given type is not a provider instance reference type.
+func ProviderInstanceRefTypeProvider(ty cty.Type) (addrs.Provider, bool) {
+	if !ty.IsCapsuleType() {
+		return addrs.Provider{}, false
+	}
+	marker := ty.CapsuleExtensionData(providerInstanceRefTypeMarker{})
+	if marker == nil {
+		return addrs.Provider{}, false
+	}
+	return marker.(addrs.Provider), true
 }
