@@ -22,13 +22,17 @@ import (
 // packages like lang/eval. If you are working on the current code in
 // "package tofu"/etc then the types in this file are not for you yet.
 
+type ProviderConfigCorrect struct {
+	Provider Provider
+	Alias    string
+}
+
 // AbsProviderConfigCorrect is an experimental "correct" representation of
 // the absolute address of a provider configuration block, belonging to
 // a module instance.
 type AbsProviderConfigCorrect struct {
-	Module   ModuleInstance
-	Provider Provider
-	Alias    string
+	Module ModuleInstance
+	Config ProviderConfigCorrect
 }
 
 func (pc AbsProviderConfigCorrect) Instance(key InstanceKey) AbsProviderInstanceCorrect {
@@ -44,12 +48,17 @@ func (pc AbsProviderConfigCorrect) String() string {
 		buf.WriteString(pc.Module.String())
 		buf.WriteByte('.')
 	}
-	fmt.Fprintf(&buf, "provider[%q]", pc.Provider)
-	if pc.Alias != "" {
+	fmt.Fprintf(&buf, "provider[%q]", pc.Config.Provider)
+	if pc.Config.Alias != "" {
 		buf.WriteByte('.')
-		buf.WriteString(pc.Alias)
+		buf.WriteString(pc.Config.Alias)
 	}
 	return buf.String()
+}
+
+type ProviderInstanceCorrect struct {
+	Config ProviderConfigCorrect
+	Key    InstanceKey
 }
 
 // AbsProviderInstanceCorrect is an experimental "correct" representation of
@@ -74,6 +83,13 @@ func (a AbsProviderInstanceCorrect) String() string {
 // UniqueKey implements UniqueKeyer.
 func (a AbsProviderInstanceCorrect) UniqueKey() UniqueKey {
 	return absProviderInstanceCorrectKey(a.String())
+}
+
+func (a AbsProviderInstanceCorrect) LocalConfig() ProviderInstanceCorrect {
+	return ProviderInstanceCorrect{
+		Config: a.Config.Config,
+		Key:    a.Key,
+	}
 }
 
 type absProviderInstanceCorrectKey string
