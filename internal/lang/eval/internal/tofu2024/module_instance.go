@@ -56,6 +56,24 @@ func (c *CompiledModuleInstance) CheckAll(ctx context.Context) tfdiags.Diagnosti
 	}
 	for _, n := range c.moduleCallNodes {
 		cg.CheckChild(ctx, n)
+		// We also need to visit the module instances that each of the
+		// calls caused so we can find errors within their own objects.
+		cg.Await(ctx, func(ctx context.Context) {
+			insts := n.Instances(ctx)
+			for _, inst := range insts {
+				// We assume that we're only dealing with ModuleCallInstance
+				// objects that this package compiled and therefore the
+				// "Glue" implementation should always be our one and
+				// we can therefore use it to get the compiled child instance.
+				glue := inst.Glue.(*moduleCallInstanceGlue)
+				maybeCompiled, _ := glue.compiledModuleInstance(ctx)
+				compiled, ok := configgraph.GetKnown(maybeCompiled)
+				if !ok {
+					return
+				}
+				cg.CheckChild(ctx, compiled)
+			}
+		})
 	}
 	for _, n := range c.providerConfigNodes {
 		cg.CheckChild(ctx, n)
@@ -78,20 +96,51 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 
 // ChildModuleInstance implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr addrs.ModuleCallInstance) evalglue.CompiledModuleInstance {
-	// TODO: rework our internal API here so that we can actually answer
-	// this question. The current structure makes this impossible because
-	// the child [CompiledModuleInstance] only exists temporarily as a
-	// local variable when building a child instance's result value.
-	return nil
+	callNode, ok := c.moduleCallNodes[addr.Call]
+	if !ok {
+		return nil
+	}
+	callInsts := callNode.Instances(ctx)
+	callInst, ok := callInsts[addr.Key]
+	if !ok {
+		return nil
+	}
+	// We assume that we're only dealing with ModuleCallInstance
+	// objects that this package compiled and therefore the
+	// "Glue" implementation should always be our one and
+	// we can therefore use it to get the compiled child instance.
+	glue := callInst.Glue.(*moduleCallInstanceGlue)
+	maybeCompiled, _ := glue.compiledModuleInstance(ctx)
+	compiled, ok := configgraph.GetKnown(maybeCompiled)
+	if !ok {
+		return nil
+	}
+	return compiled
 }
 
 // ChildModuleInstances implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ChildModuleInstances(ctx context.Context) iter.Seq2[addrs.ModuleCallInstance, evalglue.CompiledModuleInstance] {
-	// TODO: rework our internal API here so that we can actually answer
-	// this question. The current structure makes this impossible because
-	// the child [CompiledModuleInstance] only exists temporarily as a
-	// local variable when building a child instance's result value.
-	return func(yield func(addrs.ModuleCallInstance, evalglue.CompiledModuleInstance) bool) {}
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	return func(yield func(addrs.ModuleCallInstance, evalglue.CompiledModuleInstance) bool) {
+		for callAddr, callNode := range c.moduleCallNodes {
+			for instKey, callInst := range callNode.Instances(ctx) {
+				addr := callAddr.Instance(instKey)
+				// We assume that we're only dealing with ModuleCallInstance
+				// objects that this package compiled and therefore the
+				// "Glue" implementation should always be our one and
+				// we can therefore use it to get the compiled child instance.
+				glue := callInst.Glue.(*moduleCallInstanceGlue)
+				maybeCompiled, _ := glue.compiledModuleInstance(ctx)
+				compiled, ok := configgraph.GetKnown(maybeCompiled)
+				if !ok {
+					continue
+				}
+				if !yield(addr, compiled) {
+					return
+				}
+			}
+		}
+	}
 }
 
 // ProviderInstance implements evalglue.CompiledModuleInstance.

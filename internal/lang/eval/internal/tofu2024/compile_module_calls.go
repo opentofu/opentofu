@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -70,6 +71,7 @@ func compileModuleInstanceModuleCalls(
 				return diags
 			},
 			CompileCallInstance: func(ctx context.Context, sourceArgs configgraph.ModuleSourceArguments, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ModuleCallInstance {
+				calleeAddr := moduleInstanceAddr.Child(addr.Name, key)
 
 				// The contract for [configgraph.ModuleCall] is that it should only
 				// call this function when sourceArgs is something that was previously
@@ -84,48 +86,57 @@ func compileModuleInstanceModuleCalls(
 					// we _do_ encounter problems here then we'll return a stubby
 					// object that just returns whatever diagnostics we found as
 					// soon as it tries to evaluate its inputs.
-					return &configgraph.ModuleCallInstance{
+					inst := &configgraph.ModuleCallInstance{
 						ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
 						InputsValuer:       configgraph.ValuerOnce(exprs.ForcedErrorValuer(diags)),
-						Glue: &moduleCallInstanceGlue{
-							validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
-								return diags
-							},
-							getOutputsValue: func(ctx context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {
-								return cty.DynamicVal, diags
-							},
+					}
+					inst.Glue = &moduleCallInstanceGlue{
+						callInstNode: inst,
+						validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+							return diags
+						},
+						compileChild: func(ctx context.Context, v cty.Value) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+							return nil, nil
 						},
 					}
+					return inst
 				}
 
 				instanceScope := instanceLocalScope(declScope, repData)
-				return &configgraph.ModuleCallInstance{
+				// TODO: The following is kinda tangled and messy, with a
+				// mutual dependency between the [configgraph.ModuleCallInstance]
+				// and the [moduleCallInstanceGlue] object it uses to call
+				// back out to us. This achieves the intended separation of
+				// concerns between compiler and configraph but hopefully we
+				// can find a simpler way to get there without so much
+				// back-and-forth.
+				inst := &configgraph.ModuleCallInstance{
 					ModuleInstanceAddr: addr.Absolute(moduleInstanceAddr).Instance(key),
 
 					InputsValuer: configgraph.ValuerOnce(exprs.NewClosure(
 						exprs.EvalableHCLBodyJustAttributes(config.Config),
 						instanceScope,
 					)),
-					Glue: &moduleCallInstanceGlue{
-						validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
-							return mod.ValidateModuleInputs(ctx, v)
-						},
-						getOutputsValue: func(ctx context.Context, v cty.Value) (cty.Value, tfdiags.Diagnostics) {
-							modInst, diags := mod.CompileModuleInstance(ctx, &evalglue.ModuleCall{
-								InputValues:          exprs.ConstantValuer(v),
-								AllowImpureFunctions: parentCall.AllowImpureFunctions,
-								EvalContext:          parentCall.EvalContext,
-								EvaluationGlue:       parentCall.EvaluationGlue,
-							})
-							if diags.HasErrors() {
-								return cty.DynamicVal, diags
-							}
-							ret, moreDiags := modInst.ResultValuer(ctx).Value(ctx)
-							diags = diags.Append(moreDiags)
-							return ret, diags
-						},
+				}
+				inst.Glue = &moduleCallInstanceGlue{
+					callInstNode: inst,
+					validateInputs: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+						return mod.ValidateModuleInputs(ctx, v)
+					},
+					compileChild: func(ctx context.Context, v cty.Value) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+						modInst, diags := mod.CompileModuleInstance(ctx, calleeAddr, &evalglue.ModuleCall{
+							InputValues:          exprs.ConstantValuer(v),
+							AllowImpureFunctions: parentCall.AllowImpureFunctions,
+							EvalContext:          parentCall.EvalContext,
+							EvaluationGlue:       parentCall.EvaluationGlue,
+						})
+						if diags.HasErrors() {
+							return nil, diags
+						}
+						return configgraph.Known(modInst), diags
 					},
 				}
+				return inst
 			},
 		}
 	}
@@ -133,14 +144,50 @@ func compileModuleInstanceModuleCalls(
 }
 
 type moduleCallInstanceGlue struct {
-	validateInputs  func(context.Context, cty.Value) tfdiags.Diagnostics
-	getOutputsValue func(context.Context, cty.Value) (cty.Value, tfdiags.Diagnostics)
+	callInstNode *configgraph.ModuleCallInstance
+
+	validateInputs func(context.Context, cty.Value) tfdiags.Diagnostics
+	compileChild   func(context.Context, cty.Value) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics)
+
+	// FIXME: This isn't exposed in the tree of AnnounceAllGraphevalRequests
+	// method calls we use to collect up user-friendly names for all of our
+	// workgraph requests, so if a self-reference error occurs across this
+	// boundary there will be an unnamed item in the resulting error message.
+	compiledChild grapheval.Once[configgraph.Maybe[evalglue.CompiledModuleInstance]]
 }
 
 func (g *moduleCallInstanceGlue) ValidateInputs(ctx context.Context, inputsVal cty.Value) tfdiags.Diagnostics {
 	return g.validateInputs(ctx, inputsVal)
 }
 
-func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context, inputsVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
-	return g.getOutputsValue(ctx, inputsVal)
+func (g *moduleCallInstanceGlue) OutputsValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	// This function MUST pass through the diags returned from
+	// compiledModuleInstance, so that they can be returned as part of deciding
+	// the final value of the associated [configgraph.ModuleCallInstance].
+	maybeCompiled, diags := g.compiledModuleInstance(ctx)
+	compiled, ok := configgraph.GetKnown(maybeCompiled)
+	if !ok {
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
+	ret, moreDiags := compiled.ResultValuer(ctx).Value(ctx)
+	diags = diags.Append(moreDiags)
+	return ret, diags
+}
+
+// compiledModuleInstance is the internal wiring step of compiling the child
+// module instance based on the inputs value decided by the callNode.
+//
+// We also use this directly in [CompiledModuleInstance]'s implementation
+// of [evalglue.CompiledModuleInstance] to give the caller direct access to the
+// child module instance objects for recursive tree walks.
+func (g *moduleCallInstanceGlue) compiledModuleInstance(ctx context.Context) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+	return g.compiledChild.Do(ctx, func(ctx context.Context) (configgraph.Maybe[evalglue.CompiledModuleInstance], tfdiags.Diagnostics) {
+		configVal, diags := g.callInstNode.InputsValue(ctx)
+		if !configVal.IsKnown() {
+			return nil, diags
+		}
+		ret, moreDiags := g.compileChild(ctx, configVal)
+		diags = diags.Append(moreDiags)
+		return ret, diags
+	})
 }

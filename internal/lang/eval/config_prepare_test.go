@@ -223,3 +223,143 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 		t.Error("wrong result\n" + diff)
 	}
 }
+
+func TestPrepare_crossModuleReferences(t *testing.T) {
+	configInst, diags := NewConfigInstance(t.Context(), &ConfigCall{
+		EvalContext: evalglue.EvalContextForTesting(t, &EvalContext{
+			Modules: ModulesForTesting(map[addrs.ModuleSourceLocal]*configs.Module{
+				addrs.ModuleSourceLocal("."): configs.ModuleFromStringForTesting(t, `
+					module "a" {
+						source = "./a"
+					}
+					module "b" {
+						source = "./b"
+
+						name = module.a.name
+					}
+				`),
+				addrs.ModuleSourceLocal("./a"): configs.ModuleFromStringForTesting(t, `
+					terraform {
+						required_providers {
+							foo = {
+								source = "test/foo"
+							}
+						}
+					}
+					provider "foo" {}
+					ephemeral "foo" "a" {
+						name = "a"
+					}
+					output "name" {
+						value = ephemeral.foo.a.name
+					}
+				`),
+				addrs.ModuleSourceLocal("./b"): configs.ModuleFromStringForTesting(t, `
+					terraform {
+						required_providers {
+							foo = {
+								source = "test/foo"
+							}
+						}
+					}
+					provider "foo" {}
+					variable "name" {
+						type      = string
+						ephemeral = true
+					}
+					resource "foo" "b" {
+						name = var.name
+					}
+				`),
+			}),
+			Providers: ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
+				addrs.MustParseProviderSourceString("test/foo"): {
+					Provider: providers.Schema{
+						Block: &configschema.Block{},
+					},
+					EphemeralResources: map[string]providers.Schema{
+						"foo": {
+							Block: &configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"name": {
+										Type:     cty.String,
+										Required: true,
+									},
+								},
+							},
+						},
+					},
+					ResourceTypes: map[string]providers.Schema{
+						"foo": {
+							Block: &configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"name": {
+										Type:      cty.String,
+										Optional:  true,
+										WriteOnly: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			}),
+		}),
+		RootModuleSource: addrs.ModuleSourceLocal("."),
+		InputValues:      InputValuesForTesting(map[string]cty.Value{}),
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	got, diags := configInst.prepareToPlan(t.Context())
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	fooA := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "foo",
+		Name: "a",
+	}.Absolute(addrs.RootModuleInstance.Child("a", addrs.NoKey))
+	fooB := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "foo",
+		Name: "b",
+	}.Absolute(addrs.RootModuleInstance.Child("b", addrs.NoKey))
+	providerInstAddr := addrs.AbsProviderConfigCorrect{
+		Module: addrs.RootModuleInstance,
+		Config: addrs.ProviderConfigCorrect{
+			Provider: addrs.MustParseProviderSourceString("test/foo"),
+		},
+	}.Instance(addrs.NoKey)
+
+	// The analyzer should detect that foo.b in module.b depends on
+	// ephemeral.foo.a in module.a even though they are declared in
+	// different modules.
+	want := &ResourceRelationships{
+		EphemeralResourceUsers: addrs.MakeMap(
+			addrs.MakeMapElem(fooA.Instance(addrs.NoKey), EphemeralResourceInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooB.Instance(addrs.NoKey),
+				),
+			}),
+		),
+
+		// PrepareToPlan also finds the resources that belong to each
+		// provider instance, which is not the focus of this test but
+		// are part of the result nonetheless.
+		ProviderInstanceUsers: addrs.MakeMap(
+			addrs.MakeMapElem(providerInstAddr, ProviderInstanceUsers{
+				ResourceInstances: addrs.MakeSet(
+					fooA.Instance(addrs.NoKey),
+					fooB.Instance(addrs.NoKey),
+				),
+			}),
+		),
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result\n" + diff)
+	}
+}

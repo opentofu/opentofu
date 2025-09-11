@@ -99,9 +99,9 @@ func (u *uncompiledModule) ModuleOutputsTypeConstraint(ctx context.Context) cty.
 }
 
 // CompileModuleInstance implements evalglue.UncompiledModule.
-func (u *uncompiledModule) CompileModuleInstance(ctx context.Context, call *evalglue.ModuleCall) (evalglue.CompiledModuleInstance, tfdiags.Diagnostics) {
+func (u *uncompiledModule) CompileModuleInstance(ctx context.Context, calleeAddr addrs.ModuleInstance, call *evalglue.ModuleCall) (evalglue.CompiledModuleInstance, tfdiags.Diagnostics) {
 	rootModuleCall := &ModuleInstanceCall{
-		CalleeAddr:           addrs.RootModuleInstance,
+		CalleeAddr:           calleeAddr,
 		InputValues:          call.InputValues,
 		EvaluationGlue:       call.EvaluationGlue,
 		AllowImpureFunctions: call.AllowImpureFunctions,
