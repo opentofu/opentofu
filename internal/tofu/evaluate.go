@@ -726,6 +726,8 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				return cty.EmptyTupleVal, diags
 			case config.ForEach != nil:
 				return cty.EmptyObjectVal, diags
+			case config.Enabled != nil:
+				return cty.NullVal(ty), diags
 			default:
 				// While we can reference an expanded resource with 0
 				// instances, we cannot reference instances that do not exist.
@@ -958,7 +960,10 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		} else {
 			ret = cty.EmptyObjectVal
 		}
-
+	case config.Enabled != nil:
+		// There is no need to check if the instance is there, because if not,
+		// we need to propagate the null value
+		ret = instances[addrs.NoKey]
 	default:
 		val, ok := instances[addrs.NoKey]
 		if !ok {
