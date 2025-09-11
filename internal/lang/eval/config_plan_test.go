@@ -159,7 +159,9 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 			Provider: addrs.MustParseProviderSourceString("test/foo"),
 			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
 				Config: addrs.AbsProviderConfigCorrect{
-					Provider: addrs.MustParseProviderSourceString("test/foo"),
+					Config: addrs.ProviderConfigCorrect{
+						Provider: addrs.MustParseProviderSourceString("test/foo"),
+					},
 				},
 			},
 		}),
@@ -262,7 +264,9 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 			Provider: addrs.MustParseProviderSourceString("test/foo"),
 			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
 				Config: addrs.AbsProviderConfigCorrect{
-					Provider: addrs.MustParseProviderSourceString("test/foo"),
+					Config: addrs.ProviderConfigCorrect{
+						Provider: addrs.MustParseProviderSourceString("test/foo"),
+					},
 				},
 			},
 		}),
