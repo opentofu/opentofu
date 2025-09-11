@@ -33,7 +33,17 @@ type ProviderInstance struct {
 	// ProviderAddr is the address of the provider this is an instance of.
 	ProviderAddr addrs.Provider
 
-	// TODO: everything else
+	// ConfigValuer produces the object value representing the configuration
+	// for this provider instance.
+	ConfigValuer *OnceValuer
+
+	// ValidateConfig is a function provided by whatever compiled this object
+	// which takes the result of ConfigValuer and potentially returns additional
+	// diagnostics typically based on validation logic built in to the provider
+	// itself.
+	ValidateConfig func(context.Context, cty.Value) tfdiags.Diagnostics
+
+	validatedConfig grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*ProviderInstance)(nil)
@@ -54,11 +64,57 @@ func (p *ProviderInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiags
 
 // Value implements exprs.Valuer.
 func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-	// FIXME: This should wait for the configuration to have been evaluated
-	// and validated and then transfer any marks from the configuration into
-	// the resulting value to represent that any values produced by this
+	// The value for a provider instance as used in expressions is just an
+	// opaque reference to this object represented as a cty capsule type,
+	// but we do still evaluate the configuration first because that ensures
+	// that everything the configuration depends on has been resolved and
+	// allows us to transfer a subset of the marks to the reference value to
+	// represent that any values produced by resources belonging to this
 	// provider might vary by the provider's configuration.
-	return ProviderInstanceRefValue(p), nil
+	//
+	// We don't propagate diagnostics here because otherwise they would
+	// appear redundantly for every reference to the provider instance.
+	// Instead, [ProviderInstance.CheckAll] calls
+	// [ProviderInstance.ConfigValue] to expose its diagnostics directly.
+	configVal := diagsHandledElsewhere(p.ConfigValue(ctx))
+
+	// We copy over only the EvalError and resource-instance-reference-related
+	// marks because it would be too conservative to copy others. For example,
+	// it doesn't make sense to say that an ephemeral value anywhere in the
+	// provider configuration causes all resource instances belonging to this
+	// provider instance to also be ephemeral values.
+	ret := ProviderInstanceRefValue(p)
+	if configVal.HasMarkDeep(exprs.EvalError) {
+		ret = ret.Mark(exprs.EvalError)
+	}
+	for ri := range ContributingResourceInstances(configVal) {
+		ret = ret.Mark(ResourceInstanceMark{ri})
+	}
+	return ret, nil
+}
+
+// ConfigValue returns an object representing the configuration that should
+// be sent to a provider to make it behave as the configured provider instance.
+//
+// This value should not bt exposed for references from expressions elsewhere
+// in the configuration. The result is considered private to the provider
+// process that is configured with it.
+func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	// We use a "Once" here to coalesce to just one ValidateConfig call per
+	// ProviderInstance object, even when multiple callers ask for the
+	// configuration for this instance.
+	return p.validatedConfig.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+		v, diags := p.ConfigValuer.Value(ctx)
+		if diags.HasErrors() {
+			return cty.DynamicVal, diags
+		}
+		moreDiags := p.ValidateConfig(ctx, v)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return cty.DynamicVal, diags
+		}
+		return v, diags
+	})
 }
 
 // ValueSourceRange implements exprs.Valuer.
@@ -69,7 +125,22 @@ func (p *ProviderInstance) ValueSourceRange() *tfdiags.SourceRange {
 	return nil
 }
 
+// CheckAll implements allChecker.
+func (p *ProviderInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+	var cg CheckGroup
+	cg.CheckValuer(ctx, p)
+	// We also need to directly check the ConfigValue method, because diags
+	// from there do not propagate through Value.
+	cg.CheckDiagsFunc(ctx, func(ctx context.Context) tfdiags.Diagnostics {
+		_, diags := p.ConfigValue(ctx)
+		return diags
+	})
+	return cg.Complete(ctx)
+}
+
 func (p *ProviderInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
-	// Nothing to announce here yet.
-	// TODO: Add the ConfigValuer here once we have it.
+	announce(p.ConfigValuer.RequestID(), grapheval.RequestInfo{
+		Name:        p.Addr.String() + " configuration",
+		SourceRange: p.ConfigValuer.ValueSourceRange(),
+	})
 }

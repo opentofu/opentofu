@@ -535,6 +535,16 @@ func compileModuleInstanceProviderConfigs(
 			LocalName: config.Name,
 			Alias:     config.Alias,
 		}
+
+		var configEvalable exprs.Evalable
+		configSchema, diags := providers.ProviderConfigSchema(ctx, providerAddr)
+		if diags.HasErrors() {
+			configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(config.DeclRange))
+		} else {
+			spec := configSchema.Block.DecoderSpec()
+			configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(config.Config, spec)
+		}
+
 		ret[localAddr] = &configgraph.ProviderConfig{
 			Addr: addrs.AbsProviderConfigCorrect{
 				Module:   moduleInstanceAddr,
@@ -543,6 +553,7 @@ func compileModuleInstanceProviderConfigs(
 			ProviderAddr:     providerAddr,
 			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil),
 			CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
+				instanceScope := instanceLocalScope(declScope, repData)
 				return &configgraph.ProviderInstance{
 					Addr: addrs.AbsProviderInstanceCorrect{
 						Config: addrs.AbsProviderConfigCorrect{
@@ -552,6 +563,12 @@ func compileModuleInstanceProviderConfigs(
 						Key: key,
 					},
 					ProviderAddr: providerAddr,
+					ConfigValuer: configgraph.ValuerOnce(
+						exprs.NewClosure(configEvalable, instanceScope),
+					),
+					ValidateConfig: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+						return providers.ValidateProviderConfig(ctx, providerAddr, v)
+					},
 				}
 			},
 		}
@@ -563,10 +580,34 @@ func compileModuleInstanceProviderConfigs(
 	if moduleInstanceAddr.IsRoot() {
 		for resourceConfig := range allResources {
 			localAddr := resourceConfig.ProviderConfigAddr()
+			if _, ok := ret[localAddr]; ok {
+				continue // we already have an instance for this local address
+			}
 			providerAddr := addrs.NewDefaultProvider(localAddr.LocalName)
 			if reqd, ok := reqdProviders[localAddr.LocalName]; ok {
 				providerAddr = reqd.Type
 			}
+
+			// For these implied ones there isn't actually any real provider
+			// config and so we just pretend that there was a block with
+			// an empty body. If the provider schema includes any required
+			// arguments this will then fail due to the fake empty body not
+			// conforming to the schema.
+			var configEvalable exprs.Evalable
+			configSchema, diags := providers.ProviderConfigSchema(ctx, providerAddr)
+			if diags.HasErrors() {
+				// We don't really have any good source location to blame for
+				// problems here, so we'll just arbitrarily blame one of the
+				// resources that refers to the provider for now. The error
+				// reporting for these situations being poor has been a classic
+				// problem even in the previous implementation so hopefully we
+				// can think of a better idea for this at some point...
+				configEvalable = exprs.ForcedErrorEvalable(diags, tfdiags.SourceRangeFromHCL(resourceConfig.DeclRange))
+			} else {
+				spec := configSchema.Block.DecoderSpec()
+				configEvalable = exprs.EvalableHCLBodyWithDynamicBlocks(hcl.EmptyBody(), spec)
+			}
+
 			ret[localAddr] = &configgraph.ProviderConfig{
 				Addr: addrs.AbsProviderConfigCorrect{
 					Module:   moduleInstanceAddr,
@@ -575,6 +616,7 @@ func compileModuleInstanceProviderConfigs(
 				ProviderAddr:     providerAddr,
 				InstanceSelector: compileInstanceSelector(ctx, declScope, nil, nil, nil),
 				CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
+					instanceScope := instanceLocalScope(declScope, repData)
 					return &configgraph.ProviderInstance{
 						Addr: addrs.AbsProviderInstanceCorrect{
 							Config: addrs.AbsProviderConfigCorrect{
@@ -584,6 +626,12 @@ func compileModuleInstanceProviderConfigs(
 							Key: key,
 						},
 						ProviderAddr: providerAddr,
+						ConfigValuer: configgraph.ValuerOnce(
+							exprs.NewClosure(configEvalable, instanceScope),
+						),
+						ValidateConfig: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
+							return providers.ValidateProviderConfig(ctx, providerAddr, v)
+						},
 					}
 				},
 			}
