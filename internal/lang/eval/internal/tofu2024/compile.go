@@ -547,8 +547,11 @@ func compileModuleInstanceProviderConfigs(
 
 		ret[localAddr] = &configgraph.ProviderConfig{
 			Addr: addrs.AbsProviderConfigCorrect{
-				Module:   moduleInstanceAddr,
-				Provider: providerAddr,
+				Module: moduleInstanceAddr,
+				Config: addrs.ProviderConfigCorrect{
+					Provider: providerAddr,
+					Alias:    config.Alias,
+				},
 			},
 			ProviderAddr:     providerAddr,
 			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil),
@@ -557,8 +560,11 @@ func compileModuleInstanceProviderConfigs(
 				return &configgraph.ProviderInstance{
 					Addr: addrs.AbsProviderInstanceCorrect{
 						Config: addrs.AbsProviderConfigCorrect{
-							Module:   addrs.RootModuleInstance,
-							Provider: providerAddr,
+							Module: addrs.RootModuleInstance,
+							Config: addrs.ProviderConfigCorrect{
+								Provider: providerAddr,
+								Alias:    config.Alias,
+							},
 						},
 						Key: key,
 					},
@@ -610,8 +616,10 @@ func compileModuleInstanceProviderConfigs(
 
 			ret[localAddr] = &configgraph.ProviderConfig{
 				Addr: addrs.AbsProviderConfigCorrect{
-					Module:   moduleInstanceAddr,
-					Provider: providerAddr,
+					Module: moduleInstanceAddr,
+					Config: addrs.ProviderConfigCorrect{
+						Provider: providerAddr,
+					},
 				},
 				ProviderAddr:     providerAddr,
 				InstanceSelector: compileInstanceSelector(ctx, declScope, nil, nil, nil),
@@ -620,8 +628,10 @@ func compileModuleInstanceProviderConfigs(
 					return &configgraph.ProviderInstance{
 						Addr: addrs.AbsProviderInstanceCorrect{
 							Config: addrs.AbsProviderConfigCorrect{
-								Module:   addrs.RootModuleInstance,
-								Provider: providerAddr,
+								Module: addrs.RootModuleInstance,
+								Config: addrs.ProviderConfigCorrect{
+									Provider: providerAddr,
+								},
 							},
 							Key: key,
 						},

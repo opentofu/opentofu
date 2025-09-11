@@ -33,6 +33,7 @@ type CompiledModuleInstance struct {
 	resourceNodes       map[addrs.Resource]*configgraph.Resource
 	moduleCallNodes     map[addrs.ModuleCall]*configgraph.ModuleCall
 	providerConfigNodes map[addrs.LocalProviderConfig]*configgraph.ProviderConfig
+	providerLocalNames  map[addrs.Provider]string
 }
 
 var _ evalglue.CompiledModuleInstance = (*CompiledModuleInstance)(nil)
@@ -75,8 +76,46 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 	return c.moduleInstanceNode
 }
 
-// ResourceInstancesDeep implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) ResourceInstancesDeep(ctx context.Context) iter.Seq[*configgraph.ResourceInstance] {
+// ChildModuleInstance implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr addrs.ModuleCallInstance) evalglue.CompiledModuleInstance {
+	// TODO: rework our internal API here so that we can actually answer
+	// this question. The current structure makes this impossible because
+	// the child [CompiledModuleInstance] only exists temporarily as a
+	// local variable when building a child instance's result value.
+	return nil
+}
+
+// ChildModuleInstances implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ChildModuleInstances(ctx context.Context) iter.Seq2[addrs.ModuleCallInstance, evalglue.CompiledModuleInstance] {
+	// TODO: rework our internal API here so that we can actually answer
+	// this question. The current structure makes this impossible because
+	// the child [CompiledModuleInstance] only exists temporarily as a
+	// local variable when building a child instance's result value.
+	return func(yield func(addrs.ModuleCallInstance, evalglue.CompiledModuleInstance) bool) {}
+}
+
+// ProviderInstance implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance {
+	localName, ok := c.providerLocalNames[addr.Config.Provider]
+	if !ok {
+		return nil
+	}
+	localAddr := addrs.LocalProviderConfig{
+		LocalName: localName,
+		Alias:     addr.Config.Alias,
+	}
+	node, ok := c.providerConfigNodes[localAddr]
+	if !ok {
+		return nil
+	}
+	// This call is where we will block if there isn't yet enough information
+	// to evaluate the expression that decides the instances.
+	insts := node.Instances(ctx)
+	return insts[addr.Key]
+}
+
+// ResourceInstances implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ResourceInstances(ctx context.Context) iter.Seq[*configgraph.ResourceInstance] {
 	return func(yield func(*configgraph.ResourceInstance) bool) {
 		for _, r := range c.resourceNodes {
 			// NOTE: r.Instances will block if the resource's [InstanceSelector]
@@ -88,9 +127,24 @@ func (c *CompiledModuleInstance) ResourceInstancesDeep(ctx context.Context) iter
 				}
 			}
 		}
+	}
+}
 
-		// TODO: Once we actually support child module calls, ask for the
-		// instances of each one and then collect its resource instances too.
+// ProviderInstancesDeep implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ProviderInstancesDeep(ctx context.Context) iter.Seq[*configgraph.ProviderInstance] {
+	return func(yield func(*configgraph.ProviderInstance) bool) {
+		for _, r := range c.providerConfigNodes {
+			// NOTE: r.Instances will block if the provider config's
+			// [InstanceSelector] depends on other parts of the configuration
+			// that aren't yet ready to produce their value.
+			for _, inst := range r.Instances(ctx) {
+				if !yield(inst) {
+					return
+				}
+			}
+		}
+
+		// TODO: Collect provider instances from child module calls too.
 	}
 }
 
