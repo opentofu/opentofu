@@ -10,6 +10,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -53,7 +54,11 @@ type UncompiledModule interface {
 	// CompileModuleInstance uses the given [ModuleCall] to attempt to compile
 	// the module into a [CompiledModuleInstance], or returns error diagnostics
 	// explaining why that isn't possible.
-	CompileModuleInstance(ctx context.Context, call *ModuleCall) (CompiledModuleInstance, tfdiags.Diagnostics)
+	//
+	// calleeAddr is the module instance address that the newly-compiled module
+	// appears at. This affects how the module describes itself and the objects
+	// within it in the global address space.
+	CompileModuleInstance(ctx context.Context, calleeAddr addrs.ModuleInstance, call *ModuleCall) (CompiledModuleInstance, tfdiags.Diagnostics)
 }
 
 // ModuleCall represents the information needed to instantiate [UncompiledModule]

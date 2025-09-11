@@ -41,9 +41,11 @@ type ModuleCallInstanceGlue interface {
 	// instance. This is what should be returned as the value of the module
 	// instance.
 	//
-	// TODO: This probably also needs an argument for passing the "sidechannel"
-	// provider instance values.
-	OutputsValue(ctx context.Context, inputsVal cty.Value) (cty.Value, tfdiags.Diagnostics)
+	// Real implementations of this will tend to indirectly depend on the
+	// [ModuleCallInstance.InputsValue] method of the module call instance
+	// that this glue object belongs to, but exactly what happens between
+	// those two is outside of this package's scope of responsibility.
+	OutputsValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics)
 }
 
 type ModuleSourceArguments struct {
