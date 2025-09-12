@@ -15,8 +15,9 @@ import (
 )
 
 // Expander instances serve as a coordination point for gathering object
-// repetition values (count and for_each in configuration) and then later
-// making use of them to fully enumerate all of the instances of an object.
+// repetition values (count, enabled and for_each in configuration) and
+// then later making use of them to fully enumerate all of the instances
+// of an object.
 //
 // The two repeatable object types in OpenTofu are modules and resources.
 // Because resources belong to modules and modules can nest inside other
@@ -56,6 +57,12 @@ func NewExpander() *Expander {
 // module does not use any repetition arguments and is therefore a singleton.
 func (e *Expander) SetModuleSingle(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall) {
 	e.setModuleExpansion(parentAddr, callAddr, expansionSingleVal)
+}
+
+// SetModuleEnabled records that the given module call inside the given parent
+// module uses the "enabled" lifecycle repetition argument, with the given value.
+func (e *Expander) SetModuleEnabled(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, enabled bool) {
+	e.setModuleExpansion(parentAddr, callAddr, expansionEnabled(enabled))
 }
 
 // SetModuleCount records that the given module call inside the given parent
