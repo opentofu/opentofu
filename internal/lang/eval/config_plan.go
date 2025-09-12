@@ -213,6 +213,68 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 }
 
 func announcePlanOrphans(ctx context.Context, glue PlanGlue, rootModuleInstance evalglue.CompiledModuleInstance) tfdiags.Diagnostics {
-	// TODO: Implement
-	return nil
+	var diags collectedDiagnostics
+	announcePlanOrphansRecursive(ctx, glue, &diags, addrs.RootModuleInstance, rootModuleInstance)
+	return diags.diags
+}
+
+func announcePlanOrphansRecursive(ctx context.Context, glue PlanGlue, diags *collectedDiagnostics, currentModuleInstAddr addrs.ModuleInstance, currentModuleInstance evalglue.CompiledModuleInstance) {
+	var wg sync.WaitGroup
+	// Announce the module calls themselves
+	diags.Append(
+		glue.PlanModuleCallOrphans(ctx, currentModuleInstAddr, currentModuleInstance.ChildModuleCalls(ctx)),
+	)
+	// Announce the instances of each module call and recurse into each one
+	// to deal with the declarations within it.
+	wg.Go(func() {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		for callAddr := range currentModuleInstance.ChildModuleCalls(ctx) {
+			diags.Append(
+				glue.PlanModuleCallInstanceOrphans(ctx, callAddr.Absolute(currentModuleInstAddr), func(yield func(addrs.InstanceKey) bool) {
+					ctx := grapheval.ContextWithNewWorker(ctx)
+					for callInstAddr := range currentModuleInstance.ChildModuleInstancesForCall(ctx, callAddr) {
+						if !yield(callInstAddr.Key) {
+							return
+						}
+					}
+				}),
+			)
+			for callInstAddr, childInst := range currentModuleInstance.ChildModuleInstancesForCall(ctx, callAddr) {
+				childInstAddr := currentModuleInstAddr.Child(callInstAddr.Call.Name, callInstAddr.Key)
+				announcePlanOrphansRecursive(ctx, glue, diags, childInstAddr, childInst)
+			}
+		}
+	})
+	// Announce the resource declarations themselves
+	diags.Append(
+		glue.PlanResourceOrphans(ctx, currentModuleInstAddr, currentModuleInstance.Resources(ctx)),
+	)
+	// Announce the instances of each resource
+	wg.Go(func() {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		for resourceAddr := range currentModuleInstance.Resources(ctx) {
+			diags.Append(
+				glue.PlanResourceInstanceOrphans(ctx, resourceAddr.Absolute(currentModuleInstAddr), func(yield func(addrs.InstanceKey) bool) {
+					ctx := grapheval.ContextWithNewWorker(ctx)
+					for resourceInst := range currentModuleInstance.ResourceInstancesForResource(ctx, resourceAddr) {
+						if !yield(resourceInst.Addr.Resource.Key) {
+							return
+						}
+					}
+				}),
+			)
+		}
+	})
+	wg.Wait()
+}
+
+type collectedDiagnostics struct {
+	diags tfdiags.Diagnostics
+	mu    sync.Mutex
+}
+
+func (d *collectedDiagnostics) Append(items ...any) {
+	d.mu.Lock()
+	d.diags = d.diags.Append(items...)
+	d.mu.Unlock()
 }
