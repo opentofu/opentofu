@@ -7,9 +7,11 @@ package eval
 
 import (
 	"context"
+	"iter"
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -31,6 +33,64 @@ type PlanGlue interface {
 	// for "orphaned" resource instances (those which are only present in
 	// prior state) separately once [ConfigInstance.DrivePlanning] has returned.
 	PlanDesiredResourceInstance(ctx context.Context, inst *DesiredResourceInstance, oracle *PlanningOracle) (cty.Value, tfdiags.Diagnostics)
+
+	// PlanResourceInstanceOrphans creates planned actions for any instances
+	// of the given resource that existed in the prior state but whose keys
+	// are NOT included in desiredInstances.
+	//
+	// This API assumes that the [PlanGlue] implementation has the prior
+	// state represented in a tree structure that allows quickly scanning
+	// all instances under a given prefix and testing whether they match
+	// any of the given instance keys, after which it will presumably plan
+	// a "delete" action for each of them
+	//
+	// If desiredInstance reports only a single instance key of type
+	// [addrs.WildcardKey], or if the module instance address within
+	// resourceAddr is a placeholder itself, then the set of desired instances
+	// is not actually finalized and so the planning engine would need to
+	// defer planning any actions for anything that matches the reported
+	// wildcard.
+	//
+	// Different subsets of prior state resource instances can be covered
+	// by different calls to the "Plan*Orphans" family of methods on
+	// [PlanGlue]. An implementation of [PlanGlue] should be designed to
+	// handle reports at any one of these four levels of granularity, planning
+	// actions for whatever subtree of prior state resource instances happen
+	// to match the calls. Typically the same objects will be described at
+	// different levels of granularity and so the implementation must also
+	// keep track of all of the orphan resource instances it has already
+	// detected and handled to avoid generating duplicate planned actions.
+	PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics
+
+	// PlanResourceOrphans creates planned actions for any instances of
+	// resources in the given module instance that that existed in the prior
+	// state but that do NOT appear in desiredResources.
+	//
+	// This is similar to [PlanGlue.PlanResourceInstanceOrphans] but deals
+	// with entirely-removed resources instead of removed instances of a
+	// resource that is still configured. The same caveat about wildcard
+	// instances applies here too.
+	PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics
+
+	// PlanModuleCallInstanceOrphans creates planned actions for any prior
+	// state resource instances that belong to instances of the given module
+	// call whose instance keys are NOT included in desiredInstances.
+	//
+	// This is similar to [PlanGlue.PlanResourceOrphans] but deals with
+	// the removal of an entire module instance containing resource instances
+	// instead of removal of the resources themselves. The same caveat about
+	// wildcard instances applies here too.
+	PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics
+
+	// PlanModuleCallOrphans creates planned actions for any prior state
+	// resource instances that belong to any module calls within
+	// callerModuleInstAddr that are NOT present in desiredCalls.
+	//
+	// This is similar to [PlanGlue.PlanModuleCallInstanceOrphans] but deals
+	// with the removal of an entire module call containing resource instances,
+	// instead of removal of just one dynamic instance of a module call that's
+	// still declared.
+	PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics
 }
 
 // DrivePlanning uses this configuration instance to drive forward a planning
@@ -38,11 +98,11 @@ type PlanGlue interface {
 //
 // This function deals only with the configuration-driven portion of the
 // process where the planning engine learns which resource instances are
-// currently declared in the configuration. After this function returns
-// the caller will need to compare that set of desired resource instances
-// with the set of resource instances tracked in the prior state and then
-// presumably generate additional planned actions to destroy any instances
-// that are currently tracked but no longer configured.
+// currently declared in the configuration. The caller will need to compare
+// the set of desired resource instances with the set of resource instances
+// tracked in the prior state and then presumably generate additional planned
+// actions to destroy any instances that are currently tracked but no longer
+// configured.
 func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
 	// All of our work will be associated with a workgraph worker that serves
 	// as the initial worker node in the work graph.
@@ -71,6 +131,15 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	// it'll cause various calls out to the "glue" object whenever we're
 	// ready to provide configuration for a resource intance and need to
 	// obtain its result for downstream use.
+	//
+	// TODO: Concurrently with checkAll, perform another tree walk which
+	// gradually gathers the necessary information to call the various
+	// Plan*Orphans methods of PlanGlue, so that the caller can gradually
+	// discover what's declared in the configuration and thus, by omission,
+	// notice when something that was present in the prior state is NOT
+	// declared in the current configuration. That should be implemented
+	// separately from checkAll because it's an operation unique to the
+	// planning phase, not needed in any other phase.
 	moreDiags = checkAll(ctx, rootModuleInstance)
 	diags = diags.Append(moreDiags)
 	// (We intentionally don't return here because we'll make a best effort

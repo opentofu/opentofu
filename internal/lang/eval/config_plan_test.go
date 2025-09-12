@@ -8,6 +8,7 @@ package eval_test
 import (
 	"context"
 	"errors"
+	"iter"
 	"sync"
 	"testing"
 
@@ -342,4 +343,32 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 	}
 	plannedVal := objchange.ProposedNew(schema.Block, cty.NullVal(schema.Block.ImpliedType()), inst.ConfigVal)
 	return plannedVal, diags
+}
+
+// PlanModuleCallInstanceOrphans implements eval.PlanGlue.
+func (p *planGlueCallLog) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
+	return nil
+}
+
+// PlanModuleCallOrphans implements eval.PlanGlue.
+func (p *planGlueCallLog) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
+	return nil
+}
+
+// PlanResourceInstanceOrphans implements eval.PlanGlue.
+func (p *planGlueCallLog) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
+	return nil
+}
+
+// PlanResourceOrphans implements eval.PlanGlue.
+func (p *planGlueCallLog) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
+	// We don't currently do anything with calls to this method, because
+	// no tests we've written so far rely on it.
+	return nil
 }
