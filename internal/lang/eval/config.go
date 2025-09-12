@@ -93,6 +93,16 @@ func NewConfigInstance(ctx context.Context, call *ConfigCall) (*ConfigInstance, 
 	return inst, nil
 }
 
+// EvalContext returns the [EvalContext] that the [ConfigInstance] would use
+// to interact with its surrounding environment.
+//
+// This is exposed so that other systems that do work alongside the
+// [ConfigInstance] work, such as implementations of [PlanGlue], can guarantee
+// that they are interacting with the environment in a consistent way.
+func (c *ConfigInstance) EvalContext() *EvalContext {
+	return c.evalContext
+}
+
 // newRootModuleInstance prepares a [configgraph.ModuleInstance] object based
 // on the [ConfigInstance] and the given evaluation glue, as a shared building
 // block for various exported methods on [ConfigInstance].
