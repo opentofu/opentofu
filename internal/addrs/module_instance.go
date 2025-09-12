@@ -197,6 +197,11 @@ type ModuleInstanceStep struct {
 	InstanceKey InstanceKey
 }
 
+func (s ModuleInstanceStep) IsPlaceholder() bool {
+	_, ok := s.InstanceKey.(WildcardKey)
+	return ok
+}
+
 // RootModuleInstance is the module instance address representing the root
 // module, which is also the zero value of ModuleInstance.
 var RootModuleInstance ModuleInstance
