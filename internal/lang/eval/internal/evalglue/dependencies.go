@@ -73,6 +73,26 @@ type Providers interface {
 	// the schema returned by a previous call to ResourceTypeSchema for
 	// the same resource type.
 	ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics
+
+	// NewConfiguredProvider starts a _configured_ instance of the given
+	// provider using the given configuration value.
+	//
+	// The evaluation system itself makes no use of configured providers, but
+	// higher-level processes wrapping it (e.g. the plan and apply engines)
+	// need to use configured providers for actions related to resources, etc,
+	// and so this is for their benefit to help ensure that they are definitely
+	// creating a configured instance of the same provider that other methods
+	// would be using to return schema information and validation results.
+	//
+	// It's the caller's responsibility to ensure that the given configuration
+	// value is valid according to the provider's schema and validation rules.
+	// That's usually achieved by taking a value provided by the evaluation
+	// system, which would then have already been processed using the results
+	// from [Providers.ProviderConfigSchema] and
+	// [Providers.ValidateProviderConfig]. If the returned diagnostics contains
+	// errors then the [providers.Configured] result is invalid and must not be
+	// used.
+	NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics)
 }
 
 // Providers is implemented by callers of this package to provide access
@@ -165,6 +185,17 @@ func (e emptyDependencies) ValidateResourceConfig(ctx context.Context, provider 
 	// can never be a call to this function in practice and so we'll just
 	// do nothing here.
 	return nil
+}
+
+// NewConfiguredProvider implements Providers.
+func (e emptyDependencies) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"No providers are available",
+		"There are no providers available for use in this context.",
+	))
+	return nil, diags
 }
 
 // ProvisionerConfigSchema implements Provisioners.
