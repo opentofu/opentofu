@@ -46,70 +46,26 @@ import (
 func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *eval.ConfigInstance) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// Our planning process has two main "sub-phases":
-	// - Planning create, update, or replace actions for resource instances that
-	//   are currently declared in the configuration.
-	// - Planning delete actions for resource instances that appear only in
-	//   the previous round state and are not declared in the configuration.
-	//
-	// The lang/eval package is the primary driver of the first sub-phase,
-	// because it knows how to gradually evaluate expressions in the
-	// configuration until it has discovered the full set of "desired" resource
-	// instances.
-	//
-	// The second phase is outside of lang/eval's scope, handled entirely
-	// within the planning engine: we subtract the set of resource instances
-	// we found during the first sub-phase from the set of resource instances
-	// in the previous round state and plan to destroy whichever resource
-	// instances remain. The second sub-phase also uses provider instance
-	// configuration and ephemeral resource instance configuration provided
-	// by lang/eval through the return value of the first phase.
-	//
-	// Note that this approach implies that any provider instance that is
-	// associated with a resource instance in prevRoundState and which
-	// gets used during subphase 1 must always be kept open through the
-	// remainder of subphase 1 _just in case_ any of the resource instances
-	// that refer to it turn out to be "orphans". In turn that means that
-	// any ephemeral resource instances that any of those provider instances
-	// rely on must also remain open, and in turn the provider instances that
-	// those ephemeral resource instances belong to. So we would probably end
-	// up keeping most of the provider instances open throughout anyway and
-	// so maybe it's not worth the complexity of trying to calculate when it's
-	// okay to close them. If we _do_ want to still track this precisely then
-	// we'll need to extend the PlanGlue API to include additional announcements
-	// about what's present in the configuration so that the orphan planning
-	// can happen concurrently with the desired state planning.
-
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState)
 
-	// Sub-phase 1: evaluating the desired state
-	//
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls
 	// [planContext.PlanDesiredResourceInstance] on planCtx for each resource
 	// instance it discovers so that we can produce a planned action and
 	// result value for each one.
-	result, moreDiags := configInst.DrivePlanning(ctx, planCtx)
+	//
+	// It also calls the various "Plan*Orphans" methods at different levels
+	// of granularity once it's determined the full set of objects under
+	// a given prefix, which planCtx uses to notice when there are
+	// prevRoundState resource instances that are no longer in the desired
+	// state and so plan to delete or forget them.
+	_, moreDiags := configInst.DrivePlanning(ctx, planCtx)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		// If we encountered errors during the eval-based phase then we'll halt
 		// here but we'll still produce a best-effort [plans.Plan] describing
 		// the situation because that often gives useful information for debugging
 		// what caused the errors.
-		plan := planCtx.Plan()
-		plan.Errored = true
-		return plan, diags
-	}
-
-	// Sub-phase 2: orphaned resource instances
-	//
-	// We'll continue to use the [eval.PlanningOracle] in case we need to
-	// open any new provider instances or ephemeral resource instances to
-	// deal with the deletion of any "orphan" resource instances.
-	oracle := result.Oracle
-	moreDiags = planCtx.PlanOrphanResourceInstances(ctx, oracle)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
 		plan := planCtx.Plan()
 		plan.Errored = true
 		return plan, diags
