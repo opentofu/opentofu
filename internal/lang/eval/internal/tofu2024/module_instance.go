@@ -8,6 +8,7 @@ package tofu2024
 import (
 	"context"
 	"iter"
+	"maps"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 
@@ -94,6 +95,11 @@ func (c *CompiledModuleInstance) ResultValuer(ctx context.Context) exprs.Valuer 
 	return c.moduleInstanceNode
 }
 
+// ChildModuleCalls implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ChildModuleCalls(_ context.Context) iter.Seq[addrs.ModuleCall] {
+	return maps.Keys(c.moduleCallNodes)
+}
+
 // ChildModuleInstance implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr addrs.ModuleCallInstance) evalglue.CompiledModuleInstance {
 	callNode, ok := c.moduleCallNodes[addr.Call]
@@ -122,7 +128,7 @@ func (c *CompiledModuleInstance) ChildModuleInstance(ctx context.Context, addr a
 func (c *CompiledModuleInstance) ChildModuleInstances(ctx context.Context) iter.Seq2[addrs.ModuleCallInstance, evalglue.CompiledModuleInstance] {
 	ctx = grapheval.ContextWithNewWorker(ctx)
 	return func(yield func(addrs.ModuleCallInstance, evalglue.CompiledModuleInstance) bool) {
-		for callAddr := range c.moduleCallNodes {
+		for callAddr := range c.ChildModuleCalls(ctx) {
 			for instAddr, compiled := range c.ChildModuleInstancesForCall(ctx, callAddr) {
 				if !yield(instAddr, compiled) {
 					return
@@ -179,10 +185,15 @@ func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addr
 	return insts[addr.Key]
 }
 
+// Resources implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) Resources(_ context.Context) iter.Seq[addrs.Resource] {
+	return maps.Keys(c.resourceNodes)
+}
+
 // ResourceInstances implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ResourceInstances(ctx context.Context) iter.Seq[*configgraph.ResourceInstance] {
 	return func(yield func(*configgraph.ResourceInstance) bool) {
-		for addr := range c.resourceNodes {
+		for addr := range c.Resources(ctx) {
 			for inst := range c.ResourceInstancesForResource(ctx, addr) {
 				if !yield(inst) {
 					return

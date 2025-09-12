@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"iter"
+	"sync"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -132,16 +133,23 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	// ready to provide configuration for a resource intance and need to
 	// obtain its result for downstream use.
 	//
-	// TODO: Concurrently with checkAll, perform another tree walk which
-	// gradually gathers the necessary information to call the various
-	// Plan*Orphans methods of PlanGlue, so that the caller can gradually
-	// discover what's declared in the configuration and thus, by omission,
-	// notice when something that was present in the prior state is NOT
-	// declared in the current configuration. That should be implemented
-	// separately from checkAll because it's an operation unique to the
-	// planning phase, not needed in any other phase.
-	moreDiags = checkAll(ctx, rootModuleInstance)
-	diags = diags.Append(moreDiags)
+	// We also concurrently work to call the Plan*Orphans methods on
+	// PlanGlue, which does a similar tree walk but is unique only to the
+	// planning phase and doesn't directly evaluate any nodes.
+	var wg sync.WaitGroup
+	var checkDiags tfdiags.Diagnostics
+	var orphanDiags tfdiags.Diagnostics
+	wg.Go(func() {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		checkDiags = checkAll(ctx, rootModuleInstance)
+	})
+	wg.Go(func() {
+		ctx := grapheval.ContextWithNewWorker(ctx)
+		orphanDiags = announcePlanOrphans(ctx, glue, rootModuleInstance)
+	})
+	wg.Wait()
+	diags = diags.Append(checkDiags)
+	diags = diags.Append(orphanDiags)
 	// (We intentionally don't return here because we'll make a best effort
 	// to return a partial result even if we encountered errors, so an
 	// operator can potentially use the partial result to help debug
@@ -202,4 +210,9 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 	// package configgraph knows how to provide those answers.
 
 	return p.planEngineGlue.PlanDesiredResourceInstance(ctx, desired, p.oracle)
+}
+
+func announcePlanOrphans(ctx context.Context, glue PlanGlue, rootModuleInstance evalglue.CompiledModuleInstance) tfdiags.Diagnostics {
+	// TODO: Implement
+	return nil
 }
