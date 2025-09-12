@@ -81,6 +81,16 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 
 	providers := eval.ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
 		addrs.MustParseProviderSourceString("test/foo"): {
+			Provider: providers.Schema{
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"greeting": {
+							Type:     cty.String,
+							Required: true,
+						},
+					},
+				},
+			},
 			ResourceTypes: map[string]providers.Schema{
 				"foo": {
 					Block: &configschema.Block{
@@ -105,6 +115,9 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 								source = "test/foo"
 							}
 						}
+					}
+					provider "foo" {
+						greeting = "Hello"
 					}
 					variable "a" {
 						type = string
@@ -168,6 +181,23 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	)
 	if diff := cmp.Diff(wantReqs, gotReqs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong requests\n" + diff)
+	}
+
+	providerInstAddr := addrs.AbsProviderInstanceCorrect{
+		Config: addrs.AbsProviderConfigCorrect{
+			Config: addrs.ProviderConfigCorrect{
+				Provider: addrs.MustParseProviderSourceString("test/foo"),
+			},
+		},
+	}
+	gotProviderInstConfigs := logGlue.providerInstanceConfigs
+	wantProviderInstConfigs := addrs.MakeMap(
+		addrs.MakeMapElem(providerInstAddr, cty.ObjectVal(map[string]cty.Value{
+			"greeting": cty.StringVal("Hello"),
+		})),
+	)
+	if diff := cmp.Diff(wantProviderInstConfigs, gotProviderInstConfigs, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong provider instance configs\n" + diff)
 	}
 }
 
@@ -280,6 +310,7 @@ type planGlueCallLog struct {
 	providers eval.Providers
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
+	providerInstanceConfigs  addrs.Map[addrs.AbsProviderInstanceCorrect, cty.Value]
 	mu                       sync.Mutex
 }
 
@@ -290,6 +321,14 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 		p.resourceInstanceRequests = addrs.MakeMap[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]()
 	}
 	p.resourceInstanceRequests.Put(inst.Addr, inst)
+	if inst.ProviderInstance != nil {
+		if p.providerInstanceConfigs.Len() == 0 {
+			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, cty.Value]()
+		}
+		providerInstAddr := *inst.ProviderInstance
+		providerInstConfig := oracle.ProviderInstanceConfig(ctx, providerInstAddr)
+		p.providerInstanceConfigs.Put(providerInstAddr, providerInstConfig)
+	}
 	p.mu.Unlock()
 
 	if p.providers == nil {

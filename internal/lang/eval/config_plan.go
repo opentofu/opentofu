@@ -137,11 +137,18 @@ type PlanningOracle struct {
 // planning phase, but could occur in subsequent work done by the planning
 // phase to deal with resource instances that are in prior state but no longer
 // in desired state, if their provider instances have also been removed from
-// the desired state at the same time.
+// the desired state at the same time. In that case the planning phase must
+// report that the "orphaned" resource instance cannot be planned for deletion
+// unless its provider instance is re-added to the configuration.
 func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
-	// TODO: Implement this by asking o.rootModuleInstance to provide it.
-	// (There isn't currently any API for that.)
-	return cty.NilVal
+	providerInst := evalglue.ProviderInstance(ctx, o.rootModuleInstance, addr)
+	if providerInst == nil {
+		return cty.NilVal
+	}
+	// We ignore diagnostics here because the CheckAll tree walk should collect
+	// them when it visits the provider instance, th
+	ret, _ := providerInst.ConfigValue(ctx)
+	return ret
 }
 
 // ProviderInstanceUsers returns an object representing which resource instances

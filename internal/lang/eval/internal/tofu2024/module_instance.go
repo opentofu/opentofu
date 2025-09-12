@@ -147,7 +147,7 @@ func (c *CompiledModuleInstance) ChildModuleInstances(ctx context.Context) iter.
 func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance {
 	localName, ok := c.providerLocalNames[addr.Config.Provider]
 	if !ok {
-		return nil
+		localName = addr.Config.Provider.Type
 	}
 	localAddr := addrs.LocalProviderConfig{
 		LocalName: localName,
