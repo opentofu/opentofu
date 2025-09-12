@@ -206,6 +206,27 @@ terraform {
 
 ***
 
+### AKS Workload Identity
+
+This example authenticates using workload identity on Azure Kubernetes.
+
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "tofu-rg"
+    storage_account_name = "tofu123abc"
+    container_name       = "tofu-state"
+    key                  = "prod.terraform.tfstate"
+
+    subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    tenant_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    use_aks_workload_identity = true
+  }
+}
+```
+
+***
+
 ## Data Source Configuration
 
 Authentication for a data source works equivalently to the remote state authentication shown above, though with slightly different syntax. For example, this is how to obtain the remote state using CLI Authentication:
@@ -282,9 +303,21 @@ When authenticating using the Managed Service Identity (MSI) - the following fie
 
 ***
 
+When authenticating using the AKS Workload Identity - the following fields are also supported:
+
+* `subscription_id` - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the `ARM_SUBSCRIPTION_ID` environment variable.
+
+* `tenant_id` - (Optional) The Tenant ID in which the Subscription exists. This can also be sourced from the `ARM_TENANT_ID` environment variable.
+
+* `use_aks_workload_identity` - (Optional) Set to true to if you want to use Azure's AKS Workload Identity to authenticate to Azure. This will only work if Workload Identity is set up on your Kubernetes workload. This can also be sourced from the `ARM_USE_AKS_WORKLOAD_IDENTITY` environment variable.
+
+***
+
 When authenticating using a Service Principal with OpenID Connect (OIDC) - the following fields are also supported:
 
 * `client_id` - (Optional) The Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID` environment variable.
+
+* `client_id_file_path` - (Optional) The path to a file containing the Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID_FILE_PATH` environment variable. 
 
 * `subscription_id` - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the `ARM_SUBSCRIPTION_ID` environment variable.
 
@@ -335,9 +368,13 @@ When authenticating using a Service Principal with a Client Certificate - the fo
 
 * `client_id` - (Optional) The Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID` environment variable.
 
-* `client_certificate_password` - (Optional) The password associated with the Client Certificate specified in `client_certificate_path`. This can also be sourced from the `ARM_CLIENT_CERTIFICATE_PASSWORD` environment variable.
+* `client_id_file_path` - (Optional) The path to a file containing the Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID_FILE_PATH` environment variable.
 
-* `client_certificate_path` - (Optional) The path to the PFX file used as the Client Certificate when authenticating as a Service Principal. This can also be sourced from the `ARM_CLIENT_CERTIFICATE_PATH` environment variable.
+* `client_certificate` - (Optional) A Base64-encoded PKCS#12 (PFX, not PEM) certificate used as the Client Certificate when authenticating as a Service Principal. The provided data string must encode both the public certificate and its private key. This can also be sourced from the `ARM_CLIENT_CERTIFICATE` environment variable.
+
+* `client_certificate_password` - (Optional) The password associated with the Client Certificate specified in `client_certificate` or `client_certificate_path`. This can also be sourced from the `ARM_CLIENT_CERTIFICATE_PASSWORD` environment variable.
+
+* `client_certificate_path` - (Optional) The path to the PKCS#12 PFX file used as the Client Certificate when authenticating as a Service Principal. The file must encode both the public certificate and its private key. This can also be sourced from the `ARM_CLIENT_CERTIFICATE_PATH` environment variable.
 
 * `subscription_id` - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the `ARM_SUBSCRIPTION_ID` environment variable.
 
@@ -350,7 +387,11 @@ When authenticating using a Service Principal with a Client Secret - the followi
 
 * `client_id` - (Optional) The Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID` environment variable.
 
+* `client_id_file_path` - (Optional) The path to a file containing the Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID_FILE_PATH` environment variable.
+
 * `client_secret` - (Optional) The Client Secret of the Service Principal. This can also be sourced from the `ARM_CLIENT_SECRET` environment variable.
+
+* `client_secret_file_path` - (Optional) The path to a file containing the Client Secret of the Service Principal. This can also be sourced from the `ARM_CLIENT_SECRET_FILE_PATH` environment variable.
 
 * `subscription_id` - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the `ARM_SUBSCRIPTION_ID` environment variable.
 

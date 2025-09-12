@@ -12,12 +12,17 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/azure/auth"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
 )
 
@@ -440,5 +445,65 @@ func TestAccBackendManagedServiceIdentity(t *testing.T) {
 	backend.TestBackendStates(t, b)
 
 	// Manually delete all blobs in the container
-	deleteBlobsInMSI(t, storageAccountName, resourceGroupName, containerName)
+	client := httpclient.New(t.Context())
+
+	authCred, err := azidentity.NewManagedIdentityCredential(
+		&azidentity.ManagedIdentityCredentialOptions{ClientOptions: azcore.ClientOptions{
+			Telemetry: policy.TelemetryOptions{
+				Disabled: true,
+			},
+			Transport: client,
+			Cloud:     cloud.AzurePublic,
+		}},
+	)
+	if err != nil {
+		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
+		return
+	}
+
+	deleteBlobsManually(t, authCred, storageAccountName, resourceGroupName, containerName)
+}
+
+// TestAccBackendAKSWorkloadIdentity tests if the backend functions when using workload identity, on Azure AKS (Kubernetes).
+// Note: this test does NOT create its own resource group, storage account, or storage container. You must set up that infrastructure
+// manually, as well as the kubernetes cluster, workload identity, and managed identity which this test depends upon.
+func TestAccBackendAKSWorkloadIdentity(t *testing.T) {
+	testAccAzureBackend(t)
+
+	storageAccountName := os.Getenv("TF_AZURE_TEST_STORAGE_ACCOUNT_NAME")
+	resourceGroupName := os.Getenv("TF_AZURE_TEST_RESOURCE_GROUP_NAME")
+	containerName := os.Getenv("TF_AZURE_TEST_CONTAINER_NAME")
+
+	if storageAccountName == "" || resourceGroupName == "" || containerName == "" {
+		t.Skip("For MSI tests, all infrastructure must be set up ahead of time and passed through environment variables.")
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"storage_account_name":      storageAccountName,
+		"container_name":            containerName,
+		"key":                       "testState",
+		"resource_group_name":       resourceGroupName,
+		"use_aks_workload_identity": true,
+		"use_cli":                   false,
+	})).(*Backend)
+
+	backend.TestBackendStates(t, b)
+	client := httpclient.New(t.Context())
+
+	authCred, err := azidentity.NewWorkloadIdentityCredential(
+		&azidentity.WorkloadIdentityCredentialOptions{ClientOptions: azcore.ClientOptions{
+			Telemetry: policy.TelemetryOptions{
+				Disabled: true,
+			},
+			Transport: client,
+			Cloud:     cloud.AzurePublic,
+		}},
+	)
+	if err != nil {
+		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
+		return
+	}
+
+	// Manually delete all blobs in the container
+	deleteBlobsManually(t, authCred, storageAccountName, resourceGroupName, containerName)
 }

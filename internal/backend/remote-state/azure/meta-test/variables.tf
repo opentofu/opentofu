@@ -4,6 +4,12 @@ variable "use_msi" {
   description = "Set this to generate the VM infrastructure and managed service identity authorizations required to run the MSI tests."
 }
 
+variable "use_aks_workload_identity" {
+  default     = false
+  type        = bool
+  description = "Set this to generate the kubernetes infrastructure and managed service identity authorizations required to run the AKS workload identity tests."
+}
+
 variable "location" {
   default     = "centralus"
   type        = string

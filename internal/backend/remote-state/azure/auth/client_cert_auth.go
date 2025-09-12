@@ -6,8 +6,11 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 
@@ -19,6 +22,7 @@ import (
 )
 
 type ClientCertificateAuthConfig struct {
+	ClientCertificate         string
 	ClientCertificatePassword string
 	ClientCertificatePath     string
 }
@@ -34,17 +38,29 @@ func (cred *clientCertAuth) Name() string {
 func (cred *clientCertAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
 	client := httpclient.New(ctx)
 
-	privateKey, certificate, err := decodePFXCertificate(
-		config.ClientCertificateAuthConfig.ClientCertificatePath,
-		config.ClientCertificateAuthConfig.ClientCertificatePassword,
+	clientCertificate, err := consolidateCertificate(config.ClientCertificate, config.ClientCertificatePath)
+	if err != nil {
+		// This should never happen; this is checked in the Validate function
+		return nil, err
+	}
+
+	privateKey, certificate, err := pkcs12.Decode(
+		clientCertificate,
+		config.ClientCertificatePassword,
 	)
 	if err != nil {
 		return nil, err
 	}
 
+	clientId, err := consolidateClientId(config)
+	if err != nil {
+		// This should never happen; this is checked in the Validate function
+		return nil, err
+	}
+
 	return azidentity.NewClientCertificateCredential(
-		config.StorageAddresses.TenantID,
-		config.ClientSecretCredentialAuthConfig.ClientID,
+		config.TenantID,
+		clientId,
 		[]*x509.Certificate{certificate},
 		privateKey,
 		&azidentity.ClientCertificateCredentialOptions{
@@ -55,36 +71,39 @@ func (cred *clientCertAuth) Construct(ctx context.Context, config *Config) (azco
 
 func (cred *clientCertAuth) Validate(_ context.Context, config *Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if config.StorageAddresses.TenantID == "" {
+	if config.TenantID == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Certificate Auth: missing Tenant ID",
-			"Tenant ID is required",
+			"Invalid Azure Client Certificate Auth",
+			"Tenant ID is missing.",
 		))
 	}
-	if config.ClientSecretCredentialAuthConfig.ClientID == "" {
+
+	_, err := consolidateClientId(config)
+	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Certificate Auth: missing Client ID",
-			"Client ID is required",
+			"Invalid Azure Client Certificate Auth",
+			fmt.Sprintf("The Client ID is misconfigured: %s.", tfdiags.FormatError(err)),
 		))
 	}
-	if config.ClientCertificateAuthConfig.ClientCertificatePath == "" {
+	clientCertificate, err := consolidateCertificate(config.ClientCertificate, config.ClientCertificatePath)
+	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Certificate Auth: missing certificate path",
-			"The path to the client certificate is required",
+			"Invalid Azure Client Certificate Auth",
+			fmt.Sprintf("The Client Certificate is misconfigured: %s.", tfdiags.FormatError(err)),
 		))
 	} else {
-		_, _, err := decodePFXCertificate(
-			config.ClientCertificateAuthConfig.ClientCertificatePath,
-			config.ClientCertificateAuthConfig.ClientCertificatePassword,
+		_, _, err := pkcs12.Decode(
+			clientCertificate,
+			config.ClientCertificatePassword,
 		)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Azure Client Certificate Auth: certificate credential error",
-				fmt.Sprintf("The following error was encountered processing the certificate credentials: %s", err.Error()),
+				"Invalid Azure Client Certificate Auth",
+				fmt.Sprintf("The Client Certificate is invalid: %s.", tfdiags.FormatError(err)),
 			))
 		}
 	}
@@ -95,12 +114,42 @@ func (cred *clientCertAuth) AugmentConfig(_ context.Context, config *Config) err
 	return checkNamesForAccessKeyCredentials(config.StorageAddresses)
 }
 
-func decodePFXCertificate(pfxFileName string, password string) (privateKey interface{}, certificate *x509.Certificate, err error) {
-	// read file contents, decode cert
-	contents, err := os.ReadFile(pfxFileName)
-	if err != nil {
-		err = fmt.Errorf("problem reading file at %s: %w", pfxFileName, err)
-		return
+func consolidateCertificate(base64EncodedCertificate, certificateFilename string) ([]byte, error) {
+	var certBytes []byte
+	var fileBytes []byte
+
+	if len(base64EncodedCertificate) > 0 {
+		var err error
+		certBytes, err = base64.StdEncoding.DecodeString(base64EncodedCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding client certificate: %w", err)
+		}
 	}
-	return pkcs12.Decode(contents, password)
+	if len(certificateFilename) > 0 {
+		var err error
+		fileBytes, err = os.ReadFile(certificateFilename)
+		if err != nil {
+			return nil, fmt.Errorf("error reading client certificate file: %w", err)
+		}
+	}
+
+	hasCert := len(certBytes) > 0
+	hasFile := len(fileBytes) > 0
+
+	if !hasCert && !hasFile {
+		return nil, errors.New("missing certificate, client certificate is required")
+	}
+
+	if !hasCert {
+		return fileBytes, nil
+	}
+
+	if !hasFile {
+		return certBytes, nil
+	}
+
+	if !bytes.Equal(certBytes, fileBytes) {
+		return nil, errors.New("client certificate provided directly and through file do not match; either make them the same value or only provide one")
+	}
+	return fileBytes, nil
 }
