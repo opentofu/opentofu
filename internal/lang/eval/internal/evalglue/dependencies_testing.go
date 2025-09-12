@@ -89,6 +89,13 @@ func (p providersStatic) ValidateResourceConfig(ctx context.Context, provider ad
 	return nil
 }
 
+// NewConfiguredProvider implements Providers.
+func (p providersStatic) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(fmt.Errorf("only unconfigured providers are available to this test"))
+	return nil, diags
+}
+
 type provisionersStatic struct {
 	schemas map[string]*configschema.Block
 }
