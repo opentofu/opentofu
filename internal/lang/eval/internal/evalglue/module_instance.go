@@ -85,6 +85,16 @@ type CompiledModuleInstance interface {
 	// which dynamic instances are declared.
 	ChildModuleInstances(ctx context.Context) iter.Seq2[addrs.ModuleCallInstance, CompiledModuleInstance]
 
+	// ChildModuleInstancesForCall returns a sequence of all of the child module
+	// instances that are declared by the specific call given in callAddr.
+	//
+	// This has the same caveats as
+	// [CompiledModuleInstance.ChildModuleInstances] except that this will block
+	// only on deciding the instances for the specific module call given, and
+	// not on the expansion of any other module calls unless those decisions
+	// are indirectly needed to decide the requested call.
+	ChildModuleInstancesForCall(ctx context.Context, callAddr addrs.ModuleCall) iter.Seq2[addrs.ModuleCallInstance, CompiledModuleInstance]
+
 	// ChildModuleInstance returns a single child module instance with the
 	// given address, or nil if there is no such instance declared.
 	//
@@ -103,6 +113,16 @@ type CompiledModuleInstance interface {
 	// instances where there isn't yet enough information to determine exactly
 	// which dynamic instances are declared.
 	ResourceInstances(ctx context.Context) iter.Seq[*configgraph.ResourceInstance]
+
+	// ResourceInstancesForResource returns a sequence of all of the resource
+	// instances declared for the given resource in the module.
+	//
+	// This has the same caveats as [CompiledModuleInstance.ResourceInstances]
+	// except that this will block only on deciding the instances for the
+	// specific resource given, and not on the expansion of any other resources
+	// unless those decisions are indirectly needed to decide the requested
+	// resource.
+	ResourceInstancesForResource(ctx context.Context, addr addrs.Resource) iter.Seq[*configgraph.ResourceInstance]
 
 	// ProviderInstance returns the [configgraph.ProviderInstance]
 	// representation of the provider instance with the given address, or

@@ -8,6 +8,7 @@ package eval
 import (
 	"context"
 	"fmt"
+	"iter"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -96,4 +97,125 @@ func (o *PlanningOracle) EphemeralResourceInstanceUsers(ctx context.Context, add
 		panic(fmt.Sprintf("EphemeralResourceInstanceUsers with non-ephemeral %s", addr))
 	}
 	return o.relationships.EphemeralResourceUsers.Get(addr)
+}
+
+// AwaitResourceInstancesCompletion blocks until all of the resource instances
+// identified in the given sequence have completed plan-time evaluation, whether
+// successfully or with errors.
+//
+// This is intended for use with the results from
+// [PlanningOracle.EphemeralResourceInstanceUsers] or
+// [PlanningOracle.ProviderInstanceUsers] to provide a signal about the earliest
+// time that it might be okay to close a previously-opened ephemeral resource
+// instance or provider instance.
+//
+// Because the sets of resource instances returned by those functions are
+// potentially imprecise -- they may contain placeholder resource instance
+// addresses where there wasn't yet enough information to finalize expansion
+// before the planning process began -- this function automatically handles
+// a wildcard address by blocking on the completion of every instance that
+// could potentially match it. This might mean reporting later than would
+// strictly be necessary if the analysis functions had access to full planning
+// detail, but this concession is necessary because those analysis functions
+// essentially need to "predict the future" by making an approximate decision
+// before any provider instances or ephemeral resource instances have been
+// opened.
+//
+// Cancelling the context passed to this function is NOT guaranteed to cause
+// it to return promptly. The contexts used by the concurrent planning work
+// on all of the requested resource instances must be cancelled so that those
+// planning operations themselves can fail promptly with a cancellation-related
+// error, after which we will assume that the resource instance planning logic
+// will make no further use of any associated provider instance or ephemeral
+// resource instances.
+//
+// Note that awaiting the completion of a call to this function is necessary but
+// not sufficient: the planning engine may need to keep these objects open
+// beyond the end of the part of the planning process driven by this package in
+// order to plan to destroy "orphaned" resource instances that are in the prior
+// state but are not visible to this package.
+func (o *PlanningOracle) AwaitResourceInstancesCompletion(ctx context.Context, resourceInstAddrs iter.Seq[addrs.AbsResourceInstance]) {
+	// The contract for this function is to block until _all_ of the given
+	// addresses have completed plan-time evaluation, so we can achieve this
+	// by just waiting for each item in turn and assuming that we'll quickly
+	// move past any that were already completed by the time we reach them.
+	//
+	// We currently consider "completed plan-time evaluation" to mean that
+	// the resource instance's result value is available, because once that
+	// value has been finalized there should be no further need for
+	// interacting with the associated provider instance or any ephemeral
+	// resource instances that the configuration referred to.
+	for addr := range resourceInstAddrs {
+		// We use plain []addrs.ModuleInstanceStep instead of
+		// addrs.ModuleInstance here because the methods on the named type
+		// don't make sense unless the slice of steps is relative to the
+		// root module, whereas awaitResourceInstancesCompletion is going
+		// to consume it step-by-step and so it won't be rooted after the
+		// first call here.
+		moduleSteps := []addrs.ModuleInstanceStep(addr.Module)
+		resourceInstAddr := addr.Resource
+		o.awaitResourceInstancesCompletion(ctx, o.rootModuleInstance, moduleSteps, resourceInstAddr)
+	}
+}
+
+// awaitResourceInstancesCompletion is the main recursive body of
+// [PlanningOracle.AwaitResourceInstancesCompletion], which keeps recursively
+// consuming moduleSteps elements until none are left and then waits for
+// the matching resource instances in each of the matching module instances.
+func (o *PlanningOracle) awaitResourceInstancesCompletion(ctx context.Context, currentModuleInst evalglue.CompiledModuleInstance, moduleSteps []addrs.ModuleInstanceStep, resourceInstAddr addrs.ResourceInstance) {
+	if len(moduleSteps) == 0 {
+		// This is where we stop recursion and just wait for the resource
+		// instances in the current module.
+		o.awaitResourceInstanceCompletion(ctx, currentModuleInst, resourceInstAddr)
+		return
+	}
+	// If we have at least one moduleStep left then we've got another level
+	// of recursion to do. Whether we make one or many recursive calls
+	// depends on whether this is an exact step or a placeholder for zero
+	// or more steps whose instance keys are not decided yet.
+	step, remainSteps := moduleSteps[0], moduleSteps[1:]
+	if step.IsPlaceholder() {
+		callAddr := addrs.ModuleCall{Name: step.Name}
+		for _, childInst := range currentModuleInst.ChildModuleInstancesForCall(ctx, callAddr) {
+			o.awaitResourceInstancesCompletion(ctx, childInst, remainSteps, resourceInstAddr)
+		}
+	} else {
+		callInstAddr := addrs.ModuleCallInstance{
+			Call: addrs.ModuleCall{Name: step.Name},
+			Key:  step.InstanceKey,
+		}
+		childInst := currentModuleInst.ChildModuleInstance(ctx, callInstAddr)
+		if childInst == nil {
+			// This suggests that the requested object isn't declared in
+			// the configuration at all, so there's nothing to wait for.
+			// (This is effectively the same as finding no instances for
+			// the call in the step.IsPlaceholder case above.)
+			return
+		}
+		o.awaitResourceInstancesCompletion(ctx, childInst, remainSteps, resourceInstAddr)
+	}
+}
+
+// awaitResourceInstanceCompletion handles the final leaf waiting step once
+// [PlanningOracle.awaitResourceInstancesCompletion] has finished recursion
+// through any intermediate module instance steps. It blocks until the
+// resource instances matching the given address inside the given module
+// instance have all completed their plan-time evaluation.
+func (o *PlanningOracle) awaitResourceInstanceCompletion(ctx context.Context, currentModuleInst evalglue.CompiledModuleInstance, addr addrs.ResourceInstance) {
+	// Regardless of whether we have an exact or placeholder resource instance
+	// address we will need to block for the instances to be decided; the
+	// exact case just means we only need to wait for the _completion_ of
+	// one of those instances.
+	exactMatch := !addr.IsPlaceholder()
+	for inst := range currentModuleInst.ResourceInstancesForResource(ctx, addr.Resource) {
+		if exactMatch && inst.Addr.Resource != addr {
+			continue // this instance doesn't match the given address
+		}
+		// Now we just wait for the "Value" method to return, which is a good
+		// enough signal that this resource instance's planning work should
+		// be finished, whether successfully or not. The actual result is
+		// unimportant; we care only that there's no more ongoing work to
+		// produce it.
+		_, _ = inst.Value(ctx)
+	}
 }
