@@ -64,6 +64,21 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 	// instances remain. The second sub-phase also uses provider instance
 	// configuration and ephemeral resource instance configuration provided
 	// by lang/eval through the return value of the first phase.
+	//
+	// Note that this approach implies that any provider instance that is
+	// associated with a resource instance in prevRoundState and which
+	// gets used during subphase 1 must always be kept open through the
+	// remainder of subphase 1 _just in case_ any of the resource instances
+	// that refer to it turn out to be "orphans". In turn that means that
+	// any ephemeral resource instances that any of those provider instances
+	// rely on must also remain open, and in turn the provider instances that
+	// those ephemeral resource instances belong to. So we would probably end
+	// up keeping most of the provider instances open throughout anyway and
+	// so maybe it's not worth the complexity of trying to calculate when it's
+	// okay to close them. If we _do_ want to still track this precisely then
+	// we'll need to extend the PlanGlue API to include additional announcements
+	// about what's present in the configuration so that the orphan planning
+	// can happen concurrently with the desired state planning.
 
 	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState)
 
