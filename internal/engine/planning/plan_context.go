@@ -2,9 +2,11 @@ package planning
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -53,8 +55,23 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State) *pl
 // instance in the configuration, and there are likely to be multiple calls
 // active concurrently and so this function must take care to avoid races.
 func (p *planContext) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
-	// TODO: Implement
-	panic("unimplemented")
+	// The details of how we plan vary considerably depending on the resource
+	// mode, so we'll dispatch each one to a separate function before we do
+	// anything else.
+	switch mode := inst.Addr.Resource.Resource.Mode; mode {
+	case addrs.ManagedResourceMode:
+		return p.planDesiredManagedResourceInstance(ctx, inst, oracle)
+	case addrs.DataResourceMode:
+		return p.planDesiredDataResourceInstance(ctx, inst, oracle)
+	case addrs.EphemeralResourceMode:
+		return p.planDesiredEphemeralResourceInstance(ctx, inst, oracle)
+	default:
+		// We should not get here because the cases above should always be
+		// exhaustive for all of the valid resource modes.
+		var diags tfdiags.Diagnostics
+		diags = diags.Append(fmt.Errorf("the planning engine does not support %s; this is a bug in OpenTofu", mode))
+		return cty.DynamicVal, diags
+	}
 }
 
 // PlanOrphanResourceInstances adds "delete" changes for any resource instances
