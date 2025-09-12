@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 )
 
 // A PlanningOracle provides information from the configuration that is needed
@@ -49,6 +50,8 @@ type PlanningOracle struct {
 // report that the "orphaned" resource instance cannot be planned for deletion
 // unless its provider instance is re-added to the configuration.
 func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+
 	providerInst := evalglue.ProviderInstance(ctx, o.rootModuleInstance, addr)
 	if providerInst == nil {
 		return cty.NilVal
@@ -72,6 +75,9 @@ func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.
 // done. This package is not concerned with those details; that's the planning
 // engine's responsibility.
 func (o *PlanningOracle) ProviderInstanceUsers(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) ProviderInstanceUsers {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	_ = ctx // not using this right now, but keeping this to remind future maintainers that we'd need this
+
 	return o.relationships.ProviderInstanceUsers.Get(addr)
 }
 
@@ -93,6 +99,9 @@ func (o *PlanningOracle) ProviderInstanceUsers(ctx context.Context, addr addrs.A
 // which case the planning phase must hold the provider instance open long
 // enough to complete those followup steps.
 func (o *PlanningOracle) EphemeralResourceInstanceUsers(ctx context.Context, addr addrs.AbsResourceInstance) EphemeralResourceInstanceUsers {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	_ = ctx // not using this right now, but keeping this to remind future maintainers that we'd need this
+
 	if addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
 		panic(fmt.Sprintf("EphemeralResourceInstanceUsers with non-ephemeral %s", addr))
 	}
@@ -135,6 +144,8 @@ func (o *PlanningOracle) EphemeralResourceInstanceUsers(ctx context.Context, add
 // order to plan to destroy "orphaned" resource instances that are in the prior
 // state but are not visible to this package.
 func (o *PlanningOracle) AwaitResourceInstancesCompletion(ctx context.Context, resourceInstAddrs iter.Seq[addrs.AbsResourceInstance]) {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+
 	// The contract for this function is to block until _all_ of the given
 	// addresses have completed plan-time evaluation, so we can achieve this
 	// by just waiting for each item in turn and assuming that we'll quickly
