@@ -73,6 +73,16 @@ type CompiledModuleInstance interface {
 	// panics or other misbehavior.
 	ResultValuer(ctx context.Context) exprs.Valuer
 
+	// ChildModuleCalls returns a sequence of addresses of all of the module
+	// calls that are declared in this module instance.
+	//
+	// The set of _calls_ can currently be assumed to be statically declared
+	// in the configuration, and so should be immediately available once
+	// a module instance has been compiled. Use
+	// [CompiledModuleInstance.ChildModuleInstancesForCall] to find the
+	// dynamically-decided call instances for each call.
+	ChildModuleCalls(ctx context.Context) iter.Seq[addrs.ModuleCall]
+
 	// ChildModuleInstances returns a sequence of all of the child module
 	// instances that are declared by calls in this module instance.
 	//
@@ -101,6 +111,16 @@ type CompiledModuleInstance interface {
 	// This blocks on the decision about which instances are available for the
 	// relevant module call.
 	ChildModuleInstance(ctx context.Context, addr addrs.ModuleCallInstance) CompiledModuleInstance
+
+	// Resources returns a sequence of addresses of all of the resources
+	// that are declared in this module instance.
+	//
+	// The set of _resources_ can currently be assumed to be statically declared
+	// in the configuration, and so should be immediately available once
+	// a module instance has been compiled. Use
+	// [CompiledModuleInstance.ResourceInstancesForResource] to find the
+	// dynamically-decided resource instances for each resource.
+	Resources(ctx context.Context) iter.Seq[addrs.Resource]
 
 	// ResourceInstances returns a sequence of all of the resource instances
 	// declared in the module.
