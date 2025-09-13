@@ -14,6 +14,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -239,7 +240,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to verify provider package checksums: lstat testdata/no-package-here.zip: no such file or directory",
+			"failed to verify provider package checksums: lstat testdata/no-package-here.zip: " + syscall.ENOENT.Error(),
 		},
 		"checksum mismatch": {
 			PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
@@ -303,7 +304,7 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to compute checksum for testdata/no-package-here.zip: lstat testdata/no-package-here.zip: no such file or directory",
+			"failed to compute checksum for testdata/no-package-here.zip: lstat testdata/no-package-here.zip: " + syscall.ENOENT.Error(),
 		},
 		"checksum mismatch": {
 			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
