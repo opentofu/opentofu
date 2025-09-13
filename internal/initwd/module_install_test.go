@@ -175,7 +175,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	modulesDir := filepath.Join(dir, ".terraform/modules")
+	modulesDir := filepath.Join(dir, ".terraform", "modules")
 
 	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
@@ -207,6 +207,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
+		t.Logf("final being written: %s", string(final))
 		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
@@ -215,7 +216,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	modulesDir := filepath.Join(dir, ".terraform/modules")
+	modulesDir := filepath.Join(dir, ".terraform", "modules")
 
 	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
@@ -1052,7 +1053,7 @@ func (h *testInstallHooks) Install(moduleAddr string, version *version.Version, 
 // working directory restored after the calling test is complete.
 //
 // Tests using this helper cannot safely be run in parallel with other tests.
-func tempChdir(t testing.TB, sourceDir string) string {
+func tempChdir(t *testing.T, sourceDir string) string {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -1063,7 +1064,7 @@ func tempChdir(t testing.TB, sourceDir string) string {
 	t.Chdir(tmpDir)
 
 	// Most of the tests need this, so we'll make it just in case.
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm); err != nil {
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform", "modules"), os.ModePerm); err != nil {
 		t.Fatalf("failed to make module cache directory: %s", err)
 		return ""
 	}
