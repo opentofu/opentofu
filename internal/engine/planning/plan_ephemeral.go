@@ -14,6 +14,9 @@ import (
 )
 
 func (p *planContext) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+	// Regardless of outcome we'll always report that we completed planning.
+	defer p.reportResourceInstancePlanCompletion(inst.Addr)
+
 	// TODO: Implement
 	panic("unimplemented")
 }

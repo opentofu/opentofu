@@ -10,6 +10,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/engine/lifecycle"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -36,8 +37,13 @@ type planContext struct {
 	// of prevRoundState.
 	refreshedState *states.SyncState
 
-	// TODO: something to track which provider instances and which ephemeral
-	// resource instances are currently open.
+	completion *completionTracker
+
+	providerInstances *providerInstances
+
+	// TODO: something to track which ephemeral resource instances are currently
+	// open? (Do we actually need that, or can we just rely on a background
+	// goroutine to babysit those based on the completion tracker?)
 }
 
 var _ eval.PlanGlue = (*planContext)(nil)
@@ -49,11 +55,15 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State) *pl
 	changes := plans.NewChanges()
 	refreshedState := prevRoundState.DeepCopy()
 
+	completion := lifecycle.NewCompletionTracker[completionEvent]()
+
 	return &planContext{
-		evalCtx:        evalCtx,
-		plannedChanges: changes.SyncWrapper(),
-		prevRoundState: prevRoundState,
-		refreshedState: refreshedState.SyncWrapper(),
+		evalCtx:           evalCtx,
+		plannedChanges:    changes.SyncWrapper(),
+		prevRoundState:    prevRoundState,
+		refreshedState:    refreshedState.SyncWrapper(),
+		completion:        completion,
+		providerInstances: newProviderInstances(completion),
 	}
 }
 
@@ -262,6 +272,16 @@ func (p *planContext) planOrphanResourceInstance(ctx context.Context, addr addrs
 // After calling this function the [planContext] object is invalid and must
 // not be used anymore.
 func (p *planContext) Close() *plans.Plan {
+	// Before we return we'll make sure our completion tracker isn't waiting
+	// for anything else to complete, so that we can unblock closing of
+	// any provider instances or ephemeral resource instances that might've
+	// got left behind by panics/etc. We should not be relying on this in the
+	// happy path.
+	for event := range p.completion.PendingItems() {
+		log.Printf("[TRACE] planContext: synthetic completion of %#v", event)
+		p.completion.ReportCompletion(event)
+	}
+
 	return &plans.Plan{
 		UIMode:       plans.NormalMode, // TODO: This PlanChanges function needs something analogous to [tofu.PlanOpts] for planning mode/options
 		Changes:      p.plannedChanges.Close(),
