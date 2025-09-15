@@ -38,8 +38,12 @@ ENHANCEMENTS:
 * It is now possible to configure the registry protocol retry count and request timeout settings in the CLI configuration, in addition to the previously-available environment variables. ([#3256](https://github.com/opentofu/opentofu/pull/3256))
 * Upgrade github.com/hashicorp/go-getter to v1.7.9 to fix [GO-2025-3892](https://pkg.go.dev/vuln/GO-2025-3892). ([#3227](https://github.com/opentofu/opentofu/pull/3227))
 * The module installer will copy files in parallel to improve performance of `init` ([#3214](https://github.com/opentofu/opentofu/pull/3214))
-* The following option has been added to the `azurerm` backend:
+* The following configuration options have been added to the `azurerm` backend:
   * `use_cli`: set to true by default, this can be set to false to disable command line authentcation. ([#3034](https://github.com/opentofu/opentofu/pull/3034))
+  * `use_aks_workload_identity`: set to false by default, this allows authentication in Azure Kubernetes when using Workload Identity Federation. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
+  * `client_id_file_path`: allows the user to set the `client_id` through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
+  * `client_secret_file_path`: allows the user to set the `client_secret` through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
+  * `client_certificate`: allows the user to set the certificate directly, as opposed to only setting it through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
 * Upgrade github.com/go-viper/mapstructure/v2 to v2.4.0 to fix [GO-2025-3900](https://pkg.go.dev/vuln/GO-2025-3900). ([#3229](https://github.com/opentofu/opentofu/pull/3229))
 
 BUG FIXES:

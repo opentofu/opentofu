@@ -83,7 +83,7 @@ func (cred *managedIdentityAuth) Validate(_ context.Context, config *Config) tfd
 	if !config.MSIAuthConfig.UseMsi {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Managed Service Identity Auth: use_msi set to false",
+			"Invalid Azure Managed Service Identity Auth",
 			"The Managed Service Identity (MSI) needs to have \"use_msi\" (or ARM_USE_MSI) set to true in order to be used.",
 		))
 	}

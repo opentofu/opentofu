@@ -94,6 +94,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_ID", ""),
 			},
 
+			"client_id_file_path": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The path to a file containing the Client ID.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_ID_FILE_PATH", ""),
+			},
+
 			"endpoint": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -130,16 +137,25 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			},
 
 			// Service Principal (Client Certificate) specific
+
+			"client_certificate": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "A Base64-encoded PKCS#12 (PFX, not PEM) certificate used as the Client Certificate when authenticating as a Service Principal. The file must encode both the public certificate and its private key.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE", ""),
+			},
+
 			"client_certificate_password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The password associated with the Client Certificate specified in `client_certificate_path`",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE_PASSWORD", ""),
 			},
+
 			"client_certificate_path": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "The path to the PFX file used as the Client Certificate when authenticating as a Service Principal",
+				Description: "The path to the PKCS#12 PFX file used as the Client Certificate when authenticating as a Service Principal. The file must encode both the public certificate and its private key.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE_PATH", ""),
 			},
 
@@ -149,6 +165,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Description: "The Client Secret.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_SECRET", ""),
+			},
+
+			"client_secret_file_path": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The path to a file containing the Client Secret.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_SECRET_FILE_PATH", ""),
 			},
 
 			// Managed Service Identity specific
@@ -196,6 +219,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"}, ""),
 				Description: "The bearer token to use for the request to the OIDC providers `oidc_request_url` URL to fetch an ID token. Needs to be used in conjunction with `oidc_request_url`. This is meant to be used for Github Actions.",
+			},
+
+			"use_aks_workload_identity": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_AKS_WORKLOAD_IDENTITY", false),
+				Description: "Set to true to if you want to use Azure's AKS Workload Identity to authenticate to Azure. Defaults to false.",
 			},
 
 			// Feature Flags
@@ -269,10 +299,13 @@ func (b *Backend) configure(ctx context.Context) error {
 			CLIAuthEnabled: data.Get("use_cli").(bool),
 		},
 		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{
-			ClientID:     data.Get("client_id").(string),
-			ClientSecret: data.Get("client_secret").(string),
+			ClientID:             data.Get("client_id").(string),
+			ClientIDFilePath:     data.Get("client_id_file_path").(string),
+			ClientSecret:         data.Get("client_secret").(string),
+			ClientSecretFilePath: data.Get("client_secret_file_path").(string),
 		},
 		ClientCertificateAuthConfig: auth.ClientCertificateAuthConfig{
+			ClientCertificate:         data.Get("client_certificate").(string),
 			ClientCertificatePassword: data.Get("client_certificate_password").(string),
 			ClientCertificatePath:     data.Get("client_certificate_path").(string),
 		},
@@ -294,6 +327,9 @@ func (b *Backend) configure(ctx context.Context) error {
 			StorageSuffix:    storageSuffix,
 			SubscriptionID:   data.Get("subscription_id").(string),
 			TenantID:         data.Get("tenant_id").(string),
+		},
+		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{
+			UseAKSWorkloadIdentity: data.Get("use_aks_workload_identity").(bool),
 		},
 	}
 

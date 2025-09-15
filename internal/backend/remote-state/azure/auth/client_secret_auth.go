@@ -7,6 +7,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -15,8 +16,10 @@ import (
 )
 
 type ClientSecretCredentialAuthConfig struct {
-	ClientID     string
-	ClientSecret string
+	ClientID             string
+	ClientIDFilePath     string
+	ClientSecret         string
+	ClientSecretFilePath string
 }
 
 type clientSecretCredentialAuth struct{}
@@ -29,11 +32,21 @@ func (cred *clientSecretCredentialAuth) Name() string {
 
 func (cred *clientSecretCredentialAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
 	client := httpclient.New(ctx)
+	clientId, err := consolidateClientId(config)
+	if err != nil {
+		// This should never happen; this is checked in the Validate function
+		return nil, err
+	}
+	clientSecret, err := consolidateClientSecret(config)
+	if err != nil {
+		// This should never happen; this is checked in the Validate function
+		return nil, err
+	}
 
 	return azidentity.NewClientSecretCredential(
 		config.StorageAddresses.TenantID,
-		config.ClientID,
-		config.ClientSecret,
+		clientId,
+		clientSecret,
 		&azidentity.ClientSecretCredentialOptions{
 			ClientOptions: clientOptions(client, config.CloudConfig),
 		},
@@ -45,22 +58,24 @@ func (cred *clientSecretCredentialAuth) Validate(_ context.Context, config *Conf
 	if config.StorageAddresses.TenantID == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Secret Auth: missing Tenant ID",
-			"Tenant ID is required",
+			"Invalid Azure Client Secret Auth",
+			"Tenant ID is missing.",
 		))
 	}
-	if config.ClientID == "" {
+	_, err := consolidateClientId(config)
+	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Secret Auth: missing Client ID",
-			"Client ID is required",
+			"Invalid Azure Client Secret Auth",
+			fmt.Sprintf("The Client ID is misconfigured: %s.", tfdiags.FormatError(err)),
 		))
 	}
-	if config.ClientSecret == "" {
+	_, err = consolidateClientSecret(config)
+	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Azure Client Secret Auth: missing Client Secret",
-			"Client Secret is required",
+			"Invalid Azure Client Secret Auth",
+			fmt.Sprintf("The Client Secret is misconfigured: %s.", tfdiags.FormatError(err)),
 		))
 	}
 	return diags
@@ -68,4 +83,12 @@ func (cred *clientSecretCredentialAuth) Validate(_ context.Context, config *Conf
 
 func (cred *clientSecretCredentialAuth) AugmentConfig(_ context.Context, config *Config) error {
 	return checkNamesForAccessKeyCredentials(config.StorageAddresses)
+}
+
+func consolidateClientId(config *Config) (string, error) {
+	return consolidateFileAndValue(config.ClientID, config.ClientIDFilePath, "client ID", false)
+}
+
+func consolidateClientSecret(config *Config) (string, error) {
+	return consolidateFileAndValue(config.ClientSecret, config.ClientSecretFilePath, "client secret", false)
 }
