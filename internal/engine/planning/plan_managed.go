@@ -17,11 +17,17 @@ import (
 )
 
 func (p *planContext) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+	// Regardless of outcome we'll always report that we completed planning.
+	defer p.reportResourceInstancePlanCompletion(inst.Addr)
+
 	// TODO: Implement
 	panic("unimplemented")
 }
 
 func (p *planContext) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+	// Regardless of outcome we'll always report that we completed planning.
+	defer p.reportResourceInstancePlanCompletion(addr)
+
 	// TODO: Implement
 	panic("unimplemented")
 }
