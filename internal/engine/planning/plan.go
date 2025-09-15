@@ -66,10 +66,25 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		// here but we'll still produce a best-effort [plans.Plan] describing
 		// the situation because that often gives useful information for debugging
 		// what caused the errors.
-		plan := planCtx.Plan()
+		plan := planCtx.Close()
 		plan.Errored = true
 		return plan, diags
 	}
 
-	return planCtx.Plan(), diags
+	// TODO: After configInst.DrivePlanning has finished we should plan "delete"
+	// actions for any deposed objects in the previous round state, which need
+	// to get deleted regardless of what the configuration says. This means
+	// that we'll need to make planCtx aware of which provider instances are
+	// used by those deposed objects so that it can leave those instances
+	// open for us to use in this followup step.
+	//
+	// It's a little annoying to need to leave provider instances (and any
+	// ephemeral resource instances they depend on) open for longer than normal
+	// in this case, but deposed objects in the previous run state are
+	// relatively rare -- it can only occur if a previous round failed to
+	// destroy them during a create_before_destroy "replace" -- and so this
+	// seems like a reasonable concession to avoid complicating the eval system
+	// itself with knowledge about deposed objects.
+
+	return planCtx.Close(), diags
 }

@@ -61,7 +61,7 @@ type PlanGlue interface {
 	// different levels of granularity and so the implementation must also
 	// keep track of all of the orphan resource instances it has already
 	// detected and handled to avoid generating duplicate planned actions.
-	PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics
+	PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey], oracle *PlanningOracle) tfdiags.Diagnostics
 
 	// PlanResourceOrphans creates planned actions for any instances of
 	// resources in the given module instance that that existed in the prior
@@ -71,7 +71,7 @@ type PlanGlue interface {
 	// with entirely-removed resources instead of removed instances of a
 	// resource that is still configured. The same caveat about wildcard
 	// instances applies here too.
-	PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics
+	PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource], oracle *PlanningOracle) tfdiags.Diagnostics
 
 	// PlanModuleCallInstanceOrphans creates planned actions for any prior
 	// state resource instances that belong to instances of the given module
@@ -81,7 +81,7 @@ type PlanGlue interface {
 	// the removal of an entire module instance containing resource instances
 	// instead of removal of the resources themselves. The same caveat about
 	// wildcard instances applies here too.
-	PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics
+	PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey], oracle *PlanningOracle) tfdiags.Diagnostics
 
 	// PlanModuleCallOrphans creates planned actions for any prior state
 	// resource instances that belong to any module calls within
@@ -91,7 +91,7 @@ type PlanGlue interface {
 	// with the removal of an entire module call containing resource instances,
 	// instead of removal of just one dynamic instance of a module call that's
 	// still declared.
-	PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics
+	PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall], oracle *PlanningOracle) tfdiags.Diagnostics
 }
 
 // DrivePlanning uses this configuration instance to drive forward a planning
@@ -145,7 +145,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	})
 	wg.Go(func() {
 		ctx := grapheval.ContextWithNewWorker(ctx)
-		orphanDiags = announcePlanOrphans(ctx, glue, rootModuleInstance)
+		orphanDiags = announcePlanOrphans(ctx, glue, evalGlue.oracle, rootModuleInstance)
 	})
 	wg.Wait()
 	diags = diags.Append(checkDiags)
@@ -212,17 +212,17 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 	return p.planEngineGlue.PlanDesiredResourceInstance(ctx, desired, p.oracle)
 }
 
-func announcePlanOrphans(ctx context.Context, glue PlanGlue, rootModuleInstance evalglue.CompiledModuleInstance) tfdiags.Diagnostics {
+func announcePlanOrphans(ctx context.Context, glue PlanGlue, oracle *PlanningOracle, rootModuleInstance evalglue.CompiledModuleInstance) tfdiags.Diagnostics {
 	var diags collectedDiagnostics
-	announcePlanOrphansRecursive(ctx, glue, &diags, addrs.RootModuleInstance, rootModuleInstance)
+	announcePlanOrphansRecursive(ctx, glue, oracle, &diags, addrs.RootModuleInstance, rootModuleInstance)
 	return diags.diags
 }
 
-func announcePlanOrphansRecursive(ctx context.Context, glue PlanGlue, diags *collectedDiagnostics, currentModuleInstAddr addrs.ModuleInstance, currentModuleInstance evalglue.CompiledModuleInstance) {
+func announcePlanOrphansRecursive(ctx context.Context, glue PlanGlue, oracle *PlanningOracle, diags *collectedDiagnostics, currentModuleInstAddr addrs.ModuleInstance, currentModuleInstance evalglue.CompiledModuleInstance) {
 	var wg sync.WaitGroup
 	// Announce the module calls themselves
 	diags.Append(
-		glue.PlanModuleCallOrphans(ctx, currentModuleInstAddr, currentModuleInstance.ChildModuleCalls(ctx)),
+		glue.PlanModuleCallOrphans(ctx, currentModuleInstAddr, currentModuleInstance.ChildModuleCalls(ctx), oracle),
 	)
 	// Announce the instances of each module call and recurse into each one
 	// to deal with the declarations within it.
@@ -237,17 +237,17 @@ func announcePlanOrphansRecursive(ctx context.Context, glue PlanGlue, diags *col
 							return
 						}
 					}
-				}),
+				}, oracle),
 			)
 			for callInstAddr, childInst := range currentModuleInstance.ChildModuleInstancesForCall(ctx, callAddr) {
 				childInstAddr := currentModuleInstAddr.Child(callInstAddr.Call.Name, callInstAddr.Key)
-				announcePlanOrphansRecursive(ctx, glue, diags, childInstAddr, childInst)
+				announcePlanOrphansRecursive(ctx, glue, oracle, diags, childInstAddr, childInst)
 			}
 		}
 	})
 	// Announce the resource declarations themselves
 	diags.Append(
-		glue.PlanResourceOrphans(ctx, currentModuleInstAddr, currentModuleInstance.Resources(ctx)),
+		glue.PlanResourceOrphans(ctx, currentModuleInstAddr, currentModuleInstance.Resources(ctx), oracle),
 	)
 	// Announce the instances of each resource
 	wg.Go(func() {
@@ -261,7 +261,7 @@ func announcePlanOrphansRecursive(ctx context.Context, glue PlanGlue, diags *col
 							return
 						}
 					}
-				}),
+				}, oracle),
 			)
 		}
 	})
