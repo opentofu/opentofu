@@ -28,6 +28,8 @@ type PlanningOracle struct {
 	// exported entry points for use by callers in other packages that
 	// don't necessarily participate in workgraph directly.
 	rootModuleInstance evalglue.CompiledModuleInstance
+
+	evalContext *EvalContext
 }
 
 // ProviderInstanceConfig returns a value representing the configuration to
@@ -105,4 +107,8 @@ func (o *PlanningOracle) EphemeralResourceInstanceUsers(ctx context.Context, add
 		panic(fmt.Sprintf("EphemeralResourceInstanceUsers with non-ephemeral %s", addr))
 	}
 	return o.relationships.EphemeralResourceUsers.Get(addr)
+}
+
+func (o *PlanningOracle) EvalContext(ctx context.Context) *EvalContext {
+	return o.evalContext
 }
