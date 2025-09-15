@@ -15,9 +15,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
@@ -157,22 +155,7 @@ func getSASToken(sharedKey *sas.SharedKeyCredential) (string, error) {
 	return qps.Encode(), nil
 }
 
-func deleteBlobsInMSI(t *testing.T, storageAccountName, resourceGroupName, containerName string) {
-	client := httpclient.New(t.Context())
-
-	authCred, err := azidentity.NewManagedIdentityCredential(
-		&azidentity.ManagedIdentityCredentialOptions{ClientOptions: azcore.ClientOptions{
-			Telemetry: policy.TelemetryOptions{
-				Disabled: true,
-			},
-			Transport: client,
-			Cloud:     cloud.AzurePublic,
-		}},
-	)
-	if err != nil {
-		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
-		return
-	}
+func deleteBlobsManually(t *testing.T, authCred azcore.TokenCredential, storageAccountName, resourceGroupName, containerName string) {
 	names := auth.StorageAddresses{
 		CloudConfig:      cloud.AzurePublic,
 		ResourceGroup:    resourceGroupName,
@@ -221,5 +204,6 @@ func emptyAuthConfig() *auth.Config {
 		OIDCAuthConfig:                   auth.OIDCAuthConfig{},
 		MSIAuthConfig:                    auth.MSIAuthConfig{},
 		StorageAddresses:                 auth.StorageAddresses{},
+		WorkloadIdentityAuthConfig:       auth.WorkloadIdentityAuthConfig{},
 	}
 }

@@ -50,6 +50,54 @@ ssh_instructions = "ssh azureadmin@xxx.xxx.xxx.xxx"
 
 In order to tear down msi infrastructure, while keeping the rest of the credentials and setup, simply run the `tofu apply` without the `use_msi=true` variable.
 
+### AKS Workload Identity
+
+By default, the Kubernetes cluster, identity, and associated authorizations required for AKS Workload Identity testing are not set up by this workspace. In order to set those up, you need some extra variables:
+
+```bash
+$ tofu apply -show-sensitive -var 'use_aks_workload_identity=true' -var 'location=centralus'
+```
+
+There are additional instructions listed under `aks_kubectl_instructions`. It should look something like this:
+
+```bash
+az aks get-credentials --name "azClusterTestabcd" --resource-group "acctestRG-backend-xxxx-abcd"
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    azure.workload.identity/client-id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  name: "workload-identity-abcd"
+  namespace: "default"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shell-demo
+  namespace: default
+  labels:
+    azure.workload.identity/use: "true"
+spec:
+  serviceAccountName: "workload-identity-abcd"
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - name: shared-data
+      mountPath: /usr/share/nginx/html
+  hostNetwork: true
+  dnsPolicy: Default
+EOF
+```
+
+Copying and pasting this into the shell will authenticate into the newly-created kubernetes cluster and create a service account and pod. This pod will be the workload the test will be running in.
+
+In order to tear down Kubernetes cluster infrastructure, while keeping the rest of the credentials and setup, simply run the `tofu apply` without the `use_aks_workload_identity=true` variable.
+
 ### Cleanup
 
 Simply run

@@ -112,3 +112,44 @@ Finally, run the MSI test:
 ```bash
 $ ./azure.test -test.v -test.run "TestAcc.*ManagedServiceIdentity"
 ```
+
+### Running AKS Workload Identity Test
+
+We strongly recommend using the workspace in the `meta-test` folder to set up the AKS Kubernetes cluster and associated authorizations.
+
+Within the same directory as this README, compile all the tests:
+
+```bash
+$ GOOS=linux GOARCH=amd64 go test -c .
+```
+
+This will generate an `azure.test` file. Assuming that `kubectl` is configured to go to a pod named `shell-demo` in the `default` namespace, run the following command:
+
+```bash
+kubectl cp azure.test shell-demo:/
+```
+
+Shell into the pod:
+
+```bash
+kubectl exec --stdin --tty shell-demo -- /bin/sh
+```
+
+Set up the following environment variables:
+
+```bash
+export TF_AZURE_TEST=1
+export TF_ACC=1
+export ARM_LOCATION=centralus
+export ARM_SUBSCRIPTION_ID='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+export ARM_TENANT_ID='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+export TF_AZURE_TEST_STORAGE_ACCOUNT_NAME=acctestsaxxxx
+export TF_AZURE_TEST_RESOURCE_GROUP_NAME=acctestRG-backend-1234567890-xxxx
+export TF_AZURE_TEST_CONTAINER_NAME=acctestcont
+```
+
+Finally, run the AKS Workload Identity test:
+
+```bash
+$ ./azure.test -test.v -test.run "TestAcc.*AKSWorkloadIdentity"
+```

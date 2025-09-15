@@ -20,6 +20,7 @@ type Config struct {
 	OIDCAuthConfig
 	MSIAuthConfig
 	StorageAddresses
+	WorkloadIdentityAuthConfig
 }
 
 type AuthMethod interface {
@@ -50,6 +51,7 @@ func GetAuthMethod(ctx context.Context, config *Config) (AuthMethod, error) {
 		&clientSecretCredentialAuth{},
 		&oidcAuth{},
 		&managedIdentityAuth{},
+		&workloadIdentityAuth{},
 		&azureCLICredentialAuth{},
 	}
 	var diags tfdiags.Diagnostics
