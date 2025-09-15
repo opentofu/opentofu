@@ -144,6 +144,18 @@ type CompiledModuleInstance interface {
 	// resource.
 	ResourceInstancesForResource(ctx context.Context, addr addrs.Resource) iter.Seq[*configgraph.ResourceInstance]
 
+	// ProviderInstances returns a sequence of all of the provider instances
+	// declared in the module.
+	//
+	// The set of provider instances can be decided dynamically based on
+	// references to other objects, and so reads from the returned sequence
+	// may block until the needed upstream objects have finished resolving.
+	//
+	// Some of the enumerated objects might be placeholders for zero or more
+	// instances where there isn't yet enough information to determine exactly
+	// which dynamic instances are declared.
+	ProviderInstances(ctx context.Context) iter.Seq[*configgraph.ProviderInstance]
+
 	// ProviderInstance returns the [configgraph.ProviderInstance]
 	// representation of the provider instance with the given address, or
 	// nil if there is no such instance declared.
@@ -244,6 +256,27 @@ func ResourceInstancesDeep(ctx context.Context, root CompiledModuleInstance) ite
 		for _, moduleInst := range ModuleInstancesDeep(ctx, root) {
 			for resourceInst := range moduleInst.ResourceInstances(ctx) {
 				if !yield(resourceInst) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// ProviderInstancesDeep produces all of the provider instances across the given
+// root module instance and all of its descendents.
+//
+// The decision about which instances exist can be made dynamically by arbitrary
+// expressions, so any step in the returned sequence may block until further
+// information becomes available.
+//
+// This is implemented in terms of [ModuleInstancesDeep].
+func ProviderInstancesDeep(ctx context.Context, root CompiledModuleInstance) iter.Seq[*configgraph.ProviderInstance] {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	return func(yield func(*configgraph.ProviderInstance) bool) {
+		for _, moduleInst := range ModuleInstancesDeep(ctx, root) {
+			for providerInst := range moduleInst.ProviderInstances(ctx) {
+				if !yield(providerInst) {
 					return
 				}
 			}

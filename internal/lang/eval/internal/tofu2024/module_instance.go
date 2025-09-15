@@ -165,6 +165,20 @@ func (c *CompiledModuleInstance) ChildModuleInstancesForCall(ctx context.Context
 	}
 }
 
+// ProviderInstances implements evalglue.CompiledModuleInstance.
+func (c *CompiledModuleInstance) ProviderInstances(ctx context.Context) iter.Seq[*configgraph.ProviderInstance] {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+	return func(yield func(*configgraph.ProviderInstance) bool) {
+		for _, node := range c.providerConfigNodes {
+			for _, compiled := range node.Instances(ctx) {
+				if !yield(compiled) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // ProviderInstance implements evalglue.CompiledModuleInstance.
 func (c *CompiledModuleInstance) ProviderInstance(ctx context.Context, addr addrs.ProviderInstanceCorrect) *configgraph.ProviderInstance {
 	localName, ok := c.providerLocalNames[addr.Config.Provider]
@@ -218,24 +232,6 @@ func (c *CompiledModuleInstance) ResourceInstancesForResource(ctx context.Contex
 				return
 			}
 		}
-	}
-}
-
-// ProviderInstancesDeep implements evalglue.CompiledModuleInstance.
-func (c *CompiledModuleInstance) ProviderInstancesDeep(ctx context.Context) iter.Seq[*configgraph.ProviderInstance] {
-	return func(yield func(*configgraph.ProviderInstance) bool) {
-		for _, r := range c.providerConfigNodes {
-			// NOTE: r.Instances will block if the provider config's
-			// [InstanceSelector] depends on other parts of the configuration
-			// that aren't yet ready to produce their value.
-			for _, inst := range r.Instances(ctx) {
-				if !yield(inst) {
-					return
-				}
-			}
-		}
-
-		// TODO: Collect provider instances from child module calls too.
 	}
 }
 
