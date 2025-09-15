@@ -79,12 +79,24 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 						#   ephemeral.foo.b[count.index],
 						# ]
 					}
+					provider "foo" {
+						alias = "other"
+
+						name = ephemeral.foo.a[0].name
+					}
 				`),
 			}),
 			Providers: ProvidersForTesting(map[addrs.Provider]*providers.GetProviderSchemaResponse{
 				addrs.MustParseProviderSourceString("test/foo"): {
 					Provider: providers.Schema{
-						Block: &configschema.Block{},
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"name": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+						},
 					},
 					EphemeralResources: map[string]providers.Schema{
 						"foo": {
@@ -153,9 +165,16 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 			Provider: addrs.MustParseProviderSourceString("test/foo"),
 		},
 	}.Instance(addrs.NoKey)
+	providerOtherInstAddr := addrs.AbsProviderConfigCorrect{
+		Module: addrs.RootModuleInstance,
+		Config: addrs.ProviderConfigCorrect{
+			Provider: addrs.MustParseProviderSourceString("test/foo"),
+			Alias:    "other",
+		},
+	}.Instance(addrs.NoKey)
 
 	// The analysis should detect that:
-	// - ephemeral.foo.a[0] is used by ephemeral.foo.b[0] and foo.c[0]
+	// - ephemeral.foo.a[0] is used by ephemeral.foo.b[0] and foo.c[0], and by the foo.other provider instance
 	// - ephemeral.foo.a[1] is used by ephemeral.foo.b[1] and foo.c[1]
 	// - ephemeral.foo.b[0] is used by only foo.c[0]
 	// - ephemeral.foo.b[1] is used by only foo.c[1]
@@ -183,22 +202,28 @@ func TestPrepare_ephemeralResourceUsers(t *testing.T) {
 					fooB.Instance(inst0),
 					fooC.Instance(inst0),
 				),
+				ProviderInstances: addrs.MakeSet(
+					providerOtherInstAddr,
+				),
 			}),
 			addrs.MakeMapElem(fooA.Instance(inst1), EphemeralResourceInstanceUsers{
 				ResourceInstances: addrs.MakeSet(
 					fooB.Instance(inst1),
 					fooC.Instance(inst1),
 				),
+				ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
 			}),
 			addrs.MakeMapElem(fooB.Instance(inst0), EphemeralResourceInstanceUsers{
 				ResourceInstances: addrs.MakeSet(
 					fooC.Instance(inst0),
 				),
+				ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
 			}),
 			addrs.MakeMapElem(fooB.Instance(inst1), EphemeralResourceInstanceUsers{
 				ResourceInstances: addrs.MakeSet(
 					fooC.Instance(inst1),
 				),
+				ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
 			}),
 		),
 
@@ -343,6 +368,7 @@ func TestPrepare_crossModuleReferences(t *testing.T) {
 				ResourceInstances: addrs.MakeSet(
 					fooB.Instance(addrs.NoKey),
 				),
+				ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
 			}),
 		),
 
