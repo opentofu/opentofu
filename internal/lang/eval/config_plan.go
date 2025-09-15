@@ -125,6 +125,7 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*Pla
 	evalGlue.oracle = &PlanningOracle{
 		relationships:      relationships,
 		rootModuleInstance: rootModuleInstance,
+		evalContext:        c.evalContext,
 	}
 
 	// The plan phase is driven forward by us evaluating expressions during
