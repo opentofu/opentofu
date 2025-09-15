@@ -7,6 +7,7 @@ package configgraph
 
 import (
 	"context"
+	"iter"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -115,6 +116,29 @@ func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.
 		}
 		return v, diags
 	})
+}
+
+// ResourceInstanceDependencies returns a sequence of any resource instances
+// whose results the configuration of this provider instance depends on.
+//
+// The result of this is trustworthy only if [ProviderInstance.CheckAll]
+// returns without diagnostics. If errors are present then the result is
+// best-effort but likely to be incomplete.
+func (p *ProviderInstance) ResourceInstanceDependencies(ctx context.Context) iter.Seq[*ResourceInstance] {
+	// FIXME: This should also take into account:
+	// - explicit dependencies in the depends_on argument
+	// - ....anything else?
+	//
+	// We should NOT need to take into account dependencies of the parent
+	// provider config's InstanceSelector because substitutions of
+	// count.index/each.key/each.value will transfer those in automatically by
+	// the RepetitionData values being marked.
+
+	// We ignore diagnostics here because callers should always perform a
+	// CheckAll tree walk, including a visit to this provider instance object,
+	// before trusting anything else that any configgraph nodes report.
+	resultVal := diagsHandledElsewhere(p.ConfigValue(ctx))
+	return ContributingResourceInstances(resultVal)
 }
 
 // ValueSourceRange implements exprs.Valuer.

@@ -61,6 +61,7 @@ func (c *ConfigInstance) prepareToPlan(ctx context.Context) (*ResourceRelationsh
 				if !ret.EphemeralResourceUsers.Has(dependeeAddr) {
 					ret.EphemeralResourceUsers.Put(dependeeAddr, EphemeralResourceInstanceUsers{
 						ResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
+						ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
 					})
 				}
 				set := ret.EphemeralResourceUsers.Get(dependeeAddr).ResourceInstances
@@ -77,6 +78,22 @@ func (c *ConfigInstance) prepareToPlan(ctx context.Context) (*ResourceRelationsh
 			}
 			set := ret.ProviderInstanceUsers.Get(providerInstAddr).ResourceInstances
 			set.Add(dependerAddr)
+		}
+	}
+	for depender := range evalglue.ProviderInstancesDeep(ctx, rootModuleInstance) {
+		dependerAddr := depender.Addr
+		for dependee := range depender.ResourceInstanceDependencies(ctx) {
+			dependeeAddr := dependee.Addr
+			if dependeeAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				if !ret.EphemeralResourceUsers.Has(dependeeAddr) {
+					ret.EphemeralResourceUsers.Put(dependeeAddr, EphemeralResourceInstanceUsers{
+						ResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
+						ProviderInstances: addrs.MakeSet[addrs.AbsProviderInstanceCorrect](),
+					})
+				}
+				set := ret.EphemeralResourceUsers.Get(dependeeAddr).ProviderInstances
+				set.Add(dependerAddr)
+			}
 		}
 	}
 	return ret, diags
@@ -106,23 +123,7 @@ type ResourceRelationships struct {
 
 type EphemeralResourceInstanceUsers struct {
 	ResourceInstances addrs.Set[addrs.AbsResourceInstance]
-
-	// TODO: ProviderInstances
-	// This should be a set of provider instance addresses, but we don't
-	// currently have a single addrs type for "absolute provider instance" --
-	// [addrs.AbsProviderInstance] is a misnomer and should really be named
-	// [addrs.ConfigProviderConfig] or similar -- and we also haven't got
-	// support for resolving provider instance references in package
-	// [configgraph] anyway.
-	//
-	// We need to model provider instances directly, rather than just
-	// using the resource instance relationships as a proxy, because
-	// the planning phase also needs to ask providers to plan "orphaned"
-	// resource instances that are only tracked in state and so this
-	// eval package cannot take them into account when figuring out
-	// which resource instances belong to a particular provider instance.
-	// (The orphan-to-provider-instance relationships are tracked in the
-	// state, rather than in the config.)
+	ProviderInstances addrs.Set[addrs.AbsProviderInstanceCorrect]
 }
 
 type ProviderInstanceUsers struct {
