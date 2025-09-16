@@ -27,12 +27,20 @@ type ProviderConfigCorrect struct {
 	Alias    string
 }
 
+func (p ProviderConfigCorrect) Equal(other ProviderConfigCorrect) bool {
+	return p.Provider.Equals(other.Provider) && p.Alias == other.Alias
+}
+
 // AbsProviderConfigCorrect is an experimental "correct" representation of
 // the absolute address of a provider configuration block, belonging to
 // a module instance.
 type AbsProviderConfigCorrect struct {
 	Module ModuleInstance
 	Config ProviderConfigCorrect
+}
+
+func (pc AbsProviderConfigCorrect) Equal(other AbsProviderConfigCorrect) bool {
+	return pc.Module.Equal(other.Module) && pc.Config.Equal(other.Config)
 }
 
 func (pc AbsProviderConfigCorrect) Instance(key InstanceKey) AbsProviderInstanceCorrect {
@@ -56,6 +64,16 @@ func (pc AbsProviderConfigCorrect) String() string {
 	return buf.String()
 }
 
+func (pc AbsProviderConfig) Correct() AbsProviderConfigCorrect {
+	return AbsProviderConfigCorrect{
+		Module: pc.Module.UnkeyedInstanceShim(),
+		Config: ProviderConfigCorrect{
+			Provider: pc.Provider,
+			Alias:    pc.Alias,
+		},
+	}
+}
+
 type ProviderInstanceCorrect struct {
 	Config ProviderConfigCorrect
 	Key    InstanceKey
@@ -69,6 +87,17 @@ type ProviderInstanceCorrect struct {
 type AbsProviderInstanceCorrect struct {
 	Config AbsProviderConfigCorrect
 	Key    InstanceKey
+}
+
+func (a AbsProviderInstanceCorrect) Equal(other AbsProviderInstanceCorrect) bool {
+	return a.Config.Equal(other.Config) && a.Key == other.Key
+}
+
+func (pc AbsProviderConfig) InstanceCorrect(key InstanceKey) AbsProviderInstanceCorrect {
+	return AbsProviderInstanceCorrect{
+		Config: pc.Correct(),
+		Key:    key,
+	}
 }
 
 var _ UniqueKeyer = AbsProviderInstanceCorrect{}

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -45,8 +44,11 @@ func newProviderInstances(completion *completionTracker) *providerInstances {
 }
 
 // ProviderClient returns a client for the requested provider instance, using
-// the given planning oracle to configure the provider if no caller has
+// information from the given planGlue to configure the provider if no caller has
 // previously requested a client for this instance.
+//
+// (It's better to enter through [planGlue.providerClient], which is a wrapper
+// that passes its receiver into the final argument here.)
 //
 // Returns nil if the configuration for the requested provider instance is too
 // invalid to actually configure it. The diagnostics for such a problem would
@@ -54,7 +56,7 @@ func newProviderInstances(completion *completionTracker) *providerInstances {
 // of this function will probably want to return a more specialized error saying
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
-func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, oracle *eval.PlanningOracle, planCtx *planContext) (providers.Configured, tfdiags.Diagnostics) {
+func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, planGlue *planGlue) (providers.Configured, tfdiags.Diagnostics) {
 	// We hold this central lock only while we make sure there's an entry
 	// in the "active" map for this provider instance. We then use the
 	// more granular grapheval.Once inside to wait for the provider client
@@ -66,6 +68,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 	}
 	pi.activeMu.Unlock()
 
+	oracle := planGlue.oracle
 	once := pi.active.Get(addr)
 	return once.Do(ctx, func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
 		evalCtx := oracle.EvalContext(ctx)
@@ -91,24 +94,15 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// caller will treat it the same as a "configuration not valid enough"
 		// problem.
 		ret, diags := evalCtx.Providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
-		// TODO: We also need the users from the state, so we can wait for
-		// orphan instances and deposed objects to be planned.
-		users := oracle.ProviderInstanceUsers(ctx, addr)
-		waitCh := pi.completion.NewWaiterFor(func(yield func(completionEvent) bool) {
-			for _, resourceInstAddr := range users.ResourceInstances {
-				event := resourceInstancePlanningComplete{resourceInstAddr.UniqueKey()}
-				if !yield(event) {
-					return
-				}
-			}
-		})
+
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our
 		// given context is cancelled.
+		waitCh := pi.completion.NewWaiterFor(planGlue.providerInstanceCompletionEvents(ctx, addr))
 		go func() {
 			// Once this goroutine is complete the provider instance should be
 			// treated as closed.
-			defer planCtx.reportProviderInstanceClosed(addr)
+			defer planGlue.planCtx.reportProviderInstanceClosed(addr)
 
 			cancelCtx := ctx
 			withoutCancelCtx := context.WithoutCancel(ctx)
@@ -138,6 +132,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 				}
 			}
 		}()
+
 		return ret, diags
 	})
 }
