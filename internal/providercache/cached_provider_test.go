@@ -6,6 +6,7 @@
 package providercache
 
 import (
+	"syscall"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -23,7 +24,11 @@ func TestCachedProviderHash(t *testing.T) {
 		PackageDir: "testdata/cachedir/registry.opentofu.org/hashicorp/null/2.0.0/darwin_amd64",
 	}
 
-	want := getproviders.MustParseHash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g=")
+	want, err := getproviders.PackageHashV1(cp.PackageLocation())
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+
 	got, err := cp.Hash()
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -98,7 +103,7 @@ func TestExecutableFile(t *testing.T) {
 				Version:    getproviders.MustParseVersion("2.0.0"),
 				PackageDir: "testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64",
 			},
-			err: "could not read package directory: open testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64: no such file or directory",
+			err: "could not read package directory: open testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64: " + syscall.ENOENT.Error(),
 		},
 	}
 
