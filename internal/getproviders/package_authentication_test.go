@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -240,7 +241,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to verify provider package checksums: lstat testdata/no-package-here.zip: " + syscall.ENOENT.Error(),
+			fmt.Sprintf("failed to verify provider package checksums: %s %s: %s", checkFileErrorMsg(), filepath.FromSlash("testdata/no-package-here.zip"), syscall.ENOENT.Error()),
 		},
 		"checksum mismatch": {
 			PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
@@ -304,7 +305,7 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to compute checksum for testdata/no-package-here.zip: lstat testdata/no-package-here.zip: " + syscall.ENOENT.Error(),
+			fmt.Sprintf("failed to compute checksum for testdata/no-package-here.zip: %s %s: %s", checkFileErrorMsg(), filepath.FromSlash("testdata/no-package-here.zip"), syscall.ENOENT.Error()),
 		},
 		"checksum mismatch": {
 			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
@@ -331,6 +332,15 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 			}
 		})
 	}
+}
+
+// checkFileErrorMsg is used to return the specific name of the syscall used by
+// the operating system to check the existence of a file at AuthenticatePackage.
+func checkFileErrorMsg() string {
+	if runtime.GOOS == "windows" {
+		return "GetFileAttributesEx"
+	}
+	return "lstat"
 }
 
 // Matching checksum authentication takes a SHA256SUMS document, an archive
