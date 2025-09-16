@@ -61,7 +61,10 @@ func TestPlan_valuesOnlySuccess(t *testing.T) {
 	}
 
 	logGlue := &planGlueCallLog{}
-	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
+	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
+		logGlue.oracle = oracle
+		return logGlue
+	})
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -145,7 +148,10 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
+	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
+		logGlue.oracle = oracle
+		return logGlue
+	})
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -265,7 +271,10 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 	logGlue := &planGlueCallLog{
 		providers: providers,
 	}
-	planResult, diags := configInst.DrivePlanning(t.Context(), logGlue)
+	planResult, diags := configInst.DrivePlanning(t.Context(), func(oracle *eval.PlanningOracle) eval.PlanGlue {
+		logGlue.oracle = oracle
+		return logGlue
+	})
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -308,6 +317,7 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 }
 
 type planGlueCallLog struct {
+	oracle    *eval.PlanningOracle
 	providers eval.Providers
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
@@ -316,7 +326,7 @@ type planGlueCallLog struct {
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	p.mu.Lock()
 	if p.resourceInstanceRequests.Len() == 0 {
 		p.resourceInstanceRequests = addrs.MakeMap[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]()
@@ -327,7 +337,7 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, cty.Value]()
 		}
 		providerInstAddr := *inst.ProviderInstance
-		providerInstConfig := oracle.ProviderInstanceConfig(ctx, providerInstAddr)
+		providerInstConfig := p.oracle.ProviderInstanceConfig(ctx, providerInstAddr)
 		p.providerInstanceConfigs.Put(providerInstAddr, providerInstConfig)
 	}
 	p.mu.Unlock()
@@ -346,28 +356,28 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 }
 
 // PlanModuleCallInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey], oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlueCallLog) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCallAddr addrs.AbsModuleCall, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil
 }
 
 // PlanModuleCallOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall], oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlueCallLog) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAddr addrs.ModuleInstance, desiredCalls iter.Seq[addrs.ModuleCall]) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil
 }
 
 // PlanResourceInstanceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey], oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlueCallLog) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr addrs.AbsResource, desiredInstances iter.Seq[addrs.InstanceKey]) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil
 }
 
 // PlanResourceOrphans implements eval.PlanGlue.
-func (p *planGlueCallLog) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource], oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlueCallLog) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs.ModuleInstance, desiredResources iter.Seq[addrs.Resource]) tfdiags.Diagnostics {
 	// We don't currently do anything with calls to this method, because
 	// no tests we've written so far rely on it.
 	return nil

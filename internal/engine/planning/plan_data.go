@@ -18,9 +18,9 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planContext) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
-	defer p.reportResourceInstancePlanCompletion(inst.Addr)
+	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
 
 	if inst.ProviderInstance == nil {
@@ -41,14 +41,14 @@ func (p *planContext) planDesiredDataResourceInstance(ctx context.Context, inst 
 	// FIXME: State is still using the weird old representation of provider
 	// instance addresses, so we can't actually populate the provider instance
 	// arguments properly here.
-	p.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, inst.ProviderInstance.Key)
+	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, inst.ProviderInstance.Key)
 
 	// TODO: If the config value is not wholly known, or if any resource
 	// instance in inst.RequiredResourceInstances already has a planned change,
 	// then plan to read this during the apply phase and return a "proposed new
 	// value" for use during the planning phase.
 
-	providerClient, moreDiags := p.providerInstances.ProviderClient(ctx, *inst.ProviderInstance, oracle, p)
+	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -77,9 +77,9 @@ func (p *planContext) planDesiredDataResourceInstance(ctx context.Context, inst 
 	panic("unimplemented")
 }
 
-func (p *planContext) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance, _ *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
-	defer p.reportResourceInstancePlanCompletion(addr)
+	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 	var diags tfdiags.Diagnostics
 
 	// An orphan data resource is always just discarded completely, because
@@ -89,7 +89,7 @@ func (p *planContext) planOrphanDataResourceInstance(_ context.Context, addr add
 	// FIXME: We can't actually populate the provider instance address here
 	// because in our current model it's split awkwardly across *states.Resource
 	// and *states.ResourceInstance, and we only have the latter here.
-	p.refreshedState.SetResourceInstanceCurrent(addr, nil, addrs.AbsProviderConfig{}, state.ProviderKey)
+	p.planCtx.refreshedState.SetResourceInstanceCurrent(addr, nil, addrs.AbsProviderConfig{}, state.ProviderKey)
 
 	return diags
 }

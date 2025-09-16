@@ -13,9 +13,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func (p *planContext) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
-	defer p.reportResourceInstancePlanCompletion(inst.Addr)
+	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 
 	// TODO: Implement
 	panic("unimplemented")

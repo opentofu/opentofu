@@ -16,17 +16,25 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planContext) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, oracle *eval.PlanningOracle) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
-	defer p.reportResourceInstancePlanCompletion(inst.Addr)
+	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 
 	// TODO: Implement
 	panic("unimplemented")
 }
 
-func (p *planContext) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance, oracle *eval.PlanningOracle) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
-	defer p.reportResourceInstancePlanCompletion(addr)
+	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
+
+	// TODO: Implement
+	panic("unimplemented")
+}
+
+func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstance) tfdiags.Diagnostics {
+	// Regardless of outcome we'll always report that we completed planning.
+	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
 
 	// TODO: Implement
 	panic("unimplemented")
