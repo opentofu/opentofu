@@ -57,8 +57,12 @@ func TestEnsureProviderVersions(t *testing.T) {
 	// plugin executable in it is really just a text file placeholder so it
 	// cannot actually be executed after installation.
 	beepProvider := addrs.MustParseProviderSourceString("example.com/foo/beep")
-	beepProviderDir := getproviders.PackageLocalDir(filepath.FromSlash("testdata/beep-provider"))
-	beepProviderHash := getproviders.HashScheme1.New("2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84=")
+	beepProviderDir := getproviders.PackageLocalDir("testdata/beep-provider")
+	// Calculate the hash of the provider directory
+	beepProviderHash, err := getproviders.PackageHashV1(beepProviderDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// We also derive a zip archive of the beep provider that we can use to test
 	// the slightly-different treatment of installation sources that can provide
@@ -172,7 +176,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -240,7 +244,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -293,7 +297,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -378,7 +382,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"verified checksum",
 							},
 						},
@@ -436,7 +440,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -504,7 +508,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -527,7 +531,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								LocalDir string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 							},
 						},
 					},
@@ -598,7 +602,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -674,7 +678,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(inst.globalCacheDir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -697,7 +701,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								LocalDir string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 							},
 						},
 					},
@@ -779,7 +783,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -836,7 +840,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								LocalDir string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop")),
 							},
 						},
 					},
@@ -938,7 +942,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -1010,7 +1014,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(inst.globalCacheDir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -1176,7 +1180,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -1199,7 +1203,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								LocalDir string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 							},
 						},
 					},
@@ -1407,7 +1411,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.0.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -1475,7 +1479,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.0.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -1547,7 +1551,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.0.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.0.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -1649,7 +1653,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -1717,7 +1721,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -1822,7 +1826,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("1.0.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -1893,7 +1897,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"1.0.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
@@ -2368,7 +2372,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("1.0.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)
@@ -2436,7 +2440,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"1.0.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/1.0.0/bleep_bloop")),
 								"unauthenticated",
 							},
 						},
