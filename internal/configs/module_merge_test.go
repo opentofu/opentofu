@@ -100,7 +100,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 					&hclsyntax.LiteralValueExpr{
 						Val: cty.StringVal("b_override"),
 						SrcRange: hcl.Range{
-							Filename: "testdata/valid-modules/override-output/b_override.tf",
+							Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 							Start: hcl.Pos{
 								Line:   2,
 								Column: 12,
@@ -115,7 +115,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 					},
 				},
 				SrcRange: hcl.Range{
-					Filename: "testdata/valid-modules/override-output/b_override.tf",
+					Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 					Start: hcl.Pos{
 						Line:   2,
 						Column: 11,
@@ -154,7 +154,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 					&hclsyntax.LiteralValueExpr{
 						Val: cty.StringVal("b_override partial"),
 						SrcRange: hcl.Range{
-							Filename: "testdata/valid-modules/override-output/b_override.tf",
+							Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 							Start: hcl.Pos{
 								Line:   9,
 								Column: 12,
@@ -169,7 +169,7 @@ func TestModuleOverrideOutput(t *testing.T) {
 					},
 				},
 				SrcRange: hcl.Range{
-					Filename: "testdata/valid-modules/override-output/b_override.tf",
+					Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
 					Start: hcl.Pos{
 						Line:   9,
 						Column: 11,
