@@ -241,7 +241,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			fmt.Sprintf("failed to verify provider package checksums: %s %s: %s", checkFileErrorMsg(), filepath.FromSlash("testdata/no-package-here.zip"), syscall.ENOENT.Error()),
+			"failed to verify provider package checksums: " + statNotFoundErrorMsg("testdata/no-package-here.zip"),
 		},
 		"checksum mismatch": {
 			PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
@@ -305,7 +305,7 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			fmt.Sprintf("failed to compute checksum for testdata/no-package-here.zip: %s %s: %s", checkFileErrorMsg(), filepath.FromSlash("testdata/no-package-here.zip"), syscall.ENOENT.Error()),
+			"failed to compute checksum for testdata/no-package-here.zip: " + statNotFoundErrorMsg("testdata/no-package-here.zip"),
 		},
 		"checksum mismatch": {
 			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
@@ -334,13 +334,14 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 	}
 }
 
-// checkFileErrorMsg is used to return the specific name of the syscall used by
-// the operating system to check the existence of a file at AuthenticatePackage.
-func checkFileErrorMsg() string {
+// statNotFoundErrorMsg is used to return a string containing: the specific name of the syscall used by
+// the operating system to check the existence of a file, the filename, and the error message.
+func statNotFoundErrorMsg(filename string) string {
+	prefix := "lstat"
 	if runtime.GOOS == "windows" {
-		return "GetFileAttributesEx"
+		prefix = "GetFileAttributesEx"
 	}
-	return "lstat"
+	return fmt.Sprintf("%s %s: %s", prefix, filepath.FromSlash(filename), syscall.ENOENT.Error())
 }
 
 // Matching checksum authentication takes a SHA256SUMS document, an archive
