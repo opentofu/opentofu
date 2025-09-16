@@ -6,6 +6,7 @@
 package providercache
 
 import (
+	"runtime"
 	"syscall"
 	"testing"
 
@@ -103,7 +104,7 @@ func TestExecutableFile(t *testing.T) {
 				Version:    getproviders.MustParseVersion("2.0.0"),
 				PackageDir: "testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64",
 			},
-			err: "could not read package directory: open testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64: " + syscall.ENOENT.Error(),
+			err: "could not read package directory: open testdata/cachedir/registry.opentofu.org/missing/packagedir/2.0.0/linux_amd64: " + missingDirError(),
 		},
 	}
 
@@ -120,4 +121,11 @@ func TestExecutableFile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func missingDirError() string {
+	if runtime.GOOS == "windows" {
+		return syscall.ENOTDIR.Error()
+	}
+	return syscall.ENOENT.Error()
 }
