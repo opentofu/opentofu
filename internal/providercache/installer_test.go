@@ -1037,7 +1037,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								LocalDir string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 							},
 						},
 					},
@@ -1109,10 +1109,11 @@ func TestEnsureProviderVersions(t *testing.T) {
 				}
 
 				gotEntry := dir.ProviderLatestVersion(beepProvider)
+
 				wantEntry := &CachedProvider{
 					Provider:   beepProvider,
 					Version:    getproviders.MustParseVersion("2.1.0"),
-					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+					PackageDir: filepath.ToSlash(filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop")),
 				}
 				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
 					t.Errorf("wrong cache entry\n%s", diff)

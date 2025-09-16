@@ -2,3 +2,4 @@ internal/**/*.tf text eol=lf
 internal/**/*.tofu text eol=lf
 internal/**/*.json text eol=lf
 internal/**/*.tmpl text eol=lf
+internal/providercache/testdata/**/* text eol=lf
