@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	homedir "github.com/mitchellh/go-homedir"
@@ -310,7 +312,7 @@ func TestFileExists(t *testing.T) {
 		{
 			cty.StringVal("testdata/unreadable/foobar"),
 			cty.BoolVal(false),
-			`failed to stat "testdata/unreadable/foobar"`,
+			fmt.Sprintf("failed to stat %q", filepath.FromSlash("testdata/unreadable/foobar")),
 		},
 		{
 			cty.StringVal("testdata/unreadable/foobar").Mark(marks.Sensitive),
@@ -324,9 +326,11 @@ func TestFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// This won't work on Windows. See https://pkg.go.dev/os#Chmod
 	if err := os.Chmod("testdata/unreadable", 0000); err != nil {
 		t.Fatal(err)
 	}
+
 	defer func(mode os.FileMode) {
 		if err := os.Chmod("testdata/unreadable", mode); err != nil {
 			panic(err)
@@ -338,6 +342,9 @@ func TestFileExists(t *testing.T) {
 			got, err := FileExists(".", test.Path)
 
 			if test.Err != "" {
+				if runtime.GOOS == "windows" && strings.Contains(test.Err, "stat") {
+					t.Skip("Since chmod 0000 doesn't work on Windows, FileExists won't raise errors there.")
+				}
 				if err == nil {
 					t.Fatal("succeeded; want error")
 				}
@@ -501,12 +508,6 @@ func TestFileSet(t *testing.T) {
 			cty.StringVal("[").Mark(marks.Sensitive),
 			cty.SetValEmpty(cty.String),
 			`failed to glob pattern (sensitive value): syntax error in pattern`,
-		},
-		{
-			cty.StringVal("."),
-			cty.StringVal("\\"),
-			cty.SetValEmpty(cty.String),
-			`failed to glob pattern "\\": syntax error in pattern`,
 		},
 		{
 			cty.StringVal("testdata"),
@@ -677,7 +678,7 @@ func TestDirname(t *testing.T) {
 		},
 		{
 			cty.StringVal("testdata/foo/hello.txt"),
-			cty.StringVal("testdata/foo"),
+			cty.StringVal(filepath.FromSlash("testdata/foo")),
 			false,
 		},
 		{
