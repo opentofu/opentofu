@@ -30,6 +30,9 @@ func ConsoleCtrlHandler(dwCtrlType uint32, resultCh chan struct{}) uintptr {
 	case syscall.CTRL_C_EVENT:
 		resultCh <- struct{}{}
 		return 1
+	case syscall.CTRL_BREAK_EVENT:
+		resultCh <- struct{}{}
+		return 1
 	default:
 		return 0 // Let other handlers or the default handler process the event
 	}

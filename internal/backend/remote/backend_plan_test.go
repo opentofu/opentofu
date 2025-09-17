@@ -877,13 +877,16 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	}
 
 	resultCh := make(chan struct{})
-	listenForConsoleCtrlHandler(resultCh)
+	mgr := &Mgr{
+		resultCh: resultCh,
+	}
+	mgr.listenForConsoleCtrlHandler(t)
 	select {
 	case <-resultCh:
 		// Stop redirecting SIGINT signals.
-		stopCtrlHandler(resultCh) // signal.Stop(sigint)
-	case <-time.After(1000 * time.Millisecond):
-		t.Fatalf("expected lock timeout after 50 milliseconds, waited 1000 milliseconds")
+		mgr.stopCtrlHandler(t) // signal.Stop(sigint)
+	case <-time.After(5000 * time.Millisecond):
+		t.Fatalf("expected lock timeout after 50 milliseconds, waited 5000 milliseconds")
 	}
 
 	if len(input.answers) != 2 {

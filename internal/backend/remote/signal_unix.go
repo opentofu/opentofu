@@ -29,9 +29,11 @@ func sendInterruptSignal(pid int) error {
 func listenForConsoleCtrlHandler(resultCh chan struct{}) {
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGINT, os.Interrupt)
+
 }
 
 func stopCtrlHandler(resultCh chan struct{}) {
+	// signal.Stop(sigint)
 	sigint := make(chan os.Signal, 1)
 	signal.Stop(sigint)
 }

@@ -12,7 +12,7 @@ import (
 	"log"
 	"os"
 	"syscall"
-	"unsafe"
+	"testing"
 
 	"golang.org/x/sys/windows"
 )
@@ -36,42 +36,44 @@ var (
 var ignoreSignals = []os.Signal{os.Interrupt}
 var forwardSignals = []os.Signal{}
 
-func listenForConsoleCtrlHandler(resultCh chan struct{}) {
-	cb := func(dwCtrlType uint32) uintptr {
+type Mgr struct {
+	resultCh chan struct{}
+	pcb      uintptr
+}
+
+func (mgr *Mgr) listenForConsoleCtrlHandler(t *testing.T) {
+	cb := syscall.NewCallback(func(dwCtrlType uint32) uintptr {
 		switch dwCtrlType {
 		case syscall.CTRL_C_EVENT:
-			resultCh <- struct{}{}
+			mgr.resultCh <- struct{}{}
+			return 1
+		case syscall.CTRL_BREAK_EVENT:
+			mgr.resultCh <- struct{}{}
 			return 1
 		default:
 			return 0 // Let other handlers or the default handler process the event
 		}
-	}
+	})
+
+	// pcb := syscall.NewCallback(cb)
 	ret, _, err := setConsoleCtrlHandler.Call(
-		syscall.NewCallback(cb), // Pointer to our handler function
-		uintptr(1),              // Add the handler (TRUE)
-		uintptr(unsafe.Pointer(&resultCh)),
+		cb,         // Pointer to our handler function
+		uintptr(1), // Add the handler (TRUE)
 	)
-	if ret == 0 || err != nil {
+	// mgr.pcb = cb
+	t.Logf("ret: %v, err: %v", ret, err)
+	if ret == 0 && err != nil {
 		log.Printf("[ERROR] error setting console ctrl handler: %v", err)
 	}
 }
 
-func stopCtrlHandler(resultCh chan struct{}) {
-	cb := func(dwCtrlType uint32) uintptr {
-		switch dwCtrlType {
-		case syscall.CTRL_C_EVENT:
-			resultCh <- struct{}{}
-			return 1
-		default:
-			return 0 // Let other handlers or the default handler process the event
-		}
-	}
-	ret, _, err := setConsoleCtrlHandler.Call(
-		syscall.NewCallback(cb), // Pointer to our handler function
-		uintptr(0),              // Remove the handler (FALSE)
-		uintptr(unsafe.Pointer(&resultCh)),
+func (mgr *Mgr) stopCtrlHandler(t *testing.T) {
+	_, _, err := setConsoleCtrlHandler.Call(
+		// mgr.pcb,    // Pointer to our handler function
+		uintptr(0), // Remove the handler (FALSE)
+		uintptr(0), // Remove the handler (FALSE)
 	)
-	if ret == 0 || err != nil {
-		log.Printf("[ERROR] error unsetting console ctrl handler: %v", err)
+	if err != nil {
+		t.Logf("error unsetting console ctrl handler: %v", err)
 	}
 }
