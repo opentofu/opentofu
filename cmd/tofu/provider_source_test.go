@@ -100,17 +100,11 @@ func TestProviderSource(t *testing.T) {
 			// Setup test environment
 			originalWorkingDir, overrideWd := tt.setupFunc(t)
 
-			err := os.Chdir(originalWorkingDir)
-			if err != nil {
-				t.Fatalf("Failed to change to original working directory: %v", err)
-			}
+			t.Chdir(originalWorkingDir)
 
 			// If we have an override directory, change to it (simulating -chdir behavior)
 			if overrideWd != "" {
-				err := os.Chdir(overrideWd)
-				if err != nil {
-					t.Fatalf("Failed to change to override directory: %v", err)
-				}
+				t.Chdir(overrideWd)
 			}
 
 			// Create a mock disco service
