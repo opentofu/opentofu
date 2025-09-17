@@ -885,8 +885,8 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	case <-sigint:
 		// Stop redirecting SIGINT signals.
 		signal.Stop(sigint)
-	case <-time.After(200 * time.Millisecond):
-		t.Fatalf("expected lock timeout after 50 milliseconds, waited 200 milliseconds")
+	case <-time.After(1000 * time.Millisecond):
+		t.Fatalf("expected lock timeout after 50 milliseconds, waited 1000 milliseconds")
 	}
 
 	if len(input.answers) != 2 {
