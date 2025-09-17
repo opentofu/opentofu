@@ -32,23 +32,23 @@ var (
 )
 
 // ConsoleCtrlHandler is our custom handler routine
-func ConsoleCtrlHandler(dwCtrlType uint32, resultCh chan struct{}) uintptr {
-	switch dwCtrlType {
-	case syscall.CTRL_C_EVENT:
-		resultCh <- struct{}{}
-		return 1
-	default:
-		return 0 // Let other handlers or the default handler process the event
-	}
-}
 
 var ignoreSignals = []os.Signal{os.Interrupt}
 var forwardSignals = []os.Signal{}
 
 func listenForConsoleCtrlHandler(resultCh chan struct{}) {
+	cb := func(dwCtrlType uint32) uintptr {
+		switch dwCtrlType {
+		case syscall.CTRL_C_EVENT:
+			resultCh <- struct{}{}
+			return 1
+		default:
+			return 0 // Let other handlers or the default handler process the event
+		}
+	}
 	ret, _, err := setConsoleCtrlHandler.Call(
-		syscall.NewCallback(ConsoleCtrlHandler), // Pointer to our handler function
-		uintptr(1),                              // Add the handler (TRUE)
+		syscall.NewCallback(cb), // Pointer to our handler function
+		uintptr(1),              // Add the handler (TRUE)
 		uintptr(unsafe.Pointer(&resultCh)),
 	)
 	if ret == 0 || err != nil {
@@ -57,9 +57,18 @@ func listenForConsoleCtrlHandler(resultCh chan struct{}) {
 }
 
 func stopCtrlHandler(resultCh chan struct{}) {
+	cb := func(dwCtrlType uint32) uintptr {
+		switch dwCtrlType {
+		case syscall.CTRL_C_EVENT:
+			resultCh <- struct{}{}
+			return 1
+		default:
+			return 0 // Let other handlers or the default handler process the event
+		}
+	}
 	ret, _, err := setConsoleCtrlHandler.Call(
-		syscall.NewCallback(ConsoleCtrlHandler), // Pointer to our handler function
-		uintptr(0),                              // Remove the handler (FALSE)
+		syscall.NewCallback(cb), // Pointer to our handler function
+		uintptr(0),              // Remove the handler (FALSE)
 		uintptr(unsafe.Pointer(&resultCh)),
 	)
 	if ret == 0 || err != nil {
