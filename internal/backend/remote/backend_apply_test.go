@@ -1135,7 +1135,7 @@ func TestRemote_applyLockTimeout(t *testing.T) {
 	}
 
 	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, syscall.SIGINT)
+	signal.Notify(sigint, syscall.SIGINT, os.Interrupt)
 	select {
 	case <-sigint:
 		// Stop redirecting SIGINT signals.
