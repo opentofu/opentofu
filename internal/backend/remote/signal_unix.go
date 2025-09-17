@@ -10,6 +10,7 @@ package remote
 
 import (
 	"os"
+	"os/signal"
 	"syscall"
 )
 
@@ -23,4 +24,14 @@ func sendInterruptSignal(pid int) error {
 		return err
 	}
 	return nil
+}
+
+func listenForConsoleCtrlHandler(resultCh chan struct{}) {
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGINT, os.Interrupt)
+}
+
+func stopCtrlHandler(resultCh chan struct{}) {
+	sigint := make(chan os.Signal, 1)
+	signal.Stop(sigint)
 }

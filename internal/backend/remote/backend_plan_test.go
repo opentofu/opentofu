@@ -7,10 +7,7 @@ package remote
 
 import (
 	"context"
-	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -879,12 +876,12 @@ func TestRemote_planLockTimeout(t *testing.T) {
 		t.Fatalf("error starting operation: %v", err)
 	}
 
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, syscall.SIGINT, os.Interrupt)
+	resultCh := make(chan struct{})
+	listenForConsoleCtrlHandler(resultCh)
 	select {
-	case <-sigint:
+	case <-resultCh:
 		// Stop redirecting SIGINT signals.
-		signal.Stop(sigint)
+		stopCtrlHandler(resultCh) // signal.Stop(sigint)
 	case <-time.After(1000 * time.Millisecond):
 		t.Fatalf("expected lock timeout after 50 milliseconds, waited 1000 milliseconds")
 	}
