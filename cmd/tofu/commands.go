@@ -8,7 +8,6 @@ package main
 import (
 	"context"
 	"os"
-	"os/signal"
 
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
@@ -466,24 +465,6 @@ func initCommands(
 		"internal-plugin": {},
 		"push":            {},
 	}
-}
-
-// makeShutdownCh creates an interrupt listener and returns a channel.
-// A message will be sent on the channel for every interrupt received.
-func makeShutdownCh() <-chan struct{} {
-	resultCh := make(chan struct{})
-
-	signalCh := make(chan os.Signal, 4)
-	signal.Notify(signalCh, ignoreSignals...)
-	signal.Notify(signalCh, forwardSignals...)
-	go func() {
-		for {
-			<-signalCh
-			resultCh <- struct{}{}
-		}
-	}()
-
-	return resultCh
 }
 
 func credentialsSource(config *cliconfig.Config) (svcauth.CredentialsSource, error) {
