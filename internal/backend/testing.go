@@ -190,12 +190,24 @@ func TestBackendStates(t *testing.T, b Backend) {
 		fooState := states.NewState()
 		barState := states.NewState()
 
+		// Lock before writing
+		lockInfo := statemgr.NewLockInfo()
+		lockInfo.Operation = "init"
+		lockId, err := foo.Lock(t.Context(), lockInfo)
+		if err != nil {
+			t.Fatalf("error locking foo: %s", err)
+		}
 		// write a known state to foo
 		if err := foo.WriteState(fooState); err != nil {
 			t.Fatal("error writing foo state:", err)
 		}
 		if err := foo.PersistState(t.Context(), nil); err != nil {
 			t.Fatal("error persisting foo state:", err)
+		}
+
+		// Unlock the state after writing
+		if err := foo.Unlock(t.Context(), lockId); err != nil {
+			t.Fatalf("error unlocking foo: %s", err)
 		}
 
 		// We'll make "bar" different by adding a fake resource state to it.
