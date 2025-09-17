@@ -9,11 +9,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"syscall"
-	"time"
+	"unsafe"
 )
 
 // Define the handler function signature for SetConsoleCtrlHandler
@@ -26,20 +25,10 @@ var (
 )
 
 // ConsoleCtrlHandler is our custom handler routine
-func ConsoleCtrlHandler(dwCtrlType uint32) uintptr {
+func ConsoleCtrlHandler(dwCtrlType uint32, resultCh chan struct{}) uintptr {
 	switch dwCtrlType {
 	case syscall.CTRL_C_EVENT:
-		fmt.Println("\nReceived CTRL+C event. Performing cleanup...")
-		// Perform any necessary cleanup here
-		time.Sleep(1 * time.Second) // Simulate cleanup
-		fmt.Println("Cleanup complete. Exiting.")
-		os.Exit(0) // Exit gracefully
-		return 1   // Indicate that the event was handled
-	case syscall.CTRL_CLOSE_EVENT:
-		fmt.Println("\nReceived CTRL+CLOSE event. Performing cleanup...")
-		time.Sleep(1 * time.Second)
-		fmt.Println("Cleanup complete. Exiting.")
-		os.Exit(0)
+		resultCh <- struct{}{}
 		return 1
 	default:
 		return 0 // Let other handlers or the default handler process the event
@@ -53,10 +42,12 @@ var forwardSignals = []os.Signal{}
 // A message will be sent on the channel for every interrupt received.
 func makeShutdownCh() <-chan struct{} {
 	resultCh := make(chan struct{})
+	p := unsafe.Pointer(&resultCh)
 
 	ret, _, err := setConsoleCtrlHandler.Call(
 		syscall.NewCallback(ConsoleCtrlHandler), // Pointer to our handler function
 		uintptr(1),                              // Add the handler (TRUE)
+		uintptr(p),
 	)
 
 	if ret == 0 || err != nil {
