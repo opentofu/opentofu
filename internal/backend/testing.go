@@ -219,12 +219,24 @@ func TestBackendStates(t *testing.T, b Backend) {
 			addrs.NoKey,
 		)
 
+		// Lock before writing
+		lockInfo := statemgr.NewLockInfo()
+		lockInfo.Operation = "init"
+		lockId, err := foo.Lock(t.Context(), lockInfo)
+		if err != nil {
+			t.Fatalf("error locking foo: %s", err)
+		}
+
 		// write a distinct known state to bar
 		if err := bar.WriteState(barState); err != nil {
 			t.Fatalf("bad: %s", err)
 		}
 		if err := bar.PersistState(t.Context(), nil); err != nil {
 			t.Fatalf("bad: %s", err)
+		}
+		// Unlock the state after writing
+		if err := foo.Unlock(t.Context(), lockId); err != nil {
+			t.Fatalf("error unlocking foo: %s", err)
 		}
 
 		// verify that foo is unchanged with the existing state manager
