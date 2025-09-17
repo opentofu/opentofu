@@ -118,6 +118,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 func TestInit_fromModule_dstInSrc(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+
 	if err := os.Mkdir("foo", os.ModePerm); err != nil {
 		t.Fatal(err)
 	}

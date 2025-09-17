@@ -271,12 +271,19 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 // TestDirFromModule_rel_submodules is similar to the test above, but the
 // from-module is relative to the install dir ("../"):
 // https://github.com/hashicorp/terraform/issues/23010
+// This test creates a tmpdir with the following directory structure:
+// - tmpdir/local-modules (with contents of testdata/local-modules)
+// - tmpdir/empty: the workDir we CD into for the test
+// - tmpdir/empty/target (target, the destination for init -from-module)
 func TestDirFromModule_rel_submodules(t *testing.T) {
-	// This test creates a tmpdir with the following directory structure:
-	// - tmpdir/local-modules (with contents of testdata/local-modules)
-	// - tmpdir/empty: the workDir we CD into for the test
-	// - tmpdir/empty/target (target, the destination for init -from-module)
-	tmpDir := t.TempDir()
+	// TestDirFromModule_rel_submodules expands the short path when calling DirFromModule
+	// at the remote go-getter retrieval of the absolute path to the source directory.
+	// We need to expand the short path before using it in order to match them.
+	tmpDir, err := expandShortPath(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed to expand short path: %v", err)
+	}
+
 	fromModuleDir := filepath.Join(tmpDir, "local-modules")
 	workDir := filepath.Join(tmpDir, "empty")
 	if err := os.Mkdir(fromModuleDir, os.ModePerm); err != nil {

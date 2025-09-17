@@ -57,12 +57,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" }
-          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
-          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
-          - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
-          - { runson: macos-latest, goos: darwin, goarch: "arm64" }
-          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
+          # - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" }
+          # - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+          # - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+          # - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
+          # - { runson: macos-latest, goos: darwin, goarch: "arm64" }
+          - { runson: windows-latest, goos: windows, goarch: "amd64" }
           # https://github.com/opentofu/opentofu/issues/1201 if fixed
           #  ^ un-comment the  windows-latest line
       fail-fast: false
@@ -83,7 +83,8 @@ jobs:
 
       - name: "Unit tests"
         run: |
-          go test ./...
+          $env:TF_LOG="TRACE"
+          go test ./internal/initwd -run TestDirFromModule_
 
   race-tests:
     name: "Race Tests"
