@@ -127,16 +127,6 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 			))
 			continue
 		}
-		switch target.Subject.AddrType() {
-		case addrs.AbsResourceInstanceAddrType:
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				fmt.Sprintf("Detected a resource address used with instance key for -%s: %s", flag, tr),
-				fmt.Sprintf("Even though it is allowed to use individual resource key address for -%s, it is not recommended since by doing so unwanted behaviors can be seen in specific circumstances. Instead, you should use the whole resource address.", flag),
-			))
-			continue
-		default:
-		}
 
 		targetables = append(targetables, target.Subject)
 	}
