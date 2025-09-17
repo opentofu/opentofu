@@ -19,7 +19,7 @@ import (
 
 // sendInterruptSignal sends an Ctrl+Break event to the given process ID.
 func sendInterruptSignal(pid int) error {
-	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(pid))
+	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(pid))
 	if err != nil {
 		return err
 	}
@@ -36,19 +36,15 @@ var (
 var ignoreSignals = []os.Signal{os.Interrupt}
 var forwardSignals = []os.Signal{}
 
-type Mgr struct {
-	resultCh chan struct{}
-	pcb      uintptr
-}
-
-func (mgr *Mgr) listenForConsoleCtrlHandler(t *testing.T) {
+func handleSignals(t *testing.T, resultCh chan struct{}) (func(t *testing.T), error) {
 	cb := syscall.NewCallback(func(dwCtrlType uint32) uintptr {
+		t.Logf("console ctrl handler called with type: %d", dwCtrlType)
 		switch dwCtrlType {
 		case syscall.CTRL_C_EVENT:
-			mgr.resultCh <- struct{}{}
+			resultCh <- struct{}{}
 			return 1
 		case syscall.CTRL_BREAK_EVENT:
-			mgr.resultCh <- struct{}{}
+			resultCh <- struct{}{}
 			return 1
 		default:
 			return 0 // Let other handlers or the default handler process the event
@@ -56,24 +52,26 @@ func (mgr *Mgr) listenForConsoleCtrlHandler(t *testing.T) {
 	})
 
 	// pcb := syscall.NewCallback(cb)
+	t.Logf("setting console ctrl handler")
 	ret, _, err := setConsoleCtrlHandler.Call(
 		cb,         // Pointer to our handler function
 		uintptr(1), // Add the handler (TRUE)
 	)
-	// mgr.pcb = cb
-	t.Logf("ret: %v, err: %v", ret, err)
+
 	if ret == 0 && err != nil {
 		log.Printf("[ERROR] error setting console ctrl handler: %v", err)
 	}
-}
 
-func (mgr *Mgr) stopCtrlHandler(t *testing.T) {
-	_, _, err := setConsoleCtrlHandler.Call(
-		// mgr.pcb,    // Pointer to our handler function
-		uintptr(0), // Remove the handler (FALSE)
-		uintptr(0), // Remove the handler (FALSE)
-	)
-	if err != nil {
-		t.Logf("error unsetting console ctrl handler: %v", err)
+	unregisterFn := func(t *testing.T) {
+		t.Logf("unregistering console ctrl handler")
+		ret, _, err := setConsoleCtrlHandler.Call(
+			cb,         // Remove the handler (FALSE)
+			uintptr(0), // Remove the handler (FALSE)
+		)
+		if ret == 0 && err != nil {
+			t.Logf("error unsetting console ctrl handler: %v", err)
+		}
 	}
+
+	return unregisterFn, nil
 }

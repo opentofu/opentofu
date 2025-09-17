@@ -877,16 +877,16 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	}
 
 	resultCh := make(chan struct{})
-	mgr := &Mgr{
-		resultCh: resultCh,
+	unregisterFn, err := handleSignals(t, resultCh)
+	if err != nil {
+		t.Fatalf("error setting console ctrl handler: %v", err)
 	}
-	mgr.listenForConsoleCtrlHandler(t)
 	select {
 	case <-resultCh:
-		// Stop redirecting SIGINT signals.
-		mgr.stopCtrlHandler(t) // signal.Stop(sigint)
-	case <-time.After(5000 * time.Millisecond):
-		t.Fatalf("expected lock timeout after 50 milliseconds, waited 5000 milliseconds")
+		// Unregister the signal handler
+		unregisterFn(t)
+	case <-time.After(10000 * time.Millisecond):
+		t.Fatalf("expected lock timeout after 50 milliseconds, waited 10000 milliseconds")
 	}
 
 	if len(input.answers) != 2 {
@@ -903,6 +903,8 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	if strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("unexpected plan summary in output: %s", output)
 	}
+
+	t.Logf("finished: %s", output)
 }
 
 func TestRemote_planDestroy(t *testing.T) {

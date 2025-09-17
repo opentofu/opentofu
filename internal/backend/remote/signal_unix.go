@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"testing"
 )
 
 // sendInterruptSignal sends an SIGINT signal to the given process ID.
@@ -26,14 +27,13 @@ func sendInterruptSignal(pid int) error {
 	return nil
 }
 
-func listenForConsoleCtrlHandler(resultCh chan struct{}) {
+func handleSignals(t *testing.T, resultCh chan struct{}) (func(t *testing.T), error) {
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGINT, os.Interrupt)
 
-}
+	unregisterFn := func(t *testing.T) {
+		signal.Stop(sigint)
+	}
 
-func stopCtrlHandler(resultCh chan struct{}) {
-	// signal.Stop(sigint)
-	sigint := make(chan os.Signal, 1)
-	signal.Stop(sigint)
+	return unregisterFn, nil
 }
