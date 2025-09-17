@@ -871,16 +871,17 @@ func TestRemote_planLockTimeout(t *testing.T) {
 	op.UIOut = b.CLI
 	op.Workspace = backend.DefaultStateName
 
-	_, err = b.Operation(context.Background(), op)
-	if err != nil {
-		t.Fatalf("error starting operation: %v", err)
-	}
-
 	resultCh := make(chan struct{})
 	unregisterFn, err := handleSignals(t, resultCh)
 	if err != nil {
 		t.Fatalf("error setting console ctrl handler: %v", err)
 	}
+
+	_, err = b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("error starting operation: %v", err)
+	}
+
 	select {
 	case <-resultCh:
 		// Unregister the signal handler
