@@ -16,7 +16,7 @@ import (
 
 // sendInterruptSignal sends an Ctrl+Break event to the given process ID.
 func sendInterruptSignal(pid int) error {
-	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_C_EVENT, uint32(pid))
+	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(pid))
 	if err != nil {
 		return err
 	}
