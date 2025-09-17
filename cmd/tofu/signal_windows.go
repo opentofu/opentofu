@@ -12,5 +12,5 @@ import (
 	"os"
 )
 
-var ignoreSignals = []os.Signal{}
-var forwardSignals = []os.Signal{os.Interrupt}
+var ignoreSignals = []os.Signal{os.Interrupt}
+var forwardSignals = []os.Signal{}
