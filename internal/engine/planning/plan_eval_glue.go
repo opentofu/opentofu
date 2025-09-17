@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -101,6 +102,11 @@ func (p *planGlue) PlanModuleCallInstanceOrphans(ctx context.Context, moduleCall
 	if moduleCallAddr.Module.IsPlaceholder() {
 		// can't predict anything about what might be desired or orphaned
 		// under this module instance.
+		// FIXME: _Something_ still needs to make sure we call
+		// p.planCtx.reportResourceInstancePlanCompletion for any
+		// potentially-matching instances in the previous round state, because
+		// nothing in the desired state is going to match them and so they
+		// won't actually get planned.
 		return nil
 	}
 	desiredSet := collections.CollectSet(desiredInstances)
@@ -146,6 +152,11 @@ func (p *planGlue) PlanModuleCallOrphans(ctx context.Context, callerModuleInstAd
 	if callerModuleInstAddr.IsPlaceholder() {
 		// can't predict anything about what might be desired or orphaned
 		// under this module instance.
+		// FIXME: _Something_ still needs to make sure we call
+		// p.planCtx.reportResourceInstancePlanCompletion for any
+		// potentially-matching instances in the previous round state, because
+		// nothing in the desired state is going to match them and so they
+		// won't actually get planned.
 		return nil
 	}
 	desiredSet := addrs.CollectSet(desiredCalls)
@@ -182,6 +193,11 @@ func (p *planGlue) PlanResourceInstanceOrphans(ctx context.Context, resourceAddr
 	if resourceAddr.IsPlaceholder() {
 		// can't predict anything about what might be desired or orphaned
 		// under this resource.
+		// FIXME: _Something_ still needs to make sure we call
+		// p.planCtx.reportResourceInstancePlanCompletion for any
+		// potentially-matching instances in the previous round state, because
+		// nothing in the desired state is going to match them and so they
+		// won't actually get planned.
 		return nil
 	}
 	desiredSet := collections.CollectSet(desiredInstances)
@@ -221,6 +237,11 @@ func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs
 	if moduleInstAddr.IsPlaceholder() {
 		// can't predict anything about what might be desired or orphaned
 		// under this resource instance.
+		// FIXME: _Something_ still needs to make sure we call
+		// p.planCtx.reportResourceInstancePlanCompletion for any
+		// potentially-matching instances in the previous round state, because
+		// nothing in the desired state is going to match them and so they
+		// won't actually get planned.
 		return nil
 	}
 	desiredSet := addrs.CollectSet(desiredResources)
@@ -301,6 +322,38 @@ func (p *planGlue) providerInstanceCompletionEvents(ctx context.Context, addr ad
 			}
 		}
 	}
+}
+
+func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {
+	// There are various reasons why we might need to defer final planning
+	// of this to a later round. The following is not exhaustive but is a
+	// placeholder to show where deferral might fit in.
+	return inst.IsPlaceholder() || inst.ProviderInstance == nil || derivedFromDeferredVal(inst.ConfigVal)
+}
+
+func (p *planGlue) resourceInstancePlaceholderValue(ctx context.Context, providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string, priorVal, configVal cty.Value) cty.Value {
+	evalCtx := p.oracle.EvalContext(ctx)
+	schema, diags := evalCtx.Providers.ResourceTypeSchema(ctx, providerAddr, resourceMode, resourceType)
+	if diags.HasErrors() {
+		// If we can't get any schema information then we'll just return
+		// a completely-unknown object as our placeholder. We should get here
+		// only if the eval system already failed to use the provider to decode
+		// or validate the configuration, and so it should already have reported
+		// a related error upstream.
+		return cty.DynamicVal
+	}
+
+	if configVal.IsNull() {
+		return cty.NullVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
+	}
+	if !configVal.IsKnown() {
+		return cty.UnknownVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
+	}
+	return objchange.ProposedNew(
+		schema.Block,
+		priorVal,
+		configVal,
+	)
 }
 
 // resourceInstancesFilter returns a sequence of resource instances from the
