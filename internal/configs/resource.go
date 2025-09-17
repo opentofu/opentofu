@@ -393,7 +393,7 @@ func complainRngAndMsg(countRng, enabledRng, forEachRng hcl.Range) (*hcl.Range, 
 	var complainAttrs []string
 	if !countRng.Empty() {
 		complainRngs = append(complainRngs, countRng)
-		complainAttrs = append(complainAttrs, "\"count\"")
+		complainAttrs = append(complainAttrs, `"count"`)
 	}
 	if !enabledRng.Empty() {
 		complainRngs = append(complainRngs, enabledRng)
