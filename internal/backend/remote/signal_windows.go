@@ -9,7 +9,6 @@
 package remote
 
 import (
-	"fmt"
 	"syscall"
 
 	"golang.org/x/sys/windows"
@@ -19,7 +18,7 @@ import (
 func sendInterruptSignal(pid int) error {
 	err := windows.GenerateConsoleCtrlEvent(syscall.CTRL_BREAK_EVENT, uint32(pid))
 	if err != nil {
-		return fmt.Errorf("GenerateConsoleCtrlEvent: %v\n", err)
+		return err
 	}
 	return nil
 }
