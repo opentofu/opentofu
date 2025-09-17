@@ -873,6 +873,12 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		_ = locker.Wait()
 
 		t.Logf("closed statelocker stdin and finished.")
+
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
 	}
 
 	// wait for the process to lock
