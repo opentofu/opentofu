@@ -200,6 +200,11 @@ func TestParseApply_targets(t *testing.T) {
 			want:    nil,
 			wantErr: "A data source name is required",
 		},
+		"resource instance targeted": {
+			args:    []string{"-target=foo_bar.baz[0]"},
+			want:    nil,
+			wantErr: "Detected a resource address used with instance key for -target: foo_bar.baz[0]: Even though it is allowed to use individual resource key address for -target",
+		},
 	}
 
 	for name, tc := range testCases {
@@ -210,7 +215,7 @@ func TestParseApply_targets(t *testing.T) {
 			} else if tc.wantErr != "" {
 				if len(diags) == 0 {
 					t.Fatalf("expected diags but got none")
-				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
+				} else if got := diags.ErrWithWarnings().Error(); !strings.Contains(got, tc.wantErr) {
 					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
 				}
 			}
