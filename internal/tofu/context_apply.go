@@ -23,6 +23,11 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
+// ApplyOpts are the various options that affect the details of how OpenTofu
+// will build a plan.
+//
+// This structure is created from the PlanOpts since wants some functionality
+// that PlanOpts already have.
 type ApplyOpts struct {
 	// SetVariables are the raw values for root module variables as provided
 	// by the user who is requesting the run, prior to any normalization or

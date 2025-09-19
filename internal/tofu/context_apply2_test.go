@@ -5852,7 +5852,7 @@ output "regular_optional" {
 			})
 
 			// check plan
-			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+			plan, diags := ctx.Plan(t.Context(), m, states.NewState(), &PlanOpts{
 				Mode:         plans.NormalMode,
 				SetVariables: tt.planSetVariables,
 			})
@@ -5873,7 +5873,7 @@ output "regular_optional" {
 			}
 
 			// check apply
-			newState, diags := ctx.Apply(context.Background(), plan, m, tt.applyOpts)
+			newState, diags := ctx.Apply(t.Context(), plan, m, tt.applyOpts)
 			var gotErrors []string
 			for _, diag := range diags {
 				gotErrors = append(gotErrors, fmt.Sprintf("%s - %s", diag.Description().Summary, diag.Description().Detail))
