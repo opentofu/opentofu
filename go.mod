@@ -29,6 +29,7 @@ require (
 	github.com/aws/smithy-go v1.22.3
 	github.com/bgentry/speakeasy v0.2.0
 	github.com/bmatcuk/doublestar/v4 v4.6.0
+	github.com/cheggaaa/pb v1.0.27
 	github.com/chzyer/readline v1.5.1
 	github.com/cli/browser v1.3.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
@@ -45,7 +46,7 @@ require (
 	github.com/hashicorp/copywrite v0.16.3
 	github.com/hashicorp/errwrap v1.1.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
-	github.com/hashicorp/go-getter v1.8.0
+	github.com/hashicorp/go-getter v1.8.1
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.3
