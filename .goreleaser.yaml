@@ -300,6 +300,14 @@ nfpms:
         dst: /usr/share/doc/opentofu/copyright
         file_info:
           mode: 0444
+      - src: ./scripts/shell-completion/bash/tofu
+        dst: /usr/share/bash-completion/completions/tofu
+        file_info:
+          mode: 0644
+      - src: ./scripts/shell-completion/zsh/_tofu
+        dst: /usr/share/zsh/vendor-completions/_tofu
+        file_info:
+          mode: 0644
     rpm:
       signature:
         key_file: "{{ if index .Env \"GPG_KEY_FILE\"  }}{{.Env.GPG_KEY_FILE}}{{ end }}"
