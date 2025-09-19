@@ -318,7 +318,7 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 				Name: "foo",
 				ConstraintType: cty.Object(map[string]cty.Type{
 					"foo": cty.String,
-					"bar": cty.String,
+					"bar": cty.Object(map[string]cty.Type{"nested": cty.EmptyObject}),
 				}),
 			},
 			Expr: &hclsyntax.ObjectConsExpr{
@@ -334,6 +334,29 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 							Val: cty.StringVal("..."),
 						},
 					},
+					{
+						KeyExpr: &hclsyntax.LiteralValueExpr{
+							Val: cty.StringVal("bar"),
+							SrcRange: hcl.Range{
+								Filename: "test.tofu",
+							},
+						},
+						ValueExpr: &hclsyntax.ObjectConsExpr{
+							Items: []hclsyntax.ObjectConsItem{
+								{
+									KeyExpr: &hclsyntax.LiteralValueExpr{
+										Val: cty.StringVal("beep"),
+										SrcRange: hcl.Range{
+											Filename: "test.tofu",
+										},
+									},
+									ValueExpr: &hclsyntax.LiteralValueExpr{
+										Val: cty.StringVal("..."),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 			ModuleInstance: addrs.RootModuleInstance,
@@ -341,12 +364,20 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 		// We use the "ForRPC" representation of the diagnostics just because
 		// it's more friendly for comparison and we care only about the
 		// user-facing information in the diagnostics, not their concrete types.
-		gotDiags := n.warningDiags(t.Context()).ForRPC()
+		gotDiags := n.warningDiags().ForRPC()
 		var wantDiags tfdiags.Diagnostics
 		wantDiags = wantDiags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  "Object attribute is ignored",
 			Detail:   `The object type for input variable "foo" does not include an attribute named "baz", so this definition is unused. Did you mean to set attribute "bar" instead?`,
+			Subject: &hcl.Range{
+				Filename: "test.tofu",
+			},
+		})
+		wantDiags = wantDiags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail:   `The object type for input variable "foo" nested value .bar does not include an attribute named "beep", so this definition is unused.`,
 			Subject: &hcl.Range{
 				Filename: "test.tofu",
 			},

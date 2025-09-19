@@ -13,9 +13,7 @@ import (
 	"slices"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -23,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/lint"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -171,7 +170,7 @@ func (n *nodeModuleVariable) Execute(ctx context.Context, evalCtx EvalContext, o
 	// that always happens before any other walk and so we'd generate
 	// duplicate diagnostics if we produced this in later walks too.
 	if op == walkValidate {
-		diags = diags.Append(n.warningDiags(ctx))
+		diags = diags.Append(n.warningDiags())
 	}
 
 	// Set values for arguments of a child module call, for later retrieval
@@ -261,62 +260,39 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx context.Context, evalCtx Eva
 // a mistake.
 //
 // This function never returns error diagnostics.
-func (n *nodeModuleVariable) warningDiags(_ context.Context) tfdiags.Diagnostics {
+func (n *nodeModuleVariable) warningDiags() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// If the definition directly uses object constructor syntax, meaning that
-	// the resulting object is definitely for this input variable and not
-	// also used in any other place, then any attributes that aren't included
-	// in the variable's object type constrant are very likely to be mistakes.
-	// (They would just be discarded during type conversion, and so there's
-	// no useful reason to include them.)
-	//
-	// We only do this for direct object constructor syntax because it's more
-	// reasonable to use an object defined elsewhere that intentionally has
-	// a superset of the expected attributes but is also used in a different
-	// place that relies on a different subset of its attributes.
-	if consExpr, ok := n.Expr.(*hclsyntax.ObjectConsExpr); ok {
-		ty := n.Config.ConstraintType
-		if ty != cty.NilType && ty.IsObjectType() {
-			for _, item := range consExpr.Items {
-				// The following is a cut-down version of the logic that
-				// HCL itself uses to evaluate keys in an object constructor
-				// expression during evaluation, from
-				// [hclsyntax.ObjectConsExpr.Value].
-				//
-				// This is a best-effort thing which only works for
-				// valid and literally-defined keys, since that's the common
-				// case we're trying to lint-check. We'll ignore anything that
-				// we can't trivially evaluate.
-				key, keyDiags := item.KeyExpr.Value(nil)
-				if keyDiags.HasErrors() || !key.IsKnown() || key.IsNull() {
-					continue
-				}
-				key, _ = key.Unmark()
-				var err error
-				key, err = convert.Convert(key, cty.String)
-				if err != nil {
-					continue
-				}
-				keyStr := key.AsString()
-				if !ty.HasAttribute(keyStr) {
-					attrs := slices.Collect(maps.Keys(ty.AttributeTypes()))
-					suggestion := ""
-					if similarName := didyoumean.NameSuggestion(keyStr, attrs); similarName != "" {
-						suggestion = fmt.Sprintf(" Did you mean to set attribute %q instead?", similarName)
-					}
-					diags = diags.Append(&hcl.Diagnostic{
-						Severity: hcl.DiagWarning,
-						Summary:  "Object attribute is ignored",
-						Detail: fmt.Sprintf(
-							"The object type for input variable %q does not include an attribute named %q, so this definition is unused.%s",
-							n.Addr.Variable.Name, keyStr, suggestion,
-						),
-						Subject: item.KeyExpr.Range().Ptr(),
-					})
-				}
-			}
+	// If the expression used to define the variable includes any object
+	// constructor expressions with attribute names that would definitely be
+	// discarded during type conversion then we'll warn about that, because
+	// there's no useful reason to do that.
+	for unused := range lint.DiscardedObjectConstructorAttrs(n.Expr, n.Config.ConstraintType) {
+		// The final step of the path is the one representing the problem
+		// while any that appear before it are just context.
+		prePath, problemStep := unused.Path[:len(unused.Path)-1], unused.Path[len(unused.Path)-1]
+		attrName := problemStep.(cty.GetAttrStep).Name
+
+		attrs := slices.Collect(maps.Keys(unused.TargetType.AttributeTypes()))
+		suggestion := ""
+		if similarName := didyoumean.NameSuggestion(attrName, attrs); similarName != "" {
+			suggestion = fmt.Sprintf(" Did you mean to set attribute %q instead?", similarName)
 		}
+
+		var extraPathClause string
+		if len(prePath) != 0 {
+			extraPathClause = fmt.Sprintf(" nested value %s", tfdiags.FormatCtyPath(prePath))
+		}
+
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail: fmt.Sprintf(
+				"The object type for input variable %q%s does not include an attribute named %q, so this definition is unused.%s",
+				n.Addr.Variable.Name, extraPathClause, attrName, suggestion,
+			),
+			Subject: unused.NameRange.ToHCL().Ptr(),
+		})
 	}
 
 	return diags
