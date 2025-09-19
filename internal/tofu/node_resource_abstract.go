@@ -186,6 +186,8 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		result = append(result, refs...)
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
+		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.Enabled)
+		result = append(result, refs...)
 
 		if c.ProviderConfigRef != nil && c.ProviderConfigRef.KeyExpression != nil {
 			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.ProviderConfigRef.KeyExpression)
@@ -515,6 +517,16 @@ func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx E
 
 		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
+
+	case n.Config != nil && n.Config.Enabled != nil:
+		enabled, enabledDiags := evaluateEnabledExpression(ctx, n.Config.Enabled, evalCtx)
+		diags = diags.Append(enabledDiags)
+		if enabledDiags.HasErrors() {
+			return diags
+		}
+
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
+		expander.SetResourceEnabled(addr.Module, n.Addr.Resource, enabled)
 
 	case n.Config != nil && n.Config.ForEach != nil:
 		forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, addr)

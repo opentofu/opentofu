@@ -128,13 +128,19 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 			"invalid-files/resource-count-and-for_each.tf",
 			hcl.DiagError,
 			`Invalid combination of "count" and "for_each"`,
-			`The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+			`The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
+		},
+		{
+			"invalid-files/resource-count-and-for_each-and-enabled.tf",
+			hcl.DiagError,
+			`Invalid combination of "count", "enabled", and "for_each"`,
+			`The "count", "enabled", and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
 		},
 		{
 			"invalid-files/data-count-and-for_each.tf",
 			hcl.DiagError,
 			`Invalid combination of "count" and "for_each"`,
-			`The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+			`The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
 		},
 		{
 			"invalid-files/resource-lifecycle-badbool.tf",
