@@ -406,9 +406,12 @@ type Plan struct {
 	// ResourceDrift which may have contributed to the plan changes.
 	RelevantAttributes []*PlanResourceAttr `protobuf:"bytes,15,rep,name=relevant_attributes,json=relevantAttributes,proto3" json:"relevant_attributes,omitempty"`
 	// timestamp is the record of truth for when the plan happened.
-	Timestamp     string `protobuf:"bytes,21,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Timestamp string `protobuf:"bytes,21,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// EphemeralVariables records the ephemeral variables later used
+	// be able to validate the values for these during the apply command.
+	EphemeralVariables []string `protobuf:"bytes,22,rep,name=ephemeral_variables,json=ephemeralVariables,proto3" json:"ephemeral_variables,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Plan) Reset() {
@@ -544,6 +547,13 @@ func (x *Plan) GetTimestamp() string {
 		return x.Timestamp
 	}
 	return ""
+}
+
+func (x *Plan) GetEphemeralVariables() []string {
+	if x != nil {
+		return x.EphemeralVariables
+	}
+	return nil
 }
 
 // Backend is a description of backend configuration and other related settings.
@@ -1331,7 +1341,7 @@ var File_planfile_proto protoreflect.FileDescriptor
 
 const file_planfile_proto_rawDesc = "" +
 	"\n" +
-	"\x0eplanfile.proto\x12\x06tfplan\"\x84\a\n" +
+	"\x0eplanfile.proto\x12\x06tfplan\"\xb5\a\n" +
 	"\x04Plan\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12%\n" +
 	"\aui_mode\x18\x11 \x01(\x0e2\f.tfplan.ModeR\x06uiMode\x12\x18\n" +
@@ -1347,7 +1357,8 @@ const file_planfile_proto_rawDesc = "" +
 	"\x11terraform_version\x18\x0e \x01(\tR\x10terraformVersion\x12)\n" +
 	"\abackend\x18\r \x01(\v2\x0f.tfplan.BackendR\abackend\x12K\n" +
 	"\x13relevant_attributes\x18\x0f \x03(\v2\x1a.tfplan.Plan.resource_attrR\x12relevantAttributes\x12\x1c\n" +
-	"\ttimestamp\x18\x15 \x01(\tR\ttimestamp\x1aR\n" +
+	"\ttimestamp\x18\x15 \x01(\tR\ttimestamp\x12/\n" +
+	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x1aR\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x05value:\x028\x01\x1aM\n" +

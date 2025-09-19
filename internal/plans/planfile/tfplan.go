@@ -241,18 +241,16 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	for name, rawVal := range rawPlan.Variables {
-		// For the variables written in the plan with a null value, we only record that as ephemeral
-		// but we don't load its null value in the plan object since that would add some complexity later.
-		if valueIsEmpty(rawVal) {
-			plan.EphemeralVariables[name] = true
-			continue
-		}
 		val, err := valueFromTfplan(rawVal)
 		if err != nil {
 			return nil, fmt.Errorf("invalid value for input variable %q: %w", name, err)
 		}
 		plan.VariableValues[name] = val
 		plan.EphemeralVariables[name] = false
+	}
+	// Record the ephemeral variables in the map used later to process these.
+	for _, name := range rawPlan.EphemeralVariables {
+		plan.EphemeralVariables[name] = true
 	}
 
 	if rawBackend := rawPlan.Backend; rawBackend == nil {
@@ -478,14 +476,10 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 }
 
 func valueFromTfplan(rawV *planproto.DynamicValue) (plans.DynamicValue, error) {
-	if valueIsEmpty(rawV) {
+	if len(rawV.Msgpack) == 0 { // len(0) because that's the default value for a "bytes" in protobuf
 		return nil, fmt.Errorf("dynamic value does not have msgpack serialization")
 	}
 	return plans.DynamicValue(rawV.Msgpack), nil
-}
-
-func valueIsEmpty(rawV *planproto.DynamicValue) bool {
-	return rawV == nil || len(rawV.Msgpack) == 0 // len(0) because that's the default value for a "bytes" in protobuf
 }
 
 // writeTfplan serializes the given plan into the protobuf-based format used
@@ -502,11 +496,12 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		Version:          tfplanFormatVersion,
 		TerraformVersion: version.String(),
 
-		Variables:       map[string]*planproto.DynamicValue{},
-		OutputChanges:   []*planproto.OutputChange{},
-		CheckResults:    []*planproto.CheckResults{},
-		ResourceChanges: []*planproto.ResourceInstanceChange{},
-		ResourceDrift:   []*planproto.ResourceInstanceChange{},
+		Variables:          map[string]*planproto.DynamicValue{},
+		EphemeralVariables: []string{},
+		OutputChanges:      []*planproto.OutputChange{},
+		CheckResults:       []*planproto.CheckResults{},
+		ResourceChanges:    []*planproto.ResourceInstanceChange{},
+		ResourceDrift:      []*planproto.ResourceInstanceChange{},
 	}
 
 	rawPlan.Errored = plan.Errored
@@ -641,9 +636,8 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 
 	for name, val := range plan.VariableValues {
 		if is, ok := plan.EphemeralVariables[name]; ok && is {
-			// We want to store only the names of the ephemeral variables to be able to recover these later.
-			// Even though we save the variable, it's mandatory not to save its value.
-			rawPlan.Variables[name] = valueToTfplan(nil)
+			// We want to store only the names of the ephemeral variables to be able to restore this map later.
+			rawPlan.EphemeralVariables = append(rawPlan.EphemeralVariables, name)
 			continue
 		}
 		rawPlan.Variables[name] = valueToTfplan(val)
