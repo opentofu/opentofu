@@ -67,7 +67,9 @@ func TestRoundtrip(t *testing.T) {
 		DriftedResources: []*plans.ResourceInstanceChangeSrc{},
 		VariableValues: map[string]plans.DynamicValue{
 			"foo": plans.DynamicValue([]byte("foo placeholder")),
+			"bar": plans.DynamicValue([]byte("bar placeholder")),
 		},
+		EphemeralVariables: map[string]bool{"foo": false, "bar": true},
 		Backend: plans.Backend{
 			Type:      "local",
 			Config:    plans.DynamicValue([]byte("config placeholder")),
@@ -83,6 +85,17 @@ func TestRoundtrip(t *testing.T) {
 		// below.
 		PrevRunState: prevStateFileIn.State,
 		PriorState:   stateFileIn.State,
+	}
+	// By deleting the ephemeral variable from the VariableValues, we change the given plan
+	// to match a plan read from the file. While loading the plan, the variables stored with
+	// a null value are only stored in EphemeralVariables but not in VariableValues.
+	deleteEphemeralVarFromVars := func(in plans.Plan) *plans.Plan {
+		for vn, eph := range in.EphemeralVariables {
+			if eph {
+				delete(in.VariableValues, vn)
+			}
+		}
+		return &in
 	}
 
 	locksIn := depsfile.NewLocks()
@@ -125,7 +138,7 @@ func TestRoundtrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read plan: %s", err)
 		}
-		if diff := cmp.Diff(planIn, planOut); diff != "" {
+		if diff := cmp.Diff(deleteEphemeralVarFromVars(*planIn), planOut); diff != "" {
 			t.Errorf("plan did not survive round-trip\n%s", diff)
 		}
 	})

@@ -95,6 +95,10 @@ message Plan {
 
     // timestamp is the record of truth for when the plan happened.
     string timestamp = 21;
+
+    // EphemeralVariables records the ephemeral variables later used
+    // be able to validate the values for these during the apply command.
+    repeated string ephemeral_variables = 22;
 }
 
 // Mode describes the planning mode that created the plan.
