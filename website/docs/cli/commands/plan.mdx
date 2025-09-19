@@ -295,6 +295,13 @@ information about resources declared in other configurations, allowing
 a complex system architecture to be broken down into more manageable parts
 that can be updated independently.
 
+:::warning
+Even though `-target` and `-exclude` both accept individual resource instance addresses,
+due to some legacy decisions that cannot be undone without changing fully the way these features
+work, using individual resource instance addresses for these should not be relied on.
+Instead, these options should be used only with whole-resource addresses.
+:::
+
 ## Other Options
 
 The `tofu plan` command also has some other options that are related to
