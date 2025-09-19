@@ -246,8 +246,12 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 //
 // # mergePlanAndApplyVariables
 // This gets the plan and the *ApplyOpts and builds the InputValues. The values saved in the plan have
-// priority *when defined*, but the variables found in the plan with a null value are considered to be
-// ephemeral and values for those are searched in the ApplyOpts.
+// priority *when defined*, but the variables marked as ephemeral in the plan and values for those are searched in the ApplyOpts.
+// The implementation is an incremental check from the basic value to the most specific one:
+// * First, the initial value is cty.NilVal that will force later the variable node to check for its default value
+// * Second, it tries to find the value of the variable in the ApplyOpts#SetVariables, and if it does, it overrides the value from the previous step with it
+// * Third, it tries to find the value of the variable in the plans.Plan#VariableValues, and if it does, it overrides the value from the previous step with it
+// * Last, it executed two validations to ensure that the resulted value matches its configuration and the plan content.
 func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	variables := map[string]*InputValue{}
@@ -264,7 +268,7 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Missing variable in configuration",
-				fmt.Sprintf("Variable %q not found in the given configuration", name),
+				fmt.Sprintf("Plan variable %q not found in the given configuration", name),
 			))
 		}
 	}
@@ -277,6 +281,10 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 				fmt.Sprintf("Variable %q not found in the given configuration", name),
 			))
 		}
+	}
+	// no reason to process more if there are already errors
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	for name, cfg := range config.Module.Variables {
@@ -322,7 +330,10 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 			}
 		}
 
-		// If both are set, ensure they are identical
+		// If both are set, ensure they are identical.
+		// This is applicable only for non-ephemeral variables, ephemeral values can be only in one of the source at once:
+		// * Will be in the plan when `tofu apply` will be executed without a plan file
+		// * Will be in the applyOpts when `tofu apply` will be executed with a plan file
 		if planOk && inputOk {
 			if inputValue.Equals(planValue).False() {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -334,7 +345,8 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 			}
 		}
 
-		// If ephemeral, required, and not given as input
+		// If an ephemeral variable have no default value configured and there is no value for it in plan or input,
+		// then the value for this is required so ask for it.
 		if plan.EphemeralVariables[name] && cfg.Required() && !inputOk && !planOk {
 			// Ephemeral variables are not saved into the plan so these need to be passed during the apply too.
 			diags = diags.Append(&hcl.Diagnostic{

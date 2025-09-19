@@ -17,6 +17,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
@@ -5892,6 +5893,307 @@ output "regular_optional" {
 				if diff := cmp.Diff(gotState, wantState); diff != "" {
 					t.Fatalf("got different state than expected:\n%s", diff)
 				}
+			}
+		})
+	}
+}
+
+func TestMergePlanAndApplyVariables(t *testing.T) {
+	mustDynamicVarVal := func(val string) plans.DynamicValue {
+		ret, err := plans.NewDynamicValue(cty.StringVal(val), cty.DynamicPseudoType)
+		if err != nil {
+			panic(err)
+		}
+		return ret
+	}
+
+	cases := map[string]struct {
+		config               *configs.Config
+		plan                 *plans.Plan
+		opts                 *ApplyOpts
+		expectedVals         InputValues
+		expectedDiagsDetails []tfdiags.Description
+	}{
+		"backwards compatibility test - missing values from plan are set to nil": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+						"var2": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("var1 value"),
+				},
+			},
+			nil,
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("var1 value"),
+					SourceType: ValueFromPlan,
+				},
+				"var2": &InputValue{
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"backwards compatibility test - malformed plan variable value generates error": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": []byte("test"),
+				},
+			},
+			nil,
+			InputValues{
+				// Initially, before the introduction of mergePlanAndApplyVariables, the returned InputValues had no entries.
+				// But due to the new way this is implemented, now these are returned with their nil value.
+				// This is not an issue, functionally speaking, because the call to this new method must check
+				// first for the diags and after user the returned values.
+				"var1": &InputValue{SourceType: ValueFromPlan},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "Invalid variable value in plan",
+					Detail:  `Invalid value for variable "var1" recorded in plan file: msgpack: invalid code=74 decoding array length.`,
+				},
+			},
+		},
+		// this should not happen in real life since this should be caught in an early stage of the execution,
+		// but we check this here too to be sure that we don't allow other failures downstream
+		"variable value in plan but not in config": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("var1 value"),
+				},
+			},
+			nil,
+			nil,
+			[]tfdiags.Description{
+				{
+					Summary: "Missing variable in configuration",
+					Detail:  `Plan variable "var1" not found in the given configuration`,
+				},
+			},
+		},
+		"variable value in apply opts but not in config": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("var1 value"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			nil,
+			[]tfdiags.Description{
+				{
+					Summary: "Missing variable in configuration",
+					Detail:  `Variable "var1" not found in the given configuration`,
+				},
+			},
+		},
+		"value not in plan but in apply opts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("var1 value"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("var1 value"),
+					SourceType: ValueFromCLIArg,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"ephemeral with no default must have no value in plan but must have value in applyOpts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues:     map[string]plans.DynamicValue{},
+				EphemeralVariables: map[string]bool{"var1": true},
+			},
+			nil,
+			InputValues{
+				// This is returned strictly due to the way mergePlanAndApplyVariables is implemented. Check
+				// the comment on the method
+				"var1": &InputValue{
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "No value for required variable",
+					Detail:  "Variable \"var1\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.",
+				},
+			},
+		},
+		"ephemeral with default can have no value in applyOpts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {
+							Default: cty.NullVal(cty.String),
+						},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues:     map[string]plans.DynamicValue{},
+				EphemeralVariables: map[string]bool{"var1": true},
+			},
+			nil,
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"value in applyOpts and the one in plan needs to be equal for non-ephemeral variables": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("value from plan"),
+				},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("value from apply opts"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("value from plan"),
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "Mismatch between input and plan variable value",
+					Detail:  `Value saved in the plan file for variable "var1" is different from the one given to the current command.`,
+				},
+			},
+		},
+		"successfully merge values for multiple variables": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"regular_with_default": {
+							Default: cty.NullVal(cty.String),
+						},
+						"regular_without_default": {},
+						"ephemeral_with_default": {
+							Default: cty.NullVal(cty.String),
+						},
+						"ephemeral_without_default": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"regular_without_default": mustDynamicVarVal("regular value from plan"),
+				},
+				EphemeralVariables: map[string]bool{
+					"ephemeral_with_default":    true,
+					"ephemeral_without_default": true,
+				},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"ephemeral_without_default": &InputValue{
+						Value:      cty.StringVal("ephemeral value from apply opts"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"regular_with_default": {
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+				"regular_without_default": {
+					Value:      cty.StringVal("regular value from plan"),
+					SourceType: ValueFromPlan,
+				},
+				"ephemeral_with_default": {
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+				"ephemeral_without_default": {
+					Value:      cty.StringVal("ephemeral value from apply opts"),
+					SourceType: ValueFromCLIArg,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &Context{}
+			got, gotDiags := c.mergePlanAndApplyVariables(tt.config, tt.plan, tt.opts)
+			if diff := cmp.Diff(tt.expectedVals, got, cmpopts.EquateComparable(cty.Value{})); diff != "" {
+				t.Errorf("invalid input values returned\n%s", diff)
+			}
+			diagsDesc := make([]tfdiags.Description, len(gotDiags))
+			for i, diag := range gotDiags {
+				diagsDesc[i] = diag.Description()
+			}
+			if diff := cmp.Diff(tt.expectedDiagsDetails, diagsDesc); diff != "" {
+				t.Errorf("invalid diags returned\n%s", diff)
 			}
 		})
 	}
