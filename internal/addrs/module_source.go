@@ -8,6 +8,8 @@ package addrs
 import (
 	"fmt"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -71,7 +73,7 @@ var moduleSourceLocalPrefixes = []string{
 // can therefore expose more detailed error messages about registry address
 // parsing in particular.
 func ParseModuleSource(raw string) (ModuleSource, error) {
-	if isModuleSourceLocal(raw) {
+	if isModuleSourceLocal(raw) || isAbsoluteFromWindows(raw) {
 		localAddr, err := parseModuleSourceLocal(raw)
 		if err != nil {
 			// This is to make sure we really return a nil ModuleSource in
@@ -111,6 +113,10 @@ func ParseModuleSource(raw string) (ModuleSource, error) {
 		return nil, err
 	}
 	return remoteAddr, nil
+}
+
+func isAbsoluteFromWindows(raw string) bool {
+	return runtime.GOOS == "windows" && filepath.VolumeName(raw) != ""
 }
 
 // ModuleSourceLocal is a ModuleSource representing a local path reference
