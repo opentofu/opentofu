@@ -135,7 +135,6 @@ func TestDirFromModule_registry(t *testing.T) {
 }
 
 func TestDirFromModule_submodules(t *testing.T) {
-	fixtureDir := filepath.Clean("testdata/empty")
 	fromModuleDir, err := filepath.Abs("./testdata/local-modules")
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +151,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		t.Error(err)
 	}
 
-	tmpDir := tempChdir(t, fixtureDir)
+	tmpDir := tempChdir(t, "./testdata/empty")
 
 	hooks := &testInstallHooks{}
 	dir, err := filepath.EvalSymlinks(tmpDir)
