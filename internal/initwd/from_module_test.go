@@ -7,6 +7,7 @@ package initwd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -159,6 +160,10 @@ func TestDirFromModule_submodules(t *testing.T) {
 		t.Error(err)
 	}
 	modInstallDir := filepath.Join(tmpDir, ".terraform/modules")
+
+	fmt.Println("modInstallDir", modInstallDir)
+	fmt.Println("fromModuleDir", fromModuleDir)
+	fmt.Println("dir", dir)
 
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
