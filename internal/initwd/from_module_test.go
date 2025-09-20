@@ -158,7 +158,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	modInstallDir := filepath.Join(dir, ".terraform/modules")
+	modInstallDir := filepath.Join(tmpDir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
