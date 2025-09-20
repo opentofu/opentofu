@@ -304,6 +304,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 				// the destination ("../")
 				if parentOld.Dir == "." {
 					absDir, err := filepath.Abs(parentOld.Dir)
+					fmt.Printf("[TRACE] absDir1 %s: %s\n", absDir, parentOld.Dir)
 					if err != nil {
 						diags = diags.Append(tfdiags.Sourceless(
 							tfdiags.Error,
@@ -313,6 +314,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 						continue
 					}
 					baseDirRel, err = filepath.Rel(absDir, record.Dir)
+					fmt.Printf("[TRACE] absDir3 %s: %s %s\n", baseDirRel, absDir, record.Dir)
 					if err != nil {
 						diags = diags.Append(tfdiags.Sourceless(
 							tfdiags.Error,
