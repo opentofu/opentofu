@@ -3,7 +3,10 @@ module github.com/opentofu/opentofu
 // At the time of adding this configuration, the new Go feature introduced here https://github.com/golang/go/issues/67061,
 // was having a good amount of issues linked to, affecting AWS Firewall, GCP various services and a lot more.
 // In go1.23 the godebug flag for this was named 'tlskyber', renamed in go1.24 to 'tlsmlkem'. https://tip.golang.org/doc/godebug#go-124
-godebug tlsmlkem=0
+godebug (
+	tlsmlkem=0
+	winsymlink=0 // See https://github.com/opentofu/opentofu/pull/3289
+)
 
 require (
 	cloud.google.com/go/kms v1.15.5
