@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -118,6 +119,14 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 func TestInit_fromModule_dstInSrc(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+
+	defer func() {
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	}()
 	if err := os.Mkdir("foo", os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
