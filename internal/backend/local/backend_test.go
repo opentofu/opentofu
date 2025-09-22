@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -31,6 +32,12 @@ func TestLocal_backend(t *testing.T) {
 	b := New(encryption.StateEncryptionDisabled())
 	backend.TestBackendStates(t, b)
 	backend.TestBackendStateLocks(t, b, b)
+
+	// On Windows, the file open handles is not closed due to multiple
+	// rounds of locking and reading the state.
+	if runtime.GOOS == "windows" {
+		runtime.GC()
+	}
 }
 
 func checkState(t *testing.T, path, expected string) {
