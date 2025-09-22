@@ -46,7 +46,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByUnknown(true),
 		})
 	}
 
