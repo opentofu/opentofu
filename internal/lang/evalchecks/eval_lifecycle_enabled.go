@@ -50,18 +50,6 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
-	enabledVal, err := convert.Convert(rawEnabledVal, cty.Bool)
-	if err != nil {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid enabled argument",
-			Detail:      fmt.Sprintf(`The given "enabled" argument value is unsuitable: %s.`, err),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-		})
-	}
-
 	if rawEnabledVal.HasMark(marks.Ephemeral) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
@@ -92,6 +80,18 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 			Expression:  expr,
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedByUnknown(true),
+		})
+	}
+
+	enabledVal, err := convert.Convert(rawEnabledVal, cty.Bool)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid enabled argument",
+			Detail:      fmt.Sprintf(`The given "enabled" argument value is unsuitable: %s.`, err),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
 		})
 	}
 

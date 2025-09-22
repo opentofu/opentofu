@@ -89,15 +89,15 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
+					`The given "enabled" argument value is unsuitable: the given value is null.`,
 				},
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable: the given value is null.`,
+					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
 				},
 			},
 		},
-		"1": {
+		"positive number": {
 			cty.NumberIntVal(1),
 			[]WantedError{
 				{
@@ -106,7 +106,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 				},
 			},
 		},
-		"negative": {
+		"negative number": {
 			cty.NumberIntVal(-1),
 			[]WantedError{
 				{
@@ -138,11 +138,11 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					"The given \"enabled\" argument value is unsuitable: bool required, but have number.",
+					`The given "enabled" argument value is derived from a value that won't be known until the apply phase, so OpenTofu cannot determine whether an instance of this object is declared or not.`,
 				},
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is derived from a value that won't be known until the apply phase, so OpenTofu cannot determine whether an instance of this object is declared or not.`,
+					"The given \"enabled\" argument value is unsuitable: bool required, but have number.",
 				},
 			},
 		},
