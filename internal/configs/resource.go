@@ -456,35 +456,46 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists && !nested {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	} else if exists && nested {
 		// We don't allow count attributes in nested data blocks.
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid "count" attribute`,
-			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
+			Detail:   `The "count" meta-argument is not supported within nested data blocks.`,
 			Subject:  &attr.NameRange,
 		})
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists && !nested {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same data block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	} else if exists && nested {
 		// We don't allow for_each attributes in nested data blocks.
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid "for_each" attribute`,
-			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
+			Detail:   `The "for_each" meta-argument is not supported within nested data blocks.`,
+			Subject:  &attr.NameRange,
+		})
+	}
+
+	if attr, exists := content.Attributes["enabled"]; exists && !nested {
+		r.Enabled = attr.Expr
+		enabledRng = attr.NameRange
+		repetitionArgs++
+	} else if exists && nested {
+		// We don't allow enabled attributes in nested data blocks.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "enabled" attribute`,
+			Detail:   `The "enabled" meta-argument is not supported within nested data blocks.`,
 			Subject:  &attr.NameRange,
 		})
 	}
@@ -555,10 +566,12 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			// All of the attributes defined for resource lifecycle are for
 			// managed resources only, so we can emit a common error message
 			// for any given attributes that HCL accepted.
+			// Enabled is a special case, as it is allowed for data resources
 			for name, attr := range lcContent.Attributes {
-				// Enabled is a special case, it is allowed for data resources
 				if name == "enabled" {
 					r.Enabled = attr.Expr
+					enabledRng = attr.NameRange
+					repetitionArgs++
 					continue
 				}
 				diags = append(diags, &hcl.Diagnostic{
@@ -603,6 +616,17 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 		}
 	}
 
+	if repetitionArgs > 1 {
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
+
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Subject:  complainRng,
+		})
+	}
+
 	return r, diags
 }
 
@@ -637,21 +661,18 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same resource block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
@@ -713,6 +734,12 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			if _, exists := lcContent.Attributes["ignore_changes"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("ignore_changes", block.DefRange))
 			}
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				r.Enabled = attr.Expr
+				enabledRng = attr.NameRange
+				repetitionArgs++
+			}
+
 			for _, block := range lcContent.Blocks {
 				switch block.Type {
 				case "precondition", "postcondition":
@@ -771,6 +798,17 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 				Subject:  &block.TypeRange,
 			})
 		}
+	}
+
+	if repetitionArgs > 1 {
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
+
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Subject:  complainRng,
+		})
 	}
 
 	return r, diags
