@@ -907,7 +907,7 @@ func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state
 		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(ctx, plan, config)
+		updated, applyDiags = tfCtx.Apply(ctx, plan, config, nil)
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)

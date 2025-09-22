@@ -355,15 +355,23 @@ Changes to Outputs:
 			}
 			expectedVal := cty.StringVal("plan_val")
 			if expectedVal.Equals(varVal).False() {
-				t.Fatalf("unexpected value saved in the plan object. expected: %s; got: %s", expectedVal.GoString(), varVal.GoString())
+				t.Errorf("unexpected value saved in the plan object. expected: %s; got: %s", expectedVal.GoString(), varVal.GoString())
 			}
-			// no more vars expected in the plan
-			if got, want := len(plan.VariableValues), 1; got != want {
-				t.Fatalf("expected to have only %d variables in the plan but got %d: %s", want, got, plan.VariableValues)
+			// ephemeral variables are to be missing from plan.VariableValues but to be found in plan.EphemeralVariables
+			varDynVal, ok = plan.VariableValues["ephemeral_input"]
+			if ok {
+				t.Errorf("expected variable %q to be missing from plan.VariableValues but got %s", "ephemeral_input", varDynVal)
 			}
-			// ensure that the ephemeral variable is registered as expected
-			if plan.EphemeralVariables != nil {
-				t.Fatalf("plan.EphemeralVariables is not meant to be initialised when reading the plan since there is no way to say which variable is ephemeral without having the configuration available")
+			// ensure that plan.EphemeralVariables is registered as expected
+			if plan.EphemeralVariables == nil {
+				t.Errorf("plan.EphemeralVariables is meant to be initialised when reading the plan since the empty value variables are marked as ephemeral=true")
+			}
+			expectedEphemeralVariables := map[string]bool{
+				"ephemeral_input": true,
+				"simple_input":    false,
+			}
+			if diff := cmp.Diff(plan.EphemeralVariables, expectedEphemeralVariables); diff != "" {
+				t.Errorf("invalid content of plan.EphemeralVariables: %s", diff)
 			}
 		}
 
@@ -371,6 +379,22 @@ Changes to Outputs:
 			expectedToContain := `╷ Error: Mismatch between input and plan variable value  Value saved in the plan file for variable "simple_input" is different from the one given to the current command.╵`
 			expectedErr := fmt.Errorf("exit status 1")
 			_, stderr, err := tf.Run("apply", `-var=simple_input=different_from_the_plan_one`, `-var=ephemeral_input=ephemeral_val`, "tfplan")
+			if err == nil {
+				t.Fatalf("expected an error but got nothing")
+			}
+			if got, want := err.Error(), expectedErr.Error(); got != want {
+				t.Fatalf("expected err %q but got %q", want, got)
+			}
+			cleanStderr := SanitizeStderr(stderr)
+			if cleanStderr != expectedToContain {
+				t.Errorf("expected an error message but didn't get it.\nexpected:\n%s\n\ngot:\n%s\n", expectedToContain, cleanStderr)
+			}
+		}
+
+		{ // APPLY with no ephemeral variable value
+			expectedToContain := "╷ Error: No value for required variable    on main.tf line 15:   15: variable \"ephemeral_input\" {  Variable \"ephemeral_input\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.╵"
+			expectedErr := fmt.Errorf("exit status 1")
+			_, stderr, err := tf.Run("apply", `-var=simple_input=plan_val`, "tfplan")
 			if err == nil {
 				t.Fatalf("expected an error but got nothing")
 			}

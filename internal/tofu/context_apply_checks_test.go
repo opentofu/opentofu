@@ -738,7 +738,7 @@ check "error" {
 				test.providerHook(test.provider)
 			}
 
-			state, diags := ctx.Apply(context.Background(), plan, configs)
+			state, diags := ctx.Apply(context.Background(), plan, configs, nil)
 			if validateCheckDiagnostics(t, "apply", test.applyWarning, test.applyError, diags) {
 				return
 			}
