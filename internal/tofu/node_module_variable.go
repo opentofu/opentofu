@@ -292,6 +292,7 @@ func (n *nodeModuleVariable) warningDiags() tfdiags.Diagnostics {
 				n.Addr.Variable.Name, extraPathClause, attrName, suggestion,
 			),
 			Subject: unused.NameRange.ToHCL().Ptr(),
+			Context: unused.ContextRange.ToHCL().Ptr(),
 		})
 	}
 

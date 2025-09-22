@@ -322,12 +322,13 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 				}),
 			},
 			Expr: &hclsyntax.ObjectConsExpr{
+				SrcRange: hcl.Range{Filename: "context1.tofu"},
 				Items: []hclsyntax.ObjectConsItem{
 					{
 						KeyExpr: &hclsyntax.LiteralValueExpr{
 							Val: cty.StringVal("baz"),
 							SrcRange: hcl.Range{
-								Filename: "test.tofu",
+								Filename: "test1.tofu",
 							},
 						},
 						ValueExpr: &hclsyntax.LiteralValueExpr{
@@ -342,12 +343,13 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 							},
 						},
 						ValueExpr: &hclsyntax.ObjectConsExpr{
+							SrcRange: hcl.Range{Filename: "context2.tofu"},
 							Items: []hclsyntax.ObjectConsItem{
 								{
 									KeyExpr: &hclsyntax.LiteralValueExpr{
 										Val: cty.StringVal("beep"),
 										SrcRange: hcl.Range{
-											Filename: "test.tofu",
+											Filename: "test2.tofu",
 										},
 									},
 									ValueExpr: &hclsyntax.LiteralValueExpr{
@@ -371,7 +373,10 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 			Summary:  "Object attribute is ignored",
 			Detail:   `The object type for input variable "foo" does not include an attribute named "baz", so this definition is unused. Did you mean to set attribute "bar" instead?`,
 			Subject: &hcl.Range{
-				Filename: "test.tofu",
+				Filename: "test1.tofu", // from synthetic source range in constructed expression above
+			},
+			Context: &hcl.Range{
+				Filename: "context1.tofu", // from synthetic source range in constructed expression above
 			},
 		})
 		wantDiags = wantDiags.Append(&hcl.Diagnostic{
@@ -379,7 +384,10 @@ func TestNodeModuleVariable_warningDiags(t *testing.T) {
 			Summary:  "Object attribute is ignored",
 			Detail:   `The object type for input variable "foo" nested value .bar does not include an attribute named "beep", so this definition is unused.`,
 			Subject: &hcl.Range{
-				Filename: "test.tofu",
+				Filename: "test2.tofu", // from synthetic source range in constructed expression above
+			},
+			Context: &hcl.Range{
+				Filename: "context2.tofu", // from synthetic source range in constructed expression above
 			},
 		})
 		wantDiags = wantDiags.ForRPC()

@@ -41,6 +41,13 @@ type DiscardedObjectConstructorAttr struct {
 	// definition that is being reported.
 	NameRange tfdiags.SourceRange
 
+	// ContextRange is the source range of relevant context surrounding the
+	// problematic attribute defition, intended to be used for the "Context"
+	// field of a generated diagnostic so that its included source code
+	// snippet will also include some surrounding lines that should indicate
+	// what else was set in the relevant object constructor.
+	ContextRange tfdiags.SourceRange
+
 	// TargetType is the leaf object type that the affected object constructor
 	// was building a value for. This is the type that the last element of
 	// Path would traverse into, and which (by definition) does not have an
@@ -131,9 +138,10 @@ func yieldDiscardedObjectConstructorAttrsObject(expr hcl.Expression, targetTy ct
 				copy(retPath, path)
 				retPath = append(retPath, cty.GetAttrStep{Name: keyStr})
 				result := DiscardedObjectConstructorAttr{
-					Path:       retPath,
-					NameRange:  tfdiags.SourceRangeFromHCL(item.KeyExpr.Range()),
-					TargetType: targetTy,
+					Path:         retPath,
+					NameRange:    tfdiags.SourceRangeFromHCL(item.KeyExpr.Range()),
+					ContextRange: tfdiags.SourceRangeFromHCL(expr.SrcRange), // the entire containing object literal
+					TargetType:   targetTy,
 				}
 				if !yield(result) {
 					return false

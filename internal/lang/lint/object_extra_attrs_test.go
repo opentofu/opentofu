@@ -38,6 +38,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 2, Column: 5, Byte: 6},
 						End:   tfdiags.SourcePos{Line: 2, Column: 8, Byte: 9},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+						End:   tfdiags.SourcePos{Line: 3, Column: 5, Byte: 22},
+					},
 					TargetType: cty.EmptyObject,
 				},
 			},
@@ -55,6 +59,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 2, Column: 5, Byte: 6},
 						End:   tfdiags.SourcePos{Line: 2, Column: 8, Byte: 9},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+						End:   tfdiags.SourcePos{Line: 3, Column: 5, Byte: 22},
 					},
 					TargetType: cty.Object(map[string]cty.Type{
 						"bar": cty.String,
@@ -90,6 +98,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 2, Column: 6, Byte: 7},
 						End:   tfdiags.SourcePos{Line: 2, Column: 9, Byte: 10},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 5, Byte: 6},
+						End:   tfdiags.SourcePos{Line: 2, Column: 18, Byte: 19},
+					},
 					TargetType: cty.EmptyObject,
 				},
 				{
@@ -97,6 +109,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 26},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 29},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 3, Column: 5, Byte: 25},
+						End:   tfdiags.SourcePos{Line: 3, Column: 19, Byte: 39},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -115,6 +131,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 27},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 30},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 19, Byte: 20},
+						End:   tfdiags.SourcePos{Line: 4, Column: 6, Byte: 44},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -145,6 +165,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 2, Column: 6, Byte: 7},
 						End:   tfdiags.SourcePos{Line: 2, Column: 9, Byte: 10},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 5, Byte: 6},
+						End:   tfdiags.SourcePos{Line: 2, Column: 18, Byte: 19},
+					},
 					TargetType: cty.EmptyObject,
 				},
 				{
@@ -152,6 +176,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 26},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 29},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 3, Column: 5, Byte: 25},
+						End:   tfdiags.SourcePos{Line: 3, Column: 19, Byte: 39},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -170,6 +198,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 27},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 30},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 19, Byte: 20},
+						End:   tfdiags.SourcePos{Line: 4, Column: 6, Byte: 44},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -200,6 +232,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 2, Column: 10, Byte: 11},
 						End:   tfdiags.SourcePos{Line: 2, Column: 13, Byte: 14},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 9, Byte: 10},
+						End:   tfdiags.SourcePos{Line: 2, Column: 22, Byte: 23},
+					},
 					TargetType: cty.EmptyObject,
 				},
 				{
@@ -207,6 +243,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 10, Byte: 34},
 						End:   tfdiags.SourcePos{Line: 3, Column: 13, Byte: 37},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 3, Column: 9, Byte: 33},
+						End:   tfdiags.SourcePos{Line: 3, Column: 23, Byte: 47},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -225,6 +265,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 32},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 35},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 24, Byte: 25},
+						End:   tfdiags.SourcePos{Line: 4, Column: 6, Byte: 49},
 					},
 					TargetType: cty.EmptyObject,
 				},
@@ -258,6 +302,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 2, Column: 6, Byte: 7},
 						End:   tfdiags.SourcePos{Line: 2, Column: 9, Byte: 10},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 5, Byte: 6},
+						End:   tfdiags.SourcePos{Line: 2, Column: 18, Byte: 19},
+					},
 					TargetType: cty.EmptyObject,
 				},
 				{
@@ -265,6 +313,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 26},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 29},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 3, Column: 5, Byte: 25},
+						End:   tfdiags.SourcePos{Line: 3, Column: 19, Byte: 39},
 					},
 					TargetType: cty.Object(map[string]cty.Type{"not_baz": cty.String}),
 				},
@@ -311,6 +363,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 3, Column: 6, Byte: 17},
 						End:   tfdiags.SourcePos{Line: 3, Column: 9, Byte: 20},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 2, Column: 9, Byte: 10},
+						End:   tfdiags.SourcePos{Line: 4, Column: 6, Byte: 34},
+					},
 					TargetType: cty.EmptyObject,
 				},
 				{
@@ -319,6 +375,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 						Start: tfdiags.SourcePos{Line: 6, Column: 6, Byte: 50},
 						End:   tfdiags.SourcePos{Line: 6, Column: 9, Byte: 53},
 					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 5, Column: 9, Byte: 43},
+						End:   tfdiags.SourcePos{Line: 7, Column: 6, Byte: 68},
+					},
 					TargetType: cty.Object(map[string]cty.Type{"not_baz": cty.String}),
 				},
 				{
@@ -326,6 +386,10 @@ func TestDiscardedObjectConstructorAttrs(t *testing.T) {
 					NameRange: tfdiags.SourceRange{
 						Start: tfdiags.SourcePos{Line: 8, Column: 5, Byte: 73},
 						End:   tfdiags.SourcePos{Line: 8, Column: 6, Byte: 74},
+					},
+					ContextRange: tfdiags.SourceRange{
+						Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+						End:   tfdiags.SourcePos{Line: 9, Column: 5, Byte: 84},
 					},
 					TargetType: cty.Object(map[string]cty.Type{
 						"a": cty.EmptyObject,
