@@ -104,5 +104,13 @@ func unmarshalAttribute(attribute *jsonprovider.Attribute) cty.Type {
 }
 
 func computeAttributeDiffAsWriteOnly(change structured.Change, parentAction plans.Action) computed.Diff {
+	// If the provider returned this write-only attribute in the require_replace list,
+	// we want to be sure that the action is not plans.NoOp.
+	// plans.Update might be the wrong one
+	// We want to do this to be sure that the user is informed about the fields that forces
+	// the replacement of the resource.
+	if parentAction == plans.NoOp && change.ReplacePaths.Matches() {
+		parentAction = plans.Update
+	}
 	return asDiffWithInheritedAction(change, parentAction, renderers.WriteOnly())
 }

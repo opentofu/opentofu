@@ -166,6 +166,30 @@ func TestValue_SimpleBlocks(t *testing.T) {
 				"write_only_attribute": renderers.ValidateWriteOnly(plans.Create, false),
 			}, nil, nil, nil, nil, plans.Create, false),
 		},
+		"update_with_write_only_value": {
+			input: structured.Change{
+				Before: map[string]any{
+					"write_only_attribute": nil,
+				},
+				After: map[string]any{
+					"write_only_attribute": nil,
+				},
+				BeforeSensitive: false,
+				AfterSensitive:  false,
+				ReplacePaths:    &attribute_path.PathMatcher{Paths: [][]interface{}{{"write_only_attribute"}}},
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"write_only_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"write_only_attribute": renderers.ValidateWriteOnly(plans.Update, true),
+			}, nil, nil, nil, nil, plans.Update, false),
+		},
 	}
 	for name, tc := range tcs {
 		// Set some default values
