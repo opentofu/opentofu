@@ -290,6 +290,16 @@ func marshalProviderConfigs(
 		m[key] = p
 	}
 
+	// If we have gotten here from calling [MarshalSingleModule], then
+	// we do not recurse into child modules, because they are not
+	// available in that mode. In this mode c.Children will be nil and
+	// this means that we do not have the ability to get the provider_configs for
+	// the child modules.
+	// See the doc comment for [MarshalSingleModule] for more information.
+	if inSingleModuleMode(schemas) {
+		return
+	}
+
 	// Must also visit our child modules, recursively.
 	for name, mc := range c.Module.ModuleCalls {
 		// Keys in c.Children are guaranteed to match those in c.Module.ModuleCalls
@@ -323,11 +333,7 @@ func marshalProviderConfigs(
 		// Finally, marshal any other provider configs within the called module.
 		// It is safe to do this last because it is invalid to configure a
 		// provider which has passed provider configs in the module call.
-		// We don't recurse in single-module mode, because cc will be nil in
-		// that case.
-		if !inSingleModuleMode(schemas) {
-			marshalProviderConfigs(cc, schemas, m)
-		}
+		marshalProviderConfigs(cc, schemas, m)
 	}
 }
 
