@@ -265,6 +265,7 @@ func lintVariableDefaultValue(expr hcl.Expression, targetTy cty.Type) hcl.Diagno
 				nounPhrase, attrName, suggestion,
 			),
 			Subject: unused.NameRange.ToHCL().Ptr(),
+			Context: unused.ContextRange.ToHCL().Ptr(),
 		})
 	}
 
