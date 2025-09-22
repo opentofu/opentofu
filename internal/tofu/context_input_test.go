@@ -124,7 +124,7 @@ func TestContext2Input_provider(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m, nil); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -212,7 +212,7 @@ func TestContext2Input_providerMulti(t *testing.T) {
 		return p, nil
 	}
 
-	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m, nil); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -301,7 +301,7 @@ func TestContext2Input_providerOnly(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, err := ctx.Apply(context.Background(), plan, m)
+	state, err := ctx.Apply(context.Background(), plan, m, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -352,7 +352,7 @@ func TestContext2Input_providerVars(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m, nil); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 

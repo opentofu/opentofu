@@ -306,7 +306,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 
 	plan, diags := tofuCtx.Plan(ctx, m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
-	_, diags = tofuCtx.Apply(ctx, plan, m)
+	_, diags = tofuCtx.Apply(ctx, plan, m, nil)
 	assertNoErrors(t, diags)
 
 	probe.ExpectReportsFrom(t,
