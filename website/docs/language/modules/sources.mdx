@@ -452,13 +452,10 @@ The resulting object must be an archive with one of the same file
 extensions as for [archives over standard HTTP](#fetching-archives-over-http).
 OpenTofu will extract the archive to obtain the module source tree.
 
-The module installer looks for AWS credentials in the following locations,
-preferring those earlier in the list when multiple are available:
-
-- The `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables.
-- The default profile in the `.aws/credentials` file in your home directory.
-- If running on an EC2 instance, temporary credentials associated with the
-  instance's IAM Instance Profile.
+The module installer searches for AWS credentials in a similar way to AWS CLI,
+and so you should not typically need any additional configuration to use S3
+module sources as long as AWS CLI on your system would be able to access the
+same S3 objects.
 
 ## GCS Bucket
 

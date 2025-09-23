@@ -9,6 +9,9 @@ UPGRADE NOTES:
 * Testing mocks previously only followed a subset of the rules defined in provider schemas. The provider schema now drives the mocking to ensure the schema is correctly followed. ([#3069](https://github.com/opentofu/opentofu/pull/3069))
 
     In rare cases this change might result in some previously-passing tests now failing, due to invalid mocks or overrides that were not detected in earlier versions.
+* When installing module packages from Amazon S3 buckets using [S3 source addresses](https://opentofu.org/docs/language/modules/sources/#s3-bucket), OpenTofu now uses the same methods for finding AWS credentials as the AWS CLI and SDKs instead of using its own custom credentials search sequence.
+
+    This might mean that OpenTofu v1.11.0 will choose AWS credentials from a different location than previous versions did, if your AWS authentication configuration describes credential sources that were not previously supported. Generally, OpenTofu should choose credentials in the same way that the AWS CLI would by default when accessing the same S3 object.
 * OpenTofu no longer accepts SHA-1 signatures in TLS handshakes, as recommended in [RFC 9155](https://www.rfc-editor.org/rfc/rfc9155.html).
 * OpenTofu's remote provisioners, when using SSH to connect to a remote server using certificate-based authentication, no longer accept a certificate key as the signature key for a certificate, as required by [draft-miller-ssh-cert-03 section 2.1.1](https://datatracker.ietf.org/doc/html/draft-miller-ssh-cert-03#section-2.1.1).
 
@@ -26,6 +29,7 @@ ENHANCEMENTS:
 * Add full support for -var, -var-file, and TF_VARS during `tofu apply` to support plan encryption ([#1998](https://github.com/opentofu/opentofu/pull/1998))
 * The S3 state backend now supports arguments to specify tags of the state and lock files. [#3038](https://github.com/opentofu/opentofu/pull/3038)
 * Plan UI now explicitly states that the "update in-place" notation is "current -> planned", as part of the existing description of the meaning of each change type symbol. ([#3159](https://github.com/opentofu/opentofu/pull/3159))
+* When installing module packages from Amazon S3 source addresses, OpenTofu now follows similar rules for finding AWS credentials as the AWS CLI does, and similar to the S3 backend. In particular this means OpenTofu supports some newer authentication schemes, such as [IAM roles for service accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html). ([#3269](https://github.com/opentofu/opentofu/pull/3269))
 * Upgrade go from 1.24.4 to 1.24.6 to fix [GO-2025-3849](https://pkg.go.dev/vuln/GO-2025-3849) ([3127](https://github.com/opentofu/opentofu/pull/3127))
 * Improved error messages when a submodule is not found in a module ([#3144]https://github.com/opentofu/opentofu/pull/3144)
 * Add support for the `for_each` attribute in the `mock_provider` block. ([#3087](https://github.com/opentofu/opentofu/pull/3087))
