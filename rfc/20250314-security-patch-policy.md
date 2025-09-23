@@ -58,6 +58,10 @@ We respond to any valid upstream advisory that was either detected by `govulnche
 
 Our advisory for each report includes a summary of whether and how the report relates to each of the minor release series that are not yet end-of-life. If our response included the issuing of new patch releases in any of those series, we will clearly indicate the minimum patch release in each series that includes the fix.
 
-Our advisory for each report will include a summary of whether and how the report relates to each of the minor release series that are not yet end-of-life. If our response included the issuing of new patch releases in any of those series, we will clearly indicate the minimum patch release in each series that includes the fix.
+For reports that we classify as false-positives, we instead publish our reasoning for that decision in comments on the relevant GitHub issue and close the issue without making any changes to the code. We ensure that the summary of these issues includes the Go vulerability database ID (or equivalent from another vulnerability database) and the module path of the main Go module that the advisory relates to so that folks who encounter the same false-positives in the tools they use can find our previous discussion about them.
 
-We will publish _low-severity_ advisories even for reports that we conclude to be false-positives, explaining our reasoning for that decision and indicating that no versions of OpenTofu are affected and no upgrades are required. Such advisories serve to acknowledge that we became aware of the potential for a problem and have actively investigated it, so that those whose own security scanners generate false positives about it can be confident that we are already aware of the (non-)problem and therefore they do not need to re-report it.
+> [!NOTE]
+>
+> The original accepted version of this policy stated that we would publish security advisories with no severity when we conclude that a report is a false-positive, because we hoped to list both the valid and false-positive outcomes together in the same place.
+>
+> Unfortunately at the time of writing GitHub's security advisory features do not allow publishing a "no severity" advisory without that then being copied into other vulnerability databases and thus potentially causing _even more_ false-positive reporting noise for low-accuracy security scanners, and so we've adopted the compromise of describing false-positives only in the GitHub issue that they were reported in.
