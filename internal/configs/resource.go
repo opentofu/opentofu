@@ -622,7 +622,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
-			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of data sources to be created.`, complainMsg),
 			Subject:  complainRng,
 		})
 	}
@@ -806,7 +806,7 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
-			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of ephemeral resources to be created.`, complainMsg),
 			Subject:  complainRng,
 		})
 	}

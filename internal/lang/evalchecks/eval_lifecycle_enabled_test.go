@@ -81,24 +81,20 @@ type WantedError struct {
 
 func TestEvaluateEnabledExpression_errors(t *testing.T) {
 	tests := map[string]struct {
-		val    cty.Value
+		expr   hcl.Expression
 		Wanted []WantedError
 	}{
 		"null": {
-			cty.NullVal(cty.Number),
+			hcltest.MockExprLiteral(cty.NullVal(cty.Number)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
 					`The given "enabled" argument value is unsuitable: the given value is null.`,
 				},
-				{
-					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
-				},
 			},
 		},
 		"positive number": {
-			cty.NumberIntVal(1),
+			hcltest.MockExprLiteral(cty.NumberIntVal(1)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -107,7 +103,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			},
 		},
 		"negative number": {
-			cty.NumberIntVal(-1),
+			hcltest.MockExprLiteral(cty.NumberIntVal(-1)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -116,7 +112,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			},
 		},
 		"list": {
-			cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}),
+			hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")})),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -125,7 +121,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			},
 		},
 		"tuple": {
-			cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
+			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")})),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -134,20 +130,16 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			},
 		},
 		"unknown": {
-			cty.UnknownVal(cty.Number),
+			hcltest.MockExprLiteral(cty.UnknownVal(cty.Number)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
 					`The given "enabled" argument value is derived from a value that won't be known until the apply phase, so OpenTofu cannot determine whether an instance of this object is declared or not.`,
 				},
-				{
-					"Invalid enabled argument",
-					"The given \"enabled\" argument value is unsuitable: bool required, but have number.",
-				},
 			},
 		},
 		"sensitive": {
-			cty.StringVal("1").Mark(marks.Sensitive),
+			hcltest.MockExprLiteral(cty.StringVal("1").Mark(marks.Sensitive)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -156,7 +148,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			},
 		},
 		"ephemeral": {
-			cty.StringVal("1").Mark(marks.Ephemeral),
+			hcltest.MockExprLiteral(cty.StringVal("1").Mark(marks.Ephemeral)),
 			[]WantedError{
 				{
 					"Invalid enabled argument",
@@ -164,11 +156,28 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 				},
 			},
 		},
+		"bool conversion": {
+			&hclsyntax.BinaryOpExpr{
+				LHS: &hclsyntax.LiteralValueExpr{
+					Val: cty.StringVal("3"),
+				},
+				RHS: &hclsyntax.LiteralValueExpr{
+					Val: cty.StringVal("5"),
+				},
+				Op: hclsyntax.OpSubtract,
+			},
+			[]WantedError{
+				{
+					"Invalid enabled argument",
+					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
+				},
+			},
+		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			_, diags := EvaluateEnabledExpression(hcltest.MockExprLiteral(test.val), mockRefsFunc())
+			_, diags := EvaluateEnabledExpression(test.expr, mockRefsFunc())
 
 			if len(diags) != len(test.Wanted) {
 				t.Fatalf("wrong diagnostics size: (want %d, got %d):\n", len(test.Wanted), len(diags))
