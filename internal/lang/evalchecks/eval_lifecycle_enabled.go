@@ -83,6 +83,10 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
+	if diags.HasErrors() {
+		return false, diags
+	}
+
 	enabledVal, err := convert.Convert(rawEnabledVal, cty.Bool)
 	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
