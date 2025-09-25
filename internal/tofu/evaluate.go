@@ -961,9 +961,15 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			ret = cty.EmptyObjectVal
 		}
 	case config.Enabled != nil:
-		// There is no need to check if the instance is there, because if not,
-		// we need to propagate the null value
-		ret = instances[addrs.NoKey]
+		val, ok := instances[addrs.NoKey]
+		if ok {
+			ret = val
+		} else {
+			// When we're using enabled, it's okay to have no
+			// instance, and the entire object is null because
+			// this needs to be propagated to the caller.
+			ret = cty.NullVal(ty)
+		}
 	default:
 		val, ok := instances[addrs.NoKey]
 		if !ok {
