@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+_tofu_completion() {
+  local cur prev words cword
+  
+  # Check if bash-completion is available
+  if type _get_comp_words_by_ref >/dev/null 2>&1; then
+    _get_comp_words_by_ref -n : cur prev words cword
+  else
+    # Fallback if _get_comp_words_by_ref isn't available
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    words=( "${COMP_WORDS[@]}" )
+    cword=$COMP_CWORD
+  fi
+
+  # Check if we're at the end of a command with empty current word
+  # This prevents repeating commands when pressing TAB at the end of a complete command
+  if [[ -z "$cur" && $cword -ge 2 ]]; then
+    # If the last word is already a complete command, don't offer completions
+    # Let OpenTofu's built-in completion handle subcommands
+    COMPREPLY=()
+    return 0
+  fi
+  
+  # Special case for flags that require values
+  if [[ "$prev" == "-var-file" || "$prev" == "--var-file" ]]; then
+    COMPREPLY=($(compgen -f -X '!*.tfvars' -- "$cur"))
+    return 0
+  elif [[ "$prev" == "-chdir" || "$prev" == "--chdir" ]]; then
+    COMPREPLY=($(compgen -d -- "$cur"))
+    return 0
+  fi
+  
+  # Let OpenTofu's built-in completion handle subcommands
+  # If we're completing a flag, just use common flags as OpenTofu doesn't complete flags
+  if [[ "$cur" == -* ]]; then
+    # Define only common flags to reduce maintenance overhead
+    local common_flags="-help -version -chdir"
+    
+    COMPREPLY=($(compgen -W "$common_flags" -- "$cur"))
+    return 0
+  fi
+
+  # For everything else (commands and subcommands), use OpenTofu's built-in completion
+  local line
+  line="${words[0]}"
+  for ((i=1; i < cword; i++)); do
+    line+=" ${words[i]}"
+  done
+
+  # Add the current word being completed if it's not empty
+  if [[ -n "$cur" ]]; then
+    line+=" $cur"
+  fi
+
+  # Check if tofu binary is available and working
+  if command -v "${words[0]}" >/dev/null 2>&1; then
+    # Use OpenTofu's built-in completion capabilities
+    local tofu_completions
+    tofu_completions=$(COMP_LINE="$line" COMP_POINT=${#line} "${words[0]}" 2>/dev/null)
+    
+    if [[ -n "$tofu_completions" ]]; then
+      # Convert newline-separated output to array
+      COMPREPLY=( $(echo "$tofu_completions") )
+      return 0
+    fi
+  fi
+  
+  # If OpenTofu didn't give completions, fallback to basic commands list
+
+  # If nothing matched so far, provide general commands
+  if [[ ${#COMPREPLY[@]} -eq 0 ]]; then
+    local commands="apply plan init fmt state workspace output show version"
+    COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+  fi
+
+  return 0
+}
+
+# Register the completion function
+complete -F _tofu_completion tofu
