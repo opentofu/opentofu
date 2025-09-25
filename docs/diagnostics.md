@@ -94,7 +94,7 @@ The most common pattern for handling diagnostics in code is:
 4. At all exit points of the function, return `diags` regardless of whether
    it has been assigned to or whether it contains errors. This ensures that
    we always return any warnings that might have been produced and avoids
-   the risk of missing certain return paths under future maintenence if we
+   the risk of missing certain return paths under future maintenance if we
    introduce additional diagnostics later.
 
 Here's a code-example version of the above advice:
@@ -350,7 +350,7 @@ Some other notes about some other specific situations that arise sometimes:
       object type, and "arguments" meaning the names used for individual
       settings inside a configuration block.
 
-        OpenTofu itself uses those words a little more interchangably because
+        OpenTofu itself uses those words a little more interchangeably because
         in _many_ cases the configuration arguments in a block directly
         correspond to the attributes of an object created by evaluating that
         block.
