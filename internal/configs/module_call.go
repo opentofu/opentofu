@@ -82,21 +82,18 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Source = attr.Expr
 	}
 
+	var countRng, forEachRng, enabledRng hcl.Range
+	repetitionArgs := 0
 	if attr, exists := content.Attributes["count"]; exists {
 		mc.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
-		if mc.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
-
 		mc.ForEach = attr.Expr
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {
@@ -132,6 +129,8 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 
 			if attr, exists := lcContent.Attributes["enabled"]; exists {
 				mc.Enabled = attr.Expr
+				enabledRng = attr.NameRange
+				repetitionArgs++
 			}
 		case "_":
 			if seenEscapeBlock != nil {
@@ -162,6 +161,16 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 				Subject:  &block.TypeRange,
 			})
 		}
+	}
+
+	if repetitionArgs >= 2 {
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one should be used to be explicit about the number of module instances to be created.`, complainMsg),
+			Subject:  complainRng,
+		})
 	}
 
 	return mc, diags
