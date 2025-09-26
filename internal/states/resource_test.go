@@ -10,6 +10,7 @@ import (
 )
 
 func TestResourceInstanceDeposeCurrentObject(t *testing.T) {
+	// The same test was missing in Terraform's codebase: https://github.com/hashicorp/terraform/pull/37650
 	t.Run("nil receiver returns NotDeposed", func(t *testing.T) {
 		var ri *ResourceInstance
 		key := ri.deposeCurrentObject(NotDeposed)
