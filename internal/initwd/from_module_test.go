@@ -135,31 +135,28 @@ func TestDirFromModule_registry(t *testing.T) {
 }
 
 func TestDirFromModule_submodules(t *testing.T) {
-	fixtureDir := filepath.Clean("testdata/empty")
-	fromModuleDir, err := filepath.Abs("./testdata/local-modules")
+	fromModuleDir := tempChdir(t, "testdata/local-modules")
+	// EvalSymlinks expands short paths to full paths on Windows, e.g.:
+	// C:\RUNN~1\T... -> C:\runneradmin\T...
+	// fromModuleDir is used as a copy of the original directory, in order
+	// to avoid mount problems on Windows Github runners.
+	fromModuleDir, err := filepath.EvalSymlinks(fromModuleDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// DirFromModule will expand ("canonicalize") the pathnames, so we must do
-	// the same for our "wantCalls" comparison values. Otherwise this test
-	// will fail when building in a source tree with symlinks in $PWD.
-	//
-	// See also: https://github.com/hashicorp/terraform/issues/26014
-	//
-	fromModuleDirRealpath, err := filepath.EvalSymlinks(fromModuleDir)
-	if err != nil {
-		t.Error(err)
-	}
-
-	tmpDir := tempChdir(t, fixtureDir)
+	// Create a different temporary directory to install the modules in
+	tmpDir := t.TempDir()
 
 	hooks := &testInstallHooks{}
-	dir, err := filepath.EvalSymlinks(tmpDir)
+	dir := filepath.Join(tmpDir, "empty")
+
+	err = os.Mkdir(dir, os.ModePerm)
 	if err != nil {
 		t.Error(err)
 	}
-	modInstallDir := filepath.Join(dir, ".terraform/modules")
+
+	modInstallDir := filepath.Join(tmpDir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
@@ -181,12 +178,12 @@ func TestDirFromModule_submodules(t *testing.T) {
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a",
-			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a"),
+			LocalPath:  filepath.Join(fromModuleDir, "child_a"),
 		},
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a.child_b",
-			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a/child_b"),
+			LocalPath:  filepath.Join(fromModuleDir, "child_a/child_b"),
 		},
 	}
 
@@ -276,7 +273,13 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	// - tmpdir/local-modules (with contents of testdata/local-modules)
 	// - tmpdir/empty: the workDir we CD into for the test
 	// - tmpdir/empty/target (target, the destination for init -from-module)
-	tmpDir := t.TempDir()
+	// EvalSymlinks is used here to expand short paths to full paths on Windows, e.g.:
+	// C:\RUNN~1\T... -> C:\runneradmin\T...
+	tmpDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed to expand short path: %v", err)
+	}
+
 	fromModuleDir := filepath.Join(tmpDir, "local-modules")
 	workDir := filepath.Join(tmpDir, "empty")
 	if err := os.Mkdir(fromModuleDir, os.ModePerm); err != nil {
