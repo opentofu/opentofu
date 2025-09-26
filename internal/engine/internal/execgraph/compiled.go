@@ -9,6 +9,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -34,6 +35,19 @@ type CompiledGraph struct {
 	// returns the object value to represent the resource instance in downstream
 	// expression evaluation.
 	resourceInstanceValues addrs.Map[addrs.AbsResourceInstance, func(ctx context.Context) cty.Value]
+
+	// cleanupWorker is the workgraph worker that is initially responsible
+	// for resolving all of the workgraph requests created by the compiler,
+	// but in the happy path they should all be gradually delegated to
+	// workers created by the functions in "ops", leaving this worker
+	// responsible for nothing.
+	//
+	// We track this here just so that if, for some exceptional reason, the
+	// CompiledGraph object gets garbage collected before everything has been
+	// handled then all of the remaining requests will get resolved with an
+	// error to ensure that everything gets to unwind and thus we won't leak
+	// goroutines.
+	cleanupWorker *workgraph.Worker
 }
 
 // Execute performs all of the work described in the execution graph in a
