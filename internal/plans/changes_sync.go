@@ -26,6 +26,12 @@ type ChangesSync struct {
 	changes *Changes
 }
 
+// Close extracts the [Changes] object, making the [ChangesSync] object
+// no longer valid to use.
+func (cs *ChangesSync) Close() *Changes {
+	return cs.changes
+}
+
 // AppendResourceInstanceChange records the given resource instance change in
 // the set of planned resource changes.
 //
