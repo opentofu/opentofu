@@ -171,7 +171,7 @@ func CloudConfigFromMetadataHost(ctx context.Context, metadataHost string) (clou
 
 	var environment Environment
 	if err := json.NewDecoder(resp.Body).Decode(&environment); err != nil {
-		return cloud.Configuration{}, err
+		return cloud.Configuration{}, fmt.Errorf("decoding json in metadata response: %w", err)
 	}
 
 	storageSuffix, ok := environment.Suffixes["storage"]
