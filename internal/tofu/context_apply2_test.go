@@ -6355,3 +6355,105 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		}
 	}
 }
+
+func TestContext2Apply_enabledForModule(t *testing.T) {
+	m := testModule(t, "apply-enabled-module")
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+	tfCtx := testContext2(t, &ContextOpts{
+		Providers: ps,
+	})
+
+	resourceInstAddr := mustResourceInstanceAddr(`module.mod1.test_instance.a`)
+	// We'll overwrite this after each round, but it starts empty.
+	state := states.NewState()
+
+	{
+		t.Logf("First round: var.on = false")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		if instPlan := plan.Changes.ResourceInstance(resourceInstAddr); instPlan != nil {
+			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+	{
+		t.Logf("Second round: var.on = true")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.True,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Create; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		instState := newState.ResourceInstance(resourceInstAddr)
+		if instState == nil {
+			t.Fatalf("missing state entry for %s", resourceInstAddr)
+		}
+
+		state = newState // "persist" the state for the next round
+	}
+	{
+		t.Logf("Third round: var.on = false, again")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Delete; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+}

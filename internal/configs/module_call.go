@@ -38,6 +38,7 @@ type ModuleCall struct {
 
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	Providers []PassedProviderConfig
 
@@ -81,21 +82,18 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Source = attr.Expr
 	}
 
+	var countRng, forEachRng, enabledRng hcl.Range
+	repetitionArgs := 0
 	if attr, exists := content.Attributes["count"]; exists {
 		mc.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
-		if mc.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
-
 		mc.ForEach = attr.Expr
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {
@@ -110,9 +108,30 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Providers = append(mc.Providers, providers...)
 	}
 
+	var seenLifecycle *hcl.Block
 	var seenEscapeBlock *hcl.Block
 	for _, block := range content.Blocks {
 		switch block.Type {
+		case "lifecycle":
+			if seenLifecycle != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate lifecycle block",
+					Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+					Subject:  &block.DefRange,
+				})
+				continue
+			}
+			seenLifecycle = block
+
+			lcContent, lcDiags := block.Body.Content(moduleLifecycleBlockSchema)
+			diags = append(diags, lcDiags...)
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				mc.Enabled = attr.Expr
+				enabledRng = attr.NameRange
+				repetitionArgs++
+			}
 		case "_":
 			if seenEscapeBlock != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -142,6 +161,16 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 				Subject:  &block.TypeRange,
 			})
 		}
+	}
+
+	if repetitionArgs >= 2 {
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one should be used to be explicit about the number of module instances to be created.`, complainMsg),
+			Subject:  complainRng,
+		})
 	}
 
 	return mc, diags
@@ -365,6 +394,14 @@ var moduleBlockSchema = &hcl.BodySchema{
 		{Type: "lifecycle"},
 		{Type: "locals"},
 		{Type: "provider", LabelNames: []string{"type"}},
+	},
+}
+
+var moduleLifecycleBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "enabled",
+		},
 	},
 }
 
