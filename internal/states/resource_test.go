@@ -10,6 +10,14 @@ import (
 )
 
 func TestResourceInstanceDeposeCurrentObject(t *testing.T) {
+	// The same test was missing in Terraform's codebase: https://github.com/hashicorp/terraform/pull/37650
+	t.Run("nil receiver returns NotDeposed", func(t *testing.T) {
+		var ri *ResourceInstance
+		key := ri.deposeCurrentObject(NotDeposed)
+		if key != NotDeposed {
+			t.Fatalf("want NotDeposed, got %q", key)
+		}
+	})
 	obj := &ResourceInstanceObjectSrc{
 		// Empty for the sake of this test, because we're just going to
 		// compare by pointer below anyway.
