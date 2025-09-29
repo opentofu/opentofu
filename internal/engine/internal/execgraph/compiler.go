@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"log"
 	"strings"
 	"sync"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -25,10 +25,15 @@ import (
 // Compile produces a compiled version of the graph which will, once executed,
 // use the given arguments to interact with other parts of the broader system.
 //
-// TODO: This currently takes a prior state snapshot using our current models,
-// but the state model we have probably isn't the best for this new execution
-// approach.
-func (g *Graph) Compile(oracle *eval.ApplyOracle, evalCtx *eval.EvalContext, priorState *states.SyncState) (*CompiledGraph, tfdiags.Diagnostics) {
+// The [Graph.Compile] function is guaranteed not call any methods on the given
+// [ExecContext] during compilation: it will be used only once the returned
+// [CompiledGraph] is executed. In particular this means that it's okay for
+// there to be a cyclic dependency between the ExecContext and the CompiledGraph
+// so that the caller can use [CompiledGraph.ResourceInstanceValue] to satisfy
+// requests from the evaluation system for final resource instance values, as
+// long as the ExecContext object is updated with a pointer to the returned
+// CompiledGraph object before executing the graph.
+func (g *Graph) Compile(execCtx ExecContext) (*CompiledGraph, tfdiags.Diagnostics) {
 	ret := &CompiledGraph{
 		resourceInstanceValues: addrs.MakeMap[addrs.AbsResourceInstance, func(ctx context.Context) cty.Value](),
 		cleanupWorker:          workgraph.NewWorker(),
@@ -36,10 +41,11 @@ func (g *Graph) Compile(oracle *eval.ApplyOracle, evalCtx *eval.EvalContext, pri
 	c := &compiler{
 		sourceGraph:             g,
 		compiledGraph:           ret,
-		oracle:                  oracle,
+		execCtx:                 execCtx,
 		opResolvers:             make([]workgraph.Resolver[nodeResultRaw], len(g.ops)),
 		opResults:               make([]workgraph.Promise[nodeResultRaw], len(g.ops)),
 		desiredStateFuncs:       make([]nodeExecuteRaw, len(g.desiredStateRefs)),
+		priorStateFuncs:         make([]nodeExecuteRaw, len(g.priorStateRefs)),
 		providerInstConfigFuncs: make([]nodeExecuteRaw, len(g.providerInstConfigRefs)),
 	}
 	// We'll prepopulate all of the operation promises, and then the compiler
@@ -66,9 +72,7 @@ func (g *Graph) Compile(oracle *eval.ApplyOracle, evalCtx *eval.EvalContext, pri
 type compiler struct {
 	sourceGraph   *Graph
 	compiledGraph *CompiledGraph
-	oracle        *eval.ApplyOracle
-	evalCtx       *eval.EvalContext
-	priorState    *states.SyncState
+	execCtx       ExecContext
 
 	// opResolvers and opResults track our requests for our operation results,
 	// each of which should be resolved by one of the "steps" in the compiled
@@ -88,6 +92,7 @@ type compiler struct {
 	// The indices of each of these correlate with the matching slices in
 	// sourceGraph.
 	desiredStateFuncs       []nodeExecuteRaw
+	priorStateFuncs         []nodeExecuteRaw
 	providerInstConfigFuncs []nodeExecuteRaw
 
 	// diags accumulates any problems we detect during the compilation process,
@@ -109,16 +114,23 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 	// of other nodes as we go along only as needed to satisfy the operations.
 	opResolvers := c.opResolvers
 	for opIdx, opDesc := range c.sourceGraph.ops {
-		operands := newCompilerOperands(c.compileOperands(opDesc.operands))
+		operands := newCompilerOperands(opDesc.opCode, c.compileOperands(opDesc.operands))
 		var compileFunc func(operands *compilerOperands) nodeExecuteRaw
 		switch opDesc.opCode {
+		case opManagedFinalPlan:
+			compileFunc = c.compileOpManagedFinalPlan
+		case opManagedApplyChanges:
+			compileFunc = c.compileOpManagedApplyChanges
+		// TODO: opDataRead
 		case opOpenProvider:
 			compileFunc = c.compileOpOpenProvider
+		case opCloseProvider:
+			compileFunc = c.compileOpCloseProvider
 		default:
 			c.diags = c.diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Unsupported opcode in execution graph",
-				fmt.Sprintf("Execution graph includes opcode %s, but the compiler doesn't know how to handle it. This is a bug in OpenTofu.", opDesc.opCode),
+				fmt.Sprintf("Execution graph includes %s, but the compiler doesn't know how to handle it. This is a bug in OpenTofu.", opDesc.opCode),
 			))
 			continue
 		}
@@ -127,7 +139,7 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 		// the operation results to propagate through the graph using the
 		// promises set up in [Graph.Compile].
 		mainExec := compileFunc(operands)
-		graphExec := func(parentCtx context.Context) (any, bool, tfdiags.Diagnostics) {
+		graphStep := func(parentCtx context.Context) tfdiags.Diagnostics {
 			// Each operation's execution must have its own workgraph worker
 			// that's responsible for resolving the associated promise, since
 			// that allows us to detect if operations try to depend on their
@@ -143,9 +155,9 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 				CanContinue: ok,
 				Diagnostics: diags,
 			})
-			return ret, ok, diags
+			return diags
 		}
-		c.compiledGraph.steps = append(c.compiledGraph.steps, graphExec)
+		c.compiledGraph.steps = append(c.compiledGraph.steps, graphStep)
 	}
 	if c.diags.HasErrors() {
 		// Don't expose the likely-invalid compiled graph, then.
@@ -192,7 +204,7 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 	// pointers to as small a part of the compiler's state as possible, so
 	// that the overall compiler object can be garbage-collected once
 	// compilation is complete.
-	oracle := c.oracle
+	execCtx := c.execCtx
 
 	// For any of the cases that return functions that cause side-effects that
 	// can potentially fail we must use a "once" wrapper to ensure that the
@@ -222,7 +234,7 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 		}
 		c.desiredStateFuncs[index] = nodeExecuteRawOnce(func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 			var diags tfdiags.Diagnostics
-			desired := oracle.DesiredResourceInstance(ctx, resourceInstAddrs[index])
+			desired := execCtx.DesiredResourceInstance(ctx, resourceInstAddrs[index])
 			if desired == nil {
 				// If we get here then it suggests a bug in the planning engine,
 				// because it should not include a node referring to a resource
@@ -236,22 +248,19 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 			}
 			return desired, true, diags
 		})
-		c.compiledGraph.steps = append(c.compiledGraph.steps, c.desiredStateFuncs[index])
+		c.compiledGraph.steps = append(c.compiledGraph.steps, compiledGraphStepFromNodeExecuteRaw(c.desiredStateFuncs[index]))
 		return c.desiredStateFuncs[index]
 	case resourceInstancePriorStateResultRef:
-		priorState := c.priorState
 		priorStateRefs := c.sourceGraph.priorStateRefs
 		index := ref.index
-		return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		if existing := c.priorStateFuncs[index]; existing != nil {
+			return existing
+		}
+		c.priorStateFuncs[index] = nodeExecuteRawOnce(func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 			var diags tfdiags.Diagnostics
 			priorStateRef := priorStateRefs[index]
-			var gen states.Generation
-			if priorStateRef.DeposedKey == states.NotDeposed {
-				gen = states.CurrentGen
-			} else {
-				gen = priorStateRef.DeposedKey
-			}
-			obj := priorState.ResourceInstanceObject(priorStateRef.ResourceInstance, gen)
+			log.Printf("[TRACE] execgraph: Getting prior state for %s %s", priorStateRef.ResourceInstance, priorStateRef.DeposedKey)
+			obj := execCtx.ResourceInstancePriorState(ctx, priorStateRef.ResourceInstance, priorStateRef.DeposedKey)
 			if obj == nil {
 				// If we get here then it suggests a bug in the planning engine,
 				// because it should not include a node referring to a resource
@@ -270,7 +279,9 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 				return nil, false, diags
 			}
 			return obj, true, diags
-		}
+		})
+		c.compiledGraph.steps = append(c.compiledGraph.steps, compiledGraphStepFromNodeExecuteRaw(c.priorStateFuncs[index]))
+		return c.priorStateFuncs[index]
 	case providerInstanceConfigResultRef:
 		providerInstConfigRefs := c.sourceGraph.providerInstConfigRefs
 		index := ref.index
@@ -278,9 +289,11 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 			return existing
 		}
 		c.providerInstConfigFuncs[index] = nodeExecuteRawOnce(func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+			log.Printf("[TRACE] execgraph: Fetching provider configuration value for %s", providerInstConfigRefs[index])
 			var diags tfdiags.Diagnostics
-			configVal := oracle.ProviderInstanceConfig(ctx, providerInstConfigRefs[index])
+			configVal := execCtx.ProviderInstanceConfig(ctx, providerInstConfigRefs[index])
 			if configVal == cty.NilVal {
+				log.Printf("[TRACE] execgraph: No configuration value available for %s", providerInstConfigRefs[index])
 				// If we get here then it suggests a bug in the planning engine,
 				// because it should not include a node referring to a provider
 				// instance that is not present in the configuration.
@@ -291,9 +304,10 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 				))
 				return nil, false, diags
 			}
+			log.Printf("[TRACE] execgraph: Returning configuration value for %s", providerInstConfigRefs[index])
 			return configVal, true, diags
 		})
-		c.compiledGraph.steps = append(c.compiledGraph.steps, c.desiredStateFuncs[index])
+		c.compiledGraph.steps = append(c.compiledGraph.steps, compiledGraphStepFromNodeExecuteRaw(c.providerInstConfigFuncs[index]))
 		return c.providerInstConfigFuncs[index]
 	case anyOperationResultRef:
 		// Operations have different result types depending on their opcodes,
@@ -384,6 +398,7 @@ func nodeExecuteRawOnce(inner nodeExecuteRaw) nodeExecuteRaw {
 			// callers can wait for it.
 			var resolver workgraph.Resolver[nodeResultRaw]
 			resolver, promise = workgraph.NewRequest[nodeResultRaw](worker)
+			reqID = resolver.RequestID()
 			mu.Unlock() // Allow concurrent callers to begin awaiting the promise
 
 			ret, ok, diags := inner(ctx)
@@ -403,6 +418,24 @@ func nodeExecuteRawOnce(inner nodeExecuteRaw) nodeExecuteRaw {
 			result.CanContinue = false
 		}
 		return result.Value, result.CanContinue, diags
+	}
+}
+
+// compiledGraphStepFromNodeExecuteRaw adapts a [nodeExecuteRaw] into a
+// [compiledGraphStep] by arranging for the given function to run in a new
+// [workgraph.Worker] and then returning its diagnostics.
+//
+// This should only be used for helper steps added by
+// [compiler.compileResultRef], where the given function will not be responsible
+// for resolving any promises. Operation execution steps deal with this a
+// different way where the "step" and the result function are two separate
+// entities where the first resolves a promise and the second consumes it;
+// it's not correct to use this function with operation-related functions.
+func compiledGraphStepFromNodeExecuteRaw(f nodeExecuteRaw) compiledGraphStep {
+	return func(parentCtx context.Context) tfdiags.Diagnostics {
+		ctx := grapheval.ContextWithNewWorker(parentCtx)
+		_, _, diags := f(ctx)
+		return diags
 	}
 }
 
