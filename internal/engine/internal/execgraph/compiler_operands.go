@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"reflect"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -32,6 +33,7 @@ import (
 //		// compilation fails
 //	}
 type compilerOperands struct {
+	opCode      opCode
 	nextOperand func() (AnyResultRef, nodeExecuteRaw, bool)
 	stop        func()
 	idx         int
@@ -44,9 +46,10 @@ type compilerOperands struct {
 //
 // Refer to the documentation of [compilerOperands] for an example of how to
 // use the result.
-func newCompilerOperands(operands iter.Seq2[AnyResultRef, nodeExecuteRaw]) *compilerOperands {
+func newCompilerOperands(opCode opCode, operands iter.Seq2[AnyResultRef, nodeExecuteRaw]) *compilerOperands {
 	next, stop := iter.Pull2(operands)
 	return &compilerOperands{
+		opCode:      opCode,
 		nextOperand: next,
 		stop:        stop,
 		idx:         0,
@@ -67,7 +70,8 @@ func nextOperand[T any](operands *compilerOperands) nodeExecute[T] {
 	// the expected type.
 	if _, typeOk := resultRef.(ResultRef[T]); !typeOk {
 		var zero T
-		operands.problems = append(operands.problems, fmt.Sprintf("operand %d not of expected type %T (got %T)", idx, any(zero), resultRef))
+		ty := reflect.TypeOf(&zero).Elem()
+		operands.problems = append(operands.problems, fmt.Sprintf("operand %d not of expected type %s.%s (got %T)", idx, ty.PkgPath(), ty.Name(), resultRef))
 		return nil
 	}
 
@@ -132,7 +136,7 @@ func (ops *compilerOperands) Finish() tfdiags.Diagnostics {
 	}
 	if len(problems) != 0 {
 		var buf strings.Builder
-		buf.WriteString("Found incorrect operands when compiling operation:\n")
+		fmt.Fprintf(&buf, "Found incorrect operands when compiling %s:\n", ops.opCode)
 		for _, problem := range problems {
 			fmt.Fprintf(&buf, " - %s\n", problem)
 		}
