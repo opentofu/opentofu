@@ -30,7 +30,7 @@ import (
 // information and will report that missing information as being a bug in
 // OpenTofu, because we should always be tracking requests correctly.
 func DiagnosticsForWorkgraphError(ctx context.Context, err error) tfdiags.Diagnostics {
-	tracker := requestTrackerFromContext(ctx)
+	tracker := RequestTrackerFromContext(ctx)
 
 	if tracker == nil {
 		// In this case we must return lower-quality error messages because
