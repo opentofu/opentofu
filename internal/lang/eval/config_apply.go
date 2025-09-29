@@ -88,3 +88,31 @@ func (c *ConfigInstance) DriveApplying(ctx context.Context, glue ApplyGlue, run 
 // the oracle only once it has already been made available by earlier work.
 type ApplyOracle struct {
 }
+
+// DesiredResourceInstance returns the [DesiredResourceInstance] object
+// associated with the given resource instance address, or nil if the given
+// address does not match a desired resource instance.
+//
+// This API assumes that the apply phase is working from an execution graph
+// built during the planning phase and is therefore relying on the plan phase
+// to correctly describe a subset of the desired resource instances so that
+// this should never return nil. If this _does_ return nil then that suggests
+// a bug in the planning engine, which caused it to create an incorrect
+// execution graph.
+func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) *DesiredResourceInstance {
+	// TODO: Implement
+	panic("unimplemented")
+}
+
+// ProviderInstanceConfig returns the configuration value for the given
+// provider instance, or [cty.NilVal] if there is no such provider instance.
+//
+// This API assumes that the apply phase is working from an execution graph
+// built during the planning phase and is therefore relyingo n the plan phase
+// to refer only to provider instances that are present ni the configuration.
+// If this _does_ return cty.NilVal then that suggests a bug in the planning
+// engine, causing it to create an incorrect execution graph.
+func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
+	// TODO: Implement
+	panic("unimplemented")
+}
