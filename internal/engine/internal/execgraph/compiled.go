@@ -7,13 +7,13 @@ package execgraph
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -27,7 +27,7 @@ type CompiledGraph struct {
 	// compiler to arrange for the necessary data flow while it's building
 	// these compiled operations. Execution is complete once all of these
 	// functions have returned.
-	steps []nodeExecuteRaw
+	steps []compiledGraphStep
 
 	// resourceInstanceValues provides a function for each resource instance
 	// that was registered as a "sink" during graph building which blocks
@@ -50,6 +50,15 @@ type CompiledGraph struct {
 	cleanupWorker *workgraph.Worker
 }
 
+// compiledGraphStep is a single "step" from a [CompiledGraph].
+//
+// [CompiledGraph.Execute] executes all of the steps concurrently in a
+// separate goroutine each, and so a compiledGraphStep function should start
+// by establishing a new [workgraph.Worker] to represent whatever work it's
+// going to do, so that the system can detect when a step tries to depend
+// on its own result, directly or indirectly.
+type compiledGraphStep func(ctx context.Context) tfdiags.Diagnostics
+
 // Execute performs all of the work described in the execution graph in a
 // suitable order, returning any diagnostics that operations might return
 // along the way.
@@ -66,13 +75,18 @@ func (c *CompiledGraph) Execute(ctx context.Context) tfdiags.Diagnostics {
 
 	var wg sync.WaitGroup
 	wg.Add(len(c.steps))
-	for _, op := range c.steps {
-		wg.Go(func() {
-			_, _, opDiags := op(grapheval.ContextWithNewWorker(ctx))
+	for idx, step := range c.steps {
+		if step == nil {
+			diags = diags.Append(fmt.Errorf("execution graph compiled step %d is nil function", idx))
+			return diags
+		}
+		go func() {
+			opDiags := step(ctx)
 			diagsMu.Lock()
 			diags = diags.Append(opDiags)
 			diagsMu.Unlock()
-		})
+			wg.Done()
+		}()
 	}
 	wg.Wait()
 
@@ -102,26 +116,4 @@ func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.Ab
 		return cty.DynamicVal
 	}
 	return getter(ctx)
-}
-
-// compiledOperation is the signature of a function acting as the implementation
-// of a specific operation in a compiled graph.
-type compiledOperation[Result any] func(ctx context.Context) (Result, tfdiags.Diagnostics)
-
-// anyCompiledOperation is a type-erased version of [compiledOperation] used
-// in situations where we only care that they got executed and have completed,
-// without needing the actual results.
-//
-// The main way to create a function of this type is to pass a
-// [compiledOperation] of some other type to [typeErasedCompiledOperation].
-type anyCompiledOperation = func(ctx context.Context) tfdiags.Diagnostics
-
-// typeErasedCompiledOperation turns a [compiledOperation] of some specific
-// result type into a type-erased [anyCompiledOperation], by discarding
-// its result and just returning its diagnostics.
-func typeErasedCompiledOperation[Result any](op compiledOperation[Result]) anyCompiledOperation {
-	return func(ctx context.Context) tfdiags.Diagnostics {
-		_, diags := op(ctx)
-		return diags
-	}
 }
