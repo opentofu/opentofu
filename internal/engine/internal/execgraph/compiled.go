@@ -18,7 +18,7 @@ import (
 )
 
 type CompiledGraph struct {
-	// ops is the main essence of a compiled graph: a series of functions
+	// steps is the main essence of a compiled graph: a series of functions
 	// that we'll run all at once, one goroutine each, and then wait until
 	// they've all returned something.
 	//
@@ -27,7 +27,7 @@ type CompiledGraph struct {
 	// compiler to arrange for the necessary data flow while it's building
 	// these compiled operations. Execution is complete once all of these
 	// functions have returned.
-	ops []anyCompiledOperation
+	steps []nodeExecuteRaw
 
 	// resourceInstanceValues provides a function for each resource instance
 	// that was registered as a "sink" during graph building which blocks
@@ -65,10 +65,10 @@ func (c *CompiledGraph) Execute(ctx context.Context) tfdiags.Diagnostics {
 	var diagsMu sync.Mutex
 
 	var wg sync.WaitGroup
-	wg.Add(len(c.ops))
-	for _, op := range c.ops {
+	wg.Add(len(c.steps))
+	for _, op := range c.steps {
 		wg.Go(func() {
-			opDiags := op(grapheval.ContextWithNewWorker(ctx))
+			_, _, opDiags := op(grapheval.ContextWithNewWorker(ctx))
 			diagsMu.Lock()
 			diags = diags.Append(opDiags)
 			diagsMu.Unlock()

@@ -53,12 +53,9 @@ func ContextWithRequestTracker(parent context.Context, tracker RequestTracker) c
 	return context.WithValue(parent, trackerContextKey, tracker)
 }
 
-// requestTrackerFromContext returns the request tracker associated with the
+// RequestTrackerFromContext returns the request tracker associated with the
 // given context, or nil if there is no request tracker.
-//
-// This is unexported because request trackers are provided by external code
-// but only used by code within this package.
-func requestTrackerFromContext(ctx context.Context) RequestTracker {
+func RequestTrackerFromContext(ctx context.Context) RequestTracker {
 	tracker, ok := ctx.Value(trackerContextKey).(RequestTracker)
 	if !ok {
 		return nil
