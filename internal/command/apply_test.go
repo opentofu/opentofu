@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -754,6 +755,10 @@ func TestApply_plan_backup(t *testing.T) {
 
 	// Should have a backup file
 	testStateRead(t, backupPath)
+
+	// Force a garbage collection to ensure the backup file is closed
+	// to avoid TempDir RemoveAll cleanup errors on Windows.
+	runtime.GC()
 }
 
 func TestApply_plan_noBackup(t *testing.T) {
