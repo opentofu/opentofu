@@ -24,7 +24,7 @@ func compileModuleInstanceResources(
 	managedConfigs map[string]*configs.Resource,
 	dataConfigs map[string]*configs.Resource,
 	ephemeralConfigs map[string]*configs.Resource,
-	declScope exprs.Scope,
+	declScope *moduleInstanceScope,
 	providersSideChannel *moduleProvidersSideChannel,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.Providers,

@@ -14,14 +14,14 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 )
 
-func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*configs.Local, declScope exprs.Scope, moduleInstAddr addrs.ModuleInstance) map[addrs.LocalValue]*configgraph.LocalValue {
+func compileModuleInstanceLocalValues(_ context.Context, configs map[string]*configs.Local, declScope *moduleInstanceScope, moduleInstAddr addrs.ModuleInstance) map[addrs.LocalValue]*configgraph.LocalValue {
 	ret := make(map[addrs.LocalValue]*configgraph.LocalValue, len(configs))
 	for name, vc := range configs {
 		addr := addrs.LocalValue{Name: name}
-		value := configgraph.ValuerOnce(exprs.NewClosure(
+		value := declScope.refs.AddCounted(exprs.NewClosure(
 			exprs.EvalableHCLExpression(vc.Expr),
 			declScope,
-		))
+		), nil) // Local may reference a provider configuration
 		ret[addr] = &configgraph.LocalValue{
 			Addr:     moduleInstAddr.LocalValue(name),
 			RawValue: value,

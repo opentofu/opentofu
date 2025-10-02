@@ -85,6 +85,7 @@ func CompileModuleInstance(
 	topScope := &moduleInstanceScope{
 		inst:          ret,
 		coreFunctions: compileCoreFunctions(ctx, call.AllowImpureFunctions, call.EvalContext.RootModuleDir),
+		refs:          configgraph.NewReferenceContainer(),
 	}
 
 	// We have some shims in here to deal with the unusual way the existing

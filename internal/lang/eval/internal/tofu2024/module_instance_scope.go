@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -54,6 +55,8 @@ type moduleInstanceScope struct {
 	// to be widely used. It would be far simpler if we could just always
 	// call functions on the same unconfigured providers we're using for
 	// schema fetching and config validation.)
+
+	refs *configgraph.ReferenceContainer
 }
 
 var _ exprs.Scope = (*moduleInstanceScope)(nil)
