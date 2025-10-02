@@ -500,7 +500,7 @@ func (m ModuleInstance) HasSameModule(other ModuleInstance) bool {
 	return true
 }
 
-// HasSameModule returns true if calling [ModuleInstance.Module] on the
+// IsForModule returns true if calling [ModuleInstance.Module] on the
 // receiver would return a [Module] address equal to the one given as
 // an argument.
 //
