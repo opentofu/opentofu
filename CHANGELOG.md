@@ -20,7 +20,8 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
-* The conditional enabled field is now supported for all types of resources within the `lifecycle` block. ([#3042](https://github.com/opentofu/opentofu/pull/3042))
+* The conditional `enabled` field is now supported for modules within the `lifecycle` block. ([#3244](https://github.com/opentofu/opentofu/pull/3244))
+* The conditional `enabled` field is now supported for all types of resources within the `lifecycle` block. ([#3042](https://github.com/opentofu/opentofu/pull/3042))
 * OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))
 * `tofu validate` now supports running in a module that contains provider configuration_aliases. ([#2905](https://github.com/opentofu/opentofu/pull/2905))
 * The `regex` and `regexall` functions now support using `\p` and `\P` sequences with the long-form names for Unicode general character properties. For example, `\p{Letter}` now has the same meaning as `\p{L}`. ([#3166](https://github.com/opentofu/opentofu/pull/3166))
