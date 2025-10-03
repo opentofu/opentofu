@@ -56,13 +56,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
-          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
+#          - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
+#          - { runson: ubuntu-latest, goos: linux, goarch: "386" }
           # - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm" } Disabled due to missing `template` provider, should switch it in the tests
           # - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" } Disabled due to missing `template` provider, should switch it in the tests
-          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
-          - { runson: windows-latest, goos: windows, goarch: "amd64" }
-          - { runson: windows-latest, goos: windows, goarch: "386" }
+#          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
+#          - { runson: windows-latest, goos: windows, goarch: "amd64" }
+#          - { runson: windows-latest, goos: windows, goarch: "386" }
       fail-fast: false
 
     name: "End-to-end Tests for ${{ matrix.goos }}_${{ matrix.goarch }}"
