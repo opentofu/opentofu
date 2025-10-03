@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -3360,52 +3361,67 @@ output "output" {
 	}
 }
 
-func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
-	// This test deals with the situation where a user has changed the
-	// repetition/expansion mode for a module call while there are already
-	// resource instances from the previous declaration in the state.
-	//
-	// This is conceptually just the same as removing the resources
-	// from the module configuration only for that instance, but the
-	// implementation of it ends up a little different because it's
-	// an entry in the resource address's _module path_ that we'll find
-	// missing, rather than the resource's own instance key, and so
-	// our analyses need to handle that situation by indicating that all
-	// of the resources under the missing module instance have zero
-	// instances, regardless of which resource in that module we might
-	// be asking about, and do so without tripping over any missing
-	// registrations in the instance expander that might lead to panics
-	// if we aren't careful.
-	//
-	// (For some history here, see https://github.com/hashicorp/terraform/issues/30110 )
-
+func TestContext2Plan_moduleImplicitMove(t *testing.T) {
+	// The previous test was expecting resources to be orphaned if they changed
+	// the repetition meta-arguments. Since they are being moved implicitly to
+	// use the `enabled` field when nothing is declared, we expect the modules
+	// to be moved implicitly, without any changes on the plan.
 	addrNoKey := mustResourceInstanceAddr("module.child.test_object.a[0]")
 	addrZeroKey := mustResourceInstanceAddr("module.child[0].test_object.a[0]")
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			module "child" {
-				source = "./child"
-				count = 1
-			}
-		`,
-		"child/main.tf": `
-			resource "test_object" "a" {
-				count = 1
-			}
-		`,
-	})
 
-	state := states.BuildState(func(s *states.SyncState) {
-		// Notice that addrNoKey is the address which lacks any instance key
-		// for module.child, and so that module instance doesn't match the
-		// call declared above with count = 1, and therefore the resource
-		// inside is "orphaned" even though the resource block actually
-		// still exists there.
-		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
-			AttrsJSON: []byte(`{}`),
-			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
-	})
+	var tests = map[string]struct {
+		name      string
+		addr      addrs.AbsResourceInstance
+		prevAddr  addrs.AbsResourceInstance
+		config    *configs.Config
+		prevState *states.State
+	}{
+		"from count to enabled": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "child" {
+						source = "./child"
+					}
+				`,
+				"child/main.tf": `
+					resource "test_object" "a" {
+						count = 1
+					}
+				`,
+			}),
+			addr:     addrNoKey,
+			prevAddr: addrZeroKey,
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from enabled to count": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "child" {
+						source = "./child"
+						count = 1
+					}
+				`,
+				"child/main.tf": `
+					resource "test_object" "a" {
+						count = 1
+					}
+				`,
+			}),
+			addr:     addrZeroKey,
+			prevAddr: addrNoKey,
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+	}
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
@@ -3414,52 +3430,28 @@ func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			plan, diags := ctx.Plan(context.Background(), test.config, test.prevState, DefaultPlanOpts)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			instPlan := plan.Changes.ResourceInstance(test.addr)
+			if got, want := instPlan.Addr, test.addr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, test.prevAddr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, plans.NoOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
 	}
-
-	t.Run(addrNoKey.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrNoKey)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrNoKey)
-		}
-
-		if got, want := instPlan.Addr, addrNoKey; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrNoKey; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Delete; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoModule; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(addrZeroKey.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrZeroKey)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrZeroKey)
-		}
-
-		if got, want := instPlan.Addr, addrZeroKey; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrZeroKey; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Create; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
 }
 
 func TestContext2Plan_resourcePreconditionPostcondition(t *testing.T) {

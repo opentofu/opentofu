@@ -52,3 +52,10 @@ resource "foo" "ambiguous" {
 module "child" {
   source = "./child"
 }
+
+module "child_count_one" {
+  source = "./no-move-child"
+  lifecycle {
+    enabled = true
+  }
+}
