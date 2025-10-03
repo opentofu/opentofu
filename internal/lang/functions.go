@@ -239,17 +239,17 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		//"zipmap":           stdlib.ZipmapFunc,
 	}
 
-	ret["templatefile"] = funcs.MakeTemplateFileFunc(baseDir, func() map[string]function.Function {
-		// The templatefile function prevents recursive calls to itself
-		// by copying this map and overwriting the "templatefile" entry.
-		return ret
-	})
-
-	// Registers "templatestring" function in function map.
-	ret["templatestring"] = funcs.MakeTemplateStringFunc(baseDir, func() map[string]function.Function {
-		// This anonymous function returns the existing map of functions for initialization.
-		return ret
-	})
+	//ret["templatefile"] = funcs.MakeTemplateFileFunc(baseDir, func() map[string]function.Function {
+	//	// The templatefile function prevents recursive calls to itself
+	//	// by copying this map and overwriting the "templatefile" entry.
+	//	return ret
+	//})
+	//
+	//// Registers "templatestring" function in function map.
+	//ret["templatestring"] = funcs.MakeTemplateStringFunc(baseDir, func() map[string]function.Function {
+	//	// This anonymous function returns the existing map of functions for initialization.
+	//	return ret
+	//})
 
 	return ret
 }
