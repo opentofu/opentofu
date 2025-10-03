@@ -11,6 +11,7 @@ jobs:
     env:
       GOOS: linux
       GOARCH: amd64
+      CGO_ENABLED: 0
     runs-on: ubuntu-latest
     steps:
       - name: "Fetch source code"
