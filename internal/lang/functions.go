@@ -45,7 +45,9 @@ func (s *Scope) Functions() map[string]function.Function {
 			// Force our few impure functions to return unknown so that we
 			// can defer evaluating them until a later pass.
 			for _, name := range impureFunctions {
-				s.funcs[name] = function.Unpredictable(s.funcs[name])
+				if _, ok := s.funcs[name]; ok {
+					s.funcs[name] = function.Unpredictable(s.funcs[name])
+				}
 			}
 		}
 
