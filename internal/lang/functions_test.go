@@ -44,7 +44,7 @@ import (
 // behaviors.
 func TestFunctions(t *testing.T) {
 	// used in `pathexpand()` test
-	homePath, err := homedir.Dir()
+	_, err := homedir.Dir()
 	if err != nil {
 		t.Fatalf("Error getting home directory: %v", err)
 	}
