@@ -31,7 +31,7 @@ func TestComplainRngAndMsg(t *testing.T) {
 			},
 			// The last item (by Byte) is the one that will be used
 			wantRng: &hcl.Range{
-				Start: hcl.Pos{Byte: 2},
+				Start: hcl.Pos{Byte: 0},
 				End:   hcl.Pos{Byte: 3},
 			},
 			wantMsg: "\"count\" and \"enabled\"",
@@ -46,7 +46,7 @@ func TestComplainRngAndMsg(t *testing.T) {
 				End:   hcl.Pos{Byte: 4},
 			},
 			wantRng: &hcl.Range{
-				Start: hcl.Pos{Byte: 3},
+				Start: hcl.Pos{Byte: 1},
 				End:   hcl.Pos{Byte: 4},
 			},
 			wantMsg: "\"count\" and \"for_each\"",
@@ -61,7 +61,7 @@ func TestComplainRngAndMsg(t *testing.T) {
 				End:   hcl.Pos{Byte: 1},
 			},
 			wantRng: &hcl.Range{
-				Start: hcl.Pos{Byte: 4},
+				Start: hcl.Pos{Byte: 0},
 				End:   hcl.Pos{Byte: 5},
 			},
 			wantMsg: "\"enabled\" and \"for_each\"",
@@ -80,7 +80,7 @@ func TestComplainRngAndMsg(t *testing.T) {
 				End:   hcl.Pos{Byte: 3},
 			},
 			wantRng: &hcl.Range{
-				Start: hcl.Pos{Byte: 10},
+				Start: hcl.Pos{Byte: 0},
 				End:   hcl.Pos{Byte: 11},
 			},
 			wantMsg: "\"count\", \"enabled\", and \"for_each\"",
