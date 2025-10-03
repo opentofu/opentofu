@@ -28,21 +28,18 @@ func complainRngAndMsg(countRng, enabledRng, forEachRng hcl.Range) (*hcl.Range, 
 		complainAttrs = append(complainAttrs, "\"for_each\"")
 	}
 
-	if len(complainAttrs) == 0 {
-		// If there are no valid ranges, we return an empty range and an empty string
+	if len(complainAttrs) < 2 {
+		// If there are less than two valid ranges, we return an empty range and an empty string
 		return nil, ""
 	}
 
-	// We sort the complain ranges in order to understood who appeared first,
-	// and we use that as the valid one
+	// We sort the complain ranges to return the range between the first and last valid range
 	sort.SliceStable(complainRngs, func(i, j int) bool {
 		return complainRngs[i].Start.Byte < complainRngs[j].Start.Byte
 	})
 
-	lastIndex := len(complainAttrs) - 1
-	complainRng := complainRngs[lastIndex]
-
 	var sep string
+	lastIndex := len(complainAttrs) - 1
 	if len(complainAttrs) >= 3 {
 		// Add an oxford comma to the last attribute
 		complainAttrs[lastIndex] = "and " + complainAttrs[lastIndex]
@@ -50,8 +47,8 @@ func complainRngAndMsg(countRng, enabledRng, forEachRng hcl.Range) (*hcl.Range, 
 	} else {
 		sep = " and "
 	}
-
 	complainMsg := strings.Join(complainAttrs, sep)
+	complainRng := hcl.RangeBetween(complainRngs[0], complainRngs[lastIndex])
 
-	return &complainRng, complainMsg
+	return complainRng.Ptr(), complainMsg
 }

@@ -16,7 +16,7 @@ module "baz" {
 
   a = 1
 
-  count = 12
+  count    = 12
   for_each = ["a", "b", "c"]
 
   depends_on = [
@@ -26,4 +26,12 @@ module "baz" {
   providers = {
     aws = aws.foo
   }
+}
+
+module "enabled_test" {
+  source = "./foo"
+  lifecycle {
+    enabled = true
+  }
+  count = 0
 }
