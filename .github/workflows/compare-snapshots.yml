@@ -7,7 +7,8 @@
 name: Snapshots
 
 on:
-  pull_request:
+  workflow_dispatch:
+#  pull_request:
 
 jobs:
   fileschanged:

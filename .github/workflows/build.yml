@@ -17,20 +17,20 @@ jobs:
     strategy:
       matrix:
         include:
-          - {goos: "freebsd", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "freebsd", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "freebsd", goarch: "arm", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "linux", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "freebsd", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "freebsd", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "freebsd", goarch: "arm", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "linux", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "linux", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "linux", goarch: "arm", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "linux", goarch: "arm64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "openbsd", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "openbsd", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "solaris", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "windows", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "windows", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
-          - {goos: "darwin", goarch: "amd64", runson: "macos-latest", cgo-enabled: "1"}
-          - {goos: "darwin", goarch: "arm64", runson: "macos-latest", cgo-enabled: "1"}
+#          - {goos: "linux", goarch: "arm", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "linux", goarch: "arm64", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "openbsd", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "openbsd", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "solaris", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "windows", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "windows", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
+#          - {goos: "darwin", goarch: "amd64", runson: "macos-latest", cgo-enabled: "1"}
+#          - {goos: "darwin", goarch: "arm64", runson: "macos-latest", cgo-enabled: "1"}
       fail-fast: false
 
     name: Build for ${{ matrix.goos }}_${{ matrix.goarch }}

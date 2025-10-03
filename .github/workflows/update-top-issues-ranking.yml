@@ -2,8 +2,8 @@ name: update-top-issues-ranking
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 10 * * *'
+#  schedule:
+#    - cron: '0 10 * * *'
 
 jobs:
   update:

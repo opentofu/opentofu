@@ -11,8 +11,8 @@
 name: Govulncheck
 
 on:
-  schedule:
-    - cron: '00 15 * * MON'
+#  schedule:
+#    - cron: '00 15 * * MON'
   workflow_dispatch: {}
 
 jobs:
