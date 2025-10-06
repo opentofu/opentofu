@@ -57,7 +57,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hashicorp/hcl v1.0.1-vault-5
 	github.com/hashicorp/hcl/v2 v2.20.1
-	github.com/hashicorp/jsonapi v1.3.1
+	github.com/hashicorp/jsonapi v1.5.0
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.10.3
