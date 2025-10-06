@@ -35,6 +35,7 @@ func FindDependencies(
 	// All of our work will be associated with a workgraph worker that serves
 	// as the initial worker node in the work graph.
 	ctx = grapheval.ContextWithNewWorker(ctx)
+	_ = ctx // just so we can keep the above as a reminder of the need to have a grapheval worker in future work
 
 	panic("unimplemented")
 }

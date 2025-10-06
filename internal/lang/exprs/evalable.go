@@ -306,10 +306,7 @@ func (h *hclBodyJustAttributes) Evaluate(ctx context.Context, hclCtx *hcl.EvalCo
 	// we'll still visit all of the attributes we _did_ find in case
 	// that allows us to collect up some more expression-errors to return so we
 	// can tell the module author about as much as possible at once.
-	typeKnown := true
-	if hclDiags.HasErrors() {
-		typeKnown = false
-	}
+	typeKnown := !hclDiags.HasErrors()
 	retAttrs := make(map[string]cty.Value, len(attrs))
 	for name, attr := range attrs {
 		val, hclDiags := attr.Expr.Value(hclCtx)

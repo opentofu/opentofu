@@ -29,6 +29,8 @@ func singleInstanceSelectorForTesting() InstanceSelector {
 
 // disabledInstanceSelectorForTesting returns an [InstanceSelector] that
 // mimics what happens when "enabled = false".
+//
+//nolint:unused // The test coverage here is currently lacking, but something like this is likely to be needed when we improve that in future so we'll keep this here as an example for now.
 func disabledInstanceSelectorForTesting() InstanceSelector {
 	return &instanceSelectorForTesting{
 		keyType:   addrs.NoKeyType,
@@ -38,6 +40,8 @@ func disabledInstanceSelectorForTesting() InstanceSelector {
 
 // countInstanceSelectorForTesting returns an [InstanceSelector] that behaves
 // similarly to how we treat the "count" meta-argument.
+//
+//nolint:unused // The test coverage here is currently lacking, but something like this is likely to be needed when we improve that in future so we'll keep this here as an example for now.
 func countInstanceSelectorForTesting(count int) InstanceSelector {
 	insts := make(map[addrs.InstanceKey]instances.RepetitionData, count)
 	for i := range count {
@@ -53,6 +57,8 @@ func countInstanceSelectorForTesting(count int) InstanceSelector {
 
 // countInstanceSelectorForTesting returns an [InstanceSelector] that behaves
 // similarly to how we treat the "for_each" meta-argument.
+//
+//nolint:unused // The test coverage here is currently lacking, but something like this is likely to be needed when we improve that in future so we'll keep this here as an example for now.
 func forEachInstanceSelectorForTesting(elems map[string]cty.Value) InstanceSelector {
 	insts := make(map[addrs.InstanceKey]instances.RepetitionData, len(elems))
 	for key, val := range elems {
