@@ -11,7 +11,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/apparentlymart/go-dump/dump"
+	"github.com/zclconf/go-cty-debug/ctydebug"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,7 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestResource(t *testing.T) {
@@ -350,7 +351,7 @@ func TestState_basic(t *testing.T) {
 			}
 
 			if test.Want != cty.NilVal && !test.Want.RawEquals(got) {
-				t.Errorf("wrong result\nconfig: %sgot:    %swant:   %s", dump.Value(config), dump.Value(got), dump.Value(test.Want))
+				t.Errorf("wrong result\nconfig: %sgot:    %swant:   %s", ctydebug.ValueString(config), ctydebug.ValueString(got), ctydebug.ValueString(test.Want))
 			}
 		})
 	}
