@@ -209,6 +209,25 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
+	{
+		// Install backend provider if needed
+		providersOutput, providersAbort, providerDiags := c.getProviders(ctx, &configs.Config{Module: rootModEarly}, nil, flagUpgrade, flagPluginPath, flagLockfile)
+		diags = diags.Append(providerDiags)
+		if providersAbort || providerDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
+		if providersOutput {
+			header = true
+		}
+
+		// If we outputted information, then we need to output a newline
+		// so that our success message is nicely spaced out from prior text.
+		if header {
+			c.Ui.Output("")
+		}
+	}
+
 	var enc encryption.Encryption
 	// If backend flag is explicitly set to false i.e -backend=false, we disable state and plan encryption
 	if backendFlagSet && !flagBackend {

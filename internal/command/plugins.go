@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
@@ -52,6 +53,10 @@ func (m *Meta) storePluginPath(pluginPath []string) error {
 // exists.
 func (m *Meta) loadPluginPath() ([]string, error) {
 	m.fixupMissingWorkingDir()
+
+	//HACK
+	m.contextOpts(context.TODO())
+
 	return m.WorkingDir.ForcedPluginDirs()
 }
 

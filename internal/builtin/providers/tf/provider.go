@@ -8,6 +8,7 @@ package tf
 import (
 	"context"
 	"fmt"
+	"iter"
 	"log"
 	"strings"
 
@@ -221,6 +222,38 @@ func (p *Provider) CallFunction(_ context.Context, r providers.CallFunctionReque
 		Result: v,
 		Error:  err,
 	}
+}
+
+func (p *Provider) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p *Provider) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
+	panic("not implemented") // TODO: Implement
 }
 
 // Close is a noop for this provider, since it's run in-process.

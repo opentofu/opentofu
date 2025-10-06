@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"iter"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -189,6 +190,38 @@ func (p providerForTest) GetFunctions(ctx context.Context) providers.GetFunction
 
 func (p providerForTest) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
 	return p.internal.CallFunction(ctx, r)
+}
+
+func (p providerForTest) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (p providerForTest) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
+	panic("not implemented") // TODO: Implement
 }
 
 func (p providerForTest) Close(ctx context.Context) error {
