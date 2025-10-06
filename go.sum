@@ -544,8 +544,8 @@ github.com/hashicorp/golang-lru v0.5.1/go.mod h1:/m3WP610KZHVQ1SGc6re/UDhFvYD7pJ
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/hashicorp/hcl v1.0.1-vault-5 h1:kI3hhbbyzr4dldA8UdTb7ZlVVlI2DACdCfz31RPDgJM=
 github.com/hashicorp/hcl v1.0.1-vault-5/go.mod h1:XYhtn6ijBSAj6n4YqAaf7RBPS4I06AItNorpy+MoQNM=
-github.com/hashicorp/jsonapi v1.3.1 h1:GtPvnmcWgYwCuDGvYT5VZBHcUyFdq9lSyCzDjn1DdPo=
-github.com/hashicorp/jsonapi v1.3.1/go.mod h1:kWfdn49yCjQvbpnvY1dxxAuAFzISwrrMDQOcu6NsFoM=
+github.com/hashicorp/jsonapi v1.5.0 h1:toO1EpzVl1b3xTjC/Tw4XMIlHgJreeTnyb1a1sHnlPk=
+github.com/hashicorp/jsonapi v1.5.0/go.mod h1:kWfdn49yCjQvbpnvY1dxxAuAFzISwrrMDQOcu6NsFoM=
 github.com/hashicorp/logutils v1.0.0/go.mod h1:QIAnNjmIWmVIIkWDTG1z5v++HQmx9WQRO+LraFDTW64=
 github.com/hashicorp/mdns v1.0.4/go.mod h1:mtBihi+LeNXGtG8L9dX59gAEa12BDtBQSp4v/YAJqrc=
 github.com/hashicorp/memberlist v0.3.0 h1:8+567mCcFDnS5ADl7lrpxPMWiFCElyUEeW0gtj34fMA=
