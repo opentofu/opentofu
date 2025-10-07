@@ -30,6 +30,8 @@ func Provider(p providers.Interface) tfplugin5.ProviderServer {
 type provider struct {
 	provider providers.Interface
 	schema   providers.GetProviderSchemaResponse
+
+	tfplugin5.UnimplementedProviderServer
 }
 
 func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema_Request) (*tfplugin5.GetProviderSchema_Response, error) {
