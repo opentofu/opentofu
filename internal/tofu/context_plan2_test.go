@@ -3366,9 +3366,6 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 	// the repetition meta-arguments. Since they are being moved implicitly to
 	// use the `enabled` field when nothing is declared, we expect the modules
 	// to be moved implicitly, without any changes on the plan.
-	addrNoKey := mustResourceInstanceAddr("module.child.test_object.a[0]")
-	addrZeroKey := mustResourceInstanceAddr("module.child[0].test_object.a[0]")
-
 	var tests = map[string]struct {
 		name      string
 		addr      addrs.AbsResourceInstance
@@ -3376,46 +3373,126 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 		config    *configs.Config
 		prevState *states.State
 	}{
-		"from count to enabled": {
+		"from count-module single-resource to enabled-module single-resource": {
 			config: testModuleInline(t, map[string]string{
-				"main.tf": `
-					module "child" {
-						source = "./child"
-					}
-				`,
-				"child/main.tf": `
-					resource "test_object" "a" {
-						count = 1
-					}
-				`,
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     addrNoKey,
-			prevAddr: addrZeroKey,
+			addr:     mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
-				s.SetResourceInstanceCurrent(addrZeroKey, &states.ResourceInstanceObjectSrc{
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
 					Status:    states.ObjectReady,
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
 			}),
 		},
-		"from enabled to count": {
+		"from count-module single-resource to enabled-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" { count = 1}`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from count-module repeated-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from count-module repeated-resource to enabled-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from enabled-module single-resource to count-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module single-resource to count-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module multiple-resource to count-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module multiple-resource to count-module single-resource": {
 			config: testModuleInline(t, map[string]string{
 				"main.tf": `
 					module "child" {
 						source = "./child"
 						count = 1
-					}
-				`,
-				"child/main.tf": `
-					resource "test_object" "a" {
-						count = 1
-					}
-				`,
+					}`,
+				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     addrZeroKey,
-			prevAddr: addrNoKey,
+			addr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
 			prevState: states.BuildState(func(s *states.SyncState) {
-				s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
 					Status:    states.ObjectReady,
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
@@ -3438,6 +3515,10 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 			}
 
 			instPlan := plan.Changes.ResourceInstance(test.addr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", test.addr)
+			}
+
 			if got, want := instPlan.Addr, test.addr; !got.Equal(want) {
 				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
 			}
