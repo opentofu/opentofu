@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -67,25 +68,33 @@ func TestResourceProvider_stop(t *testing.T) {
 	}
 
 	doneCh := make(chan struct{})
-	startTime := time.Now()
+	var provisionerResp atomic.Pointer[provisioners.ProvisionResourceResponse]
 	go func() {
 		defer close(doneCh)
-		// The functionality of p.Apply is tested in TestResourceProvider_Apply.
-		// Because p.Apply is called in a goroutine, trying to t.Fatal() on its
-		// result would be ignored or would cause a panic if the parent goroutine
-		// has already completed.
-		_ = p.ProvisionResource(provisioners.ProvisionResourceRequest{
+		resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
 			Config:   c,
 			UIOutput: output,
 		})
+		provisionerResp.Store(&resp)
 	}()
 
-	mustExceed := (50 * time.Millisecond)
+	mustExceed := (250 * time.Millisecond)
 	select {
 	case <-doneCh:
-		t.Fatalf("expected to finish sometime after %s finished in %s", mustExceed, time.Since(startTime))
+		// If doneCh is closed here then provisionerResp will have been
+		// set to a non-nil pointer and so we'll catch it in the
+		// if statement immediately below.
 	case <-time.After(mustExceed):
 		t.Logf("correctly took longer than %s", mustExceed)
+	}
+	if resp := provisionerResp.Load(); resp != nil {
+		// This catches a potential misleading outcome where the provisioner
+		// exits early due to an error but does so slow enough that it would
+		// pass the minimum time check above.
+		if resp.Diagnostics.HasErrors() {
+			t.Fatalf("provisioner failed: %s", resp.Diagnostics.Err())
+		}
+		t.Fatalf("provisioner responded with success before we asked it to stop")
 	}
 
 	// Stop it
@@ -101,6 +110,11 @@ func TestResourceProvider_stop(t *testing.T) {
 		t.Logf(maxTempl, finishWithin, time.Since(stopTime))
 	case <-time.After(finishWithin):
 		t.Fatalf(maxTempl, finishWithin, time.Since(stopTime))
+	}
+
+	// Our background goroutine _must_ eventually exit before we consider
+	// the test to be done.
+	for range doneCh {
 	}
 }
 
