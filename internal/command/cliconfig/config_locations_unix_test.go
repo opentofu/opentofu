@@ -153,6 +153,8 @@ func TestConfigFileLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
+			t.Setenv("XDG_CONFIG_HOME", "")
+			t.Setenv("TF_CLI_CONFIG_FILE", "")
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
 			}
@@ -204,6 +206,8 @@ func TestConfigDirLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
+			t.Setenv("XDG_CONFIG_HOME", "")
+			t.Setenv("TF_CLI_CONFIG_FILE", "")
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
 			}
@@ -246,6 +250,7 @@ func TestDataDirLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
+			t.Setenv("XDG_DATA_HOME", "")
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
 			}
