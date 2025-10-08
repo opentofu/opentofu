@@ -89,7 +89,8 @@ func fsRelativize(dir string) string {
 	}
 	// https://learn.microsoft.com/en-us/windows/deployment/usmt/usmt-recognized-environment-variables
 	// Note that this will resolve to "C:", not "C:\"
-	drive := os.Getenv(SYSTEM_DRIVE)
-	driveRemovedPath := strings.TrimPrefix(absDir, drive)
+	drive := strings.ToUpper(os.Getenv(SYSTEM_DRIVE))
+	// We trim both the upper- and lower-case drive, just in case the absolute filepath provides one or the other (drive letters are case-insensitive)
+	driveRemovedPath := strings.TrimPrefix(strings.TrimPrefix(absDir, drive), strings.ToLower(drive))
 	return filepath.ToSlash(strings.Trim(driveRemovedPath, string(os.PathSeparator)))
 }
