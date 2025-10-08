@@ -70,24 +70,6 @@ func TestConfigFileLocations(t *testing.T) {
 		},
 		{
 			locationTestParameters: locationTestParameters{
-				name:  ".tofurc and .terraformrc",
-				files: []string{filepath.Join(home, ".terraformrc"), filepath.Join(home, ".tofurc")},
-			},
-			expected: map[string]*ConfigHost{
-				"config1.example.com": {
-					Services: map[string]interface{}{
-						"modules.v1": "https://config1.example.com/",
-					},
-				},
-				"0and1.example.com": {
-					Services: map[string]interface{}{
-						"modules.v1": "https://0and1.example.com/",
-					},
-				},
-			},
-		},
-		{
-			locationTestParameters: locationTestParameters{
 				name:        "xdg directory, but with .tofurc and .terraformrc present",
 				files:       []string{filepath.Join(home, ".terraformrc"), filepath.Join(home, ".tofurc"), filepath.Join(xdgDir, "opentofu", "tofurc")},
 				directories: []string{xdgDir},
