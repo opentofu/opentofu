@@ -139,12 +139,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
 		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
-		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout)
+		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout, c.ProviderSourceLocationConfig)
 	default:
 		// With no special options we consult upstream registries directly,
 		// because that gives us the most information to produce as complete
 		// and portable as possible a lock entry.
-		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx))
+		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx), c.ProviderSourceLocationConfig)
 	}
 
 	config, confDiags := c.loadConfig(ctx, ".")

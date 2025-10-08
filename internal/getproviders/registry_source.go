@@ -23,13 +23,15 @@ import (
 type RegistrySource struct {
 	services   *disco.Disco
 	httpClient *retryablehttp.Client
+
+	locationConfig LocationConfig
 }
 
 var _ Source = (*RegistrySource)(nil)
 
 // NewRegistrySource creates and returns a new source that will install
 // providers from their originating provider registries.
-func NewRegistrySource(ctx context.Context, services *disco.Disco, httpClient *retryablehttp.Client) *RegistrySource {
+func NewRegistrySource(ctx context.Context, services *disco.Disco, httpClient *retryablehttp.Client, locationCfg LocationConfig) *RegistrySource {
 	if httpClient == nil {
 		// As an aid to our tests that don't really care that much about
 		// the HTTP client configuration, we'll provide some reasonable
@@ -38,8 +40,9 @@ func NewRegistrySource(ctx context.Context, services *disco.Disco, httpClient *r
 	}
 
 	return &RegistrySource{
-		services:   services,
-		httpClient: httpClient,
+		services:       services,
+		httpClient:     httpClient,
+		locationConfig: locationCfg,
 	}
 }
 
@@ -159,7 +162,7 @@ func (s *RegistrySource) registryClient(ctx context.Context, hostname svchost.Ho
 		return nil, fmt.Errorf("failed to retrieve credentials for %s: %w", hostname, err)
 	}
 
-	return newRegistryClient(ctx, url, creds, s.httpClient), nil
+	return newRegistryClient(ctx, url, creds, s.httpClient, s.locationConfig), nil
 }
 
 func (s *RegistrySource) ForDisplay(provider addrs.Provider) string {
