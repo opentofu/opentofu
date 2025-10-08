@@ -85,11 +85,7 @@ func findMoveStatements(cfg *configs.Config, into []MoveStatement) []MoveStateme
 //
 // We should think very hard before adding any _new_ implication rules for
 // moved statements.
-func ImpliedMoveStatements(
-	rootCfg *configs.Config,
-	prevRunState *states.State,
-	explicitStmts []MoveStatement,
-) []MoveStatement {
+func ImpliedMoveStatements(rootCfg *configs.Config, prevRunState *states.State, explicitStmts []MoveStatement) []MoveStatement {
 	return impliedMoveStatements(rootCfg, prevRunState, explicitStmts)
 }
 
@@ -97,12 +93,16 @@ func impliedMoveStatements(cfg *configs.Config, prevRunState *states.State, expl
 	modAddr := cfg.Path
 	into := make([]MoveStatement, 0)
 
-	// There can be potentially many instances of the module, so we need
-	// to consider each of them separately.
+	// Create implied move statements for module calls. We're typically
+	// looking for module where meta-arguments were changed to see if they
+	// can be moved without an explicit moved block. If there's an existing
+	// explicit move statement for the module, we don't create an implied move statement.
 	for modCallName, modCallCfg := range cfg.Module.ModuleCalls {
 		into = append(into, impliedMoveStatementsForModules(prevRunState, cfg, modCallName, modCallCfg, explicitStmts)...)
 	}
 
+	// There can be potentially many instances of the module, so we need
+	// to consider each of them separately.
 	for _, modState := range prevRunState.ModuleInstances(modAddr) {
 		// What we're looking for here is either a no-key resource instance
 		// where the configuration has count set or a zero-key resource
@@ -119,6 +119,7 @@ func impliedMoveStatements(cfg *configs.Config, prevRunState *states.State, expl
 	return into
 }
 
+// impliedMoveStatementsForModules creates implied move statements for module calls.
 func impliedMoveStatementsForModules(
 	prevRunState *states.State,
 	parentCfg *configs.Config,
@@ -170,6 +171,7 @@ func impliedMoveStatementsForModules(
 	return into
 }
 
+// impliedMoveStatementsForModuleResources creates implied move statements for module resources.
 func impliedMoveStatementsForModuleResources(cfg *configs.Config, modState *states.Module, explicitStmts []MoveStatement) []MoveStatement {
 	var into []MoveStatement
 

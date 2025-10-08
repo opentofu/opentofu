@@ -253,7 +253,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 				End:      tfdiags.SourcePos{Line: 46, Column: 27, Byte: 832},
 			},
 		},
-		// Generate a move from a count module to a enabled field
+		// Implied move from a count module to a enabled module
 		{
 			From:    addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			To:      addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.NoKey), tfdiags.SourceRange{}),

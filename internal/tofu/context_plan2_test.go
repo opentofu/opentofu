@@ -3362,10 +3362,9 @@ output "output" {
 }
 
 func TestContext2Plan_moduleImplicitMove(t *testing.T) {
-	// The previous test was expecting resources to be orphaned if they changed
-	// the repetition meta-arguments. Since they are being moved implicitly to
-	// use the `enabled` field when nothing is declared, we expect the modules
-	// to be moved implicitly, without any changes on the plan.
+	// Modules are being moved implicitly to use the `enabled` field when nothing
+	// is declared on the block. Alternatively, they are implicitly being moved from
+	// using `enabled` as true or without declaring `enabled` to use count.
 	var tests = map[string]struct {
 		name      string
 		addr      addrs.AbsResourceInstance
