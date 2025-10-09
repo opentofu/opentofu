@@ -6,7 +6,6 @@
 package cliconfig
 
 import (
-	"context"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -52,7 +51,7 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 
 	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
-	c, errs := LoadConfig(context.Background(), fileSystem)
+	c, errs := LoadConfig(t.Context(), fileSystem)
 	if errs.HasErrors() || c.Validate(fileSystem).HasErrors() {
 		t.Fatalf("err: %s", errs)
 	}
