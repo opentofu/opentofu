@@ -55,7 +55,5 @@ module "child" {
 
 module "child_count_one" {
   source = "./no-move-child"
-  lifecycle {
-    enabled = true
-  }
+  count  = 1
 }

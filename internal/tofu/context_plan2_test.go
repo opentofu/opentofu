@@ -3497,6 +3497,32 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 			}),
 		},
+		"from nested enabled-module multiple-resource to count-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "child" {
+						source = "./child"
+					}`,
+				"child/main.tf": `
+					module "grandchild" {
+						source = "./grandchild"
+						count = 1
+					}`,
+				"child/grandchild/main.tf": `resource "test_object" "a" {}`,
+			}),
+			addr:     mustResourceInstanceAddr("module.child.module.grandchild[0].test_object.a"),
+			prevAddr: mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
 	}
 
 	p := simpleMockProvider()

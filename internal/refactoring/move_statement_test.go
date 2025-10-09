@@ -185,8 +185,12 @@ func TestImpliedMoveStatements(t *testing.T) {
 			addrs.NoKey,
 		)
 
-		// Test the implicity move from a count module to a enabled field
-		s.Module(moduleAddr("child_count_one").Instance(addrs.IntKey(0)))
+		s.SetResourceInstanceCurrent(
+			nestedResourceAddr("child_count_one", "now_count").Instance(addrs.NoKey),
+			instObjState(),
+			providerAddr,
+			addrs.IntKey(0),
+		)
 	})
 
 	explicitStmts := FindMoveStatements(rootCfg)
@@ -253,15 +257,15 @@ func TestImpliedMoveStatements(t *testing.T) {
 				End:      tfdiags.SourcePos{Line: 46, Column: 27, Byte: 832},
 			},
 		},
-		// Implied move from a count module to a enabled module
+		// Implied move from an enabled module to a count module
 		{
-			From:    addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
-			To:      addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.NoKey), tfdiags.SourceRange{}),
+			From:    addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.NoKey), tfdiags.SourceRange{}),
+			To:      addrs.ImpliedMoveStatementEndpoint(moduleAddr("child_count_one").Instance(addrs.IntKey(0)), tfdiags.SourceRange{}),
 			Implied: true,
 			DeclRange: tfdiags.SourceRange{
 				Filename: filepath.Join("testdata", "move-statement-implied", "move-statement-implied.tf"),
-				Start:    tfdiags.SourcePos{Line: 56, Column: 1, Byte: 1021},
-				End:      tfdiags.SourcePos{Line: 56, Column: 25, Byte: 1045},
+				Start:    tfdiags.SourcePos{Line: 58, Column: 12, Byte: 1088},
+				End:      tfdiags.SourcePos{Line: 58, Column: 13, Byte: 1089},
 			},
 		},
 	}
