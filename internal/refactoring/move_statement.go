@@ -154,8 +154,13 @@ func impliedMoveStatementsForModules(
 			Call:   callAddr.Call,
 		}
 
-		// Get the instance key from the state
+		// Only one instance of the module can be dealt, because moving from single
+		// to repeated can't support multiple instances. The other instances are going
+		// to be removed or created, depending on the direction of the change.
 		fromKey := callAddr.Key
+		if fromKey != addrs.NoKey && fromKey != addrs.IntKey(0) {
+			continue
+		}
 
 		// We mustn't generate an implied statement if the user already
 		// wrote an explicit statement referring to this module,
