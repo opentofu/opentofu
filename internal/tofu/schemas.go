@@ -119,13 +119,7 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 			defer lock.Unlock()
 
 			if err != nil {
-				diags = diags.Append(
-					tfdiags.Sourceless(
-						tfdiags.Error,
-						"Failed to obtain provider schema",
-						fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
-					),
-				)
+				diags = diags.Append(err)
 				return
 			}
 
