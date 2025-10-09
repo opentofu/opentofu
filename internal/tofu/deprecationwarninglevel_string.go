@@ -18,8 +18,9 @@ const _DeprecationWarningLevel_name = "DeprecationWarningLevelAllDeprecationWarn
 var _DeprecationWarningLevel_index = [...]uint8{0, 26, 54, 81}
 
 func (i DeprecationWarningLevel) String() string {
-	if i >= DeprecationWarningLevel(len(_DeprecationWarningLevel_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_DeprecationWarningLevel_index)-1 {
 		return "DeprecationWarningLevel(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _DeprecationWarningLevel_name[_DeprecationWarningLevel_index[i]:_DeprecationWarningLevel_index[i+1]]
+	return _DeprecationWarningLevel_name[_DeprecationWarningLevel_index[idx]:_DeprecationWarningLevel_index[idx+1]]
 }
