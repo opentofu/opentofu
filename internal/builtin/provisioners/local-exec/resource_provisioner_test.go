@@ -58,10 +58,17 @@ func TestResourceProvider_stop(t *testing.T) {
 	p := New()
 	schema := p.GetSchema().Provisioner
 
+	command := "sleep 30; sleep 30"
+	if runtime.GOOS == "windows" {
+		// On Windows the local-exec provisioner uses cmd.exe by default,
+		// and that uses "&" as a command separator instead of ";".
+		command = "sleep 30 & sleep 30"
+	}
+
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
 		// bash/zsh/ksh will exec a single command in the same process. This
 		// makes certain there's a subprocess in the shell.
-		"command": cty.StringVal("sleep 30; sleep 30"),
+		"command": cty.StringVal(command),
 	}))
 	if err != nil {
 		t.Fatal(err)
