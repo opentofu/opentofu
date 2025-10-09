@@ -47,7 +47,7 @@ type testTemplateInfo struct {
 //   - the order those files were merged
 //
 // These are satisfied with a index host and a pairwise "comparison host", whose "module.vX"
-// value recieves X from the index of the configuration file with highest precedence.
+// value receives X from the index of the configuration file with highest precedence.
 // The resulting configuration will only have hosts information, which is sufficient
 // for the purposes of the location tests.
 func getFile(i, n int) ([]byte, error) {
