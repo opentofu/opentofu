@@ -208,7 +208,7 @@ type Connection struct {
 // ProvisionerWhen is an enum for valid values for when to run provisioners.
 type ProvisionerWhen int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type ProvisionerWhen
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ProvisionerWhen
 
 const (
 	ProvisionerWhenInvalid ProvisionerWhen = iota
@@ -220,7 +220,7 @@ const (
 // for provisioners.
 type ProvisionerOnFailure int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type ProvisionerOnFailure
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ProvisionerOnFailure
 
 const (
 	ProvisionerOnFailureInvalid ProvisionerOnFailure = iota

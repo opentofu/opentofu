@@ -139,7 +139,7 @@ func (v ValueSourceType) GoString() string {
 	return fmt.Sprintf("tofu.%s", v)
 }
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type ValueSourceType
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ValueSourceType
 
 // InputValues is a map of InputValue instances.
 type InputValues map[string]*InputValue
