@@ -24,12 +24,19 @@ var (
 )
 
 const CSIDL_APPDATA = 26
-const SYSTEM_DRIVE = "SystemDrive"
+
+// wdDrive gets the drive of the current working directory
+// Note that this will resolve to "C:", not "C:\"
+func wdDrive() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Printf("[WARNING] Attempted to get the current working directory, but ran into an error: %v", err)
+	}
+	return filepath.VolumeName(wd)
+}
 
 func rootFileSystem() fs.FS {
-	// https://learn.microsoft.com/en-us/windows/deployment/usmt/usmt-recognized-environment-variables
-	// Note that this will resolve to "C:", not "C:\"
-	drive := os.Getenv(SYSTEM_DRIVE)
+	drive := wdDrive()
 	return os.DirFS(drive + string(os.PathSeparator))
 }
 
@@ -87,14 +94,8 @@ func fsRelativize(dir string) string {
 	if err != nil {
 		log.Printf("[WARNING] Attempted to form absolute representation of relative path \"%s\", but ran into an error: %v", dir, err)
 	}
-	systemDrive := strings.ToUpper(os.Getenv(SYSTEM_DRIVE))
-	dirVolume := strings.ToUpper(filepath.VolumeName(absDir))
-	if systemDrive != dirVolume {
-		log.Printf("[WARNING] System Drive %s and file location %s are in different drives, and will not look up correctly on a relativized file system", systemDrive, dirVolume)
-	}
-	// https://learn.microsoft.com/en-us/windows/deployment/usmt/usmt-recognized-environment-variables
-	// Note that this will resolve to "C:", not "C:\"
+	drive := wdDrive()
 	// We trim both the upper- and lower-case drive, just in case the absolute filepath provides one or the other (drive letters are case-insensitive)
-	driveRemovedPath := strings.TrimPrefix(strings.TrimPrefix(absDir, systemDrive), strings.ToLower(systemDrive))
+	driveRemovedPath := strings.TrimPrefix(strings.TrimPrefix(absDir, strings.ToUpper(drive)), strings.ToLower(drive))
 	return filepath.ToSlash(strings.Trim(driveRemovedPath, string(os.PathSeparator)))
 }

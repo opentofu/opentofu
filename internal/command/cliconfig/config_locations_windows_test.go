@@ -72,20 +72,20 @@ func TestConfigFileLocations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			fileSystem := fstest.MapFS{}
 			n := len(test.files)
+			drive := wdDrive() + "\\"
 			for i, file := range test.files {
 				b, err := getFile(i, n)
 				if err != nil {
 					t.Fatalf("failed to generate file %s: %v", file, err)
 				}
-				// TODO trim correctly
-				s, _ := strings.CutPrefix(file, "C:\\")
+				s := strings.TrimPrefix(strings.TrimPrefix(file, strings.ToUpper(drive)), strings.ToLower(drive))
 				fileSystem[filepath.ToSlash(s)] = &fstest.MapFile{
 					Data: b,
 					Mode: 0o600,
 				}
 			}
 			for _, directory := range test.directories {
-				s, _ := strings.CutPrefix(directory, "C:\\")
+				s := strings.TrimPrefix(strings.TrimPrefix(directory, strings.ToUpper(drive)), strings.ToLower(drive))
 				fileSystem[filepath.ToSlash(s)] = &fstest.MapFile{
 					Data: nil,
 					Mode: fs.ModeDir | 0o755,
@@ -108,6 +108,7 @@ func TestConfigFileLocations(t *testing.T) {
 func TestConfigDirLocations(t *testing.T) {
 	configDir := os.Getenv("APPDATA")
 	terraformD := filepath.Join(configDir, "terraform.d")
+	drive := wdDrive() + "\\"
 	tests := []directoryLocationTest{
 		{
 			locationTestParameters: locationTestParameters{
@@ -120,7 +121,7 @@ func TestConfigDirLocations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			fileSystem := fstest.MapFS{}
 			for _, directory := range test.directories {
-				s, _ := strings.CutPrefix(directory, "C:\\")
+				s := strings.TrimPrefix(strings.TrimPrefix(directory, strings.ToUpper(drive)), strings.ToLower(drive))
 				fileSystem[filepath.ToSlash(s)] = &fstest.MapFile{
 					Data: nil,
 					Mode: fs.ModeDir | 0o755,
@@ -142,6 +143,7 @@ func TestConfigDirLocations(t *testing.T) {
 func TestDataDirLocations(t *testing.T) {
 	configDir := os.Getenv("APPDATA")
 	terraformD := filepath.Join(configDir, "terraform.d")
+	drive := wdDrive() + "\\"
 	// Note that neither of these tests depend on the existence of the underlying directories.
 	tests := []directoryLocationTest{
 		{
@@ -155,7 +157,7 @@ func TestDataDirLocations(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			fileSystem := fstest.MapFS{}
 			for _, directory := range test.directories {
-				s, _ := strings.CutPrefix(directory, "C:\\")
+				s := strings.TrimPrefix(strings.TrimPrefix(directory, strings.ToUpper(drive)), strings.ToLower(drive))
 				fileSystem[filepath.ToSlash(s)] = &fstest.MapFile{
 					Data: nil,
 					Mode: fs.ModeDir | 0o755,
