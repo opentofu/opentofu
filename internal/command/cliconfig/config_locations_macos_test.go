@@ -12,12 +12,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestConfigFileLocations(t *testing.T) {
@@ -160,8 +159,8 @@ func TestConfigFileLocations(t *testing.T) {
 			if diags.HasErrors() {
 				t.Fatalf("no errors expected, got errors from diags")
 			}
-			if !reflect.DeepEqual(actual.Hosts, test.expected) {
-				t.Errorf("wrong result\ngot:  %s\nwant: %s", spew.Sdump(actual.Hosts), spew.Sdump(test.expected))
+			if diff := cmp.Diff(actual.Hosts, test.expected); diff != "" {
+				t.Error("unexpected result\n" + diff)
 			}
 		})
 	}
@@ -253,8 +252,8 @@ func TestDataDirLocations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("no errors expected, got errors from diags")
 			}
-			if !reflect.DeepEqual(actual, test.expected) {
-				t.Errorf("wrong result\ngot:  %s\nwant: %s", spew.Sdump(actual), spew.Sdump(test.expected))
+			if diff := cmp.Diff(actual, test.expected); diff != "" {
+				t.Error("unexpected result\n" + diff)
 			}
 		})
 	}
