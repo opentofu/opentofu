@@ -175,7 +175,7 @@ jobs:
       
       - name: "Copyright headers"
         run: |
-          go run github.com/hashicorp/copywrite headers --plan
+          go tool github.com/hashicorp/copywrite headers --plan
           if [[ $? != 0 ]]; then
             echo >&2 "ERROR: some files are missing required copyright headers. Run `scripts/add-copyright-headers.sh` locally and then commit the updated files."
             exit 1
