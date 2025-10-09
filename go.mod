@@ -98,7 +98,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.41.0
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/mod v0.26.0
 	golang.org/x/net v0.43.0
 	golang.org/x/oauth2 v0.32.0
@@ -129,6 +128,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 )
 
 require (
