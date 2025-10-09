@@ -69,6 +69,7 @@ BUG FIXES:
 * Remote provisioners now reject SSH certificates whose signature key is a certificate key, as required by the current SSH Certificate Format specification draft. ([#3180](https://github.com/opentofu/opentofu/pull/3180))
 * `tofu import` command now correctly validates when the target address contains non-existent for_each key ([#3106](https://github.com/opentofu/opentofu/pull/3106))
 * Fix crash in tofu test when using deprecated outputs ([#3249](https://github.com/opentofu/opentofu/pull/3249))
+* The `TF_CLI_ARGS` environment variable and all of its subcommand-specific variants now follow typical shell parsing rules more closely when parsing the environment variable values into a sequence of arguments. In particular, pairs of quotes with nothing between them are now understood as zero-length arguments rather than being completely ignored as before. ([#3354](https://github.com/opentofu/opentofu/pull/3354))
 
 BREAKING CHANGES:
 * In the `azurerm` backend, the following backend variables have been changed ([#3034](https://github.com/opentofu/opentofu/pull/3034)):
