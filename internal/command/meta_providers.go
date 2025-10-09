@@ -489,16 +489,6 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 	}
 }
 
-// providerFactoryError is a stub providers.Factory that returns an error
-// when called. It's used to allow providerFactories to still produce a
-// factory for each available provider in an error case, for situations
-// where the caller can do something useful with that partial result.
-func providerFactoryError(err error) providers.Factory {
-	return func() (providers.Interface, error) {
-		return nil, err
-	}
-}
-
 // providerPluginErrors is an error implementation we can return from
 // Meta.providerFactories to capture potentially multiple errors about the
 // locally-cached plugins (or lack thereof) for particular external providers.
