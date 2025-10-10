@@ -52,3 +52,8 @@ resource "foo" "ambiguous" {
 module "child" {
   source = "./child"
 }
+
+module "child_count_one" {
+  source = "./no-move-child"
+  count  = 1
+}

@@ -505,7 +505,7 @@ func (m ModuleInstance) HasSameModule(other ModuleInstance) bool {
 // an argument.
 //
 // This is here only as an optimization to avoid the overhead of constructing
-// a [Module] value from the reciever just to compare it and then throw it away.
+// a [Module] value from the receiver just to compare it and then throw it away.
 func (m ModuleInstance) IsForModule(module Module) bool {
 	if len(m) != len(module) {
 		return false

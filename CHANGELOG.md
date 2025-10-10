@@ -20,6 +20,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+* Add implicit moves for modules using meta-arguments. ([#3327](https://github.com/opentofu/opentofu/pull/3327))
 * The conditional `enabled` field is now supported for modules within the `lifecycle` block. ([#3244](https://github.com/opentofu/opentofu/pull/3244))
 * The conditional `enabled` field is now supported for all types of resources within the `lifecycle` block. ([#3042](https://github.com/opentofu/opentofu/pull/3042))
 * OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))

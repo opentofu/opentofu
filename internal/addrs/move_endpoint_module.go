@@ -67,11 +67,11 @@ type MoveEndpointInModule struct {
 // have somewhat-related-but-imprecise source ranges, typically referring to
 // some general configuration construct that implied the statement, because
 // by definition there is no explicit move endpoint expression in this case.
-func ImpliedMoveStatementEndpoint(addr AbsResourceInstance, rng tfdiags.SourceRange) *MoveEndpointInModule {
+func ImpliedMoveStatementEndpoint(addr AbsMoveable, rng tfdiags.SourceRange) *MoveEndpointInModule {
 	// implied move endpoints always belong to the root module, because each
-	// one refers to a single resource instance inside a specific module
-	// instance, rather than all instances of the module where the resource
-	// was declared.
+	// one refers to a single resource instance inside a specific module instance
+	// or a single module instance, rather than all instances of the module where
+	// the resource was declared.
 	return &MoveEndpointInModule{
 		SourceRange: rng,
 		module:      RootModule,

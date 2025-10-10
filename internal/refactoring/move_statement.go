@@ -85,12 +85,17 @@ func findMoveStatements(cfg *configs.Config, into []MoveStatement) []MoveStateme
 //
 // We should think very hard before adding any _new_ implication rules for
 // moved statements.
-func ImpliedMoveStatements(rootCfg *configs.Config, prevRunState *states.State, explicitStmts []MoveStatement) []MoveStatement {
-	return impliedMoveStatements(rootCfg, prevRunState, explicitStmts, nil)
-}
-
-func impliedMoveStatements(cfg *configs.Config, prevRunState *states.State, explicitStmts []MoveStatement, into []MoveStatement) []MoveStatement {
+func ImpliedMoveStatements(cfg *configs.Config, prevRunState *states.State, explicitStmts []MoveStatement) []MoveStatement {
 	modAddr := cfg.Path
+	into := make([]MoveStatement, 0)
+
+	// Create implied move statements for module calls. We're typically
+	// looking for module where meta-arguments were changed to see if they
+	// can be moved without an explicit moved block. If there's an existing
+	// explicit move statement for the module, we don't create an implied move statement.
+	for modCallName, modCallCfg := range cfg.Module.ModuleCalls {
+		into = append(into, impliedMoveStatementsForModules(prevRunState, cfg, modCallName, modCallCfg, explicitStmts)...)
+	}
 
 	// There can be potentially many instances of the module, so we need
 	// to consider each of them separately.
@@ -100,63 +105,141 @@ func impliedMoveStatements(cfg *configs.Config, prevRunState *states.State, expl
 		// instance where the configuration _doesn't_ have count set.
 		// If so, we'll generate a statement replacing no-key with zero-key or
 		// vice-versa.
-		for _, rState := range modState.Resources {
-			rAddr := rState.Addr
-			rCfg := cfg.Module.ResourceByAddr(rAddr.Resource)
-			if rCfg == nil {
-				// If there's no configuration at all then there can't be any
-				// automatic move fixup to do.
-				continue
-			}
-			approxSrcRange := tfdiags.SourceRangeFromHCL(rCfg.DeclRange)
-
-			// NOTE: We're intentionally not checking to see whether the
-			// "to" addresses in our implied statements already have
-			// instances recorded in state, because ApplyMoves should
-			// deal with such conflicts in a deterministic way for both
-			// explicit and implicit moves, and we'd rather have that
-			// handled all in one place.
-
-			var fromKey, toKey addrs.InstanceKey
-
-			switch {
-			case rCfg.Count != nil:
-				// If we have a count expression then we'll use _that_ as
-				// a slightly-more-precise approximate source range.
-				approxSrcRange = tfdiags.SourceRangeFromHCL(rCfg.Count.Range())
-
-				if riState := rState.Instances[addrs.NoKey]; riState != nil {
-					fromKey = addrs.NoKey
-					toKey = addrs.IntKey(0)
-				}
-			case rCfg.Count == nil && rCfg.ForEach == nil: // no repetition at all
-				if riState := rState.Instances[addrs.IntKey(0)]; riState != nil {
-					fromKey = addrs.IntKey(0)
-					toKey = addrs.NoKey
-				}
-			}
-
-			if fromKey != toKey {
-				// We mustn't generate an implied statement if the user already
-				// wrote an explicit statement referring to this resource,
-				// because they may wish to select an instance key other than
-				// zero as the one to retain.
-				if !haveMoveStatementForResource(rAddr, explicitStmts) {
-					into = append(into, MoveStatement{
-						From:      addrs.ImpliedMoveStatementEndpoint(rAddr.Instance(fromKey), approxSrcRange),
-						To:        addrs.ImpliedMoveStatementEndpoint(rAddr.Instance(toKey), approxSrcRange),
-						DeclRange: approxSrcRange,
-						Implied:   true,
-					})
-				}
-			}
-		}
+		into = append(into, impliedMoveStatementsForModuleResources(cfg, modState, explicitStmts)...)
 	}
 
 	for _, childCfg := range cfg.Children {
-		into = impliedMoveStatements(childCfg, prevRunState, explicitStmts, into)
+		into = append(into, ImpliedMoveStatements(childCfg, prevRunState, explicitStmts)...)
 	}
 
+	return into
+}
+
+// impliedMoveStatementsForModules creates implied move statements for module calls.
+func impliedMoveStatementsForModules(
+	prevRunState *states.State,
+	parentCfg *configs.Config,
+	modCallName string,
+	modCallCfg *configs.ModuleCall,
+	explicitStmts []MoveStatement,
+) []MoveStatement {
+	var into []MoveStatement
+	var toKey addrs.InstanceKey
+	approxSrcRange := tfdiags.SourceRangeFromHCL(modCallCfg.DeclRange)
+
+	// Use the configuration to determine the instance key to
+	// use for the implied move `To statement.
+	switch {
+	case modCallCfg.Count != nil:
+		// If we have a count expression then we'll use _that_ as
+		// a slightly-more-precise approximate source range.
+		approxSrcRange = tfdiags.SourceRangeFromHCL(modCallCfg.Count.Range())
+		toKey = addrs.IntKey(0)
+	case modCallCfg.Count == nil && modCallCfg.ForEach == nil: // no repetition at all
+		toKey = addrs.NoKey
+	default:
+		// Other combinations of meta-arguments are not supported.
+		return into
+	}
+
+	// Get the module address
+	modAddr := parentCfg.Path.Child(modCallName)
+
+	// Iterate over all module instances, that can be generated by
+	// meta-arguments like count or for_each on the saved state for the module.
+	for _, modState := range prevRunState.ModuleInstances(modAddr) {
+		callerAddr, callAddr := modState.Addr.CallInstance()
+		absCallAddr := addrs.AbsModuleCall{
+			Module: callerAddr,
+			Call:   callAddr.Call,
+		}
+
+		// Only one instance of the module can be dealt, because moving from single
+		// to repeated can't support multiple instances. The other instances are going
+		// to be removed or created, depending on the direction of the change.
+		fromKey := callAddr.Key
+		if fromKey != addrs.NoKey && fromKey != addrs.IntKey(0) {
+			continue
+		}
+
+		// We mustn't generate an implied statement if the user already
+		// wrote an explicit statement referring to this module,
+		// because they may wish to select an instance key other than
+		// zero as the one to retain. If the instance key from the state
+		// equals the instance key from the configuration, then we don't
+		// need to generate an implied statement.
+		if fromKey == toKey || haveMoveStatementForModule(modState.Addr, explicitStmts) {
+			continue
+		}
+
+		fromAddr := absCallAddr.Instance(fromKey)
+		toAddr := absCallAddr.Instance(toKey)
+
+		into = append(into, MoveStatement{
+			From:      addrs.ImpliedMoveStatementEndpoint(fromAddr, approxSrcRange),
+			To:        addrs.ImpliedMoveStatementEndpoint(toAddr, approxSrcRange),
+			DeclRange: approxSrcRange,
+			Implied:   true,
+		})
+	}
+	return into
+}
+
+// impliedMoveStatementsForModuleResources creates implied move statements for module resources.
+func impliedMoveStatementsForModuleResources(cfg *configs.Config, modState *states.Module, explicitStmts []MoveStatement) []MoveStatement {
+	var into []MoveStatement
+
+	for _, rState := range modState.Resources {
+		rAddr := rState.Addr
+		rCfg := cfg.Module.ResourceByAddr(rAddr.Resource)
+		if rCfg == nil {
+			// If there's no configuration at all then there can't be any
+			// automatic move fixup to do.
+			continue
+		}
+		approxSrcRange := tfdiags.SourceRangeFromHCL(rCfg.DeclRange)
+
+		// NOTE: We're intentionally not checking to see whether the
+		// "to" addresses in our implied statements already have
+		// instances recorded in state, because ApplyMoves should
+		// deal with such conflicts in a deterministic way for both
+		// explicit and implicit moves, and we'd rather have that
+		// handled all in one place.
+
+		var fromKey, toKey addrs.InstanceKey
+
+		switch {
+		case rCfg.Count != nil:
+			// If we have a count expression then we'll use _that_ as
+			// a slightly-more-precise approximate source range.
+			approxSrcRange = tfdiags.SourceRangeFromHCL(rCfg.Count.Range())
+
+			if riState := rState.Instances[addrs.NoKey]; riState != nil {
+				fromKey = addrs.NoKey
+				toKey = addrs.IntKey(0)
+			}
+		case rCfg.Count == nil && rCfg.ForEach == nil: // no repetition at all
+			if riState := rState.Instances[addrs.IntKey(0)]; riState != nil {
+				fromKey = addrs.IntKey(0)
+				toKey = addrs.NoKey
+			}
+		}
+
+		if fromKey != toKey {
+			// We mustn't generate an implied statement if the user already
+			// wrote an explicit statement referring to this resource,
+			// because they may wish to select an instance key other than
+			// zero as the one to retain.
+			if !haveMoveStatementForResource(rAddr, explicitStmts) {
+				into = append(into, MoveStatement{
+					From:      addrs.ImpliedMoveStatementEndpoint(rAddr.Instance(fromKey), approxSrcRange),
+					To:        addrs.ImpliedMoveStatementEndpoint(rAddr.Instance(toKey), approxSrcRange),
+					DeclRange: approxSrcRange,
+					Implied:   true,
+				})
+			}
+		}
+	}
 	return into
 }
 
@@ -184,6 +267,24 @@ func haveMoveStatementForResource(addr addrs.AbsResource, stmts []MoveStatement)
 			return true
 		}
 		if stmt.To.SelectsResource(addr) {
+			return true
+		}
+	}
+	return false
+}
+
+func haveMoveStatementForModule(addr addrs.ModuleInstance, stmts []MoveStatement) bool {
+	// This is not a particularly optimal way to answer this question,
+	// particularly since our caller calls this function in a loop already,
+	// but we expect the total number of explicit statements to be small
+	// in any reasonable OpenTofu configuration and so a more complicated
+	// approach wouldn't be justified here.
+
+	for _, stmt := range stmts {
+		if stmt.From.SelectsModule(addr) {
+			return true
+		}
+		if stmt.To.SelectsModule(addr) {
 			return true
 		}
 	}
