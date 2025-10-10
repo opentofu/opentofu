@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -163,21 +163,8 @@ func TestState(t *testing.T) {
 		},
 	}
 
-	{
-		// Our structure goes deep, so we need to temporarily override the
-		// deep package settings to ensure that we visit the full structure.
-		oldDeepDepth := deep.MaxDepth
-		oldDeepCompareUnexp := deep.CompareUnexportedFields
-		deep.MaxDepth = 50
-		deep.CompareUnexportedFields = true
-		defer func() {
-			deep.MaxDepth = oldDeepDepth
-			deep.CompareUnexportedFields = oldDeepCompareUnexp
-		}()
-	}
-
-	for _, problem := range deep.Equal(state, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, state); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 
 	expectedOutputs := map[string]string{

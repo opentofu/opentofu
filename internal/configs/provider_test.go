@@ -9,9 +9,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -92,8 +93,8 @@ func TestParseProviderConfigCompact(t *testing.T) {
 				}
 			}
 
-			for _, problem := range deep.Equal(got, test.Want) {
-				t.Error(problem)
+			if diff := cmp.Diff(test.Want, got); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}
@@ -146,8 +147,8 @@ func TestParseProviderConfigCompactStr(t *testing.T) {
 				}
 			}
 
-			for _, problem := range deep.Equal(got, test.Want) {
-				t.Error(problem)
+			if diff := cmp.Diff(test.Want, got); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}
