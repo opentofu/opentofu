@@ -59,6 +59,12 @@ func (e *Expander) SetModuleSingle(parentAddr addrs.ModuleInstance, callAddr add
 	e.setModuleExpansion(parentAddr, callAddr, expansionSingleVal)
 }
 
+// SetModuleEnabled records that the given module call inside the given parent
+// module uses the "enabled" lifecycle repetition argument, with the given value.
+func (e *Expander) SetModuleEnabled(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, enabled bool) {
+	e.setModuleExpansion(parentAddr, callAddr, expansionEnabled(enabled))
+}
+
 // SetModuleCount records that the given module call inside the given parent
 // module instance uses the "count" repetition argument, with the given value.
 func (e *Expander) SetModuleCount(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, count int) {

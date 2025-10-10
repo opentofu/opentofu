@@ -20,7 +20,8 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
-* The conditional enabled field is now supported for all types of resources within the `lifecycle` block. ([#3042](https://github.com/opentofu/opentofu/pull/3042))
+* The conditional `enabled` field is now supported for modules within the `lifecycle` block. ([#3244](https://github.com/opentofu/opentofu/pull/3244))
+* The conditional `enabled` field is now supported for all types of resources within the `lifecycle` block. ([#3042](https://github.com/opentofu/opentofu/pull/3042))
 * OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))
 * `tofu validate` now supports running in a module that contains provider configuration_aliases. ([#2905](https://github.com/opentofu/opentofu/pull/2905))
 * The `regex` and `regexall` functions now support using `\p` and `\P` sequences with the long-form names for Unicode general character properties. For example, `\p{Letter}` now has the same meaning as `\p{L}`. ([#3166](https://github.com/opentofu/opentofu/pull/3166))
@@ -60,6 +61,7 @@ BUG FIXES:
 * The `import` block now correctly validates the `id` property. ([#2416](https://github.com/opentofu/opentofu/issues/2416)
 * Allow function calls in test variable blocks ([#2947](https://github.com/opentofu/opentofu/pull/2947))
 * The `issensitive` function now returns an unknown result when its argument is unknown, since a sensitive unknown value can potentially become non-sensitive once more information is available. ([#3008](https://github.com/opentofu/opentofu/pull/3008))
+* The `fileset` function can now match filenames that include metacharacters when those metacharacters are escaped with backslashes in the glob pattern. ([#3332](https://github.com/opentofu/opentofu/issues/3332))
 * Provider references like "null.some_alias[each.key]" in .tf.json files are now correctly parsed ([#2915](https://github.com/opentofu/opentofu/issues/2915))
 * Fixed crash when processing multiple deprecated marks on a complex object ([#3105](https://github.com/opentofu/opentofu/pull/3105))
 * Variables with validation no longer interfere with the destroy process ([#3131](https://github.com/opentofu/opentofu/pull/3131))
@@ -67,6 +69,7 @@ BUG FIXES:
 * Remote provisioners now reject SSH certificates whose signature key is a certificate key, as required by the current SSH Certificate Format specification draft. ([#3180](https://github.com/opentofu/opentofu/pull/3180))
 * `tofu import` command now correctly validates when the target address contains non-existent for_each key ([#3106](https://github.com/opentofu/opentofu/pull/3106))
 * Fix crash in tofu test when using deprecated outputs ([#3249](https://github.com/opentofu/opentofu/pull/3249))
+* The `TF_CLI_ARGS` environment variable and all of its subcommand-specific variants now follow typical shell parsing rules more closely when parsing the environment variable values into a sequence of arguments. In particular, pairs of quotes with nothing between them are now understood as zero-length arguments rather than being completely ignored as before. ([#3354](https://github.com/opentofu/opentofu/pull/3354))
 
 BREAKING CHANGES:
 * In the `azurerm` backend, the following backend variables have been changed ([#3034](https://github.com/opentofu/opentofu/pull/3034)):

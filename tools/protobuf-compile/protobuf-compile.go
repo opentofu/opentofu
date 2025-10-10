@@ -29,13 +29,13 @@ import (
 	"github.com/hashicorp/go-getter"
 )
 
-const protocVersion = "3.15.6"
+const protocVersion = "32.1"
 
 // We also use protoc-gen-go and its grpc addon, but since these are Go tools
 // in Go modules our version selection for these comes from our top-level
 // go.mod, as with all other Go dependencies. If you want to switch to a newer
 // version of either tool then you can upgrade their modules in the usual way.
-const protocGenGoPackage = "github.com/golang/protobuf/protoc-gen-go"
+const protocGenGoPackage = "google.golang.org/protobuf/cmd/protoc-gen-go"
 const protocGenGoGrpcPackage = "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 
 type protocStep struct {
@@ -48,17 +48,17 @@ var protocSteps = []protocStep{
 	{
 		"tfplugin5 (provider wire protocol version 5)",
 		"internal/tfplugin5",
-		[]string{"--go_out=paths=source_relative,plugins=grpc:.", "./tfplugin5.proto"},
+		[]string{"--go_out=.", "--go_opt=paths=source_relative", "--go-grpc_out=.", "--go-grpc_opt=paths=source_relative", "./tfplugin5.proto"},
 	},
 	{
 		"tfplugin6 (provider wire protocol version 6)",
 		"internal/tfplugin6",
-		[]string{"--go_out=paths=source_relative,plugins=grpc:.", "./tfplugin6.proto"},
+		[]string{"--go_out=.", "--go_opt=paths=source_relative", "--go-grpc_out=.", "--go-grpc_opt=paths=source_relative", "./tfplugin6.proto"},
 	},
 	{
 		"tfplan (plan file serialization)",
 		"internal/plans/internal/planproto",
-		[]string{"--go_out=paths=source_relative:.", "planfile.proto"},
+		[]string{"--go_out=.", "--go_opt=paths=source_relative", "planfile.proto"},
 	},
 }
 
@@ -85,7 +85,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, err = buildProtocGenGoGrpc(workDir)
+	protocGenGoGrpcExec, err := buildProtocGenGoGrpc(workDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,13 +98,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	protocGenGoGrpcExec, err := filepath.Abs(protocGenGoExec)
+	protocGenGoGrpcExec, err = filepath.Abs(protocGenGoGrpcExec)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// For all of our steps we'll run our localized protoc with our localized
-	// protoc-gen-go.
+	// protoc-gen-go and protoc-gen-go-grpc.
 	baseCmdLine := []string{protocExec, "--plugin=" + protocGenGoExec, "--plugin=" + protocGenGoGrpcExec}
 
 	for _, step := range protocSteps {
@@ -116,7 +116,7 @@ func main() {
 
 		cmd := &exec.Cmd{
 			Path:   cmdLine[0],
-			Args:   cmdLine[1:],
+			Args:   cmdLine,
 			Dir:    step.WorkDir,
 			Env:    os.Environ(),
 			Stdout: os.Stdout,

@@ -8,7 +8,7 @@ package objchange
 import (
 	"testing"
 
-	"github.com/apparentlymart/go-dump/dump"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -2736,7 +2736,7 @@ func TestProposedNew(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := ProposedNew(test.Schema, test.Prior, test.Config)
 			if !got.RawEquals(test.Want) {
-				t.Errorf("wrong result\ngot:  %swant: %s", dump.Value(got), dump.Value(test.Want))
+				t.Errorf("wrong result\ngot:  %swant: %s", ctydebug.ValueString(got), ctydebug.ValueString(test.Want))
 			}
 		})
 	}

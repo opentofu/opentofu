@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/apparentlymart/go-dump/dump"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -1424,7 +1424,7 @@ func TestAssertObjectCompatible(t *testing.T) {
 				wantErrs[msg] = struct{}{}
 			}
 
-			t.Logf("\nplanned: %sactual:  %s", dump.Value(test.Planned), dump.Value(test.Actual))
+			t.Logf("\nplanned: %sactual:  %s", ctydebug.ValueString(test.Planned), ctydebug.ValueString(test.Actual))
 			for msg := range wantErrs {
 				if _, ok := gotErrs[msg]; !ok {
 					t.Errorf("missing expected error: %s", msg)

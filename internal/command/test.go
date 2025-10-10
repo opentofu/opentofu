@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -19,7 +20,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"golang.org/x/exp/slices"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"

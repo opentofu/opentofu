@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 // Set is a container that can hold each item only once and has a fast lookup time.

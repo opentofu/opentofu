@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestLoadModuleCall(t *testing.T) {
@@ -29,7 +30,8 @@ func TestLoadModuleCall(t *testing.T) {
 
 	file, diags := parser.LoadConfigFile("module-calls.tf")
 	assertExactDiagnostics(t, diags, []string{
-		`module-calls.tf:20,3-11: Invalid combination of "count" and "for_each"; The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+		`module-calls.tf:19,3-20,11: Invalid combination of "count" and "for_each"; The "count" and "for_each" meta-arguments are mutually-exclusive. Only one should be used to be explicit about the number of module instances to be created.`,
+		`module-calls.tf:34,5-36,8: Invalid combination of "count" and "enabled"; The "count" and "enabled" meta-arguments are mutually-exclusive. Only one should be used to be explicit about the number of module instances to be created.`,
 	})
 
 	gotModules := file.ModuleCalls
@@ -76,16 +78,16 @@ func TestLoadModuleCall(t *testing.T) {
 						Name: "module",
 						SrcRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 23, Column: 5, Byte: 295},
-							End:      hcl.Pos{Line: 23, Column: 11, Byte: 301},
+							Start:    hcl.Pos{Line: 23, Column: 5, Byte: 298},
+							End:      hcl.Pos{Line: 23, Column: 11, Byte: 304},
 						},
 					},
 					hcl.TraverseAttr{
 						Name: "bar",
 						SrcRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 23, Column: 11, Byte: 301},
-							End:      hcl.Pos{Line: 23, Column: 15, Byte: 305},
+							Start:    hcl.Pos{Line: 23, Column: 11, Byte: 304},
+							End:      hcl.Pos{Line: 23, Column: 15, Byte: 308},
 						},
 					},
 				},
@@ -96,22 +98,22 @@ func TestLoadModuleCall(t *testing.T) {
 						Name: "aws",
 						NameRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 5, Byte: 332},
-							End:      hcl.Pos{Line: 27, Column: 8, Byte: 335},
+							Start:    hcl.Pos{Line: 27, Column: 5, Byte: 335},
+							End:      hcl.Pos{Line: 27, Column: 8, Byte: 338},
 						},
 					},
 					InParent: &ProviderConfigRef{
 						Name: "aws",
 						NameRange: hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 11, Byte: 338},
-							End:      hcl.Pos{Line: 27, Column: 14, Byte: 341},
+							Start:    hcl.Pos{Line: 27, Column: 11, Byte: 341},
+							End:      hcl.Pos{Line: 27, Column: 14, Byte: 344},
 						},
 						Alias: "foo",
 						AliasRange: &hcl.Range{
 							Filename: "module-calls.tf",
-							Start:    hcl.Pos{Line: 27, Column: 14, Byte: 341},
-							End:      hcl.Pos{Line: 27, Column: 18, Byte: 345},
+							Start:    hcl.Pos{Line: 27, Column: 14, Byte: 344},
+							End:      hcl.Pos{Line: 27, Column: 18, Byte: 348},
 						},
 					},
 				},
@@ -120,6 +122,25 @@ func TestLoadModuleCall(t *testing.T) {
 				Filename: "module-calls.tf",
 				Start:    hcl.Pos{Line: 14, Column: 1, Byte: 167},
 				End:      hcl.Pos{Line: 14, Column: 13, Byte: 179},
+			},
+		},
+		{
+			Name:          "enabled_test",
+			SourceAddr:    addrs.ModuleSourceLocal("./foo"),
+			SourceAddrRaw: "./foo",
+			Enabled: &hclsyntax.LiteralValueExpr{
+				Val: cty.BoolVal(true),
+				SrcRange: hcl.Range{
+					Filename: "module-calls.tf",
+					Start:    hcl.Pos{Line: 34, Column: 15, Byte: 427},
+					End:      hcl.Pos{Line: 34, Column: 19, Byte: 431},
+				},
+			},
+			SourceSet: true,
+			DeclRange: hcl.Range{
+				Filename: "module-calls.tf",
+				Start:    hcl.Pos{Line: 31, Column: 1, Byte: 356},
+				End:      hcl.Pos{Line: 31, Column: 22, Byte: 377},
 			},
 		},
 	}
