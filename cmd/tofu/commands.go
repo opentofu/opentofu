@@ -122,6 +122,8 @@ func initCommands(
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
+
+		ProviderSourceLocationConfig: providerSourceLocationConfig(),
 	}
 
 	// The command list is included in the tofu -help
@@ -362,9 +364,9 @@ func initCommands(
 			}, nil
 		},
 
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 		// Plumbing
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
 			return &command.UnlockCommand{

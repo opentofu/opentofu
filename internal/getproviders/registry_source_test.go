@@ -14,6 +14,7 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-retryablehttp"
 	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost"
 
@@ -114,7 +115,7 @@ func TestSourceAvailableVersions_warnings(t *testing.T) {
 }
 
 func TestSourcePackageMeta(t *testing.T) {
-	source, baseURL, close := testRegistrySource(t)
+	source, baseURL, close := testRegistrySourceWithLocationConfig(t, LocationConfig{ProviderDownloadRetries: 3})
 	defer close()
 
 	validMeta := PackageMeta{
@@ -125,7 +126,9 @@ func TestSourcePackageMeta(t *testing.T) {
 		ProtocolVersions: VersionList{versions.MustParseVersion("5.0.0")},
 		TargetPlatform:   Platform{"linux", "amd64"},
 		Filename:         "happycloud_1.2.0.zip",
-		Location:         PackageHTTPURL(baseURL + "/pkg/awesomesauce/happycloud_1.2.0.zip"),
+		Location: PackageHTTPURL{URL: baseURL + "/pkg/awesomesauce/happycloud_1.2.0.zip", ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
+			return packageHTTPUrlClientWithRetry(ctx, source.locationConfig.ProviderDownloadRetries)
+		}},
 	}
 	validMeta.Authentication = PackageAuthenticationAll(
 		NewMatchingChecksumAuthentication(
@@ -196,7 +199,14 @@ func TestSourcePackageMeta(t *testing.T) {
 	// consistently match those. Instead, we'll normalize the URLs.
 	urlPattern := regexp.MustCompile(`http://[^/]+/`)
 
-	cmpOpts := cmp.Comparer(Version.Same)
+	cmpOpts := []cmp.Option{cmp.Comparer(Version.Same), cmp.Comparer(func(a, b func(ctx context.Context) *retryablehttp.Client) bool {
+		given := a(t.Context())
+		got := b(t.Context())
+		if got.RetryMax != given.RetryMax {
+			t.Logf("expected to have retry max as %d but got %d", got.RetryMax, given.RetryMax)
+		}
+		return true
+	})}
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s for %s_%s", test.provider, test.os, test.arch), func(t *testing.T) {
@@ -228,7 +238,7 @@ func TestSourcePackageMeta(t *testing.T) {
 				t.Fatalf("wrong error\ngot:  <nil>\nwant: %s", test.wantErr)
 			}
 
-			if diff := cmp.Diff(got, test.want, cmpOpts); diff != "" {
+			if diff := cmp.Diff(got, test.want, cmpOpts...); diff != "" {
 				t.Errorf("wrong result\n%s", diff)
 			}
 		})

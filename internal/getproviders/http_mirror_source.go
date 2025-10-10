@@ -31,9 +31,10 @@ import (
 // HTTPMirrorSource is a source that reads provider metadata from a provider
 // mirror that is accessible over the HTTP provider mirror protocol.
 type HTTPMirrorSource struct {
-	baseURL    *url.URL
-	creds      svcauth.CredentialsSource
-	httpClient *retryablehttp.Client
+	baseURL        *url.URL
+	creds          svcauth.CredentialsSource
+	httpClient     *retryablehttp.Client
+	locationConfig LocationConfig
 }
 
 var _ Source = (*HTTPMirrorSource)(nil)
@@ -46,7 +47,7 @@ var _ Source = (*HTTPMirrorSource)(nil)
 // (When the URL comes from user input, such as in the CLI config, it's the
 // UI/config layer's responsibility to validate this and return a suitable
 // error message for the end-user audience.)
-func NewHTTPMirrorSource(ctx context.Context, baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration) *HTTPMirrorSource {
+func NewHTTPMirrorSource(ctx context.Context, baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration, sourceLocationCfg LocationConfig) *HTTPMirrorSource {
 	httpClient := httpclient.NewForRegistryRequests(ctx, 0, requestTimeout)
 	httpClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// If we get redirected more than five times we'll assume we're
@@ -56,17 +57,18 @@ func NewHTTPMirrorSource(ctx context.Context, baseURL *url.URL, creds svcauth.Cr
 		}
 		return nil
 	}
-	return newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient)
+	return newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient, sourceLocationCfg)
 }
 
-func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *retryablehttp.Client) *HTTPMirrorSource {
+func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *retryablehttp.Client, sourceLocationCfg LocationConfig) *HTTPMirrorSource {
 	if baseURL.Scheme != "https" {
 		panic("non-https URL for HTTP mirror")
 	}
 	return &HTTPMirrorSource{
-		baseURL:    baseURL,
-		creds:      creds,
-		httpClient: httpClient,
+		baseURL:        baseURL,
+		creds:          creds,
+		httpClient:     httpClient,
+		locationConfig: sourceLocationCfg,
 	}
 }
 
@@ -209,7 +211,9 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 		Version:        version,
 		TargetPlatform: target,
 
-		Location: PackageHTTPURL(absURL.String()),
+		Location: PackageHTTPURL{URL: absURL.String(), ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
+			return packageHTTPUrlClientWithRetry(ctx, s.locationConfig.ProviderDownloadRetries)
+		}},
 		Filename: path.Base(absURL.Path),
 	}
 	// A network mirror might not provide any hashes at all, in which case

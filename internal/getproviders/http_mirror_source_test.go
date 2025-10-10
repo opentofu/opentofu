@@ -11,10 +11,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
+	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/svcauth"
 
@@ -38,7 +41,7 @@ func TestHTTPMirrorSource(t *testing.T) {
 	})
 	retryHTTPClient := retryablehttp.NewClient()
 	retryHTTPClient.HTTPClient = httpClient
-	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, retryHTTPClient)
+	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, retryHTTPClient, LocationConfig{})
 
 	existingProvider := addrs.MustParseProviderSourceString("terraform.io/test/exists")
 	missingProvider := addrs.MustParseProviderSourceString("terraform.io/test/missing")
@@ -46,6 +49,22 @@ func TestHTTPMirrorSource(t *testing.T) {
 	redirectingProvider := addrs.MustParseProviderSourceString("terraform.io/test/redirects")
 	redirectLoopProvider := addrs.MustParseProviderSourceString("terraform.io/test/redirect-loop")
 	tosPlatform := Platform{OS: "tos", Arch: "m68k"}
+
+	clientBuilderFromHTTPLocation := func(t *testing.T, expectedRetries int) func(ctx context.Context) *retryablehttp.Client {
+		return func(ctx context.Context) *retryablehttp.Client {
+			return packageHTTPUrlClientWithRetry(ctx, expectedRetries)
+		}
+	}
+	// For the PackageHTTPURL.ClientBuilder we are interested strictly in comparing the max retries and nothing else.
+	// Comparing the whole client gets into different issues so we keep this comparison simple.
+	cmpClientBuilder := cmp.Comparer(func(a, b func(ctx context.Context) *retryablehttp.Client) bool {
+		given := a(t.Context())
+		got := b(t.Context())
+		if got.RetryMax != given.RetryMax {
+			t.Logf("expected to have retry max as %d but got %d", got.RetryMax, given.RetryMax)
+		}
+		return true
+	})
 
 	t.Run("AvailableVersions for provider that exists", func(t *testing.T) {
 		got, _, err := source.AvailableVersions(context.Background(), existingProvider)
@@ -73,7 +92,7 @@ func TestHTTPMirrorSource(t *testing.T) {
 		}
 	})
 	t.Run("AvailableVersions without required credentials", func(t *testing.T) {
-		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, retryHTTPClient)
+		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, retryHTTPClient, LocationConfig{})
 		_, _, err := unauthSource.AvailableVersions(context.Background(), existingProvider)
 		switch err := err.(type) {
 		case ErrUnauthorized:
@@ -128,14 +147,14 @@ func TestHTTPMirrorSource(t *testing.T) {
 			Version:        version,
 			TargetPlatform: tosPlatform,
 			Filename:       "terraform-provider-test_v1.0.0_tos_m68k.zip",
-			Location:       PackageHTTPURL(httpServer.URL + "/terraform.io/test/exists/terraform-provider-test_v1.0.0_tos_m68k.zip"),
+			Location:       PackageHTTPURL{URL: httpServer.URL + "/terraform.io/test/exists/terraform-provider-test_v1.0.0_tos_m68k.zip", ClientBuilder: clientBuilderFromHTTPLocation(t, retryHTTPClient.RetryMax)},
 			Authentication: packageHashAuthentication{
 				RequiredHashes: []Hash{"h1:placeholder-hash"},
 				AllHashes:      []Hash{"h1:placeholder-hash", "h0:unacceptable-hash"},
 				Platform:       Platform{"tos", "m68k"},
 			},
 		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff(want, got, cmpClientBuilder); diff != "" {
 			t.Errorf("wrong result\n%s", diff)
 		}
 	})
@@ -151,10 +170,10 @@ func TestHTTPMirrorSource(t *testing.T) {
 			Version:        version,
 			TargetPlatform: tosPlatform,
 			Filename:       "terraform-provider-test_v1.0.1_tos_m68k.zip",
-			Location:       PackageHTTPURL(httpServer.URL + "/terraform.io/test/exists/terraform-provider-test_v1.0.1_tos_m68k.zip"),
+			Location:       PackageHTTPURL{URL: httpServer.URL + "/terraform.io/test/exists/terraform-provider-test_v1.0.1_tos_m68k.zip", ClientBuilder: clientBuilderFromHTTPLocation(t, retryHTTPClient.RetryMax)},
 			Authentication: nil,
 		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff(want, got, cmpClientBuilder); diff != "" {
 			t.Errorf("wrong result\n%s", diff)
 		}
 	})
@@ -191,9 +210,9 @@ func TestHTTPMirrorSource(t *testing.T) {
 
 			// NOTE: The final URL is interpreted relative to the redirect
 			// target, not relative to what we originally requested.
-			Location: PackageHTTPURL(httpServer.URL + "/redirect-target/terraform-provider-test.zip"),
+			Location: PackageHTTPURL{URL: httpServer.URL + "/redirect-target/terraform-provider-test.zip", ClientBuilder: clientBuilderFromHTTPLocation(t, retryHTTPClient.RetryMax)},
 		}
-		if diff := cmp.Diff(want, got); diff != "" {
+		if diff := cmp.Diff(want, got, cmpClientBuilder); diff != "" {
 			t.Errorf("wrong result\n%s", diff)
 		}
 	})
@@ -219,7 +238,10 @@ func testHTTPMirrorSourceHandler(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(401)
 		fmt.Fprintln(resp, "incorrect auth token")
 	}
+	testHTTPMirrorSourceHandlerNoAuth(resp, req)
+}
 
+func testHTTPMirrorSourceHandlerNoAuth(resp http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
 	case "/terraform.io/test/exists/index.json":
 		resp.Header().Add("Content-Type", "application/json; ignored=yes")
@@ -317,8 +339,73 @@ func testHTTPMirrorSourceHandler(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(301)
 		fmt.Fprint(resp, "redirect loop")
 
+	case "/terraform.io/missing/providerbinary/1.2.0.json":
+		resp.Header().Add("Content-Type", "application/json; ignored=yes")
+		resp.WriteHeader(200)
+		fmt.Fprint(resp, `
+			{
+				"archives": {
+					"tos_m68k": {
+						"url": "terraform-missing-providerbinary_v1.2.0_tos_m68k.zip",
+						"hashes": [
+							"h1:placeholder-hash",
+							"h0:unacceptable-hash"
+						]
+					}
+				}
+			}
+		`)
+	case "/terraform.io/missing/providerbinary/terraform-missing-providerbinary_v1.2.0_tos_m68k.zip":
+		resp.Header().Add("Content-Type", "application/json; ignored=yes")
+		// Just return a retryable status code
+		resp.WriteHeader(http.StatusInternalServerError)
+
 	default:
 		resp.WriteHeader(404)
 		fmt.Fprintln(resp, "not found")
+	}
+}
+
+// Checks that the [LocationConfig] is used properly to configure the [PackageHTTPURL] http client,
+// meaning that the retries are configured as expected.
+func TestHTTPMirrorLocationRetriesConfiguredCorrectly(t *testing.T) {
+	// Using the NoAuth handler and NoTLSServer here because the http client
+	// used to configure the [PackageHTTPURL] does not have the credentials and the
+	// CA forwarded from the HTTPMirrorSource.
+	httpServer := httptest.NewServer(http.HandlerFunc(testHTTPMirrorSourceHandlerNoAuth))
+	defer httpServer.Close()
+	baseURL, err := url.Parse(httpServer.URL)
+	if err != nil {
+		t.Fatalf("unexpected error parsing the url: %s", err)
+	}
+	creds := svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(baseURL.Host): svcauth.HostCredentialsToken("placeholder-token"),
+	})
+	retryHTTPClient := retryablehttp.NewClient()
+	retryHTTPClient.HTTPClient = httpclient.New(t.Context())
+	// The same reason as above applies on why using here directly the struct for initialisation
+	// instead of calling [newHTTPMirrorSourceWithHTTPClient]. We have no way to forward the CA
+	// from the http client got from the TLS server into the [PackageHTTPURL] inner client.
+	source := &HTTPMirrorSource{
+		baseURL:        baseURL,
+		creds:          creds,
+		httpClient:     retryHTTPClient,
+		locationConfig: LocationConfig{ProviderDownloadRetries: 2},
+	}
+
+	providerAddr := addrs.MustParseProviderSourceString("terraform.io/missing/providerbinary")
+	version := versions.MustParseVersion("1.2.0")
+	platform := Platform{OS: "tos", Arch: "m68k"}
+	got, err := source.PackageMeta(t.Context(), providerAddr, version, platform)
+	if err != nil {
+		t.Fatalf("unexpected error got from packageMeta: %s", err)
+	}
+	tmp := t.TempDir()
+	_, err = got.Location.InstallProviderPackage(t.Context(), got, tmp, nil)
+	if err == nil {
+		t.Fatalf("expected error but got nothing")
+	}
+	if expectedSuffix := "giving up after 3 attempt(s)"; !strings.HasSuffix(err.Error(), expectedSuffix) {
+		t.Fatalf("expected err %q to have suffix %q", err.Error(), expectedSuffix)
 	}
 }

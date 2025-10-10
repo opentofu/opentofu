@@ -44,13 +44,16 @@ type registryClient struct {
 	creds   svcauth.HostCredentials
 
 	httpClient *retryablehttp.Client
+
+	locationConfig LocationConfig
 }
 
-func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.HostCredentials, httpClient *retryablehttp.Client) *registryClient {
+func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.HostCredentials, httpClient *retryablehttp.Client, locationConfig LocationConfig) *registryClient {
 	return &registryClient{
-		baseURL:    baseURL,
-		creds:      creds,
-		httpClient: httpClient,
+		baseURL:        baseURL,
+		creds:          creds,
+		httpClient:     httpClient,
+		locationConfig: locationConfig,
 	}
 }
 
@@ -293,7 +296,9 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			Arch: body.Arch,
 		},
 		Filename: body.Filename,
-		Location: PackageHTTPURL(downloadURL.String()),
+		Location: PackageHTTPURL{URL: downloadURL.String(), ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
+			return packageHTTPUrlClientWithRetry(ctx, c.locationConfig.ProviderDownloadRetries)
+		}},
 		// "Authentication" is populated below
 	}
 

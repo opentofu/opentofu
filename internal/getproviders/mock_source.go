@@ -135,7 +135,7 @@ func FakePackageMeta(provider addrs.Provider, version Version, protocols Version
 		// Some fake but somewhat-realistic-looking other metadata. This
 		// points nowhere, so will fail if attempting to actually use it.
 		Filename: fmt.Sprintf("terraform-provider-%s_%s_%s.zip", provider.Type, version.String(), target.String()),
-		Location: PackageHTTPURL(fmt.Sprintf("https://fake.invalid/terraform-provider-%s_%s.zip", provider.Type, version.String())),
+		Location: PackageHTTPURL{URL: fmt.Sprintf("https://fake.invalid/terraform-provider-%s_%s.zip", provider.Type, version.String())},
 	}
 }
 
