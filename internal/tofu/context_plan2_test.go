@@ -3517,10 +3517,6 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 					AttrsJSON: []byte(`{}`),
 					Status:    states.ObjectReady,
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
-				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
-					AttrsJSON: []byte(`{}`),
-					Status:    states.ObjectReady,
-				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 			}),
 		},
 	}
