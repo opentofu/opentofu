@@ -10,12 +10,15 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 func TestLoadModuleCall(t *testing.T) {
@@ -163,8 +166,14 @@ func TestLoadModuleCall(t *testing.T) {
 		m.ForEach = nil
 	}
 
-	for _, problem := range deep.Equal(gotModules, wantModules) {
-		t.Error(problem)
+	cmpOpts := cmp.Options{
+		ctydebug.CmpOptions,
+		cmp.AllowUnexported(ProviderConfigRef{}),
+		cmpopts.IgnoreUnexported(hcl.TraverseAttr{}, hcl.TraverseIndex{}, hcl.TraverseRoot{}),
+		cmpopts.IgnoreTypes(StaticModuleVariables(nil)), // function pointer type is not comparable
+	}
+	if diff := cmp.Diff(wantModules, gotModules, cmpOpts); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 
@@ -332,7 +341,16 @@ func TestModuleCallWithVersion(t *testing.T) {
 		m.ForEach = nil
 	}
 
-	for _, problem := range deep.Equal(gotModules, wantModules) {
-		t.Error(problem)
+	cmpOpts := cmp.Options{
+		ctydebug.CmpOptions,
+		cmp.AllowUnexported(ProviderConfigRef{}),
+		cmpopts.IgnoreUnexported(hcl.TraverseAttr{}, hcl.TraverseIndex{}, hcl.TraverseRoot{}),
+		cmpopts.IgnoreTypes(StaticModuleVariables(nil)), // function pointer type is not comparable
+		cmp.Comparer(func(a, b *version.Constraint) bool {
+			return a.Equals(b)
+		}),
+	}
+	if diff := cmp.Diff(wantModules, gotModules, cmpOpts); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }

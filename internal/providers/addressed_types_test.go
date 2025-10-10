@@ -8,7 +8,7 @@ package providers
 import (
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -44,7 +44,7 @@ func TestAddressedTypesAbs(t *testing.T) {
 		addrs.NewDefaultProvider("azure"),
 		addrs.NewDefaultProvider("null"),
 	}
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
