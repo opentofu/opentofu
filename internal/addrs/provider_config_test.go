@@ -9,8 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
-
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
@@ -180,8 +179,8 @@ func TestParseAbsProviderConfigInstances(t *testing.T) {
 				}
 			}
 
-			for _, problem := range deep.Equal(got, test.Want) {
-				t.Error(problem)
+			if diff := cmp.Diff(test.Want, got, CmpOptionsForTesting); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 
 			if test.WantKey != key {

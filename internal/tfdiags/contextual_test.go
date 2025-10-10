@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
@@ -558,8 +558,8 @@ simple_attr = "val"
 				t.Error("missing detail address")
 			}
 
-			for _, problem := range deep.Equal(gotRange, tc.ExpectedRange) {
-				t.Error(problem)
+			if diff := cmp.Diff(tc.ExpectedRange, gotRange); diff != "" {
+				t.Error("wrong source range:\n" + diff)
 			}
 		})
 	}

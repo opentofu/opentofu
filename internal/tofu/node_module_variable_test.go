@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -102,8 +101,8 @@ func TestNodeModuleVariableReference(t *testing.T) {
 		},
 	}
 	got := n.References()
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got, addrs.CmpOptionsForTesting); diff != "" {
+		t.Error("wrong references\n" + diff)
 	}
 }
 
@@ -130,8 +129,8 @@ func TestNodeModuleVariableReference_grandchild(t *testing.T) {
 		},
 	}
 	got := n.References()
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got, addrs.CmpOptionsForTesting); diff != "" {
+		t.Error("wrong references\n" + diff)
 	}
 }
 

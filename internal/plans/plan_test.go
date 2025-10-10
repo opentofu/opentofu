@@ -8,12 +8,12 @@ package plans
 import (
 	"testing"
 
-	"github.com/go-test/deep"
-	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 	ctymsgpack "github.com/zclconf/go-cty/cty/msgpack"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 )
 
 func TestProviderAddrs(t *testing.T) {
@@ -62,18 +62,17 @@ func TestProviderAddrs(t *testing.T) {
 
 	got := plan.ProviderAddrs()
 	want := []addrs.AbsProviderConfig{
-		addrs.AbsProviderConfig{
+		{
 			Module:   addrs.RootModule.Child("foo"),
 			Provider: addrs.NewDefaultProvider("test"),
 		},
-		addrs.AbsProviderConfig{
+		{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewDefaultProvider("test"),
 		},
 	}
-
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 

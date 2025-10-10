@@ -10,7 +10,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -343,18 +344,8 @@ func TestTFPlanRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	{
-		oldDepth := deep.MaxDepth
-		oldCompare := deep.CompareUnexportedFields
-		deep.MaxDepth = 20
-		deep.CompareUnexportedFields = true
-		defer func() {
-			deep.MaxDepth = oldDepth
-			deep.CompareUnexportedFields = oldCompare
-		}()
-	}
-	for _, problem := range deep.Equal(newPlan, plan) {
-		t.Error(problem)
+	if diff := cmp.Diff(plan, newPlan, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 
