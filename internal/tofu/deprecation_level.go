@@ -5,7 +5,7 @@
 
 package tofu
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=DeprecationWarningLevel deprecation_level.go
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=DeprecationWarningLevel deprecation_level.go
 
 import (
 	"log"

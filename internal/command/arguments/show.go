@@ -32,7 +32,7 @@ type Show struct {
 // shown by the "tofu show" command.
 type ShowTargetType int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=ShowTargetType
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=ShowTargetType
 const (
 	// ShowUnknownType is the zero value of [ShowTargetType], and represents
 	// that the target type is ambiguous and so must be inferred by the
