@@ -188,8 +188,10 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 		// Same process can acquire multiple locks - POSIX behavior
 		t.Logf("System allows same-process multiple locks (POSIX fcntl behavior)")
 		t.Logf("Skipping cancellation test - no contention between same-process handles")
-		Unlock(f1)
-		Unlock(f2)
+		// Not checking return value here since any problem would already be highlighted by
+		// TestLock_BasicFunctionality
+		_ = Unlock(f1)
+		_ = Unlock(f2)
 		t.Skip("No contention between same-process handles on this system")
 		return
 	}
@@ -207,7 +209,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 	elapsed := time.Since(start)
 
 	// Clean up first lock
-	Unlock(f1)
+	_ = Unlock(f1)
 
 	// Should fail due to timeout or cancellation
 	if err == nil {
@@ -325,7 +327,7 @@ func TestConcurrentLocking(t *testing.T) {
 					successes++
 					// Hold lock briefly
 					time.Sleep(1 * time.Millisecond)
-					Unlock(f)
+					_ = Unlock(f)
 				}
 				f.Close()
 				
