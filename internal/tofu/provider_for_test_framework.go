@@ -224,17 +224,29 @@ func (p providerForTest) withCopiedOverrideResources() providerForTest {
 }
 
 func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
+	// TODO replace this logic by computing the overrideResource maps higher up, like in the mock provider.
+	overrides := make(map[addrs.InstanceKey]map[string]cty.Value)
+	var defaultOverrides map[string]cty.Value
 	for _, res := range overrideResources {
-		p = p.withOverrideResource(*res.TargetParsed, res.Values)
+		switch key := res.TargetParsed.Resource.Key; key {
+		case nil:
+			defaultOverrides = res.Values
+		default:
+			overrides[key] = res.Values
+		}
+	}
+
+	for _, res := range overrideResources {
+		p = p.withOverrideResource(*res.TargetParsed, overrides, defaultOverrides)
 	}
 
 	return p
 }
 
-func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrides map[string]cty.Value) providerForTest {
+func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, overrides map[addrs.InstanceKey]map[string]cty.Value, defaultOverrides map[string]cty.Value) providerForTest {
 	var resources map[string]resourceForTest
 
-	switch addr.Resource.Mode {
+	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
 		resources = p.overrideResources.managed
 	case addrs.DataResourceMode:
@@ -242,17 +254,23 @@ func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrid
 	case addrs.InvalidResourceMode:
 		panic("BUG: invalid override resource mode")
 	default:
-		panic("BUG: unsupported override resource mode: " + addr.Resource.Mode.String())
+		panic("BUG: unsupported override resource mode: " + addr.Resource.Resource.Mode.String())
 	}
-
-	resources[addr.String()] = resourceForTest{
-		values: overrides,
+	key := addr.Resource.Key
+	if vals, ok := overrides[key]; key != nil && ok {
+		resources[addr.String()] = resourceForTest{
+			values: vals,
+		}
+	} else {
+		resources[addr.String()] = resourceForTest{
+			values: defaultOverrides,
+		}
 	}
 
 	return p
 }
 
-func (p providerForTest) linkWithCurrentResource(addr addrs.ConfigResource) providerForTest {
+func (p providerForTest) linkWithCurrentResource(addr addrs.AbsResourceInstance) providerForTest {
 	p.currentResourceAddress = addr.String()
 	return p
 }
