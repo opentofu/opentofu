@@ -96,7 +96,7 @@ func Unlock(*os.File) error {
 	return nil
 }
 
-func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) err error {
+func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) (err error) {
 	r1, _, e1 := syscall.Syscall6(
 		procLockFileEx.Addr(),
 		6,
