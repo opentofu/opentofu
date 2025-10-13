@@ -152,6 +152,18 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 		// If an aliased provider is mocked, we use providerForTest wrapper.
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
 		pc, ok := c.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
+
+		// TODO replace this logic by computing the overrideResource maps higher up, like in the mock provider.
+		overrides := make(map[addrs.InstanceKey]map[string]cty.Value)
+		var defaultOverrides map[string]cty.Value
+		for _, res := range pc.OverrideResources {
+			switch key := res.TargetParsed.Resource.Key; key {
+			case nil:
+				defaultOverrides = res.Values
+			default:
+				overrides[key] = res.Values
+			}
+		}
 		if ok && pc.IsMocked {
 			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema(ctx))
 			if err != nil {
@@ -160,7 +172,7 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 
 			p = testP.
 				withMockResources(pc.MockResources).
-				withOverrideResources(pc.OverrideResources)
+				withOverrideResources(pc.OverrideResources, overrides, defaultOverrides)
 		}
 	}
 
