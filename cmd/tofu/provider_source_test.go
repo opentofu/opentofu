@@ -12,9 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
+	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/svchost/disco"
 )
 
@@ -153,6 +155,46 @@ func TestProviderSource(t *testing.T) {
 			t.Logf("Provider: %v", provider)
 			if versions != nil {
 				t.Logf("Available versions: %v", versions)
+			}
+		})
+	}
+}
+
+func TestConfigureProviderDownloadRetry(t *testing.T) {
+	tests := []struct {
+		name    string
+		envVars map[string]string
+
+		expectedConfig getproviders.LocationConfig
+	}{
+		{
+			name: "when no TF_PROVIDER_DOWNLOAD_RETRY env var, default retry attempts used for provider download",
+			expectedConfig: getproviders.LocationConfig{
+				ProviderDownloadRetries: providerDownloadDefaultRetry,
+			},
+		},
+		{
+			name: "when TF_PROVIDER_DOWNLOAD_RETRY env var configured, it is used provider download",
+			envVars: map[string]string{
+				"TF_PROVIDER_DOWNLOAD_RETRY": "7",
+			},
+			expectedConfig: getproviders.LocationConfig{
+				ProviderDownloadRetries: 7,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for k, v := range tt.envVars {
+				t.Setenv(k, v)
+			}
+
+			// Call the function under test
+			got := providerSourceLocationConfig()
+
+			if diff := cmp.Diff(tt.expectedConfig, got); diff != "" {
+				t.Fatalf("expected no diff. got:\n%s", diff)
 			}
 		})
 	}

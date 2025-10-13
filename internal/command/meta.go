@@ -200,9 +200,9 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 	// Protected: commands can set these
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 
 	// pluginPath is a user defined set of directories to look for plugins.
 	// This is set during init with the `-plugin-dir` flag, saved to a file in
@@ -213,9 +213,9 @@ type Meta struct {
 	// Override certain behavior for tests within this package
 	testingOverrides *testingOverrides
 
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 	// Private: do not set these
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 
 	// configLoader is a shared configuration loader that is used by
 	// LoadConfig and other commands that access configuration files.
@@ -305,6 +305,13 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// Since `tofu providers lock` and `tofu providers mirror` have their own
+	// logic to create the source to fetch providers through, we had to
+	// plumb this configuration through the [Meta] type to reach that part too.
+	// In any other cases, this configuration is built and used directly in `realMain`
+	// when the providers sources are built.
+	ProviderSourceLocationConfig getproviders.LocationConfig
 }
 
 type testingOverrides struct {
