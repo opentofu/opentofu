@@ -31,7 +31,8 @@ type providerForTest struct {
 	mockResources     mockResourcesForTest
 	overrideResources overrideResourcesForTest
 
-	currentResourceAddress string
+	currentResourceInstanceAddress string
+	currentResourceAddress         string
 }
 
 func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) (providerForTest, error) {
@@ -271,7 +272,8 @@ func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, ov
 }
 
 func (p providerForTest) linkWithCurrentResource(addr addrs.AbsResourceInstance) providerForTest {
-	p.currentResourceAddress = addr.String()
+	p.currentResourceInstanceAddress = addr.String()
+	p.currentResourceAddress = addr.ConfigResource().String()
 	return p
 }
 
@@ -311,9 +313,11 @@ func (res overrideResourcesForTest) copy() overrideResourcesForTest {
 }
 
 func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.managed[p.currentResourceAddress]
-		if ok {
+	// Note: if currentResourceInstanceAddress is nonempty then currentResourceAddress is also set
+	if p.currentResourceInstanceAddress != "" {
+		if res, ok := p.overrideResources.managed[p.currentResourceInstanceAddress]; ok {
+			return res.values
+		} else if res, ok := p.overrideResources.managed[p.currentResourceAddress]; ok {
 			return res.values
 		}
 	}
@@ -322,9 +326,11 @@ func (p providerForTest) getMockValuesForManagedResource(typeName string) map[st
 }
 
 func (p providerForTest) getMockValuesForDataResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.data[p.currentResourceAddress]
-		if ok {
+	// Note: if currentResourceInstanceAddress is nonempty then currentResourceAddress is also set
+	if p.currentResourceInstanceAddress != "" {
+		if res, ok := p.overrideResources.data[p.currentResourceInstanceAddress]; ok {
+			return res.values
+		} else if res, ok := p.overrideResources.data[p.currentResourceAddress]; ok {
 			return res.values
 		}
 	}
