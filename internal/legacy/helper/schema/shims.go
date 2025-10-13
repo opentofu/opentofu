@@ -16,38 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
-// DiffFromValues takes the current state and desired state as cty.Values and
-// derives a tofu.InstanceDiff to give to the legacy providers. This is
-// used to take the states provided by the new ApplyResourceChange method and
-// convert them to a state+diff required for the legacy Apply method.
-func DiffFromValues(prior, planned cty.Value, res *Resource) (*tofu.InstanceDiff, error) {
-	return diffFromValues(prior, planned, res, nil)
-}
-
-// diffFromValues takes an additional CustomizeDiffFunc, so we can generate our
-// test fixtures from the legacy tests. In the new provider protocol the diff
-// only needs to be created for the apply operation, and any customizations
-// have already been done.
-func diffFromValues(prior, planned cty.Value, res *Resource, cust CustomizeDiffFunc) (*tofu.InstanceDiff, error) {
-	instanceState, err := res.ShimInstanceStateFromValue(prior)
-	if err != nil {
-		return nil, err
-	}
-
-	configSchema := res.CoreConfigSchema()
-
-	cfg := tofu.NewResourceConfigShimmed(planned, configSchema)
-	removeConfigUnknowns(cfg.Config)
-	removeConfigUnknowns(cfg.Raw)
-
-	diff, err := schemaMap(res.Schema).Diff(instanceState, cfg, cust, nil, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return diff, err
-}
-
 // During apply the only unknown values are those which are to be computed by
 // the resource itself. These may have been marked as unknown config values, and
 // need to be removed to prevent the UnknownVariableValue from appearing the diff.
