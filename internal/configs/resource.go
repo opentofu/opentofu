@@ -55,10 +55,15 @@ type Resource struct {
 	// IsOverridden indicates if the resource is being overridden. It's used in
 	// testing framework to not call the underlying provider.
 	IsOverridden bool
+	// DefaultOverrideValues are only valid if IsOverridden is set to true. The values
+	// should be used to compose mock provider response. It is possible to have
+	// zero-length DefaultOverrideValues even if IsOverridden is set to true.
+	DefaultOverrideValues map[string]cty.Value
 	// OverrideValues are only valid if IsOverridden is set to true. The values
 	// should be used to compose mock provider response. It is possible to have
-	// zero-length OverrideValues even if IsOverridden is set to true.
-	OverrideValues map[string]cty.Value
+	// zero-length OverrideValues even if IsOverridden is set to true. Unlike
+	// the DefaultOverrideValues above, this map is keyed for particular instances.
+	OverrideValues map[addrs.InstanceKey]map[string]cty.Value
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range

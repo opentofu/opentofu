@@ -1633,3 +1633,78 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }
+
+func TestTest_InstanceOverride(t *testing.T) {
+	tcs := map[string]struct {
+		expected string
+		code     int
+	}{
+		"default": {
+			expected: "2 passed, 0 failed.",
+			code:     0,
+		},
+		"default_provider": {
+			expected: "2 passed, 0 failed.",
+			code:     0,
+		},
+		"instance": {
+			expected: "1 passed, 1 failed.",
+			code:     1,
+		},
+		"instance_provider": {
+			expected: "1 passed, 1 failed.",
+			code:     1,
+		},
+		"default_instance_mixed": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
+		"default_instance_mixed_provider": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
+	}
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			tftestHCLDir := fmt.Sprintf("override_instance_%s", name)
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", "override_instance_base")), td)
+			testCopyDir(t, testFixturePath(path.Join("test", tftestHCLDir)), td)
+			t.Chdir(td)
+
+			provider := testing_command.NewProvider(nil)
+			view, done := testView(t)
+
+			// HACK:
+			// When using overrides, a test framework provider is used, which ignores
+			// calls to the ConfigureProvider method. However, the underlying
+			// MockProvider expects its ConfigureProvider to be called, and returns
+			// an error if its internal ConfigureProviderCalled flag is false. So,
+			// we are setting it to true here, as that configuration isn't what we're
+			// testing.
+			provider.Provider.ConfigureProviderCalled = true
+
+			c := &TestCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(provider.Provider),
+					View:             view,
+				},
+			}
+
+			code := c.Run(nil)
+			output := done(t)
+
+			if code != tc.code {
+				t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+			}
+
+			if !strings.Contains(output.Stdout(), tc.expected) {
+				t.Errorf("output didn't contain expected string:\n\n%s", output.All())
+			}
+
+			if provider.ResourceCount() > 0 {
+				t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+			}
+		})
+	}
+}
