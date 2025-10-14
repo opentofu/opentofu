@@ -52,6 +52,7 @@ ENHANCEMENTS:
   * `client_id_file_path`: allows the user to set the `client_id` through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
   * `client_secret_file_path`: allows the user to set the `client_secret` through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
   * `client_certificate`: allows the user to set the certificate directly, as opposed to only setting it through a file. ([#3251](https://github.com/opentofu/opentofu/pull/3251))
+* OpenTelemetry traces describing HTTP requests now follow [the new OpenTelemetry Semantic Conventions for HTTP 1.27.0](https://opentelemetry.io/docs/specs/semconv/non-normative/http-migration/). ([#3372](https://github.com/opentofu/opentofu/pull/3372))
 * Upgrade github.com/go-viper/mapstructure/v2 to v2.4.0 to fix [GO-2025-3900](https://pkg.go.dev/vuln/GO-2025-3900). ([#3229](https://github.com/opentofu/opentofu/pull/3229))
 
 BUG FIXES:
