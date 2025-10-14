@@ -123,7 +123,10 @@ func initCommands(
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
 
-		ProviderSourceLocationConfig: providerSourceLocationConfig(),
+		// ProviderSourceLocationConfig is used for some commands that do not make
+		// use of the OpenTofu configuration files. Therefore, there is no way to configure
+		// the retries from other places than env vars.
+		ProviderSourceLocationConfig: providerSourceLocationConfig(0),
 	}
 
 	// The command list is included in the tofu -help
