@@ -37,6 +37,7 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 								Location: ProviderInstallationNetworkMirror("https://tf-Mirror.example.com/"),
 								Include:  []string{"registry.opentofu.org/*/*"},
 								Exclude:  []string{"registry.OpenTofu.org/foobar/*"},
+								Retries:  2,
 							},
 							{
 								Location: ProviderInstallationFilesystemMirror("/tmp/example2"),
@@ -44,6 +45,7 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 							{
 								Location: ProviderInstallationDirect,
 								Exclude:  []string{"example.com/*/*"},
+								Retries:  3,
 							},
 						},
 
