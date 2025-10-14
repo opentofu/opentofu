@@ -1142,6 +1142,11 @@ func (m *MockRuns) List(ctx context.Context, workspaceID string, options *tfe.Ru
 	return rl, nil
 }
 
+// ListForOrganization implements tfe.Runs.
+func (m *MockRuns) ListForOrganization(ctx context.Context, organization string, options *tfe.RunListForOrganizationOptions) (*tfe.OrganizationRunList, error) {
+	panic("unimplemented")
+}
+
 func (m *MockRuns) Create(ctx context.Context, options tfe.RunCreateOptions) (*tfe.Run, error) {
 	m.Lock()
 	defer m.Unlock()
@@ -1552,6 +1557,11 @@ func (m *MockStateVersionOutputs) ReadCurrent(ctx context.Context, workspaceID s
 	return svl, nil
 }
 
+// UploadSanitizedState implements tfe.StateVersions.
+func (m *MockStateVersions) UploadSanitizedState(ctx context.Context, sanitizedStateUploadURL *string, sanitizedState []byte) error {
+	panic("unimplemented")
+}
+
 type MockVariables struct {
 	client     *MockClient
 	workspaces map[string]*tfe.VariableList
@@ -1569,6 +1579,11 @@ func newMockVariables(client *MockClient) *MockVariables {
 func (m *MockVariables) List(ctx context.Context, workspaceID string, options *tfe.VariableListOptions) (*tfe.VariableList, error) {
 	vl := m.workspaces[workspaceID]
 	return vl, nil
+}
+
+// ListAll implements tfe.Variables.
+func (m *MockVariables) ListAll(ctx context.Context, workspaceID string, options *tfe.VariableListOptions) (*tfe.VariableList, error) {
+	panic("unimplemented")
 }
 
 func (m *MockVariables) Create(ctx context.Context, workspaceID string, options tfe.VariableCreateOptions) (*tfe.Variable, error) {
@@ -2016,6 +2031,26 @@ func (m *MockWorkspaces) SetDataRetentionPolicyDontDelete(ctx context.Context, w
 
 func (m *MockWorkspaces) DeleteDataRetentionPolicy(ctx context.Context, workspaceID string) error {
 	panic("not implemented")
+}
+
+// AddTagBindings implements tfe.Workspaces.
+func (m *MockWorkspaces) AddTagBindings(ctx context.Context, workspaceID string, options tfe.WorkspaceAddTagBindingsOptions) ([]*tfe.TagBinding, error) {
+	panic("unimplemented")
+}
+
+// DeleteAllTagBindings implements tfe.Workspaces.
+func (m *MockWorkspaces) DeleteAllTagBindings(ctx context.Context, workspaceID string) error {
+	panic("unimplemented")
+}
+
+// ListEffectiveTagBindings implements tfe.Workspaces.
+func (m *MockWorkspaces) ListEffectiveTagBindings(ctx context.Context, workspaceID string) ([]*tfe.EffectiveTagBinding, error) {
+	panic("unimplemented")
+}
+
+// ListTagBindings implements tfe.Workspaces.
+func (m *MockWorkspaces) ListTagBindings(ctx context.Context, workspaceID string) ([]*tfe.TagBinding, error) {
+	panic("unimplemented")
 }
 
 const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
