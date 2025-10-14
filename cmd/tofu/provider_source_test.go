@@ -272,7 +272,7 @@ func TestConfigureProviderDownloadRetry(t *testing.T) {
 		{
 			name: "when no TF_PROVIDER_DOWNLOAD_RETRY env var, default retry attempts used for provider download",
 			expectedConfig: getproviders.LocationConfig{
-				ProviderDownloadRetries: providerDownloadDefaultRetry,
+				ProviderDownloadRetries: 2,
 			},
 		},
 		{

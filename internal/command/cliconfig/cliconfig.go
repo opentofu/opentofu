@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -500,4 +501,24 @@ func cliConfigFileOverride() string {
 		configFilePath = os.Getenv("TERRAFORM_CONFIG")
 	}
 	return configFilePath
+}
+
+const (
+	// providerDownloadRetryCountEnvName is the environment variable name used to customize
+	// the HTTP retry count for module downloads.
+	providerDownloadRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
+
+	providerDownloadDefaultRetry = 2
+)
+
+// ProviderDownloadRetries will attempt for requests with retryable errors, like 502 status codes
+func ProviderDownloadRetries() int {
+	r := providerDownloadDefaultRetry
+	if v := os.Getenv(providerDownloadRetryCountEnvName); v != "" {
+		retry, err := strconv.Atoi(v)
+		if err == nil && retry > 0 {
+			r = retry
+		}
+	}
+	return r
 }
