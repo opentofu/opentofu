@@ -26,8 +26,79 @@ resource "azurerm_resource_group" "example" {
 The `lifecycle` block and its contents are meta-arguments, available
 for all `resource` blocks regardless of type.
 
-The arguments available within a `lifecycle` block are `create_before_destroy`,
-`prevent_destroy`, `ignore_changes`, and `replace_triggered_by`.
+The arguments available within a `lifecycle` block are `enabled`,
+`create_before_destroy`, `prevent_destroy`, `ignore_changes`, and `replace_triggered_by`.
+
+* `enabled` (bool) - Controls whether a resource is created and managed by OpenTofu.
+  When set to `false`, the resource is excluded from the configuration as if it didn't exist,
+  and any existing infrastructure object will be destroyed. When set to `true` (the default),
+  the resource operates normally.
+
+  This offers a cleaner alternative to the `count` workaround pattern (`count = var.enabled ? 1 : 0`),
+  which involves accessing resources via array indexing for single instances. If an existing resource or
+  module uses that pattern, they can switch to `lifecycle.enabled`, and OpenTofu will create an implicit
+  move between them.
+
+  ```hcl
+  variable "create_instance" {
+    type    = bool
+    default = true
+  }
+
+  resource "aws_instance" "example" {
+    # ...
+    lifecycle {
+      enabled = var.create_instance
+    }
+  }
+  ```
+
+  When a resource might be disabled, it evaluates to `null` and cannot be accessed directly.
+  Conditional expressions must be used to handle this:
+
+  ```hcl
+  # Using try() - most concise but masks other errors
+  output "instance_id" {
+    value = try(aws_instance.example.id, "not-created")
+  }
+
+  # Using can() - more explicit about null checking
+  output "instance_id" {
+    value = can(aws_instance.example.id) ? aws_instance.example.id : "not-created"
+  }
+
+  # Using null check - most verbose but clearest intent
+  output "instance_id" {
+    value = aws_instance.example != null ? aws_instance.example.id : "not-created"
+  }
+  ```
+
+  Attempting to access a disabled resource directly will result in an error during `plan` or `apply`:
+
+  ```
+  │ Error: Attempt to get attribute from null value
+  │
+  │   on main.tf line 10, in output "instance_id":
+  │   10:     value = aws_instance.example.id
+  │     ├────────────────
+  │     │ aws_instance.example is null
+  │
+  │ This value is null, so it does not have any attributes.
+  ```
+
+  **Restrictions:**
+
+  The `enabled` argument cannot be used together with `count` or `for_each`, as these
+  meta-arguments serve different purposes. Use `enabled` for single-instance resources,
+  `count` for creating multiple numbered instances, or `for_each` for creating multiple
+  named instances.
+
+  The `enabled` argument cannot use:
+  - Unknown values (values not known until apply)
+  - Sensitive values
+  - Null values
+  - Ephemeral values
+  - Non-boolean values
 
 * `create_before_destroy` (bool) - By default, when OpenTofu must change
   a resource argument that cannot be updated in-place due to

@@ -10,6 +10,13 @@ description: >-
 A given resource or module block cannot use both `count` and `for_each`.
 :::
 
+:::tip
+If you're using `count = var.enabled ? 1 : 0` to conditionally enable/disable a
+single resource or module, consider using the [`lifecycle.enabled`](../../language/meta-arguments/lifecycle.mdx)
+argument instead. It provides cleaner syntax without requiring array indexing and supports
+automatic migration from the `count` pattern.
+:::
+
 By default, a [resource block](../../language/resources/syntax.mdx) configures one real
 infrastructure object. (Similarly, a
 [module block](../../language/modules/syntax.mdx) includes a

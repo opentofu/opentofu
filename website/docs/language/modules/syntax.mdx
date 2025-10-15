@@ -130,7 +130,32 @@ described in more detail in the following pages:
   [the `depends_on` page](../../language/meta-arguments/depends_on.mdx)
   for details.
 
-OpenTofu does not use the `lifecycle` argument. However, the `lifecycle` block is reserved for future versions.
+- `lifecycle` - Allows lifecycle customizations for modules. Currently only
+  supports the `enabled` argument.
+
+## Module Lifecycle
+
+The `lifecycle` block can be used within a `module` block to customize module behavior.
+Currently, it only supports the `enabled` argument for conditionally enabling or disabling
+entire modules:
+
+```hcl
+variable "enable_monitoring" {
+  type    = bool
+  default = true
+}
+
+module "monitoring" {
+  source = "./monitoring"
+
+  lifecycle {
+    enabled = var.enable_monitoring
+  }
+}
+```
+
+For complete details about the `enabled` argument, including restrictions and migration
+from the `count` workaround, see the [`lifecycle` meta-argument documentation](../../language/meta-arguments/lifecycle.mdx).
 
 ## Accessing Module Output Values
 
