@@ -7,12 +7,12 @@ description: >-
 # The `count` Meta-Argument
 
 :::note
-A given resource or module block cannot use both `count` and `for_each`.
+A given resource or module block cannot use both `count`, `enabled`, and `for_each` together.
 :::
 
 :::tip
 If you're using `count = var.enabled ? 1 : 0` to conditionally enable/disable a
-single resource or module, consider using the [`lifecycle.enabled`](../../language/meta-arguments/lifecycle.mdx)
+single resource or module, consider using the [the `enabled` argument in a `lifecycle` block](../../language/meta-arguments/enabled.mdx)
 argument instead. It provides cleaner syntax without requiring array indexing and supports
 automatic migration from the `count` pattern.
 :::

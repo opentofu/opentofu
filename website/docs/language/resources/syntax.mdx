@@ -184,7 +184,7 @@ For more information about provisioners, you can refer to this [page](./provisio
 
 ## Conditionally Enabling Resources
 
-You can conditionally enable or disable a resource using the `lifecycle.enabled` argument. When set to `false`, the resource is excluded from the configuration and any existing infrastructure will be destroyed:
+You can conditionally enable or disable a resource using the `enabled` argument in a `lifecycle` block. When set to `false`, the resource is excluded from the configuration and any existing infrastructure will be destroyed:
 
 ```hcl
 variable "create_monitoring" {
@@ -201,7 +201,7 @@ resource "aws_cloudwatch_dashboard" "main" {
 }
 ```
 
-For complete details, see the [`lifecycle.enabled` documentation](../../language/meta-arguments/lifecycle.mdx).
+For complete details, see the [`enabled` argument in a `lifecycle` block](../../language/meta-arguments/enabled.mdx).
 
 ## Meta-Arguments
 
