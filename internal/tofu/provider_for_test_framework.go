@@ -224,9 +224,11 @@ func (p providerForTest) withCopiedOverrideResources() providerForTest {
 	return p
 }
 
-func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource, overrides map[addrs.InstanceKey]map[string]cty.Value, defaultOverrides map[string]cty.Value) providerForTest {
+func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
+	// make an empty, unused map; we use the "defaultOverrides" to set the value of this overriding resource
+	overrides := make(map[addrs.InstanceKey]map[string]cty.Value)
 	for _, res := range overrideResources {
-		p = p.withOverrideResource(*res.TargetParsed, overrides, defaultOverrides)
+		p = p.withOverrideResource(*res.TargetParsed, overrides, res.Values)
 	}
 
 	return p
