@@ -149,13 +149,13 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			methodTypeStr := methodBlock.Keys[0].Token.Value().(string)
 			var location ProviderInstallationLocation
 			var include, exclude []string
-			var downloadRetries int
+			var retriesF ProviderInstallationMethodRetries
 			switch methodTypeStr {
 			case "direct":
 				type BodyContent struct {
 					Include         []string `hcl:"include"`
 					Exclude         []string `hcl:"exclude"`
-					DownloadRetries int      `hcl:"download_retry_count"`
+					DownloadRetries *int     `hcl:"download_retry_count"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -170,7 +170,12 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				location = ProviderInstallationDirect
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
-				downloadRetries = bodyContent.DownloadRetries
+				retriesF = func() (int, bool) {
+					if bodyContent.DownloadRetries == nil {
+						return 0, false
+					}
+					return *bodyContent.DownloadRetries, true
+				}
 			case "filesystem_mirror":
 				type BodyContent struct {
 					Path    string   `hcl:"path"`
@@ -203,7 +208,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					URL             string   `hcl:"url"`
 					Include         []string `hcl:"include"`
 					Exclude         []string `hcl:"exclude"`
-					DownloadRetries int      `hcl:"download_retry_count"`
+					DownloadRetries *int     `hcl:"download_retry_count"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -226,13 +231,25 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				location = ProviderInstallationNetworkMirror(bodyContent.URL)
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
-				downloadRetries = bodyContent.DownloadRetries
+				retriesF = func() (int, bool) {
+					if bodyContent.DownloadRetries == nil {
+						return 0, false
+					}
+					return *bodyContent.DownloadRetries, true
+				}
 			case "oci_mirror":
 				var moreDiags tfdiags.Diagnostics
+				var downloadRetries *int
 				location, include, exclude, downloadRetries, moreDiags = decodeOCIMirrorInstallationMethodBlock(methodBody)
 				diags = diags.Append(moreDiags)
 				if moreDiags.HasErrors() {
 					continue
+				}
+				retriesF = func() (int, bool) {
+					if downloadRetries == nil {
+						return 0, false
+					}
+					return *downloadRetries, true
 				}
 			case "dev_overrides":
 				if len(pi.Methods) > 0 {
@@ -294,7 +311,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				Location: location,
 				Include:  include,
 				Exclude:  exclude,
-				Retries:  downloadRetries,
+				Retries:  retriesF,
 			})
 		}
 
@@ -310,12 +327,12 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 
 // decodeOCIMirrorInstallationMethodBlock decodes the content of an oci_mirror block
 // from inside a provider_installation block.
-func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (location ProviderInstallationLocation, include, exclude []string, retries int, diags tfdiags.Diagnostics) {
+func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (location ProviderInstallationLocation, include, exclude []string, retries *int, diags tfdiags.Diagnostics) {
 	type BodyContent struct {
 		RepositoryTemplate string   `hcl:"repository_template"`
 		Include            []string `hcl:"include"`
 		Exclude            []string `hcl:"exclude"`
-		DownloadRetries    int      `hcl:"download_retry_count"`
+		DownloadRetries    *int     `hcl:"download_retry_count"`
 	}
 	var bodyContent BodyContent
 	err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -325,7 +342,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 			"Invalid provider_installation method block",
 			fmt.Sprintf("Invalid oci_mirror block at %s: %s.", methodBody.Pos(), err),
 		))
-		return nil, nil, nil, 0, diags
+		return nil, nil, nil, nil, diags
 	}
 	if bodyContent.RepositoryTemplate == "" {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -333,7 +350,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 			"Invalid provider_installation method block",
 			fmt.Sprintf("Invalid oci_mirror block at %s: \"repository_template\" argument is required.", methodBody.Pos()),
 		))
-		return nil, nil, nil, 0, diags
+		return nil, nil, nil, nil, diags
 	}
 
 	// If the given template is not valid at all then we'd prefer to give immediate
@@ -353,7 +370,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 	templateExpr, hclDiags := hclsyntax.ParseTemplate([]byte(bodyContent.RepositoryTemplate), "<oci_mirror repository_template>", hcl2.InitialPos)
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
-		return nil, nil, nil, 0, diags
+		return nil, nil, nil, nil, diags
 	}
 
 	// The fact that we use HCL templates for this is not exposed outside of this
@@ -364,7 +381,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 	repoMapping, mappingDiags := prepareOCIMirrorRepositoryMapping(templateExpr, bodyContent.Include, methodBody.Pos())
 	diags = diags.Append(mappingDiags)
 	if mappingDiags.HasErrors() {
-		return nil, nil, nil, 0, diags
+		return nil, nil, nil, nil, diags
 	}
 
 	location = ProviderInstallationOCIMirror{
@@ -572,7 +589,7 @@ type ProviderInstallationMethod struct {
 	Location ProviderInstallationLocation
 	Include  []string `hcl:"include"`
 	Exclude  []string `hcl:"exclude"`
-	Retries  int      `hcl:"retries"`
+	Retries  ProviderInstallationMethodRetries
 }
 
 // ProviderInstallationLocation is an interface type representing the
@@ -648,3 +665,12 @@ func (i ProviderInstallationOCIMirror) GoString() string {
 	// mismatches in tests, so just naming the type is good enough for now.
 	return "cliconfig.ProviderInstallationNetworkMirror{/*...*/}"
 }
+
+// ProviderInstallationMethodRetries defines the function to return the
+// configured, or lack of, retries (`download_retry_count`) configured for
+// a provider installation method.
+// This will return a number >= 0 and a bool in case the value actually
+// comes from the CLI configuration. When the bool returned is [false], the
+// number returned will be 0, meaning that the configuration was not
+// specified.
+type ProviderInstallationMethodRetries func() (int, bool)

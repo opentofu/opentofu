@@ -66,29 +66,34 @@ func TestProviderNetworkMirrorRetries(t *testing.T) {
 	})
 
 	cases := map[string]struct {
-		tofurcRetries  int
-		envVars        map[string]string
-		expectedErrMsg string
+		tofurcRetriesConfigEntry string
+		envVars                  map[string]string
+		expectedErrMsg           string
 	}{
 		"no tofurc.network_mirror.download_retry_count, no TF_PROVIDER_DOWNLOAD_RETRY, default TF_PROVIDER_DOWNLOAD_RETRY used": {
-			tofurcRetries:  0,
-			envVars:        nil,
-			expectedErrMsg: "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 3 attempt(s)",
+			tofurcRetriesConfigEntry: "",
+			envVars:                  nil,
+			expectedErrMsg:           "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 3 attempt(s)",
 		},
 		"no tofurc.network_mirror.download_retry_count, TF_PROVIDER_DOWNLOAD_RETRY defined, TF_PROVIDER_DOWNLOAD_RETRY used": {
-			tofurcRetries: 0,
+			tofurcRetriesConfigEntry: "",
 			envVars: map[string]string{
 				"TF_PROVIDER_DOWNLOAD_RETRY": "1",
 			},
 			expectedErrMsg: "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 2 attempt(s)",
 		},
-		"defined tofurc.network_mirror.download_retry_count, no TF_PROVIDER_DOWNLOAD_RETRY, tofurc used": {
-			tofurcRetries:  1,
-			envVars:        nil,
-			expectedErrMsg: "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 2 attempt(s)",
+		"defined tofurc.network_mirror.download_retry_count as 0, no TF_PROVIDER_DOWNLOAD_RETRY, tofurc used": {
+			tofurcRetriesConfigEntry: "download_retry_count = 0",
+			envVars:                  nil,
+			expectedErrMsg:           "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 1 attempt(s)",
 		},
-		"defined tofurc.network_mirror.download_retry_count, TF_PROVIDER_DOWNLOAD_RETRY defined, tofurc used": {
-			tofurcRetries: 1,
+		"defined tofurc.network_mirror.download_retry_count as 1, no TF_PROVIDER_DOWNLOAD_RETRY, tofurc used": {
+			tofurcRetriesConfigEntry: "download_retry_count = 1",
+			envVars:                  nil,
+			expectedErrMsg:           "/example.com/test/test/terraform-provider-test_0.0.1_linux_amd64.zip giving up after 2 attempt(s)",
+		},
+		"defined tofurc.network_mirror.download_retry_count as 1, TF_PROVIDER_DOWNLOAD_RETRY defined as 2, tofurc used": {
+			tofurcRetriesConfigEntry: "download_retry_count = 1",
 			envVars: map[string]string{
 				"TF_PROVIDER_DOWNLOAD_RETRY": "2",
 			},
@@ -113,10 +118,10 @@ func TestProviderNetworkMirrorRetries(t *testing.T) {
 		provider_installation {
 			network_mirror {
                 url = "%s"
-				download_retry_count = %d
+				%s
 			}
 		}
-	`, registryAddr, tt.tofurcRetries)
+	`, registryAddr, tt.tofurcRetriesConfigEntry)
 			if err := os.WriteFile(cliConfigFile, []byte(cliConfigSrc), os.ModePerm); err != nil {
 				t.Fatalf("failed to create temporary CLI configuration file: %s", err)
 			}

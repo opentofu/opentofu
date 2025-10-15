@@ -218,7 +218,7 @@ func implicitProviderSource(
 func providerSourceForCLIConfigLocation(
 	ctx context.Context,
 	loc cliconfig.ProviderInstallationLocation,
-	locationRetries int,
+	locationRetries cliconfig.ProviderInstallationMethodRetries,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
 	makeOCICredsPolicy ociCredsPolicyBuilder,
@@ -305,13 +305,14 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 // TF_PROVIDER_DOWNLOAD_RETRY env variable and is meant to be passed through
 // [getproviders.Source] all the way down to the [getproviders.PackageLocation]
 // to be able to tweak the configurations of the http clients used there.
-func providerSourceLocationConfig(tofurcCfg int) getproviders.LocationConfig {
+func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries) getproviders.LocationConfig {
 	// If there is no configuration for the retries in .tofurc, get the one from env variable
-	if tofurcCfg == 0 {
-		tofurcCfg = cliconfig.ProviderDownloadRetries()
+	retries, configured := locationRetries()
+	if !configured {
+		retries = cliconfig.ProviderDownloadRetries()
 	}
 	return getproviders.LocationConfig{
-		ProviderDownloadRetries: tofurcCfg,
+		ProviderDownloadRetries: retries,
 	}
 }
 
