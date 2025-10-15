@@ -3366,19 +3366,19 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 	// is declared on the block. Alternatively, they are implicitly being moved from
 	// using `enabled` as true or without declaring `enabled` to use count.
 	var tests = map[string]struct {
-		name      string
-		addr      addrs.AbsResourceInstance
-		prevAddr  addrs.AbsResourceInstance
-		config    *configs.Config
-		prevState *states.State
+		name         string
+		expectedAddr addrs.AbsResourceInstance
+		prevAddr     addrs.AbsResourceInstance
+		config       *configs.Config
+		prevState    *states.State
 	}{
 		"from count-module single-resource to enabled-module single-resource": {
 			config: testModuleInline(t, map[string]string{
 				"main.tf":       `module "child" { source = "./child" }`,
 				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child.test_object.a"),
-			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3391,8 +3391,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				"main.tf":       `module "child" { source = "./child" }`,
 				"child/main.tf": `resource "test_object" "a" { count = 1}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
-			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3405,8 +3405,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				"main.tf":       `module "child" { source = "./child" }`,
 				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child.test_object.a"),
-			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3419,8 +3419,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				"main.tf":       `module "child" { source = "./child" }`,
 				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
-			prevAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3436,8 +3436,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}`,
 				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
-			prevAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3453,8 +3453,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}`,
 				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
-			prevAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3470,8 +3470,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}`,
 				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
-			prevAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3488,8 +3488,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 					}`,
 				"child/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
-			prevAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3510,8 +3510,8 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 					}`,
 				"child/grandchild/main.tf": `resource "test_object" "a" {}`,
 			}),
-			addr:     mustResourceInstanceAddr("module.child.module.grandchild[0].test_object.a"),
-			prevAddr: mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"),
+			expectedAddr: mustResourceInstanceAddr("module.child.module.grandchild[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"),
 			prevState: states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"), &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{}`),
@@ -3535,21 +3535,21 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 			}
 
-			instPlan := plan.Changes.ResourceInstance(test.addr)
-			if instPlan == nil {
-				t.Fatalf("no plan for %s at all", test.addr)
+			gotPlan := plan.Changes.ResourceInstance(test.expectedAddr)
+			if gotPlan == nil {
+				t.Fatalf("no plan for %s at all", test.expectedAddr)
 			}
 
-			if got, want := instPlan.Addr, test.addr; !got.Equal(want) {
+			if got, want := gotPlan.Addr, test.expectedAddr; !got.Equal(want) {
 				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
 			}
-			if got, want := instPlan.PrevRunAddr, test.prevAddr; !got.Equal(want) {
+			if got, want := gotPlan.PrevRunAddr, test.prevAddr; !got.Equal(want) {
 				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
 			}
-			if got, want := instPlan.Action, plans.NoOp; got != want {
+			if got, want := gotPlan.Action, plans.NoOp; got != want {
 				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
 			}
-			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			if got, want := gotPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
 				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
 			}
 		})
