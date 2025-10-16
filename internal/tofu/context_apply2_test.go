@@ -599,6 +599,118 @@ output "out" {
 	}
 }
 
+// TestContext2Apply_sensitiveInsideUnknown verifies that OpenTofu uses
+// sensitive value information from provider schema when deciding what to
+// mark as sensitive in the final state after apply, even if the values in
+// question were not yet available during the planning phase.
+//
+// For additional context, refer to https://github.com/opentofu/opentofu/issues/3367 .
+func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "example.com/foo/test"
+					}
+				}
+			}
+
+			resource "test_sensitive" "test" {
+			}
+		`,
+	})
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test_sensitive": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							// We need at least one level of container
+							// indirection here, because we're verifying
+							// that the nested attribute has its sensitivity
+							// recorded in the final state even though
+							// the entire container will be unknown during
+							// planning and therefore the nested value cannot
+							// be marked in the "planned new state".
+							"container": {
+								Computed: true,
+								NestedType: &configschema.Object{
+									Nesting: configschema.NestingSingle,
+									Attributes: map[string]*configschema.Attribute{
+										"sensitive": {
+											Type:      cty.String,
+											Sensitive: true,
+											Computed:  true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		PlanResourceChangeResponse: &providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(map[string]cty.Value{
+				// The whole container is initially unknown, so the sensitivity
+				// of the nested "sensitive" attribute cannot be tracked as
+				// part of this value, forcing the apply phase to rely on
+				// the provider schema for that information.
+				"container": cty.UnknownVal(cty.Object(map[string]cty.Type{"sensitive": cty.String})),
+			}),
+		},
+		ApplyResourceChangeResponse: &providers.ApplyResourceChangeResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"container": cty.ObjectVal(map[string]cty.Value{
+					// This nested string value should be automatically marked
+					// as sensitive in the final state due to the provider
+					// schema, even though it wasn't present in the "planned
+					// state" in PlanResourceChangeResponse above.
+					"sensitive": cty.StringVal("hello"),
+				}),
+			}),
+		},
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	state, diags := tofuCtx.Apply(context.Background(), plan, m, &ApplyOpts{})
+	assertNoErrors(t, diags)
+
+	riState := state.ResourceInstance(addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_sensitive",
+		Name: "test",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey))
+	if riState == nil {
+		t.Fatal("resource instance state is missing")
+	}
+	if riState.Current == nil {
+		t.Fatal("resource instance has no current object")
+	}
+	foundSensitive := false
+	for _, pvm := range riState.Current.AttrSensitivePaths {
+		t.Logf("marks at %s: %#v", tfdiags.FormatCtyPath(pvm.Path), pvm.Marks)
+		if _, ok := pvm.Marks[marks.Sensitive]; !ok {
+			continue
+		}
+		if !pvm.Path.Equals(cty.GetAttrPath("container").GetAttr("sensitive")) {
+			continue
+		}
+		foundSensitive = true
+	}
+	if !foundSensitive {
+		t.Errorf("no sensitive mark for .container.sensitive in %s", spew.Sdump(riState.Current))
+	}
+}
+
 func TestContext2Apply_ignoreImpureFunctionChanges(t *testing.T) {
 	// The impure function call should not cause a planned change with
 	// ignore_changes
