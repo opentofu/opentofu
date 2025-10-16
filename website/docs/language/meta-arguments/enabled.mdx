@@ -53,7 +53,7 @@ output "instance_id" {
 }
 ```
 
-Attempting to access a disabled resource directly will result in an error during `plan` or `apply`:
+Attempting to directly access a resource configured with `enabled = false` will result in an error during `plan` or `apply`:
 
 ```
 │ Error: Attempt to get attribute from null value
