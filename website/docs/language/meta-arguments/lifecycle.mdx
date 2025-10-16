@@ -26,8 +26,15 @@ resource "azurerm_resource_group" "example" {
 The `lifecycle` block and its contents are meta-arguments, available
 for all `resource` blocks regardless of type.
 
-The arguments available within a `lifecycle` block are `create_before_destroy`,
-`prevent_destroy`, `ignore_changes`, and `replace_triggered_by`.
+The arguments available within a `lifecycle` block are `enabled`,
+`create_before_destroy`, `prevent_destroy`, `ignore_changes`, and `replace_triggered_by`.
+
+* `enabled` (bool) - Controls whether a resource is created and managed by OpenTofu.
+  When set to `false`, the resource is excluded from the configuration as if it didn't exist,
+  and any existing infrastructure object will be destroyed. When set to `true` (the default),
+  the resource operates normally.
+
+  For full details about the `enabled` meta-argument, see [its documentation](../../language/meta-arguments/enabled.mdx).
 
 * `create_before_destroy` (bool) - By default, when OpenTofu must change
   a resource argument that cannot be updated in-place due to
