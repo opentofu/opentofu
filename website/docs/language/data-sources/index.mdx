@@ -68,10 +68,10 @@ specific to the selected data source, and these arguments can make full
 use of [expressions](../../language/expressions/index.mdx) and other dynamic
 OpenTofu language features.
 
-However, there are some "meta-arguments" that are defined by OpenTofu itself
-and apply across all data sources. These arguments often have additional
-restrictions on what language features can be used with them, and are described
-in more detail in the following sections.
+However, there are some [meta-arguments](#meta-arguments) that are defined by
+OpenTofu itself and apply across all data resource types. These arguments often
+have additional restrictions on what language features can be used with them,
+and are described in more detail in the following sections.
 
 ## Data Resource Behavior
 
@@ -92,6 +92,48 @@ Refer to [Data Resource Dependencies](#data-resource-dependencies) for details
 on what it means for a data resource to depend on other objects. Any resulting
 attribute of such a data resource will be unknown during planning, so it cannot
 be used in situations where values must be fully known.
+
+## Meta-Arguments
+
+The OpenTofu language defines several meta-arguments, which can be used with
+any data resource type to change the behavior of resources.
+
+The following meta-arguments are documented on separate pages:
+
+- [`depends_on`, for specifying hidden dependencies](../../language/meta-arguments/depends_on.mdx)
+- [`enabled`, for creating conditionally single-resource instances according to a expression](../../language/meta-arguments/enabled.mdx)
+- [`count`, for creating multiple resource instances according to a count](../../language/meta-arguments/count.mdx)
+- [`for_each`, to create multiple instances according to a map, or set of strings](../../language/meta-arguments/for_each.mdx)
+- [`provider`, for selecting a non-default provider configuration](../../language/meta-arguments/resource-provider.mdx)
+- [`lifecycle`, for lifecycle customizations](#lifecycle-customizations)
+
+## Lifecycle Customizations
+
+A `lifecycle` block inside a `data` block allows some customization of
+OpenTofu's behavior relating to instances of a resource at different phases
+of its lifecycle.
+
+```hcl
+data "example" "example" {
+  # ...normal resource arguments...
+
+  lifecycle {
+    # ...lifecycle arguments...
+  }
+}
+```
+
+The following arguments and nested block types are supported in the `lifecycle`
+block for a data resource:
+
+* `enabled` (bool) - Controls whether the data resource will be read by OpenTofu.
+  When set to `false`, the resource is excluded from the configuration as if it
+  didn't exist. When set to `true` (the default), the resource operates normally.
+
+  For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
+
+* `precondition` and `postcondition` blocks, as described in
+  [Custom Conditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions).
 
 ## Local-only Data Sources
 
@@ -146,94 +188,6 @@ Custom conditions can help capture assumptions, helping future maintainers under
 
 Refer to [Custom Condition Checks](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions) for more details.
 
-
-## Multiple Resource Instances
-
-Data resources support [`count`](../../language/meta-arguments/count.mdx)
-and [`for_each`](../../language/meta-arguments/for_each.mdx)
-meta-arguments as defined for managed resources, with the same syntax and behavior.
-
-As with managed resources, when `count` or `for_each` is present it is important to
-distinguish the resource itself from the multiple resource _instances_ it
-creates. Each instance will separately read from its data source with its
-own variant of the constraint arguments, producing an indexed result.
-
-## Selecting a Non-default Provider Configuration
-
-Data resources support [the `provider` meta-argument](../../language/meta-arguments/resource-provider.mdx)
-as defined for managed resources, with the same syntax and behavior.
-
-## Lifecycle Customizations
-
-Data resources support a `lifecycle` block that includes the [`enabled`](../../language/meta-arguments/enabled.mdx) argument to conditionally enable or disable the data resource.
-
-```hcl
-variable "fetch_ami_data" {
-  type    = bool
-  default = true
-}
-
-data "aws_ami" "example" {
-  most_recent = true
-  owners      = ["self"]
-
-  lifecycle {
-    enabled = var.fetch_ami_data
-  }
-}
-```
-
-## Example
-
-A data source configuration looks like the following:
-
-```hcl
-# Find the latest available AMI that is tagged with Component = web
-data "aws_ami" "web" {
-  filter {
-    name   = "state"
-    values = ["available"]
-  }
-
-  filter {
-    name   = "tag:Component"
-    values = ["web"]
-  }
-
-  most_recent = true
-}
-```
-
-## Description
-
-The `data` block creates a data instance of the given _type_ (first
-block label) and _name_ (second block label). The combination of the type
-and name must be unique.
-
-Within the block (the `{ }`) is configuration for the data instance. The
-configuration is dependent on the type; as with
-[resources](../../language/resources/index.mdx), each provider on the
-[Public OpenTofu Registry](https://registry.opentofu.org) has its own
-documentation for configuring and using the data types it provides.
-
-Each data instance will export one or more attributes, which can be
-used in other resources as reference expressions of the form
-`data.<TYPE>.<NAME>.<ATTRIBUTE>`. For example:
-
-```hcl
-resource "aws_instance" "web" {
-  ami           = data.aws_ami.web.id
-  instance_type = "t1.micro"
-}
-```
-
-## Meta-Arguments
-
-As data sources are essentially a read-only subset of resources, they also
-support the same [meta-arguments](../../language/resources/syntax.mdx#meta-arguments) as resources
-with the exception of a slightly simpler version of the
-[`lifecycle` configuration block](../../language/meta-arguments/lifecycle.mdx).
-
 ### Non-Default Provider Configurations
 
 Similarly to [resources](../../language/resources/index.mdx), when
@@ -251,19 +205,3 @@ data "aws_ami" "web" {
 See
 [The Resource `provider` Meta-Argument](../../language/meta-arguments/resource-provider.mdx)
 for more information.
-
-## Data Source Lifecycle
-
-If the arguments of a data instance contain no references to computed values,
-such as attributes of resources that have not yet been created, then the
-data instance will be read and its state updated during OpenTofu's "refresh"
-phase, which by default runs prior to creating a plan. This ensures that the
-retrieved data is available for use during planning and the diff will show
-the real values obtained.
-
-Data instance arguments may refer to computed values, in which case the
-attributes of the instance itself cannot be resolved until all of its
-arguments are defined. In this case, refreshing the data instance will be
-deferred until the "apply" phase, and all interpolations of the data instance
-attributes will show as "computed" in the plan since the values are not yet
-known.

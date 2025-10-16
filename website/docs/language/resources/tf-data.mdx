@@ -15,7 +15,7 @@ The `terraform_data` resource is useful for storing values which need to follow 
 ## Example Usage (data for `replace_triggered_by`)
 
 
-[The `replace_triggered_by` lifecycle argument](../../language/meta-arguments/lifecycle.mdx#replace_triggered_by) requires all of the given addresses to be for resources, because the decision to force replacement is based on the planned actions for all of the mentioned resources.
+[The `replace_triggered_by` lifecycle argument](behavior.mdx#replace_triggered_by) requires all of the given addresses to be for resources, because the decision to force replacement is based on the planned actions for all of the mentioned resources.
 
 Plain data values such as [Local Values](../../language/values/locals.mdx) and [Input Variables](../../language/values/variables.mdx) don't have any side-effects to plan against and so they aren't valid in `replace_triggered_by`. You can use `terraform_data`'s behavior of planning an action each time `input` changes to _indirectly_ use a plain value to trigger replacement.
 
