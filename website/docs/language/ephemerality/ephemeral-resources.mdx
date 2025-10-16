@@ -39,9 +39,41 @@ Besides the attributes in the schema of an ephemeral resource, the block support
 * [`count`](../../language/meta-arguments/count.mdx)
 * [`for_each`](../../language/meta-arguments/for_each.mdx)
 * [`provider`](../../language/meta-arguments/resource-provider.mdx)
-* [`lifecycle`](../../language/meta-arguments/lifecycle.mdx)
-  * [`enabled`](../../language/meta-arguments/enabled.mdx) for conditional enabling
-  * [`precondition` and `postcondition`](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions)
+* [`lifecycle`](#lifecycle-customizations)
+
+## Lifecycle Customizations
+A `lifecycle` block inside an `ephemeral` block allows some customization of
+OpenTofu's behavior relating to instances of a resource at different phases
+of its lifecycle.
+
+```hcl
+ephemeral "example" "example" {
+  # ...normal resource arguments...
+
+  lifecycle {
+    # ...lifecycle arguments...
+  }
+}
+```
+
+The following arguments and nested block types are supported in the `lifecycle`
+block for an ephemeral resource:
+
+* `enabled` (bool) - Controls whether the ephemeral resource will be used by
+  OpenTofu. When set to `false`, the resource is excluded from the configuration
+  as if it didn't exist. When set to `true` (the default), the resource operates
+  normally.
+
+  For ephemeral resources in particular, you can use the boolean
+  `terraform.applying` value with `enabled` to specify that a particular
+  ephemeral resource should be active only during the apply phase, which can
+  be useful for values used only by managed resource provisioners because
+  provisioners are active only during the apply phase.
+
+  For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
+
+* `precondition` and `postcondition` blocks, as described in
+  [Custom Conditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions).
 
 ## Deferred opening
 By design, the ephemeral resources cannot be opened if the configuration is not fully known.
