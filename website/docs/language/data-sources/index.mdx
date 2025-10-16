@@ -165,7 +165,7 @@ as defined for managed resources, with the same syntax and behavior.
 
 ## Lifecycle Customizations
 
-Data resources support a slightly simpler `lifecycle` block that only includes the `enabled` argument to conditionally enable or disable data sources.
+Data resources support a `lifecycle` block that includes the [`enabled`](../../language/meta-arguments/enabled.mdx) argument to conditionally enable or disable the data resource.
 
 ```hcl
 variable "fetch_ami_data" {

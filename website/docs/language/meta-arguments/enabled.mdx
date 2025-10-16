@@ -47,11 +47,6 @@ output "instance_id" {
   value = try(aws_instance.example.id, "not-created")
 }
 
-# Using can() - more explicit about null checking
-output "instance_id" {
-  value = can(aws_instance.example.id) ? aws_instance.example.id : "not-created"
-}
-
 # Using null check - most verbose but clearest intent
 output "instance_id" {
   value = aws_instance.example != null ? aws_instance.example.id : "not-created"
