@@ -74,6 +74,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 * The `s3` state storage backend now correctly sends the `x-amz-server-side-encryption` header when working with S3 objects representing state locks. ([#2970](https://github.com/opentofu/opentofu/issues/2970))
+* The `aws_kms` key provider for state and plan encryption no longer returns a confusing error when the `TF_APPEND_USER_AGENT` environment variable is set. ([#3390](https://github.com/opentofu/opentofu/pull/3390))
 * The `issensitive` function now returns an unknown result when its argument is unknown, because a sensitive unknown value can potentially become non-sensitive once more information is available. ([#3008](https://github.com/opentofu/opentofu/pull/3008))
 * Provider references like `null.some_alias[each.key]` in `.tf.json` files are now accepted in the same way as in native syntax files. ([#2915](https://github.com/opentofu/opentofu/issues/2915))
 * Fixed "slice bounds out of range" crash when processing multiple deprecated values inside a complex object. ([#3105](https://github.com/opentofu/opentofu/pull/3105))
