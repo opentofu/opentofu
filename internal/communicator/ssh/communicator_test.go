@@ -177,6 +177,39 @@ func TestNew_InvalidHost(t *testing.T) {
 	}
 }
 
+func TestNew_PublicKeyAsCertificate(t *testing.T) {
+	// This test ensures that we correctly identify and reject a public key
+	// in the "certificate" argument, which historically caused a panic
+	// as described in https://github.com/opentofu/opentofu/issues/3369 .
+
+	v := cty.ObjectVal(map[string]cty.Value{
+		"type":    cty.StringVal("ssh"),
+		"user":    cty.StringVal("user"),
+		"host":    cty.StringVal("example.com"),
+		"port":    cty.StringVal("22"),
+		"timeout": cty.StringVal("30s"),
+
+		// The specific private key used here is unimportant for this test,
+		// but we do need to provide one because otherwise the "certificate"
+		// argument is silently ignored.
+		"private_key": cty.StringVal(testServerPrivateKey),
+		// "certificate" uses the same syntax as an SSH public key, but _must_
+		// use one of the SSH certificate formats, rather than a plain public
+		// key like in this example.
+		"certificate": cty.StringVal("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKrMq5j3tsD0M+ceNKXVCRIF7De7iz0CKQqxoiyZFEeR example"),
+	})
+
+	_, err := New(v)
+	if err == nil {
+		t.Fatal("should have had an error creating communicator")
+	}
+	got := err.Error()
+	want := `invalid certificate format "ssh-ed25519": must use a certificate entry type, or leave certificate unset if you don't intend to use a certificate authority`
+	if got != want {
+		t.Errorf("wrong error message\ngot:  %s\nwant: %s", got, want)
+	}
+}
+
 func TestStart(t *testing.T) {
 	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
 	defer sclose()
