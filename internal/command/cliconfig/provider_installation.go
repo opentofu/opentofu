@@ -239,18 +239,14 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				}
 			case "oci_mirror":
 				var moreDiags tfdiags.Diagnostics
-				var downloadRetries *int
-				location, include, exclude, downloadRetries, moreDiags = decodeOCIMirrorInstallationMethodBlock(methodBody)
+				location, include, exclude, moreDiags = decodeOCIMirrorInstallationMethodBlock(methodBody)
 				diags = diags.Append(moreDiags)
 				if moreDiags.HasErrors() {
 					continue
 				}
-				retriesF = func() (int, bool) {
-					if downloadRetries == nil {
-						return 0, false
-					}
-					return *downloadRetries, true
-				}
+				// NOTE: We want to introduce a retry and a timeout for the oci_mirror block too, but that needs
+				// a different design than the one we have for direct and network_mirror.
+				// Details in: https://github.com/opentofu/opentofu/issues/3392
 			case "dev_overrides":
 				if len(pi.Methods) > 0 {
 					// We require dev_overrides to appear first if it's present,
@@ -327,12 +323,11 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 
 // decodeOCIMirrorInstallationMethodBlock decodes the content of an oci_mirror block
 // from inside a provider_installation block.
-func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (location ProviderInstallationLocation, include, exclude []string, retries *int, diags tfdiags.Diagnostics) {
+func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (location ProviderInstallationLocation, include, exclude []string, diags tfdiags.Diagnostics) {
 	type BodyContent struct {
 		RepositoryTemplate string   `hcl:"repository_template"`
 		Include            []string `hcl:"include"`
 		Exclude            []string `hcl:"exclude"`
-		DownloadRetries    *int     `hcl:"download_retry_count"`
 	}
 	var bodyContent BodyContent
 	err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -342,7 +337,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 			"Invalid provider_installation method block",
 			fmt.Sprintf("Invalid oci_mirror block at %s: %s.", methodBody.Pos(), err),
 		))
-		return nil, nil, nil, nil, diags
+		return nil, nil, nil, diags
 	}
 	if bodyContent.RepositoryTemplate == "" {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -350,7 +345,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 			"Invalid provider_installation method block",
 			fmt.Sprintf("Invalid oci_mirror block at %s: \"repository_template\" argument is required.", methodBody.Pos()),
 		))
-		return nil, nil, nil, nil, diags
+		return nil, nil, nil, diags
 	}
 
 	// If the given template is not valid at all then we'd prefer to give immediate
@@ -370,7 +365,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 	templateExpr, hclDiags := hclsyntax.ParseTemplate([]byte(bodyContent.RepositoryTemplate), "<oci_mirror repository_template>", hcl2.InitialPos)
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
-		return nil, nil, nil, nil, diags
+		return nil, nil, nil, diags
 	}
 
 	// The fact that we use HCL templates for this is not exposed outside of this
@@ -381,7 +376,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 	repoMapping, mappingDiags := prepareOCIMirrorRepositoryMapping(templateExpr, bodyContent.Include, methodBody.Pos())
 	diags = diags.Append(mappingDiags)
 	if mappingDiags.HasErrors() {
-		return nil, nil, nil, nil, diags
+		return nil, nil, nil, diags
 	}
 
 	location = ProviderInstallationOCIMirror{
@@ -389,8 +384,7 @@ func decodeOCIMirrorInstallationMethodBlock(methodBody *hclast.ObjectType) (loca
 	}
 	include = bodyContent.Include
 	exclude = bodyContent.Exclude
-	retries = bodyContent.DownloadRetries
-	return location, include, exclude, retries, diags
+	return location, include, exclude, diags
 }
 
 func prepareOCIMirrorRepositoryMapping(templateExpr hclsyntax.Expression, include []string, pos hcltoken.Pos) (func(addrs.Provider) (registryDomain, repositoryName string, err error), tfdiags.Diagnostics) {
