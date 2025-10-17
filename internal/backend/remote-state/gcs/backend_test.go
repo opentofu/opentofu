@@ -8,6 +8,7 @@ package gcs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -176,6 +177,7 @@ func TestBackendWithPrefix(t *testing.T) {
 	backend.TestBackendStates(t, be0)
 	backend.TestBackendStateLocks(t, be0, be1)
 }
+
 func TestBackendWithCustomerSuppliedEncryption(t *testing.T) {
 	t.Parallel()
 
@@ -246,7 +248,7 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 	bkt := be.storageClient.Bucket(bucket)
 	_, err := bkt.Attrs(t.Context())
 	if err != nil {
-		if err != storage.ErrBucketNotExist {
+		if !errors.Is(err, storage.ErrBucketNotExist) {
 			t.Fatal(err)
 		}
 
@@ -346,7 +348,7 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 	// Get GCS Service account email, check has necessary permission on key
 	// Note: we cannot reuse the backend's storage client (like in the setupBackend function)
 	// because the KMS key needs to exist before the backend buckets are made in the test.
-	sc, err := storage.NewClient(ctx, opts...) //reuse opts from KMS client
+	sc, err := storage.NewClient(ctx, opts...) // reuse opts from KMS client
 	if err != nil {
 		e := fmt.Errorf("storage.NewClient() failed: %w", err)
 		t.Fatal(e)
