@@ -581,8 +581,8 @@ func evalOCIProviderMirrorRepositoryTemplate(templateExpr hclsyntax.Expression, 
 // a provider_installation block.
 type ProviderInstallationMethod struct {
 	Location ProviderInstallationLocation
-	Include  []string `hcl:"include"`
-	Exclude  []string `hcl:"exclude"`
+	Include  []string
+	Exclude  []string
 	Retries  ProviderInstallationMethodRetries
 }
 
