@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/opentofu/svchost/disco"
@@ -61,7 +60,7 @@ func explicitProviderSource(
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, registryClientConfig, services, getOCICredsPolicy)
+		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, methodConfig.Retries, registryClientConfig, services, getOCICredsPolicy)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -208,7 +207,7 @@ func implicitProviderSource(
 	// local copy will take precedence.
 	searchRules = append(searchRules, getproviders.MultiSourceSelector{
 		Source: getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig()),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfigFromEnv()),
 		),
 		Exclude: directExcluded,
 	})
@@ -219,13 +218,14 @@ func implicitProviderSource(
 func providerSourceForCLIConfigLocation(
 	ctx context.Context,
 	loc cliconfig.ProviderInstallationLocation,
+	locationRetries cliconfig.ProviderInstallationMethodRetries,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
 	makeOCICredsPolicy ociCredsPolicyBuilder,
 ) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig()),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig(locationRetries)),
 		), nil
 	}
 
@@ -259,7 +259,7 @@ func providerSourceForCLIConfigLocation(
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
 		httpTimeout := newRegistryHTTPClient(ctx, registryClientConfig).HTTPClient.Timeout
-		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout, providerSourceLocationConfig()), nil
+		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout, providerSourceLocationConfig(locationRetries)), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
 		mappingFunc := loc.RepositoryMapping
@@ -300,33 +300,28 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 	return configs[0].DevOverrides
 }
 
-const (
-	// providerDownloadRetryCountEnvName is the environment variable name used to customize
-	// the HTTP retry count for module downloads.
-	providerDownloadRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
-
-	providerDownloadDefaultRetry = 2
-)
-
-// providerDownloadRetry will attempt for requests with retryable errors, like 502 status codes
-func providerDownloadRetry() int {
-	res := providerDownloadDefaultRetry
-	if v := os.Getenv(providerDownloadRetryCountEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			res = retry
-		}
-	}
-	return res
-}
-
 // providerSourceLocationConfig is meant to build a global configuration for the
 // remote locations to download a provider from. This is built out of the
 // TF_PROVIDER_DOWNLOAD_RETRY env variable and is meant to be passed through
 // [getproviders.Source] all the way down to the [getproviders.PackageLocation]
 // to be able to tweak the configurations of the http clients used there.
-func providerSourceLocationConfig() getproviders.LocationConfig {
+func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries) getproviders.LocationConfig {
+	// If there is no configuration for the retries in .tofurc, get the one from env variable
+	retries, configured := locationRetries()
+	if !configured {
+		retries = cliconfig.ProviderDownloadRetries()
+	}
 	return getproviders.LocationConfig{
-		ProviderDownloadRetries: providerDownloadRetry(),
+		ProviderDownloadRetries: retries,
+	}
+}
+
+// providerSourceLocationConfigFromEnv is similar to providerSourceLocationConfig but does not
+// take into account the information from the configuration. This is like so because for some
+// commands, there is no specific tofurc configuration for the retry, so we want to use the
+// env variable if defined and if not, its default.
+func providerSourceLocationConfigFromEnv() getproviders.LocationConfig {
+	return getproviders.LocationConfig{
+		ProviderDownloadRetries: cliconfig.ProviderDownloadRetries(),
 	}
 }

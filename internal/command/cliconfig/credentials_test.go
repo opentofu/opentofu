@@ -153,7 +153,7 @@ func TestCredentialsForHost(t *testing.T) {
 		}
 	})
 
-	t.Run("periods are ok", func(t *testing.T) {
+	t.Run("periods are Ok", func(t *testing.T) {
 		envName := "TF_TOKEN_configured.example.com"
 		expectedToken := "configured-by-env"
 

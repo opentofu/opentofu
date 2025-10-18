@@ -149,11 +149,13 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 			methodTypeStr := methodBlock.Keys[0].Token.Value().(string)
 			var location ProviderInstallationLocation
 			var include, exclude []string
+			var retriesF ProviderInstallationMethodRetries
 			switch methodTypeStr {
 			case "direct":
 				type BodyContent struct {
-					Include []string `hcl:"include"`
-					Exclude []string `hcl:"exclude"`
+					Include         []string `hcl:"include"`
+					Exclude         []string `hcl:"exclude"`
+					DownloadRetries *int     `hcl:"download_retry_count"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -168,6 +170,12 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				location = ProviderInstallationDirect
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
+				retriesF = func() (int, bool) {
+					if bodyContent.DownloadRetries == nil {
+						return 0, false
+					}
+					return *bodyContent.DownloadRetries, true
+				}
 			case "filesystem_mirror":
 				type BodyContent struct {
 					Path    string   `hcl:"path"`
@@ -197,9 +205,10 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				exclude = bodyContent.Exclude
 			case "network_mirror":
 				type BodyContent struct {
-					URL     string   `hcl:"url"`
-					Include []string `hcl:"include"`
-					Exclude []string `hcl:"exclude"`
+					URL             string   `hcl:"url"`
+					Include         []string `hcl:"include"`
+					Exclude         []string `hcl:"exclude"`
+					DownloadRetries *int     `hcl:"download_retry_count"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -222,6 +231,12 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				location = ProviderInstallationNetworkMirror(bodyContent.URL)
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
+				retriesF = func() (int, bool) {
+					if bodyContent.DownloadRetries == nil {
+						return 0, false
+					}
+					return *bodyContent.DownloadRetries, true
+				}
 			case "oci_mirror":
 				var moreDiags tfdiags.Diagnostics
 				location, include, exclude, moreDiags = decodeOCIMirrorInstallationMethodBlock(methodBody)
@@ -229,6 +244,9 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				if moreDiags.HasErrors() {
 					continue
 				}
+				// NOTE: We want to introduce a retry and a timeout for the oci_mirror block too, but that needs
+				// a different design than the one we have for direct and network_mirror.
+				// Details in: https://github.com/opentofu/opentofu/issues/3392
 			case "dev_overrides":
 				if len(pi.Methods) > 0 {
 					// We require dev_overrides to appear first if it's present,
@@ -289,6 +307,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				Location: location,
 				Include:  include,
 				Exclude:  exclude,
+				Retries:  retriesF,
 			})
 		}
 
@@ -564,6 +583,7 @@ type ProviderInstallationMethod struct {
 	Location ProviderInstallationLocation
 	Include  []string `hcl:"include"`
 	Exclude  []string `hcl:"exclude"`
+	Retries  ProviderInstallationMethodRetries
 }
 
 // ProviderInstallationLocation is an interface type representing the
@@ -639,3 +659,12 @@ func (i ProviderInstallationOCIMirror) GoString() string {
 	// mismatches in tests, so just naming the type is good enough for now.
 	return "cliconfig.ProviderInstallationNetworkMirror{/*...*/}"
 }
+
+// ProviderInstallationMethodRetries defines the function to return the
+// configured, or lack of, retries (`download_retry_count`) configured for
+// a provider installation method.
+// This will return a number >= 0 and a bool in case the value actually
+// comes from the CLI configuration. When the bool returned is [false], the
+// number returned will be 0, meaning that the configuration was not
+// specified.
+type ProviderInstallationMethodRetries func() (int, bool)

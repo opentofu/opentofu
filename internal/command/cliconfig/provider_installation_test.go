@@ -37,6 +37,9 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 								Location: ProviderInstallationNetworkMirror("https://tf-Mirror.example.com/"),
 								Include:  []string{"registry.opentofu.org/*/*"},
 								Exclude:  []string{"registry.OpenTofu.org/foobar/*"},
+								Retries: func() (int, bool) {
+									return 2, true
+								},
 							},
 							{
 								Location: ProviderInstallationFilesystemMirror("/tmp/example2"),
@@ -44,6 +47,9 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 							{
 								Location: ProviderInstallationDirect,
 								Exclude:  []string{"example.com/*/*"},
+								Retries: func() (int, bool) {
+									return 3, true
+								},
 							},
 						},
 
@@ -55,7 +61,17 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 				},
 			}
 
-			if diff := cmp.Diff(want, got); diff != "" {
+			if diff := cmp.Diff(want, got, cmp.Comparer(func(a, b ProviderInstallationMethodRetries) bool {
+				if (a == nil && b != nil) || (a != nil && b == nil) {
+					return false
+				}
+				if a == nil && b == nil {
+					return true
+				}
+				ar, aok := a()
+				br, bok := b()
+				return ar == br && aok == bok
+			})); diff != "" {
 				t.Errorf("wrong result\n%s", diff)
 			}
 		})
