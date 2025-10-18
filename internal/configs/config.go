@@ -1073,18 +1073,18 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 
 	// We want to pass override values to resources being overridden.
 	for _, overrideRes := range resources {
-		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module)
+		targetConfig := c.Root.Descendent(overrideRes.TargetParsed.Module.Module())
 		if targetConfig == nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Module not found: %v", overrideRes.TargetParsed.Module),
+				Summary:  fmt.Sprintf("Module not found: %v", overrideRes.TargetParsed.Module.Module()),
 				Detail:   "Target points to resource in undefined module. Please, ensure module exists.",
 				Subject:  overrideRes.Target.SourceRange().Ptr(),
 			})
 			continue
 		}
 
-		res := targetConfig.Module.ResourceByAddr(overrideRes.TargetParsed.Resource)
+		res := targetConfig.Module.ResourceByAddr(overrideRes.TargetParsed.Resource.Resource)
 		if res == nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -1112,24 +1112,33 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		res.IsOverridden = true
-		res.OverrideValues = overrideRes.Values
+		switch key := overrideRes.TargetParsed.Resource.Key; key {
+		case nil:
+			res.DefaultOverrideValues = overrideRes.Values
+		default:
+			if res.OverrideValues == nil {
+				res.OverrideValues = make(map[addrs.InstanceKey]map[string]cty.Value)
+			}
+			res.OverrideValues[key] = overrideRes.Values
+		}
 	}
 
 	return func() {
 		// Reset all the overridden resources.
 		for _, o := range run.OverrideResources {
-			m := c.Root.Descendent(o.TargetParsed.Module)
+			m := c.Root.Descendent(o.TargetParsed.Module.Module())
 			if m == nil {
 				continue
 			}
 
-			res := m.Module.ResourceByAddr(o.TargetParsed.Resource)
+			res := m.Module.ResourceByAddr(o.TargetParsed.Resource.Resource)
 			if res == nil {
 				continue
 			}
 
 			res.IsOverridden = false
-			res.OverrideValues = nil
+			res.DefaultOverrideValues = nil
+			res.OverrideValues = make(map[addrs.InstanceKey]map[string]cty.Value)
 		}
 	}, diags
 }
