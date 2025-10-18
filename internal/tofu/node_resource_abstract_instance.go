@@ -2779,8 +2779,9 @@ func (n *NodeAbstractResourceInstance) apply(
 	newVal := resp.NewState
 
 	// If we have paths to mark, mark those on this new value
-	if len(afterPaths) > 0 {
-		newVal = newVal.MarkWithPaths(afterPaths)
+	newValMarks := combinePathValueMarks(afterPaths, schema.ValueMarks(newVal, nil))
+	if len(newValMarks) > 0 {
+		newVal = newVal.MarkWithPaths(newValMarks)
 	}
 
 	if newVal == cty.NilVal {

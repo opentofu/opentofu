@@ -78,6 +78,7 @@ BUG FIXES:
 * The `issensitive` function now returns an unknown result when its argument is unknown, because a sensitive unknown value can potentially become non-sensitive once more information is available. ([#3008](https://github.com/opentofu/opentofu/pull/3008))
 * Provider references like `null.some_alias[each.key]` in `.tf.json` files are now accepted in the same way as in native syntax files. ([#2915](https://github.com/opentofu/opentofu/issues/2915))
 * Fixed "slice bounds out of range" crash when processing multiple deprecated values inside a complex object. ([#3105](https://github.com/opentofu/opentofu/pull/3105))
+* OpenTofu will no longer produce spurious "update" diffs after applying a change that included a sensitive value decided only during the apply phase. ([#3388](https://github.com/opentofu/opentofu/pull/3388))
 * The `import` block now correctly validates the `id` property. ([#2416](https://github.com/opentofu/opentofu/issues/2416))
 * `tofu import` now correctly checks when its second argument refers to an undeclared instance of the target resource. ([#3106](https://github.com/opentofu/opentofu/pull/3106))
 * The `tofu.rc` CLI configuration file now properly takes precedence over `terraform.rc` on Windows. ([#2891](https://github.com/opentofu/opentofu/pull/2891))
