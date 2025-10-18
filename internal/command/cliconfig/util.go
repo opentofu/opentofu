@@ -5,13 +5,16 @@
 
 package cliconfig
 
-import "os"
+import (
+	"errors"
+	"io/fs"
+)
 
-func getNewOrLegacyPath(newPath string, legacyPath string) (string, error) {
+func getNewOrLegacyPath(fileSystem fs.FS, newPath string, legacyPath string) (string, error) {
 	// If the legacy directory exists, but the new directory does not, then use the legacy directory, for backwards compatibility reasons.
 	// Otherwise, use the new directory.
-	if _, err := os.Stat(legacyPath); err == nil {
-		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+	if _, err := fs.Stat(fileSystem, fsRelativize(legacyPath)); err == nil {
+		if _, err := fs.Stat(fileSystem, fsRelativize(newPath)); errors.Is(err, fs.ErrNotExist) {
 			return legacyPath, nil
 		}
 	}

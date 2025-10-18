@@ -10,12 +10,19 @@ package cliconfig
 
 import (
 	"errors"
+	"io/fs"
+	"log"
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 )
 
-func configFile() (string, error) {
+func rootFileSystem() fs.FS {
+	return os.DirFS(string(os.PathSeparator))
+}
+
+func configFile(fileSystem fs.FS) (string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return "", err
@@ -24,29 +31,29 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(legacyConfigFile) && !pathExists(newConfigFile) {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(fileSystem, legacyConfigFile) && !pathExists(fileSystem, newConfigFile) {
 		// a fresh install should not use terraform naming
 		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
 	}
 
-	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
+	return getNewOrLegacyPath(fileSystem, newConfigFile, legacyConfigFile)
 }
 
-func configDir() (string, error) {
+func configDir(fileSystem fs.FS) (string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return "", err
 	}
 
 	configDir := filepath.Join(dir, ".terraform.d")
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !pathExists(configDir) && xdgDir != "" {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !pathExists(fileSystem, configDir) && xdgDir != "" {
 		configDir = filepath.Join(xdgDir, "opentofu")
 	}
 
 	return configDir, nil
 }
 
-func dataDirs() ([]string, error) {
+func dataDirs(_ fs.FS) ([]string, error) {
 	dir, err := homeDir()
 	if err != nil {
 		return nil, err
@@ -84,7 +91,22 @@ func homeDir() (string, error) {
 	return user.HomeDir, nil
 }
 
-func pathExists(path string) bool {
-	_, err := os.Stat(path)
+// fsRelativize removes the leading and trailing slash from an absolute file path. The fs.FS filesystem type only works with
+// "relative directories". So, a DirFS based at "/" will take a file path like "home/username/.tofurc" and
+// look in the operating system file system at "/home/username/.tofurc".
+// More details in this documentation: https://pkg.go.dev/io/fs#ValidPath
+func fsRelativize(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		log.Printf("[WARNING] Attempted to form absolute representation of relative path \"%s\", but ran into an error: %v", dir, err)
+	}
+	return filepath.ToSlash(strings.Trim(absDir, string(os.PathSeparator)))
+}
+
+func pathExists(fileSystem fs.FS, path string) bool {
+	_, err := fs.Stat(fileSystem, fsRelativize(path))
 	return err == nil
 }

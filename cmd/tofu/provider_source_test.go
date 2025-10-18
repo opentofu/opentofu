@@ -120,9 +120,12 @@ func TestProviderSource(t *testing.T) {
 				return ociauthconfig.CredentialsConfigs{}, nil
 			}
 
+			fileSystem := cliconfig.RootFileSystem()
+
 			// Call the function under test
 			source, diags := providerSource(
 				context.Background(),
+				fileSystem,
 				[]*cliconfig.ProviderInstallation{},
 				&cliconfig.RegistryProtocolsConfig{
 					RetryCount:        1,
