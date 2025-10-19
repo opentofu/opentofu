@@ -14,7 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
@@ -52,8 +51,8 @@ func TestConfigProviderTypes(t *testing.T) {
 		addrs.NewDefaultProvider("template"),
 		addrs.NewDefaultProvider("test"),
 	}
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 
@@ -78,8 +77,8 @@ func TestConfigProviderTypes_nested(t *testing.T) {
 		addrs.NewDefaultProvider("test"),
 	}
 
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 

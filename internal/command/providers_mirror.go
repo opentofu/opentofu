@@ -112,7 +112,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	// directory without needing to first disable that local mirror
 	// in the CLI configuration.
 	source := getproviders.NewMemoizeSource(
-		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx)),
+		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx), c.ProviderSourceLocationConfig),
 	)
 
 	// Providers from registries always use HTTP, so we don't need the full
@@ -190,7 +190,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				))
 				continue
 			}
-			urlStr, ok := meta.Location.(getproviders.PackageHTTPURL)
+			httpPkg, ok := meta.Location.(getproviders.PackageHTTPURL)
 			if !ok {
 				// We don't expect to get non-HTTP locations here because we're
 				// using the registry source, so this seems like a bug in the
@@ -202,7 +202,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				))
 				continue
 			}
-			urlObj, err := url.Parse(string(urlStr))
+			urlObj, err := url.Parse(httpPkg.URL)
 			if err != nil {
 				// We don't expect to get non-HTTP locations here because we're
 				// using the registry source, so this seems like a bug in the

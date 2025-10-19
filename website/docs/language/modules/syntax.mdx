@@ -130,7 +130,33 @@ described in more detail in the following pages:
   [the `depends_on` page](../../language/meta-arguments/depends_on.mdx)
   for details.
 
-OpenTofu does not use the `lifecycle` argument. However, the `lifecycle` block is reserved for future versions.
+- `lifecycle` - Allows lifecycle customizations for modules, as described
+  in [Module Lifecycle](#module-lifecycle) below.
+
+## Module Lifecycle
+
+A `lifecycle` block inside a `module` block allows some customization of
+OpenTofu's behavior relating to the overall module call, rather than to
+individual resources inside the module.
+
+```hcl
+module "example" {
+  # ...normal module call arguments...
+
+  lifecycle {
+    # ...lifecycle arguments...
+  }
+}
+```
+
+Module call lifecycle currently supports only a single argument:
+
+* `enabled` (bool) - Controls whether the module call will be used by OpenTofu.
+  When set to `false`, the content of the module is excluded from the
+  configuration as if the call didn't exist. When set to `true` (the default),
+  the module operates normally.
+
+  For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
 
 ## Accessing Module Output Values
 

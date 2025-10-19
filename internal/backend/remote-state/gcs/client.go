@@ -34,7 +34,7 @@ type remoteClient struct {
 func (c *remoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
 	stateFileReader, err := c.stateFile().NewReader(ctx)
 	if err != nil {
-		if err == storage.ErrObjectNotExist {
+		if errors.Is(err, storage.ErrObjectNotExist) {
 			return nil, nil
 		} else {
 			return nil, fmt.Errorf("Failed to open state file at %v: %w", c.stateFileURL(), err)

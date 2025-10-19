@@ -89,7 +89,162 @@ cases,
 [the `depends_on` meta-argument](../../language/meta-arguments/depends_on.mdx)
 can explicitly specify a dependency.
 
-You can also use the [`replace_triggered_by` meta-argument](../../language/meta-arguments/lifecycle.mdx#replace_triggered_by) to add dependencies between otherwise independent resources. It forces OpenTofu to replace the parent resource when there is a change to a referenced resource or resource attribute.
+You can also use the [`replace_triggered_by` lifecycle argument](#replace_triggered_by) to add dependencies between otherwise independent resources. It forces OpenTofu to replace the parent resource when there is a change to a referenced resource or resource attribute.
+
+## Lifecycle Customizations
+
+A `lifecycle` block inside a `resource` block allows some customization of
+OpenTofu's behavior relating to instances of a resource at different phases
+of its lifecycle.
+
+```hcl
+resource "example" "example" {
+  # ...normal resource arguments...
+
+  lifecycle {
+    # ...lifecycle arguments...
+  }
+}
+```
+
+The following arguments and nested block types are supported in the `lifecycle`
+block for a managed resource:
+
+* `create_before_destroy` (bool) - By default, when OpenTofu must change
+  a resource argument that cannot be updated in-place due to
+  remote API limitations, OpenTofu will instead destroy the existing object
+  and then create a new replacement object with the new configured arguments.
+
+  The `create_before_destroy` meta-argument changes this behavior so that
+  the new replacement object is created _first,_ and the prior object
+  is destroyed after the replacement is created.
+
+  This is an opt-in behavior because many remote object types have unique
+  name requirements or other constraints that must be accommodated for
+  both a new and an old object to exist concurrently. Some resource types
+  offer special options to append a random suffix onto each object name to
+  avoid collisions, for example. OpenTofu CLI cannot automatically activate
+  such features, so you must understand the constraints for each resource
+  type before using `create_before_destroy` with it.
+
+  Note that OpenTofu propagates and applies the `create_before_destroy` meta-attribute
+  behaviour to all resource dependencies. For example, if `create_before_destroy`
+  is enabled on resource A but not on resource B, but resource A is dependent on
+  resource B, then OpenTofu enables `create_before_destroy` for resource B
+  implicitly by default and stores it in state snapshots. You cannot override
+  `create_before_destroy` to `false` on resource B because that would cause
+  dependency cycles in the graph.
+
+  Destroy provisioners of this resource do not run during replacement if
+  `create_before_destroy` is set to `true`. [GitHub issue #13549](https://github.com/hashicorp/terraform/issues/13549) contains more details.
+
+* `enabled` (bool) - Controls whether a resource is created and managed by OpenTofu.
+  When set to `false`, the resource is excluded from the configuration as if it didn't exist,
+  and any existing infrastructure object will be destroyed. When set to `true` (the default),
+  the resource operates normally.
+
+  For more information, refer to [the `enabled` meta-argument](../../language/meta-arguments/enabled.mdx).
+
+* `prevent_destroy` (bool) - This meta-argument, when set to `true`, will
+  cause OpenTofu to reject with an error any plan that would destroy the
+  infrastructure object associated with the resource, as long as the argument
+  remains present in the configuration.
+
+  This can be used as a measure of safety against the accidental replacement
+  of objects that may be costly to reproduce, such as database instances.
+  However, it will make certain configuration changes impossible to apply,
+  and will prevent the use of the `tofu destroy` command once such
+  objects are created, and so this option should be used sparingly.
+
+  Since this argument must be present in configuration for the protection to
+  be active, this setting cannot prevent the remote object from being destroyed
+  when the `resource` block is removed from configuration entirely: in that
+  case, the `prevent_destroy` setting is removed along with it, and so OpenTofu
+  would allow the destroy operation to succeed.
+
+* <span id="ignore_changes">`ignore_changes`</span> (list of attribute names) - By default, OpenTofu detects
+  any difference in the current settings of a real infrastructure object
+  and plans to update the remote object to match configuration.
+
+  The `ignore_changes` feature is intended to be used when a resource is
+  created with references to data that may change in the future, but should
+  not affect said resource after its creation. In some rare cases, settings
+  of a remote object are modified by processes outside of OpenTofu, which
+  OpenTofu would then attempt to "fix" on the next run. In order to make
+  OpenTofu share management responsibilities of a single object with a
+  separate process, the `ignore_changes` meta-argument specifies resource
+  attributes that OpenTofu should ignore when planning updates to the
+  associated remote object.
+
+  The arguments corresponding to the given attribute names are considered
+  when planning a _create_ operation, but are ignored when planning an
+  _update_. The arguments are the relative address of the attributes in the
+  resource. Map and list elements can be referenced using index notation,
+  like `tags["Name"]` and `list[0]` respectively.
+
+  ```hcl
+  resource "aws_instance" "example" {
+    # ...
+
+    lifecycle {
+      ignore_changes = [
+        # Ignore changes to tags, e.g. because a management agent
+        # updates these based on some ruleset managed elsewhere.
+        tags,
+      ]
+    }
+  }
+  ```
+
+  Use the special keyword `all` instead of an attribute list to instruct
+  OpenTofu to ignore changes to _all_ attributes, which means that OpenTofu can
+  create and destroy the remote object but will never propose updates to it.
+
+  Only attributes defined by the resource type can be ignored.
+  `ignore_changes` cannot be applied to itself or to any other meta-arguments.
+
+* `precondition` and `postcondition` blocks, as described in
+  [Custom Conditions](../../language/expressions/custom-conditions.mdx#preconditions-and-postconditions).
+
+* <span id="replace_triggered_by">`replace_triggered_by`</span> (list of resource or attribute references) -
+  Replaces the resource when any of the referenced
+  items change. Write a list of expressions referencing managed resources,
+  resource instances, or instance attributes. When used in a resource that
+  uses `count` or `for_each`, you can use `count.index` or `each.key` in the
+  expression to refer to specific instances of other resources that are
+  configured with the same count or collection.
+
+  References trigger replacement in the following conditions:
+
+  - If the reference is to a resource with multiple instances, a plan to
+    update or replace any instance will trigger replacement.
+  - If the reference is to a single resource instance, a plan to update or
+    replace that instance will trigger replacement.
+  - If the reference is to a single attribute of a resource instance, any
+    change to the attribute value will trigger replacement.
+
+  You can only refer to managed resources in `replace_triggered_by`
+  expressions. This lets you modify these expressions without forcing
+  replacement.
+
+  ```hcl
+  resource "aws_appautoscaling_target" "ecs_target" {
+    # ...
+    lifecycle {
+      replace_triggered_by = [
+        # Replace `aws_appautoscaling_target` each time this instance of
+        # the `aws_ecs_service` is replaced.
+        aws_ecs_service.svc.id
+      ]
+    }
+  }
+  ```
+
+  `replace_triggered_by` allows only resource addresses because the decision is
+  based on the planned actions for all of the given resources. Plain values such
+  as local values or input variables do not have planned actions of their own,
+  but you can treat them with a resource-like lifecycle by using them with
+  [the `terraform_data` resource type](tf-data.mdx).
 
 ## Local-only Resources
 

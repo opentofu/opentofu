@@ -8,7 +8,7 @@ package addrs
 import (
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/svchost"
 )
 
@@ -433,8 +433,8 @@ func TestParseProviderSourceStr(t *testing.T) {
 
 	for name, test := range tests {
 		got, diags := ParseProviderSourceString(name)
-		for _, problem := range deep.Equal(got, test.Want) {
-			t.Errorf("%s", problem)
+		if diff := cmp.Diff(test.Want, got, CmpOptionsForTesting); diff != "" {
+			t.Error("wrong result:\n" + diff)
 		}
 		if len(diags) > 0 {
 			if test.Err == false {

@@ -1,0 +1,81 @@
+---
+description: >-
+  The enabled meta-argument allows you to conditionally create or skip a single
+  resource or module instance based on a boolean value.
+---
+
+# The `enabled` Meta-Argument
+
+:::note
+A given resource or module block cannot use `enabled` together with `count` or `for_each`.
+:::
+
+The `enabled` meta-argument in a `lifecycle` block provides a cleaner way to conditionally create or skip a
+single resource or module instance. Unlike the traditional `count = var.enabled ? 1 : 0`
+workaround, which requires array indexing to access single instances, `enabled` allows
+direct access when the resource is created and properly handles the null state when disabled.
+
+## Basic Syntax
+
+`enabled` is a meta-argument that goes inside a `lifecycle` block. It accepts expressions that turn into boolean values to determine whether the resource or module should be created.
+
+```hcl
+variable "create_instance" {
+  type    = bool
+  default = true
+}
+
+resource "aws_instance" "example" {
+  # ...
+  lifecycle {
+    enabled = var.create_instance
+  }
+}
+```
+
+When `enabled` is `true` (or not specified), the resource behaves normally. When `enabled`
+is `false`, the resource is not created and evaluates to `null`.
+
+## Accessing Disabled Resources
+
+When a resource might be disabled, it evaluates to `null` and cannot be accessed directly.
+You must use conditional expressions to handle this safely:
+
+```hcl
+# Using try() - most concise but masks other errors
+output "instance_id" {
+  value = try(aws_instance.example.id, "not-created")
+}
+
+# Using null check - most verbose but clearest intent
+output "instance_id" {
+  value = aws_instance.example != null ? aws_instance.example.id : "not-created"
+}
+```
+
+Attempting to directly access a resource configured with `enabled = false` will result in an error during `plan` or `apply`:
+
+```
+│ Error: Attempt to get attribute from null value
+│
+│   on main.tf line 10, in output "instance_id":
+│   10:     value = aws_instance.example.id
+│     ├────────────────
+│     │ aws_instance.example is null
+│
+│ This value is null, so it does not have any attributes.
+```
+
+## Restrictions
+
+The `enabled` meta-argument cannot be used together with [`count`](../../language/meta-arguments/count.mdx) or [`for_each`](../../language/meta-arguments/for_each.mdx), as these
+meta-arguments serve different purposes. Use `enabled` for conditionally creating
+single-instance resources, [`count`](../../language/meta-arguments/count.mdx) for creating multiple numbered instances, or
+[`for_each`](../../language/meta-arguments/for_each.mdx) for creating multiple named instances.
+
+The `enabled` meta-argument cannot use:
+- Unknown values (values not known until apply)
+- Sensitive values
+- Null values
+- Ephemeral values
+- Non-boolean values

@@ -11,15 +11,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/logging"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
@@ -28,11 +27,28 @@ import (
 // Its value is a URL string using either the http: scheme or the https: scheme.
 // The URL should respond with a .zip archive whose contents are to be extracted
 // into a local package directory.
-type PackageHTTPURL string
+//
+// This type evolved from a single specific HTTP URL location to a more evolved
+// type since we had to extract the logic of making an HTTP request into a more
+// configurable piece to be able to provider a more specific-per-configuration
+// http client.
+type PackageHTTPURL struct {
+	// URL indicates the fully qualified location where the package
+	// resides and should be used as it is to perform a request.
+	URL string
+	// ClientBuilder is the external given function that is meant to
+	// construct a [*retryablehttp.Client] for making the actual request
+	// to the [PackageHTTPURL.URL] specified above.
+	// This came from the need of unifying the retries and timeout configurations
+	// into a single place. This way, the "creator" of this struct
+	// can inject a client by its liking to customize the requests
+	// accordingly.
+	ClientBuilder func(ctx context.Context) *retryablehttp.Client
+}
 
-var _ PackageLocation = PackageHTTPURL("")
+var _ PackageLocation = PackageHTTPURL{}
 
-func (p PackageHTTPURL) String() string { return string(p) }
+func (p PackageHTTPURL) String() string { return p.URL }
 
 func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
 	url := meta.Location.String()
@@ -50,15 +66,7 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 	// through X-Terraform-Get header, attempting partial fetches for
 	// files that already exist, etc.)
 
-	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = httpclient.New(ctx)
-	retryableClient.RetryMax = maxHTTPPackageRetryCount
-	retryableClient.RequestLogHook = func(logger retryablehttp.Logger, _ *http.Request, i int) {
-		if i > 0 {
-			logger.Printf("[INFO] failed to fetch provider package; retrying")
-		}
-	}
-	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
+	retryableClient := p.ClientBuilder(ctx)
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -126,31 +134,20 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 	return authResult, nil
 }
 
-const (
-	// httpClientRetryCountEnvName is the environment variable name used to customize
-	// the HTTP retry count for module downloads.
-	httpClientRetryCountEnvName = "TF_PROVIDER_DOWNLOAD_RETRY"
-
-	httpClientDefaultRetry = 2
-)
-
-//nolint:gochecknoinits // this init function predates our use of this linter
-func init() {
-	configureProviderDownloadRetry()
-}
-
-var (
-	//nolint:gochecknoglobals // this variable predates our use of this linter
-	maxHTTPPackageRetryCount int
-)
-
-// will attempt for requests with retryable errors, like 502 status codes
-func configureProviderDownloadRetry() {
-	maxHTTPPackageRetryCount = httpClientDefaultRetry
-	if v := os.Getenv(httpClientRetryCountEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			maxHTTPPackageRetryCount = retry
+// packageHTTPUrlClientWithRetry is the extracted logic from the [PackageHTTPURL.InstallProviderPackage] to be
+// able to reuse the same logic with a custom retry.
+// This is kept as it was previously, before being moved here, to avoid introducing unwanted behaviors
+// in a package download process.
+// Later, this method might be removed in favor of a more common client from [httpclient] package.
+func packageHTTPUrlClientWithRetry(ctx context.Context, retries int) *retryablehttp.Client {
+	retryableClient := retryablehttp.NewClient()
+	retryableClient.HTTPClient = httpclient.New(ctx)
+	retryableClient.RetryMax = retries
+	retryableClient.RequestLogHook = func(logger retryablehttp.Logger, _ *http.Request, i int) {
+		if i > 0 {
+			logger.Printf("[INFO] failed to fetch provider package; retrying")
 		}
 	}
+	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
+	return retryableClient
 }
