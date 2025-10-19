@@ -6,7 +6,7 @@ Eager to get started on coding? Here's the short version:
 2. Pay attention to copyright: [please read the DCO](https://developercertificate.org/), write the code yourself, avoid copy/paste. Disable your AI coding assistant.
 3. Run the tests with `go test` in the package you are working on.
 4. Build OpenTofu by running `go build ./cmd/tofu`.
-5. Update [the changelog](CHANGELOG.md).
+5. Update [the changelog](../CHANGELOG.md).
 6. When you commit, use `git commit -s` to sign off your commits for the DCO.
 7. Submit a PR and complete the checklist included in the template.
 8. Your PR will be reviewed by the maintainers once it is marked as ready to review.
@@ -15,9 +15,9 @@ Eager to get started on coding? Here's the short version:
 
 ### Setting up your development environment
 
-You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a macOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
+You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a macOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](../.go-version) file.)
 
-Alternatively, if you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](.devcontainer.json). In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
+Alternatively, if you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](../.devcontainer.json). In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
 
 ---
 
@@ -58,7 +58,7 @@ go test ./internal/addrs
 
 ### Debugging OpenTofu
 
-We recommend using an interactive debugger for finding issues quickly. Most IDE's have a built-in option for this, but you can also set up [dlv](https://github.com/go-delve/delve) on a remote machine for debugging. You can use the [`debug-opentofu`](scripts/debug-opentofu) script to run OpenTofu in debug mode. You can then connect the remote machine on port 2345 for debugging.
+We recommend using an interactive debugger for finding issues quickly. Most IDE's have a built-in option for this, but you can also set up [dlv](https://github.com/go-delve/delve) on a remote machine for debugging. You can use the [`debug-opentofu`](../scripts/debug-opentofu) script to run OpenTofu in debug mode. You can then connect the remote machine on port 2345 for debugging.
 
 For VSCode, add the following setting to `.vscode/launch.json` for easy debugging:
 
@@ -242,7 +242,7 @@ make protobuf
 
 ### Adding or updating dependencies
 
-If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](.licensei.toml).
+If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](../.licensei.toml).
 
 To help verifying this in local development environment and in continuous integration, we use the [licensei](https://github.com/goph/licensei) open source tool.
 
