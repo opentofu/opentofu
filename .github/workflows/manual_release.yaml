@@ -22,9 +22,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Run the allow list test
+        run: go test ./internal/lang -run TestAllowListFunctions
+
       - name: "Build tofu executable"
-        run: |
-          go build ./cmd/tofu
+        run: go build ./cmd/tofu
 
       - name: Tag Release
         uses: mathieudutour/github-tag-action@v6.1
