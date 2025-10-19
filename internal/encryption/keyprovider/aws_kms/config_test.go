@@ -40,9 +40,11 @@ func TestConfig_asAWSBase(t *testing.T) {
 				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
 				CallerName:             "KMS Key Provider",
 				MaxRetries:             5,
-				UserAgent: awsbase.UserAgentProducts{
-					{Name: "APN", Version: "1.0"},
-					{Name: httpclient.DefaultApplicationName, Version: version.String()},
+				APNInfo: &awsbase.APNInfo{
+					PartnerName: "OpenTofu-AWS-KMS",
+					Products: []awsbase.UserAgentProduct{
+						{Name: httpclient.DefaultApplicationName, Version: version.String()},
+					},
 				},
 			},
 		},
@@ -105,11 +107,12 @@ func TestConfig_asAWSBase(t *testing.T) {
 			expected: awsbase.Config{
 				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
 				CallerName:             "KMS Key Provider",
-				UserAgent: awsbase.UserAgentProducts{
-					{Name: "APN", Version: "1.0"},
-					{Name: httpclient.DefaultApplicationName, Version: version.String()},
+				APNInfo: &awsbase.APNInfo{
+					PartnerName: "OpenTofu-AWS-KMS",
+					Products: []awsbase.UserAgentProduct{
+						{Name: httpclient.DefaultApplicationName, Version: version.String()},
+					},
 				},
-
 				AccessKey:                      "my-access-key",
 				IamEndpoint:                    "https://endpoint-iam",
 				MaxRetries:                     42,

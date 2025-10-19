@@ -122,6 +122,11 @@ func initCommands(
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
+
+		// ProviderSourceLocationConfig is used for some commands that do not make
+		// use of the OpenTofu configuration files. Therefore, there is no way to configure
+		// the retries from other places than env vars.
+		ProviderSourceLocationConfig: providerSourceLocationConfigFromEnv(),
 	}
 
 	// The command list is included in the tofu -help
@@ -362,9 +367,9 @@ func initCommands(
 			}, nil
 		},
 
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 		// Plumbing
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
 			return &command.UnlockCommand{

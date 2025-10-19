@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/apparentlymart/go-dump/dump"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -168,7 +168,7 @@ func TestBlockEmptyValue(t *testing.T) {
 		t.Run(fmt.Sprintf("%#v", test.Schema), func(t *testing.T) {
 			got := test.Schema.EmptyValue()
 			if !test.Want.RawEquals(got) {
-				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), dump.Value(got), dump.Value(test.Want))
+				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), ctydebug.ValueString(got), ctydebug.ValueString(test.Want))
 			}
 		})
 	}
@@ -255,7 +255,7 @@ func TestAttributeEmptyValue(t *testing.T) {
 		t.Run(fmt.Sprintf("%#v", test.Schema), func(t *testing.T) {
 			got := test.Schema.EmptyValue()
 			if !test.Want.RawEquals(got) {
-				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), dump.Value(got), dump.Value(test.Want))
+				t.Errorf("wrong result\nschema: %s\ngot: %s\nwant: %s", spew.Sdump(test.Schema), ctydebug.ValueString(got), ctydebug.ValueString(test.Want))
 			}
 		})
 	}

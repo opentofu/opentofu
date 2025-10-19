@@ -9,8 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/go-test/deep"
-
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -246,9 +245,8 @@ func TestFlatmapValueFromHCL2(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.Value.GoString(), func(t *testing.T) {
 			got := FlatmapValueFromHCL2(test.Value)
-
-			for _, problem := range deep.Equal(got, test.Want) {
-				t.Error(problem)
+			if diff := cmp.Diff(test.Want, got); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}
@@ -314,9 +312,8 @@ func TestFlatmapValueFromHCL2FromFlatmap(t *testing.T) {
 			}
 
 			got := FlatmapValueFromHCL2(val)
-
-			for _, problem := range deep.Equal(got, test.Map) {
-				t.Error(problem)
+			if diff := cmp.Diff(test.Map, got); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}

@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
 	"github.com/opentofu/svchost"
@@ -1107,12 +1106,13 @@ func assertDiagnosticSummary(t *testing.T, diags tfdiags.Diagnostics, want strin
 	return true
 }
 
-func assertResultDeepEqual(t *testing.T, got, want interface{}) bool {
+func assertResultDeepEqual(t *testing.T, got, want any) bool {
+	// Note that, unlike some "assert" functions elsewhere, this function
+	// returns true to indicate that the assertion _failed_, and false
+	// to indicate that it succeeded.
 	t.Helper()
-	if diff := deep.Equal(got, want); diff != nil {
-		for _, problem := range diff {
-			t.Errorf("%s", problem)
-		}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 		return true
 	}
 	return false

@@ -288,6 +288,12 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 :::
 
 ### External (experimental)
+:::info
+At the moment of writing this note, OpenTofu team has no relevant feedback to decide if this should be out of the experimental phase or not.
+Therefore, for the foreseeable future, in lack of feedback, this `key_provider` will remain in the experimental phase.
+
+Please let us know about your experience of using this `key_provider` on [this issue](https://github.com/opentofu/opentofu/issues/2386) or on the [`#opentofu`](https://cloud-native.slack.com/archives/C05PXGAB05R) CNCF Slack channel
+:::
 
 The external command provider lets you run external commands in order to obtain encryption keys. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
 
@@ -379,6 +385,13 @@ AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "k
 :::
 
 ### External (experimental)
+:::info
+At the moment of writing this note, OpenTofu team has no relevant feedback to decide if this should be out of the experimental phase or not.
+Therefore, for the foreseeable future, in lack of feedback, this `method` will remain in the experimental phase.
+
+Please let us know about your experience of using this `method` on [this issue](https://github.com/opentofu/opentofu/issues/2386) or on the [`#opentofu`](https://cloud-native.slack.com/archives/C05PXGAB05R) CNCF Slack channel.
+
+:::
 
 The external command method lets you run external commands in order to perform encryption and decryption. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
 

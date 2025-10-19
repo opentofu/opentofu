@@ -20,8 +20,9 @@ const _ShowTargetType_name = "ShowUnknownTypeShowStateShowPlanShowConfigShowModu
 var _ShowTargetType_index = [...]uint8{0, 15, 24, 32, 42, 52}
 
 func (i ShowTargetType) String() string {
-	if i < 0 || i >= ShowTargetType(len(_ShowTargetType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ShowTargetType_index)-1 {
 		return "ShowTargetType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ShowTargetType_name[_ShowTargetType_index[i]:_ShowTargetType_index[i+1]]
+	return _ShowTargetType_name[_ShowTargetType_index[idx]:_ShowTargetType_index[idx+1]]
 }

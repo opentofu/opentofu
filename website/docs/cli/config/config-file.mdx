@@ -278,6 +278,29 @@ identity, but a network mirror with a TLS certificate can potentially serve
 modified copies of upstream providers with malicious content.
 :::
 
+The `direct` and `network_mirror` methods support an additional argument
+`download_retry_count`. When specified, it will be used to retry downloading
+the provider binary in case of retryable errors (connection reset and a range of 500 errors).
+```hcl
+provider_installation {
+  network_mirror {
+    url                  = "https://example.com/"
+    include              = ["example.com/*/*"]
+    download_retry_count = 2
+  }
+  direct {
+    exclude              = ["example.com/*/*"]
+    download_retry_count = 3
+  }
+}
+```
+You can use this argument to disable fully the retries in case of a specific method (`download_retry_count = 0`).
+:::info
+When used together with [`TF_PROVIDER_DOWNLOAD_RETRY`](./environment-variables.mdx#tf_provider_download_retry), the configuration value
+will be used for each method that it is configured with. For the methods
+with no such configuration, the environment variable will be used instead.
+:::
+
 OpenTofu will try all of the specified methods whose include and exclude
 patterns match a given provider, and select the newest version available across
 all of those methods that matches the version constraint given in each

@@ -323,13 +323,12 @@ This can be useful when you need to pass values between different test cases.
 
 ### The `run.expect_failures` list
 
-In some cases you may want to test deliberate failures of your code, for example to ensure your validation is working.
+You can use `expect_failures` inside a `run` block to test
+[custom conditions](../../../language/expressions/custom-conditions.mdx) such as
+preconditions and postconditions or input variable validation rules.
 
-You can use the `expect_failures` inside a `run` block to specify which variables or resources should fail when the
-code is run with the given parameters.
-
-For example, the test case below checks if the `instances` variable correctly fails validation when supplied with a
-negative number:
+For example, the test case below checks if the `instances` input variable
+correctly fails validation when defined as a negative number:
 
 <Tabs>
     <TabItem value={"test"} label={"main.tftest.hcl"} default>
@@ -339,16 +338,6 @@ negative number:
         <CodeBlock language={"hcl"}>{ExpectFailureVariablesMain}</CodeBlock>
     </TabItem>
 </Tabs>
-
-You can also use the `expect_failure` clause to check [lifecycle](../../../language/meta-arguments/lifecycle.mdx) events like
-pre- or postconditions as well as the results of checks.
-
-:::warning Limitation
-
-The `expect_failure` list currently does not support testing resource creation failures. You must provide a
-[lifecycle](../../../language/meta-arguments/lifecycle.mdx) event in order to use `expect_failure`.
-
-:::
 
 The example below checks if the misconfigured healthcheck fails. This ensures that the health check does not always
 return, even when it is running against the wrong endpoint.
@@ -361,6 +350,15 @@ return, even when it is running against the wrong endpoint.
         <CodeBlock language={"hcl"}>{ExpectFailureResourcesMain}</CodeBlock>
     </TabItem>
 </Tabs>
+
+:::note Configured condition checks only
+
+The `expect_failure` argument is only for testing failures of
+[custom conditions](../../../language/expressions/custom-conditions.mdx) written
+in the configuration. It does not test problems detected by validation logic
+inside providers.
+
+:::
 
 ### The `run.command` setting and the `run.plan_options` block
 
