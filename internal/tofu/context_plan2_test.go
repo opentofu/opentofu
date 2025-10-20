@@ -4512,6 +4512,132 @@ resource "test_object" "b" {
 	}
 }
 
+func TestContext2Plan_triggeredBy_doesNotTriggerOnCreate(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		inlineConfiguration map[string]string
+	}
+	// same config as TestContext2Plan_triggeredBy
+	configurations := []TestConfiguration{
+		{
+			Description: "TF configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "a" {
+  count = 1
+  test_string = "new"
+}
+resource "test_object" "b" {
+  count = 1
+  test_string = test_object.a[count.index].test_string
+  lifecycle {
+    replace_triggered_by = [ test_object.a[count.index].test_string ]
+  }
+}
+`,
+			},
+		},
+		{
+			Description: "JSON configuration",
+			inlineConfiguration: map[string]string{
+				"main.tf.json": `
+{
+    "resource": {
+        "test_object": {
+            "a": [
+                {
+                    "count": 1,
+                    "test_string": "new"
+                }
+            ],
+            "b": [
+                {
+                    "count": 1,
+                    "lifecycle": [
+                        {
+                            "replace_triggered_by": [
+                                "test_object.a[count.index].test_string"
+                            ]
+                        }
+                    ],
+                    "test_string": "test_object.a[count.index].test_string"
+                }
+            ]
+        }
+    }
+}
+`,
+			},
+		},
+	}
+
+	p := simpleMockProvider()
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		// we do not set any state for test_object.a[0] -> creation
+		s.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr("test_object.b[0]"),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{}`),
+				Status:    states.ObjectReady,
+			},
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
+		)
+	})
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+				Mode: plans.NormalMode,
+			})
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			// We expect:
+			// - a[0]: Create
+			// - b[0]: NOT DeleteThenCreate (i.e., no replacement triggered),
+			//         typically Update (setting test_string), and definitely
+			//         NOT ResourceInstanceReplaceByTriggers.
+			seenA := false
+			seenB := false
+
+			for _, c := range plan.Changes.Resources {
+				switch c.Addr.String() {
+				case "test_object.a[0]":
+					seenA = true
+					if c.Action != plans.Create {
+						t.Fatalf("expected Create for %s, got %s", c.Addr, c.Action)
+					}
+				case "test_object.b[0]":
+					seenB = true
+					if c.Action == plans.DeleteThenCreate || c.ActionReason == plans.ResourceInstanceReplaceByTriggers {
+						t.Fatalf("b[0] should not be replaced when a[0] is created (got %s, reason %s)", c.Action, c.ActionReason)
+					}
+					if c.Action != plans.Update && c.Action != plans.NoOp {
+						t.Fatalf("unexpected %s change for %s", c.Action, c.Addr)
+					}
+				default:
+					t.Fatalf("unexpected change %s %s", c.Addr, c.Action)
+				}
+			}
+
+			if !seenA || !seenB {
+				t.Fatalf("did not see expected changes for a[0] and b[0] (seenA=%v, seenB=%v)", seenA, seenB)
+			}
+		})
+	}
+}
+
 func TestContext2Plan_dataSchemaChange(t *testing.T) {
 	// We can't decode the prior state when a data source upgrades the schema
 	// in an incompatible way. Since prior state for data sources is purely
