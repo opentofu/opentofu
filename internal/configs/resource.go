@@ -71,11 +71,21 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      bool
-	IgnoreChanges       []hcl.Traversal
-	IgnoreAllChanges    bool
+	// Destroy flag indicates if the resource should be destroyed if it is planned.
+	// By default Destroy is set to true. And the user needs to set this to false, if they want to skip destroying the resource.
+	// Note that the resource will still be removed from the state file even if Destroy is set to false, but won't call the underlying provider destroy.
+	Destroy          bool
+	IgnoreChanges    []hcl.Traversal
+	IgnoreAllChanges bool
 
 	CreateBeforeDestroySet bool
 	PreventDestroySet      bool
+	DestroySet             bool
+}
+
+// ShouldSkipDestroy returns if the manage resource has explicitly set destroy = false
+func (r *ManagedResource) ShouldSkipDestroy() bool {
+	return r.DestroySet && !r.Destroy
 }
 
 func (r *Resource) moduleUniqueKey() string {
@@ -126,7 +136,10 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		Name:      block.Labels[1],
 		DeclRange: block.DefRange,
 		TypeRange: block.LabelRanges[0],
-		Managed:   &ManagedResource{},
+		Managed: &ManagedResource{
+			// By default, we destroy the resource when it is no longer needed or being replaced.
+			Destroy: true,
+		},
 	}
 
 	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
@@ -212,6 +225,12 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
 				diags = append(diags, valDiags...)
 				r.Managed.PreventDestroySet = true
+			}
+
+			if attr, exists := lcContent.Attributes["destroy"]; exists {
+				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.Destroy)
+				diags = append(diags, valDiags...)
+				r.Managed.DestroySet = true
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -686,6 +705,9 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			if _, exists := lcContent.Attributes["create_before_destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy", block.DefRange))
 			}
+			if _, exists := lcContent.Attributes["destroy"]; exists {
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("destroy", block.DefRange))
+			}
 			if _, exists := lcContent.Attributes["prevent_destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy", block.DefRange))
 			}
@@ -1129,6 +1151,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "prevent_destroy",
+		},
+		{
+			Name: "destroy",
 		},
 		{
 			Name: "ignore_changes",
