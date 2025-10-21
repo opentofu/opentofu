@@ -4621,11 +4621,8 @@ resource "test_object" "b" {
 					}
 				case "test_object.b[0]":
 					seenB = true
-					if c.Action == plans.DeleteThenCreate || c.ActionReason == plans.ResourceInstanceReplaceByTriggers {
-						t.Fatalf("b[0] should not be replaced when a[0] is created (got %s, reason %s)", c.Action, c.ActionReason)
-					}
-					if c.Action != plans.Update && c.Action != plans.NoOp {
-						t.Fatalf("unexpected %s change for %s", c.Action, c.Addr)
+					if c.Action != plans.Update || c.ActionReason != plans.ResourceInstanceChangeNoReason {
+						t.Fatalf("unexpected %s change and reason %s for %s", c.Action, c.ActionReason, c.Addr)
 					}
 				default:
 					t.Fatalf("unexpected change %s %s", c.Addr, c.Action)
