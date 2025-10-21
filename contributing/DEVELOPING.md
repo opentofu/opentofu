@@ -6,7 +6,7 @@ Eager to get started on coding? Here's the short version:
 2. Pay attention to copyright: [please read the DCO](https://developercertificate.org/), write the code yourself, avoid copy/paste. Disable your AI coding assistant.
 3. Run the tests with `go test` in the package you are working on.
 4. Build OpenTofu by running `go build ./cmd/tofu`.
-5. Update [the changelog](CHANGELOG.md).
+5. Update [the changelog](../CHANGELOG.md).
 6. When you commit, use `git commit -s` to sign off your commits for the DCO.
 7. Submit a PR and complete the checklist included in the template.
 8. Your PR will be reviewed by the maintainers once it is marked as ready to review.
@@ -15,9 +15,9 @@ Eager to get started on coding? Here's the short version:
 
 ### Setting up your development environment
 
-You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a macOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](.go-version) file.)
+You can develop OpenTofu on any platform you like. However, we recommend either a Linux (including WSL on Windows) or a macOS build environment. You will need [Go](https://golang.org/) and [Git](https://git-scm.com/) installed, and we recommend an IDE to help you with code completion and code quality warnings. (We recommend installing the Go version documented in the [.go-version](../.go-version) file.)
 
-Alternatively, if you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](.devcontainer.json). In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point you can proceed as if you were [building natively](#building-natively) on Linux.
+Alternatively, if you use Visual Studio Code or Goland/IntelliJ and have Docker or Podman installed, you can also use a [devcontainer](../.devcontainer.json). In Visual Studio Code, you can install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then reopen the project to get a prompt about activating the devcontainer. In Goland/Intellij, open the `.devcontainers.json` file and click the purple cube icon that appears next to the line numbers to activate the dev container. At this point, you can proceed as if you were [building natively](#building-opentofu) on Linux.
 
 ---
 
@@ -58,7 +58,7 @@ go test ./internal/addrs
 
 ### Debugging OpenTofu
 
-We recommend using an interactive debugger for finding issues quickly. Most IDE's have a built-in option for this, but you can also set up [dlv](https://github.com/go-delve/delve) on a remote machine for debugging. You can use the [`debug-opentofu`](scripts/debug-opentofu) script to run OpenTofu in debug mode. You can then connect the remote machine on port 2345 for debugging.
+We recommend using an interactive debugger for finding issues quickly. Most IDE's have a built-in option for this, but you can also set up [dlv](https://github.com/go-delve/delve) on a remote machine for debugging. You can use the [`debug-opentofu`](../scripts/debug-opentofu) script to run OpenTofu in debug mode. You can then connect to the remote machine on port 2345 for debugging.
 
 For VSCode, add the following setting to `.vscode/launch.json` for easy debugging:
 
@@ -116,7 +116,7 @@ For VSCode, add the following setting to `.vscode/launch.json` for easy debuggin
 ```
 
 
-Similarly, you can add the following configurations to you `.idea/runConfigurations` folder if you use Goland/IntelliJ:
+Similarly, you can add the following configurations to your `.idea/runConfigurations` folder if you use Goland/IntelliJ:
 
 ```xml
 <!-- .idea/runConfigurations/tofu_init.xml -->
@@ -165,7 +165,7 @@ git commit -s -m "My commit message"
 ```
 
 > [!IMPORTANT]
-> Make sure your `user.name` and `user.email` setting in Git matches your GitHub settings. This will allow the automated DCO check to pass and avoid delays when merging your PR.
+> Make sure your `user.name` and `user.email` settings in Git match your GitHub settings. This will allow the automated DCO check to pass and avoid delays when merging your PR.
 
 > [!TIP]
 > Have you forgotten your sign-off? Click the "details" button on the failing DCO check for a guide on how to fix it!
@@ -178,7 +178,7 @@ We take copyright and intellectual property very seriously. A few quick rules sh
 
 1. When you submit a PR, you are responsible for the code in that pull request. You signal your acceptance of the [DCO](https://developercertificate.org/) with your sign-off.
 2. If you include code in your PR that you didn't write yourself, make sure you have permission from the author. If you have permission, always add the `Co-authored-by` sign-off to your commits to indicate the author of the code you are adding.
-3. Be careful about AI coding assistants! Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot, are awesome tools to help. However, in the specific case of OpenTofu the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training sources, they may emit copyrighted code. Please avoid using LLM-based coding assistants.
+3. Be careful about AI coding assistants! Coding assistants based on large language models (LLMs), such as ChatGPT or GitHub Copilot, are awesome tools to help. However, in the specific case of OpenTofu, the training data may include the BSL-licensed Terraform. Since the OpenTofu/Terraform codebase is very specific and LLMs don't have any other training sources, they may emit copyrighted code. Please avoid using LLM-based coding assistants.
 4. When you copy/paste code from within the OpenTofu code, always make it explicit where you copied from. This helps us resolve issues later on.
 5. Before you copy code from external sources, make sure that the license allows this. Also make sure that any licensing requirements, such as attribution, are met. When in doubt, ask first!
 6. Specifically, do not copy from the Terraform repository, or any PRs others have filed against that repository. This code is licensed under the BSL, a license which is not compatible with OpenTofu. (You may submit the same PR to both Terraform and OpenTofu as long as you are the author of both.)
@@ -204,7 +204,7 @@ TF_ACC=1 go test ./internal/initwd
 
 ### Integration Tests: Testing interactions with external backends
 
-OpenTofu supports various [backends](https://opentofu.org/docs/language/settings/backends/configuration). We run integration test against them to ensure no side effects when using OpenTofu.
+OpenTofu supports various [backends](https://opentofu.org/docs/language/settings/backends/configuration). We run integration tests against them to ensure no side effects when using OpenTofu.
 
 Execute to list all available commands to run tests:
 
@@ -242,7 +242,7 @@ make protobuf
 
 ### Adding or updating dependencies
 
-If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](.licensei.toml).
+If you need to add or update dependencies, you'll have to make sure they use only approved and compatible licenses. The list of these licenses is defined in [`.licensei.toml`](../.licensei.toml).
 
 To help verifying this in local development environment and in continuous integration, we use the [licensei](https://github.com/goph/licensei) open source tool.
 
