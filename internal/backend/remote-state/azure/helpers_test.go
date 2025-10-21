@@ -187,7 +187,16 @@ func deleteBlobsManually(t *testing.T, authCred azcore.TokenCredential, storageA
 	}
 }
 
+// destroyTestResources is called before checking the errors for createTestResources.
+// Since createTestResources can fail in multiple points, we must call this function
+// regardless of where it has failed, so that it can clean up the resources.
 func destroyTestResources(t *testing.T, resourceGroupClient *armresources.ResourceGroupsClient, res resourceNames) {
+	// If createTestResources fails in the beginning, the resourceGroupClient will be nil,
+	// so we must check for that.
+	if resourceGroupClient == nil {
+		return
+	}
+
 	_, err := resourceGroupClient.BeginDelete(context.Background(), res.resourceGroup, nil)
 	if err != nil {
 		t.Fatalf("Error deleting Resource Group: %v", err)
