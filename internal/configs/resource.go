@@ -58,7 +58,7 @@ type Resource struct {
 	// DefaultOverrideValues are only valid if IsOverridden is set to true. The values
 	// should be used to compose mock provider response. It is possible to have
 	// zero-length DefaultOverrideValues even if IsOverridden is set to true.
-	DefaultOverrideValues map[string]cty.Value
+	// DefaultOverrideValues map[string]cty.Value
 	// OverrideValues are only valid if IsOverridden is set to true. The values
 	// should be used to compose mock provider response. It is possible to have
 	// zero-length OverrideValues even if IsOverridden is set to true. Unlike

@@ -228,13 +228,14 @@ func (p providerForTest) withOverrideResources(overrideResources []*configs.Over
 	// make an empty, unused map; we use the "defaultOverrides" to set the value of this overriding resource
 	overrides := make(map[addrs.InstanceKey]map[string]cty.Value)
 	for _, res := range overrideResources {
-		p = p.withOverrideResource(*res.TargetParsed, overrides, res.Values)
+		overrides[addrs.NoKey] = res.Values
+		p = p.withOverrideResource(*res.TargetParsed, overrides)
 	}
 
 	return p
 }
 
-func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, overrides map[addrs.InstanceKey]map[string]cty.Value, defaultOverrides map[string]cty.Value) providerForTest {
+func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, overrides map[addrs.InstanceKey]map[string]cty.Value) providerForTest {
 	var resources map[string]resourceForTest
 
 	switch addr.Resource.Resource.Mode {
@@ -254,7 +255,7 @@ func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, ov
 		}
 	} else {
 		resources[addr.String()] = resourceForTest{
-			values: defaultOverrides,
+			values: overrides[addrs.NoKey],
 		}
 	}
 

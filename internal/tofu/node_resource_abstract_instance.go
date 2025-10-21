@@ -3017,7 +3017,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	provider = provider.
-		withOverrideResource(n.Addr, n.Config.OverrideValues, n.Config.DefaultOverrideValues).
+		withOverrideResource(n.Addr, n.Config.OverrideValues).
 		linkWithCurrentResource(n.Addr)
 
 	return provider, schema, nil
