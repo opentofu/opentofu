@@ -4580,7 +4580,8 @@ resource "test_object" "b" {
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
-		// we do not set any state for test_object.a[0] -> creation
+		// We do not set any state for test_object.a[0] -> creation.
+		// Since the state for "b" is the same with what we expect to be planned, we expect an Update action and no reason. The `replace_triggered_by` should not affect this resource since it references a resource that it's expected to be created during this plan.
 		s.SetResourceInstanceCurrent(
 			mustResourceInstanceAddr("test_object.b[0]"),
 			&states.ResourceInstanceObjectSrc{
