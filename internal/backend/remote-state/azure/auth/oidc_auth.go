@@ -106,6 +106,16 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	return token.Value, nil
 }
 
+func getTokenFromADO(client *http.Client, adoServiceConnectionID string) (string, error) {
+    if adoServiceConnectionID == "" {
+        return "", fmt.Errorf("ADO service connection ID is empty")
+    }
+	// TODO: Replace with real ADO token fetch in CI pipeline
+    // Here we mock the HTTP request. Later it can call the real ADO endpoint.
+    // For now, just return a dummy token:
+    return "mock-ado-token-for-" + adoServiceConnectionID, nil
+}
+
 func consolidateToken(config *Config) (string, error) {
 	return consolidateFileAndValue(config.OIDCToken, config.OIDCTokenFilePath, "token", true)
 }
