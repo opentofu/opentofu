@@ -132,8 +132,13 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 		}
 	}
 
-	change, destroyPlanDiags := n.planDestroy(ctx, evalCtx, state, "")
-	diags = diags.Append(destroyPlanDiags)
+	var planDiags tfdiags.Diagnostics
+	if n.shouldSkipDestroy() {
+		change = n.planForget(ctx, evalCtx, state, "")
+	} else {
+		change, planDiags = n.planDestroy(ctx, evalCtx, state, "")
+	}
+	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		return diags
 	}

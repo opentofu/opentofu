@@ -187,29 +187,38 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 	var change *plans.ResourceInstanceChange
 	var planDiags tfdiags.Diagnostics
 
-	shouldForget := false
-	shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
+	//TODO currently this following part does not work because we do not store lifecycle properties in state
+	// Leaving it here to discuss the approach.
+	// We can add "skip_destroy" (the reverse of lifecycle.destroy) in the state, like we do for CBD flag, and this part will become functional.
+	// The question is, do we want to retain resources when they are removed from the config and had destory=false set before removal?
+	// IMO, it sound logical to add that, and differentiate that part from lifecycle.prevent_destroy flag.
 
+	// We skip destroy of an orphaned resource instance in 2 cases:
+	// 1) Resource had lifecycle attribute destroy explicitly set to false
+	// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
+	// For every other case, we should destroy the resource
+	shouldDestroy := true
+
+	// Note that removed statements take precedence, since it is the latest intent the user declared
+	// As opposed to the lifecycle attribute, which was the previous intention declared on the orphaned resource
+	if n.shouldSkipDestroy() {
+		shouldDestroy = false
+	}
 	for _, rs := range n.RemoveStatements {
 		if rs.From.TargetContains(n.Addr) {
-			shouldForget = true
 			shouldDestroy = rs.Destroy
 		}
 	}
 
-	if shouldForget {
-		if shouldDestroy {
-			change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
-		} else {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
-			})
-			change = n.planForget(ctx, evalCtx, oldState, "")
-		}
-	} else {
+	if shouldDestroy {
 		change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
+	} else {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Resource going to be removed from the state",
+			Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+		})
+		change = n.planForget(ctx, evalCtx, oldState, "")
 	}
 
 	diags = diags.Append(planDiags)

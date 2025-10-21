@@ -163,29 +163,32 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		var change *plans.ResourceInstanceChange
 		var planDiags tfdiags.Diagnostics
 
-		shouldForget := false
-		shouldDestroy := false
+		// We skip destroy of a depose instance in 2 cases:
+		// 1) Resource had lifecycle attribute destroy explicitly set to false
+		// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
+		// For every other case, we should destroy the resource
+		shouldDestroy := true
 
+		// Note that removed statements take precedence, since it is the latest intent the user declared
+		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed
+		if n.shouldSkipDestroy() {
+			shouldDestroy = false
+		}
 		for _, rs := range n.RemoveStatements {
 			if rs.From.TargetContains(n.Addr) {
-				shouldForget = true
 				shouldDestroy = rs.Destroy
 			}
 		}
 
-		if shouldForget {
-			if shouldDestroy {
-				change, planDiags = n.planDestroy(ctx, evalCtx, state, n.DeposedKey)
-			} else {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagWarning,
-					Summary:  "Resource going to be removed from the state",
-					Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
-				})
-				change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
-			}
-		} else {
+		if shouldDestroy {
 			change, planDiags = n.planDestroy(ctx, evalCtx, state, n.DeposedKey)
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+			})
+			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
 		}
 
 		diags = diags.Append(planDiags)

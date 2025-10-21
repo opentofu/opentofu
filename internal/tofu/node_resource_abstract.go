@@ -697,6 +697,15 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	return obj, diags
 }
 
+// checkSkipDestroy checks if the resource should be forgotten instead of destroyed
+func (n *NodeAbstractResource) shouldSkipDestroy() bool {
+	if n.Config == nil || n.Config.Managed == nil {
+		return false
+	}
+	// Checking if we have explicit destroy set to false
+	return n.Config.Managed.ShouldSkipDestroy()
+}
+
 // graphNodesAreResourceInstancesInDifferentInstancesOfSameModule is an
 // annoyingly-task-specific helper function that returns true if and only if
 // the following conditions hold:
