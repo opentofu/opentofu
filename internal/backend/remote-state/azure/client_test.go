@@ -29,11 +29,11 @@ func TestPutMaintainsMetadata(t *testing.T) {
 	rs := acctest.RandString(4)
 	res := testResourceNames(rs, "testState")
 
-	authMethod, err := auth.GetAuthMethod(t.Context(), emptyAuthConfig())
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-	authCred, err := authMethod.Construct(t.Context(), emptyAuthConfig())
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,11 +99,11 @@ func TestAccRemoteClientAccessKeyBasic(t *testing.T) {
 	rs := acctest.RandString(4)
 	res := testResourceNames(rs, "testState")
 
-	authMethod, err := auth.GetAuthMethod(t.Context(), emptyAuthConfig())
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-	authCred, err := authMethod.Construct(t.Context(), emptyAuthConfig())
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,11 +153,11 @@ func TestAccRemoteClientSASToken(t *testing.T) {
 	rs := acctest.RandString(4)
 	res := testResourceNames(rs, "testState")
 
-	authMethod, err := auth.GetAuthMethod(t.Context(), emptyAuthConfig())
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-	authCred, err := authMethod.Construct(t.Context(), emptyAuthConfig())
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +228,11 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_SECRET, either manually or 
 		t.Fatal(errors.New("A tenant ID must be provided through ARM_TENANT_ID in order to run this test."))
 	}
 
-	authMethod, err := auth.GetAuthMethod(t.Context(), emptyAuthConfig())
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
-	authCred, err := authMethod.Construct(t.Context(), emptyAuthConfig())
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

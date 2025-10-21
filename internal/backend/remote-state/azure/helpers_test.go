@@ -203,16 +203,23 @@ func destroyTestResources(t *testing.T, resourceGroupClient *armresources.Resour
 	}
 }
 
-func emptyAuthConfig() *auth.Config {
+// Returns an auth config with the environment variables set for the test environment
+func testAuthConfig() *auth.Config {
 	return &auth.Config{
 		AzureCLIAuthConfig: auth.AzureCLIAuthConfig{
 			CLIAuthEnabled: true,
 		},
-		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{},
-		ClientCertificateAuthConfig:      auth.ClientCertificateAuthConfig{},
-		OIDCAuthConfig:                   auth.OIDCAuthConfig{},
-		MSIAuthConfig:                    auth.MSIAuthConfig{},
-		StorageAddresses:                 auth.StorageAddresses{},
-		WorkloadIdentityAuthConfig:       auth.WorkloadIdentityAuthConfig{},
+		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{
+			ClientID:     os.Getenv("ARM_CLIENT_ID"),
+			ClientSecret: os.Getenv("ARM_CLIENT_SECRET"),
+		},
+		ClientCertificateAuthConfig: auth.ClientCertificateAuthConfig{},
+		OIDCAuthConfig:              auth.OIDCAuthConfig{},
+		MSIAuthConfig:               auth.MSIAuthConfig{},
+		StorageAddresses: auth.StorageAddresses{
+			SubscriptionID: os.Getenv("ARM_SUBSCRIPTION_ID"),
+			TenantID:       os.Getenv("ARM_TENANT_ID"),
+		},
+		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{},
 	}
 }
