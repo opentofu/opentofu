@@ -1373,6 +1373,14 @@ func (n *NodeAbstractResourceInstance) plan(
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
+	// We check here if user declared lifecycle destroy attribute as false, intending to retain this resource even if
+	// so far we thought the action was "replace".
+	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
+	if action.IsReplace() && n.shouldSkipDestroy() {
+		// We alter the action to "create" and "forget" to not trigger resource destruction
+		action = plans.CreateAndForget
+	}
+
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity
 	// in the new value that requires an update
 	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
