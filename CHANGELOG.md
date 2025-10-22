@@ -1,5 +1,9 @@
 ## 1.8.12 (Unreleased)
 
+BUG FIXES:
+
+* Fix missing provider functions when parentheses are used ([#3402](https://github.com/opentofu/opentofu/pull/3402))
+
 ## 1.8.11
 
 BUG FIXES:
