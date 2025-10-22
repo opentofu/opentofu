@@ -1,5 +1,9 @@
 ## 1.9.5 (Unreleased)
 
+BUG FIXES:
+
+* Fix missing provider functions when parentheses are used ([#3402](https://github.com/opentofu/opentofu/pull/3402))
+
 ## 1.9.4
 
 BUG FIXES:
