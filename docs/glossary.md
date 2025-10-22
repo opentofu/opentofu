@@ -41,10 +41,10 @@ Expressions refer to or compute values within a configuration. The simplest expr
 Reference: [link](https://opentofu.org/docs/language/expressions/)
 
 ### Mark/value mark
-This is an implementation detail term used to describe an attribute that a particular value can have.
-Instead of directly using the term "mark", it is encouraged to use terms like "sensitive value" or "ephemeral value".
+OpenTofu uses cty.Value to represent the result of expressions (and other data).
+Occasionally, we will want to annotate that data with additional properties, without actually modifying the underlying value.
+Marks are used for that purpose and are the preferred method of doing so with go-cty.
 
-Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 ### Resource/resource instance/resource type
 * Resource - is what is declared by a `resource`, `data` or `ephemeral` block.
 * Resource instance - is what such a block can declare zero or more of, when using the `count`, `for_each`, or `enabled` arguments.
