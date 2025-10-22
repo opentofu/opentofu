@@ -1,15 +1,13 @@
 # OpenTofu glossary
 This document is intended for anyone who wants to gain more knowledge about the terms and vocabulary used to talk about different concepts in OpenTofu.
 
-> [!INFO]
->
+> [!NOTE]
 > This was created with the intent of gathering more knowledge over time.
 > The state that you find this in right now could be incomplete. 
 > Once you discover and learn about a new concept that would benefit others,
 > feel free to open a PR to update this.
 
-> [!INFO]
-> 
+> [!NOTE]
 > When adding new content to this document, try to place it in such a way to match the alphabetical order of the already existing content.
 > 
 > Optionally, also add a reference link if possible (GitHub conversation, issue, other docs, etc).
