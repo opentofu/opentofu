@@ -1112,15 +1112,10 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		res.IsOverridden = true
-		switch key := overrideRes.TargetParsed.Resource.Key; key {
-		case nil:
-			res.OverrideValues[addrs.NoKey] = overrideRes.Values
-		default:
-			if res.OverrideValues == nil {
-				res.OverrideValues = make(map[addrs.InstanceKey]map[string]cty.Value)
-			}
-			res.OverrideValues[key] = overrideRes.Values
+		if res.OverrideValues == nil {
+			res.OverrideValues = make(map[addrs.InstanceKey]map[string]cty.Value)
 		}
+		res.OverrideValues[overrideRes.TargetParsed.Resource.Key] = overrideRes.Values
 	}
 
 	return func() {

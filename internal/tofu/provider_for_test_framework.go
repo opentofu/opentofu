@@ -249,7 +249,7 @@ func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, ov
 		panic("BUG: unsupported override resource mode: " + addr.Resource.Resource.Mode.String())
 	}
 	key := addr.Resource.Key
-	if vals, ok := overrides[key]; key != nil && ok {
+	if vals, ok := overrides[key]; ok {
 		resources[addr.String()] = resourceForTest{
 			values: vals,
 		}
