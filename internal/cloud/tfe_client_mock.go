@@ -1340,6 +1340,10 @@ func (m *MockRuns) ForceExecute(ctx context.Context, runID string) error {
 	panic("implement me")
 }
 
+func (m *MockRuns) ListForOrganization(ctx context.Context, organization string, options *tfe.RunListForOrganizationOptions) (*tfe.OrganizationRunList, error) {
+	panic("not implemented")
+}
+
 func (m *MockRuns) Discard(ctx context.Context, runID string, options tfe.RunDiscardOptions) error {
 	m.Lock()
 	defer m.Unlock()
@@ -1448,6 +1452,10 @@ func (m *MockStateVersions) Upload(ctx context.Context, workspaceID string, opti
 	createOptions.State = tfe.String(base64.StdEncoding.EncodeToString(options.RawState))
 
 	return m.Create(ctx, workspaceID, createOptions)
+}
+
+func (m *MockStateVersions) UploadSanitizedState(ctx context.Context, sanitizedStateUploadURL *string, sanitizedState []byte) error {
+	panic("not implemented")
 }
 
 func (m *MockStateVersions) Read(ctx context.Context, svID string) (*tfe.StateVersion, error) {
@@ -1567,6 +1575,11 @@ func newMockVariables(client *MockClient) *MockVariables {
 }
 
 func (m *MockVariables) List(ctx context.Context, workspaceID string, options *tfe.VariableListOptions) (*tfe.VariableList, error) {
+	vl := m.workspaces[workspaceID]
+	return vl, nil
+}
+
+func (m *MockVariables) ListAll(ctx context.Context, workspaceID string, options *tfe.VariableListOptions) (*tfe.VariableList, error) {
 	vl := m.workspaces[workspaceID]
 	return vl, nil
 }
@@ -2015,6 +2028,22 @@ func (m *MockWorkspaces) SetDataRetentionPolicyDontDelete(ctx context.Context, w
 }
 
 func (m *MockWorkspaces) DeleteDataRetentionPolicy(ctx context.Context, workspaceID string) error {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) ListTagBindings(ctx context.Context, workspaceID string) ([]*tfe.TagBinding, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) ListEffectiveTagBindings(ctx context.Context, workspaceID string) ([]*tfe.EffectiveTagBinding, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) AddTagBindings(ctx context.Context, workspaceID string, options tfe.WorkspaceAddTagBindingsOptions) ([]*tfe.TagBinding, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) DeleteAllTagBindings(ctx context.Context, workspaceID string) error {
 	panic("not implemented")
 }
 
