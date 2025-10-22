@@ -22,15 +22,15 @@ It is recommended to avoid using popular programming language terms such as "fie
 Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 
 ### Data sources/data resource
-* "Data resource" refers to a block of type data, and the associated object it declares.
 * "Data source" is the remote thing that the data resource reads from.
+* "Data resource" refers to a block of type data, and the associated object it declares.
 * "Data resource type" is what is represented by the first label in a data block header, and the associated declarations and code for it in the provider plugin.
 
 Reference: [link](https://github.com/opentofu/opentofu/pull/3389#discussion_r2440264786)
 
 ### Diagnostic
-"Diagnostics" is the general term we use to describe the error and warning
-messages that OpenTofu returns when there are problems with the configuration,
+"Diagnostic" is the general term we use to describe the error or warning
+message that OpenTofu returns when there are problems with the configuration,
 or when interactions with external systems fail.
 
 Reference: [link](./diagnostics.md)
