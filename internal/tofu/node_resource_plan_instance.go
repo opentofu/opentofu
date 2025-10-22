@@ -327,6 +327,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 			// some resources with updated configuration could be detached
 			// due to missaligned create_before_destroy in different graph nodes.
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+			instanceRefreshState.SkipDestroy = !n.Config.Managed.Destroy
 
 			if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy && n.skipRefresh {
 				diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))

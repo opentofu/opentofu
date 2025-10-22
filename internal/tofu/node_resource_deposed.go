@@ -169,11 +169,13 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		// For every other case, we should destroy the resource
 		shouldDestroy := true
 
-		// Note that removed statements take precedence, since it is the latest intent the user declared
-		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed
-		if n.shouldSkipDestroy() {
+		// If the deposed instance has skip_destroy set in state, we skip destroying
+		if n.shouldSkipDestroy() || state.SkipDestroy {
 			shouldDestroy = false
 		}
+
+		// Note that removed statements take precedence, since it is the latest intent the user declared
+		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed
 		for _, rs := range n.RemoveStatements {
 			if rs.From.TargetContains(n.Addr) {
 				shouldDestroy = rs.Destroy

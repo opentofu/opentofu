@@ -89,7 +89,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			importingCount++
 		}
 
-		if action == plans.Forget {
+		if action == plans.Forget || action == plans.CreateAndForget {
 			forgettingCount++
 		}
 
@@ -214,6 +214,9 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if counts[plans.Read] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Read)))
 		}
+		if counts[plans.CreateAndForget] > 0 {
+			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.CreateAndForget)))
+		}
 		if counts[plans.Forget] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Forget)))
 		}
@@ -234,36 +237,43 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			}
 		}
 
+		toAdd := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete] + counts[plans.CreateAndForget]
+		toDestroy := counts[plans.Delete] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete]
+
 		if importingCount > 0 {
 			if forgettingCount > 0 {
 				renderer.Streams.Printf(
 					renderer.Colorize.Color("\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy, %d to forget.\n"),
 					importingCount,
-					counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+					toAdd,
 					counts[plans.Update],
-					counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
-					forgettingCount)
+					toDestroy,
+					forgettingCount,
+				)
 			} else {
 				renderer.Streams.Printf(
 					renderer.Colorize.Color("\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy.\n"),
 					importingCount,
-					counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+					toAdd,
 					counts[plans.Update],
-					counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+					toDestroy,
+				)
 			}
 		} else if forgettingCount > 0 {
 			renderer.Streams.Printf(
 				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy, %d to forget.\n"),
-				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+				toAdd,
 				counts[plans.Update],
-				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
-				forgettingCount)
+				toDestroy,
+				forgettingCount,
+			)
 		} else {
 			renderer.Streams.Printf(
 				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy.\n"),
-				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+				toAdd,
 				counts[plans.Update],
-				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+				toDestroy,
+			)
 		}
 	}
 
@@ -511,6 +521,26 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
+	case plans.CreateAndForget:
+		switch resource.ActionReason {
+		case jsonplan.ResourceInstanceReplaceBecauseTainted:
+			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr))
+		case jsonplan.ResourceInstanceReplaceByRequest:
+			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested", dispAddr))
+		case jsonplan.ResourceInstanceReplaceByTriggers:
+			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by", dispAddr))
+		default:
+			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr))
+		}
+		buf.WriteString(fmt.Sprintf(" - [yellow]older instance will [bold]not[reset][yellow] be destroyed [reset]([bold]lifecycle.destroy = false[reset])"))
+
+		if len(resource.Deposed) != 0 {
+			// In the case where we partially failed to replace a resource
+			// configured with 'create_before_destroy' in a previous apply and
+			// the deposed instance is still in the state, we give some extra
+			// context about this unusual situation.
+			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
+		}
 	case plans.NoOp:
 		if len(resource.PreviousAddress) > 0 && resource.PreviousAddress != resource.Address {
 			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] has moved to [bold]%s[reset]", resource.PreviousAddress, dispAddr))
@@ -577,6 +607,8 @@ func actionDescription(action plans.Action) string {
 		return "[green]+[reset]/[red]-[reset] create replacement and then destroy"
 	case plans.DeleteThenCreate:
 		return "[red]-[reset]/[green]+[reset] destroy and then create replacement"
+	case plans.CreateAndForget:
+		return "[red].[reset]/[green]+[reset] forget the old instance and create replacement"
 	case plans.Read:
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
