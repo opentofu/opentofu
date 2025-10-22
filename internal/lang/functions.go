@@ -25,7 +25,8 @@ var impureFunctions = []string{
 	"uuid",
 }
 
-// This should probably be replaced with addrs.Function everywhere
+// CoreNamespace defines the string prefix used for all core namespaced functions
+// TODO: This should probably be replaced with addrs.Function everywhere
 const CoreNamespace = addrs.FunctionNamespaceCore + "::"
 
 // Functions returns the set of functions that should be used to when evaluating

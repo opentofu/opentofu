@@ -3,6 +3,7 @@
 BUG FIXES:
 
 * Fix crash in tofu test when using deprecated outputs ([#3249](https://github.com/opentofu/opentofu/pull/3249))
+* Fix missing provider functions when parentheses are used ([#3402](https://github.com/opentofu/opentofu/pull/3402))
 
 ## 1.10.6
 
