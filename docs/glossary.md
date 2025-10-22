@@ -35,7 +35,7 @@ or when interactions with external systems fail.
 Reference: [link](./diagnostics.md)
 
 ## Expression
-Expressions refer to or compute values within a configuration. The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in functions.
+Expressions refer to or compute values within a configuration. The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in and provider-defined functions.
 
 Reference: [link](https://opentofu.org/docs/language/expressions/)
 
