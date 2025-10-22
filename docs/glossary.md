@@ -67,7 +67,9 @@ A set of already known functions, input values, local values, resources, etc. th
 The list of concepts above, in the context of HCL evaluation, are called [variables](#variable-hcl).
 
 ### Expression
-Expressions refer to or compute values within a configuration. The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in and provider-defined functions.
+An expression is any right hand side of an assignment that will be evaluated to generate the value that will be associated with key on the left hand side of the assignment. 
+The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex 
+expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in and provider-defined functions.
 
 Reference: [link](https://opentofu.org/docs/language/expressions/)
 
