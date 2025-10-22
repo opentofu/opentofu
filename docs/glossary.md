@@ -35,11 +35,6 @@ or when interactions with external systems fail.
 
 Reference: [link](./diagnostics.md)
 
-### Expression
-Expressions refer to or compute values within a configuration. The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in and provider-defined functions.
-
-Reference: [link](https://opentofu.org/docs/language/expressions/)
-
 ### Mark/value mark
 OpenTofu uses cty.Value to represent the result of expressions (and other data).
 Occasionally, we will want to annotate that data with additional properties, without actually modifying the underlying value.
@@ -70,6 +65,11 @@ Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 A set of already known functions, input values, local values, resources, etc. that is used to evaluate an expression that can reference any of the concepts listed above.
 
 The list of concepts above, in the context of HCL evaluation, are called [variables](#variable-hcl).
+
+### Expression
+Expressions refer to or compute values within a configuration. The simplest expressions are just literal values, like "hello" or 5, but the OpenTofu language also allows more complex expressions such as references to data exported by resources, arithmetic, conditional evaluation, and a number of built-in and provider-defined functions.
+
+Reference: [link](https://opentofu.org/docs/language/expressions/)
 
 ### Variable (HCL)
 Anything that's available to refer to in the current evaluation context.
