@@ -54,12 +54,13 @@ Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 
 ### Unknown value/Computed value
 * Unknown value - Unknown values are the result of expressions that have unknown inputs. E.g.: a value that will not be known until a resource is created.
-  Right now the only path for this is resources, but we are considering adding others like unknown inputs.
+  Right now the main source of this type of values is resources, but we are considering adding others like unknown inputs.
+  Another place where an unknown value can be encountered is from using some of the built-in functions like `timestamp`, `bcrypt` and `uuid`.
 * Computed value - Computed is more of a resource specific concept that a provider can specify in its resource schema. 
   When set to true, the provider does not expect a value and may instead produce one that may or may not be unknown. 
   With other flags, the actual functionality is a bit more subtle.
 
-Reference: [link](https://github.com/opentofu/opentofu/blob/490762343322eff42c0586f7a4c267b579fe80ef/internal/configs/configschema/schema.go#L65)
+References: [link](https://github.com/opentofu/opentofu/blob/490762343322eff42c0586f7a4c267b579fe80ef/internal/configs/configschema/schema.go#L65), [link](https://github.com/opentofu/opentofu/blob/490762343322eff42c0586f7a4c267b579fe80ef/internal/lang/functions.go#L22)
 ## HCL
 ### Evaluation context (HCL)
 A set of already known functions, input values, local values, resources, etc. that is used to evaluate an expression that can reference any of the concepts listed above.
