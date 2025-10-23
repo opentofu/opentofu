@@ -1,66 +1,55 @@
 ---
 sidebar_position: 2
-sidebar_label: What's new in version 1.10?
+sidebar_label: What's new in version 1.11?
 description: |-
-  Learn all about the new features in OpenTofu 1.10.
+  Learn all about the new features in OpenTofu 1.11.
 ---
 
-# What's new in OpenTofu 1.10?
-
-This page will run you through the most important changes in OpenTofu 1.10:
-
-- [New features](#new-features)
-  - [New built-in functions](#new-built-in-functions)
-  - [Moved for different resource types](#moved-for-different-resource-types)
-- [Improvements to existing features](#improvements-to-existing-features)
-  - [External programs as encryption key providers (experimental)](#external-programs-as-encryption-key-providers-experimental)
-  - [Smaller improvements](#smaller-improvements)
-- [Deprecations](#deprecations)
-  - [Using `ghcr.io/opentofu/opentofu` as a base image](#using-ghcrioopentofuopentofu-as-a-base-image)
-- [Bugfixes](#bugfixes)
+# What's new in OpenTofu 1.11?
 
 ## New features
 
-### New built-in functions
+### Ephemeral Resources / Write-Only Attributes
 
-New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
+**Ephemeral values** allow OpenTofu to work with data and resources that exist only in memory during a single OpenTofu phase, guaranteeing that those values will not be persisted in state snapshots or plan files.
 
-- `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
-- `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
-- `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+You can now declare input variables and output values as being ephemeral, and you can use provider plugins that have been updated to include ephemeral resource types (e.g. for fetching a secret) or managed resource types with write-only attributes (e.g. for setting a password without saving it in OpenTofu state).
 
-### Moved for different resource types
+For more information, refer to [Ephemerality](https://opentofu.org/docs/v1.11/language/ephemerality/).
 
-- `moved` block can now be used to migrate between different types of resources ([docs](../language/modules/develop/refactoring.mdx#changing-a-resource-type)).
-- Builtin provider now supports migration from `null_resource` to `terraform_data` resource.
+### Enabled meta-argument
+
+The new **`enabled` meta-argument** offers an alternative to the existing `count` and `for_each` meta-arguments for situations where a particular resource instance or module instance has either zero or one instances.
+
+The initial form of this argument is nested inside a `lifecycle` block, rather than directly inside a resource or module declaration, to avoid conflicting with existing input variables or resource type arguments named `enabled`.
+
+For more information, refer to [the `enabled` meta-argument](https://opentofu.org/docs/v1.11/language/meta-arguments/enabled/).
 
 ## Improvements to existing features
 
-### External programs as encryption key providers (experimental)
+### Tag support added to S3 backend
 
-State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. For details, [see the related documentation](../language/state/encryption.mdx#external-experimental)
-
-This functionality is experimental and may be changed in future OpenTofu versions.
-
-### Smaller improvements
-
-* OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
+The S3 backend now supports **object tagging** your backend, allowing you to add custom tags to your state files for better organization and cost tracking.
 
 ## Deprecations
 
-### Using `ghcr.io/opentofu/opentofu` as a base image
+- **Azure Backend (`azurerm`)**:
 
-Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and doesn't work as of OpenTofu 1.10. The reason behind this change is security: while we regularly update OpenTofu itself when security-relevant updates arise, providing a base image would require an update roughly once a week, which we are currently not equipped to do.
+  - The `endpoint` and `ARM_ENDPOINT` configuration options are no longer supported
+  - The `msi_endpoint` and `ARM_MSI_ENDPOINT` options are no longer supported
+  - The `environment` and `metadata_host` arguments are now mutually exclusive
 
-However, we have added instructions on building your own base image in the [containerized installation instructions](./install/docker.mdx#building-your-own-image).
+- **issensitive() Function**: Now correctly returns unknown results when evaluating unknown values. Code that previously relied on the incorrect behavior may need updates.
 
-## Bugfixes
+- **Testing with Mocks**: Mock values generated during testing now strictly adhere to provider schemas. Test configurations with invalid mock values will need to be corrected.
 
-:::warning
-OpenTofu 1.10 changed how workspace creation locking works. It is unsafe to
-use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if those
-are sharing the same underlying database.
-:::
+- **S3 Module Installation**: When installing module packages from Amazon S3 buckets using S3 source addresses OpenTofu will use the same credentials as the AWS CLI and SDK.
 
-- Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
-- `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
+- **TLS and SSH Security**:
+  - SHA-1 signatures are no longer accepted for TLS or SSH connections
+  - SSH certificates must comply with the `draft-miller-ssh-cert-03` specification
+
+
+## Full Changelog
+
+You can find the full changelog at https://github.com/opentofu/opentofu/blob/v1.11/CHANGELOG.md
