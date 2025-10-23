@@ -59,7 +59,7 @@ Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
   When set to true, the provider does not expect a value and may instead produce one that may or may not be unknown. 
   With other flags, the actual functionality is a bit more subtle.
 
-
+Reference: [link](https://github.com/opentofu/opentofu/blob/490762343322eff42c0586f7a4c267b579fe80ef/internal/configs/configschema/schema.go#L65)
 ## HCL
 ### Evaluation context (HCL)
 A set of already known functions, input values, local values, resources, etc. that is used to evaluate an expression that can reference any of the concepts listed above.
