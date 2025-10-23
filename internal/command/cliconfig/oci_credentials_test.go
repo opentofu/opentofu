@@ -92,8 +92,9 @@ func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			fileSystem := RootFileSystem()
 			fixtureFile := filepath.Join("testdata", name)
-			gotConfig, diags := loadConfigFile(fixtureFile)
+			gotConfig, diags := loadConfigFile(fileSystem, fixtureFile)
 			if diags.HasErrors() {
 				errStr := diags.Err().Error()
 				if test.wantErr == "" {
@@ -117,17 +118,18 @@ func TestLoadConfig_ociDefaultCredentials(t *testing.T) {
 	}
 
 	t.Run("oci-default-credentials-duplicate", func(t *testing.T) {
+		fileSystem := RootFileSystem()
 		// This one is different than all of the others because it
 		// only gets detected as invalid during the validation step,
 		// so that (in the normal case) we can check it only after
 		// we've merged all of the separate CLI config files together.
 		fixtureFile := filepath.Join("testdata", "oci-default-credentials-duplicate")
-		gotConfig, loadDiags := loadConfigFile(fixtureFile)
+		gotConfig, loadDiags := loadConfigFile(fileSystem, fixtureFile)
 		if loadDiags.HasErrors() {
 			t.Errorf("unexpected errors from loadConfigFile: %s", loadDiags.Err().Error())
 		}
 
-		validateDiags := gotConfig.Validate()
+		validateDiags := gotConfig.Validate(fileSystem)
 		wantErr := `No more than one oci_default_credentials block may be specified`
 		if !validateDiags.HasErrors() {
 			t.Fatalf("unexpected success\nwant error with substring: %s", wantErr)
@@ -269,8 +271,9 @@ func TestLoadConfig_ociCredentials(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			fileSystem := RootFileSystem()
 			fixtureFile := filepath.Join("testdata", name)
-			gotConfig, diags := loadConfigFile(fixtureFile)
+			gotConfig, diags := loadConfigFile(fileSystem, fixtureFile)
 			if diags.HasErrors() {
 				errStr := diags.Err().Error()
 				if test.wantErr == "" {
@@ -291,17 +294,18 @@ func TestLoadConfig_ociCredentials(t *testing.T) {
 	}
 
 	t.Run("oci-credentials-duplicate", func(t *testing.T) {
+		fileSystem := RootFileSystem()
 		// This one is different than all of the others because it
 		// only gets detected as invalid during the validation step,
 		// so that (in the normal case) we can check it only after
 		// we've merged all of the separate CLI config files together.
 		fixtureFile := filepath.Join("testdata", "oci-credentials-duplicate")
-		gotConfig, loadDiags := loadConfigFile(fixtureFile)
+		gotConfig, loadDiags := loadConfigFile(fileSystem, fixtureFile)
 		if loadDiags.HasErrors() {
 			t.Errorf("unexpected errors from loadConfigFile: %s", loadDiags.Err().Error())
 		}
 
-		validateDiags := gotConfig.Validate()
+		validateDiags := gotConfig.Validate(fileSystem)
 		wantErr := `Duplicate oci_credentials block for "example.com"`
 		if !validateDiags.HasErrors() {
 			t.Fatalf("unexpected success\nwant error with substring: %s", wantErr)
@@ -636,6 +640,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			fileSystem := RootFileSystem()
 			var osName string
 			if lastDashIdx := strings.LastIndexByte(name, '-'); lastDashIdx == -1 {
 				t.Fatalf("test name does not include -osname suffix")
@@ -648,11 +653,11 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't get absolute path for %s", configDir)
 			}
-			cfg, diags := loadConfigDir(configDir)
+			cfg, diags := loadConfigDir(fileSystem, configDir)
 			if diags.HasErrors() {
 				t.Fatalf("errors loading config: %s", diags.Err().Error())
 			}
-			diags = cfg.Validate()
+			diags = cfg.Validate(fileSystem)
 			if diags.HasErrors() {
 				t.Fatalf("invalid config:\n%s", diags.Err().Error())
 			}

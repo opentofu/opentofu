@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"path/filepath"
 	"runtime"
@@ -20,10 +21,10 @@ import (
 // Earlier entries in this slice get priority over later when multiple copies
 // of the same plugin version are found, but newer versions always override
 // older versions where both satisfy the provider version constraints.
-func globalPluginDirs() []string {
+func globalPluginDirs(fileSystem fs.FS) []string {
 	var ret []string
 	// Look in ~/.terraform.d/plugins/, $XDG_DATA_HOME/opentofu/plugins, or its equivalent on non-UNIX platforms
-	dirs, err := cliconfig.DataDirs()
+	dirs, err := cliconfig.DataDirs(fileSystem)
 	if err != nil {
 		log.Printf("[ERROR] Error finding global plugin directories: %s", err)
 	} else {
