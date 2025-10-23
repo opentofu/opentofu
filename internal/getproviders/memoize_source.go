@@ -24,10 +24,12 @@ import (
 // A MemoizeSource can be called concurrently, with incoming requests processed
 // sequentially.
 type MemoizeSource struct {
-	underlying        Source
-	mu                sync.Mutex
-	availableVersions map[addrs.Provider]memoizeAvailableVersionsRet
-	packageMetas      map[memoizePackageMetaCall]memoizePackageMetaRet
+	underlying             Source
+	mu                     sync.Mutex
+	availableVersions      map[addrs.Provider]memoizeAvailableVersionsRet
+	availableVersionsLocks map[addrs.Provider]*sync.Mutex
+	packageMetas           map[memoizePackageMetaCall]memoizePackageMetaRet
+	packageMetasLocks      map[memoizePackageMetaCall]*sync.Mutex
 }
 
 type memoizeAvailableVersionsRet struct {
@@ -53,9 +55,11 @@ var _ Source = (*MemoizeSource)(nil)
 // the given underlying source and memoizes its results.
 func NewMemoizeSource(underlying Source) *MemoizeSource {
 	return &MemoizeSource{
-		underlying:        underlying,
-		availableVersions: make(map[addrs.Provider]memoizeAvailableVersionsRet),
-		packageMetas:      make(map[memoizePackageMetaCall]memoizePackageMetaRet),
+		underlying:             underlying,
+		availableVersionsLocks: make(map[addrs.Provider]*sync.Mutex),
+		availableVersions:      make(map[addrs.Provider]memoizeAvailableVersionsRet),
+		packageMetas:           make(map[memoizePackageMetaCall]memoizePackageMetaRet),
+		packageMetasLocks:      make(map[memoizePackageMetaCall]*sync.Mutex),
 	}
 }
 
@@ -64,7 +68,13 @@ func NewMemoizeSource(underlying Source) *MemoizeSource {
 // result directly from the cache.
 func (s *MemoizeSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	if _, ok := s.availableVersionsLocks[provider]; !ok {
+		s.availableVersionsLocks[provider] = &sync.Mutex{}
+	}
+	s.mu.Unlock()
+
+	s.availableVersionsLocks[provider].Lock()
+	defer s.availableVersionsLocks[provider].Unlock()
 
 	if existing, exists := s.availableVersions[provider]; exists {
 		return existing.VersionList, nil, existing.Err
@@ -83,14 +93,21 @@ func (s *MemoizeSource) AvailableVersions(ctx context.Context, provider addrs.Pr
 // the result before returning it, or on subsequent calls returns the result
 // directly from the cache.
 func (s *MemoizeSource) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	key := memoizePackageMetaCall{
 		Provider: provider,
 		Version:  version,
 		Target:   target,
 	}
+
+	s.mu.Lock()
+	if _, ok := s.packageMetasLocks[key]; !ok {
+		s.packageMetasLocks[key] = &sync.Mutex{}
+	}
+	s.mu.Unlock()
+
+	s.packageMetasLocks[key].Lock()
+	defer s.packageMetasLocks[key].Unlock()
+
 	if existing, exists := s.packageMetas[key]; exists {
 		return existing.PackageMeta, existing.Err
 	}
