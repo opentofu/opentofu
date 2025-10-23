@@ -23,8 +23,8 @@ Reference: [link](./diagnostics.md#diagnostic-description-writing-style)
 
 ### Data sources/data resource
 * Data source - the remote thing that the data resource reads from.
-* Data resource - refers to a block of type data, and the associated object it declares.
-* Data resource type - is what is represented by the first label in a data block header, and the associated declarations and code for it in the provider plugin.
+* Data resource - refers to a block of type `data`, and the associated object it declares.
+* Data resource type - is what is represented by the first label in a `data` block header, and the associated declarations and code for it in the provider plugin.
 
 Reference: [link](https://github.com/opentofu/opentofu/pull/3389#discussion_r2440264786)
 
