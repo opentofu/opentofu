@@ -117,9 +117,10 @@ jobs:
           # Note: the GPG_FINGERPRINT and GPG_KEY_FILE are defined in the task above. If they are not set,
           # goreleaser won't sign the packages.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_TOKEN }}
-          RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
           RELEASE_FLAG_LATEST: ${{ inputs.latest }}
+          RELEASE_FLAG_PRERELEASE: ${{ inputs.prerelease }}
 
       - name: Remove GPG key
         if: always()
