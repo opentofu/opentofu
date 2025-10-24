@@ -21,8 +21,8 @@ var (
 
 const CSIDL_APPDATA = 26
 
-func configFile() (string, error) {
-	dir, err := homeDir()
+func (cl *ConfigLoader) configFile() (string, error) {
+	dir, err := cl.homeDir()
 	if err != nil {
 		return "", err
 	}
@@ -30,11 +30,11 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, "tofu.rc")
 	legacyConfigFile := filepath.Join(dir, "terraform.rc")
 
-	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
+	return getNewOrLegacyPath(cl, newConfigFile, legacyConfigFile)
 }
 
-func configDir() (string, error) {
-	dir, err := homeDir()
+func (cl *ConfigLoader) configDir() (string, error) {
+	dir, err := cl.homeDir()
 	if err != nil {
 		return "", err
 	}
@@ -42,15 +42,15 @@ func configDir() (string, error) {
 	return filepath.Join(dir, "terraform.d"), nil
 }
 
-func dataDirs() ([]string, error) {
-	dir, err := configDir()
+func (cl *ConfigLoader) dataDirs() ([]string, error) {
+	dir, err := cl.configDir()
 	if err != nil {
 		return nil, err
 	}
 	return []string{dir}, nil
 }
 
-func homeDir() (string, error) {
+func (cl *ConfigLoader) homeDir() (string, error) {
 	b := make([]uint16, syscall.MAX_PATH)
 
 	// See: http://msdn.microsoft.com/en-us/library/windows/desktop/bb762181(v=vs.85).aspx
