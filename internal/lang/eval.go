@@ -38,6 +38,7 @@ func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configsc
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
+	traversals = append(traversals, decodeProviderFunctions(body, schema)...)
 	refs, diags := References(s.ParseRef, traversals)
 
 	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
@@ -694,4 +695,11 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 	}
 
 	return diags
+}
+
+// decodeProviderFunctions returns traversals for each provider function found.
+// This is mainly used for extracting the functions from dynamic blocks before
+// generating the references for the block evaluation.
+func decodeProviderFunctions(body hcl.Body, schema *configschema.Block) []hcl.Traversal {
+	return filterProviderFunctions(blocktoattr.ExpandedFunctions(body, schema))
 }
