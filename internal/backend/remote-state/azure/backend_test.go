@@ -246,6 +246,9 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 
 	// TestBackendStateForceUnlock runs the both the TestBackendStateLocks test and the --force-unlock tests
 	backend.TestBackendStateForceUnlock(t, b1, b2)
+
+	backend.TestBackendStateLocksInWS(t, b1, b2, "foo")
+	backend.TestBackendStateForceUnlockInWS(t, b1, b2, "foo")
 }
 
 // TestAccBackendSASToken tests if the backend functions when using a SAS token.
@@ -301,6 +304,9 @@ func TestAccBackendSASToken(t *testing.T) {
 	})).(*Backend)
 
 	backend.TestBackendStateForceUnlock(t, b1, b2)
+
+	backend.TestBackendStateLocksInWS(t, b1, b2, "foo")
+	backend.TestBackendStateForceUnlockInWS(t, b1, b2, "foo")
 }
 
 // TestAccBackendServicePrincipalClientSecret tests if the backend functions when using a client ID and secret.
@@ -362,6 +368,9 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET, either manua
 
 	// TestBackendStateForceUnlock runs the both the TestBackendStateLocks test and the --force-unlock tests
 	backend.TestBackendStateForceUnlock(t, b1, b2)
+
+	backend.TestBackendStateLocksInWS(t, b1, b2, "foo")
+	backend.TestBackendStateForceUnlockInWS(t, b1, b2, "foo")
 }
 
 // TestAccBackendServicePrincipalClientCertificate tests if the backend functions when using a PFX certificate file.
