@@ -120,6 +120,8 @@ github.com/apparentlymart/go-userdirs v0.0.0-20200915174352-b0c018a67c13 h1:Jtue
 github.com/apparentlymart/go-userdirs v0.0.0-20200915174352-b0c018a67c13/go.mod h1:7kfpUbyCdGJ9fDRCp3fopPQi5+cKNHgTE4ZuNrO71Cw=
 github.com/apparentlymart/go-versions v1.0.3 h1:T3b8tumoQLuu1dej2Y9v22J4PWV9IzDLh2A9lIPoVSM=
 github.com/apparentlymart/go-versions v1.0.3/go.mod h1:YF5j7IQtrOAOnsGkniupEA5bfCjzd7i14yu0shZavyM=
+github.com/apparentlymart/go-workgraph v0.0.0-20250609024419-b3453ef8d3e6 h1:gY9564QrJDDPS2NLN6ySdikfhsN/oFTs/yWa4GIzY0w=
+github.com/apparentlymart/go-workgraph v0.0.0-20250609024419-b3453ef8d3e6/go.mod h1:I0Pvlprhm5vLDT5v0Tc3Wytw9NRBUSk2aEGTDxFSDDI=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 h1:7Ip0wMmLHLRJdrloDxZfhMm0xrLXZS8+COSu2bXmEQs=
 github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
