@@ -19,11 +19,12 @@ import (
 )
 
 type OIDCAuthConfig struct {
-	UseOIDC           bool
-	OIDCToken         string
-	OIDCTokenFilePath string
-	OIDCRequestURL    string
-	OIDCRequestToken  string
+	UseOIDC                        bool
+	OIDCToken                      string
+	OIDCTokenFilePath              string
+	OIDCRequestURL                 string
+	OIDCRequestToken               string
+	ADOPipelineServiceConnectionID string
 }
 
 type oidcAuth struct{}
@@ -44,9 +45,16 @@ func (cred *oidcAuth) Construct(ctx context.Context, config *Config) (azcore.Tok
 	}
 	var token string
 	if config.OIDCToken == "" && config.OIDCTokenFilePath == "" {
-		token, err = getTokenFromRemote(client, config.OIDCAuthConfig)
-		if err != nil {
-			return nil, err
+		if config.ADOPipelineServiceConnectionID == "" {
+			token, err = getTokenFromADO(client, config.ADOPipelineServiceConnectionID)	
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			token, err = getTokenFromRemote(client,config.OIDCAuthConfig)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		token, err = consolidateToken(config)
@@ -106,6 +114,17 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	return token.Value, nil
 }
 
+func getTokenFromADO(client *http.Client, adoServiceConnectionID string) (string, error) {
+    if adoServiceConnectionID == "" {
+        return "", fmt.Errorf("ADO service connection ID is empty")
+    }
+	// TODO: Replace with real ADO token fetch in CI pipeline
+    // Here we mock the HTTP request. Later it can call the real ADO endpoint.
+    // For now, just return a dummy token:
+    return "mock-ado-token-for-" + adoServiceConnectionID, nil
+}
+
+
 func consolidateToken(config *Config) (string, error) {
 	return consolidateFileAndValue(config.OIDCToken, config.OIDCTokenFilePath, "token", true)
 }
@@ -137,11 +156,12 @@ func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diag
 	}
 	directTokenUnset := config.OIDCToken == "" && config.OIDCTokenFilePath == ""
 	indirectTokenUnset := config.OIDCRequestURL == "" || config.OIDCRequestToken == ""
-	if directTokenUnset && indirectTokenUnset {
+	adoTokenUnset := config.ADOPipelineServiceConnectionID == ""
+	if directTokenUnset && indirectTokenUnset && adoTokenUnset {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure OpenID Connect Auth",
-			"An access token must be provided, either directly with a variable or through a file, or indirectly through a request URL and request token (as in GitHub Actions).",
+			"An access token must be providedz: either directly, via file, via OIDCRequestURL, or via ADO pipeline service connection ID.",
 		))
 	}
 	if directTokenUnset {
