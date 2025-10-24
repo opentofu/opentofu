@@ -896,6 +896,8 @@ func actionString(action string) []string {
 		return []string{"update"}
 	case "CreateThenDelete":
 		return []string{"create", "delete"}
+	case "CreateAndForget":
+		return []string{"create", "forget"}
 	case "Read":
 		return []string{"read"}
 	case "DeleteThenCreate":
@@ -918,6 +920,10 @@ func UnmarshalActions(actions []string) plans.Action {
 
 		if actions[0] == "delete" && actions[1] == "create" {
 			return plans.DeleteThenCreate
+		}
+
+		if actions[0] == "create" && actions[1] == "forget" {
+			return plans.CreateAndForget
 		}
 	}
 
