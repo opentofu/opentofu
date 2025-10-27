@@ -19,6 +19,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+var common_env_vars = []string{
+	"XDG_CONFIG_HOME",
+	"XDG_DATA_HOME",
+	"TF_CLI_CONFIG_FILE",
+}
+
 var DRIVE = os.Getenv("SystemDrive")
 
 func (tfs *testFileSystem) trim(name string) string {
@@ -99,6 +105,9 @@ func TestConfigFileLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
+			for _, v := range common_env_vars {
+				t.Setenv(v, "")
+			}
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
 			}
@@ -138,6 +147,9 @@ func TestConfigDirLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
+			for _, v := range common_env_vars {
+				t.Setenv(v, "")
+			}
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
 			}
@@ -176,6 +188,9 @@ func TestDataDirLocations(t *testing.T) {
 					Data: nil,
 					Mode: fs.ModeDir | 0o755,
 				}
+			}
+			for _, v := range common_env_vars {
+				t.Setenv(v, "")
 			}
 			for k, v := range test.envVars {
 				t.Setenv(k, v)
