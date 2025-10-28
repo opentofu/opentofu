@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing/fstest"
@@ -29,6 +30,10 @@ func (tfs *testFileSystem) Stat(name string) (os.FileInfo, error) {
 
 func (tfs *testFileSystem) ReadDir(name string) ([]os.DirEntry, error) {
 	return tfs.fsys.ReadDir(tfs.trim(name))
+}
+
+func (tfs *testFileSystem) Open(name string) (fs.File, error) {
+	return tfs.fsys.Open(tfs.trim(name))
 }
 
 type locationTestParameters struct {

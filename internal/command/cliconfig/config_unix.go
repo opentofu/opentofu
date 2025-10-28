@@ -24,7 +24,7 @@ func (cl *ConfigLoader) configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(cl.ConfigFileSystem, legacyConfigFile) && !pathExists(cl.ConfigFileSystem, newConfigFile) {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !cl.pathExists(legacyConfigFile) && !cl.pathExists(newConfigFile) {
 		// a fresh install should not use terraform naming
 		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
 	}
@@ -39,7 +39,7 @@ func (cl *ConfigLoader) configDir() (string, error) {
 	}
 
 	configDir := filepath.Join(dir, ".terraform.d")
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !pathExists(cl.ConfigFileSystem, configDir) && xdgDir != "" {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !cl.pathExists(configDir) && xdgDir != "" {
 		configDir = filepath.Join(xdgDir, "opentofu")
 	}
 
@@ -84,7 +84,7 @@ func (cl *ConfigLoader) homeDir() (string, error) {
 	return user.HomeDir, nil
 }
 
-func pathExists(cfs ConfigFileSystem, path string) bool {
-	_, err := cfs.Stat(path)
+func (cl *ConfigLoader) pathExists(path string) bool {
+	_, err := cl.Stat(path)
 	return err == nil
 }

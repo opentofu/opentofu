@@ -19,7 +19,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-var common_env_vars = []string{
+var commonEnvVars = []string{
 	"XDG_CONFIG_HOME",
 	"XDG_DATA_HOME",
 	"TF_CLI_CONFIG_FILE",
@@ -105,7 +105,7 @@ func TestConfigFileLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
-			for _, v := range common_env_vars {
+			for _, v := range commonEnvVars {
 				t.Setenv(v, "")
 			}
 			for k, v := range test.envVars {
@@ -147,7 +147,7 @@ func TestConfigDirLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
-			for _, v := range common_env_vars {
+			for _, v := range commonEnvVars {
 				t.Setenv(v, "")
 			}
 			for k, v := range test.envVars {
@@ -189,7 +189,7 @@ func TestDataDirLocations(t *testing.T) {
 					Mode: fs.ModeDir | 0o755,
 				}
 			}
-			for _, v := range common_env_vars {
+			for _, v := range commonEnvVars {
 				t.Setenv(v, "")
 			}
 			for k, v := range test.envVars {

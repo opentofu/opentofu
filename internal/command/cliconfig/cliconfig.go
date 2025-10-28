@@ -496,16 +496,17 @@ func (cl *ConfigLoader) cliConfigFile() (string, tfdiags.Diagnostics) {
 		}
 	}
 
-	log.Printf("[DEBUG] Attempting to stat CLI config file: %s", configFilePath)
-	_, err := cl.Stat(configFilePath)
+	log.Printf("[DEBUG] Attempting to open CLI config file: %s", configFilePath)
+	f, err := cl.Open(configFilePath)
 	if err == nil {
+		f.Close()
 		return configFilePath, diags
 	}
 
 	if mustExist || !errors.Is(err, fs.ErrNotExist) {
 		diags = append(diags, tfdiags.Sourceless(
 			tfdiags.Warning,
-			"Unable to stat CLI configuration file",
+			"Unable to open CLI configuration file",
 			fmt.Sprintf("The CLI configuration file at %q does not exist.", configFilePath),
 		))
 	}
