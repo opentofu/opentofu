@@ -10,6 +10,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -5624,4 +5626,111 @@ check "http_check" {
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
+}
+
+// TestContext2Apply_callingProviderFunctionFromDynamicBlock checks that a
+// provider function can be used by referencing it in a dynamic block inside
+// a resource.
+func TestContext2Apply_callingProviderFunctionFromDynamicBlock(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+		test = {
+			source = "example.com/foo/test"
+		}
+	}
+}
+
+locals {
+	urls = ["foo:80", "bar:81"]
+}
+resource "test_resource" "res" {
+  dynamic "allow" {
+	iterator = item
+    for_each = {
+      for z in local.urls :
+      z => provider::test::extract_port(z) if contains([80, 81], provider::test::extract_port(z))
+    }
+    content {
+      port = item.value
+    }
+  }
+}
+`,
+	})
+
+	p := MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"allow": {
+							Nesting: configschema.NestingList,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"port": {
+										Type:     cty.Number,
+										Optional: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Functions: map[string]providers.FunctionSpec{
+			"extract_port": {
+				Parameters: []providers.FunctionParameterSpec{
+					{
+						Name:               "in",
+						Type:               cty.String,
+						AllowNullValue:     false,
+						AllowUnknownValues: false,
+					},
+				},
+				Return: cty.Number,
+			},
+		},
+	}
+	p.CallFunctionFn = func(request providers.CallFunctionRequest) providers.CallFunctionResponse {
+		// Since there is only a single function defined, we don't want to make this implementation more complex than
+		// needed, so we have only the implementation for that.
+		v := request.Arguments[0].AsString()
+		idx := strings.LastIndex(v, ":")
+		if idx >= 0 {
+			v = v[idx+1:]
+		}
+		port, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return providers.CallFunctionResponse{
+				Error: err,
+			}
+		}
+		return providers.CallFunctionResponse{
+			Result: cty.NumberVal(big.NewFloat(port)),
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(&p),
+		},
+	})
+
+	assertState := func(t *testing.T, s *states.State) {
+		res := s.Resource(mustAbsResourceAddr("test_resource.res"))
+		diff := cmp.Diff(`{"allow":[{"port":81},{"port":80}]}`, string(res.Instances[addrs.NoKey].Current.AttrsJSON))
+		if diff != "" {
+			t.Fatalf("wrong expected resource change found (-wanted, +got):\n%s", diff)
+		}
+	}
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	assertState(t, plan.PlannedState)
+
+	state, diags := ctx.Apply(context.Background(), plan, m)
+	assertNoErrors(t, diags)
+	assertState(t, state)
 }
