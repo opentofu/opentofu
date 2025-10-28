@@ -408,7 +408,7 @@ terraform {
   backend "s3" {
     // ...
     state_tags = {
-      "object/type": "state"
+      "object:type": "state"
       // ...
     }
   }
@@ -425,7 +425,7 @@ terraform {
     // ...
     use_lockfile = true
     lock_tags = {
-      "object/type": "lock"
+      "object:type": "lock"
       // ...
     }
   }
