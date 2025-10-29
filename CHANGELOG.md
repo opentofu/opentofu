@@ -2,7 +2,7 @@
 
 BUG FIXES:
 
-* `for_each` inside `dynamic` blocks now can reference provider defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
+* `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
 
 ## Previous Releases
 
