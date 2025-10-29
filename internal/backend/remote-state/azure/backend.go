@@ -320,8 +320,8 @@ func (b *Backend) configure(ctx context.Context) error {
 			OIDCToken:         data.Get("oidc_token").(string),
 			OIDCTokenFilePath: data.Get("oidc_token_file_path").(string),
 			OIDCRequestURL:    data.Get("oidc_request_url").(string),
-			OIDCRequestToken:  data.Get("oidc_request_token").(string)
-			ADOPipelineServiceConnectionID  data.Get("ado_pipeline_service_conncetion_id").(string)
+			OIDCRequestToken:  data.Get("oidc_request_token").(string),
+			ADOPipelineServiceConnectionID:  data.Get("ado_pipeline_service_conncetion_id").(string),
 		},
 		MSIAuthConfig: auth.MSIAuthConfig{
 			UseMsi:   data.Get("use_msi").(bool),

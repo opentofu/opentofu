@@ -114,20 +114,24 @@ type ADOTokenResponse struct {
 	IDToken string   `json:"id_token"`
 }
 
-funct getTokenFromADO(client *http.client, config OIDCAuthConfig) (string, err) {
-	req, err := http.NewRequest(http.MethodGetm, config.OIDCRequestToken, nil);
+func getTokenFromADO(client *http.Client, config OIDCAuthConfig) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, config.OIDCRequestToken, nil);
 	if err != nil {
 		return "", fmt.Errorf("malformed ADO OIDC token request: %w",err)
 
 	}
 	req.Header.Add("Authorization", "Bearer "+config.OIDCRequestToken)
     req.Header.Add("Accept", "application/json")
+	resp, err := client.Do(req)
 	if err != nil {
-        return "", fmt.Errorf("error obtaining ADO OIDC token: %w", err)
-    }
+		return "", fmt.Errorf("error obtaining ADO OIDC token: %w", err)
+	}
     defer resp.Body.Close()
 
-    raw, _ := io.ReadAll(resp.Body)
+    raw, err:= io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading ADO response body: %w", err)
+	}
     if resp.StatusCode < 200 || resp.StatusCode >= 300 {
         return "", fmt.Errorf("non-2xx response from ADO: %s", raw)
     }
