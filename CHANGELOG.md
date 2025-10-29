@@ -88,6 +88,7 @@ BUG FIXES:
 * `tofu test` no longer crashes when working with a module that declares one or more deprecated output values. ([#3249](https://github.com/opentofu/opentofu/pull/3249))
 * The `remote-exec` and `file` provisioners now reject SSH certificates whose signature key is a certificate key, as required by the current SSH Certificate Format specification draft. ([#3180](https://github.com/opentofu/opentofu/pull/3180))
 * The `TF_CLI_ARGS` environment variable and all of its subcommand-specific variants now follow typical shell parsing rules more closely when parsing the environment variable values into a sequence of arguments. In particular, pairs of quotes with nothing between them are now understood as zero-length arguments rather than being completely ignored as before. ([#3354](https://github.com/opentofu/opentofu/pull/3354))
+* `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
 
 ## Previous Releases
 
