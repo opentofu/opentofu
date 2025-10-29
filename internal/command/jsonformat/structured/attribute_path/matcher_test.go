@@ -27,7 +27,7 @@ func TestPathMatcher_FollowsPath(t *testing.T) {
 		t.Errorf("should have partial matched at base level")
 	}
 
-	if matcher := matcher.GetChildWithKey("key"); matcher.MatchesPartial() {
+	if match := matcher.GetChildWithKey("key"); match.MatchesPartial() {
 		t.Errorf("should not have matched string key in first step (it's actually an index step)")
 	}
 
@@ -86,7 +86,6 @@ func TestPathMatcher_HandlesListIndexWithString(t *testing.T) {
 		if !matcher.MatchesPartial() {
 			t.Errorf("should have partial matched at second level")
 		}
-
 	})
 	t.Run("not convertible", func(t *testing.T) {
 		var matcher Matcher
@@ -136,7 +135,7 @@ func TestPathMatcher_Propagates(t *testing.T) {
 		t.Errorf("should have partial matched at base level")
 	}
 
-	if matcher := matcher.GetChildWithKey("key"); matcher.MatchesPartial() {
+	if match := matcher.GetChildWithKey("key"); match.MatchesPartial() {
 		t.Errorf("should not have matched string key in first step (it's actually an index step)")
 	}
 

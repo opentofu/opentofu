@@ -3,6 +3,7 @@
 BUG FIXES:
 
 * Fix missing provider functions when parentheses are used ([#3402](https://github.com/opentofu/opentofu/pull/3402))
+* `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
 
 ## 1.9.4
 
