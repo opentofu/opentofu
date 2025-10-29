@@ -5,6 +5,11 @@ This document describes how to use and implement tracing in OpenTofu Core using 
 > [!NOTE]  
 > For background on the design decisions and motivation behind OpenTofu's tracing implementation, see the [OpenTelemetry Tracing RFC](https://github.com/opentofu/opentofu/blob/main/rfc/20250129-Tracing-For-Extra-Context.md).
 
+> [!NOTE]
+> If you are upgrading any dependent libraries which pull in a new OTEL version, you *MUST* update the semconv version in tracing/init.go to the latest version.
+> Failing to do this will result in an error "Could not initialize telemetry: failed to create resource: error detecting resource: conflicting Schema URL".
+> This sets the *maximum* supported schema version in our OTEL context. Semconv is backwards compatible with older versions, but the newest must be specified.
+
 ## Overview
 
 OpenTofu provides distributed tracing capabilities via OpenTelemetry to help end users understand the execution flow and performance characteristics of OpenTofu operations. Tracing is particularly useful for:
