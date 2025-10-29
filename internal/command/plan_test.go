@@ -1020,7 +1020,7 @@ func TestPlan_resource_variable_inputs(t *testing.T) {
 func TestPlan_withInvalidReferencesInTry(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("plan-invalid-reference-try"), td)
-	t.Chdir(td)
+	defer testChdir(t, td)()
 
 	provider := &tofu.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
