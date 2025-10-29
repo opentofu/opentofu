@@ -395,6 +395,43 @@ To migrate from DynamoDB to S3 locking, the following steps can be followed:
 Remember: any changes to the `backend` block will require you to run `tofu init -reconfigure`.
 :::
 
+### Control what tags are stored on the S3 objects
+
+To enable more granular lifecycle rules for the objects OpenTofu stores in the configured S3 bucket, two attributes can be used to tag the objects with the desired tags.
+
+#### State object tags
+
+Configuring `state_tags` in the backend block will store the configured tags on the object everytime it is updated.
+
+```hcl
+terraform {
+  backend "s3" {
+    // ...
+    state_tags = {
+      "object:type": "state"
+      // ...
+    }
+  }
+}
+```
+
+#### Lock object tags
+
+When using the native S3 locking mechanism through `use_lockfile`, OpenTofu will create an object on the same bucket that is used to store the state, so to tag that you can use `lock_tags`:
+
+```hcl
+terraform {
+  backend "s3" {
+    // ...
+    use_lockfile = true
+    lock_tags = {
+      "object:type": "lock"
+      // ...
+    }
+  }
+}
+```
+
 ## Multi-account AWS Architecture
 
 A common architectural pattern is for an organization to use a number of
