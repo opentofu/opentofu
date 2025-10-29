@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/lang"
 )
 
 func TestMetadataFunctions_error(t *testing.T) {
@@ -64,10 +63,10 @@ func TestMetadataFunctions_output(t *testing.T) {
 
 	// test that ignored functions are not part of the json
 	for _, v := range ignoredFunctions {
-		if _, ok := got.Signatures[v]; ok {
+		if _, ok := got.Signatures[v.Name]; ok {
 			t.Errorf("found ignored function %q inside output", v)
 		}
-		corePrefixed := lang.CoreNamespace + v
+		corePrefixed := v.String()
 		if _, ok := got.Signatures[corePrefixed]; ok {
 			t.Fatalf("found ignored function %q inside output", corePrefixed)
 		}

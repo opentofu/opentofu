@@ -62,6 +62,18 @@ func (f Function) IsNamespace(namespace string) bool {
 	return len(f.Namespaces) > 0 && f.Namespaces[0] == namespace
 }
 
+// CoreNamespaced returns the function with the [FunctionNamespaceCore] namespace
+// if has no namespace already defined.
+func (f Function) CoreNamespaced() Function {
+	if len(f.Namespaces) > 0 {
+		return f
+	}
+	return Function{
+		Name:       f.Name,
+		Namespaces: []string{FunctionNamespaceCore},
+	}
+}
+
 func (f Function) AsProviderFunction() (pf ProviderFunction, err error) {
 	if !f.IsNamespace(FunctionNamespaceProvider) {
 		// Should always be checked ahead of time!

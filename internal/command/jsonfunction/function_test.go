@@ -131,6 +131,23 @@ func TestMarshal(t *testing.T) {
 			"",
 		},
 		{
+			// This checks that if a provider contains a function named the same as one of the core with custom marshaller, we identify that correctly
+			"provider::test::try function marshalled correctly",
+			map[string]function.Function{
+				"provider::test::try": function.New(&function.Spec{
+					Params: []function.Parameter{
+						{
+							Name: "list",
+							Type: cty.List(cty.String),
+						},
+					},
+					Type: function.StaticReturnType(cty.List(cty.String)),
+				}),
+			},
+			`{"format_version":"1.0","function_signatures":{"provider::test::try":{"return_type":["list","string"],"parameters":[{"name":"list","type":["list","string"]}]}}}`,
+			"",
+		},
+		{
 			"can function marshalled correctly",
 			map[string]function.Function{
 				"can": tryfunc.CanFunc,
@@ -144,6 +161,23 @@ func TestMarshal(t *testing.T) {
 				"core::can": tryfunc.CanFunc,
 			},
 			`{"format_version":"1.0","function_signatures":{"core::can":{"return_type":"bool","parameters":[{"name":"expression","type":"dynamic"}]}}}`,
+			"",
+		},
+		{
+			// This checks that if a provider contains a function named the same as one of the core with custom marshaller, we identify that correctly
+			"provider::test::can function marshalled correctly",
+			map[string]function.Function{
+				"provider::test::can": function.New(&function.Spec{
+					Params: []function.Parameter{
+						{
+							Name: "list",
+							Type: cty.List(cty.String),
+						},
+					},
+					Type: function.StaticReturnType(cty.List(cty.String)),
+				}),
+			},
+			`{"format_version":"1.0","function_signatures":{"provider::test::can":{"return_type":["list","string"],"parameters":[{"name":"list","type":["list","string"]}]}}}`,
 			"",
 		},
 	}
