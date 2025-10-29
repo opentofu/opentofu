@@ -214,6 +214,12 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{"ARM_OIDC_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_URL"}, ""),
 				Description: "The URL of the OIDC provider from which to request an ID token. Needs to be used in conjunction with `oidc_request_token`. This is meant to be used for Github Actions.",
 			},
+			"ado_pipeline_service_connection_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID", ""),
+				Description: "The Azure DevOps pipeline service connection ID used for OIDC authentication.",
+			},
 			"oidc_request_token": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -314,7 +320,9 @@ func (b *Backend) configure(ctx context.Context) error {
 			OIDCToken:         data.Get("oidc_token").(string),
 			OIDCTokenFilePath: data.Get("oidc_token_file_path").(string),
 			OIDCRequestURL:    data.Get("oidc_request_url").(string),
-			OIDCRequestToken:  data.Get("oidc_request_token").(string)},
+			OIDCRequestToken:  data.Get("oidc_request_token").(string)
+			ADOPipelineServiceConnectionID  data.Get("ado_pipeline_service_conncetion_id").(string)
+		},
 		MSIAuthConfig: auth.MSIAuthConfig{
 			UseMsi:   data.Get("use_msi").(bool),
 			Endpoint: data.Get("msi_endpoint").(string),

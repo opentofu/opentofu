@@ -24,6 +24,7 @@ type OIDCAuthConfig struct {
 	OIDCTokenFilePath string
 	OIDCRequestURL    string
 	OIDCRequestToken  string
+	ADOPipelineServiceConnectionID string
 }
 
 type oidcAuth struct{}
@@ -71,6 +72,9 @@ type TokenResponse struct {
 }
 
 func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, error) {
+	if config.ADOPipelineServiceConnectionID != "" {
+		return getTokenFromADO(client, config)
+	}
 	// GET from the request URL, using the bearer token
 	req, err := http.NewRequest(http.MethodGet, config.OIDCRequestURL, nil)
 	if err != nil {
@@ -106,14 +110,33 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	return token.Value, nil
 }
 
-func getTokenFromADO(client *http.Client, adoServiceConnectionID string) (string, error) {
-    if adoServiceConnectionID == "" {
-        return "", fmt.Errorf("ADO service connection ID is empty")
+type ADOTokenResponse struct {
+	IDToken string   `json:"id_token"`
+}
+
+funct getTokenFromADO(client *http.client, config OIDCAuthConfig) (string, err) {
+	req, err := http.NewRequest(http.MethodGetm, config.OIDCRequestToken, nil);
+	if err != nil {
+		return "", fmt.Errorf("malformed ADO OIDC token request: %w",err)
+
+	}
+	req.Header.Add("Authorization", "Bearer "+config.OIDCRequestToken)
+    req.Header.Add("Accept", "application/json")
+	if err != nil {
+        return "", fmt.Errorf("error obtaining ADO OIDC token: %w", err)
     }
-	// TODO: Replace with real ADO token fetch in CI pipeline
-    // Here we mock the HTTP request. Later it can call the real ADO endpoint.
-    // For now, just return a dummy token:
-    return "mock-ado-token-for-" + adoServiceConnectionID, nil
+    defer resp.Body.Close()
+
+    raw, _ := io.ReadAll(resp.Body)
+    if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+        return "", fmt.Errorf("non-2xx response from ADO: %s", raw)
+    }
+    var token ADOTokenResponse
+    if err := json.Unmarshal(raw, &token); err != nil {
+        return "", fmt.Errorf("invalid ADO token JSON: %w", err)
+    }
+    return token.IDToken, nil
+
 }
 
 func consolidateToken(config *Config) (string, error) {
