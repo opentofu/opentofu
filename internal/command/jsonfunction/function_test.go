@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/ext/tryfunc"
 	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -112,6 +113,38 @@ func TestMarshal(t *testing.T) {
 			},
 			"",
 			"Failed to serialize function \"fun\": error",
+		},
+		{
+			"try function marshalled correctly",
+			map[string]function.Function{
+				"try": tryfunc.TryFunc,
+			},
+			`{"format_version":"1.0","function_signatures":{"try":{"return_type":"dynamic","variadic_parameter":{"name":"expressions","type":"dynamic"}}}}`,
+			"",
+		},
+		{
+			"core::try function marshalled correctly",
+			map[string]function.Function{
+				"core::try": tryfunc.TryFunc,
+			},
+			`{"format_version":"1.0","function_signatures":{"core::try":{"return_type":"dynamic","variadic_parameter":{"name":"expressions","type":"dynamic"}}}}`,
+			"",
+		},
+		{
+			"can function marshalled correctly",
+			map[string]function.Function{
+				"can": tryfunc.CanFunc,
+			},
+			`{"format_version":"1.0","function_signatures":{"can":{"return_type":"bool","parameters":[{"name":"expression","type":"dynamic"}]}}}`,
+			"",
+		},
+		{
+			"core::can function marshalled correctly",
+			map[string]function.Function{
+				"core::can": tryfunc.CanFunc,
+			},
+			`{"format_version":"1.0","function_signatures":{"core::can":{"return_type":"bool","parameters":[{"name":"expression","type":"dynamic"}]}}}`,
+			"",
 		},
 	}
 
