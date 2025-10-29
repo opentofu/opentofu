@@ -18,7 +18,10 @@ import (
 	"go.opentelemetry.io/otel/sdk"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
+	// This *MUST* always be updated to the latest version when OTEL dependencies are updated in OpenTofu
+	// Failing to do so will prevent OpenTofu from initializing tracing.
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 
 	"github.com/opentofu/opentofu/version"
 )
