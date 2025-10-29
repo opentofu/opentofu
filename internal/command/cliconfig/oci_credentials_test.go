@@ -648,7 +648,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			if err != nil {
 				t.Fatalf("can't get absolute path for %s", configDir)
 			}
-			cfg, diags := loadConfigDir(configDir)
+			cfg, diags := standardConfigLoader().loadConfigDir(configDir)
 			if diags.HasErrors() {
 				t.Fatalf("errors loading config: %s", diags.Err().Error())
 			}

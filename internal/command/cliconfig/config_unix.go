@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 )
 
-func configFile() (string, error) {
-	dir, err := homeDir()
+func (cl *ConfigLoader) configFile() (string, error) {
+	dir, err := cl.homeDir()
 	if err != nil {
 		return "", err
 	}
@@ -24,30 +24,30 @@ func configFile() (string, error) {
 	newConfigFile := filepath.Join(dir, ".tofurc")
 	legacyConfigFile := filepath.Join(dir, ".terraformrc")
 
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !pathExists(legacyConfigFile) && !pathExists(newConfigFile) {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); xdgDir != "" && !cl.pathExists(legacyConfigFile) && !cl.pathExists(newConfigFile) {
 		// a fresh install should not use terraform naming
 		return filepath.Join(xdgDir, "opentofu", "tofurc"), nil
 	}
 
-	return getNewOrLegacyPath(newConfigFile, legacyConfigFile)
+	return getNewOrLegacyPath(cl, newConfigFile, legacyConfigFile)
 }
 
-func configDir() (string, error) {
-	dir, err := homeDir()
+func (cl *ConfigLoader) configDir() (string, error) {
+	dir, err := cl.homeDir()
 	if err != nil {
 		return "", err
 	}
 
 	configDir := filepath.Join(dir, ".terraform.d")
-	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !pathExists(configDir) && xdgDir != "" {
+	if xdgDir := os.Getenv("XDG_CONFIG_HOME"); !cl.pathExists(configDir) && xdgDir != "" {
 		configDir = filepath.Join(xdgDir, "opentofu")
 	}
 
 	return configDir, nil
 }
 
-func dataDirs() ([]string, error) {
-	dir, err := homeDir()
+func (cl *ConfigLoader) dataDirs() ([]string, error) {
+	dir, err := cl.homeDir()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func dataDirs() ([]string, error) {
 	return dirs, nil
 }
 
-func homeDir() (string, error) {
+func (cl *ConfigLoader) homeDir() (string, error) {
 	// First prefer the HOME environmental variable
 	if home := os.Getenv("HOME"); home != "" {
 		// FIXME: homeDir gets called from globalPluginDirs during init, before
@@ -84,7 +84,7 @@ func homeDir() (string, error) {
 	return user.HomeDir, nil
 }
 
-func pathExists(path string) bool {
-	_, err := os.Stat(path)
+func (cl *ConfigLoader) pathExists(path string) bool {
+	_, err := cl.Stat(path)
 	return err == nil
 }

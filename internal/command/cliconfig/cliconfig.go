@@ -107,30 +107,46 @@ var BuiltinConfig Config
 // On Windows, this is the "tofu.rc" file in the application data
 // directory.
 func ConfigFile() (string, error) {
-	return configFile()
+	return standardConfigLoader().configFile()
+}
+
+func (cl *ConfigLoader) ConfigFile() (string, error) {
+	return cl.configFile()
 }
 
 // ConfigDir returns the configuration directory for OpenTofu.
 func ConfigDir() (string, error) {
-	return configDir()
+	return standardConfigLoader().configDir()
+}
+
+func (cl *ConfigLoader) ConfigDir() (string, error) {
+	return cl.configDir()
 }
 
 // DataDirs returns the data directories for OpenTofu.
 func DataDirs() ([]string, error) {
-	return dataDirs()
+	return standardConfigLoader().dataDirs()
+}
+
+func (cl *ConfigLoader) DataDirs() ([]string, error) {
+	return cl.dataDirs()
 }
 
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
+func LoadConfig(ctx context.Context) (*Config, tfdiags.Diagnostics) {
+	return standardConfigLoader().LoadConfig(ctx)
+}
+
+func (cl *ConfigLoader) LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal
 
-	if mainFilename, mainFileDiags := cliConfigFile(); len(mainFileDiags) == 0 {
-		if _, err := os.Stat(mainFilename); err == nil {
-			mainConfig, mainDiags := loadConfigFile(mainFilename)
+	if mainFilename, mainFileDiags := cl.cliConfigFile(); len(mainFileDiags) == 0 {
+		if _, err := cl.Stat(mainFilename); err == nil {
+			mainConfig, mainDiags := cl.loadConfigFile(mainFilename)
 			diags = diags.Append(mainDiags)
 			// NOTE: The order of arguments to merge below seems confusing
 			// given that below we tend to do it the other way around, but
@@ -153,9 +169,9 @@ func LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
 	// files because we're doing something special, like running OpenTofu
 	// in automation with a locally-customized configuration.
 	if cliConfigFileOverride() == "" {
-		if configDir, err := ConfigDir(); err == nil {
-			if info, err := os.Stat(configDir); err == nil && info.IsDir() {
-				dirConfig, dirDiags := loadConfigDir(configDir)
+		if configDir, err := cl.ConfigDir(); err == nil {
+			if info, err := cl.Stat(configDir); err == nil && info.IsDir() {
+				dirConfig, dirDiags := cl.loadConfigDir(configDir)
 				diags = diags.Append(dirDiags)
 				config = config.Merge(dirConfig)
 			}
@@ -176,13 +192,17 @@ func LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
 
 // loadConfigFile loads the CLI configuration from ".tofurc" files.
 func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
+	return standardConfigLoader().loadConfigFile(path)
+}
+
+func (cl *ConfigLoader) loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	result := &Config{}
 
 	log.Printf("Loading CLI configuration from %s", path)
 
 	// Read the HCL file and prepare for parsing
-	d, err := os.ReadFile(path)
+	d, err := cl.ReadFile(path)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error reading %s: %w", path, err))
 		return result, diags
@@ -225,11 +245,11 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	return result, diags
 }
 
-func loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
+func (cl *ConfigLoader) loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	result := &Config{}
 
-	entries, err := os.ReadDir(path)
+	entries, err := cl.ReadDir(path)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error reading %s: %w", path, err))
 		return result, diags
@@ -459,14 +479,14 @@ func (c *Config) Merge(c2 *Config) *Config {
 	return &result
 }
 
-func cliConfigFile() (string, tfdiags.Diagnostics) {
+func (cl *ConfigLoader) cliConfigFile() (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	mustExist := true
 
 	configFilePath := cliConfigFileOverride()
 	if configFilePath == "" {
 		var err error
-		configFilePath, err = ConfigFile()
+		configFilePath, err = cl.ConfigFile()
 		mustExist = false
 
 		if err != nil {
@@ -477,7 +497,7 @@ func cliConfigFile() (string, tfdiags.Diagnostics) {
 	}
 
 	log.Printf("[DEBUG] Attempting to open CLI config file: %s", configFilePath)
-	f, err := os.Open(configFilePath)
+	f, err := cl.Open(configFilePath)
 	if err == nil {
 		f.Close()
 		return configFilePath, diags
