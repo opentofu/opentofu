@@ -10,12 +10,11 @@ import (
 	"fmt"
 	"maps"
 
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	"go.opentelemetry.io/otel/trace"
-
 	getter "github.com/hashicorp/go-getter"
+
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // PackageFetcher is a low-level utility for fetching remote module packages
@@ -90,7 +89,7 @@ func NewPackageFetcher(ctx context.Context, env PackageFetcherEnvironment) *Pack
 // getmodules.SplitPackageSubdir and getmodules.ExpandSubdirGlobs functions.
 func (f *PackageFetcher) FetchPackage(ctx context.Context, instDir string, packageAddr string) error {
 	ctx, span := tracing.Tracer().Start(ctx, "Fetch Package",
-		trace.WithAttributes(semconv.URLFull(packageAddr)),
+		tracing.SpanAttributes(traceattrs.URLFull(packageAddr)),
 	)
 	defer span.End()
 	err := f.getter.getWithGoGetter(ctx, instDir, packageAddr)

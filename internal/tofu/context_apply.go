@@ -12,8 +12,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -21,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ApplyOpts are the various options that affect the details of how OpenTofu
@@ -57,8 +56,8 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Apply phase",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.plan.mode", plan.UIMode.UIName()),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.plan.mode", plan.UIMode.UIName()),
 		),
 	)
 	defer span.End()

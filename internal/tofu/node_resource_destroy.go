@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"log"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -21,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodeDestroyResourceInstance represents a resource instance that is to be
@@ -157,8 +155,8 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNameApplyResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
 		),
 	)
 	defer span.End()
@@ -172,7 +170,7 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 			return diags
 		}
 		span.SetAttributes(
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 		)
 		diags = diags.Append(
 			n.managedResourceExecute(ctx, evalCtx),

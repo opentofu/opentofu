@@ -16,8 +16,6 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 	orasErrors "oras.land/oras-go/v2/errdef"
 	orasRegistryErrors "oras.land/oras-go/v2/registry/remote/errcode"
 
@@ -163,8 +161,8 @@ func NewOCIRegistryMirrorSource(
 func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Get available versions from oci_mirror",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuProviderAddress(provider.String()),
 		),
 	)
 	defer span.End()
@@ -278,10 +276,10 @@ func errRepresentsOCIProviderNotFound(err error) bool {
 func (o *OCIRegistryMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Get metadata from oci_mirror",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
-			otelAttr.String(traceattrs.ProviderVersion, version.String()),
-			otelAttr.String(traceattrs.TargetPlatform, target.String()),
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuProviderAddress(provider.String()),
+			traceattrs.OpenTofuProviderVersion(version.String()),
+			traceattrs.OpenTofuTargetPlatform(target.String()),
 		),
 	)
 	defer span.End()
@@ -476,8 +474,8 @@ type OCIRepositoryStore interface {
 func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version, store OCIRepositoryStore) (ociv1.Descriptor, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Resolve reference",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceattrs.ProviderVersion, version.String()),
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuProviderVersion(version.String()),
 		),
 	)
 	defer span.End()
@@ -495,9 +493,9 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 		return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", tagName, err))
 	}
 	span.SetAttributes(
-		otelAttr.String("oci.manifest.digest", desc.Digest.String()),
-		otelAttr.String("opentofu.oci.reference.tag", tagName),
-		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+		traceattrs.String("opentofu.oci.reference.tag", tagName),
+		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
 	)
 	// Not all store implementations can return the manifest's artifact type as part
 	// of the tag-resolution response, so we'll check this early if we can, but
@@ -507,7 +505,7 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 	// one way or another.)
 	if desc.ArtifactType != "" && desc.ArtifactType != ociIndexManifestArtifactType {
 		span.SetAttributes(
-			otelAttr.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
+			traceattrs.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
 		)
 		switch desc.ArtifactType {
 		case "application/vnd.opentofu.provider-target":
@@ -546,9 +544,9 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Index, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch index manifest",
-		otelTrace.WithAttributes(
-			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
-			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		tracing.SpanAttributes(
+			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)
 	defer span.End()
@@ -575,8 +573,8 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
 	span.SetAttributes(
-		otelAttr.String("opentofu.oci.manifest.media_type", manifest.MediaType),
-		otelAttr.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+		traceattrs.String("opentofu.oci.manifest.media_type", manifest.MediaType),
+		traceattrs.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
 	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
@@ -598,9 +596,9 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Manifest, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch platform-specific manifest",
-		otelTrace.WithAttributes(
-			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
-			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		tracing.SpanAttributes(
+			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)
 	defer span.End()
@@ -627,8 +625,8 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
 	span.SetAttributes(
-		otelAttr.String("opentofu.oci.manifest.media_type", manifest.MediaType),
-		otelAttr.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+		traceattrs.String("opentofu.oci.manifest.media_type", manifest.MediaType),
+		traceattrs.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
 	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we

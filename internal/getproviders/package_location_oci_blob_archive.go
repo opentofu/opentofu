@@ -16,11 +16,10 @@ import (
 	"github.com/hashicorp/go-getter"
 	ociDigest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	orasContent "oras.land/oras-go/v2/content"
+
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
-	orasContent "oras.land/oras-go/v2/content"
 )
 
 // ociPackageMediaType is the specific media type we're expecting for the blob
@@ -88,16 +87,16 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 	pkgDesc := p.blobDescriptor
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch provider package",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.oci.registry.domain", p.registryDomain),
-			otelAttr.String("opentofu.oci.repository.name", p.repositoryName),
-			otelAttr.String("opentofu.oci.blob.digest", pkgDesc.Digest.String()),
-			otelAttr.String("opentofu.oci.blob.media_type", pkgDesc.MediaType),
-			otelAttr.Int64("opentofu.oci.blob.size", pkgDesc.Size),
-			otelAttr.String("opentofu.provider.local_dir", targetDir),
-			otelAttr.String(traceattrs.ProviderAddress, meta.Provider.String()),
-			otelAttr.String(traceattrs.ProviderVersion, meta.Version.String()),
-			otelAttr.String(traceattrs.TargetPlatform, meta.TargetPlatform.String()),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.oci.registry.domain", p.registryDomain),
+			traceattrs.String("opentofu.oci.repository.name", p.repositoryName),
+			traceattrs.String("opentofu.oci.blob.digest", pkgDesc.Digest.String()),
+			traceattrs.String("opentofu.oci.blob.media_type", pkgDesc.MediaType),
+			traceattrs.Int64("opentofu.oci.blob.size", pkgDesc.Size),
+			traceattrs.String("opentofu.provider.local_dir", targetDir),
+			traceattrs.OpenTofuProviderAddress(meta.Provider.String()),
+			traceattrs.OpenTofuProviderVersion(meta.Version.String()),
+			traceattrs.OpenTofuTargetPlatform(meta.TargetPlatform.String()),
 		),
 	)
 	defer span.End()

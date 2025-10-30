@@ -15,8 +15,6 @@ import (
 	"log"
 	"sync"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 	orasRemote "oras.land/oras-go/v2/registry/remote"
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
 	orasCreds "oras.land/oras-go/v2/registry/remote/credentials"
@@ -27,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ociCredsPolicyBuilder is the type of a callback function that the [providerSource]
@@ -77,9 +76,9 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Authenticate to OCI Registry",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.oci.registry.domain", registryDomain),
-			otelAttr.String("opentofu.oci.repository.name", repositoryName),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.oci.registry.domain", registryDomain),
+			traceattrs.String("opentofu.oci.repository.name", repositoryName),
 		),
 	)
 	defer span.End()
@@ -189,9 +188,9 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Query Docker-style credential helper",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.oci.docker_credential_helper.name", helperName),
-			otelAttr.String("opentofu.oci.registry.url", serverURL),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.oci.docker_credential_helper.name", helperName),
+			traceattrs.String("opentofu.oci.registry.url", serverURL),
 		),
 	)
 	defer span.End()
@@ -203,14 +202,14 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 	// than "Docker-style Credential Helper", but it's the
 	// same protocol nonetheless.
 
-	var executeSpan otelTrace.Span // ORAS tracing API can't directly propagate span from Start to Done
+	var executeSpan tracing.Span // ORAS tracing API can't directly propagate span from Start to Done
 	ctx = orasCredsTrace.WithExecutableTrace(ctx, &orasCredsTrace.ExecutableTrace{
 		ExecuteStart: func(executableName, action string) {
 			_, executeSpan = tracing.Tracer().Start(
 				ctx, "Execute helper program",
-				otelTrace.WithAttributes(
-					otelAttr.String("opentofu.oci.docker_credential_helper.executable", helperName),
-					otelAttr.String("opentofu.oci.registry.url", serverURL),
+				tracing.SpanAttributes(
+					traceattrs.String("opentofu.oci.docker_credential_helper.executable", helperName),
+					traceattrs.String("opentofu.oci.registry.url", serverURL),
 				),
 			)
 			log.Printf("[DEBUG] Executing docker-style credentials helper %q for %s", helperName, serverURL)

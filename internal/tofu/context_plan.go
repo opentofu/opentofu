@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -29,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // PlanOpts are the various options that affect the details of how OpenTofu
@@ -150,10 +149,10 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 		ctx, "Plan phase",
 	)
 	span.SetAttributes(
-		otelAttr.String("opentofu.plan.mode", opts.Mode.UIName()),
-		otelAttr.StringSlice("opentofu.plan.target_addrs", tracing.StringSlice(span, slices.Values(opts.Targets))),
-		otelAttr.StringSlice("opentofu.plan.exclude_addrs", tracing.StringSlice(span, slices.Values(opts.Excludes))),
-		otelAttr.StringSlice("opentofu.plan.force_replace_addrs", tracing.StringSlice(span, slices.Values(opts.ForceReplace))),
+		traceattrs.String("opentofu.plan.mode", opts.Mode.UIName()),
+		traceattrs.StringSlice("opentofu.plan.target_addrs", tracing.StringSlice(span, slices.Values(opts.Targets))),
+		traceattrs.StringSlice("opentofu.plan.exclude_addrs", tracing.StringSlice(span, slices.Values(opts.Excludes))),
+		traceattrs.StringSlice("opentofu.plan.force_replace_addrs", tracing.StringSlice(span, slices.Values(opts.ForceReplace))),
 		// Additions here should typically be limited only to options that
 		// significantly change what provider-driven operations we'd perform
 		// during the planning phase, since that's the main influence on how

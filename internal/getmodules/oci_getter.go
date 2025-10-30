@@ -17,11 +17,11 @@ import (
 	getter "github.com/hashicorp/go-getter"
 	ociDigest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opentofu/opentofu/internal/tracing"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 	orasContent "oras.land/oras-go/v2/content"
 	orasRegistry "oras.land/oras-go/v2/registry"
+
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ociImageManifestArtifactType is the artifact type we expect for the image
@@ -71,9 +71,9 @@ func (g *ociDistributionGetter) Get(destDir string, url *url.URL) error {
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch 'oci' module package",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.module.source", url.String()),
-			otelAttr.String("opentofu.module.local_dir", destDir),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.module.source", url.String()),
+			traceattrs.String("opentofu.module.local_dir", destDir),
 		),
 	)
 	defer span.End()
@@ -220,9 +220,9 @@ func (g *ociDistributionGetter) resolveRepositoryRef(url *url.URL) (*orasRegistr
 func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, ref *orasRegistry.Reference, query url.Values, store OCIRepositoryStore) (desc ociv1.Descriptor, err error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Resolve reference",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.oci.registry.domain", ref.Registry),
-			otelAttr.String("opentofu.oci.repository.name", ref.Repository),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.oci.registry.domain", ref.Registry),
+			traceattrs.String("opentofu.oci.repository.name", ref.Repository),
 		),
 	)
 	defer span.End()
@@ -279,7 +279,7 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		// If we're starting with a tag name then we need to query the
 		// repository to find out which digest is currently selected.
 		span.SetAttributes(
-			otelAttr.String("opentofu.oci.reference.tag", wantTag),
+			traceattrs.String("opentofu.oci.reference.tag", wantTag),
 		)
 		desc, err = store.Resolve(ctx, wantTag)
 		if err != nil {
@@ -294,7 +294,7 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		// and so we can't exercise this specific case from unit tests
 		// using in-memory or on-disk fakes. :(
 		span.SetAttributes(
-			otelAttr.String("opentofu.oci.reference.digest", wantDigest.String()),
+			traceattrs.String("opentofu.oci.reference.digest", wantDigest.String()),
 		)
 		desc, err = store.Resolve(ctx, wantDigest.String())
 		if err != nil {
@@ -303,9 +303,9 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 	}
 
 	span.SetAttributes(
-		otelAttr.String("oci.manifest.digest", desc.Digest.String()),
-		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
-		otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 	)
 
 	// The initial request is only required to return a "plain" descriptor,
@@ -326,9 +326,9 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Manifest, error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch manifest",
-		otelTrace.WithAttributes(
-			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
-			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		tracing.SpanAttributes(
+			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)
 	defer span.End()
@@ -356,8 +356,8 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	}
 
 	span.SetAttributes(
-		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
-		otelAttr.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
+		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		traceattrs.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
 	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
@@ -454,10 +454,10 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, store orasContent.Fetcher) (tempFile string, err error) {
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch module package",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.oci.blob.digest", desc.Digest.String()),
-			otelAttr.String("opentofu.oci.blob.media_type", desc.MediaType),
-			otelAttr.Int64("opentofu.oci.blob.size", desc.Size),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.oci.blob.digest", desc.Digest.String()),
+			traceattrs.String("opentofu.oci.blob.media_type", desc.MediaType),
+			traceattrs.Int64("opentofu.oci.blob.size", desc.Size),
 		),
 	)
 	defer span.End()
