@@ -12,8 +12,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
@@ -26,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodeValidatableResource represents a resource that is used for validation
@@ -54,8 +53,8 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, span := tracing.Tracer().Start(
 		ctx, traceNameValidateResource,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrConfigResourceAddr, n.Addr.String()),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrConfigResourceAddr, n.Addr.String()),
 		),
 	)
 	defer span.End()

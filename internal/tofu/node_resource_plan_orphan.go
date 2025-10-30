@@ -11,8 +11,6 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -20,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodePlannableResourceInstanceOrphan represents a resource that is "applyable":
@@ -63,10 +62,10 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
-			otelAttr.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+			traceattrs.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
 		),
 	)
 	defer span.End()
@@ -82,7 +81,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 			return diags
 		}
 		span.SetAttributes(
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 		)
 		diags = diags.Append(
 			n.managedResourceExecute(ctx, evalCtx),

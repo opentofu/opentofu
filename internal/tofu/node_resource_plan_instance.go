@@ -15,8 +15,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -28,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodePlannableResourceInstance represents a _single_ resource
@@ -93,10 +92,10 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
-			otelAttr.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+			traceattrs.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
 		),
 	)
 	defer span.End()
@@ -107,7 +106,7 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 	)
 
 	// Eval info is different depending on what kind of resource this is

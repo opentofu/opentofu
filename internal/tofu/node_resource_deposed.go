@@ -11,8 +11,6 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -22,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ConcreteResourceInstanceDeposedNodeFunc is a callback type used to convert
@@ -96,9 +95,9 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 
 	_, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, n.Addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, n.Addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
 		),
 	)
 	defer span.End()
@@ -108,7 +107,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 	)
 
 	// Read the state for the deposed resource instance

@@ -14,8 +14,6 @@ import (
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	copydir "github.com/opentofu/opentofu/internal/copy"
@@ -235,7 +233,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	// Step 3: For each provider version we've decided we need to install,
 	// install its package into our target cache (possibly via the global cache).
 	targetPlatform := i.targetDir.targetPlatform // we inherit this to behave correctly in unit tests
-	span.SetAttributes(otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()))
+	span.SetAttributes(traceattrs.OpenTofuTargetPlatform(targetPlatform.String()))
 	span.SetName("Install Providers - " + targetPlatform.String())
 	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, need, targetPlatform, errs)
 	if err != nil {
@@ -449,10 +447,10 @@ func (i *Installer) ensureProviderVersionsInstall(
 	for provider, version := range need {
 		traceCtx, span := tracing.Tracer().Start(ctx,
 			fmt.Sprintf("Install Provider %q", provider.String()),
-			trace.WithAttributes(
-				otelAttr.String(traceattrs.ProviderAddress, provider.String()),
-				otelAttr.String(traceattrs.ProviderVersion, version.String()),
-				otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()),
+			tracing.SpanAttributes(
+				traceattrs.OpenTofuProviderAddress(provider.String()),
+				traceattrs.OpenTofuProviderVersion(version.String()),
+				traceattrs.OpenTofuTargetPlatform(targetPlatform.String()),
 			),
 		)
 

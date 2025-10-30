@@ -10,14 +10,13 @@ import (
 	"net/url"
 	"os"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 type providersLockChangeType string
@@ -61,12 +60,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		return 1
 	}
 
-	span.SetAttributes(otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
+	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
 	if fsMirrorDir != "" {
-		span.SetAttributes(otelAttr.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
 	}
 	if netMirrorURL != "" {
-		span.SetAttributes(otelAttr.String("opentofu.provider.lock.netmirror", netMirrorURL))
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.netmirror", netMirrorURL))
 	}
 
 	var diags tfdiags.Diagnostics
@@ -88,7 +87,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	if len(optPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
 		span.SetAttributes(
-			otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
+			traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
 		)
 	} else {
 		platforms = make([]getproviders.Platform, 0, len(optPlatforms))

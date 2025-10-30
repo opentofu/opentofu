@@ -16,14 +16,13 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/replacefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -95,7 +94,9 @@ func loadLocks(loadParse func(*hclparse.Parser) (*hcl.File, hcl.Diagnostics)) (*
 // temporary files may be temporarily created in the same directory as the
 // given filename during the operation.
 func SaveLocksToFile(ctx context.Context, locks *Locks, filename string) tfdiags.Diagnostics {
-	_, span := tracing.Tracer().Start(ctx, "Save lockfile", trace.WithAttributes(semconv.FileName(filename)))
+	_, span := tracing.Tracer().Start(ctx, "Save lockfile", tracing.SpanAttributes(
+		traceattrs.FilePath(filename),
+	))
 	defer span.End()
 
 	src, diags := SaveLocksToBytes(locks)
@@ -105,7 +106,7 @@ func SaveLocksToFile(ctx context.Context, locks *Locks, filename string) tfdiags
 	}
 
 	span.AddEvent("Serialized lockfile")
-	span.SetAttributes(semconv.FileSize(len(src)))
+	span.SetAttributes(traceattrs.FileSize(len(src)))
 
 	err := replacefile.AtomicWriteFile(filename, src, 0644)
 	if err != nil {
