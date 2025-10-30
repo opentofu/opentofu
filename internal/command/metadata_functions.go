@@ -17,8 +17,8 @@ import (
 
 var (
 	ignoredFunctions = []addrs.Function{
-		addrs.ParseFunction("map").CoreNamespaced(),
-		addrs.ParseFunction("list").CoreNamespaced(),
+		addrs.ParseFunction("map").FullyQualified(),
+		addrs.ParseFunction("list").FullyQualified(),
 	}
 )
 
@@ -82,7 +82,7 @@ Usage: tofu [global options] metadata functions -json
 `
 
 func isIgnoredFunction(name string) bool {
-	funcAddr := addrs.ParseFunction(name).CoreNamespaced().String()
+	funcAddr := addrs.ParseFunction(name).FullyQualified().String()
 	for _, i := range ignoredFunctions {
 		if funcAddr == i.String() {
 			return true

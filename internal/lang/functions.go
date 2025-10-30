@@ -59,7 +59,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		}
 		// Copy all stdlib funcs into core:: namespace
 		for _, name := range coreNames {
-			s.funcs[addrs.ParseFunction(name).CoreNamespaced().String()] = s.funcs[name]
+			s.funcs[addrs.ParseFunction(name).FullyQualified().String()] = s.funcs[name]
 		}
 	}
 	s.funcsLock.Unlock()

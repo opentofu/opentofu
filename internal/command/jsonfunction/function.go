@@ -61,11 +61,11 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 		// Even though it's not possible to have a provider namespaced function end up in here,
 		// we want to qualify the function name to be sure that we check exactly for the
 		// function that we have custom marshaller for.
-		fqFuncAddr := addrs.ParseFunction(name).CoreNamespaced().String()
+		fqFuncAddr := addrs.ParseFunction(name).FullyQualified().String()
 		switch fqFuncAddr {
-		case addrs.ParseFunction("can").CoreNamespaced().String():
+		case addrs.ParseFunction("can").FullyQualified().String():
 			signatures.Signatures[name] = marshalCan(v)
-		case addrs.ParseFunction("try").CoreNamespaced().String():
+		case addrs.ParseFunction("try").FullyQualified().String():
 			signatures.Signatures[name] = marshalTry(v)
 		default:
 			signature, err := marshalFunction(v)

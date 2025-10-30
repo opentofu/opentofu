@@ -1254,7 +1254,7 @@ func TestFunctions(t *testing.T) {
 		for _, impureFunc := range impureFunctions {
 			funcAddr := addrs.ParseFunction(impureFunc)
 			delete(allFunctions, funcAddr.Name)
-			delete(allFunctions, funcAddr.CoreNamespaced().String())
+			delete(allFunctions, funcAddr.FullyQualified().String())
 		}
 		for f := range scope.Functions() {
 			if _, ok := tests[addrs.ParseFunction(f).Name]; !ok {
@@ -1355,7 +1355,7 @@ func TestFunctionsPrefixedCorrectly(t *testing.T) {
 		if _, ok := got[name]; !ok {
 			t.Errorf("expected %q function to be in the scope", name)
 		}
-		want := addrs.ParseFunction(name).CoreNamespaced().String()
+		want := addrs.ParseFunction(name).FullyQualified().String()
 		if _, ok := got[want]; !ok {
 			t.Errorf("expected %q function to be in the scope", want)
 		}

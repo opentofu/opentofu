@@ -62,9 +62,13 @@ func (f Function) IsNamespace(namespace string) bool {
 	return len(f.Namespaces) > 0 && f.Namespaces[0] == namespace
 }
 
-// CoreNamespaced returns the function with the [FunctionNamespaceCore] namespace
-// if has no namespace already defined.
-func (f Function) CoreNamespaced() Function {
+// FullyQualified returns a new [Function] where the [Function.Namespaces] is guaranteed to be filled.
+// For the functions that already have a namespace defined (e.g.: provider::test::func, core::tolist, etc), this
+// method will return the object that was called on.
+// For the functions that have no namespace defined (tolist, tomap, ephemeralasnull, sensitive, etc), this
+// method will return a new struct with the [FunctionNamespaceCore] as the namespace.
+// The purpose of this is to ensure consistency when handling HCL functions addresses.
+func (f Function) FullyQualified() Function {
 	if len(f.Namespaces) > 0 {
 		return f
 	}
