@@ -2756,6 +2756,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		// Copy the previous state, changing only the value
 		newState := &states.ResourceInstanceObject{
 			CreateBeforeDestroy: state.CreateBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 			Dependencies:        state.Dependencies,
 			Private:             state.Private,
 			Status:              state.Status,
@@ -2970,6 +2971,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 		}
 
 		// if the resource was being deleted, the dependencies are not going to
@@ -2987,6 +2989,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 		}
 		return newState, diags
 
