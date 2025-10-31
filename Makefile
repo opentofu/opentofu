@@ -47,7 +47,7 @@ protobuf:
 # Golangci-lint
 .PHONY: golangci-lint
 golangci-lint:
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0 run --timeout 60m ./...
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0 run --timeout 60m ./...
 
 # Run license check
 .PHONY: license-check
