@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //go:build darwin
-// +build darwin
 
 package cliconfig
 
