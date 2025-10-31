@@ -80,3 +80,74 @@ func OpenTofuModuleSource(addr string) attribute.KeyValue {
 func OpenTofuModuleVersion(v string) attribute.KeyValue {
 	return attribute.String("opentofu.module.version", v)
 }
+
+// OpenTofuOCIReferenceTag returns an attribute definition for indicating
+// which OCI repository tag is relevant to a particular trace span.
+func OpenTofuOCIReferenceTag(name string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.reference.tag", name)
+}
+
+// OpenTofuOCIReferenceDigest returns an attribute definition for indicating
+// which OCI digest reference is relevant to a particular trace span.
+func OpenTofuOCIReferenceDigest(digest string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.reference.digest", digest)
+}
+
+// OpenTofuOCIManifestMediaType returns an attribute definition for indicating
+// which OCI manifest media type is relevant to a particular trace span.
+func OpenTofuOCIManifestMediaType(typ string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.manifest.media_type", typ)
+}
+
+// OpenTofuOCIManifestArtifactType returns an attribute definition for indicating
+// which OCI manifest artifact type is relevant to a particular trace span.
+func OpenTofuOCIManifestArtifactType(typ string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.manifest.artifact_type", typ)
+}
+
+// OpenTofuOCIManifestSize returns an attribute definition for indicating
+// the size in bytes of an OCI manifest that is relevant to a particular
+// trace span.
+func OpenTofuOCIManifestSize(size int64) attribute.KeyValue {
+	return attribute.Int64("opentofu.oci.manifest.size", size)
+}
+
+// OpenTofuOCIBlobDigest returns an attribute definition for indicating
+// which OCI blob digest is relevant to a particular trace span.
+func OpenTofuOCIBlobDigest(digest string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.blob.digest", digest)
+}
+
+// OpenTofuOCIBlobMediaType returns an attribute definition for indicating
+// which OCI blob media type is relevant to a particular trace span.
+func OpenTofuOCIBlobMediaType(typ string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.blob.media_type", typ)
+}
+
+// OpenTofuOCIBlobArtifactType returns an attribute definition for indicating
+// which OCI blob artifact type is relevant to a particular trace span.
+func OpenTofuOCIBlobArtifactType(typ string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.blob.artifact_type", typ)
+}
+
+// OpenTofuOCIBlobSize returns an attribute definition for indicating
+// the size in bytes of an OCI blob that is relevant to a particular
+// trace span.
+func OpenTofuOCIBlobSize(size int64) attribute.KeyValue {
+	return attribute.Int64("opentofu.oci.blob.size", size)
+}
+
+// OpenTofuOCIRegistryDomain returns an attribute definition for indicating
+// which OCI registry domain name is relevant to a particular trace span.
+func OpenTofuOCIRegistryDomain(domain string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.registry.domain", domain)
+}
+
+// OpenTofuOCIRepositoryName returns an attribute definition for indicating
+// which OCI repository is relevant to a particular trace span.
+//
+// The value of this should not include the registry domain name. Use a
+// separate attribute built from [OpenTofuOCIRegistryDomain] for that.
+func OpenTofuOCIRepositoryName(name string) attribute.KeyValue {
+	return attribute.String("opentofu.oci.repository.name", name)
+}

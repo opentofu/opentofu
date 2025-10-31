@@ -89,7 +89,7 @@ func FileSize(val int) attribute.KeyValue {
 	return semconv.FileSize(val)
 }
 
-// OCIManifiestDigest returns an attribute representing an OCI manifest
+// OCIManifestDigest returns an attribute representing an OCI manifest
 // digest associated with a trace span, using the attribute name defined
 // by our currently-selected version of the OpenTelemetry semantic conventions.
 //
