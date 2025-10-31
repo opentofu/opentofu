@@ -25,10 +25,6 @@ var impureFunctions = []string{
 	"uuid",
 }
 
-// CoreNamespace defines the string prefix used for all core namespaced functions
-// TODO: This should probably be replaced with addrs.Function everywhere
-const CoreNamespace = addrs.FunctionNamespaceCore + "::"
-
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.
 func (s *Scope) Functions() map[string]function.Function {
@@ -63,7 +59,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		}
 		// Copy all stdlib funcs into core:: namespace
 		for _, name := range coreNames {
-			s.funcs[CoreNamespace+name] = s.funcs[name]
+			s.funcs[addrs.ParseFunction(name).FullyQualified().String()] = s.funcs[name]
 		}
 	}
 	s.funcsLock.Unlock()

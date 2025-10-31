@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -58,10 +58,14 @@ func Marshal(f map[string]function.Function) ([]byte, tfdiags.Diagnostics) {
 	signatures := newFunctions()
 
 	for name, v := range f {
-		switch name {
-		case "can", lang.CoreNamespace + "can":
+		// Even though it's not possible to have a provider namespaced function end up in here,
+		// we want to qualify the function name to be sure that we check exactly for the
+		// function that we have custom marshaller for.
+		fqFuncAddr := addrs.ParseFunction(name).FullyQualified().String()
+		switch fqFuncAddr {
+		case addrs.ParseFunction("can").FullyQualified().String():
 			signatures.Signatures[name] = marshalCan(v)
-		case "try", lang.CoreNamespace + "try":
+		case addrs.ParseFunction("try").FullyQualified().String():
 			signatures.Signatures[name] = marshalTry(v)
 		default:
 			signature, err := marshalFunction(v)
