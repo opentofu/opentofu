@@ -303,7 +303,7 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 	}
 
 	span.SetAttributes(
-		traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+		traceattrs.OCIManifestDigest(desc.Digest.String()),
 		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
 		traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 	)
@@ -327,7 +327,7 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch manifest",
 		tracing.SpanAttributes(
-			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.OCIManifestDigest(desc.Digest.String()),
 			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)

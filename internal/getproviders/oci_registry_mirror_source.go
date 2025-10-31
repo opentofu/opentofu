@@ -493,7 +493,7 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 		return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", tagName, err))
 	}
 	span.SetAttributes(
-		traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+		traceattrs.OCIManifestDigest(desc.Digest.String()),
 		traceattrs.String("opentofu.oci.reference.tag", tagName),
 		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
 	)
@@ -545,7 +545,7 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch index manifest",
 		tracing.SpanAttributes(
-			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.OCIManifestDigest(desc.Digest.String()),
 			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)
@@ -597,7 +597,7 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch platform-specific manifest",
 		tracing.SpanAttributes(
-			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
+			traceattrs.OCIManifestDigest(desc.Digest.String()),
 			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
 		),
 	)
