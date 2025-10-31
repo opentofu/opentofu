@@ -88,11 +88,11 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch provider package",
 		tracing.SpanAttributes(
-			traceattrs.String("opentofu.oci.registry.domain", p.registryDomain),
-			traceattrs.String("opentofu.oci.repository.name", p.repositoryName),
-			traceattrs.String("opentofu.oci.blob.digest", pkgDesc.Digest.String()),
-			traceattrs.String("opentofu.oci.blob.media_type", pkgDesc.MediaType),
-			traceattrs.Int64("opentofu.oci.blob.size", pkgDesc.Size),
+			traceattrs.OpenTofuOCIRegistryDomain(p.registryDomain),
+			traceattrs.OpenTofuOCIRepositoryName(p.repositoryName),
+			traceattrs.OpenTofuOCIBlobDigest(pkgDesc.Digest.String()),
+			traceattrs.OpenTofuOCIBlobMediaType(pkgDesc.MediaType),
+			traceattrs.OpenTofuOCIBlobSize(pkgDesc.Size),
 			traceattrs.String("opentofu.provider.local_dir", targetDir),
 			traceattrs.OpenTofuProviderAddress(meta.Provider.String()),
 			traceattrs.OpenTofuProviderVersion(meta.Version.String()),

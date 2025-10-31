@@ -77,8 +77,8 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Authenticate to OCI Registry",
 		tracing.SpanAttributes(
-			traceattrs.String("opentofu.oci.registry.domain", registryDomain),
-			traceattrs.String("opentofu.oci.repository.name", repositoryName),
+			traceattrs.OpenTofuOCIRegistryDomain(registryDomain),
+			traceattrs.OpenTofuOCIRepositoryName(repositoryName),
 		),
 	)
 	defer span.End()
