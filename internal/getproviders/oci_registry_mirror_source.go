@@ -493,9 +493,9 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 		return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", tagName, err))
 	}
 	span.SetAttributes(
-		traceattrs.String("oci.manifest.digest", desc.Digest.String()),
-		traceattrs.String("opentofu.oci.reference.tag", tagName),
-		traceattrs.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		traceattrs.OCIManifestDigest(desc.Digest.String()),
+		traceattrs.OpenTofuOCIReferenceTag(tagName),
+		traceattrs.OpenTofuOCIManifestMediaType(desc.MediaType),
 	)
 	// Not all store implementations can return the manifest's artifact type as part
 	// of the tag-resolution response, so we'll check this early if we can, but
@@ -505,7 +505,7 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 	// one way or another.)
 	if desc.ArtifactType != "" && desc.ArtifactType != ociIndexManifestArtifactType {
 		span.SetAttributes(
-			traceattrs.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
+			traceattrs.OpenTofuOCIManifestArtifactType(desc.ArtifactType),
 		)
 		switch desc.ArtifactType {
 		case "application/vnd.opentofu.provider-target":
@@ -545,8 +545,8 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch index manifest",
 		tracing.SpanAttributes(
-			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
-			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
+			traceattrs.OCIManifestDigest(desc.Digest.String()),
+			traceattrs.OpenTofuOCIManifestSize(desc.Size),
 		),
 	)
 	defer span.End()
@@ -573,8 +573,8 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
 	span.SetAttributes(
-		traceattrs.String("opentofu.oci.manifest.media_type", manifest.MediaType),
-		traceattrs.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+		traceattrs.OpenTofuOCIManifestMediaType(manifest.MediaType),
+		traceattrs.OpenTofuOCIManifestArtifactType(manifest.ArtifactType),
 	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
@@ -597,8 +597,8 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Fetch platform-specific manifest",
 		tracing.SpanAttributes(
-			traceattrs.String("oci.manifest.digest", desc.Digest.String()),
-			traceattrs.Int64("opentofu.oci.manifest.size", desc.Size),
+			traceattrs.OCIManifestDigest(desc.Digest.String()),
+			traceattrs.OpenTofuOCIManifestSize(desc.Size),
 		),
 	)
 	defer span.End()
@@ -625,8 +625,8 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
 	span.SetAttributes(
-		traceattrs.String("opentofu.oci.manifest.media_type", manifest.MediaType),
-		traceattrs.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+		traceattrs.OpenTofuOCIManifestMediaType(manifest.MediaType),
+		traceattrs.OpenTofuOCIManifestArtifactType(manifest.ArtifactType),
 	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
