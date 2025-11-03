@@ -1,5 +1,23 @@
 ## 1.10.7 (unreleased)
 
+SECURITY ADVISORIES:
+
+This release contains fixes for some security advisories related to previous releases in this series.
+
+- `tofu init` in OpenTofu v1.10.6 and earlier could potentially use unbounded memory if there is a direct or indirect dependency on a maliciously-crafted module package distributed as a "tar" archive.
+
+    This would require the attacker to coerce a root module author to depend (directly or indirectly) on a module package they control, using the HTTP, Amazon S3, or Google Cloud Storage source types to refer to a tar archive.
+
+    This release incorporates the upstream fixes for [CVE-2025-58183](https://www.cve.org/CVERecord?id=CVE-2025-58183).
+
+- When making requests to HTTPS servers, OpenTofu v1.10.6 and earlier could potentially use unbounded memory or crash with a "panic" error if TLS verification involves an excessively-long certificate chain or a chain including DSA public keys.
+
+    This affected all outgoing HTTPS requests made by OpenTofu itself, including requests to HTTPS-based state storage backends, module registries, and provider registries. For example, an attacker could coerce a root module author to depend (directly or indirectly) on a module they control which then refers to a module or provider from an attacker-controlled registry. That mode of attack would cause failures in `tofu init`, at module or provider installation time.
+
+    Provider plugins contain their own HTTPS client code, which may have similar problems. OpenTofu v1.10.7 cannot address similar problems within provider plugins, and so we recommend checking for similar advisories and fixes in the provider plugins you use.
+
+    This release incorporates upstream fixes for [CVE-2025-58185](https://www.cve.org/CVERecord?id=CVE-2025-58185), [CVE-2025-58187](https://www.cve.org/CVERecord?id=CVE-2025-58187), and [CVE-2025-58188](https://www.cve.org/CVERecord?id=CVE-2025-58188).
+
 BUG FIXES:
 
 * Fix crash in tofu test when using deprecated outputs ([#3249](https://github.com/opentofu/opentofu/pull/3249))
