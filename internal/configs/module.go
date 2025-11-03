@@ -62,6 +62,8 @@ type Module struct {
 
 	Tests map[string]*TestFile
 
+	CustomFunctions map[string]*Function
+
 	// IsOverridden indicates if the module is being overridden. It's used in
 	// testing framework to not call the underlying module.
 	IsOverridden bool
@@ -115,6 +117,9 @@ type File struct {
 	Removed []*Removed
 
 	Checks []*Check
+
+	ModuleDefs []*ModuleDef
+	Functions  []*Function
 }
 
 // SelectiveLoader allows the consumer to only load and validate the portions of files needed for the given operations/contexts
@@ -182,6 +187,7 @@ func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load
 		DataResources:      map[string]*Resource{},
 		EphemeralResources: map[string]*Resource{},
 		Checks:             map[string]*Check{},
+		CustomFunctions:    map[string]*Function{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
 		SourceDir:          sourceDir,
@@ -595,6 +601,19 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	m.Removed = append(m.Removed, file.Removed...)
+
+	for _, fn := range file.Functions {
+		if existing, exists := m.CustomFunctions[fn.Name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate function",
+				Detail:   fmt.Sprintf("A function named %q was already defined at %s. Functions must have unique names within a module.", existing.Name, existing.DeclRange),
+				Subject:  &fn.DeclRange,
+			})
+			continue
+		}
+		m.CustomFunctions[fn.Name] = fn
+	}
 
 	return diags
 }

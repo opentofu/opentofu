@@ -74,9 +74,14 @@ type Scope struct {
 	PlanTimestamp time.Time
 
 	ProviderFunctions ProviderFunction
+
+	CustomFunctions map[string]CustomFunction
 }
 
 type ProviderFunction func(context.Context, addrs.ProviderFunction, tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics)
+type CustomFunction interface {
+	Implementation(*hcl.EvalContext) (function.Function, hcl.Diagnostics)
+}
 
 // SetActiveExperiments allows a caller to declare that a set of experiments
 // is active for the module that the receiving Scope belongs to, which might

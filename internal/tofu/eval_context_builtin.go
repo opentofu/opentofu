@@ -454,10 +454,15 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 	mc := c.Evaluator.Config.DescendentForInstance(c.PathValue)
 
 	if mc == nil || mc.Module.ProviderRequirements == nil {
-		return c.Evaluator.Scope(data, self, source, nil)
+		return c.Evaluator.Scope(data, self, source, nil, nil)
 	}
 
-	scope := c.Evaluator.Scope(data, self, source, func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+	crap := map[string]lang.CustomFunction{}
+	for name, fn := range mc.Module.CustomFunctions {
+		crap[name] = fn
+	}
+
+	scope := c.Evaluator.Scope(data, self, source, crap, func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 		providedBy, ok := c.ProviderFunctionTracker.Lookup(c.PathValue.Module(), pf)
 		if !ok {
 			// This should not be possible if references are tracked correctly

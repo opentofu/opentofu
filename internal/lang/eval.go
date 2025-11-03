@@ -348,6 +348,13 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 	// provider-defined functions below.
 	maps.Copy(hclCtx.Functions, s.Functions())
 
+	for name, fn := range s.CustomFunctions {
+		// TODO recursion limitations
+		impl, fnDiags := fn.Implementation(hclCtx)
+		diags = diags.Append(fnDiags)
+		hclCtx.Functions[addrs.FunctionNamespaceModule+"::"+name] = impl
+	}
+
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
 		return hclCtx, diags

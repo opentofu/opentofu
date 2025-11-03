@@ -223,6 +223,26 @@ func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExpe
 			if cfg != nil {
 				file.Removed = append(file.Removed, cfg)
 			}
+		case "define":
+			if len(block.Labels) < 2 {
+				panic("TODO diags")
+			}
+			switch block.Labels[0] {
+			case "module":
+				cfg, cfgDiags := decodeModuleDefBlock(block)
+				diags = append(diags, cfgDiags...)
+				if cfg != nil {
+					file.ModuleDefs = append(file.ModuleDefs, cfg)
+				}
+			default:
+				panic("TODO diags")
+			}
+		case "function":
+			cfg, cfgDiags := decodeFunctionBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Functions = append(file.Functions, cfg)
+			}
 
 		default:
 			// Should never happen because the above cases should be exhaustive
@@ -327,6 +347,14 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "removed",
+		},
+		{
+			Type:       "define",
+			LabelNames: []string{"type", "name"},
+		},
+		{
+			Type:       "function",
+			LabelNames: []string{"name"},
 		},
 	},
 }

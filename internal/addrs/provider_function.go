@@ -39,11 +39,13 @@ type Function struct {
 const (
 	FunctionNamespaceProvider = "provider"
 	FunctionNamespaceCore     = "core"
+	FunctionNamespaceModule   = "module"
 )
 
 var FunctionNamespaces = []string{
 	FunctionNamespaceProvider,
 	FunctionNamespaceCore,
+	FunctionNamespaceModule,
 }
 
 func ParseFunction(input string) Function {
