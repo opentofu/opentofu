@@ -68,6 +68,10 @@ type Evaluator struct {
 	// ensures they can be safely accessed and modified concurrently.
 	Changes *plans.ChangesSync
 
+	// InstanceExpander tracks the expansion of modules and resources, which
+	// is used to determine the set of instance keys for count and for_each.
+	InstanceExpander *instances.Expander
+
 	PlanTimestamp time.Time
 }
 
@@ -439,6 +443,23 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 	// Build up all the module objects, creating a map of values for each
 	// module instance.
 	moduleInstances := map[addrs.InstanceKey]map[string]cty.Value{}
+
+	// First, we need to determine which module instances actually exist.
+	if d.Evaluator.InstanceExpander != nil {
+		childModuleAddr := d.ModulePath.Module().Child(addr.Name)
+		moduleInstanceAddrs := d.Evaluator.InstanceExpander.ExpandModule(childModuleAddr)
+
+		for _, moduleInstanceAddr := range moduleInstanceAddrs {
+			if len(moduleInstanceAddr) > 0 {
+				lastStep := moduleInstanceAddr[len(moduleInstanceAddr)-1]
+				key := lastStep.InstanceKey
+
+				if _, exists := moduleInstances[key]; !exists {
+					moduleInstances[key] = map[string]cty.Value{}
+				}
+			}
+		}
+	}
 
 	// create a dummy object type for validation below
 	unknownMap := map[string]cty.Type{}
