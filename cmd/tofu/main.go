@@ -22,8 +22,8 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -65,6 +65,7 @@ func init() {
 }
 
 func main() {
+	// command.execute
 	os.Exit(realMain())
 }
 
@@ -263,13 +264,18 @@ func realMain() int {
 		}
 	}
 
-	// In tests, Commands may already be set to provide mock commands
-	if commands == nil {
-		// Commands get to hold on to the original working directory here,
-		// in case they need to refer back to it for any special reason, though
-		// they should primarily be working with the override working directory
-		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+	oldStyle := false
+
+	if oldStyle {
+		// In tests, Commands may already be set to provide mock commands
+		if commands == nil {
+			// Commands get to hold on to the original working directory here,
+			// in case they need to refer back to it for any special reason, though
+			// they should primarily be working with the override working directory
+			// that we've now switched to above.
+			m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+			initCommands(m)
+		}
 	}
 
 	// Attempt to ensure the config directory exists.
@@ -283,103 +289,112 @@ func realMain() int {
 	// Make sure we clean up any managed plugins at the end of this
 	defer plugin.CleanupClients()
 
-	// Build the CLI so far, we do this so we can query the subcommand.
-	cliRunner := &cli.CLI{
-		Args:       args,
-		Commands:   commands,
-		HelpFunc:   helpFunc,
-		HelpWriter: os.Stdout,
-	}
-
-	// Prefix the args with any args from the EnvCLI
-	args, err = mergeEnvArgs(EnvCLI, cliRunner.Subcommand(), args)
-	if err != nil {
-		Ui.Error(err.Error())
-		return 1
-	}
-
-	// Prefix the args with any args from the EnvCLI targeting this command
-	suffix := strings.ReplaceAll(strings.ReplaceAll(
-		cliRunner.Subcommand(), "-", "_"), " ", "_")
-	args, err = mergeEnvArgs(
-		fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
-	if err != nil {
-		Ui.Error(err.Error())
-		return 1
-	}
-
-	// We shortcut "--version" and "-v" to just show the version
-	for _, arg := range args {
-		if arg == "-v" || arg == "-version" || arg == "--version" {
-			newArgs := make([]string, len(args)+1)
-			newArgs[0] = "version"
-			copy(newArgs[1:], args)
-			args = newArgs
-			break
+	if oldStyle {
+		// Build the CLI so far, we do this so we can query the subcommand.
+		cliRunner := &cli.CLI{
+			Args:       args,
+			Commands:   commands,
+			HelpFunc:   helpFunc,
+			HelpWriter: os.Stdout,
 		}
-	}
 
-	// Rebuild the CLI with any modified args.
-	log.Printf("[INFO] CLI command args: %#v", args)
-	cliRunner = &cli.CLI{
-		Name:           binName,
-		Args:           args,
-		Commands:       commands,
-		HiddenCommands: getAliasCommandKeys(),
-		HelpFunc:       helpFunc,
-		HelpWriter:     os.Stdout,
-
-		Autocomplete:          true,
-		AutocompleteInstall:   "install-autocomplete",
-		AutocompleteUninstall: "uninstall-autocomplete",
-	}
-
-	// Before we continue we'll check whether the requested command is
-	// actually known. If not, we might be able to suggest an alternative
-	// if it seems like the user made a typo.
-	// (This bypasses the built-in help handling in cli.CLI for the situation
-	// where a command isn't found, because it's likely more helpful to
-	// mention what specifically went wrong, rather than just printing out
-	// a big block of usage information.)
-
-	// Check if this is being run via shell auto-complete, which uses the
-	// binary name as the first argument and won't be listed as a subcommand.
-	autoComplete := os.Getenv("COMP_LINE") != ""
-
-	if cmd := cliRunner.Subcommand(); cmd != "" && !autoComplete {
-		// Due to the design of cli.CLI, this special error message only works
-		// for typos of top-level commands. For a subcommand typo, like
-		// "tofu state push", cmd would be "state" here and thus would
-		// be considered to exist, and it would print out its own usage message.
-		if _, exists := commands[cmd]; !exists {
-			suggestions := make([]string, 0, len(commands))
-			for name := range commands {
-				suggestions = append(suggestions, name)
-			}
-			suggestion := didyoumean.NameSuggestion(cmd, suggestions)
-			if suggestion != "" {
-				suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
-			}
-			fmt.Fprintf(os.Stderr, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", cmd, suggestion)
+		// Prefix the args with any args from the EnvCLI
+		args, err = mergeEnvArgs(EnvCLI, cliRunner.Subcommand(), args)
+		if err != nil {
+			Ui.Error(err.Error())
 			return 1
 		}
-	}
 
-	exitCode, err := cliRunner.Run()
-	if err != nil {
+		// Prefix the args with any args from the EnvCLI targeting this command
+		suffix := strings.ReplaceAll(strings.ReplaceAll(
+			cliRunner.Subcommand(), "-", "_"), " ", "_")
+		args, err = mergeEnvArgs(
+			fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
+		if err != nil {
+			Ui.Error(err.Error())
+			return 1
+		}
+
+		// We shortcut "--version" and "-v" to just show the version
+		for _, arg := range args {
+			if arg == "-v" || arg == "-version" || arg == "--version" {
+				newArgs := make([]string, len(args)+1)
+				newArgs[0] = "version"
+				copy(newArgs[1:], args)
+				args = newArgs
+				break
+			}
+		}
+
+		// Rebuild the CLI with any modified args.
+		log.Printf("[INFO] CLI command args: %#v", args)
+		cliRunner = &cli.CLI{
+			Name:           binName,
+			Args:           args,
+			Commands:       commands,
+			HiddenCommands: getAliasCommandKeys(),
+			HelpFunc:       helpFunc,
+			HelpWriter:     os.Stdout,
+
+			Autocomplete:          true,
+			AutocompleteInstall:   "install-autocomplete",
+			AutocompleteUninstall: "uninstall-autocomplete",
+		}
+
+		// Before we continue we'll check whether the requested command is
+		// actually known. If not, we might be able to suggest an alternative
+		// if it seems like the user made a typo.
+		// (This bypasses the built-in help handling in cli.CLI for the situation
+		// where a command isn't found, because it's likely more helpful to
+		// mention what specifically went wrong, rather than just printing out
+		// a big block of usage information.)
+
+		// Check if this is being run via shell auto-complete, which uses the
+		// binary name as the first argument and won't be listed as a subcommand.
+		autoComplete := os.Getenv("COMP_LINE") != ""
+
+		if cmd := cliRunner.Subcommand(); cmd != "" && !autoComplete {
+			// Due to the design of cli.CLI, this special error message only works
+			// for typos of top-level commands. For a subcommand typo, like
+			// "tofu state push", cmd would be "state" here and thus would
+			// be considered to exist, and it would print out its own usage message.
+			if _, exists := commands[cmd]; !exists {
+				suggestions := make([]string, 0, len(commands))
+				for name := range commands {
+					suggestions = append(suggestions, name)
+				}
+				suggestion := didyoumean.NameSuggestion(cmd, suggestions)
+				if suggestion != "" {
+					suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+				}
+				fmt.Fprintf(os.Stderr, "OpenTofu has no command named %q.%s\n\nTo see all of OpenTofu's top-level commands, run:\n  tofu -help\n\n", cmd, suggestion)
+				return 1
+			}
+		}
+
+		exitCode, err := cliRunner.Run()
+		if err != nil {
+			Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
+			return 1
+		}
+		_ = exitCode
+
+		// if we are exiting with a non-zero code, check if it was caused by any
+		// plugins crashing
+		if exitCode != 0 {
+			for _, panicLog := range logging.PluginPanics() {
+				Ui.Error(panicLog)
+			}
+		}
+	}
+	m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+	runner := command.InitCobra(m)
+	if err := runner(); err != nil {
+		// TODO andrei add a custom error to return the exit code and return that later
 		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1
 	}
-
-	// if we are exiting with a non-zero code, check if it was caused by any
-	// plugins crashing
-	if exitCode != 0 {
-		for _, panicLog := range logging.PluginPanics() {
-			Ui.Error(panicLog)
-		}
-	}
-
-	return exitCode
+	return 0
 }
 
 func mergeEnvArgs(envName string, cmd string, args []string) ([]string, error) {

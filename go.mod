@@ -86,6 +86,8 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
 	github.com/spf13/afero v1.15.0
+	github.com/spf13/cobra v1.10.1
+	github.com/spf13/pflag v1.0.9
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.41
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.1.11
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.1.0
@@ -221,7 +223,7 @@ require (
 	github.com/henvic/httpretty v0.0.6 // indirect
 	github.com/huandu/xstrings v1.3.3 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jedib0t/go-pretty v4.3.0+incompatible // indirect
 	github.com/jedib0t/go-pretty/v6 v6.4.4 // indirect
 	github.com/joho/godotenv v1.3.0 // indirect
@@ -263,8 +265,6 @@ require (
 	github.com/samber/lo v1.37.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/cobra v1.6.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/thanhpk/randstr v1.0.4 // indirect
