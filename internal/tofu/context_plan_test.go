@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,6 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
@@ -1394,7 +1397,7 @@ func TestContext2Plan_preventDestroy_bad(t *testing.T) {
 
 	plan, err := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 
-	expectedErr := "aws_instance.foo has lifecycle.prevent_destroy"
+	expectedErr := "aws_instance.foo has prevent_destroy"
 	if !strings.Contains(fmt.Sprintf("%s", err), expectedErr) {
 		if plan != nil {
 			t.Logf("%s", legacyDiffComparisonString(plan.Changes))
@@ -1442,6 +1445,378 @@ func TestContext2Plan_preventDestroy_good(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_preventDestroy_dynamic(t *testing.T) {
+	// We'll run the same set of tests with equivalent configuration written
+	// with different syntaxes.
+	fixtures := map[string]string{
+		"main.tf": `
+			variable "prevent_destroy" {
+				# intentionally not constraining type here because some
+				# of the test cases intentionally use the wrong type to
+				# test how we handle that.
+				type = any
+			}
+
+			resource "test_instance" "foo" {
+				require_new = "yes"
+
+				lifecycle {
+					prevent_destroy = var.prevent_destroy
+				}
+			}
+		`,
+		// This is a JSON equivalent of the above, to make sure that HCL's
+		// slightly different treatment of template-based dynamic expressions
+		// in JSON does not interfere with the handling of prevent_destroy.
+		"main.tf.json": `
+			{
+				"variable": {
+					"prevent_destroy": {
+						"type": "any"
+					}
+				},
+				"resource": {
+					"test_instance": {
+						"foo": {
+							"require_new": "yes",
+							"lifecycle": {
+								"prevent_destroy": "${var.prevent_destroy}"
+							}
+						}
+					}
+				}
+			}
+		`,
+	}
+
+	for filename, content := range fixtures {
+		t.Run(filename, func(t *testing.T) {
+			m := testModuleInline(t, map[string]string{
+				filename: content,
+			})
+			p := testProvider("test")
+			p.PlanResourceChangeFn = testDiffFn
+			state := states.NewState()
+			root := state.EnsureModule(addrs.RootModuleInstance)
+			root.SetResourceInstanceCurrent(
+				mustResourceInstanceAddr("test_instance.foo").Resource,
+				&states.ResourceInstanceObjectSrc{
+					Status:    states.ObjectReady,
+					AttrsJSON: []byte(`{"id":"i-abc123"}`),
+				},
+				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+				addrs.NoKey,
+			)
+
+			tests := []struct {
+				PreventDestroy cty.Value
+				WantErr        string
+			}{
+				{
+					PreventDestroy: cty.False,
+					WantErr:        ``,
+				},
+				{
+					PreventDestroy: cty.True,
+					WantErr:        `test_instance.foo has prevent_destroy set`,
+				},
+				{
+					PreventDestroy: cty.StringVal("false"), // automatic type conversion
+					WantErr:        ``,
+				},
+				{
+					PreventDestroy: cty.StringVal("true"), // automatic type conversion
+					WantErr:        `test_instance.foo has prevent_destroy set`,
+				},
+				{
+					PreventDestroy: cty.UnknownVal(cty.Bool),
+					WantErr:        `test_instance.foo has a prevent_destroy argument but its value will not be known until the apply step`,
+				},
+				{
+					PreventDestroy: cty.DynamicVal,
+					WantErr:        `test_instance.foo has a prevent_destroy argument but its value will not be known until the apply step`,
+				},
+				{
+					PreventDestroy: cty.False.Mark(marks.Sensitive),
+					WantErr:        `test_instance.foo has a sensitive value for its prevent_destroy argument`,
+				},
+				// NOTE: can't test marks.Ephemeral here, because the test fixture's
+				// input variable is not declared as ephemeral. Refer to
+				// [TestContext2Plan_preventDestroy_dynamicEphemeral] instead.
+				// NOTE: can't test references to deprecated output values here, because
+				// the test fixture doesn't include any deprecated output values and
+				// an input variable cannot be marked as deprecated, and because
+				// deprecation causes warnings rather than errors. Refer to
+				// [TestContext2Plan_preventDestroy_dynamicDeprecated] instead.
+				{
+					PreventDestroy: cty.Zero,
+					WantErr:        `test_instance.foo has an invalid value for its prevent_destroy argument: bool required, but have number`,
+				},
+				{
+					PreventDestroy: cty.NullVal(cty.Bool),
+					WantErr:        `test_instance.foo has prevent_destroy set to null`,
+				},
+				{
+					PreventDestroy: cty.NullVal(cty.DynamicPseudoType),
+					WantErr:        `test_instance.foo has prevent_destroy set to null`,
+				},
+			}
+			for _, test := range tests {
+				t.Run(test.PreventDestroy.GoString(), func(t *testing.T) {
+					ctx := testContext2(t, &ContextOpts{
+						Providers: map[addrs.Provider]providers.Factory{
+							addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+						},
+					})
+
+					_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, InputValues{
+						"prevent_destroy": {
+							Value:      test.PreventDestroy,
+							SourceType: ValueFromCaller,
+						},
+					}))
+					if test.WantErr == "" {
+						if diags.HasErrors() {
+							t.Errorf("unexpected errors: %s", diags)
+						}
+					} else {
+						if !diags.HasErrors() {
+							t.Fatalf("unexpected success\nwant error diagnostics with substring %q", test.WantErr)
+						}
+						gotErr := diags.Err().Error()
+						if !strings.Contains(gotErr, test.WantErr) {
+							t.Fatalf("missing expected error\ngot: %s\nwant error diagnostics with substring %q", gotErr, test.WantErr)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestContext2Plan_preventDestroy_dynamicEphemeral(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			variable "prevent_destroy" {
+				type      = bool
+				default   = false
+				ephemeral = true
+			}
+
+			resource "test_instance" "foo" {
+				require_new = "yes"
+
+				lifecycle {
+					prevent_destroy = var.prevent_destroy
+				}
+			}
+		`,
+	})
+	p := testProvider("test")
+	p.PlanResourceChangeFn = testDiffFn
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_instance.foo").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, InputValues{
+		"prevent_destroy": {
+			Value:      cty.NilVal, // as if not set at all
+			SourceType: ValueFromCaller,
+		},
+	}))
+	if !diags.HasErrors() {
+		t.Fatalf("unexpected success\nwant error about ephemeral values")
+	}
+	gotErr := diags.Err().Error()
+	wantErr := `test_instance.foo has an ephemeral value for its prevent_destroy argument`
+	if !strings.Contains(gotErr, wantErr) {
+		t.Fatalf("missing expected error\ngot: %s\nwant error diagnostics with substring %q", gotErr, wantErr)
+	}
+}
+
+func TestContext2Plan_preventDestroy_dynamicDeprecated(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			module "child" {
+				source = "./child"
+			}
+
+			resource "test_instance" "foo" {
+				require_new = "yes"
+
+				lifecycle {
+					prevent_destroy = module.child.prevent_destroy
+				}
+			}
+		`,
+		"child/main.tf": `
+			output "prevent_destroy" {
+				value      = false
+				deprecated = "Deprecated for testing purposes!"
+			}
+		`,
+	})
+	p := testProvider("test")
+	p.PlanResourceChangeFn = testDiffFn
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_instance.foo").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	gotErr := diags.ErrWithWarnings().Error()
+	wantErr := `This value is derived from module.child.prevent_destroy`
+	if !strings.Contains(gotErr, wantErr) {
+		t.Fatalf("missing expected warning\ngot: %s\nwant warning diagnostic with substring %q", gotErr, wantErr)
+	}
+}
+
+func TestContext2Plan_preventDestroy_dynamicFromDataResource(t *testing.T) {
+	// This test is intentionally a little redundant with
+	// [TestContext2Plan_preventDestroy_dynamic], but intentionally involves
+	// a dependency on another resource so that we're more likely to catch
+	// situations where references from the prevent_destroy argument are
+	// not detected when we're building the dependency graph, and therefore
+	// the prevent_destroy argument might be evaluated too early.
+	//
+	// If that _does_ happen then the most likely symptom is that this will
+	// return an error about prevent_destroy being unknown or null rather
+	// than about the resource having prevent_destroy set, because the
+	// result from the upstream resource would not have been written to
+	// the state yet. Exactly what would happen depends on the nature of
+	// the bug that caused the dependencies to be incorrect, but we've
+	// used synctest here to ensure that it should at least fail _reliably_
+	// when such a bug is present, rather than being a flake.
+	synctest.Test(t, func(t *testing.T) {
+		m := testModuleInline(t, map[string]string{
+			"main.tf": `
+			data "source" "foo" {
+			}
+
+			resource "test_instance" "foo" {
+				require_new = "yes"
+
+				lifecycle {
+					prevent_destroy = data.source.foo.prevent_destroy
+				}
+			}
+		`,
+		})
+		mainP := testProvider("test")
+		mainP.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+			// Because we're simulating a "replace" situation here, the
+			// plan function actually gets called twice with the second
+			// one planning the "create" part of the replace. We want
+			// do do our fake synctest sleep only on the first plan call
+			// (where there's a prior state) because that's the one whose
+			// execution is supposed to wait until the data resource read
+			// has completed.
+			if !req.PriorState.IsNull() {
+				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: fake sleep before test_instance.foo plan")
+				// The duration here doesn't really matter as long as it's
+				// shorter than the one in the other provider below. Refer to
+				// the comment there for more information.
+				time.Sleep(5 * time.Second)
+				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: test_instance.foo plan")
+			} else {
+				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: test_instance.foo followup plan")
+			}
+			return testDiffFn(req)
+		}
+		dataP := &MockProvider{
+			GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+				DataSources: map[string]providers.Schema{
+					"source": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"prevent_destroy": {
+									Type:     cty.Bool,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			ReadDataSourceFn: func(_ providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: fake sleep before data.source.foo read")
+				// The duration here doesn't really matter as long as it's
+				// longer than the one in the other provider above, meaning
+				// that this data read will definitely complete after the
+				// resource is planned unless the dependency between the
+				// two resources was correctly detected.
+				//
+				// Note that because we're in a synctest bubble this does not
+				// actually cause a "real" sleep, and instead just interacts
+				// with the synctest bubble's fake clock.
+				time.Sleep(10 * time.Second)
+				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: data.source.foo read")
+				return providers.ReadDataSourceResponse{
+					State: cty.ObjectVal(map[string]cty.Value{
+						"prevent_destroy": cty.True,
+					}),
+				}
+			},
+		}
+		state := states.NewState()
+		root := state.EnsureModule(addrs.RootModuleInstance)
+		root.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr("test_instance.foo").Resource,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"id":"i-abc123"}`),
+			},
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			addrs.NoKey,
+		)
+
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"):   testProviderFuncFixed(mainP),
+				addrs.NewDefaultProvider("source"): testProviderFuncFixed(dataP),
+			},
+		})
+
+		_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, nil))
+		if !diags.HasErrors() {
+			t.Fatalf("unexpected success; want error about prevent_destroy being set")
+		}
+		gotErr := diags.Err().Error()
+		wantErr := `test_instance.foo has prevent_destroy set`
+		if !strings.Contains(gotErr, wantErr) {
+			t.Fatalf("missing expected error\ngot: %s\nwant error diagnostics with substring %q", gotErr, wantErr)
+		}
+	})
+}
+
 func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
 	m := testModule(t, "plan-prevent-destroy-count-bad")
 	p := testProvider("aws")
@@ -1475,7 +1850,7 @@ func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
 
 	plan, err := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 
-	expectedErr := "aws_instance.foo[1] has lifecycle.prevent_destroy"
+	expectedErr := "aws_instance.foo[1] has prevent_destroy"
 	if !strings.Contains(fmt.Sprintf("%s", err), expectedErr) {
 		if plan != nil {
 			t.Logf("%s", legacyDiffComparisonString(plan.Changes))
@@ -1611,7 +1986,7 @@ func TestContext2Plan_preventDestroy_destroyPlan(t *testing.T) {
 		Mode: plans.DestroyMode,
 	})
 
-	expectedErr := "aws_instance.foo has lifecycle.prevent_destroy"
+	expectedErr := "aws_instance.foo has prevent_destroy"
 	if !strings.Contains(fmt.Sprintf("%s", diags.Err()), expectedErr) {
 		if plan != nil {
 			t.Logf("%s", legacyDiffComparisonString(plan.Changes))
