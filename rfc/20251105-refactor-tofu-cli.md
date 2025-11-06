@@ -54,12 +54,12 @@ of the `Meta` struct. Moreover, the logic in `Meta` that uses these flags bounde
 
 ### `github.com/mitchellh/cli`
 From an early age of OpenTofu, `github.com/mitchellh/cli` has been used to configure the subcommands of the system.
-The library is not bad at all, but it's having several limitations and quirks that make the whole setup and parsing of commands and args confusing and error prone.
+The library is doing its job, but it's having several limitations and quirks that make the whole setup and parsing of commands and args confusing and error prone.
 
->>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TODO andrei add information about the subcommands and how those are matched
-
-Another thing that handled kind of weird, is the functionality around help text for the root command and subcommands where a lot of custom logic is written to handle
+Another thing that is handled kind of weird, is the functionality around help text for the root command and subcommands where a lot of custom logic is written to handle
 that, adding a lot to the maintenance cost whenever a new argument needs to be added or updated.
+There is no auto generation of the help information of the flags or the commands from the command structure itself. All the help text is written separately in
+a manually wrapped text at 80 characters.
 
 ## Proposed Solution
 If OpenTofu will decide to go forward with the refactoring of the stated issues above, here is a rough list of the actions that should be taken and the order of those.
@@ -205,14 +205,93 @@ Therefore, in the `initCommands` we want to replace the `Meta` struct given to e
 > or other things that are built in `realMain`.
  
 ### Second part: replace CLI library
-TODO
-* pflag.CopyToGoFlagSet
-* Help function temporary compromise (add a comparison between what tofu generates now and what would be generated with no custom helper function)
-* `cobra.Command.Long` + custom flags generator (because we want to generate the flags info in go format and not as GNU format) 
+>[!NOTE]
+> This second part can be started when all the flags and components are already moved and executed by the commands' `Run` method.
+
+> [!NOTE]
+> 
+> Because OpenTofu uses [golang stdlib flag package](https://pkg.go.dev/flag), and because that lib supports long format flags
+> with a single dash in front (eg: -flagname), we cannot use other libraries for flag parsing since the vast majority of those are 
+> [GNU compliant](https://www.gnu.org/prep/standards/html_node/Command_002dLine-Interfaces.html), forcing single dash flags to have only one character.
+> Therefore, we are stuck with the flags parsing that is already in place.
+
+Here is a list of features from [Cobra](https://github.com/spf13/cobra) (and [pflag](https://github.com/spf13/pflag)) that we want to use here:
+* [Flags](https://cobra.dev/docs/how-to-guides/working-with-flags/) and especially [copying those to golang stdlib](https://github.com/spf13/pflag/pull/330/files)
+* [Wrapping help text](https://github.com/spf13/pflag/blob/6fcfbc9910e1af538fde31db820be7d1bec231e4/flag.go#L707) at a specific number of characters
+* [Grouping](https://github.com/spf13/cobra/blob/611e16c322e3b0413a9ba4e489fcd98ef904e406/site/content/user_guide.md#grouping-commands-in-help) commands in help text
+* And the standard way of [defining commands](https://github.com/spf13/cobra/blob/611e16c322e3b0413a9ba4e489fcd98ef904e406/site/content/user_guide.md#create-rootcmd) and [creating relations between them](https://github.com/spf13/cobra/blob/611e16c322e3b0413a9ba4e489fcd98ef904e406/site/content/user_guide.md#create-additional-commands)
+
+With the above features, let's look how the migration _could_ look like:
+* Create basic new commands for all the existing ones and link those to a new `rootCmd`
+  * Ensure that any old command that was configured with 2 or more keywords are configured correctly in layers (eg: rootCmd -> env -> list; rootCmd -> env -> select; etc)
+* Because we will use later the go stdlib `flag` parsing, we need to disable the flags parsing from cobra by configuring [`DisableFlagParsing`](https://pkg.go.dev/github.com/spf13/cobra#Command.DisableFlagParsing) on every command.
+* (Optional) If we agree to generate the root command help text with cobra and not with a custom function, then configure commands in 2 groups: `main` and `other`. 
+  * See what commands should be in `main` by checking the existing global variable `primaryCommands`.
+  * We need to hide some commands by configuring [`Command.Hidden`](https://pkg.go.dev/github.com/spf13/cobra#Command.Hidden). For the commands that need to be hidden, check the global variable `hiddenCommands`
+* For ease of maintenance, for each command we should migrate all the flag **definitions** from `flag` to `cobra`/`pflag`
+  * This will provide an easier way to work with the flags, defining, generating help texts, etc.
+  * Once those are defined, beware, because each command is configured now with [`DisableFlagParsing`](https://pkg.go.dev/github.com/spf13/cobra#Command.DisableFlagParsing), meaning that parsing should be called manually.
+  * Generally, the first step when the `Run` function of a command will be executed, is to call [`pflag.CopyToGoFlagSet`](https://pkg.go.dev/github.com/spf13/pflag#FlagSet.CopyToGoFlagSet) that will copy all the defined flags to a golang `flag.FlagSet` and then call `flagSet.Parse(args)`.
+    * Check the second note from this section for the reasoning around this.
+* Implement a help function on the root command that will be applicable to all the subcommands. This is needed because if cobra is allowed to run its built-in function for this, it will print the flags with `--` in front, which is wrong in the grand scheme of things.
+
+#### Help function
+If we use grouping, rootCmd flags and short/long description for the commands, by default this is the output of the help:
+```shell
+The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.
+
+Usage:
+  tofu [command]
+
+MAIN COMMANDS
+  apply        Create or update infrastructure
+  destroy      Destroy previously-created infrastructure
+  init         Prepare your working directory for other commands
+  plan         Show changes required by the current configuration
+  validate     Check whether the configuration is valid
+
+ALL OTHER COMMANDS
+  console      Try OpenTofu expressions at an interactive command prompt
+  fmt          Reformat your configuration in the standard style
+  force-unlock Release a stuck lock on the current workspace
+  get          Install or upgrade remote OpenTofu modules
+  graph        Generate a Graphviz graph of the steps in an operation
+  import       Associate existing infrastructure with a OpenTofu resource
+  login        Obtain and save credentials for a remote host
+  logout       Remove locally-stored credentials for a remote host
+  metadata     Metadata related commands
+  output       Show output values from your root module
+  providers    Show the providers required for this configuration
+  refresh      Update the state to match remote systems
+  show         Show the current state or a saved plan
+  state        Advanced state management
+  taint        Mark a resource instance as not fully functional
+  test         Execute integration tests for OpenTofu modules
+  untaint      Remove the 'tainted' state from a resource instance
+  version      Show the current OpenTofu version
+  workspace    Workspace management
+
+Additional Commands:
+  help         Help about any command
+
+Flags:
+      --chdir string   Switch to a different working directory before executing the given subcommand
+      --help           Show this help output, or the help for a specified subcommand
+      --version        Alias to "version" command
+
+Use "tofu [command] --help" for more information about a command.
+```
+
+We can customize this heavily and cobra offers the ability to define a function on the rootCmd that can handle the generation of the help messages for any sub command.
+Most probably will have to do a custom function just because of the flags being prefixed wrongly.
+
+You can compare this with the output generated when running `tofu -h` so that we can have a discussion around this.
 
 ### Open Questions
-
-* Are there some concerns related to the order of execution in this context? I've seen that there is a specific logic around `chdir` where CLI configuration needs to be loaded before to reference the initial workdir.
+* Is out there some context and quirks that we need to know about the order of execution of specific bits in our startup? 
+  * To explain what I am referring to, I've seen that there is a specific logic around `chdir` where CLI configuration needs to be loaded before executing `chdir` to reference the initial workdir.
+* What level of difference are we ok with when it comes to the help text?
+  * This is related to the ability of the cobra commands to be grouped and there we could remove most of the code for help text generation and instead rely on the grouping that it's already doing.
 
 ### Future Considerations
 
