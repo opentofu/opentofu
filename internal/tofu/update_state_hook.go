@@ -21,6 +21,9 @@ func updateStateHook(evalCtx EvalContext, addr addrs.AbsResourceInstance) error 
 				// See the documentation of ResourceProvider for more details
 				s.RemoveResource(addr.ContainingResource())
 			} else {
+				// The individual instance may be nil, but that can happen when destroying
+				// some but not all instances of a resource (or when that is in-progress).
+				// SetResourceInstance handles that nil correctly and updates the state accordingly.
 				s.SetResourceInstance(addr, evalCtx.State().ResourceInstance(addr), *provider)
 			}
 		})
