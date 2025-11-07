@@ -295,7 +295,15 @@ You can compare this with the output generated when running `tofu -h` so that we
 
 ### Future Considerations
 
-We need to ensure that the current unit tests keep working and the changes on those is minimal and non-functional. And when it comes to changes for checks on generated visual aspects, we need to do the due diligence and check if it will not break current parsers or anything similar.  
+We need to ensure that the current unit tests keep working and the changes on those is minimal and non-functional. And when it comes to changes for checks on generated visual aspects, we need to do the due diligence and check if it will not break current parsers or anything similar.
+
+> [!WARN]
+> If we ever go with this type of refactor, before starting any work, especially in `realMain`, we need to understand all the edge cases and all the "whys" about having things 
+> created before others and what is the meaning and reason of doing it that way.
+>
+> One obvious example is the fact that CLI configuration is loaded before running the logic for the `chdir` flag to be sure that we load the relative configs from the initial workdir.
+>
+> We need to be sure that we follow exactly the same logic if we change anything, otherwise we might find ourselves in a state with a broken CLI layer.
 
 ## Potential Alternatives
 
