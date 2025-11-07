@@ -276,7 +276,7 @@ func realMain() int {
 
 	{
 		m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
-		runner := command.InitCobra(m)
+		runner := command.CobraCommands(m)
 		exitCode, rootCause := command.ExtractExitCode(runner.ExecuteContext(ctx))
 		if rootCause != nil {
 			Ui.Error(fmt.Sprintf("Error executing CLI: %s", rootCause.Error()))

@@ -6,7 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCobraOtherCommands(m Meta, rootCmd *cobra.Command) {
+// Placeholders for most of the "other" commands. Once a command from this list is properly implemented, remove it from here.
+// This function creates placeholder commands
+func newCobraOtherCommands(_ Meta, rootCmd *cobra.Command) {
 	other := map[string]string{
 		"console":      "Try OpenTofu expressions at an interactive command prompt",
 		"fmt":          "Reformat your configuration in the standard style",
@@ -32,12 +34,8 @@ func newCobraOtherCommands(m Meta, rootCmd *cobra.Command) {
 		cmd := &cobra.Command{
 			Use:                cmdName,
 			Short:              desc,
-			Long:               "",
 			DisableFlagParsing: true,
 			GroupID:            commandGroupIdOther.id(),
-			// ValidArgs:                  nil,
-			// ValidArgsFunction:          nil,
-			// Args:                       nil,
 		}
 		cmd.Run = func(cmd *cobra.Command, args []string) {
 			fmt.Println("execute", cmdName)

@@ -57,7 +57,7 @@ func commandHelp() func(command *cobra.Command) string {
 			localFlagsHelpEntries, longestLocalFlag := convertFlags(cmd.LocalFlags())
 			localFlags := generateHelpTextForEntries(localFlagsHelpEntries, nil, longestLocalFlag)
 			if len(localFlags) > 0 {
-				localFlagsStr = fmt.Sprintf("Options:\n%s", strings.Join(localFlags, "\n"))
+				localFlagsStr = fmt.Sprintf("Options:\n%s", strings.Join(localFlags, "\n\n"))
 				localFlagsStr = newLines(localFlagsStr, 2)
 			}
 		}
