@@ -81,7 +81,7 @@ func TestLogin(t *testing.T) {
 					"scopes": []interface{}{"app1.full_access", "app2.read_only"},
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname(tfeHost), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname(hcpTerraformHost), map[string]interface{}{
 				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
@@ -123,27 +123,38 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run(tfeHost+" (no login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run(hcpTerraformHost+" (special-cased login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(tfeHost))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(hcpTerraformHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
-		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
+		// NOTE: The "␀" control picture at the end of this is intentional,
+		// verifying that we correctly filtered the U+0000 character that's
+		// included in the test server's motd.v1 response. This is verifying
+		// that we disallow the remote server from directly including C0
+		// control characters in its output, because implementations are
+		// expected to implemented limited formatting using the colorstring
+		// library's syntax like "[bold]" and "[reset]". The input string
+		// also includes such sequences, and so those being no longer present
+		// in the output here confirms that the login command did use the
+		// colorstring library to prepare the string (which filters out the
+		// color codes entirely when running in no-color mode, as we are here).
+		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!␀"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}, true))
@@ -285,7 +296,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
@@ -300,7 +311,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
