@@ -21,7 +21,9 @@ This command is always safe to run multiple times. Though subsequent runs may gi
 		GroupID:            commandGroupIdMain.id(),
 	}
 
-	cfg := &initCfg{}
+	cfg := &initCfg{
+		flagConfigExtra: newRawFlags("-backend-config"),
+	}
 	flagSet := configureInitCobraFlags(&m, cfg, cmd.Flags())
 	flagSet.Usage = func() {
 		helpText := commandHelp()(cmd)
@@ -47,7 +49,7 @@ func configureInitCobraFlags(m *Meta, flags *initCfg, cmdFlags *pflag.FlagSet) *
 	basicFlags := m.extendedFlagSet("init")
 	cmdFlags.BoolVar(&flags.flagBackend, "backend", true, "Disable backend or cloud backend initialization for this configuration and use what was previously initialized instead.")
 	cmdFlags.BoolVar(&flags.flagCloud, "cloud", true, "")
-	// cmdFlags.StringSliceVar(&flags.flagConfigExtra, "backend-config", "") // TODO andrei include this too
+	cmdFlags.Var(&flags.flagConfigExtra, "backend-config", "")
 	cmdFlags.StringVar(&flags.flagFromModule, "from-module", "", "copy the source of the given module into the directory before init")
 	cmdFlags.BoolVar(&flags.flagGet, "get", true, "")
 	cmdFlags.BoolVar(&m.forceInitCopy, "force-copy", false, "suppress prompts about copying state data")
@@ -56,7 +58,7 @@ func configureInitCobraFlags(m *Meta, flags *initCfg, cmdFlags *pflag.FlagSet) *
 	cmdFlags.BoolVar(&m.reconfigure, "reconfigure", false, "reconfigure")
 	cmdFlags.BoolVar(&m.migrateState, "migrate-state", false, "migrate state")
 	cmdFlags.BoolVar(&flags.flagUpgrade, "upgrade", false, "")
-	// cmdFlags.Var(&flags.flagPluginPath, "plugin-dir", "plugin directory") // TODO andrei include this too
+	cmdFlags.Var(&flags.flagPluginPath, "plugin-dir", "plugin directory")
 	cmdFlags.StringVar(&flags.flagLockfile, "lockfile", "", "Set a dependency lockfile mode")
 	cmdFlags.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 	cmdFlags.StringVar(&flags.testsDirectory, "test-directory", "tests", "test-directory")
