@@ -389,12 +389,20 @@ func realMain() int {
 	}
 	m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	runner := command.InitCobra(m)
-	if err := runner.Execute(); err != nil {
-		// TODO andrei add a custom error to return the exit code and return that later
-		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
-		return 1
+	exitCode, rootCause := command.ExtractExitCode(runner.ExecuteContext(ctx))
+	if rootCause != nil {
+		Ui.Error(fmt.Sprintf("Error executing CLI: %s", rootCause.Error()))
+		return command.DefaultErrorExitCode
 	}
-	return 0
+	// if we are exiting with a non-zero code, check if it was caused by any
+	// plugins crashing
+	if exitCode != 0 {
+		for _, panicLog := range logging.PluginPanics() {
+			Ui.Error(panicLog)
+		}
+	}
+
+	return exitCode
 }
 
 func mergeEnvArgs(envName string, cmd string, args []string) ([]string, error) {

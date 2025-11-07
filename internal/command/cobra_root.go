@@ -7,14 +7,19 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:                   "tofu",
-	Long:                  "The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.",
-	DisableFlagParsing:    true,
-	DisableFlagsInUseLine: true,
+	Use:  "tofu",
+	Long: "The available commands for execution are listed below. The primary workflow commands are given first, followed by less common or more advanced commands.",
+	// We disable the flag parsing from cobra since we are doing this in the Run method to be able
+	// to use go standard `flag` parsing.
+	DisableFlagParsing: true,
+	// These 2 are needed to disable printing usage and errors because each command will return
+	// an error type with the exit code, even the command execution succeeded.
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	// We still need to discover how this works
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
-	Version: "test",
 }
 
 func InitCobra(m Meta) *cobra.Command {

@@ -2,7 +2,6 @@ package command
 
 import (
 	"flag"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -29,17 +28,17 @@ This command is always safe to run multiple times. Though subsequent runs may gi
 		helpText := commandHelp()(cmd)
 		m.Ui.Error(helpText)
 	}
-	cmd.Run = func(cmd *cobra.Command, args []string) {
+	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		nonFlagArgs, exitCode := parseFlags(&m, flagSet, args, cfg)
 		if exitCode > 0 {
-			os.Exit(exitCode)
+			return &ExitCodeError{ExitCode: exitCode}
 		}
 
 		acts := initActs{
 			Meta:    &m,
 			initCfg: cfg,
 		}
-		os.Exit(runInit(cmd.Context(), nonFlagArgs, &acts))
+		return &ExitCodeError{ExitCode: runInit(cmd.Context(), nonFlagArgs, &acts)}
 	}
 
 	rootCmd.AddCommand(cmd)
