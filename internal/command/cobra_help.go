@@ -11,69 +11,68 @@ import (
 
 func commandHelp() func(command *cobra.Command) string {
 	return func(cmd *cobra.Command) string {
+		// utility functions
 		newLines := func(in string, newLines int) string {
 			return fmt.Sprintf("%s%s", strings.Repeat("\n", newLines), in)
 		}
-		// groupedCmds := group[string, string, *cobra.Command](cmd.Commands(), func(command *cobra.Command) (string, string) {
-		// 	return command.Use, command.Short
-		// })
-		// Determine the longest key to have that length as a reference for alignment
-		var maxKeyLen int
-		for _, cmd := range cmd.Commands() {
-			if cmdLen := len(cmd.Use); cmdLen > maxKeyLen {
-				maxKeyLen = cmdLen
-			}
+		indent := func(in string, i int) string {
+			return fmt.Sprintf("%s%s", strings.Repeat(" ", i), in)
 		}
-		cmd.Root().Flags().VisitAll(func(flag *pflag.Flag) {
-			if flagNameLen := len(flag.Name) + 1; flagNameLen > maxKeyLen {
-				maxKeyLen = flagNameLen
-			}
-		})
-		cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
-			if flagNameLen := len(flag.Name) + 1; flagNameLen > maxKeyLen {
-				maxKeyLen = flagNameLen
-			}
-		})
+
+		// group commands
+		var mainCommandsStr, otherCommandsStr string
 		// Group commands in main and other
 		grouped := groupCommands(cmd.Commands())
+		mainCommandsHelpEntries, longestMainCmd := convertCommands(grouped[commandGroupIdMain])
 		mainCommandsOrder := []string{"init", "validate", "plan", "apply", "destroy"}
-		mainCommands := listCommandsForHelp(grouped[commandGroupIdMain], func(a, b *cobra.Command) int {
-			aIdx := slices.Index(mainCommandsOrder, a.Use)
-			bIdx := slices.Index(mainCommandsOrder, b.Use)
+		mainCommands := generateHelpTextForEntries(mainCommandsHelpEntries, func(a, b helpEntry) int {
+			aIdx := slices.Index(mainCommandsOrder, a.k)
+			bIdx := slices.Index(mainCommandsOrder, b.k)
 			return aIdx - bIdx
-		}, maxKeyLen)
-		otherCommands := listCommandsForHelp(grouped[commandGroupIdOther], func(a, b *cobra.Command) int {
-			return strings.Compare(a.Use, b.Use)
-		}, maxKeyLen)
-		// Generate string representation for sub commands
-		var mainCommandsStr, otherCommandsStr string
+		}, longestMainCmd)
 		if len(mainCommands) > 0 {
 			mainCommandsStr = fmt.Sprintf("Main commands:\n%s", strings.Join(mainCommands, "\n"))
 			mainCommandsStr = newLines(mainCommandsStr, 2)
 		}
+		otherCommandsHelpEntries, longestOtherCmd := convertCommands(grouped[commandGroupIdOther])
+		otherCommands := generateHelpTextForEntries(otherCommandsHelpEntries, func(a, b helpEntry) int {
+			return strings.Compare(a.k, b.k)
+		}, longestOtherCmd)
 		if len(otherCommands) > 0 {
 			otherCommandsStr = fmt.Sprintf("All other commands:\n%s", strings.Join(otherCommands, "\n"))
 			otherCommandsStr = newLines(otherCommandsStr, 2)
 		}
 
-		// Format the global flags
-		globalFlags := formatFlags(cmd.Root().Flags(), maxKeyLen)
+		// Format flags
+		globalFlagsHelpEntries, longestGlobalFlag := convertFlags(cmd.Root().Flags())
+		globalFlags := generateHelpTextForEntries(globalFlagsHelpEntries, nil, longestGlobalFlag)
 		var globalFlagsStr string
 		if len(globalFlags) > 0 {
 			globalFlagsStr = fmt.Sprintf("Global options (use these before the subcommand, if any):\n%s", strings.Join(globalFlags, "\n"))
 			globalFlagsStr = newLines(globalFlagsStr, 2)
 		}
-		// Format the local flags
-		localFlags := formatFlags(cmd.LocalFlags(), maxKeyLen)
 		var localFlagsStr string
-		if len(localFlags) > 0 {
-			localFlagsStr = fmt.Sprintf("Options:\n%s", strings.Join(localFlags, "\n"))
-			localFlagsStr = newLines(localFlagsStr, 2)
+		if cmd.Root() != cmd {
+			// Format the local flags
+			localFlagsHelpEntries, longestLocalFlag := convertFlags(cmd.LocalFlags())
+			localFlags := generateHelpTextForEntries(localFlagsHelpEntries, nil, longestLocalFlag)
+			if len(localFlags) > 0 {
+				localFlagsStr = fmt.Sprintf("Options:\n%s", strings.Join(localFlags, "\n"))
+				localFlagsStr = newLines(localFlagsStr, 2)
+			}
 		}
+
+		// Build final text
 		helpText := fmt.Sprintf(
 			`Usage: %s%s%s%s%s%s`,
 			cmd.Use,
-			newLines(wrap(0, defaultMaxRowLen, cmd.Long), 2),
+			newLines(
+				indent(
+					wrap(2, defaultMaxRowLen, cmd.Long),
+					2,
+				),
+				2,
+			),
 			mainCommandsStr,
 			otherCommandsStr,
 			localFlagsStr,
@@ -83,14 +82,54 @@ func commandHelp() func(command *cobra.Command) string {
 	}
 }
 
-func formatFlags(flags *pflag.FlagSet, maxKeyLen int) []string {
-	var globalFlags []string
-	flags.VisitAll(func(flag *pflag.Flag) {
-		key := fmt.Sprintf("-%s", flag.Name)
+type helpEntry struct {
+	k, v string
+}
+
+func generateHelpTextForEntries(entries []helpEntry, sort func(a, b helpEntry) int, maxKeyLen int) []string {
+	if sort != nil {
+		slices.SortFunc(entries, sort)
+	}
+	var res []string
+	for _, e := range entries {
+		key := e.k
 		key = fmt.Sprintf("  %s%s  ", key, strings.Repeat(" ", maxKeyLen-len(key)))
-		globalFlags = append(globalFlags, fmt.Sprintf("%s%s", key, wrap(len(key), defaultMaxRowLen, flag.Usage)))
+		res = append(res, fmt.Sprintf("%s%s", key, wrap(len(key), defaultMaxRowLen, e.v)))
+	}
+	return res
+}
+
+func convertCommands(in []*cobra.Command) ([]helpEntry, int) {
+	res := make([]helpEntry, 0, len(in))
+	var maxKeySize int
+	for _, i := range in {
+		k := i.Use
+		v := i.Short
+		if l := len(k); l > maxKeySize {
+			maxKeySize = l
+		}
+		res = append(res, helpEntry{
+			k: k,
+			v: v,
+		})
+	}
+	return res, maxKeySize
+}
+
+func convertFlags(set *pflag.FlagSet) ([]helpEntry, int) {
+	var res []helpEntry
+	var maxFlagSize int
+	set.VisitAll(func(flag *pflag.Flag) {
+		key := fmt.Sprintf("-%s", flag.Name)
+		if l := len(key); l > maxFlagSize {
+			maxFlagSize = l
+		}
+		res = append(res, helpEntry{
+			k: key,
+			v: flag.Usage,
+		})
 	})
-	return globalFlags
+	return res, maxFlagSize
 }
 
 // NOTE: copy pasted from pflag as it is
@@ -160,13 +199,4 @@ func wrap(i, w int, s string) string {
 	}
 
 	return r
-}
-
-func group[K comparable, V any, IN any](in []IN, mapping func(IN) (K, V)) map[K]V {
-	res := map[K]V{}
-	for _, i := range in {
-		k, v := mapping(i)
-		res[k] = v
-	}
-	return res
 }

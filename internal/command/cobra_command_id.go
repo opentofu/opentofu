@@ -2,7 +2,6 @@ package command
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -34,6 +33,7 @@ func (cgi commandGroupId) group() *cobra.Group {
 		Title: cgi.title(),
 	}
 }
+
 func parseGroupId(gid string) commandGroupId {
 	switch gid {
 	case commandGroupIdMain.id():
@@ -54,17 +54,6 @@ func groupCommands(cmds []*cobra.Command) map[commandGroupId][]*cobra.Command {
 		gcmds := res[gid]
 		gcmds = append(gcmds, cmd)
 		res[gid] = gcmds
-	}
-	return res
-}
-
-func listCommandsForHelp(cmds []*cobra.Command, sort func(a, b *cobra.Command) int, maxKeyLen int) []string {
-	slices.SortFunc(cmds, sort)
-	var res []string
-	for _, subCmd := range cmds {
-		key := subCmd.Use
-		key = fmt.Sprintf("  %s%s  ", subCmd.Use, strings.Repeat(" ", maxKeyLen-len(key)))
-		res = append(res, fmt.Sprintf("%s%s", key, wrap(len(key), defaultMaxRowLen, subCmd.Short)))
 	}
 	return res
 }
