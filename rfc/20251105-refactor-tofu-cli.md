@@ -121,6 +121,11 @@ type Meta struct {
 ```
 
 ##### Break the flags
+> [!NOTE]
+> Before creating the newly suggested `*Flags` structs (ie: `PlanFlags`, `ApplyFlags`, etc), we should check first the already existing
+> implementation in [`command/arguments`](https://github.com/opentofu/opentofu/tree/cc8e86c99842f3ee943419a333bc996095834b0a/internal/command/arguments) that
+> was created some time ago with a wanted end goal as this RFC.
+
 In order to be able to move forward, first, I would suggest to extract the flags and arguments related attributes from the `Meta` struct in their own configuration structure.
 
 As an example for this idea, we could look at the attributes related to `-var`/`-var-file`.
