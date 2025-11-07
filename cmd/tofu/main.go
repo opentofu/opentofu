@@ -65,7 +65,6 @@ func init() {
 }
 
 func main() {
-	// command.execute
 	os.Exit(realMain())
 }
 
@@ -386,10 +385,11 @@ func realMain() int {
 				Ui.Error(panicLog)
 			}
 		}
+		return exitCode
 	}
 	m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	runner := command.InitCobra(m)
-	if err := runner(); err != nil {
+	if err := runner.Execute(); err != nil {
 		// TODO andrei add a custom error to return the exit code and return that later
 		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1

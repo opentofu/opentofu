@@ -369,6 +369,7 @@ func (c *InitCommand) configureFlags(flags *initCfg, args []string) *flag.FlagSe
 }
 
 func parseFlags(setHere *Meta, cmdFlags *flag.FlagSet, args []string, flags *initCfg) ([]string, int) {
+	args = setHere.process(args)
 	if err := cmdFlags.Parse(args); err != nil {
 		return nil, 1
 	}

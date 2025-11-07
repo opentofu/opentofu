@@ -2,35 +2,27 @@ package command
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
-
-func InitCobra(m Meta) func() error {
-	rootCmd.SetHelpFunc(func(cmd *cobra.Command, i []string) {
-		fmt.Println("root cmd help")
-	})
-	NewCobraInitCommand(m, rootCmd)
-	return rootCmd.Execute
-}
-
-var rootCmd = &cobra.Command{
-	DisableFlagParsing: true,
-}
 
 type InitCobraCommand struct {
 	m   *Meta
 	cmd *cobra.Command
 }
 
-func NewCobraInitCommand(m Meta, rootCmd *cobra.Command) {
+func newCobraInitCommand(m Meta, rootCmd *cobra.Command) {
 	cmd := &cobra.Command{
-		Use:                "init",
-		Short:              "",
-		Long:               "",
+		Use:   "init",
+		Short: "Prepare your working directory for other commands",
+		Long: `Initialize a new or existing OpenTofu working directory by creating initial files, loading any remote state, downloading modules, etc.
+
+  This is the first command that should be run for any new or existing OpenTofu configuration per machine. This sets up all the local data necessary to run OpenTofu that is typically not committed to version control.
+
+  This command is always safe to run multiple times. Though subsequent runs may give errors, this command will never delete your configuration or state. Even so, if you have important information, please back it up prior to running this command, just in case.`,
 		DisableFlagParsing: true,
+		GroupID:            commandGroupIdMain.id(),
 		// ValidArgs:                  nil,
 		// ValidArgsFunction:          nil,
 		// Args:                       nil,
@@ -42,6 +34,10 @@ func NewCobraInitCommand(m Meta, rootCmd *cobra.Command) {
 
 	cfg := &initCfg{}
 	flagSet := tofuInitCmd.configureInitCobraFlags(cfg)
+	flagSet.Usage = func() {
+		helpText := commandHelp()(cmd)
+		m.Ui.Error(helpText)
+	}
 	// cmdFlags.Usage = func() { m.Ui.Error(c.Help()) } // TODO andrei check how to do it
 	// f := flag.NewFlagSet(initCmd.Use, flag.ExitOnError)
 	// initCmd.Flags().CopyToGoFlagSet(f)
@@ -59,12 +55,11 @@ func NewCobraInitCommand(m Meta, rootCmd *cobra.Command) {
 	}
 
 	rootCmd.AddCommand(tofuInitCmd.cmd)
-	return
 }
 
 func (icc *InitCobraCommand) configureInitCobraFlags(flags *initCfg) *flag.FlagSet {
 	basicFlags := icc.m.extendedFlagSet("init")
-	icc.cmd.Flags().BoolVar(&flags.flagBackend, "backend", true, "")
+	icc.cmd.Flags().BoolVar(&flags.flagBackend, "backend", true, "Disable backend or cloud backend initialization for this configuration and use what was previously initialized instead.")
 	icc.cmd.Flags().BoolVar(&flags.flagCloud, "cloud", true, "")
 	// icc.cmd.Flags().Var(&flags.flagConfigExtra, "backend-config", "") // TODO andrei include this too
 	icc.cmd.Flags().StringVar(&flags.flagFromModule, "from-module", "", "copy the source of the given module into the directory before init")
