@@ -393,6 +393,67 @@ func TestDiagnostic(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+
+		// Any control characters in the summary, detail, source code snippet,
+		// or source filename should be replaced by their corresponding
+		// control pictures to ensure that unexpected/malicious data there
+		// cannot affect the state of a terminal that stdout/stderr is
+		// connected to.
+		"control characters in sourceless diagnostic": {
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"\x1b[2JOh no!",
+				"\x1bHControl sequences!",
+			),
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]␛[2JOh no![reset]
+[red]│[reset]
+[red]│[reset] ␛HControl sequences!
+[red]╵[reset]
+`,
+		},
+		"control characters in source snippet": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "controlchars\x00.tf",
+					Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on controlchars␀.tf line 1:
+[red]│[reset]    1: [underline]before[reset]␛[0;0Hafter
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
+		"control characters in unavailable source snippet": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "unavailable\x00.tf",
+					Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on unavailable␀.tf line 1:
+[red]│[reset]   (source code not available)
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
 	}
 
 	sources := map[string]*hcl.File{
@@ -401,6 +462,7 @@ func TestDiagnostic(t *testing.T) {
 			"Test-Header-1: foo",
 			"Test-Header-2: bar"
 		])`)},
+		"controlchars\x00.tf": {Bytes: []byte("before\x1b[0;0Hafter")},
 	}
 
 	// This empty Colorize just passes through all of the formatting codes
