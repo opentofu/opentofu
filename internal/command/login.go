@@ -295,7 +295,7 @@ func (c *LoginCommand) Run(args []string) int {
 			// control sequences aside from the ones introduced by the
 			// colorstring library.
 			c.Ui.Output(
-				c.Colorize().Color(format.FilterControlChars(motd.Message)),
+				c.Colorize().Color(format.ReplaceControlChars(motd.Message)),
 			)
 			return 0
 		} else {

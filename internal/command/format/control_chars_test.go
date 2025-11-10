@@ -34,7 +34,7 @@ func TestFilterControlChars(t *testing.T) {
 
 	for input, want := range tests {
 		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
-			got := FilterControlChars(input)
+			got := ReplaceControlChars(input)
 			if got != want {
 				t.Errorf("wrong result\ninput: %q\ngot:   %q\nwant:  %q", input, got, want)
 			}
