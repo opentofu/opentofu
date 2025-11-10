@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 )
@@ -19,7 +18,17 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 	var methods []config.MethodConfig
 
 	for target != nil {
-		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
+		// In https://github.com/opentofu/opentofu/issues/3482 was discovered that interpolation for
+		// target.method does not work, but only literal reference.
+		// This solves the inconsistencies between the way string expressions are evaluated for state.method vs method.keys.
+		traversals := target.Method.Variables()
+		var traversal hcl.Traversal
+		var travDiags hcl.Diagnostics
+		if len(traversals) > 0 {
+			traversal = traversals[0]
+		} else {
+			traversal, travDiags = hcl.AbsTraversalForExpr(target.Method)
+		}
 		diags = diags.Extend(travDiags)
 
 		if !travDiags.HasErrors() {
