@@ -31,8 +31,8 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 		case l > 1:
 			travDiags = travDiags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid target expression",
-				Detail:   fmt.Sprintf("Found %d expressions but 'target' is meant to have just 1.", len(traversals)),
+				Summary:  "Invalid encryption method expression",
+				Detail:   fmt.Sprintf(`Found %d expressions but "method" is meant to have just 1.`, len(traversals)),
 				Subject:  target.Method.Range().Ptr(),
 			})
 		default:

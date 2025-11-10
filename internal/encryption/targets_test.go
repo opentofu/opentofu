@@ -386,7 +386,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 					method = "${method.aes_gcm.nonexistent}${method.unencrypted.for_migration}"
 				}
 			`,
-			wantErr: `Test Config Source:11,15-81: Invalid target expression; Found 2 expressions but 'target' is meant to have just 1.`,
+			wantErr: `Test Config Source:11,15-81: Invalid encryption method expression; Found 2 expressions but "method" is meant to have just 1.`,
 		},
 		// In https://github.com/opentofu/opentofu/issues/3482 was discovered that interpolation for
 		// target.method does not work, but only literal reference.
