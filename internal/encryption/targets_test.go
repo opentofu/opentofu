@@ -372,6 +372,22 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 				unencrypted.Is,
 			},
 		},
+		"target-references-multiple-methods-in-the-same-expression": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				method "unencrypted" "for_migration" {
+				}
+				state {
+					method = "${method.aes_gcm.nonexistent}${method.unencrypted.for_migration}"
+				}
+			`,
+			wantErr: `Test Config Source:11,15-81: Invalid target expression; Found 2 expressions but 'target' is meant to have just 1.`,
+		},
 		// In https://github.com/opentofu/opentofu/issues/3482 was discovered that interpolation for
 		// target.method does not work, but only literal reference.
 		// This solves the inconsistencies between the way string expressions are evaluated for state.method vs method.keys.

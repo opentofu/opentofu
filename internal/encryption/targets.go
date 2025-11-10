@@ -24,9 +24,18 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 		traversals := target.Method.Variables()
 		var traversal hcl.Traversal
 		var travDiags hcl.Diagnostics
-		if len(traversals) > 0 {
+		l := len(traversals)
+		switch {
+		case l == 1:
 			traversal = traversals[0]
-		} else {
+		case l > 1:
+			travDiags = travDiags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid target expression",
+				Detail:   fmt.Sprintf("Found %d expressions but 'target' is meant to have just 1.", len(traversals)),
+				Subject:  target.Method.Range().Ptr(),
+			})
+		default:
 			traversal, travDiags = hcl.AbsTraversalForExpr(target.Method)
 		}
 		diags = diags.Extend(travDiags)
