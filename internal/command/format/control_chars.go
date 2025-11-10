@@ -21,7 +21,7 @@ const unicodeControlPicturesStart = rune(0x2400)
 const del = rune(0x7f)
 const delPicture = rune(0x2421)
 
-// FilterControlChars translates 7-bit C0 control characters in the given string
+// ReplaceControlChars translates 7-bit C0 control characters in the given string
 // (character codes less than 32) into their corresponding symbols from the
 // Unicode "Control Pictures" block, so that the result can be printed to a
 // terminal-like device without affecting the terminal's state machine.
@@ -45,7 +45,7 @@ const delPicture = rune(0x2421)
 // quoting process in those cases. We also don't need to use this for strings
 // that are known to contain valid HCL identifiers, because the control
 // characters are not valid for use in HCL's identifier tokens.
-func FilterControlChars(input string) string {
+func ReplaceControlChars(input string) string {
 	// In the common case there are no relevant control characters at all, so
 	// we'll first scan the string to see if we can return the input verbatim
 	// and thus avoid allocating a new copy of that string.
@@ -55,12 +55,6 @@ func FilterControlChars(input string) string {
 
 	// If we get here then we definitely need to build a new string.
 	var buf strings.Builder
-	// We'll give ourselves capacity for replacing up to two control characters
-	// with their "Control Pictures' equivalents, which (due to UTF-8 encoding)
-	// causes each 1-byte control character to be replaced by a 3-byte sequence.
-	// If we find more than two control characters then the buffer may
-	// reallocate (automatically) to get extra capacity.
-	buf.Grow(len(input) + 4)
 	for _, r := range input {
 		if !isFilteredControlChar(r) {
 			// Writing to a [strings.Builder] never encounters an error.
