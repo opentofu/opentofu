@@ -167,12 +167,8 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		// 1) Resource had lifecycle attribute destroy explicitly set to false
 		// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
 		// For every other case, we should destroy the resource
-		shouldDestroy := true
-
 		// If the deposed instance has skip_destroy set in state, we skip destroying
-		if n.shouldSkipDestroy() || state.SkipDestroy {
-			shouldDestroy = false
-		}
+		shouldDestroy := !n.shouldSkipDestroy() && !state.SkipDestroy
 
 		// Note that removed statements take precedence, since it is the latest intent the user declared
 		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed

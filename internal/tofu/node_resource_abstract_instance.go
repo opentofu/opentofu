@@ -1637,9 +1637,10 @@ func (n *NodeAbstractResourceInstance) plan(
 		// must _also_ record the returned change in the active plan,
 		// which the expression evaluator will use in preference to this
 		// incomplete value recorded in the state.
-		Status:  states.ObjectPlanned,
-		Value:   plannedNewVal,
-		Private: plannedPrivate,
+		Status:      states.ObjectPlanned,
+		Value:       plannedNewVal,
+		Private:     plannedPrivate,
+		SkipDestroy: n.shouldSkipDestroy(),
 	}
 
 	return plan, state, keyData, diags
@@ -3164,7 +3165,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
-			SkipDestroy:         state.SkipDestroy,
+			SkipDestroy:         n.shouldSkipDestroy(),
 		}
 
 		// if the resource was being deleted, the dependencies are not going to
@@ -3182,7 +3183,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
-			SkipDestroy:         state.SkipDestroy,
+			SkipDestroy:         n.shouldSkipDestroy(),
 		}
 		return newState, diags
 

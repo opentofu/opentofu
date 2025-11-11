@@ -532,7 +532,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		default:
 			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] must be [bold][red]replaced[reset]", dispAddr))
 		}
-		buf.WriteString(fmt.Sprintf(" - [yellow]older instance will [bold]not[reset][yellow] be destroyed [reset]([bold]lifecycle.destroy = false[reset])"))
+		buf.WriteString(" - [yellow]older instance will [bold]not[reset][yellow] be destroyed [reset]([bold]lifecycle.destroy = false[reset])")
 
 		if len(resource.Deposed) != 0 {
 			// In the case where we partially failed to replace a resource

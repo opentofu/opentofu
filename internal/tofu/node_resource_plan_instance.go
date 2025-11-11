@@ -320,6 +320,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 	} else {
 		if instanceRefreshState != nil {
 			prevCreateBeforeDestroy := instanceRefreshState.CreateBeforeDestroy
+			prevSkipDestroy := instanceRefreshState.SkipDestroy
 
 			// This change is usually written to the refreshState and then
 			// updated value used for further graph execution. However, with
@@ -329,10 +330,12 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
 			instanceRefreshState.SkipDestroy = !n.Config.Managed.Destroy
 
-			if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy && n.skipRefresh {
-				diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))
-				if diags.HasErrors() {
-					return diags
+			if n.skipRefresh {
+				if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy || prevSkipDestroy != instanceRefreshState.SkipDestroy {
+					diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))
+					if diags.HasErrors() {
+						return diags
+					}
 				}
 			}
 		}
