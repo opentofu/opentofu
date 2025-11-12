@@ -5759,6 +5759,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -5795,7 +5796,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
 			addrs.NoKey: {
 				Current: &states.ResourceInstanceObjectSrc{
-					AttrsJSON:          []byte(`{"id":"id val","secret":"val"}`),
+					AttrsJSON:          []byte(`{"id":"id val","input":null,"secret":"val"}`),
 					Status:             states.ObjectReady,
 					AttrSensitivePaths: []cty.PathValueMarks{},
 					Dependencies:       []addrs.ConfigResource{},
