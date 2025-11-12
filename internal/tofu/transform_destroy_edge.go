@@ -311,6 +311,13 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 			func() {
 				n := nodes[i]
 				switch n := n.(type) {
+				case *nodeExpandApplyableResource:
+					// Ephemeral resources always need their expansion nodes to provide
+					// repetition data, even on no-op applies where they might otherwise be pruned
+					if n.Addr.Resource.Mode == addrs.EphemeralResourceMode {
+						log.Printf("[TRACE] pruneUnusedNodes: ephemeral resource expanding vertex %q kept because ephemeral resources need expansion data", dag.VertexName(n))
+						return
+					}
 				case graphNodeTemporaryValue:
 					// root module outputs indicate they are not temporary by
 					// returning false here.
