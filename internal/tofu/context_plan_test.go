@@ -1745,6 +1745,7 @@ func TestContext2Plan_preventDestroy_dynamicFromDataResource(t *testing.T) {
 				// shorter than the one in the other provider below. Refer to
 				// the comment there for more information.
 				time.Sleep(5 * time.Second)
+				synctest.Wait()
 				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: test_instance.foo plan")
 			} else {
 				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: test_instance.foo followup plan")
@@ -1778,6 +1779,7 @@ func TestContext2Plan_preventDestroy_dynamicFromDataResource(t *testing.T) {
 				// actually cause a "real" sleep, and instead just interacts
 				// with the synctest bubble's fake clock.
 				time.Sleep(10 * time.Second)
+				synctest.Wait()
 				log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromDataResource: data.source.foo read")
 				return providers.ReadDataSourceResponse{
 					State: cty.ObjectVal(map[string]cty.Value{
