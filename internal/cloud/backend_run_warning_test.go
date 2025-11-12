@@ -6,7 +6,6 @@
 package cloud
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -93,9 +92,7 @@ func TestRunEventWarningsAll(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	fullRunID, _ := MockAllRunEvents(t, client)
 
-	ctx := context.TODO()
-
-	err := b.renderRunWarnings(ctx, client, fullRunID)
+	err := b.renderRunWarnings(t.Context(), client, fullRunID)
 	if err != nil {
 		t.Fatalf("Expected to not error but received %s", err)
 	}
@@ -125,9 +122,7 @@ func TestRunEventWarningsEmpty(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	_, emptyRunID := MockAllRunEvents(t, client)
 
-	ctx := context.TODO()
-
-	err := b.renderRunWarnings(ctx, client, emptyRunID)
+	err := b.renderRunWarnings(t.Context(), client, emptyRunID)
 	if err != nil {
 		t.Fatalf("Expected to not error but received %s", err)
 	}
@@ -148,9 +143,7 @@ func TestRunEventWarningsWithError(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	MockAllRunEvents(t, client)
 
-	ctx := context.TODO()
-
-	err := b.renderRunWarnings(ctx, client, "bad run id")
+	err := b.renderRunWarnings(t.Context(), client, "bad run id")
 
 	if err == nil {
 		t.Error("Expected to error but did not")

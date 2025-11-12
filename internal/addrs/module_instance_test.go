@@ -206,14 +206,14 @@ func TestIsForModule(t *testing.T) {
 func BenchmarkStringShort(b *testing.B) {
 	addr, _ := ParseModuleInstanceStr(`module.foo`)
 	for n := 0; n < b.N; n++ {
-		addr.String()
+		_ = addr.String()
 	}
 }
 
 func BenchmarkStringLong(b *testing.B) {
 	addr, _ := ParseModuleInstanceStr(`module.southamerica-brazil-region.module.user-regional-desktops.module.user-name`)
 	for n := 0; n < b.N; n++ {
-		addr.String()
+		_ = addr.String()
 	}
 }
 

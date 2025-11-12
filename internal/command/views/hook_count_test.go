@@ -37,7 +37,7 @@ func TestCountHookPostDiff_DestroyDeposed(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.DeposedKey("deadbeef"), plans.Delete, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.DeposedKey("deadbeef"), plans.Delete, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -68,7 +68,7 @@ func TestCountHookPostDiff_DestroyOnly(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, plans.Delete, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, plans.Delete, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -110,7 +110,7 @@ func TestCountHookPostDiff_AddOnly(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, plans.Create, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, plans.Create, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -155,7 +155,7 @@ func TestCountHookPostDiff_ChangeOnly(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, plans.Update, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, plans.Update, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -186,7 +186,7 @@ func TestCountHookPostDiff_Mixed(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -218,7 +218,7 @@ func TestCountHookPostDiff_NoChange(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, plans.NoOp, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, plans.NoOp, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -250,7 +250,39 @@ func TestCountHookPostDiff_DataSource(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
+	}
+
+	expected := new(countHook)
+	expected.ToAdd = 0
+	expected.ToChange = 0
+	expected.ToRemoveAndAdd = 0
+	expected.ToRemove = 0
+
+	if !reflect.DeepEqual(expected, h) {
+		t.Fatalf("Expected %#v, got %#v instead.",
+			expected, h)
+	}
+}
+
+func TestCountHookPostDiff_Ephemeral(t *testing.T) {
+	h := new(countHook)
+
+	resources := map[string]plans.Action{
+		"foo":   plans.Delete,
+		"bar":   plans.NoOp,
+		"lorem": plans.Update,
+		"ipsum": plans.Delete,
+	}
+
+	for k, a := range resources {
+		addr := addrs.Resource{
+			Mode: addrs.EphemeralResourceMode,
+			Type: "test_instance",
+			Name: k,
+		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+		_, _ = h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
 	}
 
 	expected := new(countHook)
@@ -296,8 +328,8 @@ func TestCountHookApply_ChangeOnly(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PreApply(addr, states.CurrentGen, plans.Update, cty.DynamicVal, cty.DynamicVal)
-		h.PostApply(addr, states.CurrentGen, cty.DynamicVal, nil)
+		_, _ = h.PreApply(addr, states.CurrentGen, plans.Update, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostApply(addr, states.CurrentGen, cty.DynamicVal, nil)
 	}
 
 	expected := &countHook{pending: make(map[string]plans.Action)}
@@ -327,8 +359,8 @@ func TestCountHookApply_DestroyOnly(t *testing.T) {
 			Name: k,
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		h.PreApply(addr, states.CurrentGen, plans.Delete, cty.DynamicVal, cty.DynamicVal)
-		h.PostApply(addr, states.CurrentGen, cty.DynamicVal, nil)
+		_, _ = h.PreApply(addr, states.CurrentGen, plans.Delete, cty.DynamicVal, cty.DynamicVal)
+		_, _ = h.PostApply(addr, states.CurrentGen, cty.DynamicVal, nil)
 	}
 
 	expected := &countHook{pending: make(map[string]plans.Action)}

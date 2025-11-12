@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -13,8 +14,9 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
 
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 var _ providers.Interface = (*MockProvider)(nil)
@@ -46,6 +48,12 @@ type MockProvider struct {
 	ValidateDataResourceConfigResponse *providers.ValidateDataResourceConfigResponse
 	ValidateDataResourceConfigRequest  providers.ValidateDataResourceConfigRequest
 	ValidateDataResourceConfigFn       func(providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse
+
+	ValidateEphemeralConfigCalled   bool
+	ValidateEphemeralConfigTypeName string
+	ValidateEphemeralConfigResponse *providers.ValidateEphemeralConfigResponse
+	ValidateEphemeralConfigRequest  providers.ValidateEphemeralConfigRequest
+	ValidateEphemeralConfigFn       func(providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse
 
 	UpgradeResourceStateCalled   bool
 	UpgradeResourceStateTypeName string
@@ -93,6 +101,21 @@ type MockProvider struct {
 	ReadDataSourceRequest  providers.ReadDataSourceRequest
 	ReadDataSourceFn       func(providers.ReadDataSourceRequest) providers.ReadDataSourceResponse
 
+	OpenEphemeralResourceCalled   bool
+	OpenEphemeralResourceResponse *providers.OpenEphemeralResourceResponse
+	OpenEphemeralResourceRequest  providers.OpenEphemeralResourceRequest
+	OpenEphemeralResourceFn       func(providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse
+
+	RenewEphemeralResourceCalled   bool
+	RenewEphemeralResourceResponse *providers.RenewEphemeralResourceResponse
+	RenewEphemeralResourceRequest  providers.RenewEphemeralResourceRequest
+	RenewEphemeralResourceFn       func(providers.RenewEphemeralResourceRequest) providers.RenewEphemeralResourceResponse
+
+	CloseEphemeralResourceCalled   bool
+	CloseEphemeralResourceResponse *providers.CloseEphemeralResourceResponse
+	CloseEphemeralResourceRequest  providers.CloseEphemeralResourceRequest
+	CloseEphemeralResourceFn       func(providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse
+
 	GetFunctionsCalled   bool
 	GetFunctionsResponse *providers.GetFunctionsResponse
 	GetFunctionsFn       func() providers.GetFunctionsResponse
@@ -106,7 +129,8 @@ type MockProvider struct {
 	CloseError  error
 }
 
-func (p *MockProvider) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p *MockProvider) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 	p.GetProviderSchemaCalled = true
@@ -122,13 +146,15 @@ func (p *MockProvider) getProviderSchema() providers.GetProviderSchemaResponse {
 	}
 
 	return providers.GetProviderSchemaResponse{
-		Provider:      providers.Schema{},
-		DataSources:   map[string]providers.Schema{},
-		ResourceTypes: map[string]providers.Schema{},
+		Provider:           providers.Schema{},
+		DataSources:        map[string]providers.Schema{},
+		ResourceTypes:      map[string]providers.Schema{},
+		EphemeralResources: map[string]providers.Schema{},
 	}
 }
 
-func (p *MockProvider) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+func (p *MockProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -146,7 +172,8 @@ func (p *MockProvider) ValidateProviderConfig(r providers.ValidateProviderConfig
 	return resp
 }
 
-func (p *MockProvider) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
+func (p *MockProvider) ValidateResourceConfig(ctx context.Context, r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -178,7 +205,8 @@ func (p *MockProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	return resp
 }
 
-func (p *MockProvider) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+func (p *MockProvider) ValidateDataResourceConfig(ctx context.Context, r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -208,7 +236,39 @@ func (p *MockProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	return resp
 }
 
-func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+func (p *MockProvider) ValidateEphemeralConfig(ctx context.Context, r providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
+	tracing.ContextProbeReport(ctx, 0)
+	p.Lock()
+	defer p.Unlock()
+
+	p.ValidateEphemeralConfigCalled = true
+	p.ValidateEphemeralConfigRequest = r
+
+	// Marshall the value to replicate behavior by the GRPC protocol
+	ephemeralResourceSchema, ok := p.getProviderSchema().EphemeralResources[r.TypeName]
+	if !ok {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no schema found for ephemeral resource %q", r.TypeName))
+		return resp
+	}
+	_, err := msgpack.Marshal(r.Config, ephemeralResourceSchema.Block.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	if p.ValidateEphemeralConfigFn != nil {
+		return p.ValidateEphemeralConfigFn(r)
+	}
+
+	if p.ValidateEphemeralConfigResponse != nil {
+		return *p.ValidateEphemeralConfigResponse
+	}
+
+	return resp
+}
+
+func (p *MockProvider) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -257,7 +317,8 @@ func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 	return resp
 }
 
-func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+func (p *MockProvider) MoveResourceState(ctx context.Context, r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	tracing.ContextProbeReport(ctx, 0)
 	var resp providers.MoveResourceStateResponse
 	p.Lock()
 	defer p.Unlock()
@@ -310,7 +371,8 @@ func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	return resp
 }
 
-func (p *MockProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+func (p *MockProvider) ConfigureProvider(ctx context.Context, r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -328,7 +390,9 @@ func (p *MockProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 	return resp
 }
 
-func (p *MockProvider) Stop() error {
+func (p *MockProvider) Stop(ctx context.Context) error {
+	tracing.ContextProbeReport(ctx, 0)
+
 	// We intentionally don't lock in this one because the whole point of this
 	// method is to be called concurrently with another operation that can
 	// be cancelled.  The provider itself is responsible for handling
@@ -342,7 +406,8 @@ func (p *MockProvider) Stop() error {
 	return p.StopResponse
 }
 
-func (p *MockProvider) ReadResource(r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+func (p *MockProvider) ReadResource(ctx context.Context, r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -383,7 +448,8 @@ func (p *MockProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 	return resp
 }
 
-func (p *MockProvider) PlanResourceChange(r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+func (p *MockProvider) PlanResourceChange(ctx context.Context, r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -463,7 +529,8 @@ func (p *MockProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 	return resp
 }
 
-func (p *MockProvider) ApplyResourceChange(r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+func (p *MockProvider) ApplyResourceChange(ctx context.Context, r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 	p.ApplyResourceChangeCalled = true
@@ -518,7 +585,8 @@ func (p *MockProvider) ApplyResourceChange(r providers.ApplyResourceChangeReques
 	return resp
 }
 
-func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
+func (p *MockProvider) ImportResourceState(ctx context.Context, r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -560,7 +628,8 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 
 	return resp
 }
-func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
+func (p *MockProvider) ReadDataSource(ctx context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -583,7 +652,80 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
-func (p *MockProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+func (p *MockProvider) OpenEphemeralResource(ctx context.Context, r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	tracing.ContextProbeReport(ctx, 0)
+	p.Lock()
+	defer p.Unlock()
+
+	if !p.ConfigureProviderCalled {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("configure not called before OpenEphemeralResource %q", r.TypeName))
+		return resp
+	}
+
+	p.OpenEphemeralResourceCalled = true
+	p.OpenEphemeralResourceRequest = r
+
+	if p.OpenEphemeralResourceFn != nil {
+		return p.OpenEphemeralResourceFn(r)
+	}
+
+	if p.OpenEphemeralResourceResponse != nil {
+		resp = *p.OpenEphemeralResourceResponse
+	}
+
+	return resp
+}
+
+func (p *MockProvider) RenewEphemeralResource(ctx context.Context, r providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	tracing.ContextProbeReport(ctx, 0)
+	p.Lock()
+	defer p.Unlock()
+
+	if !p.ConfigureProviderCalled {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("configure not called before RenewEphemeralResource %q", r.TypeName))
+		return resp
+	}
+
+	p.RenewEphemeralResourceCalled = true
+	p.RenewEphemeralResourceRequest = r
+
+	if p.RenewEphemeralResourceFn != nil {
+		return p.RenewEphemeralResourceFn(r)
+	}
+
+	if p.RenewEphemeralResourceResponse != nil {
+		resp = *p.RenewEphemeralResourceResponse
+	}
+
+	return resp
+}
+
+func (p *MockProvider) CloseEphemeralResource(ctx context.Context, r providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+	tracing.ContextProbeReport(ctx, 0)
+	p.Lock()
+	defer p.Unlock()
+
+	if !p.ConfigureProviderCalled {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("configure not called before CloseEphemeralResource %q", r.TypeName))
+		return resp
+	}
+
+	p.CloseEphemeralResourceCalled = true
+	p.CloseEphemeralResourceRequest = r
+
+	if p.CloseEphemeralResourceFn != nil {
+		return p.CloseEphemeralResourceFn(r)
+	}
+
+	if p.CloseEphemeralResourceResponse != nil {
+		resp = *p.CloseEphemeralResourceResponse
+	}
+
+	return resp
+}
+
+func (p *MockProvider) GetFunctions(ctx context.Context) (resp providers.GetFunctionsResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -599,7 +741,8 @@ func (p *MockProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 	return resp
 }
 
-func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+func (p *MockProvider) CallFunction(ctx context.Context, r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 
@@ -616,7 +759,8 @@ func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 	return resp
 }
 
-func (p *MockProvider) Close() error {
+func (p *MockProvider) Close(ctx context.Context) error {
+	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
 

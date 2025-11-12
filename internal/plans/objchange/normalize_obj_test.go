@@ -8,9 +8,10 @@ package objchange
 import (
 	"testing"
 
-	"github.com/apparentlymart/go-dump/dump"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 func TestNormalizeObjectFromLegacySDK(t *testing.T) {
@@ -305,7 +306,7 @@ func TestNormalizeObjectFromLegacySDK(t *testing.T) {
 			if !got.RawEquals(test.Want) {
 				t.Errorf(
 					"wrong result\ngot:  %s\nwant: %s",
-					dump.Value(got), dump.Value(test.Want),
+					ctydebug.ValueString(got), ctydebug.ValueString(test.Want),
 				)
 			}
 		})

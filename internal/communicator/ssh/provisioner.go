@@ -345,10 +345,12 @@ func buildSSHClientConfig(opts sshClientConfigOpts) (*ssh.ClientConfig, error) {
 		// we mark this as a CA as well, but the host key fallback will still
 		// use it as a direct match if the remote host doesn't return a
 		// certificate.
-		if _, err := tf.WriteString(fmt.Sprintf("@cert-authority %s %s\n", opts.host, opts.hostKey)); err != nil {
+		if _, err := fmt.Fprintf(tf, "@cert-authority %s %s\n", opts.host, opts.hostKey); err != nil {
 			return nil, fmt.Errorf("failed to write temp known_hosts file: %w", err)
 		}
-		tf.Sync()
+		if err := tf.Sync(); err != nil {
+			return nil, err
+		}
 
 		hkCallback, err = knownhosts.New(tf.Name())
 		if err != nil {
@@ -401,9 +403,29 @@ func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, erro
 		return nil, fmt.Errorf("failed to parse private key %q: %w", pk, err)
 	}
 
-	pcert, _, _, _, err := ssh.ParseAuthorizedKey([]byte(certificate))
+	// golang.org/x/crypto/ssh does not expose certificate parsing as a
+	// standalone function and so we'll use the general-purpose parser for
+	// the authorized_keys format, but that means a successful result is not
+	// guaranteed to be a certificate.
+	maybeCert, _, _, _, err := ssh.ParseAuthorizedKey([]byte(certificate))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse certificate %q: %w", certificate, err)
+	}
+	cert, ok := maybeCert.(*ssh.Certificate)
+	if !ok {
+		// If parsing succeeded and we just got the wrong type then we can
+		// assume that the line was at least valid enough to be accepted
+		// as an authorized_keys entry, and so we can assume that the first
+		// space-separated part is the entry type.
+		entryType, _, ok := strings.Cut(certificate, " ")
+		if ok && entryType != "" {
+			return nil, fmt.Errorf("invalid certificate format %q: must use a certificate entry type, or leave certificate unset if you don't intend to use a certificate authority", entryType)
+		} else {
+			// Fallback message just for robustness in case a future version
+			// of [ssh.ParseAuthorizedKey] accepts something that violates
+			// our assumption above. We should not typically get here, though.
+			return nil, fmt.Errorf("must use a certificate algorithm, not a plain public key algorithm")
+		}
 	}
 
 	usigner, err := ssh.NewSignerFromKey(rawPk)
@@ -411,7 +433,7 @@ func signCertWithPrivateKey(pk string, certificate string) (ssh.AuthMethod, erro
 		return nil, fmt.Errorf("failed to create signer from raw private key %q: %w", rawPk, err)
 	}
 
-	ucertSigner, err := ssh.NewCertSigner(pcert.(*ssh.Certificate), usigner)
+	ucertSigner, err := ssh.NewCertSigner(cert, usigner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cert signer %q: %w", usigner, err)
 	}

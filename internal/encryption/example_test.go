@@ -6,6 +6,7 @@
 package encryption_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -62,7 +63,7 @@ func Example() {
 	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
 	// Construct the encryption object
-	enc, diags := encryption.New(reg, cfg, staticEval)
+	enc, diags := encryption.New(context.Background(), reg, cfg, staticEval)
 	handleDiags(diags)
 
 	sfe := enc.State()

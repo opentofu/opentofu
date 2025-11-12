@@ -16,24 +16,25 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 	"golang.org/x/net/idna"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/version"
 )
 
 // HTTPMirrorSource is a source that reads provider metadata from a provider
 // mirror that is accessible over the HTTP provider mirror protocol.
 type HTTPMirrorSource struct {
-	baseURL    *url.URL
-	creds      svcauth.CredentialsSource
-	httpClient *retryablehttp.Client
+	baseURL        *url.URL
+	creds          svcauth.CredentialsSource
+	httpClient     *retryablehttp.Client
+	locationConfig LocationConfig
 }
 
 var _ Source = (*HTTPMirrorSource)(nil)
@@ -46,10 +47,9 @@ var _ Source = (*HTTPMirrorSource)(nil)
 // (When the URL comes from user input, such as in the CLI config, it's the
 // UI/config layer's responsibility to validate this and return a suitable
 // error message for the end-user audience.)
-func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTTPMirrorSource {
-	httpClient := httpclient.New()
-	httpClient.Timeout = requestTimeout
-	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+func NewHTTPMirrorSource(ctx context.Context, baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration, sourceLocationCfg LocationConfig) *HTTPMirrorSource {
+	httpClient := httpclient.NewForRegistryRequests(ctx, 0, requestTimeout)
+	httpClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// If we get redirected more than five times we'll assume we're
 		// in a redirect loop and bail out, rather than hanging forever.
 		if len(via) > 5 {
@@ -57,28 +57,18 @@ func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTT
 		}
 		return nil
 	}
-	return newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient)
+	return newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient, sourceLocationCfg)
 }
 
-func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *http.Client) *HTTPMirrorSource {
+func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *retryablehttp.Client, sourceLocationCfg LocationConfig) *HTTPMirrorSource {
 	if baseURL.Scheme != "https" {
 		panic("non-https URL for HTTP mirror")
 	}
-
-	// We borrow the retry settings and behaviors from the registry client,
-	// because our needs here are very similar to those of the registry client.
-	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = httpClient
-	retryableClient.RetryMax = discoveryRetry
-	retryableClient.RequestLogHook = requestLogHook
-	retryableClient.ErrorHandler = maxRetryErrorHandler
-
-	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
-
 	return &HTTPMirrorSource{
-		baseURL:    baseURL,
-		creds:      creds,
-		httpClient: retryableClient,
+		baseURL:        baseURL,
+		creds:          creds,
+		httpClient:     httpClient,
+		locationConfig: sourceLocationCfg,
 	}
 }
 
@@ -221,7 +211,9 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 		Version:        version,
 		TargetPlatform: target,
 
-		Location: PackageHTTPURL(absURL.String()),
+		Location: PackageHTTPURL{URL: absURL.String(), ClientBuilder: func(ctx context.Context) *retryablehttp.Client {
+			return packageHTTPUrlClientWithRetry(ctx, s.locationConfig.ProviderDownloadRetries)
+		}},
 		Filename: path.Base(absURL.Path),
 	}
 	// A network mirror might not provide any hashes at all, in which case
@@ -266,7 +258,7 @@ func (s *HTTPMirrorSource) mirrorHost() (svchost.Hostname, error) {
 //
 // It might return an error if the mirror base URL is invalid, or if the
 // credentials lookup itself fails.
-func (s *HTTPMirrorSource) mirrorHostCredentials() (svcauth.HostCredentials, error) {
+func (s *HTTPMirrorSource) mirrorHostCredentials(ctx context.Context) (svcauth.HostCredentials, error) {
 	hostname, err := s.mirrorHost()
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider mirror base URL %s: %w", s.baseURL.String(), err)
@@ -277,7 +269,7 @@ func (s *HTTPMirrorSource) mirrorHostCredentials() (svcauth.HostCredentials, err
 		return nil, nil
 	}
 
-	return s.creds.ForHost(hostname)
+	return s.creds.ForHost(ctx, hostname)
 }
 
 // get is the shared functionality for querying a JSON index from a mirror.
@@ -304,7 +296,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 	}
 	req = req.WithContext(ctx)
 	req.Request.Header.Set(terraformVersionHeader, version.String())
-	creds, err := s.mirrorHostCredentials()
+	creds, err := s.mirrorHostCredentials(ctx)
 	if err != nil {
 		return 0, nil, endpointURL, fmt.Errorf("failed to determine request credentials: %w", err)
 	}

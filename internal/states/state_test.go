@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -30,8 +30,8 @@ func TestState(t *testing.T) {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
-	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
+	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -51,11 +51,11 @@ func TestState(t *testing.T) {
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false)
+	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false, "")
 	multiModA := state.EnsureModule(addrs.RootModuleInstance.Child("multi", addrs.StringKey("a")))
-	multiModA.SetOutputValue("pizza", cty.StringVal("cheese"), false)
+	multiModA.SetOutputValue("pizza", cty.StringVal("cheese"), false, "")
 	multiModB := state.EnsureModule(addrs.RootModuleInstance.Child("multi", addrs.StringKey("b")))
-	multiModB.SetOutputValue("pizza", cty.StringVal("sausage"), false)
+	multiModB.SetOutputValue("pizza", cty.StringVal("sausage"), false, "")
 
 	want := &State{
 		Modules: map[string]*Module{
@@ -163,21 +163,8 @@ func TestState(t *testing.T) {
 		},
 	}
 
-	{
-		// Our structure goes deep, so we need to temporarily override the
-		// deep package settings to ensure that we visit the full structure.
-		oldDeepDepth := deep.MaxDepth
-		oldDeepCompareUnexp := deep.CompareUnexportedFields
-		deep.MaxDepth = 50
-		deep.CompareUnexportedFields = true
-		defer func() {
-			deep.MaxDepth = oldDeepDepth
-			deep.CompareUnexportedFields = oldDeepCompareUnexp
-		}()
-	}
-
-	for _, problem := range deep.Equal(state, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, state); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 
 	expectedOutputs := map[string]string{
@@ -235,8 +222,8 @@ func TestStateDeepCopy(t *testing.T) {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
-	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
+	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -294,7 +281,7 @@ func TestStateDeepCopy(t *testing.T) {
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false)
+	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false, "")
 
 	stateCopy := state.DeepCopy()
 	if !state.Equal(stateCopy) {

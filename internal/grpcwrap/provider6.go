@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // New wraps a providers.Interface to implement a grpc ProviderServer using
@@ -22,23 +23,22 @@ import (
 func Provider6(p providers.Interface) tfplugin6.ProviderServer {
 	return &provider6{
 		provider: p,
-		schema:   p.GetProviderSchema(),
+		schema:   p.GetProviderSchema(context.TODO()),
 	}
 }
 
 type provider6 struct {
 	provider providers.Interface
 	schema   providers.GetProviderSchemaResponse
-}
 
-func (p *provider6) GetMetadata(context.Context, *tfplugin6.GetMetadata_Request) (*tfplugin6.GetMetadata_Response, error) {
-	panic("Not Implemented")
+	tfplugin6.UnimplementedProviderServer
 }
 
 func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProviderSchema_Request) (*tfplugin6.GetProviderSchema_Response, error) {
 	resp := &tfplugin6.GetProviderSchema_Response{
-		ResourceSchemas:   make(map[string]*tfplugin6.Schema),
-		DataSourceSchemas: make(map[string]*tfplugin6.Schema),
+		ResourceSchemas:          make(map[string]*tfplugin6.Schema),
+		DataSourceSchemas:        make(map[string]*tfplugin6.Schema),
+		EphemeralResourceSchemas: make(map[string]*tfplugin6.Schema),
 	}
 
 	resp.Provider = &tfplugin6.Schema{
@@ -67,6 +67,12 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 			Block:   convert.ConfigSchemaToProto(dat.Block),
 		}
 	}
+	for typ, dat := range p.schema.EphemeralResources {
+		resp.EphemeralResourceSchemas[typ] = &tfplugin6.Schema{
+			Version: dat.Version,
+			Block:   convert.ConfigSchemaToProto(dat.Block),
+		}
+	}
 
 	resp.ServerCapabilities = &tfplugin6.ServerCapabilities{
 		PlanDestroy: p.schema.ServerCapabilities.PlanDestroy,
@@ -78,7 +84,7 @@ func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProvi
 	return resp, nil
 }
 
-func (p *provider6) ValidateProviderConfig(_ context.Context, req *tfplugin6.ValidateProviderConfig_Request) (*tfplugin6.ValidateProviderConfig_Response, error) {
+func (p *provider6) ValidateProviderConfig(ctx context.Context, req *tfplugin6.ValidateProviderConfig_Request) (*tfplugin6.ValidateProviderConfig_Response, error) {
 	resp := &tfplugin6.ValidateProviderConfig_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -88,7 +94,7 @@ func (p *provider6) ValidateProviderConfig(_ context.Context, req *tfplugin6.Val
 		return resp, nil
 	}
 
-	prepareResp := p.provider.ValidateProviderConfig(providers.ValidateProviderConfigRequest{
+	prepareResp := p.provider.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
 		Config: configVal,
 	})
 
@@ -97,7 +103,7 @@ func (p *provider6) ValidateProviderConfig(_ context.Context, req *tfplugin6.Val
 	return resp, nil
 }
 
-func (p *provider6) ValidateResourceConfig(_ context.Context, req *tfplugin6.ValidateResourceConfig_Request) (*tfplugin6.ValidateResourceConfig_Response, error) {
+func (p *provider6) ValidateResourceConfig(ctx context.Context, req *tfplugin6.ValidateResourceConfig_Request) (*tfplugin6.ValidateResourceConfig_Response, error) {
 	resp := &tfplugin6.ValidateResourceConfig_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -107,7 +113,7 @@ func (p *provider6) ValidateResourceConfig(_ context.Context, req *tfplugin6.Val
 		return resp, nil
 	}
 
-	validateResp := p.provider.ValidateResourceConfig(providers.ValidateResourceConfigRequest{
+	validateResp := p.provider.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -116,7 +122,7 @@ func (p *provider6) ValidateResourceConfig(_ context.Context, req *tfplugin6.Val
 	return resp, nil
 }
 
-func (p *provider6) ValidateDataResourceConfig(_ context.Context, req *tfplugin6.ValidateDataResourceConfig_Request) (*tfplugin6.ValidateDataResourceConfig_Response, error) {
+func (p *provider6) ValidateDataResourceConfig(ctx context.Context, req *tfplugin6.ValidateDataResourceConfig_Request) (*tfplugin6.ValidateDataResourceConfig_Response, error) {
 	resp := &tfplugin6.ValidateDataResourceConfig_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
 
@@ -126,7 +132,7 @@ func (p *provider6) ValidateDataResourceConfig(_ context.Context, req *tfplugin6
 		return resp, nil
 	}
 
-	validateResp := p.provider.ValidateDataResourceConfig(providers.ValidateDataResourceConfigRequest{
+	validateResp := p.provider.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -135,11 +141,31 @@ func (p *provider6) ValidateDataResourceConfig(_ context.Context, req *tfplugin6
 	return resp, nil
 }
 
-func (p *provider6) UpgradeResourceState(_ context.Context, req *tfplugin6.UpgradeResourceState_Request) (*tfplugin6.UpgradeResourceState_Response, error) {
+// ValidateEphemeralResourceConfig implements tfplugin6.ProviderServer.
+func (p *provider6) ValidateEphemeralResourceConfig(ctx context.Context, req *tfplugin6.ValidateEphemeralResourceConfig_Request) (*tfplugin6.ValidateEphemeralResourceConfig_Response, error) {
+	resp := &tfplugin6.ValidateEphemeralResourceConfig_Response{}
+	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
+
+	configVal, err := decodeDynamicValue6(req.Config, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	validateResp := p.provider.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
+		TypeName: req.TypeName,
+		Config:   configVal,
+	})
+
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, validateResp.Diagnostics)
+	return resp, nil
+}
+
+func (p *provider6) UpgradeResourceState(ctx context.Context, req *tfplugin6.UpgradeResourceState_Request) (*tfplugin6.UpgradeResourceState_Response, error) {
 	resp := &tfplugin6.UpgradeResourceState_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
-	upgradeResp := p.provider.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	upgradeResp := p.provider.UpgradeResourceState(ctx, providers.UpgradeResourceStateRequest{
 		TypeName:     req.TypeName,
 		Version:      req.Version,
 		RawStateJSON: req.RawState.Json,
@@ -161,7 +187,7 @@ func (p *provider6) UpgradeResourceState(_ context.Context, req *tfplugin6.Upgra
 	return resp, nil
 }
 
-func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.ConfigureProvider_Request) (*tfplugin6.ConfigureProvider_Response, error) {
+func (p *provider6) ConfigureProvider(ctx context.Context, req *tfplugin6.ConfigureProvider_Request) (*tfplugin6.ConfigureProvider_Response, error) {
 	resp := &tfplugin6.ConfigureProvider_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -171,7 +197,7 @@ func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.Configur
 		return resp, nil
 	}
 
-	configureResp := p.provider.ConfigureProvider(providers.ConfigureProviderRequest{
+	configureResp := p.provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
 		TerraformVersion: req.TerraformVersion,
 		Config:           configVal,
 	})
@@ -180,7 +206,7 @@ func (p *provider6) ConfigureProvider(_ context.Context, req *tfplugin6.Configur
 	return resp, nil
 }
 
-func (p *provider6) ReadResource(_ context.Context, req *tfplugin6.ReadResource_Request) (*tfplugin6.ReadResource_Response, error) {
+func (p *provider6) ReadResource(ctx context.Context, req *tfplugin6.ReadResource_Request) (*tfplugin6.ReadResource_Response, error) {
 	resp := &tfplugin6.ReadResource_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -197,7 +223,7 @@ func (p *provider6) ReadResource(_ context.Context, req *tfplugin6.ReadResource_
 		return resp, nil
 	}
 
-	readResp := p.provider.ReadResource(providers.ReadResourceRequest{
+	readResp := p.provider.ReadResource(ctx, providers.ReadResourceRequest{
 		TypeName:     req.TypeName,
 		PriorState:   stateVal,
 		Private:      req.Private,
@@ -219,7 +245,7 @@ func (p *provider6) ReadResource(_ context.Context, req *tfplugin6.ReadResource_
 	return resp, nil
 }
 
-func (p *provider6) PlanResourceChange(_ context.Context, req *tfplugin6.PlanResourceChange_Request) (*tfplugin6.PlanResourceChange_Response, error) {
+func (p *provider6) PlanResourceChange(ctx context.Context, req *tfplugin6.PlanResourceChange_Request) (*tfplugin6.PlanResourceChange_Response, error) {
 	resp := &tfplugin6.PlanResourceChange_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -248,7 +274,7 @@ func (p *provider6) PlanResourceChange(_ context.Context, req *tfplugin6.PlanRes
 		return resp, nil
 	}
 
-	planResp := p.provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+	planResp := p.provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         req.TypeName,
 		PriorState:       priorStateVal,
 		ProposedNewState: proposedStateVal,
@@ -276,7 +302,7 @@ func (p *provider6) PlanResourceChange(_ context.Context, req *tfplugin6.PlanRes
 	return resp, nil
 }
 
-func (p *provider6) ApplyResourceChange(_ context.Context, req *tfplugin6.ApplyResourceChange_Request) (*tfplugin6.ApplyResourceChange_Response, error) {
+func (p *provider6) ApplyResourceChange(ctx context.Context, req *tfplugin6.ApplyResourceChange_Request) (*tfplugin6.ApplyResourceChange_Response, error) {
 	resp := &tfplugin6.ApplyResourceChange_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -305,7 +331,7 @@ func (p *provider6) ApplyResourceChange(_ context.Context, req *tfplugin6.ApplyR
 		return resp, nil
 	}
 
-	applyResp := p.provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	applyResp := p.provider.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
 		TypeName:       req.TypeName,
 		PriorState:     priorStateVal,
 		PlannedState:   plannedStateVal,
@@ -329,10 +355,10 @@ func (p *provider6) ApplyResourceChange(_ context.Context, req *tfplugin6.ApplyR
 	return resp, nil
 }
 
-func (p *provider6) ImportResourceState(_ context.Context, req *tfplugin6.ImportResourceState_Request) (*tfplugin6.ImportResourceState_Response, error) {
+func (p *provider6) ImportResourceState(ctx context.Context, req *tfplugin6.ImportResourceState_Request) (*tfplugin6.ImportResourceState_Response, error) {
 	resp := &tfplugin6.ImportResourceState_Response{}
 
-	importResp := p.provider.ImportResourceState(providers.ImportResourceStateRequest{
+	importResp := p.provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: req.TypeName,
 		ID:       req.Id,
 	})
@@ -360,7 +386,7 @@ func (p *provider6) MoveResourceState(context.Context, *tfplugin6.MoveResourceSt
 	panic("Not Implemented")
 }
 
-func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSource_Request) (*tfplugin6.ReadDataSource_Response, error) {
+func (p *provider6) ReadDataSource(ctx context.Context, req *tfplugin6.ReadDataSource_Request) (*tfplugin6.ReadDataSource_Response, error) {
 	resp := &tfplugin6.ReadDataSource_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
 
@@ -377,7 +403,7 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 		return resp, nil
 	}
 
-	readResp := p.provider.ReadDataSource(providers.ReadDataSourceRequest{
+	readResp := p.provider.ReadDataSource(ctx, providers.ReadDataSourceRequest{
 		TypeName:     req.TypeName,
 		Config:       configVal,
 		ProviderMeta: metaVal,
@@ -396,29 +422,74 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 	return resp, nil
 }
 
-// CloseEphemeralResource implements tfplugin6.ProviderServer.
-func (p *provider6) CloseEphemeralResource(context.Context, *tfplugin6.CloseEphemeralResource_Request) (*tfplugin6.CloseEphemeralResource_Response, error) {
-	panic("unimplemented")
-}
-
 // OpenEphemeralResource implements tfplugin6.ProviderServer.
-func (p *provider6) OpenEphemeralResource(context.Context, *tfplugin6.OpenEphemeralResource_Request) (*tfplugin6.OpenEphemeralResource_Response, error) {
-	panic("unimplemented")
+func (p *provider6) OpenEphemeralResource(ctx context.Context, req *tfplugin6.OpenEphemeralResource_Request) (*tfplugin6.OpenEphemeralResource_Response, error) {
+	resp := &tfplugin6.OpenEphemeralResource_Response{}
+	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
+
+	configVal, err := decodeDynamicValue6(req.Config, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	openResp := p.provider.OpenEphemeralResource(ctx, providers.OpenEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Config:   configVal,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, openResp.Diagnostics)
+	if openResp.Diagnostics.HasErrors() {
+		return resp, nil
+	}
+
+	resp.Result, err = encodeDynamicValue6(openResp.Result, ty)
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	resp.Private = openResp.Private
+	if openResp.RenewAt != nil {
+		resp.RenewAt = timestamppb.New(*openResp.RenewAt)
+	}
+	return resp, nil
 }
 
 // RenewEphemeralResource implements tfplugin6.ProviderServer.
-func (p *provider6) RenewEphemeralResource(context.Context, *tfplugin6.RenewEphemeralResource_Request) (*tfplugin6.RenewEphemeralResource_Response, error) {
-	panic("unimplemented")
+func (p *provider6) RenewEphemeralResource(ctx context.Context, req *tfplugin6.RenewEphemeralResource_Request) (*tfplugin6.RenewEphemeralResource_Response, error) {
+	resp := &tfplugin6.RenewEphemeralResource_Response{}
+
+	renewResp := p.provider.RenewEphemeralResource(ctx, providers.RenewEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Private:  req.Private,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, renewResp.Diagnostics)
+	if renewResp.Diagnostics.HasErrors() {
+		return resp, nil
+	}
+
+	resp.Private = renewResp.Private
+	if renewResp.RenewAt != nil {
+		resp.RenewAt = timestamppb.New(*renewResp.RenewAt)
+	}
+	return resp, nil
 }
 
-// ValidateEphemeralResourceConfig implements tfplugin6.ProviderServer.
-func (p *provider6) ValidateEphemeralResourceConfig(context.Context, *tfplugin6.ValidateEphemeralResourceConfig_Request) (*tfplugin6.ValidateEphemeralResourceConfig_Response, error) {
-	panic("unimplemented")
+// CloseEphemeralResource implements tfplugin6.ProviderServer.
+func (p *provider6) CloseEphemeralResource(ctx context.Context, req *tfplugin6.CloseEphemeralResource_Request) (*tfplugin6.CloseEphemeralResource_Response, error) {
+	resp := &tfplugin6.CloseEphemeralResource_Response{}
+
+	renewResp := p.provider.CloseEphemeralResource(ctx, providers.CloseEphemeralResourceRequest{
+		TypeName: req.TypeName,
+		Private:  req.Private,
+	})
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, renewResp.Diagnostics)
+	return resp, nil
 }
 
-func (p *provider6) StopProvider(context.Context, *tfplugin6.StopProvider_Request) (*tfplugin6.StopProvider_Response, error) {
+func (p *provider6) StopProvider(ctx context.Context, _ *tfplugin6.StopProvider_Request) (*tfplugin6.StopProvider_Response, error) {
 	resp := &tfplugin6.StopProvider_Response{}
-	err := p.provider.Stop()
+	err := p.provider.Stop(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -430,6 +501,20 @@ func (p *provider6) GetFunctions(context.Context, *tfplugin6.GetFunctions_Reques
 }
 
 func (p *provider6) CallFunction(context.Context, *tfplugin6.CallFunction_Request) (*tfplugin6.CallFunction_Response, error) {
+	panic("Not Implemented")
+}
+
+// GetResourceIdentitySchemas implements tfplugin6.ProviderServer.
+func (p *provider6) GetResourceIdentitySchemas(context.Context, *tfplugin6.GetResourceIdentitySchemas_Request) (*tfplugin6.GetResourceIdentitySchemas_Response, error) {
+	panic("unimplemented")
+}
+
+// UpgradeResourceIdentity implements tfplugin6.ProviderServer.
+func (p *provider6) UpgradeResourceIdentity(context.Context, *tfplugin6.UpgradeResourceIdentity_Request) (*tfplugin6.UpgradeResourceIdentity_Response, error) {
+	panic("unimplemented")
+}
+
+func (p *provider6) GetMetadata(context.Context, *tfplugin6.GetMetadata_Request) (*tfplugin6.GetMetadata_Response, error) {
 	panic("Not Implemented")
 }
 

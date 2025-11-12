@@ -85,7 +85,9 @@ func TestProvidersSchema_output(t *testing.T) {
 			var got, want providerSchemas
 
 			gotString := ui.OutputWriter.String()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			wantFile, err := os.Open("output.json")
 			if err != nil {
@@ -96,7 +98,9 @@ func TestProvidersSchema_output(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			if !cmp.Equal(got, want) {
 				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))

@@ -8,7 +8,7 @@ package plans
 // Mode represents the various mutually-exclusive modes for creating a plan.
 type Mode rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type Mode
+//go:generate go tool golang.org/x/tools/cmd/stringer -type Mode
 
 const (
 	// NormalMode is the default planning mode, which aims to synchronize the
@@ -34,3 +34,19 @@ const (
 	// "tofu plan".
 	RefreshOnlyMode Mode = 'R'
 )
+
+// UIName returns a name suitable for describing the mode in the UI.
+func (m Mode) UIName() string {
+	switch m {
+	case NormalMode:
+		return "normal"
+	case DestroyMode:
+		return "destroy"
+	case RefreshOnlyMode:
+		return "refresh-only"
+	default:
+		// Should not get here because the cases above should cover every
+		// valid value of this type.
+		return "unknown"
+	}
+}

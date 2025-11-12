@@ -62,11 +62,11 @@ func TestChangingKeyProviderAddr(t *testing.T) {
 
 	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-	enc1, diags := New(reg, parsedSourceConfig, staticEval)
+	enc1, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 	if diags.HasErrors() {
 		t.Fatalf("%v", diags.Error())
 	}
-	enc2, diags := New(reg, parsedDestinationConfig, staticEval)
+	enc2, diags := New(t.Context(), reg, parsedDestinationConfig, staticEval)
 	if diags.HasErrors() {
 		t.Fatalf("%v", diags.Error())
 	}
@@ -133,7 +133,7 @@ func TestDuplicateKeyProvider(t *testing.T) {
 
 	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-	_, diags = New(reg, parsedSourceConfig, staticEval)
+	_, diags = New(t.Context(), reg, parsedSourceConfig, staticEval)
 	if diags.HasErrors() {
 		if !strings.Contains(diags.Error(), "Duplicate metadata key") {
 			t.Fatalf("No error due to duplicate metadata key: %v", diags)

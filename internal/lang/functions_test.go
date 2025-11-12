@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/experiments"
@@ -376,7 +376,13 @@ func TestFunctions(t *testing.T) {
 				cty.False,
 			},
 		},
-
+		"ephemeralasnull": {
+			{
+				// We have more specific tests in the funcs package
+				`ephemeralasnull("foo")`,
+				cty.StringVal("foo"),
+			},
+		},
 		"file": {
 			{
 				`file("hello.txt")`,
@@ -1246,11 +1252,12 @@ func TestFunctions(t *testing.T) {
 		// with PureOnly: true and then verify that they return unknown values of a
 		// suitable type.
 		for _, impureFunc := range impureFunctions {
-			delete(allFunctions, impureFunc)
-			delete(allFunctions, CoreNamespace+impureFunc)
+			funcAddr := addrs.ParseFunction(impureFunc)
+			delete(allFunctions, funcAddr.Name)
+			delete(allFunctions, funcAddr.FullyQualified().String())
 		}
 		for f := range scope.Functions() {
-			if _, ok := tests[strings.TrimPrefix(f, CoreNamespace)]; !ok {
+			if _, ok := tests[addrs.ParseFunction(f).Name]; !ok {
 				t.Errorf("Missing test for function %s\n", f)
 			}
 		}
@@ -1285,7 +1292,7 @@ func TestFunctions(t *testing.T) {
 							return
 						}
 
-						_, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+						_, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 						if !diags.HasErrors() {
 							t.Errorf("experimental function %q succeeded without its experiment %s enabled\nexpr: %s", funcName, experiment.Keyword(), test.src)
 						}
@@ -1321,7 +1328,7 @@ func TestFunctions(t *testing.T) {
 						return
 					}
 
-					got, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+					got, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 					if diags.HasErrors() {
 						for _, diag := range diags {
 							t.Errorf("%s: %s", diag.Description().Summary, diag.Description().Detail)
@@ -1335,6 +1342,23 @@ func TestFunctions(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestFunctionsPrefixedCorrectly(t *testing.T) {
+	dir := t.TempDir()
+	baseFuncs := makeBaseFunctionTable(dir)
+	s := &Scope{BaseDir: dir}
+	got := s.Functions()
+
+	for name := range baseFuncs {
+		if _, ok := got[name]; !ok {
+			t.Errorf("expected %q function to be in the scope", name)
+		}
+		want := addrs.ParseFunction(name).FullyQualified().String()
+		if _, ok := got[want]; !ok {
+			t.Errorf("expected %q function to be in the scope", want)
+		}
 	}
 }
 

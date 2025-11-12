@@ -45,6 +45,7 @@ func TestDockerCLIStyleAuth(t *testing.T) {
 						"example.com/foo": {
 							"auth": "` + base64Encode("exampledotcom-foo-user:exampledotcom-foo-password") + `"
 						},
+						"example.com/empty": {},
 						"example.net/foo": {
 							"auth": "` + base64Encode("exampledotnet-foo-user:exampledotnet-foo-password") + `"
 						},
@@ -53,7 +54,10 @@ func TestDockerCLIStyleAuth(t *testing.T) {
 						},
 						"example.net/baz": {
 							"auth": "` + base64Encode("exampledotnet-baz-user:exampledotnet-baz-password") + `"
-						}
+						},
+						"empty.example.org": {},
+						"null.example.org": null,
+						"emptystr.example.org": {"auth":""}
 					}
 				}
 			`),
@@ -76,6 +80,18 @@ func TestDockerCLIStyleAuth(t *testing.T) {
 			"https://globalcredshelper.example.com": {
 				Username: "from-global-helper-1",
 				Secret:   "global-helper-1-password",
+			},
+			"https://empty.example.org": {
+				Username: "from-global-helper-1",
+				Secret:   "empty.example.org secret",
+			},
+			"https://null.example.org": {
+				Username: "from-global-helper-1",
+				Secret:   "null.example.org secret",
+			},
+			"https://emptystr.example.org": {
+				Username: "from-global-helper-1",
+				Secret:   "emptystr.example.org secret",
 			},
 		},
 	}
@@ -122,6 +138,17 @@ func TestDockerCLIStyleAuth(t *testing.T) {
 			},
 		},
 		{
+			"example.com", "empty",
+			// The object for "example.com/empty" has no "auth" property
+			// inside it and so we ignore it completely and use the
+			// "example.com" domain-level entry instead.
+			DomainCredentialsSpecificity,
+			&Credentials{
+				username: "from-exampledotcom-helper-1",
+				password: "exampledotcom-helper-1-password",
+			},
+		},
+		{
 			"example.net", "not-explicitly-configured",
 			DomainCredentialsSpecificity,
 			&Credentials{
@@ -163,6 +190,39 @@ func TestDockerCLIStyleAuth(t *testing.T) {
 			&Credentials{
 				username: "exampledotnet-baz-user",
 				password: "exampledotnet-baz-password",
+			},
+		},
+		{
+			"empty.example.org", "blah",
+			// The JSON config for this domain has an empty object, so we
+			// should ignore it completely and thus select the global
+			// credentials helper instead.
+			GlobalCredentialsSpecificity,
+			&Credentials{
+				username: "from-global-helper-1",
+				password: "empty.example.org secret",
+			},
+		},
+		{
+			"null.example.org", "blah",
+			// The JSON config for this domain has a null value, so we
+			// should ignore it completely and thus select the global
+			// credentials helper instead.
+			GlobalCredentialsSpecificity,
+			&Credentials{
+				username: "from-global-helper-1",
+				password: "null.example.org secret",
+			},
+		},
+		{
+			"emptystr.example.org", "blah",
+			// The JSON config for this domain has an empty "auth" string, so we
+			// should ignore it completely and thus select the global
+			// credentials helper instead.
+			GlobalCredentialsSpecificity,
+			&Credentials{
+				username: "from-global-helper-1",
+				password: "emptystr.example.org secret",
 			},
 		},
 	}

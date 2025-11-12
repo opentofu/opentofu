@@ -12,7 +12,8 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -25,7 +26,7 @@ func TestLoadConfigWithSnapshot(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, got, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
+	_, got, diags := loader.LoadConfigWithSnapshot(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if got == nil {
 		t.Fatalf("snapshot is nil; want non-nil")
@@ -49,11 +50,8 @@ func TestLoadConfigWithSnapshot(t *testing.T) {
 		for key, module := range wantModuleDirs {
 			wantModuleDirs[key] = filepath.Clean(module)
 		}
-		problems := deep.Equal(wantModuleDirs, gotModuleDirs)
-		for _, problem := range problems {
-			t.Errorf("%s", problem)
-		}
-		if len(problems) > 0 {
+		if diff := cmp.Diff(wantModuleDirs, gotModuleDirs); diff != "" {
+			t.Error("wrong module dirs:\n" + diff)
 			return
 		}
 	}
@@ -96,7 +94,7 @@ func TestLoadConfigWithSnapshot_invalidSource(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, _, diags := loader.LoadConfigWithSnapshot(".", configs.RootModuleCallForTesting())
+	_, _, diags := loader.LoadConfigWithSnapshot(t.Context(), ".", configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
 		t.Error("LoadConfigWithSnapshot succeeded; want errors", configs.RootModuleCallForTesting())
 	}
@@ -111,7 +109,7 @@ func TestSnapshotRoundtrip(t *testing.T) {
 		t.Fatalf("unexpected error from NewLoader: %s", err)
 	}
 
-	_, snap, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
+	_, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if snap == nil {
 		t.Fatalf("snapshot is nil; want non-nil")
@@ -122,7 +120,7 @@ func TestSnapshotRoundtrip(t *testing.T) {
 		t.Fatalf("loader is nil; want non-nil")
 	}
 
-	config, diags := snapLoader.LoadConfig(fixtureDir, configs.RootModuleCallForTesting())
+	config, diags := snapLoader.LoadConfig(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 	if config == nil {
 		t.Fatalf("config is nil; want non-nil")

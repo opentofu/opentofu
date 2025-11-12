@@ -29,6 +29,8 @@ func (r Resource) String() string {
 		return fmt.Sprintf("%s.%s", r.Type, r.Name)
 	case DataResourceMode:
 		return fmt.Sprintf("data.%s.%s", r.Type, r.Name)
+	case EphemeralResourceMode:
+		return fmt.Sprintf("ephemeral.%s.%s", r.Type, r.Name)
 	default:
 		// Should never happen, but we'll return a string here rather than
 		// crashing just in case it does.
@@ -43,7 +45,7 @@ func (r Resource) Equal(o Resource) bool {
 func (r Resource) Less(o Resource) bool {
 	switch {
 	case r.Mode != o.Mode:
-		return r.Mode == DataResourceMode
+		return ResourceModeLess(r.Mode, o.Mode)
 
 	case r.Type != o.Type:
 		return r.Type < o.Type
@@ -140,6 +142,17 @@ func (r ResourceInstance) UniqueKey() UniqueKey {
 	return r // A ResourceInstance is its own UniqueKey
 }
 
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r ResourceInstance) IsPlaceholder() bool {
+	_, ok := r.Key.(WildcardKey)
+	return ok
+}
+
 func (r ResourceInstance) uniqueKeySigil() {}
 
 // Absolute returns an AbsResourceInstance from the receiver and the given module
@@ -185,6 +198,16 @@ func (r AbsResource) Config() ConfigResource {
 		Module:   r.Module.Module(),
 		Resource: r.Resource,
 	}
+}
+
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r AbsResource) IsPlaceholder() bool {
+	return r.Module.IsPlaceholder()
 }
 
 // TargetContains implements Targetable by returning true if the given other
@@ -320,6 +343,16 @@ func (r AbsResourceInstance) TargetContains(other Targetable) bool {
 
 func (r AbsResourceInstance) AddrType() TargetableAddrType {
 	return AbsResourceInstanceAddrType
+}
+
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r AbsResourceInstance) IsPlaceholder() bool {
+	return r.Module.IsPlaceholder() || r.Resource.IsPlaceholder()
 }
 
 func (r AbsResourceInstance) String() string {
@@ -497,7 +530,7 @@ func (k configResourceKey) uniqueKeySigil() {}
 // resource lifecycle has a slightly different address format.
 type ResourceMode rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type ResourceMode
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ResourceMode
 
 const (
 	// InvalidResourceMode is the zero value of ResourceMode and is not
@@ -511,4 +544,38 @@ const (
 	// DataResourceMode indicates a data resource, as defined by
 	// "data" blocks in configuration.
 	DataResourceMode ResourceMode = 'D'
+
+	// EphemeralResourceMode indicates an ephemeral resource, as defined by
+	// the "ephemeral" blocks in configuration.
+	EphemeralResourceMode ResourceMode = 'E'
 )
+
+// ResourceModeLess is comparing two ResourceMode.
+// The ranking is as follows: EphemeralResourceMode, DataResourceMode, ManagedResourceMode.
+func ResourceModeLess(a, b ResourceMode) bool {
+	switch a {
+	case ManagedResourceMode:
+		return false // No other mode should be after ManagedResourceMode
+	case DataResourceMode:
+		return b == ManagedResourceMode // DataResourceMode is always lower than ManagedResourceMode
+	case EphemeralResourceMode:
+		return b == ManagedResourceMode || b == DataResourceMode // EphemeralResourceMode is always lower than ManagedResourceMode and DataResourceMode
+	}
+	return false
+}
+
+// ResourceModeBlockName returns the name of the block that the given ResourceMode is mapped to.
+// At the time of writing this, the string values returned from this one are hardcoded all over the place so this is not
+// the source of truth for the name of those blocks.
+func ResourceModeBlockName(rm ResourceMode) string {
+	switch rm {
+	case ManagedResourceMode:
+		return "resource"
+	case DataResourceMode:
+		return "data"
+	case EphemeralResourceMode:
+		return "ephemeral"
+	default:
+		return "unknown"
+	}
+}

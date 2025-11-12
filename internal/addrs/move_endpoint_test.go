@@ -635,3 +635,55 @@ func TestMoveEndpointConfigMoveable(t *testing.T) {
 		})
 	}
 }
+
+func TestSubjectAllowed(t *testing.T) {
+	tests := map[string]struct {
+		target AbsMoveable
+		want   bool
+	}{
+		"ephemeral resource": {
+			AbsResource{Resource: Resource{Mode: EphemeralResourceMode}},
+			false,
+		},
+		"managed resource": {
+			AbsResource{Resource: Resource{Mode: ManagedResourceMode}},
+			true,
+		},
+		"data source": {
+			AbsResource{Resource: Resource{Mode: DataResourceMode}},
+			true,
+		},
+		"ephemeral resource instance": {
+			AbsResourceInstance{Resource: ResourceInstance{Resource: Resource{Mode: EphemeralResourceMode}}},
+			false,
+		},
+		"managed resource instance": {
+			AbsResourceInstance{Resource: ResourceInstance{Resource: Resource{Mode: ManagedResourceMode}}},
+			true,
+		},
+		"data source instance": {
+			AbsResourceInstance{Resource: ResourceInstance{Resource: Resource{Mode: DataResourceMode}}},
+			true,
+		},
+		"module instance": {
+			ModuleInstance{},
+			true,
+		},
+		"module": {
+			ModuleInstance{},
+			true,
+		},
+		"module call": {
+			AbsModuleCall{},
+			true,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := &MoveEndpoint{relSubject: tt.target}
+			if got, want := m.SubjectAllowed(), tt.want; got != want {
+				t.Errorf("unexpected allowed resource for a moved block. expected: %t; got: %t", want, got)
+			}
+		})
+	}
+}

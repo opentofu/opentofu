@@ -14,23 +14,23 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"strings"
+	"time"
 
-	"github.com/apparentlymart/go-shquot/shquot"
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
-	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
-	"go.opentelemetry.io/otel/trace"
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 )
@@ -41,6 +41,8 @@ const (
 
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
+
+	EnvCPUProfile = "TOFU_CPU_PROFILE"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -69,25 +71,44 @@ func main() {
 func realMain() int {
 	defer logging.PanicHandler()
 
-	var err error
+	// Create a go CPU profile if requested
+	// This is more intense and potentially disruptive compared to OpenTelementry tracing and does not integrate with providers
+	// It does however provide a deeper window (with more noise) into performance bottlenecks that are identified by a user
+	// or with OpenTelemetry tracing
+	if cpuProfile := os.Getenv(EnvCPUProfile); cpuProfile != "" {
+		cpuProfileOut, err := os.Create(cpuProfile)
+		if err != nil {
+			Ui.Error(fmt.Sprintf("Could not open cpu profile output: %s", err))
+			return 1
+		}
+		defer func() {
+			err := cpuProfileOut.Close()
+			if err != nil {
+				Ui.Error(fmt.Sprintf("Could not close cpu profile: %s", err))
+			}
+		}()
+		if err := pprof.StartCPUProfile(cpuProfileOut); err != nil {
+			Ui.Error(fmt.Sprintf("Could not start cpu profile: %s", err))
+			return 1
+		}
+		defer pprof.StopCPUProfile()
+	}
 
-	err = openTelemetryInit()
+	ctx, err := tracing.OpenTelemetryInit(context.Background())
 	if err != nil {
 		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
 		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", openTelemetryExporterEnvVar))
+		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", tracing.OTELExporterEnvVar))
+
 		return 1
 	}
-	var ctx context.Context
-	var otelSpan trace.Span
-	{
-		// At minimum we emit a span covering the entire command execution.
-		_, displayArgs := shquot.POSIXShellSplit(os.Args)
-		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("tofu %s", displayArgs))
-		defer otelSpan.End()
-	}
+	defer tracing.ForceFlush(5 * time.Second)
+
+	// At minimum, we emit a span covering the entire command execution.
+	ctx, span := tracing.Tracer().Start(ctx, "tofu")
+	defer span.End()
 
 	tmpLogPath := os.Getenv(envTmpLogPath)
 	if tmpLogPath != "" {
@@ -102,9 +123,7 @@ func realMain() int {
 		}
 	}
 
-	log.Printf(
-		"[INFO] OpenTofu version: %s %s",
-		Version, VersionPrerelease)
+	log.Printf("[INFO] OpenTofu version: %s %s", Version, VersionPrerelease)
 	for _, depMod := range version.InterestingDependencies() {
 		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
 	}
@@ -117,6 +136,7 @@ func realMain() int {
 	streams, err := terminal.Init()
 	if err != nil {
 		Ui.Error(fmt.Sprintf("Failed to configure the terminal: %s", err))
+
 		return 1
 	}
 	if streams.Stdout.IsTerminal() {
@@ -140,7 +160,7 @@ func realMain() int {
 	// path in the TERRAFORM_CONFIG_FILE environment variable (though probably
 	// ill-advised) will be resolved relative to the true working directory,
 	// not the overridden one.
-	config, diags := cliconfig.LoadConfig()
+	config, diags := cliconfig.LoadConfig(ctx)
 
 	if len(diags) > 0 {
 		// Since we haven't instantiated a command.Meta yet, we need to do
@@ -165,43 +185,26 @@ func realMain() int {
 	}
 
 	// Get any configured credentials from the config and initialize
-	// a service discovery object. The slightly awkward predeclaration of
-	// disco is required to allow us to pass untyped nil as the creds source
-	// when creating the source fails. Otherwise we pass a typed nil which
-	// breaks the nil checks in the disco object
-	var services *disco.Disco
+	// a service discovery object.
 	credsSrc, err := credentialsSource(config)
-	if err == nil {
-		services = disco.NewWithCredentialsSource(credsSrc)
-	} else {
+	if err != nil {
 		// Most commands don't actually need credentials, and most situations
 		// that would get us here would already have been reported by the config
 		// loading above, so we'll just log this one as an aid to debugging
 		// in the unlikely event that it _does_ arise.
 		log.Printf("[WARN] Cannot initialize remote host credentials manager: %s", err)
-		// passing (untyped) nil as the creds source is okay because the disco
-		// object checks that and just acts as though no credentials are present.
-		services = disco.NewWithCredentialsSource(nil)
+		credsSrc = nil // must be an untyped nil for newServiceDiscovery to understand "no credentials available"
 	}
-	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	services := newServiceDiscovery(ctx, config.RegistryProtocols, credsSrc)
 
-	modulePkgFetcher := remoteModulePackageFetcher(config.OCICredentialsPolicy)
+	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
-	providerSrc, diags := providerSource(config.ProviderInstallation, services, config.OCICredentialsPolicy)
-	if len(diags) > 0 {
-		Ui.Error("There are some problems with the provider_installation configuration:")
-		for _, diag := range diags {
-			earlyColor := &colorstring.Colorize{
-				Colors:  colorstring.DefaultColors,
-				Disable: true, // Disable color to be conservative until we know better
-				Reset:   true,
-			}
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
-		}
-		if diags.HasErrors() {
-			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
-			// We continue to run anyway, because most commands don't do provider installation.
-		}
+	// Get the original working directory before any -chdir processing
+	originalWd, err := os.Getwd()
+	if err != nil {
+		// It would be very strange to end up here
+		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
+		return 1
 	}
 	providerDevOverrides := providerDevOverrides(config.ProviderInstallation)
 
@@ -221,13 +224,6 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	originalWd, err := os.Getwd()
-	if err != nil {
-		// It would be very strange to end up here
-		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
-		return 1
-	}
-
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
@@ -241,6 +237,29 @@ func realMain() int {
 		if err != nil {
 			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
 			return 1
+		}
+	}
+
+	providerSrc, diags := providerSource(ctx,
+		config.ProviderInstallation,
+		config.RegistryProtocols,
+		services,
+		config.OCICredentialsPolicy,
+		originalWd,
+	)
+	if len(diags) > 0 {
+		Ui.Error("There are some problems with the provider_installation configuration:")
+		for _, diag := range diags {
+			earlyColor := &colorstring.Colorize{
+				Colors:  colorstring.DefaultColors,
+				Disable: true, // Disable color to be conservative until we know better
+				Reset:   true,
+			}
+			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
+		}
+		if diags.HasErrors() {
+			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
+			// We continue to run anyway, because most commands don't do provider installation.
 		}
 	}
 
@@ -280,8 +299,8 @@ func realMain() int {
 	}
 
 	// Prefix the args with any args from the EnvCLI targeting this command
-	suffix := strings.Replace(strings.Replace(
-		cliRunner.Subcommand(), "-", "_", -1), " ", "_", -1)
+	suffix := strings.ReplaceAll(strings.ReplaceAll(
+		cliRunner.Subcommand(), "-", "_"), " ", "_")
 	args, err = mergeEnvArgs(
 		fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
 	if err != nil {

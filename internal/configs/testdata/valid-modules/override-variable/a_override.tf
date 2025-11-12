@@ -3,6 +3,7 @@ variable "fully_overridden" {
   description = "a_override description"
   deprecated = "a_override deprecated"
   type = string
+  ephemeral = true
 }
 
 variable "partially_overridden" {

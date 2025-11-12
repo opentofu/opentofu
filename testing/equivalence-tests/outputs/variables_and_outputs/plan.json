@@ -40,27 +40,110 @@
       },
       "variables": {
         "list_empty_default": {
-          "default": []
+          "default": [],
+          "type": [
+            "list",
+            [
+              "object",
+              {
+                "optional_attribute": "string",
+                "optional_attribute_with_default": "string",
+                "required_attribute": "string"
+              },
+              [
+                "optional_attribute",
+                "optional_attribute_with_default"
+              ]
+            ]
+          ]
         },
-        "list_no_default": {},
+        "list_no_default": {
+          "required": true,
+          "type": [
+            "list",
+            [
+              "object",
+              {
+                "optional_attribute": "string",
+                "optional_attribute_with_default": "string",
+                "required_attribute": "string"
+              },
+              [
+                "optional_attribute",
+                "optional_attribute_with_default"
+              ]
+            ]
+          ]
+        },
         "nested_optional_object": {
           "default": {
             "nested_object": null
-          }
+          },
+          "type": [
+            "object",
+            {
+              "nested_object": [
+                "object",
+                {
+                  "flag": "bool"
+                },
+                [
+                  "flag"
+                ]
+              ]
+            },
+            [
+              "nested_object"
+            ]
+          ]
         },
         "nested_optional_object_with_default": {
           "default": {
             "nested_object": {
               "flag": false
             }
-          }
+          },
+          "type": [
+            "object",
+            {
+              "nested_object": [
+                "object",
+                {
+                  "flag": "bool"
+                },
+                [
+                  "flag"
+                ]
+              ]
+            },
+            [
+              "nested_object"
+            ]
+          ]
         },
         "nested_optional_object_with_embedded_default": {
           "default": {
             "nested_object": {
               "flag": false
             }
-          }
+          },
+          "type": [
+            "object",
+            {
+              "nested_object": [
+                "object",
+                {
+                  "flag": "bool"
+                },
+                [
+                  "flag"
+                ]
+              ]
+            },
+            [
+              "nested_object"
+            ]
+          ]
         }
       }
     }

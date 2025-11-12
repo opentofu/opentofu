@@ -64,7 +64,7 @@ state {
 
 	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-	enc, diags := encryption.New(reg, cfg, staticEval)
+	enc, diags := encryption.New(t.Context(), reg, cfg, staticEval)
 	if diags.HasErrors() {
 		t.Fatalf("%v", diags)
 	}

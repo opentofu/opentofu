@@ -17,9 +17,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -43,11 +45,10 @@ func TestRemoteClient(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,18 +75,17 @@ func TestRemoteClientLocks(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,39 +95,53 @@ func TestRemoteClientLocks(t *testing.T) {
 
 func TestRemoteS3ClientLocks(t *testing.T) {
 	testACC(t)
-	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
-	keyName := "testState"
-
-	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
-	})).(*Backend)
-
-	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
-	})).(*Backend)
-
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-
-	s1, err := b1.StateMgr(backend.DefaultStateName)
-	if err != nil {
-		t.Fatal(err)
+	var (
+		bucketName = fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
+		keyName    = "testState"
+		ssmc       = "myX4h8dotng+6B65SUhiVKPkwuJVyZ94v7dk+oJCvYg="
+	)
+	cases := map[string]struct {
+		backendCfg hcl.Body
+	}{
+		"with sse customer key": {
+			backendCfg: backend.TestWrapConfig(map[string]interface{}{
+				"bucket":           bucketName,
+				"key":              keyName,
+				"encrypt":          true,
+				"use_lockfile":     true,
+				"sse_customer_key": ssmc,
+			}),
+		},
+		"without sse": {
+			backendCfg: backend.TestWrapConfig(map[string]interface{}{
+				"bucket":       bucketName,
+				"key":          keyName,
+				"use_lockfile": true,
+			}),
+		},
 	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), tt.backendCfg).(*Backend)
+			b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), tt.backendCfg).(*Backend)
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
-	if err != nil {
-		t.Fatal(err)
+			createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+			defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+
+			s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			//nolint:errcheck // don't need to check the error from type assertion
+			remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+		})
 	}
-
-	//nolint:errcheck // don't need to check the error from type assertion
-	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
 }
 
 func TestRemoteS3AndDynamoDBClientLocks(t *testing.T) {
@@ -150,18 +164,17 @@ func TestRemoteS3AndDynamoDBClientLocks(t *testing.T) {
 		"use_lockfile":   true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,11 +203,10 @@ func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
 		"use_lockfile":   true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,12 +215,12 @@ func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
 	infoA.Operation = "test"
 	infoA.Who = "clientA"
 
-	if _, err := s1.Lock(infoA); err == nil {
+	if _, err := s1.Lock(t.Context(), infoA); err == nil {
 		t.Fatal("unexpected successful lock: ", err)
 	}
 
 	expected := 0
-	if actual := numberOfObjectsInBucket(t, ctx, b1.s3Client, bucketName); actual != expected {
+	if actual := numberOfObjectsInBucket(t, t.Context(), b1.s3Client, bucketName); actual != expected {
 		t.Fatalf("expected to have %d objects but got %d", expected, actual)
 	}
 }
@@ -233,14 +245,13 @@ func TestForceUnlock(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,24 +260,24 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(lockID); err != nil {
+	if err := s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,28 +286,28 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -311,7 +322,6 @@ func TestForceUnlockS3Only(t *testing.T) {
 	testACC(t)
 	bucketName := fmt.Sprintf("%s-force-s3-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
-
 	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":       bucketName,
 		"key":          keyName,
@@ -326,12 +336,14 @@ func TestForceUnlockS3Only(t *testing.T) {
 		"use_lockfile": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	if err := putS3Policy(t.Context(), b1.s3Client, bucketName, fmt.Sprintf(encryptionPolicy, bucketName)); err != nil {
+		t.Fatalf("failed to add bucket encryption policy: %s", err)
+	}
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -340,24 +352,24 @@ func TestForceUnlockS3Only(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,28 +378,28 @@ func TestForceUnlockS3Only(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -395,6 +407,15 @@ func TestForceUnlockS3Only(t *testing.T) {
 	if !strings.HasPrefix(err.Error(), expectedErrorMsg.Error()) {
 		t.Errorf("Unlock()\nactual = %v\nexpected = %v", err, expectedErrorMsg)
 	}
+}
+
+func putS3Policy(ctx context.Context, client *s3.Client, name string, policy string) error {
+	req := &s3.PutBucketPolicyInput{
+		Bucket: aws.String(name),
+		Policy: aws.String(policy),
+	}
+	_, err := client.PutBucketPolicy(ctx, req)
+	return err
 }
 
 // verify that we can unlock a state with an existing lock
@@ -419,14 +440,13 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,24 +455,24 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -461,28 +481,28 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -511,14 +531,13 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first create both locks: s3 and dynamo
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -527,15 +546,15 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
 	// Remove the dynamo lock to simulate that the lock in s3 was acquired, dynamo failed but s3 release failed in the end.
 	// Therefore, the user is left in the situation with s3 lock existing and dynamo missing.
-	deleteDynamoEntry(ctx, t, b1.dynClient, bucketName, info.Path)
-	err = s1.Unlock(lockID)
+	deleteDynamoEntry(t.Context(), t, b1.dynClient, bucketName, info.Path)
+	err = s1.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected to get an error but got nil")
 	}
@@ -545,7 +564,7 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 	}
 
 	// Now, unlocking should fail with error on both locks
-	err = s1.Unlock(lockID)
+	err = s1.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected to get an error but got nil")
 	}
@@ -572,13 +591,12 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b.dynClient, bucketName)
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -586,11 +604,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 
 	sum := md5.Sum([]byte("test"))
 
-	if err := client.putMD5(ctx, sum[:]); err != nil {
+	if err := client.putMD5(t.Context(), sum[:]); err != nil {
 		t.Fatal(err)
 	}
 
-	getSum, err := client.getMD5(ctx)
+	getSum, err := client.getMD5(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,11 +617,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		t.Fatalf("getMD5 returned the wrong checksum: expected %x, got %x", sum[:], getSum)
 	}
 
-	if err := client.deleteMD5(ctx); err != nil {
+	if err := client.deleteMD5(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
-	if getSum, err := client.getMD5(ctx); err == nil {
+	if getSum, err := client.getMD5(t.Context()); err == nil {
 		t.Fatalf("expected getMD5 error, got none. checksum: %x", getSum)
 	}
 }
@@ -621,13 +639,12 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,29 +669,29 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"bucket": bucketName,
 		"key":    keyName,
 	})).(*Backend)
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	client2 := s2.(*remote.State).Client
 
 	// write the new state through client2 so that there is no checksum yet
-	if err := client2.Put(newState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// verify that we can pull a state without a checksum
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
 	// write the new state back with its checksum
-	if err := client1.Put(newState.Bytes()); err != nil {
+	if err := client1.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// put an empty state in place to check for panics during get
-	if err := client2.Put([]byte{}); err != nil {
+	if err := client2.Put(t.Context(), []byte{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -690,24 +707,24 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 
 	// fetching an empty state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// put the old state in place of the new, without updating the checksum
-	if err := client2.Put(oldState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), oldState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// fetching the wrong state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// update the state with the correct one after we Get again
 	testChecksumHook = func() {
-		if err := client2.Put(newState.Bytes()); err != nil {
+		if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 			t.Fatal(err)
 		}
 		testChecksumHook = nil
@@ -718,7 +735,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	// this final Get will fail to fail the checksum verification, the above
 	// callback will update the state with the correct version, and Get should
 	// retry automatically.
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -804,7 +821,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.Put with included checksum",
 			skipChecksum: false,
 			action: func(cl *RemoteClient) error {
-				return cl.Put([]byte("test"))
+				return cl.Put(t.Context(), []byte("test"))
 			},
 			wantMissingHeaders: []string{
 				"X-Amz-Checksum-Mode",
@@ -820,7 +837,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.Put with skipped checksum",
 			skipChecksum: true,
 			action: func(cl *RemoteClient) error {
-				return cl.Put([]byte("test"))
+				return cl.Put(t.Context(), []byte("test"))
 			},
 			wantMissingHeaders: []string{
 				"X-Amz-Checksum-Mode",
@@ -837,7 +854,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.HeadObject and s3.GetObject with included checksum",
 			skipChecksum: false,
 			action: func(cl *RemoteClient) error {
-				_, err := cl.Get()
+				_, err := cl.Get(t.Context())
 				return err
 			},
 			wantMissingHeaders: []string{
@@ -854,7 +871,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.HeadObject and s3.GetObject with skipped checksum",
 			skipChecksum: true,
 			action: func(cl *RemoteClient) error {
-				_, err := cl.Get()
+				_, err := cl.Get(t.Context())
 				return err
 			},
 			wantMissingHeaders: []string{
@@ -922,7 +939,7 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	)
 	// get the request from state writing
 	{
-		err := rc.Put([]byte("test"))
+		err := rc.Put(t.Context(), []byte("test"))
 		if err != nil {
 			t.Fatalf("expected to have no error writing the state object but got one: %s", err)
 		}
@@ -933,7 +950,7 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	}
 	// get the request from lock object writing
 	{
-		err := rc.s3Lock(&statemgr.LockInfo{Info: "test"})
+		err := rc.s3Lock(t.Context(), &statemgr.LockInfo{Info: "test"})
 		if err != nil {
 			t.Fatalf("expected to have no error writing the lock object but got one: %s", err)
 		}
@@ -963,6 +980,136 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	}
 }
 
+func TestS3LockObjectTagging(t *testing.T) {
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+
+	tests := []struct {
+		name         string
+		action       func(cl *RemoteClient) error
+		skipChecksum bool
+
+		lockTags     map[string]string
+		expectedTags string
+	}{
+		{
+			name:         "s3.Put with no tags",
+			skipChecksum: false,
+			lockTags:     map[string]string{},
+			expectedTags: "",
+		},
+		{
+			name:         "s3.Put with 1 tag",
+			skipChecksum: false,
+			lockTags: map[string]string{
+				"a": "b",
+			},
+			expectedTags: "a=b",
+		},
+		{
+			name:         "s3.Put with several tags",
+			skipChecksum: false,
+			lockTags: map[string]string{
+				"a": "b",
+				"c": "e",
+				"f": "g",
+			},
+			expectedTags: "a=b&c=e&f=g",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:    s3Cl,
+				bucketName:  "test-bucket",
+				path:        "state-file",
+				useLockfile: true,
+				lockTags:    tt.lockTags,
+			}
+
+			_, err := rc.Lock(t.Context(), statemgr.NewLockInfo())
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			gotTags := httpCl.receivedReq.Header.Get("x-amz-tagging")
+			if gotTags != tt.expectedTags {
+				t.Errorf("Found tags %s did not match expected tags: %s", gotTags, tt.expectedTags)
+			}
+		})
+	}
+}
+
+func TestS3StateObjectTagging(t *testing.T) {
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+
+	tests := []struct {
+		name         string
+		action       func(cl *RemoteClient) error
+		skipChecksum bool
+
+		stateTags    map[string]string
+		expectedTags string
+	}{
+		{
+			name:         "s3.Put with no tags",
+			skipChecksum: false,
+			stateTags:    map[string]string{},
+			expectedTags: "",
+		},
+		{
+			name:         "s3.Put with 1 tag",
+			skipChecksum: false,
+			stateTags: map[string]string{
+				"a": "b",
+			},
+			expectedTags: "a=b",
+		},
+		{
+			name:         "s3.Put with several tags",
+			skipChecksum: false,
+			stateTags: map[string]string{
+				"a": "b",
+				"c": "e",
+				"f": "g",
+			},
+			expectedTags: "a=b&c=e&f=g",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:   s3Cl,
+				bucketName: "test-bucket",
+				path:       "state-file",
+				stateTags:  tt.stateTags,
+			}
+			err := rc.Put(t.Context(), []byte("test"))
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			gotTags := httpCl.receivedReq.Header.Get("x-amz-tagging")
+			if gotTags != tt.expectedTags {
+				t.Errorf("Found tags %s did not match expected tags: %s", gotTags, tt.expectedTags)
+			}
+		})
+	}
+}
+
 // mockHttpClient is used to test the interaction of the s3 backend with the aws-sdk.
 // This is meant to be configured with a response that will be returned to the aws-sdk.
 // The receivedReq is going to contain the last request received by it.
@@ -974,4 +1121,73 @@ type mockHttpClient struct {
 func (m *mockHttpClient) Do(r *http.Request) (*http.Response, error) {
 	m.receivedReq = r
 	return m.resp, nil
+}
+
+// Policy to force server side encryption. This can be used, together with putS3Policy to test things like
+// server side encryption.
+// NOTE: This is a template, you should format it with the bucket name that it's going to be attached to.
+const encryptionPolicy = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyUnencryptedObjectUploads",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::%s/*",
+      "Condition": {
+        "Null": { "s3:x-amz-server-side-encryption": "true" }
+      }
+    }
+  ]
+}`
+
+func TestConfigurePutObjectTags(t *testing.T) {
+	tests := []struct {
+		name   string
+		tags   map[string]string
+		result s3.PutObjectInput
+	}{
+		{
+			name:   "No tags",
+			tags:   nil,
+			result: s3.PutObjectInput{},
+		},
+		{
+			name: "Basic tags",
+			tags: map[string]string{
+				"abd": "def",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("abd=def"),
+			},
+		},
+		{
+			name: "Complex values",
+			tags: map[string]string{
+				"opentofu.com/environment": "production",
+				"my-special-chars":         "&*&@$!(&)",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("my-special-chars=%26%2A%26%40%24%21%28%26%29&opentofu.com%2Fenvironment=production"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		c := RemoteClient{
+			stateTags: tt.tags,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			pot := &s3.PutObjectInput{}
+			c.configurePutObjectTags(pot, c.stateTags)
+
+			if pot.Tagging == nil && tt.result.Tagging == nil {
+				return
+			}
+
+			if *pot.Tagging != *tt.result.Tagging {
+				t.Errorf("configurePutObjectTags() = %v; want %v", *pot.Tagging, *tt.result.Tagging)
+			}
+		})
+	}
 }

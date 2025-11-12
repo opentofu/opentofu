@@ -102,7 +102,7 @@ func (b *Local) opApply(
 	// operation.
 	runningOp.State = lr.InputState
 
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -270,7 +270,7 @@ func (b *Local) opApply(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
-		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config)
+		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config, lr.ApplyOpts)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {
@@ -288,7 +288,7 @@ func (b *Local) opApply(
 
 	// Store the final state
 	runningOp.State = applyState
-	err := statemgr.WriteAndPersist(opState, applyState, schemas)
+	err := statemgr.WriteAndPersist(context.TODO(), opState, applyState, schemas)
 	if err != nil {
 		// Export the state file from the state manager and assign the new
 		// state. This is needed to preserve the existing serial and lineage.

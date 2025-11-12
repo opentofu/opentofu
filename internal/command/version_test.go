@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestVersion(t *testing.T) {
 		VersionPrerelease: "foo",
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
-	if err := c.replaceLockedDependencies(locks); err != nil {
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
 	if code := c.Run([]string{}); code != 0 {
@@ -149,7 +150,7 @@ func TestVersion_json(t *testing.T) {
 		VersionPrerelease: "foo",
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
-	if err := c.replaceLockedDependencies(locks); err != nil {
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
 	if code := c.Run([]string{"-json"}); code != 0 {

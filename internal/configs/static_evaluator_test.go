@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -98,7 +99,7 @@ resource "foo" "bar" {}
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
-		value, diags := emptyEval.Evaluate(mod.Locals["static"].Expr, dummyIdentifier)
+		value, diags := emptyEval.Evaluate(t.Context(), mod.Locals["static"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -113,7 +114,7 @@ resource "foo" "bar" {}
 				t.Fatalf("should panic")
 			}
 		}()
-		_, _ = emptyEval.Evaluate(mod.Locals["static_ref"].Expr, dummyIdentifier)
+		_, _ = emptyEval.Evaluate(t.Context(), mod.Locals["static_ref"].Expr, dummyIdentifier)
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
@@ -132,7 +133,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
+				value, diags := eval.Evaluate(t.Context(), mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -168,7 +169,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
+				value, diags := eval.Evaluate(t.Context(), mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -193,7 +194,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -222,7 +223,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, local.diags)
 			})
 		}
@@ -241,7 +242,7 @@ resource "foo" "bar" {}
 		eval := NewStaticEvaluator(mod, call)
 
 		badref := mod.Locals["ref_c"]
-		_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+		_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 		assertExactDiagnostics(t, diags, []string{
 			"eval.tf:2,1-15: Variable value not provided; var.str not included",
 			"eval.tf:47,2-17: Unable to compute static value; local.ref_a depends on var.str which is not available",
@@ -264,7 +265,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -275,7 +276,7 @@ resource "foo" "bar" {}
 		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 
-		value, diags := eval.Evaluate(mod.Locals["ws"].Expr, dummyIdentifier)
+		value, diags := eval.Evaluate(t.Context(), mod.Locals["ws"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -288,7 +289,7 @@ resource "foo" "bar" {}
 		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
-		value, diags := eval.Evaluate(mod.Locals["func"].Expr, dummyIdentifier)
+		value, diags := eval.Evaluate(t.Context(), mod.Locals["func"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -296,9 +297,9 @@ resource "foo" "bar" {}
 			t.Errorf("Expected %s got %s", "f887f41a53a46e2d40a3f8f86cacaaa2", value.AsString())
 		}
 
-		_, diags = eval.Evaluate(mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
+		_, diags = eval.Evaluate(t.Context(), mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:60,17-27: Call to unknown function; There is no function named "missing_fn".`})
-		_, diags = eval.Evaluate(mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
+		_, diags = eval.Evaluate(t.Context(), mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:61,18-36: Provider function in static context; Unable to use provider::type::fn in static context, which is required by local.provider_func`})
 	})
 }
@@ -311,29 +312,50 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		t.Fatal(fileDiags)
 	}
 	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+	mod.Locals["my_ephemeral_local"] = &Local{
+		Name:      "my_ephemeral_local",
+		Expr:      hcl.StaticExpr(cty.StringVal("ephemeral local value").Mark(marks.Ephemeral), hcl.Range{}),
+		DeclRange: hcl.Range{},
+	}
+	mod.Locals["my_sensitive_local"] = &Local{
+		Name:      "my_sensitive_local",
+		Expr:      hcl.StaticExpr(cty.StringVal("sensitive local value").Mark(marks.Sensitive), hcl.Range{}),
+		DeclRange: hcl.Range{},
+	}
 	eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
-
 	cases := []struct {
 		expr  string
 		diags []string
-	}{{
-		expr: `"static"`,
-	}, {
-		expr: `count`,
-		diags: []string{
-			`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`,
-			`:0,0-0: Dynamic value in static context; Unable to use count. in static context, which is required by local.test`,
+	}{
+		{
+			expr: `"static"`,
 		},
-	}, {
-		expr:  `module.foo.bar`,
-		diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
-	}}
+		{
+			expr: `count`,
+			diags: []string{
+				`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`,
+				`:0,0-0: Dynamic value in static context; Unable to use count. in static context, which is required by local.test`,
+			},
+		},
+		{
+			expr:  `module.foo.bar`,
+			diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
+		},
+		{
+			expr:  `local.my_ephemeral_local`,
+			diags: []string{`eval.tf:1,1-25: Ephemeral value not allowed; Ephemeral values, or values derived from ephemeral values, cannot be used as local.test.`},
+		},
+		{
+			expr:  `local.my_sensitive_local`,
+			diags: []string{`eval.tf:1,1-25: Sensitive value not allowed; Sensitive values, or values derived from sensitive values, cannot be used as local.test.`},
+		},
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.expr, func(t *testing.T) {
 			expr, _ := hclsyntax.ParseExpression([]byte(tc.expr), "eval.tf", hcl.InitialPos)
 			var str string
-			diags := eval.DecodeExpression(expr, dummyIdentifier, &str)
+			diags := eval.DecodeExpression(t.Context(), expr, dummyIdentifier, &str)
 			assertExactDiagnostics(t, diags, tc.diags)
 		})
 	}
@@ -385,11 +407,24 @@ terraform {
 	}
 }`,
 		diags: []string{`eval.tf:6,2-21: Backend config contains sensitive values; The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply sensitive credentials via backend specific environment variables`},
+	}, {
+		ident: "ephemeral",
+		body: `
+variable "backend_cfg" {
+	ephemeral = true
+    default = "foo"
+}
+terraform {
+	backend "my_backend" {
+		thing = var.backend_cfg
+	}
+}`,
+		diags: []string{`eval.tf:7,2-22: Backend config contains ephemeral values; The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply ephemeral credentials via backend specific environment variables`},
 	}}
 
 	schema := &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
-			"thing": &configschema.Attribute{
+			"thing": {
 				Type: cty.String,
 			},
 		},
@@ -403,15 +438,20 @@ terraform {
 				t.Fatal(fileDiags)
 			}
 
-			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
+			modCall := StaticModuleCall{
+				vars: func(v *Variable) (cty.Value, hcl.Diagnostics) {
+					return v.Default, nil
+				},
+			}
+			mod, _ := NewModule([]*File{file}, nil, modCall, "dir", SelectiveLoadAll)
 
-			_, diags := mod.Backend.Hash(schema)
+			_, diags := mod.Backend.Hash(t.Context(), schema)
 			if diags.HasErrors() {
 				assertExactDiagnostics(t, diags, tc.diags)
 				return
 			}
 
-			_, diags = mod.Backend.Decode(schema)
+			_, diags = mod.Backend.Decode(t.Context(), schema)
 
 			assertExactDiagnostics(t, diags, tc.diags)
 		})

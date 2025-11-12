@@ -6,7 +6,7 @@
 package addrs
 
 import (
-	tfaddr "github.com/opentofu/registry-address"
+	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 // A ModulePackage represents a physical location where OpenTofu can retrieve
@@ -48,4 +48,4 @@ func (p ModulePackage) String() string {
 // registry in order to find a real module package address. These being
 // distinct is intended to help future maintainers more easily follow the
 // series of steps in the module installer, with the help of the type checker.
-type ModuleRegistryPackage = tfaddr.ModulePackage
+type ModuleRegistryPackage = regaddr.ModulePackage

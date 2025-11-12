@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -109,8 +110,8 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 		req.RawStateJSON = args.objectSrc.AttrsJSON
 	}
 
-	resp := args.provider.UpgradeResourceState(req)
-	diags := resp.Diagnostics
+	resp := args.provider.UpgradeResourceState(context.TODO(), req)
+	diags := maybeImproveResourceInstanceDiagnostics(resp.Diagnostics, args.currentAddr)
 	if diags.HasErrors() {
 		log.Printf("[TRACE] upgradeResourceStateTransform: failed - address: %s", args.currentAddr)
 		return cty.NilVal, nil, diags
@@ -139,7 +140,7 @@ func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfd
 		SourcePrivate:         args.objectSrc.Private,
 		TargetTypeName:        args.currentAddr.Resource.Resource.Type,
 	}
-	resp := args.provider.MoveResourceState(req)
+	resp := args.provider.MoveResourceState(context.TODO(), req)
 	diags := resp.Diagnostics
 	if diags.HasErrors() {
 		log.Printf("[TRACE] moveResourceStateTransform: failed - new address: %s, previous address: %s - diags: %s", args.currentAddr, args.prevAddr, diags.Err().Error())

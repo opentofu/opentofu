@@ -55,22 +55,29 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 		}
 
 		desc := diag.Description()
-		summary := desc.Summary
-		if g, ok := diagnosticGroups[summary]; ok {
+		consolidationKey := desc.Summary
+		// If the diagnostic has a keyable extra info and it's not empty,
+		// use it as the consolidation key, along with the summary.
+		// Otherwise use the summary only.
+		if key, keyOk := diag.ExtraInfo().(Keyable); keyOk {
+			consolidationKey += key.ExtraInfoKey()
+		}
+
+		if g, ok := diagnosticGroups[consolidationKey]; ok {
 			// We're already grouping this one, so we'll just continue it.
 			g.Append(diag)
 			continue
 		}
 
-		diagnosticStats[summary]++
-		if diagnosticStats[summary] == threshold {
+		diagnosticStats[consolidationKey]++
+		if diagnosticStats[consolidationKey] == threshold {
 			// Initially creating the group doesn't really change anything
 			// visibly in the result, since a group with only one diagnostic
 			// is just a passthrough anyway, but once we do this any additional
-			// diagnostics with the same summary will get appended to this group.
+			// diagnostics with the same consolidationKey will get appended to this group.
 			g := &consolidatedGroup{}
 			newDiags = newDiags.Append(g)
-			diagnosticGroups[summary] = g
+			diagnosticGroups[consolidationKey] = g
 			g.Append(diag)
 			continue
 		}
@@ -81,6 +88,13 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 	}
 
 	return newDiags
+}
+
+// Keyable is an interface that can be implemented by ExtraInfo to provide a key for consolidation.
+// This is used to group diagnostics with the same summary and an extra info key.
+// The key is used to determine if two diagnostics should be consolidated.
+type Keyable interface {
+	ExtraInfoKey() string
 }
 
 // A consolidatedGroup is one or more diagnostics grouped together for

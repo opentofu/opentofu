@@ -96,8 +96,8 @@ func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generati
 	h.Lock()
 	defer h.Unlock()
 
-	// We don't count anything for data resources
-	if addr.Resource.Resource.Mode == addrs.DataResourceMode {
+	// We don't count anything for data resources and neither for the ephemeral ones.
+	if addr.Resource.Resource.Mode == addrs.DataResourceMode || addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
 		return tofu.HookActionContinue, nil
 	}
 

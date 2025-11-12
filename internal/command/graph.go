@@ -62,7 +62,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -103,21 +103,21 @@ func (c *GraphCommand) Run(args []string) int {
 			return 1
 		}
 		var backendDiags tfdiags.Diagnostics
-		b, backendDiags = c.BackendForLocalPlan(plan.Backend, enc.State())
+		b, backendDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
 		}
 	} else {
-		backendConfig, backendDiags := c.loadBackendConfig(configPath)
+		backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 		diags = diags.Append(backendDiags)
 		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
 		}
 
-		b, backendDiags = c.Backend(&BackendOpts{
+		b, backendDiags = c.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
 		}, enc.State())
 		diags = diags.Append(backendDiags)
@@ -139,7 +139,7 @@ func (c *GraphCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	opReq.PlanFile = planFile
@@ -147,7 +147,7 @@ func (c *GraphCommand) Run(args []string) int {
 
 	// Inject information required for static evaluation
 	var callDiags tfdiags.Diagnostics
-	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	diags = diags.Append(callDiags)
 	if callDiags.HasErrors() {
 		c.showDiagnostics(diags)

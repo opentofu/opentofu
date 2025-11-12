@@ -75,7 +75,7 @@ func TestNew_userAgent(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d %s", i, c.expected), func(t *testing.T) {
 			actualUserAgent = ""
-			cli := New()
+			cli := New(t.Context())
 			err := c.request(cli)
 			if err != nil {
 				t.Fatal(err)

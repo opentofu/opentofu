@@ -10,9 +10,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -26,11 +29,16 @@ import (
 func TestPackageAuthenticationResult(t *testing.T) {
 	tests := map[string]struct {
 		result *PackageAuthenticationResult
-		want   string
+
+		want                string
+		wantGPGKeyIDsString string
+		wantSigned          bool
+		wantSigningSkipped  bool
 	}{
 		"nil": {
 			nil,
 			"unauthenticated",
+			"", false, false,
 		},
 		"SignedByGPGKeyIDs": {
 			&PackageAuthenticationResult{
@@ -41,6 +49,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -51,6 +60,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"verified checksum",
+			"", false, false,
 		},
 		"ReportedByRegistry": {
 			&PackageAuthenticationResult{
@@ -61,6 +71,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signing skipped",
+			"", false, true,
 		},
 		"SignedByGPGKeyIDs+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -72,6 +83,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"SignedByGPGKeyIDs+ReportedByRegistry": {
 			&PackageAuthenticationResult{
@@ -83,6 +95,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"ReportedByRegistry+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -94,6 +107,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signing skipped",
+			"", false, true,
 		},
 		"SignedByGPGKeyIDs+ReportedByRegistry+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -106,12 +120,23 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			if got := test.result.String(); got != test.want {
 				t.Errorf("wrong value\ngot:  %q\nwant: %q", got, test.want)
+			}
+
+			if got, want := test.result.GPGKeyIDsString(), test.wantGPGKeyIDsString; got != want {
+				t.Errorf("wrong GPGKeyIDsString result\ngot:  %q\nwant: %q", got, want)
+			}
+			if got, want := test.result.Signed(), test.wantSigned; got != want {
+				t.Errorf("wrong Signed result\ngot:  %t\nwant: %t", got, want)
+			}
+			if got, want := test.result.SigningSkipped(), test.wantSigningSkipped; got != want {
+				t.Errorf("wrong SigningSkipped result\ngot:  %t\nwant: %t", got, want)
 			}
 		})
 	}
@@ -190,7 +215,7 @@ func TestPackageAuthenticationAll_failure(t *testing.T) {
 // result should be "verified checksum".
 func TestPackageHashAuthentication_success(t *testing.T) {
 	// Location must be a PackageLocalArchive path
-	location := PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64")
+	location := PackageLocalDir(filepath.FromSlash("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"))
 
 	wantHashes := []Hash{
 		// Known-good HashV1 result for this directory
@@ -216,7 +241,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to verify provider package checksums: lstat testdata/no-package-here.zip: no such file or directory",
+			"failed to verify provider package checksums: " + statNotFoundErrorMsg("testdata/no-package-here.zip"),
 		},
 		"checksum mismatch": {
 			PackageLocalDir("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/2.0.0/linux_amd64"),
@@ -280,7 +305,7 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 	}{
 		"missing file": {
 			PackageLocalArchive("testdata/no-package-here.zip"),
-			"failed to compute checksum for testdata/no-package-here.zip: lstat testdata/no-package-here.zip: no such file or directory",
+			"failed to compute checksum for testdata/no-package-here.zip: " + statNotFoundErrorMsg("testdata/no-package-here.zip"),
 		},
 		"checksum mismatch": {
 			PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip"),
@@ -307,6 +332,16 @@ func TestArchiveChecksumAuthentication_failure(t *testing.T) {
 			}
 		})
 	}
+}
+
+// statNotFoundErrorMsg is used to return a string containing: the specific name of the syscall used by
+// the operating system to check the existence of a file, the filename, and the error message.
+func statNotFoundErrorMsg(filename string) string {
+	prefix := "lstat"
+	if runtime.GOOS == "windows" {
+		prefix = "GetFileAttributesEx"
+	}
+	return fmt.Sprintf("%s %s: %s", prefix, filepath.FromSlash(filename), syscall.ENOENT.Error())
 }
 
 // Matching checksum authentication takes a SHA256SUMS document, an archive
@@ -675,8 +710,6 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 		})
 	}
 }
-
-const testAuthorKeyID = `37A6AB3BCF2C170A`
 
 // testAuthorKeyArmor is test key ID 5BFEEC4317E746008621970637A6AB3BCF2C170A.
 const testAuthorKeyArmor = `-----BEGIN PGP PUBLIC KEY BLOCK-----

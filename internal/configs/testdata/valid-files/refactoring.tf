@@ -10,4 +10,7 @@ moved {
 
 removed {
   from = aws_instance.removed
+  lifecycle {
+    destroy = false
+  }
 }

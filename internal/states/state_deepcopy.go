@@ -157,6 +157,12 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		copy(attrPaths, os.AttrSensitivePaths)
 	}
 
+	var allAttrPaths []cty.PathValueMarks
+	if os.TransientPathValueMarks != nil {
+		allAttrPaths = make([]cty.PathValueMarks, len(os.TransientPathValueMarks))
+		copy(allAttrPaths, os.TransientPathValueMarks)
+	}
+
 	var private []byte
 	if os.Private != nil {
 		private = make([]byte, len(os.Private))
@@ -172,14 +178,15 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 	}
 
 	return &ResourceInstanceObjectSrc{
-		Status:              os.Status,
-		SchemaVersion:       os.SchemaVersion,
-		Private:             private,
-		AttrsFlat:           attrsFlat,
-		AttrsJSON:           attrsJSON,
-		AttrSensitivePaths:  attrPaths,
-		Dependencies:        dependencies,
-		CreateBeforeDestroy: os.CreateBeforeDestroy,
+		Status:                  os.Status,
+		SchemaVersion:           os.SchemaVersion,
+		Private:                 private,
+		AttrsFlat:               attrsFlat,
+		AttrsJSON:               attrsJSON,
+		AttrSensitivePaths:      attrPaths,
+		TransientPathValueMarks: allAttrPaths,
+		Dependencies:            dependencies,
+		CreateBeforeDestroy:     os.CreateBeforeDestroy,
 	}
 }
 
@@ -233,8 +240,9 @@ func (os *OutputValue) DeepCopy() *OutputValue {
 	}
 
 	return &OutputValue{
-		Addr:      os.Addr,
-		Value:     os.Value,
-		Sensitive: os.Sensitive,
+		Addr:       os.Addr,
+		Value:      os.Value,
+		Sensitive:  os.Sensitive,
+		Deprecated: os.Deprecated,
 	}
 }

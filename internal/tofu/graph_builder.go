@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -19,7 +20,7 @@ type GraphBuilder interface {
 	// Build builds the graph for the given module path. It is up to
 	// the interface implementation whether this build should expand
 	// the graph or not.
-	Build(addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics)
+	Build(context.Context, addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics)
 }
 
 // BasicGraphBuilder is a GraphBuilder that builds a graph out of a
@@ -31,7 +32,7 @@ type BasicGraphBuilder struct {
 	Name string
 }
 
-func (b *BasicGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *BasicGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	g := &Graph{Path: path}
 
@@ -42,7 +43,7 @@ func (b *BasicGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Di
 		}
 		log.Printf("[TRACE] Executing graph transform %T", step)
 
-		err := step.Transform(g)
+		err := step.Transform(ctx, g)
 
 		if logging.IsDebugOrHigher() {
 			if thisStepStr := g.StringWithNodeTypes(); thisStepStr != lastStepStr {

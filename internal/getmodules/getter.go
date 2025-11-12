@@ -13,8 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
+
 	"github.com/opentofu/opentofu/internal/copy"
 )
 
@@ -103,18 +103,10 @@ var goGetterGetters = map[string]getter.Getter{
 	"gcs":   new(getter.GCSGetter),
 	"git":   new(getter.GitGetter),
 	"hg":    new(getter.HgGetter),
-	"http":  getterHTTPGetter,
-	"https": getterHTTPGetter,
+	"http":  nil, // configured dynamically in NewPackageFetcher
+	"https": nil, // configured dynamically in NewPackageFetcher
 	"oci":   nil, // configured dynamically using [PackageFetcherEnvironment.OCIRepositoryStore]
 	"s3":    new(getter.S3Getter),
-}
-
-var getterHTTPClient = cleanhttp.DefaultClient()
-
-var getterHTTPGetter = &getter.HttpGetter{
-	Client:             getterHTTPClient,
-	Netrc:              true,
-	XTerraformGetLimit: 10,
 }
 
 // A reusingGetter is a helper for the module installer that remembers

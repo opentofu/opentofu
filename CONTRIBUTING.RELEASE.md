@@ -245,6 +245,11 @@ git submodule update
 <details>
 <summary>
 
+## Updating govulncheck github workflow (only for stable releases)
+In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively
+maintained versions of OpenTofu.
+When the new branch for the stable version is created, update the matrix above by adding the new branch and removing the deprecated version.
+
 ### Alpha (`X.Y.Z-alphaW`), Beta (`X.Y.Z-betaW`) and Release Candidate (`X.Y.Z-rcW`)
 
 </summary>

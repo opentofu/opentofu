@@ -6,6 +6,7 @@
 package views
 
 import (
+	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -132,11 +133,50 @@ func testPlanWithDatasource(t *testing.T) *plans.Plan {
 	return plan
 }
 
+func testPlanWithEphemeral(t *testing.T) *plans.Plan {
+	plan := testPlan(t)
+
+	addr := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_ephemeral_resource",
+		Name: "bar",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	ephemeralVal := cty.ObjectVal(map[string]cty.Value{
+		"id":  cty.StringVal("C6743020-40BD-4591-81E6-CD08494341D3"),
+		"foo": cty.StringVal("baz"),
+	})
+	priorValRaw, err := plans.NewDynamicValue(cty.NullVal(ephemeralVal.Type()), ephemeralVal.Type())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plannedValRaw, err := plans.NewDynamicValue(ephemeralVal, ephemeralVal.Type())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan.Changes.SyncWrapper().AppendResourceInstanceChange(&plans.ResourceInstanceChangeSrc{
+		Addr:        addr,
+		PrevRunAddr: addr,
+		ProviderAddr: addrs.AbsProviderConfig{
+			Provider: addrs.NewDefaultProvider("test"),
+			Module:   addrs.RootModule,
+		},
+		ChangeSrc: plans.ChangeSrc{
+			Action: plans.Open,
+			Before: priorValRaw,
+			After:  plannedValRaw,
+		},
+	})
+
+	return plan
+}
+
 func testSchemas() *tofu.Schemas {
 	provider := testProvider()
 	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(context.TODO()),
 		},
 	}
 }
@@ -173,6 +213,16 @@ func testProviderSchema() *providers.GetProviderSchemaResponse {
 					Attributes: map[string]*configschema.Attribute{
 						"id":  {Type: cty.String, Required: true},
 						"bar": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
+		EphemeralResources: map[string]providers.Schema{
+			"test_ephemeral_resource": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id":  {Type: cty.String, Required: true},
+						"foo": {Type: cty.String, Optional: true},
 					},
 				},
 			},

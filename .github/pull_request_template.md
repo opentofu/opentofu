@@ -11,10 +11,6 @@ change is something as trivial as a typo fix).
 <!-- If your PR resolves an issue, please add it here. -->
 Resolves # 
 
-## Target Release
-
-1.10.0
-
 ## Checklist
 
 <!-- Please check of ALL items in this list for all PRs: -->

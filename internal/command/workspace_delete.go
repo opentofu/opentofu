@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ type WorkspaceDeleteCommand struct {
 }
 
 func (c *WorkspaceDeleteCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
@@ -57,7 +59,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -65,7 +67,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -73,7 +75,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -85,7 +87,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -105,7 +107,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	currentWorkspace, err := c.Workspace()
+	currentWorkspace, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
@@ -116,7 +118,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// we need the actual state to see if it's empty
-	stateMgr, err := b.StateMgr(workspace)
+	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -133,7 +135,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		stateLocker = clistate.NewNoopLocker()
 	}
 
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		// We need to release the lock before exit
 		stateLocker.Unlock()
 		c.Ui.Error(err.Error())
@@ -180,7 +182,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	// be delegated from the Backend to the State itself.
 	stateLocker.Unlock()
 
-	err = b.DeleteWorkspace(workspace, force)
+	err = b.DeleteWorkspace(ctx, workspace, force)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -205,7 +207,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 
 func (c *WorkspaceDeleteCommand) AutocompleteArgs() complete.Predictor {
 	return completePredictSequence{
-		c.completePredictWorkspaceName(),
+		c.completePredictWorkspaceName(c.CommandContext()),
 		complete.PredictDirs(""),
 	}
 }

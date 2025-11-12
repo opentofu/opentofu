@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -49,8 +50,9 @@ type Module struct {
 
 	ModuleCalls map[string]*ModuleCall
 
-	ManagedResources map[string]*Resource
-	DataResources    map[string]*Resource
+	ManagedResources   map[string]*Resource
+	DataResources      map[string]*Resource
+	EphemeralResources map[string]*Resource
 
 	Moved   []*Moved
 	Import  []*Import
@@ -104,8 +106,9 @@ type File struct {
 
 	ModuleCalls []*ModuleCall
 
-	ManagedResources []*Resource
-	DataResources    []*Resource
+	ManagedResources   []*Resource
+	DataResources      []*Resource
+	EphemeralResources []*Resource
 
 	Moved   []*Moved
 	Import  []*Import
@@ -158,15 +161,15 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 	return mod, diags
 }
 
-// NewModule takes a list of primary files and a list of override files and
-// produces a *Module by combining the files together.
+// NewModuleUneval is a variation of [NewModule] which performs only the
+// static decoding steps and stops before performing any of the "early eval"
+// steps, instead just returning with the results of early eval unpopulated.
 //
-// If there are any conflicting declarations in the given files -- for example,
-// if the same variable name is defined twice -- then the resulting module
-// will be incomplete and error diagnostics will be returned. Careful static
-// analysis of the returned Module is still possible in this case, but the
-// module will probably not be semantically valid.
-func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+// This is currently here only in support of the experiment in
+// internal/lang/eval, which wants to handle the situations where we currently
+// rely on early eval in a different way. Outside of that experiment we should
+// keep using [NewModule] in its entirety for now.
+func NewModuleUneval(primaryFiles, overrideFiles []*File, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
@@ -177,6 +180,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		ModuleCalls:        map[string]*ModuleCall{},
 		ManagedResources:   map[string]*Resource{},
 		DataResources:      map[string]*Resource{},
+		EphemeralResources: map[string]*Resource{},
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
 		Tests:              map[string]*TestFile{},
@@ -232,6 +236,20 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		diags = append(diags, fileDiags...)
 	}
 
+	return mod, diags
+}
+
+// NewModule takes a list of primary files and a list of override files and
+// produces a *Module by combining the files together.
+//
+// If there are any conflicting declarations in the given files -- for example,
+// if the same variable name is defined twice -- then the resulting module
+// will be incomplete and error diagnostics will be returned. Careful static
+// analysis of the returned Module is still possible in this case, but the
+// module will probably not be semantically valid.
+func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	mod, diags := NewModuleUneval(primaryFiles, overrideFiles, sourceDir, load)
+
 	// Static evaluation to build a StaticContext now that module has all relevant Locals / Variables
 	mod.StaticEvaluator = NewStaticEvaluator(mod, call)
 
@@ -246,12 +264,12 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 
 	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(mod.StaticEvaluator)
+		mDiags := mc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
 		diags = append(diags, mDiags...)
 	}
 
 	for _, pc := range mod.ProviderConfigs {
-		pDiags := pc.decodeStaticFields(mod.StaticEvaluator)
+		pDiags := pc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
 		diags = append(diags, pDiags...)
 	}
 
@@ -272,6 +290,8 @@ func (m *Module) ResourceByAddr(addr addrs.Resource) *Resource {
 		return m.ManagedResources[key]
 	case addrs.DataResourceMode:
 		return m.DataResources[key]
+	case addrs.EphemeralResourceMode:
+		return m.EphemeralResources[key]
 	default:
 		return nil
 	}
@@ -463,6 +483,35 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			continue
 		}
 		m.DataResources[key] = r
+	}
+
+	for _, r := range file.EphemeralResources {
+		key := r.moduleUniqueKey()
+		if existing, exists := m.EphemeralResources[key]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicate ephemeral resource %q configuration", existing.Type),
+				Detail:   fmt.Sprintf("A %s ephemeral resource named %q was already declared at %s. Resource names must be unique per type in each module.", existing.Type, existing.Name, existing.DeclRange),
+				Subject:  &r.DeclRange,
+			})
+			continue
+		}
+		m.EphemeralResources[key] = r
+
+		// set the provider FQN for the resource
+		if r.ProviderConfigRef != nil {
+			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+		} else {
+			// an invalid resource name (for e.g. "null resource" instead of
+			// "null_resource") can cause a panic down the line in addrs:
+			// https://github.com/hashicorp/terraform/issues/25560
+			implied, err := addrs.ParseProviderPart(r.Addr().ImpliedProvider())
+			if err == nil {
+				r.Provider = m.ImpliedProviderForUnqualifiedType(implied)
+			}
+			// We don't return a diagnostic because the invalid resource name
+			// will already have been caught.
+		}
 	}
 
 	for _, c := range file.Checks {
@@ -735,6 +784,22 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 		diags = append(diags, mergeDiags...)
 	}
 
+	for _, r := range file.EphemeralResources {
+		key := r.moduleUniqueKey()
+		existing, exists := m.EphemeralResources[key]
+		if !exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Missing ephemeral resource to override",
+				Detail:   fmt.Sprintf("There is no %s ephemeral resource named %q. An override file can only override an ephemeral block defined in a primary configuration file.", r.Type, r.Name),
+				Subject:  &r.DeclRange,
+			})
+			continue
+		}
+		mergeDiags := existing.merge(r, m.ProviderRequirements.RequiredProviders)
+		diags = append(diags, mergeDiags...)
+	}
+
 	for _, m := range file.Moved {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -863,4 +928,19 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 	}
 
 	return diags
+}
+
+// EphemeralVariablesHints builds a map that indicates what variable name of the module
+// is ephemeral and which isn't.
+// This is used by the plan to know what variables are meant to be stored
+// and which ones should be skipped.
+func (m *Module) EphemeralVariablesHints() map[string]bool {
+	res := map[string]bool{}
+	if m == nil {
+		return res
+	}
+	for vn, vc := range m.Variables {
+		res[vn] = vc.Ephemeral
+	}
+	return res
 }

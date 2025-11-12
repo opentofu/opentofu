@@ -96,6 +96,22 @@ type Hook interface {
 	PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 	PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 
+	// Deferred is called when a resource is deferred from the plan phase due to
+	// a specific given reason.
+	Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error)
+
+	// PreOpen and PostOpen are called before and after the request to a provider
+	// to open an ephemeral resource.
+	PreOpen(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostOpen(addr addrs.AbsResourceInstance, err error) (HookAction, error)
+	// PreRenew and PostRenew are called before and after the request to a provider
+	// to renew an ephemeral resource.
+	PreRenew(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostRenew(addr addrs.AbsResourceInstance, err error) (HookAction, error)
+	// PreClose and PostClose are called before and after the request to a provider
+	// to close an ephemeral resource.
+	PreClose(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostClose(addr addrs.AbsResourceInstance, err error) (HookAction, error)
 	// Stopping is called if an external signal requests that OpenTofu
 	// gracefully abort an operation in progress.
 	//
@@ -112,10 +128,15 @@ type Hook interface {
 	// function is called.
 	Stopping()
 
-	// PostStateUpdate is called each time the state is updated. It receives
-	// a deep copy of the state, which it may therefore access freely without
-	// any need for locks to protect from concurrent writes from the caller.
-	PostStateUpdate(new *states.State) (HookAction, error)
+	// PostStateUpdate is called each time a portion of the state is updated. It receives
+	// a function that mutates the syncronized state object.
+	//
+	// This should return an error only if the hook tried to persist the updated state
+	// to the primary state storage location and failed to do so, because this method
+	// is called as a side-effect of updating resource instances in the state and any
+	// error returned will be treated as a failure to update the state, returned to the
+	// end-user.
+	PostStateUpdate(func(*states.SyncState)) (HookAction, error)
 }
 
 // NilHook is a Hook implementation that does nothing. It exists only to
@@ -200,10 +221,38 @@ func (h *NilHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, erro
 	return HookActionContinue, nil
 }
 
+func (h *NilHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreOpen(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostOpen(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreRenew(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostRenew(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreClose(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostClose(_ addrs.AbsResourceInstance, _ error) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
 func (*NilHook) Stopping() {
 	// Does nothing at all by default
 }
 
-func (*NilHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (*NilHook) PostStateUpdate(func(*states.SyncState)) (HookAction, error) {
 	return HookActionContinue, nil
 }

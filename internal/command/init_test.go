@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +40,6 @@ import (
 func TestInit_empty(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -61,7 +61,6 @@ func TestInit_empty(t *testing.T) {
 func TestInit_multipleArgs(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -86,7 +85,6 @@ func TestInit_multipleArgs(t *testing.T) {
 func TestInit_fromModule_cwdDest(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, os.ModePerm)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -101,7 +99,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 			// treating an absolute filesystem path as if it were a "remote"
 			// source address, and so we need a real package fetcher but the
 			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 		},
 	}
 
@@ -121,6 +119,14 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 func TestInit_fromModule_dstInSrc(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
+
+	defer func() {
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	}()
 	if err := os.Mkdir("foo", os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +147,7 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 			// treating an absolute filesystem path as if it were a "remote"
 			// source address, and so we need a real package fetcher but the
 			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 		},
 	}
 
@@ -436,7 +442,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 			},
 		}
 		flagConfigExtra := newRawFlags("-backend-config")
-		flagConfigExtra.Set("input.config")
+		_ = flagConfigExtra.Set("input.config")
 		_, diags := c.backendConfigOverrideBody(flagConfigExtra, schema)
 		if len(diags) != 0 {
 			t.Errorf("expected no diags, got: %s", diags.Err())
@@ -592,15 +598,15 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unlock()
-
 	// Attempt to migrate
 	args := []string{"-backend-config", "input.config", "-migrate-state", "-force-copy"}
 	if code := c.Run(args); code == 0 {
 		t.Fatalf("expected nonzero exit code: %s", ui.OutputWriter.String())
 	}
 
-	// Disabling locking should work
+	// Unlock before trying to migrate again
+	unlock()
+
 	args = []string{"-backend-config", "input.config", "-migrate-state", "-force-copy", "-lock=false"}
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("expected zero exit code, got %d: %s", code, ui.ErrorWriter.String())
@@ -820,7 +826,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 		Init: true,
 	}
 
-	_, cHash, err := m.backendConfig(opts)
+	_, cHash, err := m.backendConfig(t.Context(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -950,6 +956,7 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 			addrs.OutputValue{Name: "a"}.Absolute(addrs.RootModuleInstance),
 			cty.True,
 			false,
+			"",
 		)
 	})
 	fakeStateFile := &statefile.File{
@@ -1256,9 +1263,10 @@ func TestInit_inputFalse(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("foo"),
 			false, // not sensitive
+			"",
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
 		t.Fatal(err)
 	}
 	barState := states.BuildState(func(s *states.SyncState) {
@@ -1266,9 +1274,10 @@ func TestInit_inputFalse(t *testing.T) {
 			addrs.OutputValue{Name: "bar"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false, // not sensitive
+			"",
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1739,21 +1748,21 @@ func TestInit_providerSource(t *testing.T) {
 			{
 				Provider:   addrs.NewDefaultProvider("test"),
 				Version:    getproviders.MustParseVersion("1.2.3"),
-				PackageDir: expectedPackageInstallPath("test", "1.2.3", false),
+				PackageDir: expectedPackageInstallPath("test", "1.2.3"),
 			},
 		},
 		addrs.NewDefaultProvider("test-beta"): {
 			{
 				Provider:   addrs.NewDefaultProvider("test-beta"),
 				Version:    getproviders.MustParseVersion("1.2.4"),
-				PackageDir: expectedPackageInstallPath("test-beta", "1.2.4", false),
+				PackageDir: expectedPackageInstallPath("test-beta", "1.2.4"),
 			},
 		},
 		addrs.NewDefaultProvider("source"): {
 			{
 				Provider:   addrs.NewDefaultProvider("source"),
 				Version:    getproviders.MustParseVersion("1.2.3"),
-				PackageDir: expectedPackageInstallPath("source", "1.2.3", false),
+				PackageDir: expectedPackageInstallPath("source", "1.2.3"),
 			},
 		},
 	}
@@ -1863,7 +1872,7 @@ func TestInit_cancelModules(t *testing.T) {
 		// actually making a request to this, but we still need to provide
 		// the fetcher so that it will _attempt_ to make a network request
 		// that can then fail with a cancellation error.
-		ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
 	c := &InitCommand{
 		Meta: m,
@@ -1980,7 +1989,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			{
 				Provider:   addrs.NewDefaultProvider("between"),
 				Version:    getproviders.MustParseVersion("2.3.4"),
-				PackageDir: expectedPackageInstallPath("between", "2.3.4", false),
+				PackageDir: expectedPackageInstallPath("between", "2.3.4"),
 			},
 		},
 		// The existing version of "exact" did not match the version constraints,
@@ -1989,13 +1998,13 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			{
 				Provider:   addrs.NewDefaultProvider("exact"),
 				Version:    getproviders.MustParseVersion("1.2.3"),
-				PackageDir: expectedPackageInstallPath("exact", "1.2.3", false),
+				PackageDir: expectedPackageInstallPath("exact", "1.2.3"),
 			},
 			// Previous version is still there, but not selected
 			{
 				Provider:   addrs.NewDefaultProvider("exact"),
 				Version:    getproviders.MustParseVersion("0.0.1"),
-				PackageDir: expectedPackageInstallPath("exact", "0.0.1", false),
+				PackageDir: expectedPackageInstallPath("exact", "0.0.1"),
 			},
 		},
 		// The existing version of "greater-than" _did_ match the constraints,
@@ -2005,13 +2014,13 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			{
 				Provider:   addrs.NewDefaultProvider("greater-than"),
 				Version:    getproviders.MustParseVersion("2.3.4"),
-				PackageDir: expectedPackageInstallPath("greater-than", "2.3.4", false),
+				PackageDir: expectedPackageInstallPath("greater-than", "2.3.4"),
 			},
 			// Previous version is still there, but not selected
 			{
 				Provider:   addrs.NewDefaultProvider("greater-than"),
 				Version:    getproviders.MustParseVersion("2.3.3"),
-				PackageDir: expectedPackageInstallPath("greater-than", "2.3.3", false),
+				PackageDir: expectedPackageInstallPath("greater-than", "2.3.3"),
 			},
 		},
 	}
@@ -2184,7 +2193,11 @@ func TestInit_providerLockFile(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("init-provider-lock-file"), td)
 	// The temporary directory does not have write permission (dr-xr-xr-x) after the copy
-	defer os.Chmod(td, os.ModePerm)
+	defer func() {
+		if err := os.Chmod(td, os.ModePerm); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -2237,7 +2250,9 @@ provider "registry.opentofu.org/hashicorp/test" {
 
 	// Make the local directory read-only, and verify that rerunning init
 	// succeeds, to ensure that we don't try to rewrite an unchanged lock file
-	os.Chmod(".", 0555)
+	if err := os.Chmod(".", 0555); err != nil {
+		t.Fatal(err)
+	}
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
@@ -3280,7 +3295,7 @@ func installFakeProviderPackagesElsewhere(t *testing.T, cacheDir *providercache.
 			if err != nil {
 				t.Fatalf("failed to prepare fake package for %s %s: %s", name, versionStr, err)
 			}
-			_, err = cacheDir.InstallPackage(context.Background(), meta, nil)
+			_, err = cacheDir.InstallPackage(context.Background(), meta, nil, false)
 			if err != nil {
 				t.Fatalf("failed to install fake package for %s %s: %s", name, versionStr, err)
 			}
@@ -3300,16 +3315,9 @@ func installFakeProviderPackagesElsewhere(t *testing.T, cacheDir *providercache.
 //
 // The result always uses forward slashes, even on Windows, for consistency
 // with how the getproviders and providercache packages build paths.
-func expectedPackageInstallPath(name, version string, exe bool) string {
+func expectedPackageInstallPath(name, version string) string {
 	platform := getproviders.CurrentPlatform
 	baseDir := ".terraform/providers"
-	if exe {
-		p := fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s/terraform-provider-%s_%s", name, version, platform, name, version)
-		if platform.OS == "windows" {
-			p += ".exe"
-		}
-		return filepath.ToSlash(filepath.Join(baseDir, p))
-	}
 	return filepath.ToSlash(filepath.Join(
 		baseDir, fmt.Sprintf("registry.opentofu.org/hashicorp/%s/%s/%s", name, version, platform),
 	))

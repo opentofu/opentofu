@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -336,6 +337,20 @@ func TestInitProviders_pluginCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	extension := ""
+	if runtime.GOOS == "windows" {
+		extension = ".exe"
+
+		// Fix EXE path
+		target := path.Join(wantMachineDir, "terraform-provider-template_v2.1.0_x4")
+		err := os.Rename(target, target+extension)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// TODO add .exe entry to lockfile
+		t.Skip()
+	}
 
 	cmd := tf.Cmd("init")
 
@@ -347,7 +362,7 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH))
+	path := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/template/2.1.0/%s_%s/terraform-provider-template_v2.1.0_x4", runtime.GOOS, runtime.GOARCH)) + extension
 	content, err := tf.ReadFile(path)
 	if err != nil {
 		t.Fatalf("failed to read installed plugin from %s: %s", path, err)
@@ -356,18 +371,12 @@ func TestInitProviders_pluginCache(t *testing.T) {
 		t.Errorf("template plugin was not installed from local cache")
 	}
 
-	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
-	if runtime.GOOS == "windows" {
-		nullLinkPath = nullLinkPath + ".exe"
-	}
+	nullLinkPath := filepath.FromSlash(fmt.Sprintf(".terraform/providers/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullLinkPath) {
 		t.Errorf("null plugin was not installed into %s", nullLinkPath)
 	}
 
-	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH))
-	if runtime.GOOS == "windows" {
-		nullCachePath = nullCachePath + ".exe"
-	}
+	nullCachePath := filepath.FromSlash(fmt.Sprintf("cache/registry.opentofu.org/hashicorp/null/2.1.0/%s_%s/terraform-provider-null", runtime.GOOS, runtime.GOARCH)) + extension
 	if !tf.FileExists(nullCachePath) {
 		t.Errorf("null plugin is not in cache after install. expected in: %s", nullCachePath)
 	}
@@ -616,4 +625,41 @@ func escapeStringJSON(v string) string {
 	}
 
 	return string(marshaledV[1 : len(marshaledV)-2])
+}
+
+// TestTelemetrySchemaConflict reproduces the issue where OpenTofu fails to initialize
+// telemetry due to conflicting OpenTelemetry schema URLs from different semconv versions.
+//
+// The issue occurs because different parts of the codebase import different versions
+// of go.opentelemetry.io/otel/semconv, like internal/tracing/init.go.
+//
+// When OTEL_* variables are set, OpenTelemetry tries to initialize and
+// detects these conflicting schema URLs, causing conflicting schema errors.
+// For more information, see: https://github.com/opentofu/opentofu/pull/3446
+func TestTelemetrySchemaConflict(t *testing.T) {
+	t.Parallel()
+
+	fixturePath := filepath.Join("testdata", "empty")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	// Set the environment variable that triggers telemetry initialization errors
+	tf.AddEnv("OTEL_TRACES_EXPORTER=otlp")
+	// We're actually using an invalid endpoint because the key error is the
+	// initialization error. Sending the traces themselves is not relevant to this test.
+	tf.AddEnv("OTEL_EXPORTER_OTLP_ENDPOINT=http://invalid/")
+	tf.AddEnv("OTEL_EXPORTER_OTLP_INSECURE=true")
+
+	_, stderr, err := tf.Run("init")
+
+	if err != nil {
+		t.Fatalf("Expected success, got error: %s", err)
+	}
+
+	if strings.Contains(stderr, "Could not initialize telemetry") {
+		t.Errorf("Expected no error message to contain 'Could not initialize telemetry', but got: %s", stderr)
+	}
+
+	if strings.Contains(stderr, "conflicting Schema URL") {
+		t.Errorf("Expected no error message to contain 'conflicting Schema URL', but got: %s", stderr)
+	}
 }

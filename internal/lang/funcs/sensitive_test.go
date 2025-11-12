@@ -180,39 +180,47 @@ func TestNonsensitive(t *testing.T) {
 func TestIsSensitive(t *testing.T) {
 	tests := []struct {
 		Input       cty.Value
-		IsSensitive bool
+		IsSensitive cty.Value
 	}{
 		{
 			cty.NumberIntVal(1).Mark(marks.Sensitive),
-			true,
+			cty.True,
 		},
 		{
 			cty.NumberIntVal(1),
-			false,
+			cty.False,
 		},
 		{
 			cty.DynamicVal.Mark(marks.Sensitive),
-			true,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.DynamicVal,
-			false,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
-			true,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.UnknownVal(cty.String),
-			false,
+			cty.UnknownVal(cty.Bool).RefineNotNull(),
 		},
 		{
 			cty.NullVal(cty.EmptyObject).Mark(marks.Sensitive),
-			true,
+			cty.True,
 		},
 		{
 			cty.NullVal(cty.EmptyObject),
-			false,
+			cty.False,
+		},
+		{
+			cty.NullVal(cty.DynamicPseudoType).Mark(marks.Sensitive),
+			cty.True,
+		},
+		{
+			cty.NullVal(cty.DynamicPseudoType),
+			cty.False,
 		},
 	}
 
@@ -224,8 +232,8 @@ func TestIsSensitive(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err)
 			}
 
-			if got.Equals(cty.BoolVal(test.IsSensitive)).False() {
-				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, cty.BoolVal(test.IsSensitive))
+			if !got.RawEquals(test.IsSensitive) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.IsSensitive)
 			}
 		})
 	}

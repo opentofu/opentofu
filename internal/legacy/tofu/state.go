@@ -30,7 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
@@ -1083,6 +1083,9 @@ func (m *ModuleState) Orphans(c *configs.Module) []addrs.ResourceInstance {
 		}
 		for _, r := range c.DataResources {
 			inConfig[r.Addr().String()] = struct{}{}
+		}
+		for _, r := range c.EphemeralResources {
+			log.Printf("[ERROR] ephemeral resources detected in legacy state: %s", r.Addr().String())
 		}
 	}
 

@@ -230,5 +230,4 @@ func TestObject_AttributeByPath(t *testing.T) {
 			}
 		})
 	}
-
 }

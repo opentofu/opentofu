@@ -10,6 +10,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +20,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
@@ -80,7 +84,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -167,7 +171,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -254,7 +258,7 @@ output "data" {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -277,7 +281,7 @@ output "data" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -339,7 +343,7 @@ resource "test_instance" "a" {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -451,7 +455,7 @@ resource "aws_instance" "bin" {
 		t.Fatalf("baz should depend on bam after refresh, but got %s", baz.Current.Dependencies)
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -535,7 +539,7 @@ resource "test_resource" "b" {
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -576,7 +580,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -594,6 +598,118 @@ output "out" {
 		if c.Action != plans.NoOp {
 			t.Errorf("Unexpcetd %s change for %s", c.Action, c.Addr)
 		}
+	}
+}
+
+// TestContext2Apply_sensitiveInsideUnknown verifies that OpenTofu uses
+// sensitive value information from provider schema when deciding what to
+// mark as sensitive in the final state after apply, even if the values in
+// question were not yet available during the planning phase.
+//
+// For additional context, refer to https://github.com/opentofu/opentofu/issues/3367 .
+func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "example.com/foo/test"
+					}
+				}
+			}
+
+			resource "test_sensitive" "test" {
+			}
+		`,
+	})
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test_sensitive": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							// We need at least one level of container
+							// indirection here, because we're verifying
+							// that the nested attribute has its sensitivity
+							// recorded in the final state even though
+							// the entire container will be unknown during
+							// planning and therefore the nested value cannot
+							// be marked in the "planned new state".
+							"container": {
+								Computed: true,
+								NestedType: &configschema.Object{
+									Nesting: configschema.NestingSingle,
+									Attributes: map[string]*configschema.Attribute{
+										"sensitive": {
+											Type:      cty.String,
+											Sensitive: true,
+											Computed:  true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		PlanResourceChangeResponse: &providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(map[string]cty.Value{
+				// The whole container is initially unknown, so the sensitivity
+				// of the nested "sensitive" attribute cannot be tracked as
+				// part of this value, forcing the apply phase to rely on
+				// the provider schema for that information.
+				"container": cty.UnknownVal(cty.Object(map[string]cty.Type{"sensitive": cty.String})),
+			}),
+		},
+		ApplyResourceChangeResponse: &providers.ApplyResourceChangeResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"container": cty.ObjectVal(map[string]cty.Value{
+					// This nested string value should be automatically marked
+					// as sensitive in the final state due to the provider
+					// schema, even though it wasn't present in the "planned
+					// state" in PlanResourceChangeResponse above.
+					"sensitive": cty.StringVal("hello"),
+				}),
+			}),
+		},
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	state, diags := tofuCtx.Apply(context.Background(), plan, m, &ApplyOpts{})
+	assertNoErrors(t, diags)
+
+	riState := state.ResourceInstance(addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_sensitive",
+		Name: "test",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey))
+	if riState == nil {
+		t.Fatal("resource instance state is missing")
+	}
+	if riState.Current == nil {
+		t.Fatal("resource instance has no current object")
+	}
+	foundSensitive := false
+	for _, pvm := range riState.Current.AttrSensitivePaths {
+		t.Logf("marks at %s: %#v", tfdiags.FormatCtyPath(pvm.Path), pvm.Marks)
+		if _, ok := pvm.Marks[marks.Sensitive]; !ok {
+			continue
+		}
+		if !pvm.Path.Equals(cty.GetAttrPath("container").GetAttr("sensitive")) {
+			continue
+		}
+		foundSensitive = true
+	}
+	if !foundSensitive {
+		t.Errorf("no sensitive mark for .container.sensitive in %s", spew.Sdump(riState.Current))
 	}
 }
 
@@ -639,7 +755,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// FINAL PLAN:
@@ -697,7 +813,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -753,7 +869,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -767,7 +883,7 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("plan: %s", diags.Err())
 	}
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -830,7 +946,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// destroy only a single instance not included in the moved statements
@@ -880,7 +996,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// destroy excluding the module in the moved statements
@@ -945,7 +1061,7 @@ resource "test_object" "b" {
 	testObjA := plan.PriorState.Modules[""].Resources["test_object.a"].Instances[addrs.NoKey].Current
 	testObjA.Dependencies = append(testObjA.Dependencies, mustResourceInstanceAddr("test_object.b").ContainingResource().Config())
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if !diags.HasErrors() {
 		t.Fatal("expected cycle error from apply")
 	}
@@ -1031,7 +1147,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoErrors(t, diags)
 
 		wantResourceAttrs := map[string]struct{ value, output string }{
@@ -1087,7 +1203,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
@@ -1192,7 +1308,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 			}
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -1345,7 +1461,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'create' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoErrors(t, diags)
 
 		stateA := state.ResourceInstance(instA)
@@ -1382,7 +1498,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'no-op' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if !diags.HasErrors() {
 			t.Fatal("final apply succeeded, but should've failed with a postcondition error")
 		}
@@ -1520,7 +1636,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// Resource changes which have dependencies across providers which
@@ -1540,41 +1656,42 @@ output "out" {
 
 	_, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
-	return
 	// TODO: unreachable code
-	otherProvider.ConfigureProviderCalled = false
-	otherProvider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
-		// check that our config is complete, even during a destroy plan
-		expected := cty.ObjectVal(map[string]cty.Value{
-			"local":  cty.ListVal([]cty.Value{cty.StringVal("first-ok"), cty.StringVal("second-ok")}),
-			"output": cty.ListVal([]cty.Value{cty.StringVal("first-ok"), cty.StringVal("second-ok")}),
-			"var": cty.MapVal(map[string]cty.Value{
-				"a": cty.StringVal("first"),
-				"b": cty.StringVal("second"),
-			}),
-		})
+	if 1 == 0 {
+		otherProvider.ConfigureProviderCalled = false
+		otherProvider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+			// check that our config is complete, even during a destroy plan
+			expected := cty.ObjectVal(map[string]cty.Value{
+				"local":  cty.ListVal([]cty.Value{cty.StringVal("first-ok"), cty.StringVal("second-ok")}),
+				"output": cty.ListVal([]cty.Value{cty.StringVal("first-ok"), cty.StringVal("second-ok")}),
+				"var": cty.MapVal(map[string]cty.Value{
+					"a": cty.StringVal("first"),
+					"b": cty.StringVal("second"),
+				}),
+			})
 
-		if !req.Config.RawEquals(expected) {
-			resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf(
-				`incorrect provider config:
+			if !req.Config.RawEquals(expected) {
+				resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf(
+					`incorrect provider config:
 expected: %#v
 got:      %#v`,
-				expected, req.Config))
+					expected, req.Config))
+			}
+
+			return resp
 		}
 
-		return resp
-	}
+		opts.Mode = plans.DestroyMode
+		// skip refresh so that we don't configure the provider before the destroy plan
+		opts.SkipRefresh = true
 
-	opts.Mode = plans.DestroyMode
-	// skip refresh so that we don't configure the provider before the destroy plan
-	opts.SkipRefresh = true
+		// destroy only a single instance not included in the moved statements
+		_, diags = ctx.Plan(context.Background(), m, state, opts)
+		assertNoErrors(t, diags)
 
-	// destroy only a single instance not included in the moved statements
-	_, diags = ctx.Plan(context.Background(), m, state, opts)
-	assertNoErrors(t, diags)
-
-	if !otherProvider.ConfigureProviderCalled {
-		t.Fatal("failed to configure provider during destroy plan")
+		if !otherProvider.ConfigureProviderCalled {
+			t.Fatal("failed to configure provider during destroy plan")
+		}
 	}
 }
 
@@ -1645,7 +1762,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -1691,7 +1808,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1773,7 +1890,7 @@ output "data" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// and destroy
@@ -1781,7 +1898,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// and destroy again with no state
@@ -1793,7 +1910,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1848,7 +1965,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -1893,7 +2010,7 @@ output "from_resource" {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
-	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false)
+	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1905,7 +2022,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	resCheck := state.CheckResults.GetObjectResult(mustResourceInstanceAddr("test_object.x"))
@@ -1993,7 +2110,7 @@ resource "test_object" "y" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2041,7 +2158,7 @@ output "a" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2088,7 +2205,7 @@ output "null_module_test" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	// now destroy
@@ -2096,7 +2213,7 @@ output "null_module_test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2163,7 +2280,7 @@ output "resources" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2251,7 +2368,7 @@ resource "test_resource" "b" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2294,7 +2411,7 @@ resource "unused_resource" "test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 }
 
@@ -2354,7 +2471,7 @@ import {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 
 	if !hook.PreApplyImportCalled {
@@ -2394,12 +2511,12 @@ locals {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), nil)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	// We didn't specify any external references, so the unreferenced local
@@ -2437,12 +2554,12 @@ locals {
 		},
 	})
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	// We did specify the local value in the external references, so it should
@@ -2499,7 +2616,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2568,7 +2685,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2754,7 +2871,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			assertResourceInstanceProviderInstance(
@@ -2822,7 +2939,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, makeStep2PlanOpts(plans.NormalMode))
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			// Because makeStep2PlanOpts told us to retain at least one
@@ -2895,7 +3012,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m)
+			newState, diags := ctx.Apply(context.Background(), plan, m, nil)
 			assertNoErrors(t, diags)
 
 			// The whole resource state for mock.first should've been removed now.
@@ -2972,7 +3089,7 @@ func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3012,7 +3129,7 @@ func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3045,7 +3162,7 @@ func TestContext2Apply_moduleExclude(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3081,7 +3198,7 @@ func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3112,7 +3229,7 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3159,7 +3276,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3193,7 +3310,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3248,7 +3365,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3282,7 +3399,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3326,7 +3443,7 @@ func TestContext2Apply_excluded(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3366,7 +3483,7 @@ func TestContext2Apply_excludedCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3408,7 +3525,7 @@ func TestContext2Apply_excludedCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3458,7 +3575,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3481,7 +3598,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3522,7 +3639,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3543,7 +3660,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3633,7 +3750,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3711,7 +3828,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3795,7 +3912,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3880,7 +3997,7 @@ func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3914,7 +4031,7 @@ func TestContext2Apply_excludedModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3963,7 +4080,7 @@ func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3996,7 +4113,7 @@ func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4034,7 +4151,7 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4067,7 +4184,7 @@ func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4115,7 +4232,7 @@ func TestContext2Apply_excludedModuleResource(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4175,7 +4292,7 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4226,7 +4343,7 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4296,7 +4413,7 @@ func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	s, diags := ctx.Apply(context.Background(), plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4335,7 +4452,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4452,7 +4569,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4467,7 +4584,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`test_instance.a["primary"]`)
@@ -4681,7 +4798,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4696,7 +4813,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`module.mod["primary"].test_instance.a`)
@@ -4819,14 +4936,19 @@ variable "root_var" {
     error_message = "${local.err} root"
   }
 }
+data "test_data_source" "res_parent" {
+}
+data "test_data_source" "res" {
+	count = length(data.test_data_source.res_parent.id)
+}
 module "mod" {
   source = "./mod"
-  mod_var = local.value
+  mod_var = local.value + length(data.test_data_source.res[0].id)
 }
 `,
 		"mod/mod.tofu": `
 locals {
-  expected = 10
+  expected = 21
   err = "error"
 }
 variable "mod_var" {
@@ -4882,7 +5004,24 @@ variable "other_var" {
 	t.Run("valid", func(t *testing.T) {
 		input := InputValuesFromCaller(map[string]cty.Value{"root_var": cty.NumberIntVal(10)})
 
-		ctx := testContext2(t, &ContextOpts{})
+		provider := testProvider("test")
+
+		provider.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+			return providers.ReadDataSourceResponse{
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id":  cty.StringVal("data_source"),
+					"foo": cty.StringVal("ok"),
+				}),
+			}
+		}
+
+		ps := map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		}
+
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
 
 		plan, diags := ctx.Plan(context.Background(), valid, nil, &PlanOpts{
 			SetVariables: input,
@@ -4891,7 +5030,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, valid)
+		state, diags := ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4904,7 +5043,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, valid)
+		_, diags = ctx.Apply(context.Background(), plan, valid, nil)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4979,7 +5118,7 @@ variable "res_data" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		return ctx.Apply(context.Background(), plan, m, nil)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -4995,7 +5134,7 @@ variable "res_data" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
 		return diags
 	}
 
@@ -5063,6 +5202,7 @@ output "test-child" {
 	}{
 		"simpleModCall": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5103,6 +5243,7 @@ output "test-child" {
 		},
 		"modForEach": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod[\"a\"].test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5287,8 +5428,8 @@ module "modfe" {
 				t.Fatalf("Expected a warning, got: %v", diags.ErrWithWarnings())
 			}
 
-			if !diags[0].Description().Equal(test.expectedWarn) {
-				t.Fatalf("Unexpected warning: %v", diags.ErrWithWarnings())
+			if got, want := diags[0].Description(), test.expectedWarn; !got.Equal(want) {
+				t.Fatalf("Unexpected warning. Want:\n%v\nGot:\n%v\n", want, got)
 			}
 		})
 	}
@@ -5297,6 +5438,10 @@ module "modfe" {
 func TestContext2Apply_variableDeprecation(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
+variable "var" {
+	type = string
+	deprecated = "this is deprecated"
+}
 module "call" {
 	source = "./mod"
 	input = "val"
@@ -5316,19 +5461,1220 @@ module "call" {
 	ctx := testContext2(t, &ContextOpts{})
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
+		SetVariables: InputValues{
+			"var": {
+				Value:      cty.StringVal("from cli"),
+				SourceType: ValueFromCLIArg,
+			},
+		},
 	})
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{}.Append(
 		&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
-			Summary:  `The variable "input" is marked as deprecated by module author`,
-			Detail:   "This variable is marked as deprecated with the following message:\nThis variable is deprecated",
+			Summary:  `Variable marked as deprecated by the module author`,
+			Detail:   "Variable \"input\" is marked as deprecated with the following message:\nThis variable is deprecated",
 			Subject: &hcl.Range{
 				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
-				Start:    hcl.Pos{Line: 4, Column: 10, Byte: 44},
-				End:      hcl.Pos{Line: 4, Column: 15, Byte: 49},
+				Start:    hcl.Pos{Line: 8, Column: 10, Byte: 113},
+				End:      hcl.Pos{Line: 8, Column: 15, Byte: 118},
 			},
-		}))
+		},
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  `Deprecated variable used from the root module`,
+			Detail:   `The root variable "var" is deprecated with the following message: this is deprecated`,
+			Subject: &hcl.Range{
+				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
+				Start:    hcl.Pos{Line: 2, Column: 1, Byte: 1},
+				End:      hcl.Pos{Line: 2, Column: 15, Byte: 15},
+			},
+		},
+	))
 
-	_, diags = ctx.Apply(context.Background(), plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m, nil)
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
+}
+
+// Test if check block is being expanded right when module count is zero
+func TestContext2Apply_moduleCountZeroChecks(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "check_module" {
+  count  = 0
+  source = "./check-module"
+}
+`,
+		"check-module/main.tf": `
+check "http_check" {
+  data "http" "tofu" {
+    url = "https://opentofu.org/"
+  }
+
+  assert {
+    condition     = data.http.tofu.status_code == 200
+    error_message = "${data.http.tofu.url} returned an unhealthy status code"
+  }
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		addrs.NewDefaultProvider("http"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m, nil)
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			return diags
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
+		return diags
+	}
+
+	// Valid validation condition
+	state, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Make sure subsequent applies are happy
+	state, diags = apply(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Succesful Destroy
+	diags = destroy(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+}
+
+// Test if check block is being expanded right when module count is zero (nested)
+func TestContext2Apply_moduleCountZeroChecksNested(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "sub_module" {
+  count  = 1
+  source = "./sub-module"
+}
+`,
+		"sub-module/main.tf": `
+module "check_module" {
+  count  = 0
+  source = "./check-module"
+}
+`,
+		"sub-module/check-module/main.tf": `
+check "http_check" {
+  data "http" "tofu" {
+    url = "https://opentofu.org/"
+  }
+
+  assert {
+    condition     = data.http.tofu.status_code == 200
+    error_message = "${data.http.tofu.url} returned an unhealthy status code"
+  }
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		addrs.NewDefaultProvider("http"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m, nil)
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			return diags
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
+		return diags
+	}
+
+	// Valid validation condition
+	state, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Make sure subsequent applies are happy
+	state, diags = apply(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Succesful Destroy
+	diags = destroy(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+}
+
+// Test if check block is being expanded right when module for_each is empty
+func TestContext2Apply_moduleEmptyForEachChecks(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "check_module" {
+  for_each  = {}
+  source = "./check-module"
+}
+`,
+		"check-module/main.tf": `
+check "http_check" {
+  data "http" "tofu" {
+    url = "https://opentofu.org/"
+  }
+
+  assert {
+    condition     = data.http.tofu.status_code == 200
+    error_message = "${data.http.tofu.url} returned an unhealthy status code"
+  }
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		addrs.NewDefaultProvider("http"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m, nil)
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			return diags
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, m, nil)
+		return diags
+	}
+
+	// Valid validation condition
+	state, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Make sure subsequent applies are happy
+	state, diags = apply(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Succesful Destroy
+	diags = destroy(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+}
+
+// TestContext2Apply_ephemeralResourcesLifecycleCheck is checking the hook calls
+// and the state to be sure that the expected information is there.
+func TestContext2Apply_ephemeralResourcesLifecycleCheck(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+ephemeral "test_ephemeral_resource" "a" {
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+		Result: cty.ObjectVal(map[string]cty.Value{
+			"id":     cty.StringVal("id val"),
+			"secret": cty.StringVal("val"),
+		}),
+	}
+
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	h := &testHook{}
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+			Hooks:     []Hook{h},
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m, nil)
+	}
+
+	newState, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	addr := mustAbsResourceAddr("ephemeral.test_ephemeral_resource.a")
+	gotRes := newState.Resource(addr)
+	wantRes := &states.Resource{
+		Addr: addr,
+		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
+			addrs.NoKey: {
+				Current: &states.ResourceInstanceObjectSrc{
+					AttrsJSON:          []byte(`{"id":"id val","secret":"val"}`),
+					Status:             states.ObjectReady,
+					AttrSensitivePaths: []cty.PathValueMarks{},
+					Dependencies:       []addrs.ConfigResource{},
+				},
+				Deposed: map[states.DeposedKey]*states.ResourceInstanceObjectSrc{},
+			},
+		},
+		ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+	}
+	if diff := cmp.Diff(wantRes, gotRes); diff != "" {
+		t.Errorf("unexpected ephemeral resource content in the state:\n%s", diff)
+	}
+
+	if got, want := len(h.Calls), 8; got != want {
+		t.Fatalf("want %d hook calls but got %d", want, got)
+	}
+	wantCalls := []*testHookCall{
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
+		{Action: "PreOpen", InstanceID: addr.String()},
+		{Action: "PostOpen", InstanceID: addr.String()},
+		{Action: "PreClose", InstanceID: addr.String()},
+		{Action: "PostClose", InstanceID: addr.String()},
+	}
+	if diff := cmp.Diff(wantCalls, h.Calls); diff != "" {
+		t.Fatalf("unexpected hook calls:\n%s", diff)
+	}
+}
+
+// TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly checks that
+// the variable values given in ApplyArgs are getting merged correctly with
+// the plan ones.
+func TestContext2Apply_planVariablesAndApplyArgsGetMergedCorrectly(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+# NOTE: When a variable do have a default value as null it is not written to the plan, doesn't matter if it's ephemeral or not
+variable "regular_required" {
+  type = string
+}
+
+variable "ephemeral_required" {
+  type = string
+  ephemeral = true
+}
+
+variable "regular_optional" {
+  type = string
+  default = null
+}
+
+variable "ephemeral_optional" {
+  type = string
+  ephemeral = true
+  default = null
+}
+
+output "regular_required" {
+  value = var.regular_required
+}
+
+output "regular_optional" {
+  value = var.regular_optional
+}
+`,
+	})
+
+	cases := map[string]struct {
+		planSetVariables InputValues
+		applyOpts        *ApplyOpts
+		// Set this to "true" to test a flow similar with the one ran when running `tofu plan -out <planfile>` followed by `tofu apply <planfile>`.
+		// "False" it means that it will run the test like running directly `tofu apply -auto-approve`
+		simulatePlanRoundtrip bool
+
+		expectedApplyErrors []string
+		expectedOutputs     map[string]*states.OutputValue
+	}{
+		// //////// The tests in this section check real life scenarios, where a plan is written and
+		// then read from the file during `tofu apply <planfile>`. This is the only way for the
+		// ApplyOpts to be passed into the context.Apply()
+		"mutate plan to be similar with the one loaded from file and apply without any opts": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val")},
+				"ephemeral_optional": {},
+				"regular_required":   {Value: cty.StringVal("reg val")},
+				"regular_optional":   {},
+			},
+			simulatePlanRoundtrip: true,
+			applyOpts:             nil,
+			expectedApplyErrors:   []string{"No value for required variable - Variable \"ephemeral_required\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`."},
+		},
+		"mutate plan to be similar with the one loaded from file and apply with opts containing the ephemeral_required": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan},
+			},
+			applyOpts:             &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
+			simulatePlanRoundtrip: true,
+			expectedApplyErrors:   nil,
+		},
+		// //////// The tests below are not actually reproducible IRL, they just test the defensive implementation of mergePlanAndApplyVariables.
+		// These are not reproducible IRL because in a direct `tofu apply` command, the ApplyOpts and PlanOpts will not exist together.
+
+		// Validates that even when the optional variables have null values during plan creation, the applyOpts do not override the null values.
+		"apply configuration directly where planOpts satisfies completely the variables therefore applyOpts don't get used": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+			},
+			applyOpts: &ApplyOpts{SetVariables: InputValues{
+				"ephemeral_optional": &InputValue{Value: cty.StringVal("eph from applyopts"), SourceType: ValueFromCLIArg},
+				"regular_optional":   &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
+			}},
+			expectedApplyErrors: nil,
+			expectedOutputs: map[string]*states.OutputValue{
+				"regular_required": {Value: cty.StringVal("reg val")},
+			},
+		},
+		"apply setVariables contain value for undefined variable": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {SourceType: ValueFromPlan},
+			},
+			applyOpts: &ApplyOpts{
+				SetVariables: map[string]*InputValue{
+					"undefined_variable": {SourceType: ValueFromCLIArg, Value: cty.StringVal("test")},
+				},
+			},
+			expectedApplyErrors: []string{
+				`Missing variable in configuration - Variable "undefined_variable" not found in the given configuration`,
+			},
+		},
+		"same variable has different values in applyOpts and planOpts": {
+			planSetVariables: map[string]*InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
+				"ephemeral_optional": {Value: cty.StringVal("eph optional val"), SourceType: ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
+				"regular_optional":   {Value: cty.StringVal("reg optional val"), SourceType: ValueFromPlan},
+			},
+			applyOpts: &ApplyOpts{
+				SetVariables: map[string]*InputValue{
+					"ephemeral_required": {Value: cty.StringVal("eph val 2"), SourceType: ValueFromPlan},
+					"ephemeral_optional": {Value: cty.StringVal("eph optional val 2"), SourceType: ValueFromPlan},
+					"regular_required":   {Value: cty.StringVal("reg val 2"), SourceType: ValueFromPlan},
+					"regular_optional":   {Value: cty.StringVal("reg optional val 2"), SourceType: ValueFromPlan},
+				},
+			},
+			expectedApplyErrors: []string{
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "ephemeral_required" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "ephemeral_optional" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "regular_required" is different from the one given to the current command.`,
+				`Mismatch between input and plan variable value - Value saved in the plan file for variable "regular_optional" is different from the one given to the current command.`,
+			},
+		},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := &testHook{}
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{h},
+			})
+
+			// check plan
+			plan, diags := ctx.Plan(t.Context(), m, states.NewState(), &PlanOpts{
+				Mode:         plans.NormalMode,
+				SetVariables: tt.planSetVariables,
+			})
+			if diags.HasErrors() {
+				t.Fatalf("unexepected diagnostics from plan: %s", diags)
+			}
+
+			if tt.simulatePlanRoundtrip {
+				// By deleting the ephemeral variables from the VariableValues, we change the given plan
+				// to match a plan read from the file. While loading the plan, the variables stored with
+				// a null value are only stored in EphemeralVariables but not in VariableValues.
+				for vName, ok := range plan.EphemeralVariables {
+					if !ok {
+						continue
+					}
+					delete(plan.VariableValues, vName)
+				}
+			}
+
+			// check apply
+			newState, diags := ctx.Apply(t.Context(), plan, m, tt.applyOpts)
+			var gotErrors []string
+			for _, diag := range diags {
+				gotErrors = append(gotErrors, fmt.Sprintf("%s - %s", diag.Description().Summary, diag.Description().Detail))
+			}
+			slices.Sort(gotErrors)
+			slices.Sort(tt.expectedApplyErrors)
+			if diff := cmp.Diff(tt.expectedApplyErrors, gotErrors); diff != "" {
+				t.Errorf("wrong errors received:\n%s", diff)
+			}
+			if tt.expectedOutputs != nil {
+				cp := newState.DeepCopy()
+				cp.Modules[addrs.RootModule.String()].OutputValues = tt.expectedOutputs
+
+				gotState := newState.String()
+				wantState := cp.String()
+				if diff := cmp.Diff(gotState, wantState); diff != "" {
+					t.Fatalf("got different state than expected:\n%s", diff)
+				}
+			}
+		})
+	}
+}
+
+func TestMergePlanAndApplyVariables(t *testing.T) {
+	mustDynamicVarVal := func(val string) plans.DynamicValue {
+		ret, err := plans.NewDynamicValue(cty.StringVal(val), cty.DynamicPseudoType)
+		if err != nil {
+			panic(err)
+		}
+		return ret
+	}
+
+	cases := map[string]struct {
+		config               *configs.Config
+		plan                 *plans.Plan
+		opts                 *ApplyOpts
+		expectedVals         InputValues
+		expectedDiagsDetails []tfdiags.Description
+	}{
+		"backwards compatibility test - missing values from plan are set to nil": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+						"var2": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("var1 value"),
+				},
+			},
+			nil,
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("var1 value"),
+					SourceType: ValueFromPlan,
+				},
+				"var2": &InputValue{
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"backwards compatibility test - malformed plan variable value generates error": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": []byte("test"),
+				},
+			},
+			nil,
+			InputValues{
+				// Initially, before the introduction of mergePlanAndApplyVariables, the returned InputValues had no entries.
+				// But due to the new way this is implemented, now these are returned with their nil value.
+				// This is not an issue, functionally speaking, because the call to this new method must check
+				// first for the diags and after user the returned values.
+				"var1": &InputValue{SourceType: ValueFromPlan},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "Invalid variable value in plan",
+					Detail:  `Invalid value for variable "var1" recorded in plan file: msgpack: invalid code=74 decoding array length.`,
+				},
+			},
+		},
+		// this should not happen in real life since this should be caught in an early stage of the execution,
+		// but we check this here too to be sure that we don't allow other failures downstream
+		"variable value in plan but not in config": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("var1 value"),
+				},
+			},
+			nil,
+			nil,
+			[]tfdiags.Description{
+				{
+					Summary: "Missing variable in configuration",
+					Detail:  `Plan variable "var1" not found in the given configuration`,
+				},
+			},
+		},
+		"variable value in apply opts but not in config": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("var1 value"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			nil,
+			[]tfdiags.Description{
+				{
+					Summary: "Missing variable in configuration",
+					Detail:  `Variable "var1" not found in the given configuration`,
+				},
+			},
+		},
+		"value not in plan but in apply opts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("var1 value"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("var1 value"),
+					SourceType: ValueFromCLIArg,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"ephemeral with no default must have no value in plan but must have value in applyOpts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues:     map[string]plans.DynamicValue{},
+				EphemeralVariables: map[string]bool{"var1": true},
+			},
+			nil,
+			InputValues{
+				// This is returned strictly due to the way mergePlanAndApplyVariables is implemented. Check
+				// the comment on the method
+				"var1": &InputValue{
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "No value for required variable",
+					Detail:  "Variable \"var1\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`.",
+				},
+			},
+		},
+		"ephemeral with default can have no value in applyOpts": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {
+							Default: cty.NullVal(cty.String),
+						},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues:     map[string]plans.DynamicValue{},
+				EphemeralVariables: map[string]bool{"var1": true},
+			},
+			nil,
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+		"value in applyOpts and the one in plan needs to be equal for non-ephemeral variables": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"var1": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"var1": mustDynamicVarVal("value from plan"),
+				},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"var1": &InputValue{
+						Value:      cty.StringVal("value from apply opts"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"var1": &InputValue{
+					Value:      cty.StringVal("value from plan"),
+					SourceType: ValueFromPlan,
+				},
+			},
+			[]tfdiags.Description{
+				{
+					Summary: "Mismatch between input and plan variable value",
+					Detail:  `Value saved in the plan file for variable "var1" is different from the one given to the current command.`,
+				},
+			},
+		},
+		"successfully merge values for multiple variables": {
+			&configs.Config{
+				Module: &configs.Module{
+					Variables: map[string]*configs.Variable{
+						"regular_with_default": {
+							Default: cty.NullVal(cty.String),
+						},
+						"regular_without_default": {},
+						"ephemeral_with_default": {
+							Default: cty.NullVal(cty.String),
+						},
+						"ephemeral_without_default": {},
+					},
+				},
+			},
+			&plans.Plan{
+				VariableValues: map[string]plans.DynamicValue{
+					"regular_without_default": mustDynamicVarVal("regular value from plan"),
+				},
+				EphemeralVariables: map[string]bool{
+					"ephemeral_with_default":    true,
+					"ephemeral_without_default": true,
+				},
+			},
+			&ApplyOpts{
+				SetVariables: InputValues{
+					"ephemeral_without_default": &InputValue{
+						Value:      cty.StringVal("ephemeral value from apply opts"),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			},
+			InputValues{
+				"regular_with_default": {
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+				"regular_without_default": {
+					Value:      cty.StringVal("regular value from plan"),
+					SourceType: ValueFromPlan,
+				},
+				"ephemeral_with_default": {
+					Value:      cty.NilVal,
+					SourceType: ValueFromPlan,
+				},
+				"ephemeral_without_default": {
+					Value:      cty.StringVal("ephemeral value from apply opts"),
+					SourceType: ValueFromCLIArg,
+				},
+			},
+			[]tfdiags.Description{},
+		},
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &Context{}
+			got, gotDiags := c.mergePlanAndApplyVariables(tt.config, tt.plan, tt.opts)
+			if diff := cmp.Diff(tt.expectedVals, got, cmpopts.EquateComparable(cty.Value{})); diff != "" {
+				t.Errorf("invalid input values returned\n%s", diff)
+			}
+			diagsDesc := make([]tfdiags.Description, len(gotDiags))
+			for i, diag := range gotDiags {
+				diagsDesc[i] = diag.Description()
+			}
+			if diff := cmp.Diff(tt.expectedDiagsDetails, diagsDesc); diff != "" {
+				t.Errorf("invalid diags returned\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestContext2Apply_enabledForResource(t *testing.T) {
+	m := testModule(t, "apply-enabled-resource")
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"name": {
+								Type:     cty.String,
+								Required: true,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	p.PlanResourceChangeFn = func(prcr providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: prcr.ProposedNewState,
+		}
+	}
+	p.ApplyResourceChangeFn = func(arcr providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		return providers.ApplyResourceChangeResponse{
+			NewState: arcr.PlannedState,
+		}
+	}
+	tfCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	resourceInstAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test",
+		Name: "test",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+	outputAddr := addrs.OutputValue{
+		Name: "result",
+	}.Absolute(addrs.RootModuleInstance)
+
+	// We'll overwrite this after each round, but it starts empty.
+	state := states.NewState()
+
+	{
+		t.Logf("First round: var.on = false")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		if change := plan.Changes.ResourceInstance(resourceInstAddr); change != nil {
+			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+
+		outputState := newState.OutputValue(outputAddr)
+		if outputState == nil {
+			t.Errorf("missing state entry for %s", outputAddr)
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
+			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
+		}
+
+		state = newState // "persist" the state for the next round
+	}
+	{
+		t.Logf("Second round: var.on = true")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.True,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := change.Action, plans.Create; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		instState := newState.ResourceInstance(resourceInstAddr)
+		if instState == nil {
+			t.Fatalf("missing state entry for %s", resourceInstAddr)
+		}
+
+		outputState := newState.OutputValue(outputAddr)
+		if outputState == nil {
+			t.Errorf("missing state entry for %s", outputAddr)
+		} else if got, want := outputState.Value, cty.StringVal("boop"); !want.RawEquals(got) {
+			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
+		}
+
+		state = newState // "persist" the state for the next round
+	}
+	{
+		t.Logf("Third round: var.on = false, again")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := change.Action, plans.Delete; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
+			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+
+		outputState := newState.OutputValue(outputAddr)
+		if outputState == nil {
+			t.Errorf("missing state entry for %s", outputAddr)
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
+			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
+		}
+	}
+}
+
+func TestContext2Apply_enabledForModule(t *testing.T) {
+	m := testModule(t, "apply-enabled-module")
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+	tfCtx := testContext2(t, &ContextOpts{
+		Providers: ps,
+	})
+
+	resourceInstAddr := mustResourceInstanceAddr(`module.mod1.test_instance.a`)
+	// We'll overwrite this after each round, but it starts empty.
+	state := states.NewState()
+
+	{
+		t.Logf("First round: var.on = false")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		if instPlan := plan.Changes.ResourceInstance(resourceInstAddr); instPlan != nil {
+			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+	{
+		t.Logf("Second round: var.on = true")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.True,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Create; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		instState := newState.ResourceInstance(resourceInstAddr)
+		if instState == nil {
+			t.Fatalf("missing state entry for %s", resourceInstAddr)
+		}
+
+		state = newState // "persist" the state for the next round
+	}
+	{
+		t.Logf("Third round: var.on = false, again")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Delete; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+}
+
+// TestContext2Apply_callingProviderFunctionFromDynamicBlock checks that a
+// provider function can be used by referencing it in a dynamic block inside
+// a resource.
+func TestContext2Apply_callingProviderFunctionFromDynamicBlock(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+		test = {
+			source = "example.com/foo/test"
+		}
+	}
+}
+
+locals {
+	urls = ["foo:80", "bar:81"]
+}
+resource "test_resource" "res" {
+  dynamic "allow" {
+	iterator = item
+    for_each = {
+      for z in local.urls :
+      z => provider::test::extract_port(z) if contains([80, 81], provider::test::extract_port(z))
+    }
+    content {
+      port = item.value
+    }
+  }
+}
+`,
+	})
+
+	p := MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"allow": {
+							Nesting: configschema.NestingList,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"port": {
+										Type:     cty.Number,
+										Optional: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Functions: map[string]providers.FunctionSpec{
+			"extract_port": {
+				Parameters: []providers.FunctionParameterSpec{
+					{
+						Name:               "in",
+						Type:               cty.String,
+						AllowNullValue:     false,
+						AllowUnknownValues: false,
+					},
+				},
+				Return: cty.Number,
+			},
+		},
+	}
+	p.CallFunctionFn = func(request providers.CallFunctionRequest) providers.CallFunctionResponse {
+		// Since there is only a single function defined, we don't want to make this implementation more complex than
+		// needed, so we have only the implementation for that.
+		v := request.Arguments[0].AsString()
+		idx := strings.LastIndex(v, ":")
+		if idx >= 0 {
+			v = v[idx+1:]
+		}
+		port, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return providers.CallFunctionResponse{
+				Error: err,
+			}
+		}
+		return providers.CallFunctionResponse{
+			Result: cty.NumberVal(big.NewFloat(port)),
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(&p),
+		},
+	})
+
+	assertState := func(t *testing.T, s *states.State) {
+		res := s.Resource(mustAbsResourceAddr("test_resource.res"))
+		diff := cmp.Diff(`{"allow":[{"port":81},{"port":80}]}`, string(res.Instances[addrs.NoKey].Current.AttrsJSON))
+		if diff != "" {
+			t.Fatalf("wrong expected resource change found (-wanted, +got):\n%s", diff)
+		}
+	}
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	assertState(t, plan.PlannedState)
+
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
+	assertNoErrors(t, diags)
+	assertState(t, state)
 }

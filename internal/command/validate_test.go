@@ -10,6 +10,8 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -163,6 +165,32 @@ func TestSameImportTargetMultipleTimesShouldFail(t *testing.T) {
 	wantError := `Error: Duplicate import configuration for "aws_instance.web"`
 	if !strings.Contains(output.Stderr(), wantError) {
 		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
+	}
+}
+
+func TestUndefinedVariableAsImportIDShouldFail(t *testing.T) {
+	output, code := setupTest(t, "validate-invalid/import_undefined_var")
+	if code != 1 {
+		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
+	}
+	wantError := `Error: Reference to undeclared input variable`
+	if !strings.Contains(output.Stderr(), wantError) {
+		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
+	}
+}
+
+func TestUndefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
+	// -generate-config-out is the reason we can have undefined resources as targets
+	output, code := setupTest(t, "validate-valid/import_undefined_resource")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
+
+func TestDefinedVarAsImportIDShouldSucceed(t *testing.T) {
+	output, code := setupTest(t, "validate-valid/import_id_defined_var")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
 	}
 }
 
@@ -326,6 +354,43 @@ func TestValidate_json(t *testing.T) {
 		{"validate-invalid/missing_defined_var", true},
 	}
 
+	cmpOpts := cmp.Options{
+		// Filenames are defined as Unix paths in `output.json`, this
+		// is needed to convert them to the correct path for the current OS.
+		cmp.FilterPath(
+			func(p cmp.Path) bool {
+				field := p.Last().String()
+				return field == `["filename"]`
+			},
+			//
+			cmp.Transformer("filename", func(filename interface{}) string {
+				convertedFilename, ok := filename.(string)
+				if !ok {
+					t.Fatalf("failed to convert filename to string: %v", filename)
+				}
+				return filepath.FromSlash(convertedFilename)
+			}),
+		),
+		// Detail field contains file path along with other information. '/' are
+		// being replaced if Windows is the current OS.
+		cmp.FilterPath(
+			func(p cmp.Path) bool {
+				field := p.Last().String()
+				return field == `["detail"]`
+			},
+			cmp.Transformer("detail", func(detail interface{}) string {
+				convertedDetail, ok := detail.(string)
+				if !ok {
+					t.Fatalf("failed to convert detail to string: %v", detail)
+				}
+				if runtime.GOOS == "windows" {
+					convertedDetail = strings.ReplaceAll(convertedDetail, `\`, `/`)
+				}
+				return convertedDetail
+			}),
+		),
+	}
+
 	for _, tc := range tests {
 		t.Run(tc.path, func(t *testing.T) {
 			var want, got map[string]interface{}
@@ -352,7 +417,7 @@ func TestValidate_json(t *testing.T) {
 				t.Fatalf("failed to unmarshal actual JSON: %s", err)
 			}
 
-			if !cmp.Equal(got, want) {
+			if !cmp.Equal(got, want, cmpOpts) {
 				t.Errorf("wrong output:\n %v\n", cmp.Diff(got, want))
 				t.Errorf("raw output:\n%s\n", gotString)
 			}

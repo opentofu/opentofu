@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -235,6 +236,10 @@ func (b *binary) SetLocalState(state *states.State) error {
 }
 
 func GoBuild(pkgPath, tmpPrefix string) string {
+	if runtime.GOOS == "windows" {
+		tmpPrefix += ".exe"
+	}
+
 	dir, prefix := filepath.Split(tmpPrefix)
 	tmpFile, err := os.CreateTemp(dir, prefix)
 	if err != nil {

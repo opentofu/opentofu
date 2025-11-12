@@ -1,0 +1,239 @@
+---
+description: >-
+  An overview on the ephemeral concept and general usability
+---
+
+# Ephemerality
+
+Ephemerality refers to the nature of a value to be "ephemeral", meaning that it will not be stored in the state or the plan. With this concept, transient and/or confidental information can be safely handled within OpenTofu.
+
+Related concepts:
+* [Sensitive](../state/sensitive-data/) resource fields, outputs and variables
+  * Marking values as sensitive ensures the contents are sanitized from the user interface.
+  * Sensitive values will still be stored in plaintext in the state and plan.
+* [State Encryption](../state/encryption/)
+  * Encryption of state and plan data can be configured to prevent unauthorized access and tampering.
+  * Security of this data is determined by the encryption methods used and access to the encryption keys.
+
+
+In contrast, Ephemeral values only exist for the duration of single execution of the `tofu` command and are never stored in state or plan data. This enables representation of transient concepts, such as temporary network tunnels
+or confidential keys managed by an external system.
+
+It is recommended that all three concepts are considered when working with confidential information. If possible use ephemeral values/resources to prevent storing the data at all.  If confidential data must be stored, ensure that it is marked as
+sensitive and that state and plan encryption are enabled and properly configured.
+
+
+As part of this concept, the following constructs can be used:
+* [Ephemeral Resources](./ephemeral-resources.mdx)
+* [Ephemeral Variables](../values/variables.mdx#ephemerality)
+* [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
+* [Locals](../values/locals.mdx#ephemerality)
+* [Providers](../providers/configuration.mdx)
+* [Provisioners](../resources/provisioners/syntax.mdx#suppressing-provisioner-logs-in-cli-output)
+* [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
+* [Resource `write-only` attributes](./write-only-attributes.mdx)
+
+## Compatibility
+:::warning
+This concept is inspired by and aims for compatibility with the equivalent "Ephemeral" concept in Terraform v1.12.
+If incompatibilities are discovered, the OpenTofu team will consider accepting breaking changes in subsequent versions
+of OpenTofu to ensure compatibility.
+:::
+
+## Additional Topics
+* [Providing values for root module ephemeral variables](../../cli/commands/apply.mdx#ephemeral-variables)
+* [Validations interaction with ephemeral values](../expressions/custom-conditions.mdx#ephemeral-values-usage)
+* [Sanitizing values using `ephemeralasnull()`](../functions/ephemeralasnull.mdx)
+* [Differentiating plan/apply with `tofu.applying`](../expressions/references.mdx#filesystem-and-workspace-info)
+* [How configuration generation handles write-only attributes](../import/generating-configuration.mdx#generated-hints)
+
+## Usage example
+:::note
+The following example is meant to showcase how ephemeral concepts listed above work together and is not intended to be used directly in real environments
+:::
+
+### A module to handle various usage patterns of secrets
+In the following example you can see a module that can handle secret creation and retrieval by using ephemeral variables, ephemeral resources, write-only attributes, ephemeral outputs and validations using ephemeral values in their `condition`.
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">=6.0.0"
+    }
+  }
+}
+
+variable "secret_map" {
+  type        = map(string)
+  default     = null # default because in some cases this module can be used only for reading the secret and not storing it
+  ephemeral   = true # defines an ephemeral variable since it holds the secrets to be processed
+  description = "The map of secrets to be used to create the new secret entry. Omit this when using this module to read the secret"
+}
+
+variable "secret_version" {
+  # needed to update a write-only attribute
+  type        = number
+  default     = 0
+  description = "The version used to update the secret. You need to bump this from the previous version in order for the secret_map content to be persisted. Omit this when using this module to read the secret"
+}
+
+variable "secret_manager_arn" {
+  type        = string
+  default     = ""
+  description = "The map of secrets to be used to create the new secret entry"
+  validation {
+    condition     = (var.secret_manager_arn == "" && var.secret_map != null) || (var.secret_manager_arn != "" && var.secret_map == null)
+    error_message = "var.secret_manager_arn should not be used in the same time with var.secret_map. Use the module only with var.secret_manager_arn to read the secret or use it with var.secret_map and var.secret_version to create a new secret"
+  }
+}
+
+resource "aws_secretsmanager_secret" "manager" {
+  count = var.secret_version > 0 ? 1 : 0 # used when we create a new secret manager
+  name  = "testin-secret-manager"
+}
+
+resource "aws_secretsmanager_secret_version" "secret_creation" {
+  count                    = var.secret_version > 0 ? 1 : 0 # used when we want to create a new secret
+  secret_id                = aws_secretsmanager_secret.manager[0].arn
+  secret_string_wo         = jsonencode(var.secret_map) # here we pass in the ephemeral variable into a write-only attribute
+  secret_string_wo_version = var.secret_version
+  # and when we want to update it, we can provide a different value for var.secret_map and an incremented secret_version
+}
+
+ephemeral "aws_secretsmanager_secret_version" "secret_retrieval" {
+  # used to read the secret from the secret manager after creating it
+  count     = var.secret_version > 0 ? 1 : 0
+  secret_id = aws_secretsmanager_secret.manager[0].arn
+  depends_on = [
+    aws_secretsmanager_secret_version.secret_creation # ensure that we want for the secret creation before reading it
+  ]
+}
+
+ephemeral "aws_secretsmanager_secret_version" "secret_retrieval_direct" {
+  # used to read the secret from the secret manager when the module is used only for reading without creating a new secret
+  count     = var.secret_version > 0 ? 0 : 1
+  secret_id = var.secret_manager_arn
+}
+
+output "secrets" {
+  value = "${var.secret_version > 0 ?
+    jsondecode(ephemeral.aws_secretsmanager_secret_version.secret_retrieval[0].secret_string) :
+    jsondecode(ephemeral.aws_secretsmanager_secret_version.secret_retrieval_direct[0].secret_string)}"
+  ephemeral = true # marking an output as ephemeral is mandatory when the value points to an ephemeral value
+}
+
+output "secret_manager_arn" {
+  value = var.secret_version > 0 ? aws_secretsmanager_secret.manager[0].arn : null
+  # available only when the module is used to create a secret
+}
+```
+
+### Using the module in a configuration to store a secret
+
+The following configuration uses the module above to create a new secret where it stores the given aws credentials and
+outputs the ARN of the created secret manager:
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.0.0-beta1"
+    }
+  }
+}
+
+provider "aws" {
+  alias = "secrets-read-write"
+}
+
+variable "access_key" {
+  type      = string
+  ephemeral = true
+}
+
+variable "secret_key" {
+  type      = string
+  ephemeral = true
+}
+
+locals {
+  secrets = {
+    "access_key" : var.access_key,
+    "secret_key" : var.secret_key
+  }
+}
+
+module "secret_management" {
+  providers = {
+    aws = aws.secrets-read-write
+  }
+  source         = "../mod"
+  secret_map     = local.secrets
+  secret_version = 1 # first version of the secret. If want to update the secret inside, bump this version
+}
+
+output "secret_manager_arn" {
+  value = module.secret_management.secret_manager_arn
+}
+```
+
+### Using the module in a configuration to retrieve a secret and configure a provider
+
+The following configuration uses the module above to read the secret, configure a provider with
+the credentials retrieved and store the same credentials in a write-only attribute `value_wo`
+of the `aws_ssm_parameter` resource.
+Additionally, it adds two `local-exec` provisioners. The execution of the first one will print the `command` content but the
+second one will print `(output suppressed due to ephemeral value in config)`:
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.0.0-beta1"
+    }
+  }
+}
+provider "aws" {
+  alias = "read-secrets"
+}
+
+variable "secret_manager_arn" {
+  type = string
+}
+
+module "secret_management" {
+  providers = {
+    aws = aws.read-secrets
+  }
+  source             = "../mod"
+  secret_manager_arn = var.secret_manager_arn
+}
+
+# Provider can be configured with the credentials returned by the ephemeral resource inside the module.
+provider "aws" {
+  alias      = "dev-access"
+  access_key = module.secret_management.secrets["access_key"]
+  secret_key = module.secret_management.secrets["secret_key"]
+}
+
+resource "aws_ssm_parameter" "store_ephemeral_in_write_only" {
+  provider         = aws.dev-access
+  name             = "parameter_from_ephemeral_value"
+  type             = "SecureString"
+  value_wo         = jsonencode(module.secret_management.secrets) # Using the secrets again in a write-only attribute
+  value_wo_version = 1 # bump this if `value_wo` needs to be updated
+
+  # Because this provisioner uses only regular attributes, it will print the output of the command
+  provisioner "local-exec" {
+    when    = create
+    command = "echo non-ephemeral value: ${aws_ssm_parameter.store_ephemeral_in_write_only.arn}"
+  }
+
+  # Because this provisioner uses ephemeral values, its output will be suppressed
+  provisioner "local-exec" {
+    when    = create
+    command = "echo ephemeral value from module: #${jsonencode(module.secret_management.secrets)}#"
+  }
+}
+```

@@ -7,16 +7,24 @@ package plugin6
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/msgpack"
 	"go.uber.org/mock/gomock"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -31,7 +39,24 @@ var (
 	valueComparer = cmp.Comparer(cty.Value.RawEquals)
 )
 
+func mutateSchemaResponse(response *proto.GetProviderSchema_Response, mut ...func(schemaResponse *proto.GetProviderSchema_Response)) *proto.GetProviderSchema_Response {
+	for _, f := range mut {
+		f(response)
+	}
+	return response
+}
+
+func addAttributeToResource(resourceName string, attr *proto.Schema_Attribute) func(response *proto.GetProviderSchema_Response) {
+	return func(schemaResponse *proto.GetProviderSchema_Response) {
+		schemaResponse.ResourceSchemas[resourceName].Block.Attributes = append(schemaResponse.ResourceSchemas[resourceName].Block.Attributes, attr)
+	}
+}
+
 func mockProviderClient(t *testing.T) *mockproto.MockProviderClient {
+	return mockProviderClientWithSchema(t, providerProtoSchema())
+}
+
+func mockProviderClientWithSchema(t *testing.T, schema *proto.GetProviderSchema_Response) *mockproto.MockProviderClient {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
 
@@ -40,7 +65,7 @@ func mockProviderClient(t *testing.T) *mockproto.MockProviderClient {
 		gomock.Any(),
 		gomock.Any(),
 		gomock.Any(),
-	).Return(providerProtoSchema(), nil)
+	).Return(schema, nil)
 
 	return client
 }
@@ -102,6 +127,20 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 				},
 			},
 		},
+		EphemeralResourceSchemas: map[string]*proto.Schema{
+			"eph": {
+				Version: 1,
+				Block: &proto.Schema_Block{
+					Attributes: []*proto.Schema_Attribute{
+						{
+							Name:     "attr",
+							Type:     []byte(`"string"`),
+							Required: true,
+						},
+					},
+				},
+			},
+		},
 		Functions: map[string]*proto.Function{
 			"fn": &proto.Function{
 				Parameters: []*proto.Function_Parameter{{
@@ -129,8 +168,24 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 		client: mockProviderClient(t),
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
+
+	{ // check ephemeral attribute of the schema blocks
+		if !resp.Provider.Block.Ephemeral {
+			t.Errorf("provider.Block.Ephemeral meant to be true")
+		}
+		checkResources := func(t *testing.T, r map[string]providers.Schema, want bool) {
+			for typ, schema := range r {
+				if schema.Block.Ephemeral != want {
+					t.Errorf("expected resource %q to have ephemeral as %t", typ, want)
+				}
+			}
+		}
+		checkResources(t, resp.ResourceTypes, false)
+		checkResources(t, resp.DataSources, false)
+		checkResources(t, resp.EphemeralResources, true)
+	}
 }
 
 // Ensure that gRPC errors are returned early.
@@ -149,7 +204,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -180,7 +235,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -213,7 +268,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -224,7 +279,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -260,7 +315,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -271,7 +326,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -291,7 +346,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 	).Return(&proto.ValidateProviderConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateProviderConfig(providers.ValidateProviderConfigRequest{Config: cfg})
+	resp := p.ValidateProviderConfig(t.Context(), providers.ValidateProviderConfigRequest{Config: cfg})
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -307,7 +362,7 @@ func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateResourceConfig(providers.ValidateResourceConfigRequest{
+	resp := p.ValidateResourceConfig(t.Context(), providers.ValidateResourceConfigRequest{
 		TypeName: "resource",
 		Config:   cfg,
 	})
@@ -326,8 +381,27 @@ func TestGRPCProvider_ValidateDataResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateDataResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateDataResourceConfig(providers.ValidateDataResourceConfigRequest{
+	resp := p.ValidateDataResourceConfig(t.Context(), providers.ValidateDataResourceConfigRequest{
 		TypeName: "data",
+		Config:   cfg,
+	})
+	checkDiags(t, resp.Diagnostics)
+}
+
+func TestGRPCProvider_ValidateEphemeralResourceConfig(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().ValidateEphemeralResourceConfig(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.ValidateEphemeralResourceConfig_Response{}, nil)
+
+	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
+	resp := p.ValidateEphemeralConfig(t.Context(), providers.ValidateEphemeralConfigRequest{
+		TypeName: "eph",
 		Config:   cfg,
 	})
 	checkDiags(t, resp.Diagnostics)
@@ -348,7 +422,7 @@ func TestGRPCProvider_UpgradeResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -379,7 +453,7 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -392,6 +466,48 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 
 	if !cmp.Equal(expected, resp.UpgradedState, typeComparer, valueComparer, equateEmpty) {
 		t.Fatal(cmp.Diff(expected, resp.UpgradedState, typeComparer, valueComparer, equateEmpty))
+	}
+}
+
+func TestGRPCProvider_UpgradeResourceStateWithWriteOnlyReturned(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().UpgradeResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.UpgradeResourceState_Request, _ ...grpc.CallOption) (*proto.UpgradeResourceState_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.UpgradeResourceState_Response{
+			UpgradedState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
+		TypeName:     "resource",
+		Version:      0,
+		RawStateJSON: []byte(`{"attr":"bar"}`),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
@@ -411,7 +527,7 @@ func TestGRPCProvider_MoveResourceState(t *testing.T) {
 		TargetPrivate: []byte(`{"meta": "data"}`),
 	}, nil)
 
-	resp := p.MoveResourceState(providers.MoveResourceStateRequest{
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
 		SourceTypeName:      "resource_old",
 		SourceSchemaVersion: 0,
 		TargetTypeName:      "resource",
@@ -430,6 +546,50 @@ func TestGRPCProvider_MoveResourceState(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.TargetPrivate)
 	}
 }
+
+func TestGRPCProvider_MoveResourceStateReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().MoveResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.MoveResourceState_Request, _ ...grpc.CallOption) (*proto.MoveResourceState_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return &proto.MoveResourceState_Response{
+			TargetState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
+		SourceTypeName:      "resource_old",
+		SourceSchemaVersion: 0,
+		TargetTypeName:      "resource",
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
 func TestGRPCProvider_Configure(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -441,7 +601,7 @@ func TestGRPCProvider_Configure(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ConfigureProvider_Response{}, nil)
 
-	resp := p.ConfigureProvider(providers.ConfigureProviderRequest{
+	resp := p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
 		}),
@@ -461,7 +621,7 @@ func TestGRPCProvider_Stop(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.StopProvider_Response{}, nil)
 
-	err := p.Stop()
+	err := p.Stop(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +642,7 @@ func TestGRPCProvider_ReadResource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -515,7 +675,7 @@ func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -530,6 +690,51 @@ func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 
 	if !cmp.Equal(expected, resp.NewState, typeComparer, valueComparer, equateEmpty) {
 		t.Fatal(cmp.Diff(expected, resp.NewState, typeComparer, valueComparer, equateEmpty))
+	}
+}
+
+func TestGRPCProvider_ReadResourceReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().ReadResource(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.ReadResource_Request, opts ...grpc.CallOption) (*proto.ReadResource_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.ReadResource_Response{
+			NewState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+	})
+
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
@@ -551,7 +756,7 @@ func TestGRPCProvider_ReadEmptyJSON(t *testing.T) {
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"attr": cty.StringVal("foo"),
 	})
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName:   "resource",
 		PriorState: obj,
 	})
@@ -594,7 +799,7 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -625,6 +830,52 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 
 	if !bytes.Equal(expectedPrivate, resp.PlannedPrivate) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.PlannedPrivate)
+	}
+}
+
+func TestGRPCProvider_PlanResourceChange_deferred(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().PlanResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.PlanResourceChange_Response{
+		PlannedState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		Deferred: &proto.Deferred{
+			Reason: proto.Deferred_PROVIDER_CONFIG_UNKNOWN,
+		},
+	}, nil)
+
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("foo"),
+		}),
+		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+	})
+
+	if len(resp.Diagnostics) != 1 {
+		t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(resp.Diagnostics))
+	}
+	desc := resp.Diagnostics[0].Description()
+	if got, want := desc.Summary, `Provider configuration is incomplete`; got != want {
+		t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := desc.Detail, `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.`; got != want {
+		t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
+	}
+	if !providers.IsDeferralDiagnostic(resp.Diagnostics[0]) {
+		t.Errorf("diagnostic is not marked as being a \"deferral diagnostic\"")
 	}
 }
 
@@ -657,7 +908,7 @@ func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -691,6 +942,56 @@ func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_PlanResourceChangeReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().PlanResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.PlanResourceChange_Request, opts ...grpc.CallOption) (*proto.PlanResourceChange_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.PlanResourceChange_Response{
+			PlannedState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
+	}
+}
+
 func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -709,7 +1010,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -737,6 +1038,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.Private)
 	}
 }
+
 func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -755,7 +1057,7 @@ func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -781,6 +1083,58 @@ func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 
 	if !bytes.Equal(expectedPrivate, resp.Private) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.Private)
+	}
+}
+
+func TestGRPCProvider_ApplyResourceChangeReturnsWriteOnlyValue(t *testing.T) {
+	client := mockProviderClientWithSchema(t, mutateSchemaResponse(providerProtoSchema(), addAttributeToResource("resource", &proto.Schema_Attribute{
+		Name:      "write_only_attr",
+		Type:      []byte(`"string"`),
+		Optional:  true,
+		WriteOnly: true,
+	})))
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().ApplyResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).DoAndReturn(func(_ context.Context, _ *proto.ApplyResourceChange_Request, opts ...grpc.CallOption) (*proto.ApplyResourceChange_Response, error) {
+		b, err := msgpack.Marshal(
+			cty.ObjectVal(map[string]cty.Value{"attr": cty.StringVal("bar"), "write_only_attr": cty.StringVal("val")}),
+			cty.Object(map[string]cty.Type{"attr": cty.String, "write_only_attr": cty.String}),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.ApplyResourceChange_Response{
+			NewState: &proto.DynamicValue{
+				Msgpack: b,
+			},
+		}, nil
+	})
+
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("foo"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		PlannedState: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.NullVal(cty.String),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr":            cty.StringVal("bar"),
+			"write_only_attr": cty.StringVal("foo"),
+		}),
+	})
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	expectedErr := `Resource type "resource" returned an actual value for the write-only attribute ".write_only_attr" while it is meant to be nil. This is an issue in the provider SDK.`
+	if gotErr := resp.Diagnostics[0].Description().Detail; expectedErr != gotErr {
+		t.Errorf("the expected error is not the same with the one returned.\nexpected: %s\ngot: %s", expectedErr, gotErr)
 	}
 }
 
@@ -807,7 +1161,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -850,7 +1204,7 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -886,7 +1240,7 @@ func TestGRPCProvider_ReadDataSource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -919,7 +1273,7 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -937,6 +1291,127 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		client := mockProviderClient(t)
+		p := &GRPCProvider{
+			client: client,
+		}
+
+		future := time.Now().Add(time.Minute)
+		client.EXPECT().OpenEphemeralResource(
+			gomock.Any(),
+			gomock.Any(),
+		).Return(&proto.OpenEphemeralResource_Response{
+			Result: &proto.DynamicValue{
+				Msgpack: []byte("\x81\xa4attr\xa3bar"),
+			},
+			Private: []byte("private data"),
+			RenewAt: timestamppb.New(future),
+			Deferred: &proto.Deferred{
+				Reason: proto.Deferred_RESOURCE_CONFIG_UNKNOWN,
+			},
+		}, nil)
+
+		resp := p.OpenEphemeralResource(t.Context(), providers.OpenEphemeralResourceRequest{
+			TypeName: "eph",
+			Config: cty.ObjectVal(map[string]cty.Value{
+				"attr": cty.StringVal("foo"),
+			}),
+		})
+
+		checkDiags(t, resp.Diagnostics)
+
+		expected := cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		})
+		if diff := cmp.Diff(expected, resp.Result, typeComparer, valueComparer, equateEmpty); diff != "" {
+			t.Fatalf("expected to have no diff between the expected result and result from the openEphemeral. got: %s", diff)
+		}
+		if resp.RenewAt == nil || !future.Equal(*resp.RenewAt) {
+			t.Fatalf("unexpected renewAt. got: %s, want %s", resp.RenewAt, future)
+		}
+		if got, want := resp.Private, []byte("private data"); !slices.Equal(got, want) {
+			t.Fatalf("unexpected private data. got: %q, want %q", got, want)
+		}
+		{
+			if resp.Deferred == nil {
+				t.Fatal("expected to have a deferred object but got none")
+			}
+			if got, want := resp.Deferred.DeferralReason, providers.DeferredBecauseResourceConfigUnknown; got != want {
+				t.Fatalf("unexpected deferred reason. got: %d, want %d", got, want)
+			}
+		}
+	})
+	t.Run("requested type is not in schema", func(t *testing.T) {
+		client := mockProviderClient(t)
+		p := &GRPCProvider{
+			client: client,
+		}
+
+		resp := p.OpenEphemeralResource(t.Context(), providers.OpenEphemeralResourceRequest{
+			TypeName: "non_existing",
+			Config: cty.ObjectVal(map[string]cty.Value{
+				"attr": cty.StringVal("foo"),
+			}),
+		})
+		checkDiagsHasError(t, resp.Diagnostics)
+		if got, want := resp.Diagnostics.Err().Error(), `unknown ephemeral resource "non_existing"`; !strings.Contains(got, want) {
+			t.Fatalf("diagnostis does not contain the expected content. got: %s; want: %s", got, want)
+		}
+	})
+}
+
+func TestGRPCProvider_RenewEphemeralResource(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := mockproto.NewMockProviderClient(ctrl)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	future := time.Now().Add(time.Minute)
+	client.EXPECT().RenewEphemeralResource(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.RenewEphemeralResource_Response{
+		Private: []byte("private data new"),
+		RenewAt: timestamppb.New(future),
+	}, nil)
+
+	resp := p.RenewEphemeralResource(t.Context(), providers.RenewEphemeralResourceRequest{
+		TypeName: "eph",
+	})
+
+	checkDiags(t, resp.Diagnostics)
+
+	if resp.RenewAt == nil || !future.Equal(*resp.RenewAt) {
+		t.Fatalf("unexpected renewAt. got: %s, want %s", resp.RenewAt, future)
+	}
+
+	if got, want := resp.Private, []byte("private data new"); !slices.Equal(got, want) {
+		t.Fatalf("unexpected private data. got: %q, want %q", got, want)
+	}
+}
+
+func TestGRPCProvider_CloseEphemeralResource(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := mockproto.NewMockProviderClient(ctrl)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().CloseEphemeralResource(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.CloseEphemeralResource_Response{}, nil)
+
+	resp := p.CloseEphemeralResource(t.Context(), providers.CloseEphemeralResourceRequest{
+		TypeName: "eph",
+	})
+
+	checkDiags(t, resp.Diagnostics)
+}
+
 func TestGRPCProvider_CallFunction(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -950,7 +1425,7 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 		Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
 	}, nil)
 
-	resp := p.CallFunction(providers.CallFunctionRequest{
+	resp := p.CallFunction(t.Context(), providers.CallFunctionRequest{
 		Name:      "fn",
 		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
 	})

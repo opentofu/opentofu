@@ -17,7 +17,6 @@ import (
 func TestMetaCompletePredictWorkspaceName(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// make sure a vars file doesn't interfere
@@ -29,7 +28,7 @@ func TestMetaCompletePredictWorkspaceName(t *testing.T) {
 	ui := new(cli.MockUi)
 	meta := &Meta{Ui: ui}
 
-	predictor := meta.completePredictWorkspaceName()
+	predictor := meta.completePredictWorkspaceName(t.Context())
 
 	got := predictor.Predict(complete.Args{
 		Last: "",

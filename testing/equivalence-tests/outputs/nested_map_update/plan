@@ -2,7 +2,7 @@ tfcoremock_nested_map.nested_map: Refreshing state... [id=502B0348-B796-4F6A-869
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 

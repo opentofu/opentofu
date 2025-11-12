@@ -72,6 +72,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		case "data":
 			rAddr.Mode = addrs.DataResourceMode
 		default:
+			// This covers also addrs.EphemeralResourceMode. Should never happen, so this comment is just an indication
+			// that this part was checked during ephemeral resources implementation.
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid resource mode in state",
@@ -92,16 +94,16 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 		var providerAddr addrs.AbsProviderConfig
 		var addrDiags tfdiags.Diagnostics
-		if rsV4.ProviderConfig != "" {
-			providerAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
+		if rsV4.ProviderInstance != "" {
+			providerAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderInstance)
 			if addrDiags.HasErrors() {
 				// If ParseAbsProviderConfigStr returns an error, the state may have
 				// been written before Provider FQNs were introduced and the
-				// AbsProviderConfig string format will need normalization. If so,
+				// AbsProviderInstance string format will need normalization. If so,
 				// we treat it like a legacy provider (namespace "-") and let the
 				// provider installer handle detecting the FQN.
 				var legacyAddrDiags tfdiags.Diagnostics
-				providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
+				providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderInstance)
 				if legacyAddrDiags.HasErrors() {
 					// Neither parse formats are valid, let's report the original error
 					diags = diags.Append(addrDiags)
@@ -151,15 +153,15 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				key = addrs.NoKey
 			}
 
-			if isV4.ProviderConfig != "" && rsV4.ProviderConfig != "" {
+			if isV4.ProviderInstance != "" && rsV4.ProviderInstance != "" {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Warning,
 					"Provider field conflict in state",
-					fmt.Sprintf("Resource %s has a provider address %s, as well as instance %s with provider address %s.", rAddr.Absolute(moduleAddr), rsV4.ProviderConfig, key, isV4.ProviderConfig),
+					fmt.Sprintf("Resource %s has a provider address %s, as well as instance %s with provider address %s.", rAddr.Absolute(moduleAddr), rsV4.ProviderInstance, key, isV4.ProviderInstance),
 				))
 			}
 
-			if isV4.ProviderConfig == "" && rsV4.ProviderConfig == "" {
+			if isV4.ProviderInstance == "" && rsV4.ProviderInstance == "" {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Provider field missing state",
@@ -169,8 +171,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			instanceProvider := providerAddr
 			instanceProviderKey := addrs.NoKey
-			if isV4.ProviderConfig != "" {
-				instanceProvider, instanceProviderKey, addrDiags = addrs.ParseAbsProviderConfigInstanceStr(isV4.ProviderConfig)
+			if isV4.ProviderInstance != "" {
+				instanceProvider, instanceProviderKey, addrDiags = addrs.ParseAbsProviderConfigInstanceStr(isV4.ProviderInstance)
 				diags = diags.Append(addrDiags)
 				instanceProviders = append(instanceProviders, instanceProvider)
 			}
@@ -317,6 +319,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 			os.Sensitive = fos.Sensitive
 
+			os.Deprecated = fos.Deprecated
+
 			ty, err := ctyjson.UnmarshalType([]byte(fos.ValueTypeRaw))
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -407,6 +411,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 
 		sV4.RootOutputs[name] = outputStateV4{
 			Sensitive:    os.Sensitive,
+			Deprecated:   os.Deprecated,
 			ValueRaw:     json.RawMessage(src),
 			ValueTypeRaw: json.RawMessage(typeSrc),
 		}
@@ -423,6 +428,11 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				mode = "managed"
 			case addrs.DataResourceMode:
 				mode = "data"
+			case addrs.EphemeralResourceMode:
+				// Ephemeral resources are the resources that are meant not to be written to the state file.
+				// Therefore, even though we can find those in the state (for evaluation reasons), we want to
+				// skip these from the state file.
+				continue
 			default:
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
@@ -440,18 +450,18 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				}
 			}
 
-			var providerConfig string
+			var providerInstance string
 			if !hasProviderInstanceKeys {
-				providerConfig = rs.ProviderConfig.String()
+				providerInstance = rs.ProviderConfig.String()
 			}
 
 			sV4.Resources = append(sV4.Resources, resourceStateV4{
-				Module:         moduleAddr.String(),
-				Mode:           mode,
-				Type:           resourceAddr.Type,
-				Name:           resourceAddr.Name,
-				ProviderConfig: providerConfig,
-				Instances:      []instanceObjectStateV4{},
+				Module:           moduleAddr.String(),
+				Mode:             mode,
+				Type:             resourceAddr.Type,
+				Name:             resourceAddr.Name,
+				ProviderInstance: providerInstance,
+				Instances:        []instanceObjectStateV4{},
 			})
 			rsV4 := &(sV4.Resources[len(sV4.Resources)-1])
 
@@ -551,9 +561,9 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		}
 	}
 
-	var providerConfig string
+	var providerInstance string
 	if hasProviderInstanceKeys {
-		providerConfig = rs.ProviderConfig.InstanceString(is.ProviderKey)
+		providerInstance = rs.ProviderConfig.InstanceString(is.ProviderKey)
 	}
 
 	// Extract paths from path value marks
@@ -570,7 +580,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
 		Status:                  status,
-		ProviderConfig:          providerConfig,
+		ProviderInstance:        providerInstance,
 		SchemaVersion:           obj.SchemaVersion,
 		AttributesFlat:          obj.AttrsFlat,
 		AttributesRaw:           obj.AttrsJSON,
@@ -764,25 +774,26 @@ type outputStateV4 struct {
 	ValueRaw     json.RawMessage `json:"value"`
 	ValueTypeRaw json.RawMessage `json:"type"`
 	Sensitive    bool            `json:"sensitive,omitempty"`
+	Deprecated   string          `json:"deprecated,omitempty"`
 }
 
-// Note: the ProviderConfig field is only set on either the resource or the resource instance object
+// Note: the ProviderInstance field is only set on either the resource or the resource instance object
 // It should never be set on both
 type resourceStateV4 struct {
-	Module         string                  `json:"module,omitempty"`
-	Mode           string                  `json:"mode"`
-	Type           string                  `json:"type"`
-	Name           string                  `json:"name"`
-	EachMode       string                  `json:"each,omitempty"`
-	ProviderConfig string                  `json:"provider,omitempty"`
-	Instances      []instanceObjectStateV4 `json:"instances"`
+	Module           string                  `json:"module,omitempty"`
+	Mode             string                  `json:"mode"`
+	Type             string                  `json:"type"`
+	Name             string                  `json:"name"`
+	EachMode         string                  `json:"each,omitempty"`
+	ProviderInstance string                  `json:"provider,omitempty"`
+	Instances        []instanceObjectStateV4 `json:"instances"`
 }
 
 type instanceObjectStateV4 struct {
-	IndexKey       interface{} `json:"index_key,omitempty"`
-	Status         string      `json:"status,omitempty"`
-	Deposed        string      `json:"deposed,omitempty"`
-	ProviderConfig string      `json:"provider,omitempty"`
+	IndexKey         interface{} `json:"index_key,omitempty"`
+	Status           string      `json:"status,omitempty"`
+	Deposed          string      `json:"deposed,omitempty"`
+	ProviderInstance string      `json:"provider,omitempty"`
 
 	SchemaVersion           uint64            `json:"schema_version"`
 	AttributesRaw           json.RawMessage   `json:"attributes,omitempty"`

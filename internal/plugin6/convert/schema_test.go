@@ -52,6 +52,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 						Required: true,
 					},
 					{
+						Name:      "write_only",
+						Type:      []byte(`"number"`),
+						WriteOnly: true,
+					},
+					{
 						Name: "nested_type",
 						NestedType: &proto.Schema_Object{
 							Nesting: proto.Schema_Object_SINGLE,
@@ -76,6 +81,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Name:     "required",
 									Type:     []byte(`"number"`),
 									Required: true,
+								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"number"`),
+									WriteOnly: true,
 								},
 							},
 						},
@@ -112,6 +122,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 												Type:     []byte(`"number"`),
 												Required: true,
 											},
+											{
+												Name:      "write_only",
+												Type:      []byte(`"number"`),
+												WriteOnly: true,
+											},
 										},
 									},
 									Computed: true,
@@ -130,6 +145,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"string"`),
 									Computed: true,
 								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"string"`),
+									WriteOnly: true,
+								},
 							},
 						},
 						Required: true,
@@ -144,6 +164,13 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"string"`),
 									Computed: true,
 								},
+								{
+									// Even though the set types do not accept write-only attributes, we want
+									// to test the generic convertion of this.
+									Name:      "write_only",
+									Type:      []byte(`"string"`),
+									WriteOnly: true,
+								},
 							},
 						},
 						Required: true,
@@ -157,6 +184,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Name:     "required",
 									Type:     []byte(`"string"`),
 									Computed: true,
+								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"string"`),
+									WriteOnly: true,
 								},
 							},
 						},
@@ -183,6 +215,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 						Type:     cty.Number,
 						Required: true,
 					},
+					"write_only": {
+						Type:      cty.Number,
+						WriteOnly: true,
+					},
 					"nested_type": {
 						NestedType: &configschema.Object{
 							Attributes: map[string]*configschema.Attribute{
@@ -202,6 +238,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 								"required": {
 									Type:     cty.Number,
 									Required: true,
+								},
+								"write_only": {
+									Type:      cty.Number,
+									WriteOnly: true,
 								},
 							},
 							Nesting: configschema.NestingSingle,
@@ -232,6 +272,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 												Type:     cty.Number,
 												Required: true,
 											},
+											"write_only": {
+												Type:      cty.Number,
+												WriteOnly: true,
+											},
 										},
 									},
 									Computed: true,
@@ -249,6 +293,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     cty.String,
 									Computed: true,
 								},
+								"write_only": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
 							},
 						},
 						Required: true,
@@ -261,6 +309,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     cty.String,
 									Computed: true,
 								},
+								"write_only": {
+									Type:      cty.String,
+									WriteOnly: true,
+								},
 							},
 						},
 						Required: true,
@@ -272,6 +324,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 								"required": {
 									Type:     cty.String,
 									Computed: true,
+								},
+								"write_only": {
+									Type:      cty.String,
+									WriteOnly: true,
 								},
 							},
 						},
@@ -308,6 +364,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"dynamic"`),
 									Required: true,
 								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"dynamic"`),
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -331,6 +392,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 								"foo": {
 									Type:     cty.DynamicPseudoType,
 									Required: true,
+								},
+								"write_only": {
+									Type:      cty.DynamicPseudoType,
+									WriteOnly: true,
 								},
 							},
 						},
@@ -428,6 +493,11 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 						Type:     []byte(`"number"`),
 						Required: true,
 					},
+					{
+						Name:      "write_only",
+						Type:      []byte(`"number"`),
+						WriteOnly: true,
+					},
 				},
 			},
 			&configschema.Block{
@@ -448,6 +518,10 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 					"required": {
 						Type:     cty.Number,
 						Required: true,
+					},
+					"write_only": {
+						Type:      cty.Number,
+						WriteOnly: true,
 					},
 				},
 			},
@@ -480,6 +554,11 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"dynamic"`),
 									Required: true,
 								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"dynamic"`),
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -503,6 +582,10 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 								"foo": {
 									Type:     cty.DynamicPseudoType,
 									Required: true,
+								},
+								"write_only": {
+									Type:      cty.DynamicPseudoType,
+									WriteOnly: true,
 								},
 							},
 						},

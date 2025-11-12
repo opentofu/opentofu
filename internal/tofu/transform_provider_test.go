@@ -10,9 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
@@ -20,11 +23,11 @@ func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
 
 	g := &Graph{Path: addrs.RootModuleInstance}
 	ct := &ConfigTransformer{Config: cfg}
-	if err := ct.Transform(g); err != nil {
+	if err := ct.Transform(t.Context(), g); err != nil {
 		t.Fatal(err)
 	}
 	arct := &AttachResourceConfigTransformer{Config: cfg}
-	if err := arct.Transform(g); err != nil {
+	if err := arct.Transform(t.Context(), g); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,8 +51,13 @@ func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.C
 		&ProviderTransformer{
 			Config: config,
 		},
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
+
 		// After schema transformer, we can add function references
-		//  &ProviderFunctionTransformer{Config: config},
+		&ProviderFunctionTransformer{Config: config, ProviderFunctionTracker: ProviderFunctionMapping{}},
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
 	)
@@ -61,13 +69,13 @@ func TestProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	transform := &ProviderTransformer{}
-	if err := transform.Transform(g); err != nil {
+	if err := transform.Transform(t.Context(), g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -86,13 +94,13 @@ func TestProviderTransformer_fqns(t *testing.T) {
 		g := testProviderTransformerGraph(t, mod)
 		{
 			transform := &MissingProviderTransformer{Config: mod}
-			if err := transform.Transform(g); err != nil {
+			if err := transform.Transform(t.Context(), g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		transform := &ProviderTransformer{Config: mod}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 
@@ -110,21 +118,21 @@ func TestCloseProviderTransformer(t *testing.T) {
 
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -154,7 +162,7 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 	}
 
 	for _, tr := range transforms {
-		if err := tr.Transform(g); err != nil {
+		if err := tr.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -184,7 +192,7 @@ func TestCloseProviderTransformer_withExcludes(t *testing.T) {
 	}
 
 	for _, tr := range transforms {
-		if err := tr.Transform(g); err != nil {
+		if err := tr.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -202,21 +210,21 @@ func TestMissingProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -236,13 +244,13 @@ func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := testTransformProviders(concrete, mod)
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 	{
 		transform := &TransitiveReductionTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -260,28 +268,28 @@ func TestPruneProviderTransformer(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		transform := &MissingProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &CloseProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &PruneProviderTransformer{}
-		if err := transform.Transform(g); err != nil {
+		if err := transform.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -301,7 +309,7 @@ func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -321,7 +329,7 @@ func TestProviderConfigTransformer_grandparentProviders(t *testing.T) {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -355,7 +363,7 @@ resource "test_object" "a" {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -433,7 +441,7 @@ resource "test_object" "a" {
 	g := testProviderTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
-		if err := tf.Transform(g); err != nil {
+		if err := tf.Transform(t.Context(), g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -477,7 +485,7 @@ provider "test" {
 		Config:   mod,
 		Concrete: concrete,
 	}
-	if err := tf.Transform(g); err != nil {
+	if err := tf.Transform(t.Context(), g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -486,6 +494,78 @@ provider "test" {
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
 		t.Fatalf("expected:\n%s\n\ngot:\n%s", expected, actual)
+	}
+}
+
+// TestProviderFunctionTransformer_onlyFunctions tests that the
+// ProviderFunctionTransformer is removing NodeApplyableProvider
+// and adding a NodeEvalableProvider in its place instead.
+// This is useful so we can call functions without needing to
+// configure the provider.
+func TestProviderFunctionTransformer_onlyFunctions(t *testing.T) {
+	mod := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+	aws = {}
+  }
+}
+
+output "output_test" {
+  value = provider::aws::arn_build("aws", "s3", "", "", "test")
+}
+`})
+	concrete := func(a *NodeAbstractProvider) dag.Vertex {
+		return &NodeApplyableProvider{
+			a,
+		}
+	}
+
+	g := testProviderTransformerGraph(t, mod)
+
+	// Create a reference to the output
+	outputRef := &NodeApplyableOutput{
+		Addr: addrs.AbsOutputValue{
+			Module: addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{
+				Name: "output_test",
+			},
+		},
+		Config: &configs.Output{
+			Name: "output_test",
+			Expr: &hclsyntax.FunctionCallExpr{
+				Name: "provider::aws::arn_build",
+				Args: []hclsyntax.Expression{
+					&hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("aws"),
+					},
+				},
+			},
+		},
+	}
+
+	g.Add(outputRef)
+
+	tf := testTransformProviders(concrete, mod)
+	if err := tf.Transform(t.Context(), g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	expected := `output.output_test
+  provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/aws"]`
+
+	actual := strings.TrimSpace(g.String())
+	if diff := cmp.Diff(actual, expected); diff != "" {
+		t.Fatalf("expected: %s", diff)
+	}
+	edges := g.EdgesFrom(outputRef)
+	if len(edges) != 1 {
+		t.Fatalf("expecting 1 edge, got %d", len(edges))
+	}
+	edge := edges[0]
+	if _, ok := edge.Target().(*NodeEvalableProvider); !ok {
+		t.Fatalf("expecting NodeEvalableProvider provider, got %T", edge.Target())
 	}
 }
 

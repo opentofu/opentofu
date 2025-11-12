@@ -17,8 +17,8 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/aliyun/aliyun-tablestore-go-sdk/tablestore"
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 )
 
 // verify that we are doing ACC tests or the OSS tests specifically
@@ -88,7 +88,7 @@ func TestBackendConfigWorkSpace(t *testing.T) {
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 	createOSSBucket(t, b.ossClient, bucketName)
 	defer deleteOSSBucket(t, b.ossClient, bucketName)
-	if _, err := b.Workspaces(); err != nil {
+	if _, err := b.Workspaces(t.Context()); err != nil {
 		t.Fatal(err.Error())
 	}
 	if !strings.HasPrefix(b.ossClient.Config.Endpoint, "https://oss-cn-beijing") {

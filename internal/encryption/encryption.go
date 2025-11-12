@@ -6,6 +6,8 @@
 package encryption
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -39,7 +41,7 @@ type encryption struct {
 }
 
 // New creates a new Encryption provider from the given configuration and registry.
-func New(reg registry.Registry, cfg *config.EncryptionConfig, staticEval *configs.StaticEvaluator) (Encryption, hcl.Diagnostics) {
+func New(ctx context.Context, reg registry.Registry, cfg *config.EncryptionConfig, staticEval *configs.StaticEvaluator) (Encryption, hcl.Diagnostics) {
 	if cfg == nil {
 		return Disabled(), nil
 	}
@@ -67,21 +69,21 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig, staticEval *config
 	var encDiags hcl.Diagnostics
 
 	if cfg.State != nil {
-		enc.state, encDiags = newStateEncryption(enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state", staticEval)
+		enc.state, encDiags = newStateEncryption(ctx, enc, cfg.State.AsTargetConfig(), cfg.State.Enforced, "state", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.state = StateEncryptionDisabled()
 	}
 
 	if cfg.Plan != nil {
-		enc.plan, encDiags = newPlanEncryption(enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan", staticEval)
+		enc.plan, encDiags = newPlanEncryption(ctx, enc, cfg.Plan.AsTargetConfig(), cfg.Plan.Enforced, "plan", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.plan = PlanEncryptionDisabled()
 	}
 
 	if cfg.Remote != nil && cfg.Remote.Default != nil {
-		enc.remoteDefault, encDiags = newStateEncryption(enc, cfg.Remote.Default, false, "remote.default", staticEval)
+		enc.remoteDefault, encDiags = newStateEncryption(ctx, enc, cfg.Remote.Default, false, "remote.default", staticEval)
 		diags = append(diags, encDiags...)
 	} else {
 		enc.remoteDefault = StateEncryptionDisabled()
@@ -91,7 +93,7 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig, staticEval *config
 		for _, remoteTarget := range cfg.Remote.Targets {
 			// TODO the addr here should be generated in one place.
 			addr := "remote.remote_state_datasource." + remoteTarget.Name
-			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(enc, remoteTarget.AsTargetConfig(), false, addr, staticEval)
+			enc.remotes[remoteTarget.Name], encDiags = newStateEncryption(ctx, enc, remoteTarget.AsTargetConfig(), false, addr, staticEval)
 			diags = append(diags, encDiags...)
 		}
 	}

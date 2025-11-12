@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -110,9 +111,9 @@ func TestRemote_applyBasic(t *testing.T) {
 		t.Fatalf("expected apply summery in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
 	}
 }
@@ -139,8 +140,8 @@ func TestRemote_applyCanceled(t *testing.T) {
 		t.Fatal("expected apply operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelling apply: %s", err.Error())
 	}
 }
@@ -486,9 +487,9 @@ func TestRemote_applyWithExclude(t *testing.T) {
 		t.Fatalf("expected -exclude option is not supported error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
 	}
 }
@@ -652,9 +653,9 @@ func TestRemote_applyNoConfig(t *testing.T) {
 		t.Fatalf("expected configuration files error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
 	}
 }
@@ -1091,6 +1092,10 @@ func TestRemote_applyWorkspaceWithoutOperations(t *testing.T) {
 }
 
 func TestRemote_applyLockTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("lockTimeout is implemented using signals. Windows doesn't support sending signals, so we skip this test.")
+	}
+
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
@@ -1156,10 +1161,10 @@ func TestRemote_applyLockTimeout(t *testing.T) {
 		t.Fatalf("expected lock timeout error in output: %s", output)
 	}
 	if strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
-		t.Fatalf("unexpected plan summery in output: %s", output)
+		t.Fatalf("unexpected plan summary in output: %s", output)
 	}
 	if strings.Contains(output, "1 added, 0 changed, 0 destroyed") {
-		t.Fatalf("unexpected apply summery in output: %s", output)
+		t.Fatalf("unexpected apply summary in output: %s", output)
 	}
 }
 

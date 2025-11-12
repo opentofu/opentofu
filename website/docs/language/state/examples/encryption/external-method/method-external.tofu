@@ -1,6 +1,6 @@
 terraform {
   encryption {
-    key_provider "external" "foo" {
+    method "external" "foo" {
       encrypt_command = ["./some_program", "--encrypt"]
       decrypt_command = ["./some_program", "--decrypt"]
       # Optional:

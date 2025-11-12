@@ -10,11 +10,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
@@ -129,6 +129,24 @@ func TestMarshalExpressions(t *testing.T) {
 		if !reflect.DeepEqual(got, test.Want) {
 			t.Errorf("wrong result:\nGot: %#v\nWant: %#v\n", got, test.Want)
 		}
+	}
+}
+
+func TestMarshalExpressions_singleModuleMode(t *testing.T) {
+	// In single-module mode the given schema is nil, which should
+	// cause the result to always be nil. Refer to the docs on
+	// [inSingleExpressionMode] for more information.
+	input := hcltest.MockBody(&hcl.BodyContent{
+		Attributes: hcl.Attributes{
+			"foo": {
+				Name: "foo",
+				Expr: hcltest.MockExprTraversalSrc(`var.list[1]`),
+			},
+		},
+	})
+	got := marshalExpressions(input, nil)
+	if got != nil {
+		t.Errorf("wrong result:\nGot: %#v\nWant: <nil>", got)
 	}
 }
 

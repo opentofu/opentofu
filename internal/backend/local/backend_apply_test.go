@@ -339,7 +339,7 @@ type backendWithFailingState struct {
 	Local
 }
 
-func (b *backendWithFailingState) StateMgr(name string) (statemgr.Full, error) {
+func (b *backendWithFailingState) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	return &failingState{
 		statemgr.NewFilesystem("failing-state.tfstate", encryption.StateEncryptionDisabled()),
 	}, nil
@@ -348,6 +348,8 @@ func (b *backendWithFailingState) StateMgr(name string) (statemgr.Full, error) {
 type failingState struct {
 	*statemgr.Filesystem
 }
+
+var _ statemgr.Full = (*failingState)(nil)
 
 func (s failingState) WriteState(state *states.State) error {
 	return errors.New("fake failure")

@@ -6,8 +6,11 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"maps"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -15,8 +18,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/lint"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -30,17 +35,17 @@ type nodeExpandModuleVariable struct {
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceable     = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceOutside                      = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandModuleVariable)(nil)
 )
 
-func (n *nodeExpandModuleVariable) expandsInstances() {}
+func (n *nodeExpandModuleVariable) retainDuringUnusedPruning() {}
 
-func (n *nodeExpandModuleVariable) temporaryValue() bool {
+func (n *nodeExpandModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -129,7 +134,7 @@ var (
 	_ dag.GraphNodeDotter     = (*nodeModuleVariable)(nil)
 )
 
-func (n *nodeModuleVariable) temporaryValue() bool {
+func (n *nodeModuleVariable) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -150,19 +155,28 @@ func (n *nodeModuleVariable) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeModuleVariable) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
 
-	val, err := n.evalModuleVariable(ctx, op == walkValidate)
+	val, err := n.evalModuleVariable(ctx, evalCtx, op == walkValidate)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
 
+	// We might generate some "linter-like" warnings for situations that
+	// have a high likelihood of being a mistake even though they are
+	// technically valid. We check these only in the validate walk because
+	// that always happens before any other walk and so we'd generate
+	// duplicate diagnostics if we produced this in later walks too.
+	if op == walkValidate {
+		diags = diags.Append(n.warningDiags())
+	}
+
 	// Set values for arguments of a child module call, for later retrieval
 	// during expression evaluation.
 	_, call := n.Addr.Module.CallInstance()
-	ctx.SetModuleCallArgument(call, n.Addr.Variable, val)
+	evalCtx.SetModuleCallArgument(call, n.Addr.Variable, val)
 	return diags
 }
 
@@ -189,7 +203,7 @@ func (n *nodeModuleVariable) DotNode(name string, opts *dag.DotOpts) *dag.DotNod
 // validateOnly indicates that this evaluation is only for config
 // validation, and we will not have any expansion module instance
 // repetition data.
-func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bool) (cty.Value, error) {
+func (n *nodeModuleVariable) evalModuleVariable(ctx context.Context, evalCtx EvalContext, validateOnly bool) (cty.Value, error) {
 	var diags tfdiags.Diagnostics
 	var givenVal cty.Value
 	var errSourceRange tfdiags.SourceRange
@@ -209,11 +223,11 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bo
 		default:
 			// Get the repetition data for this module instance,
 			// so we can create the appropriate scope for evaluating our expression
-			moduleInstanceRepetitionData = ctx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
+			moduleInstanceRepetitionData = evalCtx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
 		}
 
-		scope := ctx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+		scope := evalCtx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
+		val, moreDiags := scope.EvalExpr(ctx, expr, cty.DynamicPseudoType)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.DynamicVal, diags.ErrWithWarnings()
@@ -239,4 +253,48 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bo
 	diags = diags.Append(moreDiags)
 
 	return finalVal, diags.ErrWithWarnings()
+}
+
+// warningDiags detects "lint-like" problems with a variable's definition, where
+// the input is technically valid but nonetheless seems highly likely to be
+// a mistake.
+//
+// This function never returns error diagnostics.
+func (n *nodeModuleVariable) warningDiags() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// If the expression used to define the variable includes any object
+	// constructor expressions with attribute names that would definitely be
+	// discarded during type conversion then we'll warn about that, because
+	// there's no useful reason to do that.
+	for unused := range lint.DiscardedObjectConstructorAttrs(n.Expr, n.Config.ConstraintType) {
+		// The final step of the path is the one representing the problem
+		// while any that appear before it are just context.
+		prePath, problemStep := unused.Path[:len(unused.Path)-1], unused.Path[len(unused.Path)-1]
+		attrName := problemStep.(cty.GetAttrStep).Name
+
+		attrs := slices.Collect(maps.Keys(unused.TargetType.AttributeTypes()))
+		suggestion := ""
+		if similarName := didyoumean.NameSuggestion(attrName, attrs); similarName != "" {
+			suggestion = fmt.Sprintf(" Did you mean to set attribute %q instead?", similarName)
+		}
+
+		var extraPathClause string
+		if len(prePath) != 0 {
+			extraPathClause = fmt.Sprintf(" nested value %s", tfdiags.FormatCtyPath(prePath))
+		}
+
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail: fmt.Sprintf(
+				"The object type for input variable %q%s does not include an attribute named %q, so this definition is unused.%s",
+				n.Addr.Variable.Name, extraPathClause, attrName, suggestion,
+			),
+			Subject: unused.NameRange.ToHCL().Ptr(),
+			Context: unused.ContextRange.ToHCL().Ptr(),
+		})
+	}
+
+	return diags
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAbsOutputValueInstanceEqual_true(t *testing.T) {
@@ -116,8 +116,8 @@ func TestParseAbsOutputValueStr(t *testing.T) {
 	for input, tc := range tests {
 		t.Run(input, func(t *testing.T) {
 			got, diags := ParseAbsOutputValueStr(input)
-			for _, problem := range deep.Equal(got, tc.want) {
-				t.Errorf("%s", problem)
+			if diff := cmp.Diff(tc.want, got, CmpOptionsForTesting); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 			if len(diags) > 0 {
 				gotErr := diags.Err().Error()

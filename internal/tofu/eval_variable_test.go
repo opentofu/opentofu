@@ -76,6 +76,11 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			nullable  = false
 			type      = string
 		}
+		variable "constrained_string_ephemeral_required" {
+			ephemeral = true
+			nullable  = false
+			type      = string
+		}
 		variable "complex_type_with_nested_default_optional" {
 			type = set(object({
 				name      = string
@@ -215,6 +220,18 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
             )
 			default = {}
         }
+        variable "simple_ephemeral_marked" {
+            type = string
+            ephemeral = true
+		}
+
+        variable "complex_type_object_in_object" {
+            type = object({
+			  inner_obj = object({
+			    attr = string
+			  })
+            })
+		}
 	`
 	cfg := testModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
@@ -839,6 +856,30 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			cty.UnknownVal(cty.String),
 			``,
 		},
+		// ephemeral
+		{
+			"complex_type_object_in_object",
+			cty.ObjectVal(map[string]cty.Value{
+				"inner_obj": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("inner attribute").Mark(marks.Ephemeral),
+				}),
+			}),
+			cty.UnknownVal(cty.Object(map[string]cty.Type{"inner_obj": cty.Object(map[string]cty.Type{"attr": cty.String})})),
+			`Variable does not allow ephemeral value: The value used for the variable "complex_type_object_in_object" is ephemeral, but it is not configured to allow one.`,
+		},
+		{
+			"simple_ephemeral_marked",
+			cty.StringVal("raw value"),
+			cty.StringVal("raw value"),
+			``,
+		},
+		{
+			// ephemeral value given to a non-ephemeral variable
+			"constrained_string_nullable_required",
+			cty.StringVal("raw value").Mark(marks.Ephemeral),
+			cty.UnknownVal(cty.String),
+			`Variable does not allow ephemeral value: The value used for the variable "constrained_string_nullable_required" is ephemeral, but it is not configured to allow one.`,
+		},
 	}
 
 	for _, test := range tests {
@@ -896,7 +937,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			{
 				ValueFromUnknown,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set from outside of the configuration: required variable may not be set to null.`,
 			},
 			{
@@ -906,7 +947,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 					Start:    tfdiags.SourcePos(hcl.InitialPos),
 					End:      tfdiags.SourcePos(hcl.InitialPos),
 				},
-				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required.`,
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required, but have object.`,
 				`Required variable not set: The given value is not suitable for var.constrained_string_required defined at main.tf:32,3-41: required variable may not be set to null.`,
 			},
 			{
@@ -916,7 +957,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 					Start:    tfdiags.SourcePos(hcl.InitialPos),
 					End:      tfdiags.SourcePos(hcl.InitialPos),
 				},
-				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required.`,
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required, but have object.`,
 				`Required variable not set: The given value is not suitable for var.constrained_string_required defined at main.tf:32,3-41: required variable may not be set to null.`,
 			},
 			{
@@ -926,25 +967,25 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 					Start:    tfdiags.SourcePos(hcl.InitialPos),
 					End:      tfdiags.SourcePos(hcl.InitialPos),
 				},
-				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required.`,
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_required declared at main.tf:32,3-41: string required, but have object.`,
 				`Required variable not set: The given value is not suitable for var.constrained_string_required defined at main.tf:32,3-41: required variable may not be set to null.`,
 			},
 			{
 				ValueFromCLIArg,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using -var="constrained_string_required=...": string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using -var="constrained_string_required=...": string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set using -var="constrained_string_required=...": required variable may not be set to null.`,
 			},
 			{
 				ValueFromEnvVar,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using the TF_VAR_constrained_string_required environment variable: string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using the TF_VAR_constrained_string_required environment variable: string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set using the TF_VAR_constrained_string_required environment variable: required variable may not be set to null.`,
 			},
 			{
 				ValueFromInput,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using an interactive prompt: string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set using an interactive prompt: string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set using an interactive prompt: required variable may not be set to null.`,
 			},
 			{
@@ -955,13 +996,13 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 				// and during planning we'll always have other source types.
 				ValueFromPlan,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set from outside of the configuration: required variable may not be set to null.`,
 			},
 			{
 				ValueFromCaller,
 				tfdiags.SourceRange{},
-				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required.`,
+				`Invalid value for input variable: Unsuitable value for var.constrained_string_required set from outside of the configuration: string required, but have object.`,
 				`Required variable not set: Unsuitable value for var.constrained_string_required set from outside of the configuration: required variable may not be set to null.`,
 			},
 		}
@@ -1012,32 +1053,53 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 
 	t.Run("SensitiveVariable error message variants, with source variants", func(t *testing.T) {
 		tests := []struct {
+			varName     string
 			SourceType  ValueSourceType
 			SourceRange tfdiags.SourceRange
 			WantTypeErr string
 			HideSubject bool
 		}{
 			{
+				"constrained_string_sensitive_required",
 				ValueFromUnknown,
 				tfdiags.SourceRange{},
-				"Invalid value for input variable: Unsuitable value for var.constrained_string_sensitive_required set from outside of the configuration: string required.",
+				"Invalid value for input variable: Unsuitable value for var.constrained_string_sensitive_required set from outside of the configuration: string required, but have object.",
 				false,
 			},
 			{
+				"constrained_string_sensitive_required",
 				ValueFromConfig,
 				tfdiags.SourceRange{
 					Filename: "example.tfvars",
 					Start:    tfdiags.SourcePos(hcl.InitialPos),
 					End:      tfdiags.SourcePos(hcl.InitialPos),
 				},
-				`Invalid value for input variable: The given value is not suitable for var.constrained_string_sensitive_required, which is sensitive: string required. Invalid value defined at example.tfvars:1,1-1.`,
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_sensitive_required, which is sensitive: string required, but have object. Invalid value defined at example.tfvars:1,1-1.`,
+				true,
+			},
+			{
+				"constrained_string_ephemeral_required",
+				ValueFromUnknown,
+				tfdiags.SourceRange{},
+				"Invalid value for input variable: Unsuitable value for var.constrained_string_ephemeral_required set from outside of the configuration: string required, but have object.",
+				false,
+			},
+			{
+				"constrained_string_ephemeral_required",
+				ValueFromConfig,
+				tfdiags.SourceRange{
+					Filename: "example.tfvars",
+					Start:    tfdiags.SourcePos(hcl.InitialPos),
+					End:      tfdiags.SourcePos(hcl.InitialPos),
+				},
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_ephemeral_required, which is ephemeral: string required, but have object. Invalid value defined at example.tfvars:1,1-1.`,
 				true,
 			},
 		}
 
 		for _, test := range tests {
 			t.Run(fmt.Sprintf("%s %s", test.SourceType, test.SourceRange.StartString()), func(t *testing.T) {
-				varAddr := addrs.InputVariable{Name: "constrained_string_sensitive_required"}.Absolute(addrs.RootModuleInstance)
+				varAddr := addrs.InputVariable{Name: test.varName}.Absolute(addrs.RootModuleInstance)
 				varCfg := variableConfigs[varAddr.Variable.Name]
 				t.Run("type error", func(t *testing.T) {
 					rawVal := &InputValue{
@@ -1172,11 +1234,11 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 
 			// Build a mock context to allow the function under test to
 			// retrieve the variable value and evaluate the expressions
-			ctx := &MockEvalContext{}
+			evalCtx := &MockEvalContext{}
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{
+			evalCtx.EvaluationScopeScope = &lang.Scope{
 				Data: &evaluationStateData{Evaluator: &Evaluator{
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
@@ -1185,21 +1247,21 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 					}},
 				}},
 			}
-			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
 				}
 				return test.given
 			}
-			ctx.ChecksState = checks.NewState(cfg)
-			ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 			gotDiags := evalVariableValidations(
-				varAddr, varCfg, nil, ctx,
+				t.Context(), varAddr, varCfg, nil, evalCtx,
 			)
 
-			if ctx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
-				t.Errorf("expected check result %s but instead %s", test.status, ctx.ChecksState.ObjectCheckStatus(varAddr))
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
 			}
 
 			if len(test.wantErr) == 0 && len(test.wantWarn) == 0 {
@@ -1333,11 +1395,11 @@ variable "bar" {
 
 			// Build a mock context to allow the function under test to
 			// retrieve the variable value and evaluate the expressions
-			ctx := &MockEvalContext{}
+			evalCtx := &MockEvalContext{}
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{
+			evalCtx.EvaluationScopeScope = &lang.Scope{
 				Data: &evaluationStateData{Evaluator: &Evaluator{
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
@@ -1346,7 +1408,7 @@ variable "bar" {
 					}},
 				}},
 			}
-			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
 				}
@@ -1356,15 +1418,15 @@ variable "bar" {
 				// configured sensitivity.
 				return test.given
 			}
-			ctx.ChecksState = checks.NewState(cfg)
-			ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 			gotDiags := evalVariableValidations(
-				varAddr, varCfg, nil, ctx,
+				t.Context(), varAddr, varCfg, nil, evalCtx,
 			)
 
-			if ctx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
-				t.Errorf("expected check result %s but instead %s", test.status, ctx.ChecksState.ObjectCheckStatus(varAddr))
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
 			}
 
 			if len(test.wantErr) == 0 {
@@ -1437,7 +1499,7 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 	ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 	gotDiags := evalVariableValidations(
-		varAddr, cfg.Module.Variables["foo"], nil, ctx,
+		t.Context(), varAddr, cfg.Module.Variables["foo"], nil, ctx,
 	)
 	if !gotDiags.HasErrors() {
 		t.Fatalf("unexpected success; want validation error")
@@ -1484,9 +1546,10 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		varAddr addrs.AbsInputVariableInstance
-		varCfg  *configs.Variable
-		expr    hcl.Expression
+		varAddr    addrs.AbsInputVariableInstance
+		varCfg     *configs.Variable
+		expr       hcl.Expression
+		fromRemote bool
 
 		expectedDiags tfdiags.Diagnostics
 	}{
@@ -1496,25 +1559,28 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expr:    cfg.Module.ModuleCalls["foo-call"].Source,
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  `The variable "foo" is marked as deprecated by module author`,
+				Summary:  `Variable marked as deprecated by the module author`,
 				Detail: fmt.Sprintf(
-					"This variable is marked as deprecated with the following message:\n%s",
+					"Variable \"foo\" is marked as deprecated with the following message:\n%s",
 					cfg.Children["foo-call"].Module.Variables["foo"].Deprecated,
 				),
 				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
 			}),
+			fromRemote: false,
 		},
 		"local-mod-called-from-root-with-no-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-no-var", nil)),
 			varCfg:        cfg.Children["foo-call-no-var"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
 		},
 		"local-mod-called-from-root-with-null-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-null", nil)),
 			varCfg:        cfg.Children["foo-call-null"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
 		},
 		"local-mod-called-from-direct-child": {
 			varAddr: addrs.InputVariable{Name: "bar"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil).Child("bar-call", nil)),
@@ -1522,13 +1588,14 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expr:    cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source,
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  `The variable "bar" is marked as deprecated by module author`,
+				Summary:  `Variable marked as deprecated by the module author`,
 				Detail: fmt.Sprintf(
-					"This variable is marked as deprecated with the following message:\n%s",
+					"Variable \"bar\" is marked as deprecated with the following message:\n%s",
 					cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"].Deprecated,
 				),
 				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
 			}),
+			fromRemote: false,
 		},
 	}
 	for name, tt := range tests {
@@ -1544,12 +1611,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 
 			expr := tt.expr
-			gotDiags := evalVariableDeprecation(
-				varAddr,
-				tt.varCfg,
-				expr,
-				ctx,
-			)
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.fromRemote)
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
 				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)
@@ -1571,5 +1633,234 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestEvalVariableValidations_ephemeralValues(t *testing.T) {
+	cfgSrc := `
+variable "foo" {
+  type      = string
+  ephemeral = true
+  default   = "boop"
+
+  validation {
+    condition     = length(var.foo) == 4
+	error_message = "Foo must be 4 characters, not ${length(var.foo)}"
+  }
+}
+
+variable "bar" {
+  type      = string
+  ephemeral = true
+  default   = "boop"
+
+  validation {
+    condition     = length(var.bar) == 4
+	error_message = "Bar must be 4 characters, not ${coalesce(ephemeralasnull(length(var.bar)), "(hidden ephemeral)")} characters."
+  }
+}
+`
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": cfgSrc,
+	})
+	variableConfigs := cfg.Module.Variables
+
+	// Because we loaded our pseudo-module from a temporary file, the
+	// declaration source ranges will have unpredictable filenames. We'll
+	// fix that here just to make things easier below.
+	for _, vc := range variableConfigs {
+		vc.DeclRange.Filename = "main.tf"
+		for _, v := range vc.Validations {
+			v.DeclRange.Filename = "main.tf"
+		}
+	}
+
+	tests := []struct {
+		varName string
+		given   cty.Value
+		wantErr []string
+		status  checks.Status
+	}{
+		// There is no issue if the validation.error_message references an ephemeral value when the check passes.
+		// That is reported only when the validation fails, and we evaluate the error_message.
+		{
+			varName: "foo",
+			given:   cty.StringVal("boop"),
+			status:  checks.StatusPass,
+		},
+		// When the validation fails, trying to render the error_message will generate another
+		// error because the value resulted from error_message evaluation contains the ephemeral mark.
+		{
+			varName: "foo",
+			given:   cty.StringVal("bap"),
+			wantErr: []string{
+				"Invalid value for variable",
+				"The error message included an ephemeral value, so it will not be displayed.",
+				"Error message refers to ephemeral values",
+			},
+			status: checks.StatusFail,
+		},
+		// When error_message contains no ephemeral values, and the validation passes,
+		// there is no error expected to be returned.
+		{
+			varName: "bar",
+			given:   cty.StringVal("boop"),
+			status:  checks.StatusPass,
+		},
+		// When error_message contains no ephemeral values, and the validation fails,
+		// the value resulted from error_message evaluation is returned.
+		{
+			varName: "bar",
+			given:   cty.StringVal("bap"),
+			wantErr: []string{
+				"Invalid value for variable",
+				"Bar must be 4 characters, not (hidden ephemeral) characters.",
+			},
+			status: checks.StatusFail,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%s %#v", test.varName, test.given), func(t *testing.T) {
+			varAddr := addrs.InputVariable{Name: test.varName}.Absolute(addrs.RootModuleInstance)
+			varCfg := variableConfigs[test.varName]
+			if varCfg == nil {
+				t.Fatalf("invalid variable name %q", test.varName)
+			}
+
+			// Build a mock context to allow the function under test to
+			// retrieve the variable value and evaluate the expressions
+			evalCtx := &MockEvalContext{}
+
+			// We need a minimal scope to allow basic functions to be passed to
+			// the HCL scope
+			evalCtx.EvaluationScopeScope = &lang.Scope{
+				Data: &evaluationStateData{Evaluator: &Evaluator{
+					Config:             cfg,
+					VariableValuesLock: &sync.Mutex{},
+					VariableValues: map[string]map[string]cty.Value{"": {
+						test.varName: cty.UnknownVal(cty.String),
+					}},
+				}},
+			}
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+				if got, want := addr.String(), varAddr.String(); got != want {
+					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+				}
+				// NOTE: This intentionally doesn't mark the result as ephemeral,
+				// because BuiltinEvalContext.GetVariableValue doesn't either.
+				// It's the responsibility of downstream code to detect and handle
+				// configured ephemerality.
+				return test.given
+			}
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+
+			gotDiags := evalVariableValidations(
+				t.Context(), varAddr, varCfg, nil, evalCtx,
+			)
+
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
+			}
+
+			if len(test.wantErr) == 0 {
+				if len(gotDiags) > 0 {
+					t.Errorf("no diags expected, got %s", gotDiags.Err().Error())
+				}
+			} else {
+			wantErrs:
+				for _, want := range test.wantErr {
+					for _, diag := range gotDiags {
+						if diag.Severity() != tfdiags.Error {
+							continue
+						}
+						desc := diag.Description()
+						if strings.Contains(desc.Summary, want) || strings.Contains(desc.Detail, want) {
+							continue wantErrs
+						}
+					}
+					t.Errorf("no error diagnostics found containing %q\ngot: %s", want, gotDiags.Err().Error())
+				}
+			}
+		})
+	}
+}
+
+// TestEvalVariableValidations_ephemeralValueDiagnostics verifies that values for ephemeral variables get captured
+// into diagnostic messages with the ephemeral mark intact, so that
+// the values won't be disclosed in the UI.
+func TestEvalVariableValidations_ephemeralValueDiagnostics(t *testing.T) {
+	cfgSrc := `
+		variable "foo" {
+			type      = string
+			ephemeral = true
+
+			validation {
+				condition     = length(var.foo) == 8 # intentionally fails
+				error_message = "Foo must have 8 characters."
+			}
+		}
+	`
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": cfgSrc,
+	})
+	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+
+	ctx := &MockEvalContext{}
+	ctx.EvaluationScopeScope = &lang.Scope{
+		Data: &evaluationStateData{Evaluator: &Evaluator{
+			Config:             cfg,
+			VariableValuesLock: &sync.Mutex{},
+			VariableValues: map[string]map[string]cty.Value{"": {
+				varAddr.Variable.Name: cty.UnknownVal(cty.String),
+			}},
+		}},
+	}
+	ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+		if got, want := addr.String(), varAddr.String(); got != want {
+			t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+		}
+		// NOTE: This intentionally doesn't mark the result as ephemeral,
+		// because BuiltinEvalContext.GetVariableValueFunc doesn't either.
+		// It's the responsibility of downstream code to detect and handle
+		// configured ephemerality.
+		return cty.StringVal("boop")
+	}
+	ctx.ChecksState = checks.NewState(cfg)
+	ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+
+	gotDiags := evalVariableValidations(
+		t.Context(), varAddr, cfg.Module.Variables["foo"], nil, ctx,
+	)
+	if !gotDiags.HasErrors() {
+		t.Fatalf("unexpected success; want validation error")
+	}
+
+	// The generated diagnostic(s) should all capture the evaluation context
+	// that was used to evaluate the condition, where the variable's value
+	// should be marked as ephemeral so it won't get displayed in clear
+	// in the UI output.
+	// (The HasErrors check above guarantees that there's at least one
+	// diagnostic here for us to iterate over.)
+	for _, diag := range gotDiags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		fromExpr := diag.FromExpr()
+		if fromExpr == nil {
+			t.Fatalf("diagnostic does not have source expression information at all")
+		}
+		allVarVals := fromExpr.EvalContext.Variables["var"]
+		if allVarVals == cty.NilVal || !allVarVals.Type().IsObjectType() {
+			t.Fatalf("diagnostic did not capture an object value for the top-level symbol 'var'")
+		}
+		gotVal := allVarVals.GetAttr("foo")
+		if gotVal == cty.NilVal {
+			t.Fatalf("diagnostic did not capture a value for var.foo")
+		}
+		if !gotVal.HasMark(marks.Ephemeral) {
+			t.Errorf("var.foo value is not marked as ephemeral in diagnostic")
+		}
 	}
 }

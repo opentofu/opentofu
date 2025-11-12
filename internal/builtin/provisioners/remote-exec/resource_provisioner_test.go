@@ -268,7 +268,9 @@ func TestProvisionerTimeout(t *testing.T) {
 // Validate that Stop can Close can be called even when not provisioning.
 func TestResourceProvisioner_StopClose(t *testing.T) {
 	p := New()
-	p.Stop()
+	if err := p.Stop(); err != nil {
+		t.Fatal(err)
+	}
 	p.Close()
 }
 

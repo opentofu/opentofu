@@ -20,16 +20,18 @@ const (
 	MessageOutputs       MessageType = "outputs"
 
 	// Hook-driven messages
-	MessageApplyStart        MessageType = "apply_start"
-	MessageApplyProgress     MessageType = "apply_progress"
-	MessageApplyComplete     MessageType = "apply_complete"
-	MessageApplyErrored      MessageType = "apply_errored"
-	MessageProvisionStart    MessageType = "provision_start"
-	MessageProvisionProgress MessageType = "provision_progress"
-	MessageProvisionComplete MessageType = "provision_complete"
-	MessageProvisionErrored  MessageType = "provision_errored"
-	MessageRefreshStart      MessageType = "refresh_start"
-	MessageRefreshComplete   MessageType = "refresh_complete"
+	MessageApplyStart              MessageType = "apply_start"
+	MessageApplyProgress           MessageType = "apply_progress"
+	MessageApplyComplete           MessageType = "apply_complete"
+	MessageApplyErrored            MessageType = "apply_errored"
+	MessageProvisionStart          MessageType = "provision_start"
+	MessageProvisionProgress       MessageType = "provision_progress"
+	MessageProvisionComplete       MessageType = "provision_complete"
+	MessageProvisionErrored        MessageType = "provision_errored"
+	MessageRefreshStart            MessageType = "refresh_start"
+	MessageRefreshComplete         MessageType = "refresh_complete"
+	MessageEphemeralActionStart    MessageType = "ephemeral_action_started"
+	MessageEphemeralActionComplete MessageType = "ephemeral_action_complete"
 
 	// Test messages
 	MessageTestAbstract  MessageType = "test_abstract"

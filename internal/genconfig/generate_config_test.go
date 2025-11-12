@@ -27,6 +27,10 @@ func TestConfigGeneration(t *testing.T) {
 			Computed:  computed,
 		}
 	}
+	writeOnlyAttr := func(attribute *configschema.Attribute) *configschema.Attribute {
+		attribute.WriteOnly = true
+		return attribute
+	}
 
 	tcs := map[string]struct {
 		schema   *configschema.Block
@@ -724,6 +728,59 @@ resource "tfcoremock_simple_resource" "example" {
   sensitive_number = null # sensitive
   sensitive_object = null # sensitive
   sensitive_string = null # sensitive
+}`,
+		},
+		"simple_resource_with_write_only_and_sensitive": {
+			// Write-only adds a new comment so we want to check that too
+
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"sensitive_string": writeOnlyAttr(sensitiveVal(cty.String, false, true, false)),
+					"sensitive_list":   writeOnlyAttr(sensitiveVal(cty.List(cty.String), false, true, false)),
+					"sensitive_map":    writeOnlyAttr(sensitiveVal(cty.Map(cty.String), false, true, false)),
+					"sensitive_object": writeOnlyAttr(sensitiveVal(cty.Object(map[string]cty.Type{}), false, true, false)),
+					"single_nested_attribute": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSingle,
+							Attributes: map[string]*configschema.Attribute{
+								"single_nested_attribute_string": writeOnlyAttr(sensitiveVal(cty.String, false, true, false)),
+							},
+						},
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"sensitive_string": cty.StringVal("sensitive").Mark(marks.Sensitive),
+				"sensitive_list":   cty.ListVal([]cty.Value{cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_map":    cty.MapVal(map[string]cty.Value{"key": cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_object": cty.ObjectVal(map[string]cty.Value{}).Mark(marks.Sensitive),
+				"single_nested_attribute": cty.ObjectVal(map[string]cty.Value{
+					"single_nested_attribute_string": cty.StringVal("random"),
+				})}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  sensitive_list   = null # sensitive write-only
+  sensitive_map    = null # sensitive write-only
+  sensitive_object = null # sensitive write-only
+  sensitive_string = null # sensitive write-only
+  single_nested_attribute = {
+    single_nested_attribute_string = null # sensitive write-only
+  }
 }`,
 		},
 		"simple_resource_with_all_sensitive_computed_values": {

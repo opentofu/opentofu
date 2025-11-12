@@ -6,8 +6,11 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"strings"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -47,25 +50,32 @@ type nodeExpandPlannableResource struct {
 	// structure in the future, as we need to compare for equality and take the
 	// union of multiple groups of dependencies.
 	dependencies []addrs.ConfigResource
+
+	// This slice is meant to keep references to the resourceCloser's of the expanded instances.
+	// Later, this will be called from nodeCloseableResource.
+	// At the time of introducing this, it was strictly meant for ephemeral resources, but if there
+	// will be other closeable resources, this could be used for those too.
+	closers []resourceCloser
 }
 
 var (
-	_ GraphNodeDestroyerCBD         = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeDynamicExpandable    = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeReferenceable        = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeReferencer           = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeConfigResource       = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeAttachResourceConfig = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeAttachDependencies   = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeTargetable           = (*nodeExpandPlannableResource)(nil)
-	_ graphNodeExpandsInstances     = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeDestroyerCBD                          = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeConfigResource                        = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachResourceConfig                  = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachDependencies                    = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandPlannableResource)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandPlannableResource)(nil)
+	_ closableResource                               = (*nodeExpandPlannableResource)(nil)
 )
 
 func (n *nodeExpandPlannableResource) Name() string {
 	return n.NodeAbstractResource.Name() + " (expand)"
 }
 
-func (n *nodeExpandPlannableResource) expandsInstances() {
+func (n *nodeExpandPlannableResource) retainDuringUnusedPruning() {
 }
 
 // GraphNodeAttachDependencies
@@ -93,14 +103,14 @@ func (n *nodeExpandPlannableResource) ModifyCreateBeforeDestroy(v bool) error {
 	return nil
 }
 
-func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
 	var g Graph
 
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	moduleInstances := expander.ExpandModule(n.Addr.Module)
 
 	// Lock the state while we inspect it
-	state := ctx.State().Lock()
+	state := evalCtx.State().Lock()
 
 	var orphans []*states.Resource
 	for _, res := range state.Resources(n.Addr) {
@@ -121,7 +131,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// We'll no longer use the state directly here, and the other functions
 	// we'll call below may use it so we'll release the lock.
 	state = nil
-	ctx.State().Unlock()
+	evalCtx.State().Unlock()
 
 	// The concrete resource factory we'll use for orphans
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
@@ -153,16 +163,22 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
-	importResolver := ctx.ImportResolver()
+	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
+	// If the import target originated from the import command (instead of the import block), we don't need to
+	// resolve the import as it's already in the resolved form. But it still requires to be validated after the graph walk.
+	// The following loop adds CLI import targets for validation and expands and resolves config import targets.
 	for _, importTarget := range n.importTargets {
-		// If the import target originates from the import command (instead of the import block), we don't need to
-		// resolve the import as it's already in the resolved form
-		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// We add CLI import targets to the import resolver. Those targets are validated after the graph walk in Context.Import method.
+		// This was added to correctly validate the existence of the targeted resource instances in case for_each key is used, either on a module or on a resource.
+		if importTarget.IsFromImportCommandLine() {
+			importResolver.addCLIImportTarget(importTarget)
+			continue
+		}
+		// If we have import from import block and PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
-		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
-		if skipImports {
-			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
+		if importTarget.IsFromImportBlock() && !n.preDestroyRefresh {
+			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
 	}
@@ -177,7 +193,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	instAddrs := addrs.MakeSet[addrs.Checkable]()
 	for _, module := range moduleInstances {
 		resAddr := n.Addr.Resource.Absolute(module)
-		err := n.expandResourceInstances(ctx, resAddr, &g, instAddrs)
+		err := n.expandResourceInstances(context.TODO(), evalCtx, resAddr, &g, instAddrs)
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -189,7 +205,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// wants to know the addresses of the checkable objects so that it can
 	// treat them as unknown status if we encounter an error before actually
 	// visiting the checks.
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
 		checkState.ReportCheckableObjects(n.NodeAbstractResource.Addr, instAddrs)
 	}
 
@@ -210,7 +226,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 // within, the caller must register the final superset instAddrs with the
 // checks subsystem so that it knows the fully expanded set of checkable
 // object instances for this resource instance.
-func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalContext, resAddr addrs.AbsResource, g *Graph, instAddrs addrs.Set[addrs.Checkable]) error {
+func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Context, globalCtx EvalContext, resAddr addrs.AbsResource, g *Graph, instAddrs addrs.Set[addrs.Checkable]) error {
 	var diags tfdiags.Diagnostics
 
 	// The rest of our work here needs to know which module instance it's
@@ -220,7 +236,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	// writeResourceState is responsible for informing the expander of what
 	// repetition mode this resource has, which allows expander.ExpandResource
 	// to work below.
-	moreDiags := n.writeResourceState(moduleCtx, resAddr)
+	moreDiags := n.writeResourceState(ctx, moduleCtx, resAddr)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags.ErrWithWarnings()
@@ -305,7 +321,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	// construct a subgraph just for this individual modules's instances and
 	// then we'll steal all of its nodes and edges to incorporate into our
 	// main graph which contains all of the resource instances together.
-	instG, err := n.resourceInstanceSubgraph(moduleCtx, resAddr, instanceAddrs)
+	instG, err := n.resourceInstanceSubgraph(ctx, moduleCtx, resAddr, instanceAddrs)
 	if err != nil {
 		diags = diags.Append(err)
 		return diags.ErrWithWarnings()
@@ -315,7 +331,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	return diags.ErrWithWarnings()
 }
 
-func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
+func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget
@@ -328,8 +344,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 	// Our graph transformers require access to the full state, so we'll
 	// temporarily lock it while we work on this.
-	state := ctx.State().Lock()
-	defer ctx.State().Unlock()
+	state := evalCtx.State().Lock()
+	defer evalCtx.State().Unlock()
 
 	// The concrete resource factory we'll use
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
@@ -373,9 +389,14 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		resolvedImportTarget := ctx.ImportResolver().GetImport(a.Addr)
+		resolvedImportTarget := evalCtx.ImportResolver().GetImport(a.Addr)
 		if resolvedImportTarget != nil {
 			m.importTarget = *resolvedImportTarget
+		}
+		// When creating concrete instance nodes for the ephemeral resources we want to collect all the
+		// resourceCloser callbacks from the nodes to be able to close the resources at the end of the graph walk.
+		if a.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			n.closers = append(n.closers, m.Close)
 		}
 
 		return m
@@ -434,6 +455,31 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, graphDiags := b.Build(addr.Module)
+	graph, graphDiags := b.Build(ctx, addr.Module)
 	return graph, diags.Append(graphDiags).ErrWithWarnings()
+}
+
+// Close implements closableResource
+func (n *nodeExpandPlannableResource) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+
+	var wg sync.WaitGroup
+	diagsCh := make(chan tfdiags.Diagnostics, len(n.closers))
+	log.Printf("[TRACE] nodeExpandPlannableResource - scheduling %d closing operations for of ephemeral resource %s", len(n.closers), n.Addr.String())
+	// NOTE: since go v1.22 there is no need to copy the loop variable.
+	for _, cb := range n.closers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			diagsCh <- cb()
+		}()
+	}
+	wg.Wait()
+	close(diagsCh)
+	for d := range diagsCh {
+		diags = diags.Append(d)
+	}
+	return diags
 }

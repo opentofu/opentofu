@@ -238,7 +238,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	statePath := testStateFile(t, originalState)
 
 	localState := statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled())
-	if err := localState.RefreshState(); err != nil {
+	if err := localState.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	s := localState.State()

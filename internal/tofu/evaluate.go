@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -110,6 +111,9 @@ type evaluationStateData struct {
 	Operation walkOperation
 }
 
+// evaluationStateData must implement lang.Data
+var _ lang.Data = (*evaluationStateData)(nil)
+
 // InstanceKeyEvalData is the old name for instances.RepetitionData, aliased
 // here for compatibility. In new code, use instances.RepetitionData instead.
 type InstanceKeyEvalData = instances.RepetitionData
@@ -143,10 +147,7 @@ func EvalDataForInstanceKey(key addrs.InstanceKey, forEachMap map[string]cty.Val
 // is relevant.
 var EvalDataForNoInstanceKey = InstanceKeyEvalData{}
 
-// evaluationStateData must implement lang.Data
-var _ lang.Data = (*evaluationStateData)(nil)
-
-func (d *evaluationStateData) GetCountAttr(addr addrs.CountAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetCountAttr(_ context.Context, addr addrs.CountAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
 
@@ -174,7 +175,7 @@ func (d *evaluationStateData) GetCountAttr(addr addrs.CountAttr, rng tfdiags.Sou
 	}
 }
 
-func (d *evaluationStateData) GetForEachAttr(addr addrs.ForEachAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetForEachAttr(_ context.Context, addr addrs.ForEachAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var returnVal cty.Value
 	switch addr.Name {
@@ -215,7 +216,7 @@ func (d *evaluationStateData) GetForEachAttr(addr addrs.ForEachAttr, rng tfdiags
 	return returnVal, diags
 }
 
-func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -265,11 +266,15 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 	// being liberal in what it accepts because the subsequent plan walk has
 	// more information available and so can be more conservative.
 	if d.Operation == walkValidate {
-		// Ensure variable sensitivity is captured in the validate walk
+		// Ensure variable marks are captured in the validate walk
+		v := cty.UnknownVal(config.Type)
 		if config.Sensitive {
-			return cty.UnknownVal(config.Type).Mark(marks.Sensitive), diags
+			v = v.Mark(marks.Sensitive)
 		}
-		return cty.UnknownVal(config.Type), diags
+		if config.Ephemeral {
+			v = v.Mark(marks.Ephemeral)
+		}
+		return v, diags
 	}
 
 	moduleAddrStr := d.ModulePath.String()
@@ -303,15 +308,18 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 		val = cty.UnknownVal(config.Type)
 	}
 
-	// Mark if sensitive
+	// Mark the variable's value based on the configuration it's having
 	if config.Sensitive {
 		val = val.Mark(marks.Sensitive)
+	}
+	if config.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
 	}
 
 	return val, diags
 }
 
-func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetLocalValue(_ context.Context, addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -352,9 +360,8 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 	return val, diags
 }
 
-func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
 	// Output results live in the module that declares them, which is one of
 	// the child module instances of our current module path.
 	moduleAddr := d.ModulePath.Module().Child(addr.Name)
@@ -391,9 +398,18 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
 		}
-
-		if cfg := outputConfigs[output.Addr.OutputValue.Name]; cfg != nil && cfg.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, cfg.Deprecated)
+		// Since states.OutputValue is for managing the state content, we don't want to
+		// store in there the ephemeral attribute of the output.
+		// Therefore, to be able to mark a child module output as ephemeral, we need
+		// to check its configuration instead.
+		outputCfg := outputConfigs[output.Addr.OutputValue.Name]
+		if outputCfg != nil {
+			if outputCfg.Ephemeral {
+				val = val.Mark(marks.Ephemeral)
+			}
+		}
+		if output.Deprecated != "" {
+			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 		}
 
 		_, callInstance := output.Addr.Module.CallInstance()
@@ -434,8 +450,8 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		unknownMap[cfg.Name] = cty.DynamicPseudoType
 
 		// get all instance output for this path from the state
-		for key, states := range stateMap {
-			outputState, ok := states[cfg.Name]
+		for key, outputStates := range stateMap {
+			outputState, ok := outputStates[cfg.Name]
 			if !ok {
 				continue
 			}
@@ -476,9 +492,15 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			if change.Sensitive {
 				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
 			}
+			// This is necessary for cases where the change of the output is not generated by evaluation
+			// an expression referencing ephemeral values, but the output block is configured as ephemeral.
+			// Any other case where a change is generated by ephemeral values is not affected by the double marking.
+			if cfg.Ephemeral {
+				instance[cfg.Name] = change.After.Mark(marks.Ephemeral)
+			}
 
 			if cfg.Deprecated != "" {
-				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated)
+				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 			}
 		}
 	}
@@ -543,16 +565,23 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		}
 
 	default:
-		val, ok := moduleInstances[addrs.NoKey]
+		vals, ok := moduleInstances[addrs.NoKey]
 		if !ok {
-			// create the object if there wasn't one known
-			val = map[string]cty.Value{}
-			for k := range outputConfigs {
-				val[k] = cty.DynamicVal
+			if callConfig.Enabled == nil {
+				// create the object if there wasn't one known
+				vals = map[string]cty.Value{}
+				for k := range outputConfigs {
+					vals[k] = cty.DynamicVal
+				}
+				ret = cty.ObjectVal(vals)
+			} else {
+				// when we're using enabled it's okay to have no
+				// instance, and the entire object is null.
+				ret = cty.NullVal(cty.DynamicPseudoType)
 			}
+		} else {
+			ret = cty.ObjectVal(vals)
 		}
-
-		ret = cty.ObjectVal(val)
 	}
 
 	// The module won't be expanded during validation, so we need to return an
@@ -581,7 +610,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 	return ret, diags
 }
 
-func (d *evaluationStateData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetPathAttr(_ context.Context, addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
 
@@ -650,7 +679,7 @@ func (d *evaluationStateData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.Sourc
 	}
 }
 
-func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	// First we'll consult the configuration to see if an resource of this
 	// name is declared at all.
@@ -677,7 +706,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	// state available in all cases.
 	// We need to build an abs provider address, but we can use a default
 	// instance since we're only interested in the schema.
-	schema := d.getResourceSchema(addr, config.Provider)
+	schema := d.getResourceSchema(ctx, addr, config.Provider)
 	if schema == nil {
 		// This shouldn't happen, since validation before we get here should've
 		// taken care of it, but we'll show a reasonable error message anyway.
@@ -704,6 +733,8 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 				return cty.EmptyTupleVal, diags
 			case config.ForEach != nil:
 				return cty.EmptyObjectVal, diags
+			case config.Enabled != nil:
+				return cty.NullVal(ty), diags
 			default:
 				// While we can reference an expanded resource with 0
 				// instances, we cannot reference instances that do not exist.
@@ -743,7 +774,35 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
 			// for all resources in the configuration.
+			if schema.Ephemeral {
+				// If the block that it's evaluated is an ephemeral one, we want to mark
+				// the cty.DynamicVal as ephemeral to ensure that the ephemeral references
+				// check is working properly during walkValidate.
+				// For the sake of consistency, we could use "schema.ValueMarks(...)" instead.
+				// Though, since that method it also gathers sensitive marks from all the nesting
+				// layers, based on the size of the schema and the level of nested objects,
+				// that could add a pretty significant performance penalty for marking in the end
+				// only the root object with the ephemeral mark (only the root object, because the
+				// returned slice of cty.PathValueMarks will not be applicable to the attributes
+				// of cty.DynamicVal, since it is having none).
+				ephemeralMark := cty.PathValueMarks{
+					Path:  make(cty.Path, 0),
+					Marks: cty.NewValueMarks(marks.Ephemeral),
+				}
+				return cty.DynamicVal.MarkWithPaths([]cty.PathValueMarks{ephemeralMark}), diags
+			}
 			return cty.DynamicVal, diags
+		}
+	}
+
+	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
+	// each loop iteration which caused n^2 locking contention.  This is especially problematic for
+	// resources with large count/for_each.
+	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
+	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
+	for _, rc := range instChanges {
+		if rc.DeposedKey == states.NotDeposed {
+			instMap[rc.Addr.String()] = rc
 		}
 	}
 
@@ -759,7 +818,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
-		change := d.Evaluator.Changes.GetResourceInstanceChange(instAddr, states.CurrentGen)
+		change := instMap[instAddr.String()]
 		if change != nil {
 			// Don't take any resources that are yet to be deleted into account.
 			// If the referenced resource is CreateBeforeDestroy, then orphaned
@@ -799,8 +858,13 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 			}
 
 			afterMarks := change.AfterValMarks
-			if schema.ContainsSensitive() {
-				// Now that we know that the schema contains sensitive marks,
+			if schema.ContainsMarks() {
+				if schema.Ephemeral {
+					// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+					// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+					afterMarks = removeEphemeralMarks(afterMarks)
+				}
+				// Now that we know that the schema contains sensitive and/or ephemeral marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
 				schemaMarks := schema.ValueMarks(val, nil)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
@@ -826,14 +890,18 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		val := instanceObjectSrc.Value
 
-		if schema.ContainsSensitive() {
-			var marks []cty.PathValueMarks
-			// Now that we know that the schema contains sensitive marks,
+		if schema.ContainsMarks() {
+			var valMarks []cty.PathValueMarks
+			// Now that we know that the schema contains sensitive and/or ephemeral marks,
 			// Combine those marks together to ensure that the value is marked correctly but not double marked
-			val, marks = val.UnmarkDeepWithPaths()
+			val, valMarks = val.UnmarkDeepWithPaths()
 			schemaMarks := schema.ValueMarks(val, nil)
-
-			combined := combinePathValueMarks(marks, schemaMarks)
+			if schema.Ephemeral {
+				// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+				// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+				valMarks = removeEphemeralMarks(valMarks)
+			}
+			combined := combinePathValueMarks(valMarks, schemaMarks)
 			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val
@@ -899,7 +967,16 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 		} else {
 			ret = cty.EmptyObjectVal
 		}
-
+	case config.Enabled != nil:
+		val, ok := instances[addrs.NoKey]
+		if ok {
+			ret = val
+		} else {
+			// When we're using enabled, it's okay to have no
+			// instance, and the entire object is null because
+			// this needs to be propagated to the caller.
+			ret = cty.NullVal(ty)
+		}
 	default:
 		val, ok := instances[addrs.NoKey]
 		if !ok {
@@ -913,8 +990,9 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	return ret, diags
 }
 
-func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerAddr, addr.Mode, addr.Type)
+func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
+	// TODO: Plumb a useful context.Context through to here.
+	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
 	if err != nil {
 		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
@@ -924,9 +1002,15 @@ func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAdd
 	return schema
 }
 
-func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetTerraformAttr(_ context.Context, addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
+	case "applying":
+		if d.Evaluator.Operation == walkApply || d.Evaluator.Operation == walkDestroy {
+			return cty.True.Mark(marks.Ephemeral), nil
+		}
+		return cty.False.Mark(marks.Ephemeral), nil
+
 	case "workspace":
 		workspaceName := d.Evaluator.Meta.Env
 		return cty.StringVal(workspaceName), diags
@@ -954,7 +1038,7 @@ func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfd
 	}
 }
 
-func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetOutput(_ context.Context, addr addrs.OutputValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First we'll make sure the requested value is declared in configuration,
@@ -1003,16 +1087,26 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
 		}
-
+		// TODO ephemeral testing support - this GetOutput is used only during `tofu test` against root module outputs.
+		//  Therefore, since only the root module outputs can get in here, there is no reason to mark
+		//  values with ephemeral. Reanalyse this when implementing the testing support.
+		// if config.Ephemeral {
+		// 	val = val.Mark(marks.Ephemeral)
+		// }
 		if config.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated)
+			isRemote := false
+			if p := moduleConfig.Path; p != nil && !p.IsRoot() {
+				_, call := p.Call()
+				isRemote = moduleConfig.IsModuleCallFromRemoteModule(call.Name)
+			}
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote)
 		}
 
 		return val, diags
 	}
 }
 
-func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (d *evaluationStateData) GetCheckBlock(_ context.Context, addr addrs.Check, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// For now, check blocks don't contain any meaningful data and can only
 	// be referenced from the testing scope within an expect_failures attribute.
 	//

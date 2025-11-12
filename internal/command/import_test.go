@@ -309,7 +309,9 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	}
 
 	// overwrite the config with one including a resource from an invalid provider
-	copy.CopyFile(filepath.Join(testFixturePath("import-provider-invalid"), "main.tf"), filepath.Join(td, "main.tf"))
+	if err := copy.CopyFile(filepath.Join(testFixturePath("import-provider-invalid"), "main.tf"), filepath.Join(td, "main.tf")); err != nil {
+		t.Fatal(err)
+	}
 
 	p := testProvider()
 	ui = new(cli.MockUi)
@@ -881,7 +883,7 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 	}
 }
 
-func TestImport_dataResource(t *testing.T) {
+func TestImport_nonManagedResource(t *testing.T) {
 	t.Chdir(testFixturePath("import-missing-resource-config"))
 
 	statePath := testTempFile(t)
@@ -897,19 +899,36 @@ func TestImport_dataResource(t *testing.T) {
 		},
 	}
 
-	args := []string{
-		"-state", statePath,
-		"data.test_data_source.foo",
-		"bar",
+	cases := []struct {
+		resAddr        string
+		expectedErrMsg string
+	}{
+		{
+			resAddr:        "data.test_data_source.foo",
+			expectedErrMsg: "A managed resource address is required. Importing into a data resource is not allowed.",
+		},
+		{
+			resAddr:        "ephemeral.test_data_source.foo",
+			expectedErrMsg: "A managed resource address is required. Importing into an ephemeral resource is not allowed.",
+		},
 	}
-	code := c.Run(args)
-	if code != 1 {
-		t.Fatalf("import succeeded; expected failure")
-	}
+	for _, tt := range cases {
+		t.Run(tt.resAddr, func(t *testing.T) {
+			args := []string{
+				"-state", statePath,
+				tt.resAddr,
+				"bar",
+			}
+			code := c.Run(args)
+			if code != 1 {
+				t.Fatalf("import succeeded; expected failure")
+			}
 
-	msg := ui.ErrorWriter.String()
-	if want := `A managed resource address is required`; !strings.Contains(msg, want) {
-		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
+			msg := ui.ErrorWriter.String()
+			if want := tt.expectedErrMsg; !strings.Contains(msg, want) {
+				t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
+			}
+		})
 	}
 }
 
@@ -974,6 +993,217 @@ func TestImport_targetIsModule(t *testing.T) {
 	msg := ui.ErrorWriter.String()
 	if want := `Error: Invalid address`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
+	}
+}
+
+func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
+	t.Chdir(testFixturePath("import-non-existent-key"))
+
+	statePath := testTempFile(t)
+	p := testProvider()
+	ui := new(cli.MockUi)
+	view, _ := testView(t)
+	c := &ImportCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Ui:               ui,
+			View:             view,
+		},
+	}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {Type: cty.String, Optional: true, Computed: true},
+					},
+				},
+			},
+		},
+	}
+	// Existing key should success
+	args := []string{
+		"-state", statePath,
+		"test_instance.this[\"a\"]",
+		"aa",
+	}
+	if code := c.Run(args); code != 0 {
+		t.Fatalf("import failed; expected success for existing resource: %s", ui.ErrorWriter.String())
+	}
+	// Non-existent key should fail
+	args = []string{
+		"-state", statePath,
+		"test_instance.this[\"f\"]",
+		"ff",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure when the resource instance doesn't exist with the given key")
+	}
+
+}
+
+func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("import-keyed-module"), td)
+	t.Chdir(td)
+
+	statePath := testTempFile(t)
+
+	p := testProvider()
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
+	}
+
+	providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+		"test": {"1.2.3"},
+	})
+	defer closeCallback()
+
+	// init to install the module
+	ui := new(cli.MockUi)
+	view, _ := testView(t)
+	m := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		Ui:               ui,
+		View:             view,
+		ProviderSource:   providerSource,
+	}
+
+	ic := &InitCommand{
+		Meta: m,
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	// Import
+	c := &ImportCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Ui:               ui,
+			View:             view,
+		},
+	}
+	// Importing into an existing module should succeed
+	args := []string{
+		"-state", statePath,
+		"module.child[\"a\"].test_instance.this",
+		"aa",
+	}
+	if code := c.Run(args); code != 0 {
+		t.Fatalf("import failed for a valid scenario\n%s", ui.ErrorWriter.String())
+	}
+
+	// Importing into a non-existent module should fail
+	args = []string{
+		"-state", statePath,
+		"module.child[\"f\"].test_instance.this",
+		"ff",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existant module\n%s", ui.OutputWriter.String())
+	}
+}
+func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
+	td := t.TempDir()
+	// We have the "child" module with keys "a" and "b"
+	// Resource "test_instance.this" under the child module with keys "a" and "b"
+	testCopyDir(t, testFixturePath("import-keyed-module-keyed-resource"), td)
+	t.Chdir(td)
+
+	statePath := testTempFile(t)
+
+	p := testProvider()
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
+	}
+
+	providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+		"test": {"1.2.3"},
+	})
+	defer closeCallback()
+
+	// init to install the module
+	ui := new(cli.MockUi)
+	view, _ := testView(t)
+	m := Meta{
+		testingOverrides: metaOverridesForProvider(testProvider()),
+		Ui:               ui,
+		View:             view,
+		ProviderSource:   providerSource,
+	}
+
+	ic := &InitCommand{
+		Meta: m,
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	// Import
+	c := &ImportCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Ui:               ui,
+			View:             view,
+		},
+	}
+
+	// Valid Module + Valid Resource success
+	args := []string{
+		"-state", statePath,
+		"module.child[\"a\"].test_instance.this[\"a\"]",
+		"aa",
+	}
+	if code := c.Run(args); code != 0 {
+		t.Fatalf("import failed for a valid scenario\n%s", ui.ErrorWriter.String())
+	}
+
+	// All following combinations should fail
+	// Valid Module + Invalid Resource
+	args = []string{
+		"-state", statePath,
+		"module.child[\"a\"].test_instance.this[\"f\"]",
+		"af",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent resource instance\n%s", ui.OutputWriter.String())
+	}
+
+	// Invalid Module + Valid Resource
+	args = []string{
+		"-state", statePath,
+		"module.child[\"f\"].test_instance.this[\"a\"]",
+		"fa",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent module\n%s", ui.OutputWriter.String())
+	}
+
+	// Invalid Module + Invalid Resource
+	args = []string{
+		"-state", statePath,
+		"module.child[\"f\"].test_instance.this[\"f\"]",
+		"ff",
+	}
+	if code := c.Run(args); code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent module and resource instance\n%s", ui.OutputWriter.String())
 	}
 }
 

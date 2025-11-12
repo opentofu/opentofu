@@ -34,7 +34,7 @@ import (
 
 var planConfigurationVersionsPollInterval = 500 * time.Millisecond
 
-func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Cloud) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	log.Printf("[INFO] cloud: starting Plan operation")
 
 	var diags tfdiags.Diagnostics
@@ -97,7 +97,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 	}
 
 	// If the run errored, exit before checking whether to save a plan file
-	run, err := b.plan(stopCtx, cancelCtx, op, w)
+	run, err := b.plan(ctx, stopCtx, cancelCtx, op, w)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 	return run, nil
 }
 
-func (b *Cloud) plan(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Cloud) plan(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	if b.CLI != nil {
 		header := planDefaultHeader
 		if op.Type == backend.OperationTypeApply || op.Type == backend.OperationTypeRefresh {
@@ -264,7 +264,7 @@ in order to capture the filesystem context the remote workspace expects:
 		}
 	}
 
-	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(op.ConfigDir, op.RootCall)
+	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(ctx, op.ConfigDir, op.RootCall)
 	if configDiags.HasErrors() {
 		return nil, fmt.Errorf("error loading config with snapshot: %w", configDiags.Errs()[0])
 	}
@@ -324,7 +324,9 @@ in order to capture the filesystem context the remote workspace expects:
 						log.Printf("[ERROR] error searching process ID: %v", err)
 						return
 					}
-					p.Signal(syscall.SIGINT)
+					if err := p.Signal(syscall.SIGINT); err != nil {
+						log.Printf("[ERROR] error sending interrupt signal: %v", err)
+					}
 				}
 			}
 		}()
@@ -620,8 +622,8 @@ func (b *Cloud) shouldRenderStructuredRunOutput(run *tfe.Run) (bool, error) {
 }
 
 func shouldRenderPlan(run *tfe.Run) bool {
-	return !(run.Status == tfe.RunErrored || run.Status == tfe.RunCanceled ||
-		run.Status == tfe.RunDiscarded)
+	return run.Status != tfe.RunErrored && run.Status != tfe.RunCanceled &&
+		run.Status != tfe.RunDiscarded
 }
 
 func shouldGenerateConfig(out string, run *tfe.Run) bool {

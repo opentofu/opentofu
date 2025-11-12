@@ -22,6 +22,15 @@ const (
 	defaultKey    = "terraform.tfstate"
 )
 
+// To run these tests, go to https://console.tencentcloud.com/cam/capi
+// and create an API key (ignore the security warnings, this isn't long-lived)
+// Assign environment variables as follows:
+// APPID     -> TF_COS_APPID
+// SecretId  -> TENCENTCLOUD_SECRET_ID
+// SecretKey -> TENCENTCLOUD_SECRET_KEY
+// finally, optionally but recommended if you're in the US,
+// set TENCENTCLOUD_REGION to "na-ashburn" in Virginia
+
 // Testing Thanks to GCS
 
 func TestStateFile(t *testing.T) {
@@ -66,7 +75,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -88,7 +97,7 @@ func TestRemoteClientWithPrefix(t *testing.T) {
 	be := setupBackend(t, bucket, prefix, defaultKey, false)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -109,7 +118,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, defaultPrefix, defaultKey, true)
 	defer teardownBackend(t, be)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -131,7 +140,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be)
 
 	remoteClient := func() (remote.Client, error) {
-		ss, err := be.StateMgr(backend.DefaultStateName)
+		ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -234,7 +243,7 @@ func setupBackend(t *testing.T, bucket, prefix, key string, encrypt bool) backen
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.putBucket()
+	err = c.putBucket(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -250,7 +259,7 @@ func teardownBackend(t *testing.T, b backend.Backend) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	err = c.deleteBucket(true)
+	err = c.deleteBucket(t.Context(), true)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

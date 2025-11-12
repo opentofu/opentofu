@@ -8,6 +8,7 @@ package e2etest
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -41,8 +42,13 @@ func TestProvisionerPlugin(t *testing.T) {
 	provisionerExePrefix := filepath.Join(tf.WorkDir(), "terraform-provisioner-test_")
 	provisionerExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provisioner-local-exec/main", provisionerExePrefix)
 
+	extension := ""
+	if runtime.GOOS == "windows" {
+		extension = ".exe"
+	}
+
 	// provisioners must use the old binary name format, so rename this binary
-	newExe := filepath.Join(tf.WorkDir(), "terraform-provisioner-test")
+	newExe := filepath.Join(tf.WorkDir(), "terraform-provisioner-test") + extension
 	if _, err := os.Stat(newExe); !os.IsNotExist(err) {
 		t.Fatalf("%q already exists", newExe)
 	}

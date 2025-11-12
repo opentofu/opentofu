@@ -43,11 +43,21 @@ func TestRedactIfSensitive(t *testing.T) {
 			marks: []cty.ValueMarks{},
 			want:  "12345",
 		},
+		"ephemeral string": {
+			value: "foo",
+			marks: []cty.ValueMarks{cty.NewValueMarks(marks.Ephemeral)},
+			want:  "(ephemeral value)",
+		},
+		"ephemeral and sensitive string": {
+			value: "foo",
+			marks: []cty.ValueMarks{cty.NewValueMarks(marks.Ephemeral, marks.Sensitive)},
+			want:  "(ephemeral sensitive value)",
+		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got := redactIfSensitive(tc.value, tc.marks...)
+			got := redactIfSensitiveOrEphemeral(tc.value, tc.marks...)
 			if got != tc.want {
 				t.Errorf("wrong result, got %v, want %v", got, tc.want)
 			}

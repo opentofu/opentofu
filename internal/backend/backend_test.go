@@ -8,7 +8,9 @@ package backend
 import (
 	"io"
 	"os"
+	"os/exec"
 	"os/user"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -73,8 +75,29 @@ func TestRead_PathNoPermission(t *testing.T) {
 	}
 	f.Close()
 
-	if err := os.Chmod(f.Name(), 0); err != nil {
-		t.Fatalf("err: %s", err)
+	if runtime.GOOS == "windows" {
+		currentUser, err := user.Current()
+		if err != nil {
+			t.Fatalf("failed to get current user: %s", err)
+		}
+		acl, _ := exec.Command("icacls", f.Name()).CombinedOutput()
+		t.Logf("Before /deny %s", acl)
+
+		cmd := exec.Command("icacls", f.Name(), "/deny", currentUser.Username+":(R)")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+
+		acl, _ = exec.Command("icacls", f.Name()).CombinedOutput()
+		t.Logf("After /deny %s", acl)
+		defer func() {
+			acl, _ := exec.Command("icacls", f.Name(), "/remove:d", currentUser.Username).CombinedOutput()
+			t.Logf("After remove:d %s", acl)
+		}()
+	} else {
+		if err := os.Chmod(f.Name(), 0); err != nil {
+			t.Fatalf("err: %s", err)
+		}
 	}
 
 	contents, err := ReadPathOrContents(f.Name())

@@ -12,6 +12,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -20,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // InputMode defines what sort of input will be asked for when Input
@@ -153,10 +154,10 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func (c *Context) Schemas(config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
+func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	ret, err := loadSchemas(config, state, c.plugins)
+	ret, err := loadSchemas(ctx, config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -306,7 +307,9 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				// The providers.Interface API contract requires that the
+				// context passed to Stop is never canceled and has no deadline.
+				_ = p.Stop(context.WithoutCancel(context.TODO()))
 			}
 		}
 
@@ -323,7 +326,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				_ = p.Stop()
 			}
 		}
 	}()

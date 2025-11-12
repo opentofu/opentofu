@@ -1,0 +1,44 @@
+{
+  "severity": "error",
+  "summary": "object assertion failed",
+  "detail": "",
+  "range": {
+    "filename": "test.tftest.hcl",
+    "start": {
+      "line": 12,
+      "column": 17,
+      "byte": 171
+    },
+    "end": {
+      "line": 20,
+      "column": 6,
+      "byte": 288
+    }
+  },
+  "snippet": {
+    "context": "run \"fails_without_useful_diff\"",
+    "code": "    condition = jsonencode(var.json_headers) == jsonencode([\n      \"Test-Header-1: foo\",\n      \"Test-Header-2: bar\",\n    ])",
+    "start_line": 12,
+    "highlight_start_offset": 0,
+    "highlight_end_offset": 117,
+    "values": [
+      {
+        "traversal": "var.json_headers",
+        "statement": "is object with 2 attributes"
+      }
+    ]
+  },
+  "difference": {
+    "before": {
+      "Test-Header-1": "foo",
+      "Test-Header-2": "foo"
+    },
+    "after": {
+      "Test-Header-1": "foo",
+      "Test-Header-2": "bar"
+    },
+    "after_unknown": false,
+    "before_sensitive": {},
+    "after_sensitive": {}
+  }
+}

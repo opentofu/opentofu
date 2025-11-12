@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
@@ -43,7 +44,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	reg := registry.NewClient(nil, nil)
+	reg := registry.NewClient(t.Context(), nil, nil)
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
 	assertNoDiagnostics(t, diags)
@@ -109,7 +110,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -134,31 +135,28 @@ func TestDirFromModule_registry(t *testing.T) {
 }
 
 func TestDirFromModule_submodules(t *testing.T) {
-	fixtureDir := filepath.Clean("testdata/empty")
-	fromModuleDir, err := filepath.Abs("./testdata/local-modules")
+	fromModuleDir := tempChdir(t, "testdata/local-modules")
+	// EvalSymlinks expands short paths to full paths on Windows, e.g.:
+	// C:\RUNN~1\T... -> C:\runneradmin\T...
+	// fromModuleDir is used as a copy of the original directory, in order
+	// to avoid mount problems on Windows Github runners.
+	fromModuleDir, err := filepath.EvalSymlinks(fromModuleDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// DirFromModule will expand ("canonicalize") the pathnames, so we must do
-	// the same for our "wantCalls" comparison values. Otherwise this test
-	// will fail when building in a source tree with symlinks in $PWD.
-	//
-	// See also: https://github.com/hashicorp/terraform/issues/26014
-	//
-	fromModuleDirRealpath, err := filepath.EvalSymlinks(fromModuleDir)
-	if err != nil {
-		t.Error(err)
-	}
-
-	tmpDir := tempChdir(t, fixtureDir)
+	// Create a different temporary directory to install the modules in
+	tmpDir := t.TempDir()
 
 	hooks := &testInstallHooks{}
-	dir, err := filepath.EvalSymlinks(tmpDir)
+	dir := filepath.Join(tmpDir, "empty")
+
+	err = os.Mkdir(dir, os.ModePerm)
 	if err != nil {
 		t.Error(err)
 	}
-	modInstallDir := filepath.Join(dir, ".terraform/modules")
+
+	modInstallDir := filepath.Join(tmpDir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
@@ -172,7 +170,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)
@@ -180,12 +178,12 @@ func TestDirFromModule_submodules(t *testing.T) {
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a",
-			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a"),
+			LocalPath:  filepath.Join(fromModuleDir, "child_a"),
 		},
 		{
 			Name:       "Install",
 			ModuleAddr: "child_a.child_b",
-			LocalPath:  filepath.Join(fromModuleDirRealpath, "child_a/child_b"),
+			LocalPath:  filepath.Join(fromModuleDir, "child_a/child_b"),
 		},
 	}
 
@@ -202,7 +200,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -256,7 +254,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 
@@ -275,7 +273,13 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	// - tmpdir/local-modules (with contents of testdata/local-modules)
 	// - tmpdir/empty: the workDir we CD into for the test
 	// - tmpdir/empty/target (target, the destination for init -from-module)
-	tmpDir := t.TempDir()
+	// EvalSymlinks is used here to expand short paths to full paths on Windows, e.g.:
+	// C:\RUNN~1\T... -> C:\runneradmin\T...
+	tmpDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed to expand short path: %v", err)
+	}
+
 	fromModuleDir := filepath.Join(tmpDir, "local-modules")
 	workDir := filepath.Join(tmpDir, "empty")
 	if err := os.Mkdir(fromModuleDir, os.ModePerm); err != nil {
@@ -301,7 +305,10 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		t.Fatalf("failed to switch to temp dir %s: %s", tmpDir, err)
 	}
 	t.Cleanup(func() {
-		os.Chdir(oldDir)
+		err := os.Chdir(oldDir)
+		if err != nil {
+			t.Logf("error running chdir to %s: %s", oldDir, err)
+		}
 		// Trigger garbage collection to ensure that all open file handles are closed.
 		// This prevents TempDir RemoveAll cleanup errors on Windows.
 		if runtime.GOOS == "windows" {
@@ -324,7 +331,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)
@@ -354,7 +361,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}

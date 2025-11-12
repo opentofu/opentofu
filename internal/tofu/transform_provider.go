@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -16,12 +17,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config, walkOp walkOperation) GraphTransformer {
 	return GraphTransformMulti(
 		// Add providers from the config
 		&ProviderConfigTransformer{
-			Config:   config,
-			Concrete: concrete,
+			Config:    config,
+			Concrete:  concrete,
+			Operation: walkOp,
 		},
 		// Add any remaining missing providers
 		&MissingProviderTransformer{
@@ -111,7 +113,7 @@ type ProviderTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ProviderTransformer) Transform(g *Graph) error {
+func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// We need to find a provider configuration address for each resource
 	// either directly represented by a node or referenced by a node in
 	// the graph, and then create graph edges from provider to provider user
@@ -284,6 +286,39 @@ func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFu
 	return providedBy, ok
 }
 
+// ProviderUnconfiguredTransformer converts NodeApplyableProvider nodes to NodeEvalableProvider
+// nodes so provider's functions can be used without configuration.
+type ProviderUnconfiguredTransformer struct{}
+
+func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph) error {
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
+	// Iterate through the providers to identify their dependencies (edges). If a provider
+	// lacks both references and configuration, use a NodeEvalableProvider.
+	for _, p := range providerVerts {
+		applyableProvider, ok := p.(*NodeApplyableProvider)
+		// There are three conditions to skip the conversion
+		// from NodeApplyableProvider to NodeEvalableProvider:
+		//   1. The node is not an NodeApplyableProvider
+		//   2. The provider has existing configuration
+		//   3. The provider node is referenced by another node
+		edges := append(g.EdgesFrom(applyableProvider), g.EdgesTo(applyableProvider)...)
+		if !ok || applyableProvider.Config != nil || len(edges) > 0 {
+			continue
+		}
+
+		pAddr := applyableProvider.ProviderAddr()
+		log.Printf("[TRACE] ProviderFunctionTransformer: replacing NodeApplyableProvider with NodeEvalableProvider for %s since it's missing configuration and there are no consumers of it", pAddr)
+		unconfiguredProvider := &NodeEvalableProvider{
+			&NodeAbstractProvider{
+				Addr: pAddr,
+			},
+		}
+		g.Replace(applyableProvider, unconfiguredProvider)
+	}
+	return nil
+}
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
@@ -291,7 +326,7 @@ type ProviderFunctionTransformer struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
-func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
+func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) error {
 	var diags tfdiags.Diagnostics
 
 	if t.Config == nil {
@@ -372,6 +407,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					} else {
 						// If this provider doesn't exist, stub it out with an init-only provider node
 						// This works for unconfigured functions only, but that validation is elsewhere
+						log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", absPc)
 						stubAddr := addrs.AbsProviderConfig{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
@@ -425,7 +461,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 // in the graph are evaluated.
 type CloseProviderTransformer struct{}
 
-func (t *CloseProviderTransformer) Transform(g *Graph) error {
+func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	pm := providerVertexMap(g)
 	cpm := make(map[string]*graphNodeCloseProvider)
 	var err error
@@ -454,6 +490,10 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 			if _, ok := s.(GraphNodeProviderConsumer); ok {
 				g.Connect(dag.BasicEdge(closer, s))
 			} else if _, ok := s.(GraphNodeReferencer); ok {
+				g.Connect(dag.BasicEdge(closer, s))
+			} else if _, ok := s.(GraphNodeCloseableResource); ok {
+				// Connect also the nodes that are meant to close resources since these
+				// are created quite late in the graph building process
 				g.Connect(dag.BasicEdge(closer, s))
 			}
 		}
@@ -484,7 +524,7 @@ type MissingProviderTransformer struct {
 	Concrete ConcreteProviderNodeFunc
 }
 
-func (t *MissingProviderTransformer) Transform(g *Graph) error {
+func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// Initialize factory
 	if t.Concrete == nil {
 		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
@@ -537,7 +577,7 @@ func (t *MissingProviderTransformer) Transform(g *Graph) error {
 // configuration may imply initialization which may require auth.
 type PruneProviderTransformer struct{}
 
-func (t *PruneProviderTransformer) Transform(g *Graph) error {
+func (t *PruneProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		// We only care about providers
 		_, ok := v.(GraphNodeProvider)
@@ -593,8 +633,8 @@ func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeCloseProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(ctx.CloseProvider(n.Addr))
+func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
@@ -685,9 +725,12 @@ type ProviderConfigTransformer struct {
 
 	// Config is the root node of the configuration tree to add providers from.
 	Config *configs.Config
+
+	// Operation is needed to add workarounds for validate
+	Operation walkOperation
 }
 
-func (t *ProviderConfigTransformer) Transform(g *Graph) error {
+func (t *ProviderConfigTransformer) Transform(_ context.Context, g *Graph) error {
 	// If no configuration is given, we don't do anything
 	if t.Config == nil {
 		return nil
@@ -752,19 +795,35 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 				continue
 			}
 
-			abstract := &NodeAbstractProvider{
-				Addr: addr,
-			}
+			addNode := func(alias string) {
+				abstract := &NodeAbstractProvider{
+					Addr: addrs.AbsProviderConfig{
+						Provider: addr.Provider,
+						Module:   addr.Module,
+						Alias:    alias,
+					},
+				}
 
-			var v dag.Vertex
-			if t.Concrete != nil {
-				v = t.Concrete(abstract)
-			} else {
-				v = abstract
-			}
+				var v dag.Vertex
+				if t.Concrete != nil {
+					v = t.Concrete(abstract)
+				} else {
+					v = abstract
+				}
 
-			g.Add(v)
-			t.providers[addr.String()] = v.(GraphNodeProvider)
+				g.Add(v)
+				t.providers[abstract.Addr.String()] = v.(GraphNodeProvider)
+			}
+			// Add unaliased instance for the provider in the root
+			addNode("")
+
+			if t.Operation == walkValidate {
+				// Add a workaround for validating modules by running them as a root module in `tofu validate`
+				// See the discussion in https://github.com/opentofu/opentofu/issues/2862 for more details
+				for _, alias := range p.Aliases {
+					addNode(alias.Alias)
+				}
+			}
 		}
 	}
 

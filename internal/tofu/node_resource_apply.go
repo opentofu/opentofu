@@ -6,28 +6,35 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // nodeExpandApplyableResource handles the first layer of resource
-// expansion during apply. Even though the resource instances themselves are
-// already expanded from the plan, we still need to expand the
-// NodeApplyableResource nodes into their respective modules.
+// expansion during apply. Even though the resource instances themselves are already expanded from the plan,
+// we still need to register resource nodes in instances.Expander with their absolute addresses
+// based on the expanded module instances.
+//
+// "Expand" in the name refers to instances.Expander usage. This node doesn't generate a dynamic subgraph.
 type nodeExpandApplyableResource struct {
 	*NodeAbstractResource
 }
 
 var (
+	_ GraphNodeExecutable           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferenceable        = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferencer           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeConfigResource       = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeAttachResourceConfig = (*nodeExpandApplyableResource)(nil)
-	_ graphNodeExpandsInstances     = (*nodeExpandApplyableResource)(nil)
-	_ GraphNodeTargetable           = (*nodeExpandApplyableResource)(nil)
+	// nodeExpandApplyableResource needs to be retained during unused nodes pruning
+	// to register the resource for expanded module instances in `instances.Expander`
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandApplyableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandApplyableResource)(nil)
 )
 
-func (n *nodeExpandApplyableResource) expandsInstances() {
+func (n *nodeExpandApplyableResource) retainDuringUnusedPruning() {
 }
 
 func (n *nodeExpandApplyableResource) References() []*addrs.Reference {
@@ -48,13 +55,13 @@ func (n *nodeExpandApplyableResource) Name() string {
 	return n.NodeAbstractResource.Name() + " (expand)"
 }
 
-func (n *nodeExpandApplyableResource) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeExpandApplyableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	moduleInstances := expander.ExpandModule(n.Addr.Module)
 	for _, module := range moduleInstances {
-		ctx = ctx.WithPath(module)
-		diags = diags.Append(n.writeResourceState(ctx, n.Addr.Resource.Absolute(module)))
+		evalCtx = evalCtx.WithPath(module)
+		diags = diags.Append(n.writeResourceState(ctx, evalCtx, n.Addr.Resource.Absolute(module)))
 	}
 
 	return diags

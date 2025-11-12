@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
@@ -40,6 +41,7 @@ const (
 	ResourceInstanceDeleteBecauseNoResourceConfig = "delete_because_no_resource_config"
 	ResourceInstanceDeleteBecauseWrongRepetition  = "delete_because_wrong_repetition"
 	ResourceInstanceDeleteBecauseCountIndex       = "delete_because_count_index"
+	ResourceInstanceDeleteBecauseEnabledFalse     = "delete_because_enabled_false"
 	ResourceInstanceDeleteBecauseEachKey          = "delete_because_each_key"
 	ResourceInstanceDeleteBecauseNoModule         = "delete_because_no_module"
 	ResourceInstanceDeleteBecauseNoMoveTarget     = "delete_because_no_move_target"
@@ -142,7 +144,7 @@ type Change struct {
 	// during planning as a string.
 	//
 	// If this is populated, then Importing should also be populated but this
-	// might change in the future. However, nNot all Importing changes will
+	// might change in the future. However, not all Importing changes will
 	// contain generated config.
 	GeneratedConfig string `json:"generated_config,omitempty"`
 }
@@ -396,6 +398,16 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.PreviousAddress = rc.PrevRunAddr.String()
 		}
 
+		if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			// We need to write ephemeral resources to the plan file to be able to build
+			// the apply graph on `tofu apply <planfile>`.
+			// The DiffTransformer needs the changes from the plan to be able to generate
+			// executable resource instance graph nodes, so we are adding the ephemeral resources too.
+			// Even though we are writing these, the actual values of the ephemeral *must not*
+			// be written to the plan so nullify these.
+			rc.ChangeSrc.Before = nil
+			rc.ChangeSrc.After = nil
+		}
 		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up
 		// their entries in state, but this is an implementation detail that
@@ -431,11 +443,14 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			if err != nil {
 				return nil, err
 			}
-			marks := rc.BeforeValMarks
-			if schema.ContainsSensitive() {
-				marks = append(marks, schema.ValueMarks(changeV.Before, nil)...)
+			valMarks := rc.BeforeValMarks
+			if schema.ContainsMarks() {
+				valMarks = append(valMarks, schema.ValueMarks(changeV.Before, nil)...)
 			}
-			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, marks)
+			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
+				return nil, err
+			}
+			bs := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.Before, valMarks)
 			beforeSensitive, err = ctyjson.Marshal(bs, bs.Type())
 			if err != nil {
 				return nil, err
@@ -460,11 +475,14 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				}
 				afterUnknown = unknownAsBool(changeV.After)
 			}
-			marks := rc.AfterValMarks
-			if schema.ContainsSensitive() {
-				marks = append(marks, schema.ValueMarks(changeV.After, nil)...)
+			valMarks := rc.AfterValMarks
+			if schema.ContainsMarks() {
+				valMarks = append(valMarks, schema.ValueMarks(changeV.After, nil)...)
 			}
-			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, marks)
+			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
+				return nil, err
+			}
+			as := jsonstate.SensitiveAsBoolWithPathValueMarks(changeV.After, valMarks)
 			afterSensitive, err = ctyjson.Marshal(as, as.Type())
 			if err != nil {
 				return nil, err
@@ -514,6 +532,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.Mode = jsonstate.ManagedResourceMode
 		case addrs.DataResourceMode:
 			r.Mode = jsonstate.DataResourceMode
+		case addrs.EphemeralResourceMode:
+			r.Mode = jsonstate.EphemeralResourceMode
 		default:
 			return nil, fmt.Errorf("resource %s has an unsupported mode %s", r.Address, addr.Resource.Resource.Mode.String())
 		}
@@ -541,6 +561,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.ActionReason = ResourceInstanceDeleteBecauseCountIndex
 		case plans.ResourceInstanceDeleteBecauseEachKey:
 			r.ActionReason = ResourceInstanceDeleteBecauseEachKey
+		case plans.ResourceInstanceDeleteBecauseEnabledFalse:
+			r.ActionReason = ResourceInstanceDeleteBecauseEnabledFalse
 		case plans.ResourceInstanceDeleteBecauseNoModule:
 			r.ActionReason = ResourceInstanceDeleteBecauseNoModule
 		case plans.ResourceInstanceDeleteBecauseNoMoveTarget:
@@ -560,6 +582,81 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 	}
 
 	return ret, nil
+}
+
+func ensureEphemeralMarksAreValid(addr addrs.AbsResourceInstance, valMarks []cty.PathValueMarks) error {
+	// ephemeral resources will have the ephemeral mark at the root of the value, got from schema.ValueMarks
+	// so we don't want to error for those particular ones
+	if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		return nil
+	}
+	if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+		return fmt.Errorf("%s: %w", addr, err)
+	}
+	return nil
+}
+
+// GenerateChange is used to receive two values and calculate the difference
+// between them in order to return a Change struct
+func GenerateChange(beforeVal, afterVal cty.Value) (*Change, error) {
+	var err error
+	beforeVal, marks := beforeVal.UnmarkDeepWithPaths()
+	bs := jsonstate.SensitiveAsBoolWithPathValueMarks(beforeVal, marks)
+	beforeSensitive, err := ctyjson.Marshal(bs, bs.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	afterVal, marks = afterVal.UnmarkDeepWithPaths()
+	as := jsonstate.SensitiveAsBoolWithPathValueMarks(afterVal, marks)
+	afterSensitive, err := ctyjson.Marshal(as, as.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	var before, after []byte
+	var afterUnknown cty.Value
+
+	if beforeVal != cty.NilVal {
+		before, err = ctyjson.Marshal(beforeVal, beforeVal.Type())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if afterVal != cty.NilVal {
+		if afterVal.IsWhollyKnown() {
+			after, err = ctyjson.Marshal(afterVal, afterVal.Type())
+			if err != nil {
+				return nil, err
+			}
+			afterUnknown = cty.False
+		} else {
+			filteredAfter := omitUnknowns(afterVal)
+			if filteredAfter.IsNull() {
+				after = nil
+			} else {
+				after, err = ctyjson.Marshal(filteredAfter, filteredAfter.Type())
+				if err != nil {
+					return nil, err
+				}
+			}
+			afterUnknown = unknownAsBool(afterVal)
+		}
+	}
+
+	a, _ := ctyjson.Marshal(afterUnknown, afterUnknown.Type())
+
+	return &Change{
+		Before:       json.RawMessage(before),
+		After:        json.RawMessage(after),
+		AfterUnknown: a,
+
+		BeforeSensitive: json.RawMessage(beforeSensitive),
+		AfterSensitive:  json.RawMessage(afterSensitive),
+		// Just to be explicit, outputs cannot be imported so this is always
+		// nil.
+		Importing: nil,
+	}, nil
 }
 
 // MarshalOutputChanges converts the provided internal representation of
@@ -589,40 +686,6 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		if err != nil {
 			return nil, err
 		}
-		// We drop the marks from the change, as decoding is only an
-		// intermediate step to re-encode the values as json
-		changeV.Before, _ = changeV.Before.UnmarkDeep()
-		changeV.After, _ = changeV.After.UnmarkDeep()
-
-		var before, after []byte
-		var afterUnknown cty.Value
-
-		if changeV.Before != cty.NilVal {
-			before, err = ctyjson.Marshal(changeV.Before, changeV.Before.Type())
-			if err != nil {
-				return nil, err
-			}
-		}
-		if changeV.After != cty.NilVal {
-			if changeV.After.IsWhollyKnown() {
-				after, err = ctyjson.Marshal(changeV.After, changeV.After.Type())
-				if err != nil {
-					return nil, err
-				}
-				afterUnknown = cty.False
-			} else {
-				filteredAfter := omitUnknowns(changeV.After)
-				if filteredAfter.IsNull() {
-					after = nil
-				} else {
-					after, err = ctyjson.Marshal(filteredAfter, filteredAfter.Type())
-					if err != nil {
-						return nil, err
-					}
-				}
-				afterUnknown = unknownAsBool(changeV.After)
-			}
-		}
 
 		// The only information we have in the plan about output sensitivity is
 		// a boolean which is true if the output was or is marked sensitive. As
@@ -637,22 +700,16 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 			return nil, err
 		}
 
-		a, _ := ctyjson.Marshal(afterUnknown, afterUnknown.Type())
-
-		c := Change{
-			Actions:         actionString(oc.Action.String()),
-			Before:          json.RawMessage(before),
-			After:           json.RawMessage(after),
-			AfterUnknown:    a,
-			BeforeSensitive: json.RawMessage(sensitive),
-			AfterSensitive:  json.RawMessage(sensitive),
-
-			// Just to be explicit, outputs cannot be imported so this is always
-			// nil.
-			Importing: nil,
+		change, err := GenerateChange(changeV.Before, changeV.After)
+		if err != nil {
+			return nil, err
 		}
 
-		outputChanges[oc.Addr.OutputValue.Name] = c
+		change.Actions = actionString(oc.Action.String())
+		change.BeforeSensitive = json.RawMessage(sensitive)
+		change.AfterSensitive = json.RawMessage(sensitive)
+
+		outputChanges[oc.Addr.OutputValue.Name] = *change
 	}
 
 	return outputChanges, nil
@@ -828,23 +885,25 @@ func unknownAsBool(val cty.Value) cty.Value {
 }
 
 func actionString(action string) []string {
-	switch {
-	case action == "NoOp":
+	switch action {
+	case "NoOp":
 		return []string{"no-op"}
-	case action == "Create":
+	case "Create":
 		return []string{"create"}
-	case action == "Delete":
+	case "Delete":
 		return []string{"delete"}
-	case action == "Update":
+	case "Update":
 		return []string{"update"}
-	case action == "CreateThenDelete":
+	case "CreateThenDelete":
 		return []string{"create", "delete"}
-	case action == "Read":
+	case "Read":
 		return []string{"read"}
-	case action == "DeleteThenCreate":
+	case "DeleteThenCreate":
 		return []string{"delete", "create"}
-	case action == "Forget":
+	case "Forget":
 		return []string{"forget"}
+	case "Open":
+		return []string{"open"}
 	default:
 		return []string{action}
 	}
@@ -876,6 +935,8 @@ func UnmarshalActions(actions []string) plans.Action {
 			return plans.NoOp
 		case "forget":
 			return plans.Forget
+		case "open":
+			return plans.Open
 		}
 	}
 

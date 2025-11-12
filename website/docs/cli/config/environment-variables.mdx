@@ -128,17 +128,13 @@ exact output differences can change between minor OpenTofu versions.
 
 ## TF_REGISTRY_DISCOVERY_RETRY
 
-Set `TF_REGISTRY_DISCOVERY_RETRY` to configure the max number of request retries
-the remote registry client will attempt for client connection errors or
-500-range responses that are safe to retry.
+Equivalent to the `retry_count` setting in the
+[Registry Protocol Settings](../../cli/config/config-file.mdx#registry-protocol-settings).
 
 ## TF_REGISTRY_CLIENT_TIMEOUT
 
-The default client timeout for requests to the remote registry is 10s. `TF_REGISTRY_CLIENT_TIMEOUT` can be configured and increased during exceptional circumstances.
-
-```shell
-export TF_REGISTRY_CLIENT_TIMEOUT=15
-```
+Equivalent to the `request_timeout_seconds` setting in the
+[Registry Protocol Settings](../../cli/config/config-file.mdx#registry-protocol-settings).
 
 ## TF_CLI_CONFIG_FILE
 
@@ -162,17 +158,19 @@ If `TF_IGNORE` is set to "trace", OpenTofu will output debug messages to display
 export TF_IGNORE=trace
 ```
 
+For more details on `.terraformignore`, please see [Excluding Files from Upload with .terraformignore](../../language/settings/backends/remote.mdx#excluding-files-from-upload-with-terraformignore).
+
 ## TF_PROVIDER_DOWNLOAD_RETRY
 
 Set `TF_PROVIDER_DOWNLOAD_RETRY` to configure the max number of request retries
 the remote provider client will attempt for client connection errors or
 500-range responses that are safe to retry.
-
+:::info
+This will be used only for the methods without the argument `download_retry_count` specified in [OpenTofu CLI configuration file](./config-file.mdx#explicit-installation-method-configuration).
+:::
 ```shell
 export TF_PROVIDER_DOWNLOAD_RETRY=3
 ```
-
-For more details on `.terraformignore`, please see [Excluding Files from Upload with .terraformignore](../../language/settings/backends/remote.mdx#excluding-files-from-upload-with-terraformignore).
 
 ## TF_STATE_PERSIST_INTERVAL
 
@@ -202,3 +200,12 @@ If the key (or similar) has non-alphanumeric characters in it, beware that your 
 
 Make sure your secret doesn't get changed by your shell without you realizing. This is also shell dependent, but common ways of avoiding this are using single quotes or escaping special characters with a backslash.
 :::
+
+## TOFU_CPU_PROFILE
+
+Set `TOFU_CPU_PROFILE` to instruct OpenTofu to write a [Go pprof file](https://pkg.go.dev/runtime/pprof). These profiles can be used to help developers identify hot-spots in OpenTofu's codebase that slow down execution.  It pairs well with the more granular and well structured OpenTelemetry tracing (available in OpenTofu 1.10.0). For more information on profiling in Go, see https://go.dev/blog/pprof.  As this uses the go runtime's pprof tooling directly, is not covered under the compatibility promise and is subject to change / removal at any time.
+
+```shell
+TOFU_CPU_PROFILE=./tofu.pprof tofu plan
+go tool pprof -http ./tofu.pprof
+```

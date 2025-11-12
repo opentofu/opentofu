@@ -135,7 +135,7 @@ func TestGet_cancel(t *testing.T) {
 
 			// This test needs a real module package fetcher instance because
 			// we want to attempt installing a module package from our server.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 		},
 	}
 

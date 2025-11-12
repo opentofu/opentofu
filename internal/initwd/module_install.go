@@ -30,6 +30,8 @@ import (
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 type ModuleInstaller struct {
@@ -78,6 +80,46 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClien
 		fetcher:                 remotePackageFetcher,
 		registryPackageVersions: make(map[addrs.ModuleRegistryPackage]*response.ModuleVersions),
 		registryPackageSources:  make(map[moduleVersion]addrs.ModuleSourceRemote),
+	}
+}
+
+// isSubDirNonExistent checks if the error is due to a non-existent subdirectory
+// within an otherwise valid module. This helps distinguish between a genuine
+// OpenTofu bug when failing to get the module and a user configuration error where they've specified a
+// submodule path that doesn't exist.
+func isSubDirNonExistent(modDir string) (isNonExistent bool, missingDir string) {
+	modDir = filepath.Clean(modDir)
+
+	_, err := os.Stat(modDir)
+	// If the directory exists, this isn't a missing subdir case
+	if err == nil {
+		return false, ""
+	}
+	// If it's not a "does not exist" error, return false (unexpected error)
+	if !os.IsNotExist(err) {
+		return false, ""
+	}
+
+	var missingParts []string
+	current := modDir
+
+	for {
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false, "" // reached root without finding it
+		}
+
+		missingParts = append([]string{filepath.Base(current)}, missingParts...)
+
+		info, err := os.Stat(parent)
+		if err == nil && info.IsDir() { // return the missing parts!
+			if len(missingParts) > 0 {
+				return true, missingParts[0]
+			}
+			return true, filepath.Base(current)
+		}
+
+		current = parent
 	}
 }
 
@@ -159,15 +201,15 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	}
 	walker := i.moduleInstallWalker(ctx, manifest, upgrade, hooks, fetcher)
 
-	cfg, instDiags := i.installDescendentModules(rootMod, manifest, walker, installErrsOnly)
+	cfg, instDiags := i.installDescendentModules(ctx, rootMod, manifest, walker, installErrsOnly)
 	diags = append(diags, instDiags...)
 
 	return cfg, diags
 }
 
-func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest modsdir.Manifest, upgrade bool, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) configs.ModuleWalker {
+func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdir.Manifest, upgrade bool, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
-		func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
 			var diags hcl.Diagnostics
 
 			if req.SourceAddr == nil {
@@ -196,6 +238,15 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 			key := manifest.ModuleKey(req.Path)
 			instPath := i.packageInstallPath(req.Path)
 
+			ctx, span := tracing.Tracer().Start(ctx,
+				fmt.Sprintf("Install Module %q", req.Name),
+				tracing.SpanAttributes(
+					traceattrs.OpenTofuModuleCallName(req.Name),
+					traceattrs.OpenTofuModuleSource(req.SourceAddr.String()),
+				),
+			)
+			defer span.End()
+
 			log.Printf("[DEBUG] Module installer: begin %s", key)
 
 			// First we'll check if we need to upgrade/replace an existing
@@ -206,12 +257,15 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 				switch {
 				case !recorded:
 					log.Printf("[TRACE] ModuleInstaller: %s is not yet installed", key)
+					span.AddEvent("Module not yet installed")
 					replace = true
 				case record.SourceAddr != req.SourceAddr.String():
 					log.Printf("[TRACE] ModuleInstaller: %s source address has changed from %q to %q", key, record.SourceAddr, req.SourceAddr)
+					span.AddEvent("Module source address changed")
 					replace = true
 				case record.Version != nil && !req.VersionConstraint.Required.Check(record.Version):
 					log.Printf("[TRACE] ModuleInstaller: %s version %s no longer compatible with constraints %s", key, record.Version, req.VersionConstraint.Required)
+					span.AddEvent("Module version constraint changed")
 					replace = true
 				}
 			}
@@ -288,13 +342,15 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 
 			case addrs.ModuleSourceLocal:
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, addr.String())
-				mod, mDiags := i.installLocalModule(req, key, manifest, hooks)
+				span.SetAttributes(traceattrs.String("opentofu.module.source_type", "local"))
+				mod, mDiags := i.installLocalModule(ctx, req, key, manifest, hooks)
 				mDiags = maybeImproveLocalInstallError(req, mDiags)
 				diags = append(diags, mDiags...)
 				return mod, nil, diags
 
 			case addrs.ModuleSourceRegistry:
 				log.Printf("[TRACE] ModuleInstaller: %s is a registry module at %s", key, addr.String())
+				span.SetAttributes(traceattrs.String("opentofu.module.source_type", "registry"))
 				mod, v, mDiags := i.installRegistryModule(ctx, req, key, instPath, addr, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, v, diags
@@ -314,7 +370,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 	)
 }
 
-func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// When attempting to initialize the current directory with a module
@@ -327,14 +383,14 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	var instDiags hcl.Diagnostics
 	walker := installWalker
 	if installErrsOnly {
-		walker = configs.ModuleWalkerFunc(func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
-			mod, version, diags := installWalker.LoadModule(req)
+		walker = configs.ModuleWalkerFunc(func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+			mod, version, diags := installWalker.LoadModule(ctx, req)
 			instDiags = instDiags.Extend(diags)
 			return mod, version, diags
 		})
 	}
 
-	cfg, cDiags := configs.BuildConfig(rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
 	diags = diags.Append(cDiags)
 	if installErrsOnly {
 		// We can't continue if there was an error during installation, but
@@ -366,8 +422,14 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	return cfg, diags
 }
 
-func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
+func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	_, span := tracing.Tracer().Start(ctx, "Install Local Module", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(req.Name),
+		traceattrs.OpenTofuModuleSource(req.SourceAddr.String())),
+	)
+	defer span.End()
 
 	parentKey := manifest.ModuleKey(req.Parent.Path)
 	parentRecord, recorded := manifest[parentKey]
@@ -421,6 +483,10 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 		diags = diags.Extend(mDiags)
 	}
 
+	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
+	}
+
 	// Note the local location in our manifest.
 	manifest[key] = modsdir.Record{
 		Key:        key,
@@ -441,6 +507,13 @@ var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
+	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(req.Name),
+		traceattrs.OpenTofuModuleSource(req.SourceAddr.String()),
+		traceattrs.OpenTofuModuleVersion(req.VersionConstraint.Required.String()),
+	))
+	defer span.End()
+
 	if i.reg == nil || fetcher == nil {
 		// Only local package sources are available when we have no registry
 		// client or no fetcher, since both would be needed for successful install.
@@ -451,6 +524,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Detail:   "Only local module sources are supported in this context.",
 			Subject:  req.CallRange.Ptr(),
 		})
+		tracing.SetSpanError(span, diags)
 		return nil, nil, diags
 	}
 
@@ -502,6 +576,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 					Subject:  req.CallRange.Ptr(),
 				})
 			}
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 		i.registryPackageVersions[packageAddr] = resp
@@ -651,6 +726,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Detail:   fmt.Sprintf("Module %q (%s:%d) has no versions available on %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, hostname),
 			Subject:  req.CallRange.Ptr(),
 		})
+		tracing.SetSpanError(span, diags)
 		return nil, nil, diags
 	}
 
@@ -661,6 +737,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			Detail:   fmt.Sprintf("There is no available version of module %q (%s:%d) which matches the given version constraint. The newest available version is %s.", addr, req.CallRange.Filename, req.CallRange.Start.Line, latestVersion),
 			Subject:  req.CallRange.Ptr(),
 		})
+		tracing.SetSpanError(span, diags)
 		return nil, nil, diags
 	}
 
@@ -682,6 +759,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Error accessing remote module registry",
 				Detail:   fmt.Sprintf("Failed to retrieve a download URL for %s %s from %s: %s", addr, latestMatch, hostname, err),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 		realAddr, err := addrs.ParseModuleSource(realAddrRaw)
@@ -691,8 +769,12 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Invalid package location from module registry",
 				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: %s.", hostname, realAddrRaw, addr, latestMatch, err),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
+
+		span.SetAttributes(traceattrs.OpenTofuModuleSource(realAddr.String()))
+
 		switch realAddr := realAddr.(type) {
 		// Only a remote source address is allowed here: a registry isn't
 		// allowed to return a local path (because it doesn't know what
@@ -706,6 +788,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				Summary:  "Invalid package location from module registry",
 				Detail:   fmt.Sprintf("Module registry %s returned invalid source location %q for %s %s: must be a direct remote package address.", hostname, realAddrRaw, addr, latestMatch),
 			})
+			tracing.SetSpanError(span, diags)
 			return nil, nil, diags
 		}
 	}
@@ -752,16 +835,27 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// Finally we are ready to try actually loading the module.
 	mod, mDiags := i.loader.Parser().LoadConfigDir(modDir, req.Call)
 	if mod == nil {
+
+		isMissingSubDir, missingDir := isSubDirNonExistent(modDir)
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
-		// error message here. For registry modules this actually
-		// indicates a bug in the code above, since it's not the
-		// user's responsibility to create the directory in this case.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
-		})
+		// error message here.
+		if subDir != "" && isMissingSubDir {
+			// This may be a user error, or a submodule may have been removed between unpinned versions of the module (ie a module update)
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Module subdirectory not found",
+				Detail:   fmt.Sprintf("Cannot find directory %q in module %q. The requested subdirectory was %q.", missingDir, instPath, subDir),
+				Subject:  req.CallRange.Ptr(),
+			})
+		} else {
+			// This is genuinely unexpected - the module was just downloaded
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unreadable module directory",
+				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
+			})
+		}
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future
@@ -867,14 +961,24 @@ func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *config
 	if mod == nil {
 		// nil indicates missing or unreadable directory, so we'll
 		// discard the returned diags and return a more specific
-		// error message here. For go-getter modules this actually
-		// indicates a bug in the code above, since it's not the
-		// user's responsibility to create the directory in this case.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unreadable module directory",
-			Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
-		})
+		// error message here.
+		isNonExistent, missingDir := isSubDirNonExistent(modDir)
+		if addr.Subdir != "" && isNonExistent {
+			// This is a user configuration error - they referenced a submodule that doesn't exist
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Module subdirectory not found",
+				Detail:   fmt.Sprintf("Cannot find directory %q in the module path %q. The requested subdirectory was %q.", missingDir, instPath, addr.Subdir),
+				Subject:  req.CallRange.Ptr(),
+			})
+		} else {
+			// This is genuinely unexpected - the module was just downloaded
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unreadable module directory",
+				Detail:   fmt.Sprintf("The directory %s could not be read. This is a bug in OpenTofu and should be reported.", modDir),
+			})
+		}
 	} else if vDiags := mod.CheckCoreVersionRequirements(req.Path, req.SourceAddr); vDiags.HasErrors() {
 		// If the core version requirements are not met, we drop any other
 		// diagnostics, as they may reflect language changes from future

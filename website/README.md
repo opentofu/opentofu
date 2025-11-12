@@ -12,6 +12,8 @@ docker compose up --build
 
 The development server will be available on http://localhost:3000/docs/main/ .
 
+Under `Docs` in the navigation bar, select `Development` version to see local changes.
+
 ## Suggesting Changes
 
 You can [submit an issue](https://github.com/opentofu/opentofu/issues/new/choose) with documentation requests or submit a pull request with suggested changes.

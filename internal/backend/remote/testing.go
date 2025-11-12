@@ -16,24 +16,22 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 const (
@@ -42,8 +40,8 @@ const (
 
 var (
 	mockedBackendHost = "app.example.com"
-	credsSrc          = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(mockedBackendHost): {"token": testCred},
+	credsSrc          = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(mockedBackendHost): svcauth.HostCredentialsToken(testCred),
 	})
 )
 
@@ -68,10 +66,12 @@ func (m *mockInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, er
 }
 
 func testInput(t *testing.T, answers map[string]string) *mockInput {
+	t.Helper()
 	return &mockInput{answers: answers}
 }
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
+	t.Helper()
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
@@ -98,6 +98,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 }
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
+	t.Helper()
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("no-operations"),
@@ -111,10 +112,11 @@ func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 }
 
 func testRemoteClient(t *testing.T) remote.Client {
+	t.Helper()
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	raw, err := b.StateMgr(backend.DefaultStateName)
+	raw, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -123,6 +125,8 @@ func testRemoteClient(t *testing.T) remote.Client {
 }
 
 func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
+	t.Helper()
+
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
@@ -133,7 +137,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		t.Fatal(confDiags.ErrWithWarnings())
 	}
@@ -182,6 +186,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 }
 
 func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
+	t.Helper()
 	b := backendLocal.NewWithBackend(remote, nil)
 
 	// Add a test provider to the local backend.
@@ -205,27 +210,34 @@ func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
 
 // testServer returns a *httptest.Server used for local testing.
 func testServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	mux := http.NewServeMux()
 
 	// Respond to service discovery calls.
 	mux.HandleFunc("/well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "state.v2": "/api/v2/",
   "tfe.v2.1": "/api/v2/",
   "versions.v1": "/v1/versions/"
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to service version constraints calls.
 	mux.HandleFunc("/v1/versions/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, fmt.Sprintf(`{
+		_, err := io.WriteString(w, fmt.Sprintf(`{
   "service": "%s",
   "product": "terraform",
   "minimum": "0.1.0",
   "maximum": "10.0.0"
 }`, path.Base(r.URL.Path)))
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to pings to get the API version header.
@@ -237,7 +249,7 @@ func testServer(t *testing.T) *httptest.Server {
 	// Respond to the initial query to read the hashicorp org entitlements.
 	mux.HandleFunc("/api/v2/organizations/hashicorp/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-GExadygjSbKP8hsY",
     "type": "entitlement-sets",
@@ -251,12 +263,15 @@ func testServer(t *testing.T) *httptest.Server {
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to the initial query to read the no-operations org entitlements.
 	mux.HandleFunc("/api/v2/organizations/no-operations/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-ufxa3y8jSbKP8hsT",
     "type": "entitlement-sets",
@@ -270,13 +285,16 @@ func testServer(t *testing.T) *httptest.Server {
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// All tests that are assumed to pass will use the hashicorp organization,
 	// so for all other organization requests we will return a 404.
 	mux.HandleFunc("/api/v2/organizations/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "errors": [
     {
       "status": "404",
@@ -284,6 +302,9 @@ func testServer(t *testing.T) *httptest.Server {
     }
   ]
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	return httptest.NewServer(mux)
@@ -297,8 +318,10 @@ func testDisco(s *httptest.Server) *disco.Disco {
 		"tfe.v2.1":    fmt.Sprintf("%s/api/v2/", s.URL),
 		"versions.v1": fmt.Sprintf("%s/v1/versions/", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname(mockedBackendHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

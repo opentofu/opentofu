@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -24,6 +23,9 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
+
+// Ensure that local.Local implements the backend.Local interface.
+var _ backend.Local = (*Local)(nil)
 
 // backend.Local implementation.
 func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
@@ -46,7 +48,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 
 	// Get the latest state.
 	log.Printf("[TRACE] backend/local: requesting state manager for workspace %q", op.Workspace)
-	s, err := b.StateMgr(op.Workspace)
+	s, err := b.StateMgr(ctx, op.Workspace)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, nil, diags
@@ -65,7 +67,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	}()
 
 	log.Printf("[TRACE] backend/local: reading remote state for workspace %q", op.Workspace)
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, nil, diags
 	}
@@ -98,7 +100,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 			stateMeta = &m
 		}
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun from plan file")
-		ret, configSnap, ctxDiags = b.localRunForPlanFile(op, lp, ret, &coreOpts, stateMeta)
+		ret, configSnap, ctxDiags = b.localRunForPlanFile(ctx, op, lp, ret, &coreOpts, stateMeta)
 		if ctxDiags.HasErrors() {
 			diags = diags.Append(ctxDiags)
 			return nil, nil, nil, diags
@@ -109,7 +111,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		op.ConfigLoader.ImportSourcesFromSnapshot(configSnap)
 	} else {
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun for current working directory")
-		ret, configSnap, ctxDiags = b.localRunDirect(op, ret, &coreOpts, s)
+		ret, configSnap, ctxDiags = b.localRunDirect(ctx, op, ret, &coreOpts, s)
 	}
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
@@ -142,11 +144,11 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	return ret, configSnap, s, diags
 }
 
-func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the configuration using the caller-provided configuration loader.
-	config, configSnap, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(op.ConfigDir, op.RootCall)
+	config, configSnap, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(ctx, op.ConfigDir, op.RootCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, diags
@@ -191,7 +193,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 		// values through interactive prompts.
 		// TODO: Need to route the operation context through into here, so that
 		// the interactive prompts can be sensitive to its timeouts/etc.
-		rawVariables = b.interactiveCollectVariables(context.TODO(), op.Variables, config.Module.Variables, op.UIIn)
+		rawVariables = b.interactiveCollectVariables(ctx, op.Variables, config.Module.Variables, op.UIIn)
 	}
 
 	variables, varDiags := backend.ParseVariableValues(rawVariables, config.Module.Variables)
@@ -233,7 +235,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	return run, configSnap, diags
 }
 
-func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	const errSummary = "Invalid plan file"
@@ -265,39 +267,22 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	// we need to apply the plan.
 	run.Plan = plan
 
-	subCall := op.RootCall.WithVariables(func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-
-		name := variable.Name
-		v, ok := plan.VariableValues[name]
-		if !ok {
-			if variable.Required() {
-				// This should not happen...
-				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing plan variable " + variable.Name,
-				})
-			}
-			return variable.Default, nil
-		}
-
-		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
-		if parsedErr != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  parsedErr.Error(),
-			})
-		}
-		return parsed, diags
-	})
+	subCall := op.RootCall.WithVariables(plan.VariableMapper())
 
 	loader := configload.NewLoaderFromSnapshot(snap)
-	config, configDiags := loader.LoadConfig(snap.Modules[""].Dir, subCall)
+	config, configDiags := loader.LoadConfig(ctx, snap.Modules[""].Dir, subCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, snap, diags
 	}
 	run.Config = config
+
+	// Check that all provided variables are in the configuration
+	_, undeclaredDiags := backend.ParseUndeclaredVariableValues(op.Variables, config.Module.Variables)
+	diags = diags.Append(undeclaredDiags)
+	declaredVars, declaredDiags := backend.ParseDeclaredVariableValues(op.Variables, config.Module.Variables)
+	diags = diags.Append(declaredDiags)
+	run.ApplyOpts = &tofu.ApplyOpts{SetVariables: declaredVars}
 
 	// NOTE: We're intentionally comparing the current locks with the
 	// configuration snapshot, rather than the lock snapshot in the plan file,
@@ -443,11 +428,15 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 	}
 	for _, name := range needed {
 		vc := vcs[name]
-		rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
+		varUiInput := uiInput
+		if vc.Ephemeral {
+			varUiInput = tofu.NewEphemeralSuffixUIInput(varUiInput)
+		}
+		rawValue, err := varUiInput.Input(ctx, &tofu.InputOpts{
 			Id:          fmt.Sprintf("var.%s", name),
 			Query:       fmt.Sprintf("var.%s", name),
 			Description: vc.InputPrompt(),
-			Secret:      vc.Sensitive,
+			Secret:      vc.Sensitive || vc.Ephemeral,
 		})
 		if err != nil {
 			// Since interactive prompts are best-effort, we'll just continue

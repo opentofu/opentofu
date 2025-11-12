@@ -61,6 +61,24 @@ func (b *Block) ContainsSensitive() bool {
 	return false
 }
 
+// ContainsMarks is a wrapper around Block.ContainsSensitive which adds
+// another check for the ephemeral nature of the block.
+// The schema attributes cannot be marked as ephemeral, only the whole block
+// can have that mark.
+// Therefore, we don't need to check the schema recursively.
+//
+// NOTE: It's important to make the distinction between "schema attributes" and
+// "value attributes".
+// A schema attribute cannot have the ephemeral mark, but a value attribute
+// can be marked as ephemeral if it's referencing attribute(s) from another
+// ephemeral block.
+func (b *Block) ContainsMarks() bool {
+	if b.Ephemeral {
+		return true
+	}
+	return b.ContainsSensitive()
+}
+
 // ImpliedType returns the cty.Type that would result from decoding a Block's
 // ImpliedType and getting the resulting AttributeType.
 //

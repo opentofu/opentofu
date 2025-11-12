@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -19,7 +20,7 @@ import (
 )
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
-func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (method.Method, hcl.Diagnostics) {
+func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.MethodConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (method.Method, hcl.Diagnostics) {
 	// Lookup the definition of the encryption method from the registry
 	encryptionMethod, err := reg.GetMethodDescriptor(method.ID(cfg.Type))
 	if err != nil {
@@ -55,13 +56,13 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 		return nil, diags
 	}
 
-	hclCtx, kpDiags := setupKeyProviders(enc, kpConfigs, meta, reg, staticEval)
+	hclCtx, kpDiags := setupKeyProviders(ctx, enc, kpConfigs, meta, reg, staticEval)
 	diags = diags.Extend(kpDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	hclCtx, evalDiags := staticEval.EvalContextWithParent(hclCtx, configs.StaticIdentifier{
+	hclCtx, evalDiags := staticEval.EvalContextWithParent(ctx, hclCtx, configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,
@@ -79,13 +80,55 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 
 	m, err := methodConfig.Build()
 	if err != nil {
-		// TODO this error handling could use some work
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Encryption method configuration failed",
-			Detail:   err.Error(),
-		})
+		// Convert the error to a diagnostic
+		diags = diags.Append(errorToDiagnostic(err))
 	}
 
 	return m, diags
+}
+
+func errorToDiagnostic(err error) *hcl.Diagnostic {
+	originalErr := err
+
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		switch typedErr := e.(type) {
+		case *method.ErrEncryptionFailed:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Encryption operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrDecryptionFailed:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Decryption operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrDecryptionKeyUnavailable:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Required key unavailable for method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrCryptoFailure:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Cryptographic operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrInvalidConfiguration:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid method configuration",
+				Detail:   typedErr.Error(),
+			}
+		}
+	}
+
+	// Generic fallback if no specific type was matched in the error chain
+	return &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Encryption method configuration error",
+		Detail:   originalErr.Error(),
+	}
 }

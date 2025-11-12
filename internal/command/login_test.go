@@ -13,16 +13,15 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
 	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
 	tfeserver "github.com/opentofu/opentofu/internal/command/testdata/login-tfe-server"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/version"
 )
 
 func TestLogin(t *testing.T) {
@@ -57,8 +56,10 @@ func TestLogin(t *testing.T) {
 			}
 
 			creds := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
-			svcs := disco.NewWithCredentialsSource(creds)
-			svcs.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+			svcs := disco.New(
+				disco.WithCredentials(creds),
+				disco.WithHTTPClient(httpclient.New(t.Context())),
+			)
 
 			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
 				"login.v1": map[string]interface{}{
@@ -80,7 +81,7 @@ func TestLogin(t *testing.T) {
 					"scopes": []interface{}{"app1.full_access", "app2.read_only"},
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname(tfeHost), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname(hcpTerraformHost), map[string]interface{}{
 				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
@@ -122,27 +123,38 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run(tfeHost+" (no login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run(hcpTerraformHost+" (special-cased login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 0 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname(tfeHost))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(hcpTerraformHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
-		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
+		// NOTE: The "␀" control picture at the end of this is intentional,
+		// verifying that we correctly filtered the U+0000 character that's
+		// included in the test server's motd.v1 response. This is verifying
+		// that we disallow the remote server from directly including C0
+		// control characters in its output, because implementations are
+		// expected to implemented limited formatting using the colorstring
+		// library's syntax like "[bold]" and "[reset]". The input string
+		// also includes such sequences, and so those being no longer present
+		// in the output here confirms that the login command did use the
+		// colorstring library to prepare the string (which filters out the
+		// color codes entirely when running in no-color mode, as we are here).
+		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!␀"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}, true))
@@ -158,11 +170,11 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("example.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("example.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -173,7 +185,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
-		host, _ := c.Services.Discover("example.com")
+		host, _ := c.Services.Discover(t.Context(), "example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 		if len(client.Scopes) != 0 {
 			t.Errorf("unexpected scopes %q; expected none", client.Scopes)
@@ -191,13 +203,13 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("with-scopes.example.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("with-scopes.example.com"))
 
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -208,7 +220,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
-		host, _ := c.Services.Discover("with-scopes.example.com")
+		host, _ := c.Services.Discover(t.Context(), "with-scopes.example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 
 		expectedScopes := [2]string{"app1.full_access", "app2.read_only"}
@@ -234,11 +246,11 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("tfe.acme.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -259,12 +271,12 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("tfe.acme.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 		if creds != nil {
-			t.Errorf("wrong token %q; should have no token", creds.Token())
+			t.Errorf("wrong token %q; should have no token", svcauthconfig.HostCredentialsBearerToken(t, creds))
 		}
 	}, true))
 
@@ -284,7 +296,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
@@ -299,7 +311,7 @@ func TestLogin(t *testing.T) {
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
 		if status != 1 {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}

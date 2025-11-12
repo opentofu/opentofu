@@ -1,0 +1,41 @@
+---
+description: >-
+  Write-only attributes are special attributes within resources which can work with ephemeral
+  values. These attributes are sent to the provider, but not returned.  This allows resources to
+  manage sensitive data, without exposing it in the state or plan.
+---
+
+# Write-only attributes
+
+:::info
+Write-only attributes can be used only with OpenTofu v1.11 onwards.
+:::
+
+This attribute is only found in [`managed resources`](../resources/index.mdx) that are designed to accept transient values that will never be stored in the state or plan.
+For example, a secret can be read by using an ephemeral resource and then passed into the write-only
+attribute `password_wo` of a managed resource.
+
+The lifecycle of these attributes is quite different compared with other types of attributes:
+* A write-only attribute exists only in the configuration section of a resource
+* A write-only attribute will always be written into the state and plan with a null value
+* A write-only attribute will always be returned as null from the provider even if in the configuration it had an actual value
+* A write-only attribute can reference regular and ephemeral values (normal attributes cannot reference ephemeral values)
+
+## Rendering
+When present in the plan/apply cli output, it will *always* be displayed as `(write-only attribute)`.
+
+## Updating a write-only attribute
+As OpenTofu has no way to know what value is currently in the remote resource (ie: null value in the state) and
+doesn't know what value has been (or planned to be) stored remotely (ie: provider returns null value for these attributes), it
+cannot generate a change for such attributes.
+As a recommendation for the provider authors, alongside the write-only attribute, there should be included
+also a non-write-only attribute meant to instruct the provider that the value given in the configuration
+of the write-only attribute should be used to update the resource.
+
+For example, [aws_secretsmanager_secret_version](https://search.opentofu.org/provider/hashicorp/aws/v6.11.0/docs/resources/secretsmanager_secret_version)
+offers 2 fields for this: `secret_string_wo` which is the write-only attribute and `secret_string_wo_version` that is
+the non-write-only attribute. By changing the value of `secret_string_wo_version` from what is stored currently in the state,
+provider will trigger an update of the `secret_string_wo` attribute with the value provided in the configuration.
+
+## Example
+For an in-depth example on how to use write-only attributes, please refer to [this example](./index.mdx#usage-example).

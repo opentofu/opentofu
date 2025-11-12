@@ -72,10 +72,10 @@ func TestStatePush_lockedState(t *testing.T) {
 
 	args := []string{"replace.tfstate"}
 	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d", code)
+		t.Fatalf("bad code: %d, expected 1\n:%s", code, ui.OutputWriter)
 	}
 	if !strings.Contains(ui.ErrorWriter.String(), "Error acquiring the state lock") {
-		t.Fatalf("expected a lock error, got: %s", ui.ErrorWriter.String())
+		t.Fatalf("expected a lock error, got: %s", ui.ErrorWriter)
 	}
 }
 
@@ -266,14 +266,14 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 
 	// put a dummy state in place, so we have something to force
 	b := backend.TestBackendConfig(t, inmem.New(encryption.StateEncryptionDisabled()), nil)
-	sMgr, err := b.StateMgr("test")
+	sMgr, err := b.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := sMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := sMgr.PersistState(nil); err != nil {
+	if err := sMgr.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 

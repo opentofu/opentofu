@@ -1,0 +1,33 @@
+{
+  "severity": "error",
+  "summary": "Test assertion failed",
+  "detail": "",
+  "range": {
+    "filename": "test.tftest.hcl",
+    "start": {
+      "line": 7,
+      "column": 17,
+      "byte": 118
+    },
+    "end": {
+      "line": 7,
+      "column": 23,
+      "byte": 125
+    }
+  },
+  "snippet": {
+    "context": "run \"fails_without_useful_diff\"",
+    "code": "    condition = 3 == 5",
+    "start_line": 7,
+    "highlight_start_offset": 15,
+    "highlight_end_offset": 22,
+    "values": []
+  },
+  "difference": {
+    "before": "3",
+    "after": "5",
+    "after_unknown": false,
+    "before_sensitive": false,
+    "after_sensitive": false
+  }
+}

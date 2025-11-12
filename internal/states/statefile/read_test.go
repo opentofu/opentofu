@@ -39,7 +39,7 @@ func TestReadErrNoState_nilFile(t *testing.T) {
 func TestReadEmptyWithEncryption(t *testing.T) {
 	payload := bytes.NewBufferString("")
 
-	_, err := Read(payload, enctest.EncryptionRequired().State())
+	_, err := Read(payload, enctest.EncryptionRequired(t).State())
 	if !errors.Is(err, ErrNoState) {
 		t.Fatalf("expected ErrNoState, got %T", err)
 	}
@@ -47,7 +47,7 @@ func TestReadEmptyWithEncryption(t *testing.T) {
 func TestReadEmptyJsonWithEncryption(t *testing.T) {
 	payload := bytes.NewBufferString("{}")
 
-	_, err := Read(payload, enctest.EncryptionRequired().State())
+	_, err := Read(payload, enctest.EncryptionRequired(t).State())
 
 	if err == nil || err.Error() != "unable to determine data structure during decryption: Given payload is not a state file" {
 		t.Fatalf("expected encryption error, got %v", err)

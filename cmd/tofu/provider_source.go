@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -26,28 +26,41 @@ import (
 // CLI configuration and some default search locations. This will be the
 // provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
-func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSource(
+	ctx context.Context,
+	configs []*cliconfig.ProviderInstallation,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	getOCICredsPolicy ociCredsPolicyBuilder,
+	originalWorkingDir string,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
 		// some automatically-selected local filesystem mirrors.
-		return implicitProviderSource(services), nil
+		return implicitProviderSource(ctx, registryClientConfig, services, originalWorkingDir), nil
 	}
 
 	// There should only be zero or one configurations, which is checked by
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	config := configs[0]
-	return explicitProviderSource(config, services, getOCICredsPolicy)
+	return explicitProviderSource(ctx, config, registryClientConfig, services, getOCICredsPolicy)
 }
 
-func explicitProviderSource(config *cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func explicitProviderSource(
+	ctx context.Context,
+	config *cliconfig.ProviderInstallation,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	getOCICredsPolicy ociCredsPolicyBuilder,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var searchRules []getproviders.MultiSourceSelector
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(methodConfig.Location, services, getOCICredsPolicy)
+		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, methodConfig.Retries, registryClientConfig, services, getOCICredsPolicy)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -92,12 +105,19 @@ func explicitProviderSource(config *cliconfig.ProviderInstallation, services *di
 // one version available in a local directory are implicitly excluded from
 // direct installation, as if the user had listed them explicitly in the
 // "exclude" argument in the direct provider source in the CLI config.
-func implicitProviderSource(services *disco.Disco) getproviders.Source {
+func implicitProviderSource(
+	ctx context.Context,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	originalWorkingDir string,
+) getproviders.Source {
 	// The local search directories we use for implicit configuration are:
 	// - The "terraform.d/plugins" directory in the current working directory,
 	//   which we've historically documented as a place to put plugins as a
 	//   way to include them in bundles uploaded to Terraform Cloud, where
 	//   there has historically otherwise been no way to use custom providers.
+	//   When using -chdir, this directory is checked in the launch directory
+	//   (original working directory), not the directory specified with -chdir.
 	// - The "plugins" subdirectory of the CLI config search directory.
 	//   (that's ~/.terraform.d/plugins or $XDG_DATA_HOME/opentofu/plugins
 	//   on Unix systems, equivalents elsewhere)
@@ -125,7 +145,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 		// don't exist to help users get their configurations right.)
 		if info, err := os.Stat(dir); err == nil && info.IsDir() {
 			log.Printf("[DEBUG] will search for provider plugins in %s", dir)
-			fsSource := getproviders.NewFilesystemMirrorSource(dir)
+			fsSource := getproviders.NewFilesystemMirrorSource(ctx, dir)
 
 			// We'll peep into the source to find out what providers it seems
 			// to be providing, so that we can exclude those from direct
@@ -147,7 +167,9 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 		}
 	}
 
-	addLocalDir("terraform.d/plugins") // our "vendor" directory
+	// Check and add the "terraform.d/plugins" directory in the original working directory
+	addLocalDir(filepath.Join(originalWorkingDir, "terraform.d/plugins"))
+
 	cliDataDirs, err := cliconfig.DataDirs()
 	if err == nil {
 		for _, cliDataDir := range cliDataDirs {
@@ -185,7 +207,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	// local copy will take precedence.
 	searchRules = append(searchRules, getproviders.MultiSourceSelector{
 		Source: getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(services),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfigFromEnv()),
 		),
 		Exclude: directExcluded,
 	})
@@ -193,17 +215,24 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	return getproviders.MultiSource(searchRules)
 }
 
-func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, makeOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSourceForCLIConfigLocation(
+	ctx context.Context,
+	loc cliconfig.ProviderInstallationLocation,
+	locationRetries cliconfig.ProviderInstallationMethodRetries,
+	registryClientConfig *cliconfig.RegistryProtocolsConfig,
+	services *disco.Disco,
+	makeOCICredsPolicy ociCredsPolicyBuilder,
+) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(services),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig(locationRetries)),
 		), nil
 	}
 
 	switch loc := loc.(type) {
 
 	case cliconfig.ProviderInstallationFilesystemMirror:
-		return getproviders.NewFilesystemMirrorSource(string(loc)), nil
+		return getproviders.NewFilesystemMirrorSource(ctx, string(loc)), nil
 
 	case cliconfig.ProviderInstallationNetworkMirror:
 		url, err := url.Parse(string(loc))
@@ -225,11 +254,17 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 			))
 			return nil, diags
 		}
-		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
+		// For historical reasons, we use the registry client timeout for this
+		// even though this isn't actually a registry. The other behavior of
+		// this client is not suitable for the HTTP mirror source, so we
+		// don't use this client directly.
+		httpTimeout := newRegistryHTTPClient(ctx, registryClientConfig).HTTPClient.Timeout
+		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout, providerSourceLocationConfig(locationRetries)), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
 		mappingFunc := loc.RepositoryMapping
 		return getproviders.NewOCIRegistryMirrorSource(
+			ctx,
 			mappingFunc,
 			func(ctx context.Context, registryDomain, repositoryName string) (getproviders.OCIRepositoryStore, error) {
 				// We intentionally delay the finalization of the credentials policy until
@@ -263,4 +298,30 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	return configs[0].DevOverrides
+}
+
+// providerSourceLocationConfig is meant to build a global configuration for the
+// remote locations to download a provider from. This is built out of the
+// TF_PROVIDER_DOWNLOAD_RETRY env variable and is meant to be passed through
+// [getproviders.Source] all the way down to the [getproviders.PackageLocation]
+// to be able to tweak the configurations of the http clients used there.
+func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries) getproviders.LocationConfig {
+	// If there is no configuration for the retries in .tofurc, get the one from env variable
+	retries, configured := locationRetries()
+	if !configured {
+		retries = cliconfig.ProviderDownloadRetries()
+	}
+	return getproviders.LocationConfig{
+		ProviderDownloadRetries: retries,
+	}
+}
+
+// providerSourceLocationConfigFromEnv is similar to providerSourceLocationConfig but does not
+// take into account the information from the configuration. This is like so because for some
+// commands, there is no specific tofurc configuration for the retry, so we want to use the
+// env variable if defined and if not, its default.
+func providerSourceLocationConfigFromEnv() getproviders.LocationConfig {
+	return getproviders.LocationConfig{
+		ProviderDownloadRetries: cliconfig.ProviderDownloadRetries(),
+	}
 }

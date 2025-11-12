@@ -58,7 +58,8 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 	}
 
 	plan := &plans.Plan{
-		VariableValues: map[string]plans.DynamicValue{},
+		VariableValues:     map[string]plans.DynamicValue{},
+		EphemeralVariables: map[string]bool{},
 		Changes: &plans.Changes{
 			Outputs:   []*plans.OutputChangeSrc{},
 			Resources: []*plans.ResourceInstanceChangeSrc{},
@@ -245,6 +246,11 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 			return nil, fmt.Errorf("invalid value for input variable %q: %w", name, err)
 		}
 		plan.VariableValues[name] = val
+		plan.EphemeralVariables[name] = false
+	}
+	// Record the ephemeral variables in the map used later to process these.
+	for _, name := range rawPlan.EphemeralVariables {
+		plan.EphemeralVariables[name] = true
 	}
 
 	if rawBackend := rawPlan.Backend; rawBackend == nil {
@@ -410,6 +416,8 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 		ret.Action = plans.DeleteThenCreate
 		beforeIdx = 0
 		afterIdx = 1
+	case planproto.Action_OPEN:
+		ret.Action = plans.Open
 	default:
 		return nil, fmt.Errorf("invalid change action %s", rawChange.Action)
 	}
@@ -471,7 +479,6 @@ func valueFromTfplan(rawV *planproto.DynamicValue) (plans.DynamicValue, error) {
 	if len(rawV.Msgpack) == 0 { // len(0) because that's the default value for a "bytes" in protobuf
 		return nil, fmt.Errorf("dynamic value does not have msgpack serialization")
 	}
-
 	return plans.DynamicValue(rawV.Msgpack), nil
 }
 
@@ -489,11 +496,12 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		Version:          tfplanFormatVersion,
 		TerraformVersion: version.String(),
 
-		Variables:       map[string]*planproto.DynamicValue{},
-		OutputChanges:   []*planproto.OutputChange{},
-		CheckResults:    []*planproto.CheckResults{},
-		ResourceChanges: []*planproto.ResourceInstanceChange{},
-		ResourceDrift:   []*planproto.ResourceInstanceChange{},
+		Variables:          map[string]*planproto.DynamicValue{},
+		EphemeralVariables: []string{},
+		OutputChanges:      []*planproto.OutputChange{},
+		CheckResults:       []*planproto.CheckResults{},
+		ResourceChanges:    []*planproto.ResourceInstanceChange{},
+		ResourceDrift:      []*planproto.ResourceInstanceChange{},
 	}
 
 	rawPlan.Errored = plan.Errored
@@ -627,6 +635,11 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	}
 
 	for name, val := range plan.VariableValues {
+		if is, ok := plan.EphemeralVariables[name]; ok && is {
+			// We want to store only the names of the ephemeral variables to be able to restore this map later.
+			rawPlan.EphemeralVariables = append(rawPlan.EphemeralVariables, name)
+			continue
+		}
 		rawPlan.Variables[name] = valueToTfplan(val)
 	}
 
@@ -819,6 +832,15 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 	case plans.CreateThenDelete:
 		ret.Action = planproto.Action_CREATE_THEN_DELETE
 		ret.Values = []*planproto.DynamicValue{before, after}
+	case plans.Open:
+		ret.Action = planproto.Action_OPEN
+		// We need to write ephemeral resources to the plan file to be able to build
+		// the apply graph on `tofu apply <planfile>`.
+		// The DiffTransformer needs the changes from the plan to be able to generate
+		// executable resource instance graph nodes so we are adding the ephemeral resources too.
+		// Even though we are writing these, the actual values of the ephemeral *must not*
+		// be written to the plan so set nothing here.
+		ret.Values = []*planproto.DynamicValue{}
 	default:
 		return nil, fmt.Errorf("invalid change action %s", change.Action)
 	}

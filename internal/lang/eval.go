@@ -6,7 +6,10 @@
 package lang
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -14,16 +17,15 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
-	"github.com/zclconf/go-cty/cty/function"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // ExpandBlock expands any "dynamic" blocks present in the given body. The
@@ -32,16 +34,19 @@ import (
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
+func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
+	// using ExpandFunctionsHCLDec to extract strictly the functions that are referenced inside the `dynamic`
+	// block, since that is what is needed to be injected into the expansion evalCtx for the expansion to work
+	traversals = append(traversals, filterProviderFunctions(dynblock.ExpandFunctionsHCLDec(body, spec))...)
 	refs, diags := References(s.ParseRef, traversals)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 
-	return dynblock.Expand(body, ctx), diags
+	return dynblock.Expand(body, hclCtx), diags
 }
 
 // EvalBlock evaluates the given body using the given block schema and returns
@@ -54,12 +59,12 @@ func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	refs, diags := ReferencesInBlock(s.ParseRef, body, schema)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -75,8 +80,10 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	// whose type is the attribute name.
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
-	val, evalDiags := hcldec.Decode(body, spec, ctx)
+	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	diags = diags.Append(validEphemeralReferences(schema, val))
 
 	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
 	diags = diags.Append(depDiags)
@@ -88,7 +95,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 // object and instance key data. References to the object must use self, and the
 // key data will only contain count.index or each.key. The static values for
 // terraform and path will also be available in this context.
-func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	spec := schema.DecoderSpec()
@@ -124,12 +131,12 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 		switch subj := ref.Subject.(type) {
 		case addrs.PathAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			pathAttrs[subj.Name] = val
 
 		case addrs.TerraformAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			terraformAttrs[subj.Name] = val
 
@@ -152,13 +159,13 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 	vals["terraform"] = cty.ObjectVal(terraformAttrs)
 	vals["tofu"] = cty.ObjectVal(terraformAttrs)
 
-	ctx := &hcl.EvalContext{
+	hclCtx := &hcl.EvalContext{
 		Variables: vals,
 		// TODO consider if any provider functions make sense here
 		Functions: s.Functions(),
 	}
 
-	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
+	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(decDiags))
 	return val, diags
 }
@@ -173,10 +180,10 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	refs, diags := ReferencesInExpr(s.ParseRef, expr)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -184,7 +191,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 		return cty.UnknownVal(wantType), diags
 	}
 
-	val, evalDiags := expr.Value(ctx)
+	val, evalDiags := expr.Value(hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
@@ -198,7 +205,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 				Detail:      fmt.Sprintf("Invalid expression value: %s.", tfdiags.FormatError(convErr)),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
-				EvalContext: ctx,
+				EvalContext: hclCtx,
 			})
 		}
 	}
@@ -271,15 +278,15 @@ func enhanceFunctionDiag(diag *hcl.Diagnostic, funcExtra hclsyntax.FunctionCallU
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalReference(ctx context.Context, ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We cheat a bit here and just build an EvalContext for our requested
 	// reference with the "self" address overridden, and then pull the "self"
 	// result out of it to return.
-	ctx, ctxDiags := s.evalContext(nil, []*addrs.Reference{ref}, ref.Subject)
+	hclCtx, ctxDiags := s.evalContext(ctx, nil, []*addrs.Reference{ref}, ref.Subject)
 	diags = diags.Append(ctxDiags)
-	val := ctx.Variables["self"]
+	val := hclCtx.Variables["self"]
 	if val == cty.NilVal {
 		val = cty.DynamicVal
 	}
@@ -305,19 +312,26 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 // Most callers should prefer to use the evaluation helper methods that
 // this type offers, but this is here for less common situations where the
 // caller will handle the evaluation calls itself.
-func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(nil, refs, s.SelfAddr)
+//
+// The [context.Context] passed to this function is the one that will be used
+// when making requests to providers if any of the references are to
+// provider-defined functions, and so callers should typically use
+// the resulting evaluation context immediately after the call and not
+// share it with other parts of the system where a different [context.Context]
+// would be more appropriate to use.
+func (s *Scope) EvalContext(ctx context.Context, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, nil, refs, s.SelfAddr)
 }
 
 // EvalContextWithParent is exactly the same as EvalContext except the resulting hcl.EvalContext
 // will be derived from the given parental hcl.EvalContext. It will enable different hcl mechanisms
 // to iteratively lookup target functions and variables in EvalContext's parent.
 // See Traversal.TraverseAbs (hcl) or FunctionCallExpr.Value (hcl/hclsyntax) for more details.
-func (s *Scope) EvalContextWithParent(p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(p, refs, s.SelfAddr)
+func (s *Scope) EvalContextWithParent(ctx context.Context, p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, p, refs, s.SelfAddr)
 }
 
-func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
+func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
 	}
@@ -326,26 +340,26 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 	// Calling NewChild() on a nil parent will
 	// produce an EvalContext with no parent.
-	ctx := parent.NewChild()
-	ctx.Functions = make(map[string]function.Function)
-	ctx.Variables = make(map[string]cty.Value)
+	hclCtx := parent.NewChild()
+	hclCtx.Functions = make(map[string]function.Function)
+	hclCtx.Variables = make(map[string]cty.Value)
 
-	for name, fn := range s.Functions() {
-		ctx.Functions[name] = fn
-	}
+	// The built-in functions are our starting point, but we might add extra
+	// provider-defined functions below.
+	maps.Copy(hclCtx.Functions, s.Functions())
 
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// First we'll do static validation of the references. This catches things
 	// early that might otherwise not get caught due to unknown values being
 	// present in the scope during planning.
-	staticDiags := s.Data.StaticValidateReferences(refs, selfAddr, s.SourceAddr)
+	staticDiags := s.Data.StaticValidateReferences(ctx, refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// The reference set we are given has not been de-duped, and so there can
@@ -360,68 +374,70 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 	for _, ref := range refs {
 		if ref.Subject == addrs.Self {
-			diags.Append(varBuilder.putSelfValue(selfAddr, ref))
+			diags.Append(varBuilder.putSelfValue(ctx, selfAddr, ref))
 			continue
 		}
 
 		if subj, ok := ref.Subject.(addrs.ProviderFunction); ok {
 			// Inject function directly into context
-			if _, ok := ctx.Functions[subj.String()]; !ok {
-				fn, fnDiags := s.ProviderFunctions(subj, ref.SourceRange)
+			if _, ok := hclCtx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(ctx, subj, ref.SourceRange)
 				diags = diags.Append(fnDiags)
 
 				if !fnDiags.HasErrors() {
-					ctx.Functions[subj.String()] = *fn
+					hclCtx.Functions[subj.String()] = *fn
 				}
 			}
 
 			continue
 		}
 
-		diags = diags.Append(varBuilder.putValueBySubject(ref))
+		diags = diags.Append(varBuilder.putValueBySubject(ctx, ref))
 	}
 
-	varBuilder.buildAllVariablesInto(ctx.Variables)
+	varBuilder.buildAllVariablesInto(hclCtx.Variables)
 
-	return ctx, diags
+	return hclCtx, diags
 }
 
 type evalVarBuilder struct {
 	s *Scope
 
-	dataResources    map[string]map[string]cty.Value
-	managedResources map[string]map[string]cty.Value
-	wholeModules     map[string]cty.Value
-	inputVariables   map[string]cty.Value
-	localValues      map[string]cty.Value
-	outputValues     map[string]cty.Value
-	pathAttrs        map[string]cty.Value
-	terraformAttrs   map[string]cty.Value
-	countAttrs       map[string]cty.Value
-	forEachAttrs     map[string]cty.Value
-	checkBlocks      map[string]cty.Value
-	self             cty.Value
+	dataResources      map[string]map[string]cty.Value
+	managedResources   map[string]map[string]cty.Value
+	ephemeralResources map[string]map[string]cty.Value
+	wholeModules       map[string]cty.Value
+	inputVariables     map[string]cty.Value
+	localValues        map[string]cty.Value
+	outputValues       map[string]cty.Value
+	pathAttrs          map[string]cty.Value
+	terraformAttrs     map[string]cty.Value
+	countAttrs         map[string]cty.Value
+	forEachAttrs       map[string]cty.Value
+	checkBlocks        map[string]cty.Value
+	self               cty.Value
 }
 
 func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 	return &evalVarBuilder{
 		s: s,
 
-		dataResources:    map[string]map[string]cty.Value{},
-		managedResources: map[string]map[string]cty.Value{},
-		wholeModules:     map[string]cty.Value{},
-		inputVariables:   map[string]cty.Value{},
-		localValues:      map[string]cty.Value{},
-		outputValues:     map[string]cty.Value{},
-		pathAttrs:        map[string]cty.Value{},
-		terraformAttrs:   map[string]cty.Value{},
-		countAttrs:       map[string]cty.Value{},
-		forEachAttrs:     map[string]cty.Value{},
-		checkBlocks:      map[string]cty.Value{},
+		dataResources:      map[string]map[string]cty.Value{},
+		ephemeralResources: map[string]map[string]cty.Value{},
+		managedResources:   map[string]map[string]cty.Value{},
+		wholeModules:       map[string]cty.Value{},
+		inputVariables:     map[string]cty.Value{},
+		localValues:        map[string]cty.Value{},
+		outputValues:       map[string]cty.Value{},
+		pathAttrs:          map[string]cty.Value{},
+		terraformAttrs:     map[string]cty.Value{},
+		countAttrs:         map[string]cty.Value{},
+		forEachAttrs:       map[string]cty.Value{},
+		checkBlocks:        map[string]cty.Value{},
 	}
 }
 
-func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putSelfValue(ctx context.Context, selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if selfAddr == nil {
@@ -448,7 +464,7 @@ func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.R
 		panic("BUG: self addr must be a resource instance, got " + reflect.TypeOf(selfAddr).String())
 	}
 
-	val, valDiags := normalizeRefValue(b.s.Data.GetResource(subj.ContainingResource(), ref.SourceRange))
+	val, valDiags := normalizeRefValue(b.s.Data.GetResource(ctx, subj.ContainingResource(), ref.SourceRange))
 
 	diags = diags.Append(valDiags)
 
@@ -471,7 +487,7 @@ func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.R
 	return diags
 }
 
-func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putValueBySubject(ctx context.Context, ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	rawSubj := ref.Subject
@@ -493,34 +509,34 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 
 	switch subj := rawSubj.(type) {
 	case addrs.Resource:
-		diags = diags.Append(b.putResourceValue(subj, rng))
+		diags = diags.Append(b.putResourceValue(ctx, subj, rng))
 
 	case addrs.ModuleCall:
-		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(subj, rng))
+		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(ctx, subj, rng))
 
 	case addrs.InputVariable:
-		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
+		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(ctx, subj, rng))
 
 	case addrs.LocalValue:
-		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
+		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(ctx, subj, rng))
 
 	case addrs.PathAttr:
-		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(subj, rng))
+		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(ctx, subj, rng))
 
 	case addrs.TerraformAttr:
-		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(subj, rng))
+		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(ctx, subj, rng))
 
 	case addrs.CountAttr:
-		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(subj, rng))
+		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(ctx, subj, rng))
 
 	case addrs.ForEachAttr:
-		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(subj, rng))
+		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(ctx, subj, rng))
 
 	case addrs.OutputValue:
-		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(ctx, subj, rng))
 
 	case addrs.Check:
-		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(ctx, subj, rng))
 
 	default:
 		// Should never happen
@@ -532,7 +548,7 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 	return diags
 }
 
-func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putResourceValue(ctx context.Context, res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var into map[string]map[string]cty.Value
 
 	switch res.Mode {
@@ -540,13 +556,15 @@ func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.Source
 		into = b.managedResources
 	case addrs.DataResourceMode:
 		into = b.dataResources
+	case addrs.EphemeralResourceMode:
+		into = b.ephemeralResources
 	case addrs.InvalidResourceMode:
 		panic("BUG: got invalid resource mode")
 	default:
 		panic(fmt.Errorf("BUG: got undefined ResourceMode %s", res.Mode))
 	}
 
-	val, diags := normalizeRefValue(b.s.Data.GetResource(res, rng))
+	val, diags := normalizeRefValue(b.s.Data.GetResource(ctx, res, rng))
 
 	if into[res.Type] == nil {
 		into[res.Type] = make(map[string]cty.Value)
@@ -568,6 +586,7 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["resource"] = cty.ObjectVal(buildResourceObjects(b.managedResources))
 
 	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
+	vals["ephemeral"] = cty.ObjectVal(buildResourceObjects(b.ephemeralResources))
 	vals["module"] = cty.ObjectVal(b.wholeModules)
 	vals["var"] = cty.ObjectVal(b.inputVariables)
 	vals["local"] = cty.ObjectVal(b.localValues)
@@ -609,4 +628,73 @@ func normalizeRefValue(val cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfd
 		return cty.UnknownVal(val.Type()), diags
 	}
 	return val, diags
+}
+
+// validEphemeralReferences is checking if val is containing ephemeral marks.
+// The schema argument is used to figure out if the value is for an ephemeral
+// context. If it is, then we don't even validate ephemeral marks.
+// If val contains any ephemeral mark, we check if the attribute containing
+// an ephemeral value is a write-only one. If not, we generate a diagnostic.
+// The diagnostics returned by this method need to go through InConfigBody
+// by the caller of the evaluator to append additional context to the diagnostic
+// for an enhanced feedback to the user.
+//
+// A nil schema will handle the value as unable to hold any ephemeral mark.
+func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags tfdiags.Diagnostics) {
+	// Ephemeral resources can reference values with any mark, so ignore this validation for ephemeral blocks
+	if schema != nil && schema.Ephemeral {
+		return diags
+	}
+	// This is the function for schema != nil.
+	// In the case of schema == nil, the function is recreated below.
+	//
+	// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
+	// referencing an ephemeral value might be missing from the schema.
+	// Therefore, we search for the first ancestor that exists in the schema.
+	attrFromSchema := func(path cty.Path) (*configschema.Attribute, cty.Path) {
+		attrPath := path
+		attr := schema.AttributeByPath(attrPath)
+		for attr == nil {
+			if len(attrPath) == 0 {
+				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", path)
+				return nil, path
+			}
+			attrPath = attrPath[:len(attrPath)-1]
+			attr = schema.AttributeByPath(attrPath)
+		}
+		return attr, attrPath
+	}
+
+	// We recreate the attribute search in the schema here purely for being sure
+	// that the logic below can run even when the schema is nil.
+	// When there is no schema, there should be no ephemeral value in the block.
+	if schema == nil {
+		attrFromSchema = func(path cty.Path) (*configschema.Attribute, cty.Path) {
+			return nil, path
+		}
+	}
+
+	_, valueMarks := val.UnmarkDeepWithPaths()
+	for _, pathMark := range valueMarks {
+		_, ok := pathMark.Marks[marks.Ephemeral]
+		if !ok {
+			continue
+		}
+
+		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
+		// To figure it out, we need to find the attribute by the mark path.
+		attr, foundPath := attrFromSchema(pathMark.Path)
+		if attr != nil && attr.WriteOnly {
+			continue
+		}
+
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Ephemeral value used in non-ephemeral context",
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", tfdiags.FormatCtyPath(foundPath)),
+			foundPath,
+		))
+	}
+
+	return diags
 }

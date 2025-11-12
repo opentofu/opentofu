@@ -27,6 +27,16 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 func (b *Block) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
+	// When the block is marked as ephemeral, the whole value needs to be marked accordingly.
+	// Inner attributes should carry no ephemeral mark.
+	// The ephemerality of the attributes is given by the mark on the val and not by individual marks
+	// as it's the case for the sensitive mark.
+	if b.Ephemeral {
+		pvm = append(pvm, cty.PathValueMarks{
+			Path:  path, // raw received path is indicating that the whole value needs to be marked as ephemeral.
+			Marks: cty.NewValueMarks(marks.Ephemeral),
+		})
+	}
 	// We can mark attributes as sensitive even if the value is null
 	for name, attrS := range b.Attributes {
 		if attrS.Sensitive {
@@ -155,4 +165,34 @@ func (o *Object) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
 		}
 	}
 	return pvm
+}
+
+// RemoveEphemeralFromWriteOnly gets the value and for the attributes that are
+// configured as write-only removes the marks.Ephemeral mark.
+// Write-only arguments are only available in managed resources.
+// Write-only arguments are the only managed resource's attribute type
+// that can reference ephemeral values.
+// Also, the provider framework sdk is responsible with nullify these attributes
+// before returning back to OpenTofu.
+//
+// Therefore, before writing the changes/state of a managed resource to its store,
+// we want to be sure that the nil value of the attribute is not marked as ephemeral
+// in case it got its value from evaluating an expression where an ephemeral value has
+// been involved.
+func (b *Block) RemoveEphemeralFromWriteOnly(v cty.Value) cty.Value {
+	unmarkedV, valMarks := v.UnmarkDeepWithPaths()
+	for _, pathMark := range valMarks {
+		if _, ok := pathMark.Marks[marks.Ephemeral]; !ok {
+			continue
+		}
+		attr := b.AttributeByPath(pathMark.Path)
+		if attr == nil {
+			continue
+		}
+		if !attr.WriteOnly {
+			continue
+		}
+		delete(pathMark.Marks, marks.Ephemeral)
+	}
+	return unmarkedV.MarkWithPaths(valMarks)
 }

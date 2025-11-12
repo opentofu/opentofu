@@ -19,11 +19,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-version"
+	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -31,8 +34,8 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
 )
 
 var (
@@ -252,6 +255,71 @@ resource "implicit_thing" "b" {
 			assertDiagnosticsMatch(t, gotDiags, wantDiags)
 		})
 	}
+}
+
+func TestContext_contextValuesPropagation(t *testing.T) {
+	// This test verifies that our code is propagating context.Context values
+	// through the system at least well enough that they can reach provider
+	// calls. It does so using [tracing.ContextProbe], which is a helper for
+	// probing to make sure that values (in this case, the probe itself)
+	// are able to reach calls to [tracing.ContextProbeReport] that are included
+	// in the [MockProvider] methods.
+
+	ctx, probe := tracing.NewContextProbe(t, t.Context())
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewBuiltInProvider("test"): providers.FactoryFixed(&MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{
+						Block: &configschema.Block{},
+					},
+					ResourceTypes: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+					DataSources: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+				},
+				ReadDataSourceResponse: &providers.ReadDataSourceResponse{
+					State: cty.EmptyObjectVal,
+				},
+			}),
+		},
+	})
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+			resource "test" "test" {}
+			data "test" "test" {}
+		`,
+	})
+
+	plan, diags := tofuCtx.Plan(ctx, m, states.NewState(), DefaultPlanOpts)
+	assertNoErrors(t, diags)
+	_, diags = tofuCtx.Apply(ctx, plan, m, nil)
+	assertNoErrors(t, diags)
+
+	probe.ExpectReportsFrom(t,
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).GetProviderSchema",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateProviderConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateDataResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ConfigureProvider",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ReadDataSource",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).PlanResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ApplyResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).Close",
+	)
 }
 
 func testContext2(t testing.TB, opts *ContextOpts) *Context {
@@ -686,6 +754,21 @@ func testProviderSchema(name string) *providers.GetProviderSchemaResponse {
 				},
 			},
 		},
+		EphemeralTypes: map[string]*configschema.Block{
+			name + "_ephemeral_resource": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"secret": {
+						Type:     cty.String,
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+		},
 	})
 }
 
@@ -742,7 +825,7 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 		return nil, nil, nil, err
 	}
 
-	config, diags := pr.ReadConfig(configs.RootModuleCallForTesting())
+	config, diags := pr.ReadConfig(t.Context(), configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		return nil, nil, nil, diags.Err()
 	}

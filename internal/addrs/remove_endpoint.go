@@ -70,6 +70,16 @@ func ParseRemoveEndpoint(traversal hcl.Traversal) (*RemoveEndpoint, tfdiags.Diag
 
 		return nil, diags
 	}
+	if riAddr.Resource.Mode == EphemeralResourceMode {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Ephemeral resource address is not allowed",
+			Detail:   "Ephemeral resources cannot be destroyed, and therefore, 'removed' blocks are not allowed to target them. To remove ephemeral resources from the state, you should remove the ephemeral resource block from the configuration.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+
+		return nil, diags
+	}
 
 	return &RemoveEndpoint{
 		RelSubject:  riAddr,

@@ -15,8 +15,10 @@ import (
 	"log"
 	"os"
 
-	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/mitchellh/go-homedir"
+	"github.com/opentofu/svchost"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -31,7 +33,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // DefaultStateName is the name of the default, initial state that every
@@ -98,7 +99,7 @@ type Backend interface {
 	//
 	// If error diagnostics are returned, the internal state of the instance
 	// is undefined and no other methods may be called.
-	Configure(cty.Value) tfdiags.Diagnostics
+	Configure(context.Context, cty.Value) tfdiags.Diagnostics
 
 	// StateMgr returns the state manager for the given workspace name.
 	//
@@ -108,18 +109,18 @@ type Backend interface {
 	// If the named workspace doesn't exist, or if it has no state, it will
 	// be created either immediately on this call or the first time
 	// PersistState is called, depending on the state manager implementation.
-	StateMgr(workspace string) (statemgr.Full, error)
+	StateMgr(ctx context.Context, workspace string) (statemgr.Full, error)
 
 	// DeleteWorkspace removes the workspace with the given name if it exists.
 	//
 	// DeleteWorkspace cannot prevent deleting a state that is in use. It is
 	// the responsibility of the caller to hold a Lock for the state manager
 	// belonging to this workspace before calling this method.
-	DeleteWorkspace(name string, force bool) error
+	DeleteWorkspace(ctx context.Context, name string, force bool) error
 
 	// States returns a list of the names of all of the workspaces that exist
 	// in this backend.
-	Workspaces() ([]string, error)
+	Workspaces(context.Context) ([]string, error)
 }
 
 // HostAlias describes a list of aliases that should be used when initializing an
@@ -217,6 +218,15 @@ type LocalRun struct {
 	//
 	// This is nil when we're not applying a saved plan.
 	Plan *plans.Plan
+
+	// ApplyOpts are options that are passed into the Apply operation.
+	//
+	// This will be nil most of the times except when the apply command is
+	// executed with a plan file. In that particular case, the opts will
+	// contain the variable values given by the user to the `tofu apply`
+	// command. This is later used to merge the variable values defined in
+	// the plan with the ones defined in the CLI.
+	ApplyOpts *tofu.ApplyOpts
 }
 
 // An operation represents an operation for OpenTofu to execute.

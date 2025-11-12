@@ -9,16 +9,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/lang"
 	"log"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/lang"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"golang.org/x/exp/slices"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -75,7 +76,9 @@ Options:
 
   -filter=testfile      If specified, OpenTofu will only execute the test files
                         specified by this flag. You can use this option multiple
-                        times to execute more than one test file.
+                        times to execute more than one test file. The path should
+                        be relative to the current working directory, even if
+                        -test-directory is set.
 
   -json                 If specified, machine readable output will be printed in
                         JSON format
@@ -148,7 +151,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(".", args.TestDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, ".", args.TestDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
@@ -225,13 +228,21 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	log.Printf("[DEBUG] TestCommand: found %d files with %d run blocks", fileCount, runCount)
 
+	if len(args.Filter) > 0 && len(suite.Files) == 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"No tests were found",
+			"-filter is being used but no tests were found. Make sure you're using a relative path to the current working directory.",
+		))
+	}
+
 	diags = diags.Append(fileDiags)
 	if fileDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}
 
-	opts, err := c.contextOpts()
+	opts, err := c.contextOpts(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 		view.Diagnostics(nil, nil, diags)
@@ -580,7 +591,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		}
 
 		if runner.Suite.Verbose {
-			schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+			schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 			// If we're going to fail to render the plan, let's not fail the overall
 			// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -657,7 +668,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	if runner.Suite.Verbose {
-		schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+		schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 		// If we're going to fail to render the plan, let's not fail the overall
 		// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -730,8 +741,11 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 
 	var diags tfdiags.Diagnostics
 
-	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
-	diags = diags.Append(ctxDiags)
+	evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, run, file, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		return state, nil
+	}
 
 	variables, variableDiags := buildInputVariablesForTest(run, file, config, runner.Suite.GlobalVariables, evalCtx)
 	diags = diags.Append(variableDiags)
@@ -893,7 +907,7 @@ func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state
 		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(ctx, plan, config)
+		updated, applyDiags = tfCtx.Apply(ctx, plan, config, nil)
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)
@@ -1042,8 +1056,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
-		diags = diags.Append(ctxDiags)
+		evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, state.Run, file, runConfig, runner.Suite.GlobalVariables)
+		if evalDiags.HasErrors() {
+			return
+		}
 
 		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
@@ -1088,7 +1104,8 @@ func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState
 		varMap = make(map[string]cty.Value)
 	}
 	for name, val := range vars {
-		if val == nil {
+		// If the input variable is not defined on test file, we skip it.
+		if val == nil || val.Value.IsNull() {
 			continue
 		}
 		varMap[name] = val.Value
@@ -1177,11 +1194,13 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 		varCtx[name] = val.Value
 	}
 
+	scope := &lang.Scope{}
 	ctx := &hcl.EvalContext{
 		Variables: map[string]cty.Value{
 			"run": cty.ObjectVal(runCtx),
 			"var": cty.ObjectVal(varCtx),
 		},
+		Functions: scope.Functions(),
 	}
 	return ctx, diags
 }

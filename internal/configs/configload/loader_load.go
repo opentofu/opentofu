@@ -6,6 +6,7 @@
 package configload
 
 import (
+	"context"
 	"fmt"
 
 	version "github.com/hashicorp/go-version"
@@ -24,17 +25,19 @@ import (
 //
 // LoadConfig performs the basic syntax and uniqueness validations that are
 // required to process the individual modules
-func (l *Loader) LoadConfig(rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDir(rootDir, call))
+func (l *Loader) LoadConfig(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
+	config, diags := l.parser.LoadConfigDir(rootDir, call)
+	return l.loadConfig(ctx, config, diags)
 }
 
 // LoadConfigWithTests matches LoadConfig, except the configs.Config contains
 // any relevant .tftest.hcl files.
-func (l *Loader) LoadConfigWithTests(rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
-	return l.loadConfig(l.parser.LoadConfigDirWithTests(rootDir, testDir, call))
+func (l *Loader) LoadConfigWithTests(ctx context.Context, rootDir string, testDir string, call configs.StaticModuleCall) (*configs.Config, hcl.Diagnostics) {
+	config, diags := l.parser.LoadConfigDirWithTests(rootDir, testDir, call)
+	return l.loadConfig(ctx, config, diags)
 }
 
-func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*configs.Config, hcl.Diagnostics) {
+func (l *Loader) loadConfig(ctx context.Context, rootMod *configs.Module, diags hcl.Diagnostics) (*configs.Config, hcl.Diagnostics) {
 	if rootMod == nil || diags.HasErrors() {
 		// Ensure we return any parsed modules here so that required_version
 		// constraints can be verified even when encountering errors.
@@ -45,7 +48,7 @@ func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*co
 		return cfg, diags
 	}
 
-	cfg, cDiags := configs.BuildConfig(rootMod, configs.ModuleWalkerFunc(l.moduleWalkerLoad))
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, configs.ModuleWalkerFunc(l.moduleWalkerLoad))
 	diags = append(diags, cDiags...)
 
 	return cfg, diags
@@ -53,7 +56,7 @@ func (l *Loader) loadConfig(rootMod *configs.Module, diags hcl.Diagnostics) (*co
 
 // moduleWalkerLoad is a configs.ModuleWalkerFunc for loading modules that
 // are presumed to have already been installed.
-func (l *Loader) moduleWalkerLoad(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+func (l *Loader) moduleWalkerLoad(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	// Since we're just loading here, we expect that all referenced modules
 	// will be already installed and described in our manifest. However, we
 	// do verify that the manifest and the configuration are in agreement

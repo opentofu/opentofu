@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -42,9 +43,11 @@ go 1.22`)
 	if err := ejectFile("testmethod.go", path.Join(dir, "testmethod.go")); err != nil {
 		t.Errorf("%v", err)
 	}
-	targetBinary := path.Join(dir, "testmethod")
+	targetBinary := filepath.FromSlash(path.Join(dir, "testmethod"))
 	if runtime.GOOS == "windows" {
 		targetBinary += ".exe"
+		// If we do not use raw backslashes below, the binary won't be found by HCL after parsing.
+		targetBinary = strings.ReplaceAll(targetBinary, "\\", `\\`)
 	}
 	t.Logf("\033[32mCompiling test method binary...\033[0m")
 	cmd := exec.Command("go", "build", "-o", targetBinary)
@@ -69,10 +72,15 @@ func Python(t *testing.T) []string {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testmethod.py")
+	if runtime.GOOS == "windows" {
+		// If we do not use raw backslashes below, the binary won't be found by HCL after parsing.
+		target = strings.ReplaceAll(target, "\\", `\\`)
+	}
 	if err := ejectFile("testmethod.py", target); err != nil {
 		t.Errorf("%v", err)
 	}
 	python := findExecutable(t, []string{"python", "python3"}, []string{"--version"})
+
 	return []string{python, target}
 }
 

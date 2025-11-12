@@ -7,12 +7,12 @@ description: >-
 
 Some of OpenTofu's features can be configured to interact with OCI Registries.
 
-:::note
-This section contains very early draft content for features that are still in development.
-
-We've included it to support prerelease testing, but the information here may be incomplete and
-anything documented in this section is subject to change before the final release.
-:::
+These integrations are designed to support registries that implement
+[OCI Distribution v1.1.0](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md).
+Registries that implement earlier versions may work, depending on how strictly
+they validate submitted manifests, but we cannot officially support them because
+v1.1.0 is the first protocol version that includes explicit support for
+non-container-image artifacts.
 
 ## OCI Registry Credentials
 
@@ -46,4 +46,3 @@ For more information, refer to [Provider Mirrors in OCI Registries](provider-mir
 
 OpenTofu does not yet support using an OCI Registry as the _primary_ installation source
 for a provider, but we are hoping to allow that in a future version.
-

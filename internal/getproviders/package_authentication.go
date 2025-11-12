@@ -8,7 +8,7 @@ package getproviders
 import (
 	"bufio"
 	"bytes"
-	"crypto/fips" // Correct package for FIPS check
+	"crypto/fips140"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -128,6 +128,9 @@ func (t *PackageAuthenticationResult) HashesWithDisposition(cond func(*HashDispo
 // GPG key IDs that asserted the validity of at least one of the hashes
 // related to this package's provider version.
 func (t *PackageAuthenticationResult) GPGKeyIDsString() string {
+	if t == nil {
+		return ""
+	}
 	return t.hashes.AllGPGSigningKeysString()
 }
 
@@ -142,7 +145,7 @@ func (t *PackageAuthenticationResult) Signed() bool {
 // SigningSkipped returns whether the package was authenticated but the key
 // validation was skipped.
 func (t *PackageAuthenticationResult) SigningSkipped() bool {
-	if t == nil {
+	if t == nil || t.Signed() {
 		return false
 	}
 	return t.hashes.HasAnyReportedByRegistry()
@@ -463,7 +466,7 @@ func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
 	// Check if FIPS mode is enabled before deciding on validation strategy
-	if fips.Enabled() {
+	if fips140.Enabled() {
 		log.Printf("[WARN] Skipping GPG validation of provider package %s because FIPS mode is enabled and the underlying GPG library is not FIPS-compliant.", location)
 		// Mimic the existing "signing skipped" logic when validation isn't enforced,
 		// attributing trust to the registry report via TLS.

@@ -10,20 +10,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -37,7 +38,7 @@ func TestConfigProviderTypes(t *testing.T) {
 		t.Fatal("expected empty result from empty config")
 	}
 
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -50,8 +51,8 @@ func TestConfigProviderTypes(t *testing.T) {
 		addrs.NewDefaultProvider("template"),
 		addrs.NewDefaultProvider("test"),
 	}
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 
@@ -76,13 +77,13 @@ func TestConfigProviderTypes_nested(t *testing.T) {
 		addrs.NewDefaultProvider("test"),
 	}
 
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }
 
 func TestConfigResolveAbsProviderAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/providers-explicit-fqn")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/providers-explicit-fqn")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -176,31 +177,31 @@ func TestConfigProviderRequirements(t *testing.T) {
 			grandchildProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Module: []string{"kinder", "nested"}, Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "grandchild_foo", Name: "bar"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf", Start: tfdiags.SourcePos{Line: 3, Column: 1, Byte: 136}, End: tfdiags.SourcePos{Line: 3, Column: 32, Byte: 167}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf"), Start: tfdiags.SourcePos{Line: 3, Column: 1, Byte: 136}, End: tfdiags.SourcePos{Line: 3, Column: 32, Byte: 167}},
 				},
 			},
 			impliedProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 16, Column: 1, Byte: 317}, End: tfdiags.SourcePos{Line: 16, Column: 29, Byte: 345}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 16, Column: 1, Byte: 317}, End: tfdiags.SourcePos{Line: 16, Column: 29, Byte: 345}},
 				},
 			},
 			importexplicitProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetB"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 42, Column: 1, Byte: 939}, End: tfdiags.SourcePos{Line: 42, Column: 7, Byte: 945}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 42, Column: 1, Byte: 939}, End: tfdiags.SourcePos{Line: 42, Column: 7, Byte: 945}},
 				},
 			},
 			importimpliedProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetA"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 37, Column: 1, Byte: 886}, End: tfdiags.SourcePos{Line: 37, Column: 7, Byte: 892}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 37, Column: 1, Byte: 886}, End: tfdiags.SourcePos{Line: 37, Column: 7, Byte: 892}},
 				},
 			},
 			terraformProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 27, Column: 1, Byte: 628}, End: tfdiags.SourcePos{Line: 27, Column: 36, Byte: 663}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 27, Column: 1, Byte: 628}, End: tfdiags.SourcePos{Line: 27, Column: 36, Byte: 663}},
 				},
 			},
 		},
@@ -266,13 +267,13 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 			impliedProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 12, Column: 1, Byte: 247}, End: tfdiags.SourcePos{Line: 12, Column: 29, Byte: 275}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs-with-tests/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 12, Column: 1, Byte: 247}, End: tfdiags.SourcePos{Line: 12, Column: 29, Byte: 275}},
 				},
 			},
 			terraformProvider: {
 				{
 					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
-					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 19, Column: 1, Byte: 516}, End: tfdiags.SourcePos{Line: 19, Column: 36, Byte: 551}},
+					Ref:    tfdiags.SourceRange{Filename: filepath.FromSlash("testdata/provider-reqs-with-tests/provider-reqs-root.tf"), Start: tfdiags.SourcePos{Line: 19, Column: 1, Byte: 516}, End: tfdiags.SourcePos{Line: 19, Column: 36, Byte: 551}},
 				},
 			},
 		},
@@ -296,6 +297,56 @@ func TestConfigProviderRequirementsDuplicate(t *testing.T) {
 	_, diags := testNestedModuleConfigFromDir(t, "testdata/duplicate-local-name")
 	assertDiagnosticCount(t, diags, 3)
 	assertDiagnosticSummary(t, diags, "Duplicate required provider")
+}
+
+func TestConfigProviderForEach(t *testing.T) {
+	_, diags := testNestedModuleConfigFromDir(t, "testdata/provider_for_each")
+	assertDiagnosticCount(t, diags, 4)
+
+	want := hcl.Diagnostics{
+		{
+			Summary: "Provider configuration for_each matches module",
+			Detail:  "This provider configuration uses the same for_each expression as a module, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Provider configuration for_each matches resource",
+			Detail:  "This provider configuration uses the same for_each expression as a resource, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Invalid module provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		}, {
+			Summary: "Invalid resource provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		},
+	}
+
+	for _, wd := range want {
+		found := false
+		for _, gd := range diags {
+			if gd.Summary == wd.Summary && strings.HasPrefix(gd.Detail, wd.Detail) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Expected Diagnostic %s", wd)
+		}
+	}
+}
+
+func TestConfigProviderFromJSON(t *testing.T) {
+	cfg, diags := testNestedModuleConfigFromDir(t, "testdata/provider_from_json")
+	assertNoDiagnostics(t, diags)
+
+	got, diags := cfg.ProviderRequirementsShallow()
+	assertNoDiagnostics(t, diags)
+
+	nullProvider := addrs.NewDefaultProvider("null")
+	want := getproviders.Requirements{
+		nullProvider: nil,
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("wrong result\n%s", diff)
+	}
 }
 
 func TestConfigProviderRequirementsShallow(t *testing.T) {
@@ -640,7 +691,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 }
 
 func TestConfigProviderForConfigAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/valid-modules/providers-fqns")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/valid-modules/providers-fqns")
 	assertNoDiagnostics(t, diags)
 
 	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderConfig("foo-test"))
@@ -658,7 +709,7 @@ func TestConfigProviderForConfigAddr(t *testing.T) {
 }
 
 func TestConfigAddProviderRequirements(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	assertNoDiagnostics(t, diags)
 
 	reqs := getproviders.Requirements{
@@ -667,6 +718,81 @@ func TestConfigAddProviderRequirements(t *testing.T) {
 	qualifs := new(getproviders.ProvidersQualification)
 	diags = cfg.addProviderRequirements(reqs, qualifs, true, false)
 	assertNoDiagnostics(t, diags)
+	if got, want := len(qualifs.Explicit), 1; got != want {
+		t.Fatalf("expected to have %d explicit provider requirement but got %d", want, got)
+	}
+	if got, want := len(qualifs.Implicit), 4; got != want {
+		t.Fatalf("expected to have %d explicit provider requirement but got %d", want, got)
+	}
+
+	checks := []struct {
+		key  addrs.Provider
+		want []addrs.Resource
+	}{
+		{
+			// check registry.opentofu.org/hashicorp/aws
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "aws"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "aws_instance", "foo").Resource,
+				cfg.Path.Resource(addrs.DataResourceMode, "aws_s3_object", "baz").Resource,
+				cfg.Path.Resource(addrs.EphemeralResourceMode, "aws_secret", "bar").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/null
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "null"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "null_resource", "foo").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/local
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "local"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "local_file", "foo").Resource,
+			},
+		},
+		{
+			// check registry.opentofu.org/hashicorp/template
+			key: addrs.NewProvider("registry.opentofu.org", "hashicorp", "template"),
+			want: []addrs.Resource{
+				cfg.Path.Resource(addrs.ManagedResourceMode, "local_file", "bar").Resource,
+			},
+		},
+	}
+	for _, c := range checks {
+		t.Run(c.key.String(), func(t *testing.T) {
+			refs := qualifs.Implicit[c.key]
+			if got, want := len(refs), len(c.want); got != want {
+				t.Fatalf("expected to find %d implicit references for provider %q but got %d", want, c.key, got)
+			}
+
+			var refsAddrs []addrs.Resource
+			for _, ref := range refs {
+				refsAddrs = append(refsAddrs, ref.CfgRes.Resource)
+			}
+			sort.Slice(refsAddrs, func(i, j int) bool {
+				return refsAddrs[i].Less(refsAddrs[j])
+			})
+			sort.Slice(c.want, func(i, j int) bool {
+				return c.want[i].Less(c.want[j])
+			})
+			if diff := cmp.Diff(refsAddrs, c.want); diff != "" {
+				t.Fatalf("expected to find specific resources to implicitly reference the provider %s. diff:\n%s", c.key, diff)
+			}
+		})
+	}
+
+	wantReqs := getproviders.Requirements{
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "template"): nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "local"):    nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "null"):     nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "aws"):      nil,
+		addrs.NewProvider("registry.opentofu.org", "hashicorp", "test"):     nil,
+	}
+	if diff := cmp.Diff(wantReqs, reqs); diff != "" {
+		t.Fatalf("unexected returned providers qualifications: %s", diff)
+	}
 }
 
 func TestConfigImportProviderClashesWithModules(t *testing.T) {
@@ -688,7 +814,7 @@ Use the providers argument within the module block to configure providers for al
 }
 
 func TestConfigImportProviderClashesWithResources(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-resource-clash.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-resource-clash.tf")
 	assertNoDiagnostics(t, diags)
 	qualifs := new(getproviders.ProvidersQualification)
 
@@ -699,7 +825,7 @@ func TestConfigImportProviderClashesWithResources(t *testing.T) {
 }
 
 func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-no-resource.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-no-resource.tf")
 	assertNoDiagnostics(t, diags)
 
 	qualifs := new(getproviders.ProvidersQualification)
@@ -957,4 +1083,173 @@ func TestTransformForTest(t *testing.T) {
 
 		})
 	}
+}
+
+// This test is checking that by giving the outermost called module, the method called is
+// returning correctly that is a remote module relatively to the root module.
+// This is because root module is calling the child module from a remote source
+// but all the other calls are done from local modules.
+// Eg: Root module is calling a module from a git repo in a particular directory,
+// but that module is calling other modules from the same repo by referencing those
+// with a relative path.
+func TestIsCallFromRemote(t *testing.T) {
+	childName := "call-to-child"
+	gchildName := "call-to-gchild"
+	ggchildName := "call-to-ggchild"
+	gggchildName := "call-to-gggchild"
+	parseModuleSource := func(t *testing.T, source string) addrs.ModuleSource {
+		s, err := addrs.ParseModuleSource(source)
+		if err != nil {
+			t.Fatalf("failed to parse module source %q: %s", source, err)
+		}
+		return s
+	}
+	tests := map[string]struct {
+		childModulePath string
+		expectedRes     bool
+	}{
+		"from git repo": {
+			childModulePath: "git::https://github.com/user/repo//child",
+			expectedRes:     true,
+		},
+		"from registry": {
+			childModulePath: "registry.example.com/foo/bar/baz",
+			expectedRes:     true,
+		},
+		"from local": {
+			childModulePath: "../mod",
+			expectedRes:     false,
+		},
+	}
+	for ttn, tt := range tests {
+		t.Run(ttn, func(t *testing.T) {
+			root := &Config{
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						childName: {SourceAddr: parseModuleSource(t, tt.childModulePath)},
+					},
+				},
+			}
+			child := &Config{
+				Parent: root,
+				Path:   []string{childName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
+					},
+				},
+			}
+			gchild := &Config{
+				Parent: child,
+				Path:   []string{gchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
+					},
+				},
+			}
+			ggchild := &Config{
+				Parent: gchild,
+				Path:   []string{ggchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
+					},
+				},
+			}
+
+			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(ggchildName); want != got {
+				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
+			}
+		})
+	}
+}
+
+func TestParseEphemeralBlocks(t *testing.T) {
+	p := NewParser(nil)
+	f, diags := p.LoadConfigFile("testdata/ephemeral-blocks/main.tf")
+	// check diags
+	{
+		if len(diags) != 6 { // 4 lifecycle unallowed attributes, unallowed connection block and unallowed provisioner block
+			t.Fatalf("expected 6 diagnostics but got only: %d", len(diags))
+		}
+		containsExpectedKeywords := func(diagContent string) bool {
+			for _, k := range []string{"ignore_changes", "prevent_destroy", "create_before_destroy", "replace_triggered_by", "connection", "provisioner"} {
+				if strings.Contains(diagContent, k) {
+					return true
+				}
+			}
+			return false
+		}
+		var connDiag *hcl.Diagnostic
+		for _, diag := range diags {
+			content := diag.Error()
+			if !containsExpectedKeywords(content) {
+				t.Fatalf("expected diagnostic to contain at least one of the keywords: %s", content)
+			}
+			if strings.Contains(content, "connection") {
+				connDiag = diag
+			}
+		}
+		// specific assertions for ensuring that the definition block from diags are configured properly
+		if connDiag == nil {
+			t.Fatalf("diagnostic for the 'connection' block not found")
+		}
+		expectedRange := hcl.Range{
+			Filename: "testdata/ephemeral-blocks/main.tf",
+			Start: hcl.Pos{
+				Line:   18,
+				Column: 3,
+				Byte:   274,
+			},
+			End: hcl.Pos{
+				Line:   18,
+				Column: 13,
+				Byte:   284,
+			},
+		}
+		if !expectedRange.Overlaps(*connDiag.Subject) {
+			t.Fatalf("unexpected connection block definition range.\nwant: %s\ngot: %s", expectedRange, *connDiag.Subject)
+		}
+	}
+	{
+		if len(f.EphemeralResources) != 2 {
+			t.Fatalf("expected 2 ephemeral resources but got only: %d", len(f.EphemeralResources))
+		}
+		for _, er := range f.EphemeralResources {
+			switch er.Name {
+			case "foo":
+				if er.ForEach == nil {
+					t.Errorf("expected to have a for_each expression but got nothing")
+				}
+			case "bar":
+				attrs, _ := er.Config.JustAttributes()
+				if _, ok := attrs["attribute"]; !ok {
+					t.Errorf("expected to have \"attribute\" but could not find it")
+				}
+				if _, ok := attrs["attribute2"]; !ok {
+					t.Errorf("expected to have \"attribute\" but could not find it")
+				}
+				if er.Count == nil {
+					t.Errorf("expected to have a count expression but got nothing")
+				}
+				if er.ProviderConfigRef == nil || er.ProviderConfigRef.Addr().String() != "provider.test.name" {
+					t.Errorf("expected to have \"provider.test.name\" provider alias configured but instead it was: %+v", er.ProviderConfigRef)
+				}
+				if len(er.Preconditions) != 1 {
+					t.Errorf("expected to have one precondition but got %d", len(er.Preconditions))
+				}
+				if len(er.Postconditions) != 1 {
+					t.Errorf("expected to have one postcondition but got %d", len(er.Postconditions))
+				}
+				if len(er.DependsOn) != 1 {
+					t.Errorf("expected to have a depends_on traversal but got %d", len(er.Postconditions))
+				}
+				if er.Managed != nil {
+					t.Errorf("error in the parsing code. Ephemeral resources are not meant to have a managed object")
+				}
+			}
+		}
+	}
+
 }

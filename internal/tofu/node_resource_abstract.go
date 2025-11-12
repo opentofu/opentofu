@@ -6,12 +6,14 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -19,6 +21,21 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// traceNameValidateResource is a standardized trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNameValidateResource = "Validate resource configuration"
+
+// traceAttrConfigResourceAddr is a standardized trace span attribute name that we
+// use for recording the address of the main resource that a particular span is
+// concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.ConfigResource]. DO NOT use this with results from
+// [addrs.AbsResourceInstance]; use [traceAttrResourceInstanceAddr] instead
+// for that address type.
+const traceAttrConfigResourceAddr = "opentofu.resource.address"
 
 // ConcreteResourceNodeFunc is a callback type used to convert an
 // abstract resource to a concrete one of some type.
@@ -72,7 +89,7 @@ type NodeAbstractResource struct {
 	// Set from GraphNodeTargetable
 	Excludes []addrs.Targetable
 
-	// Set from AttachDataResourceDependsOn
+	// Set from AttachResourceDependsOn
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
@@ -90,21 +107,26 @@ type NodeAbstractResource struct {
 	// generateConfigPath tells this node which file to write generated config
 	// into. If empty, then config should not be generated.
 	generateConfigPath string
+
+	// removedBlockProvisioners holds any possibly existing configs.Provisioner configs that could be defined by using
+	// removed.provisioner configuration. If the field "Config.Managed.Provisioners" is having no provisioners, then
+	// these provisioners should be used instead.
+	removedBlockProvisioners []*configs.Provisioner
 }
 
 var (
-	_ GraphNodeReferenceable               = (*NodeAbstractResource)(nil)
-	_ GraphNodeReferencer                  = (*NodeAbstractResource)(nil)
-	_ GraphNodeProviderConsumer            = (*NodeAbstractResource)(nil)
-	_ GraphNodeProvisionerConsumer         = (*NodeAbstractResource)(nil)
-	_ GraphNodeConfigResource              = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceConfig        = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachResourceSchema        = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProvisionerSchema     = (*NodeAbstractResource)(nil)
-	_ GraphNodeAttachProviderMetaConfigs   = (*NodeAbstractResource)(nil)
-	_ GraphNodeTargetable                  = (*NodeAbstractResource)(nil)
-	_ graphNodeAttachDataResourceDependsOn = (*NodeAbstractResource)(nil)
-	_ dag.GraphNodeDotter                  = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferenceable             = (*NodeAbstractResource)(nil)
+	_ GraphNodeReferencer                = (*NodeAbstractResource)(nil)
+	_ GraphNodeProviderConsumer          = (*NodeAbstractResource)(nil)
+	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResource)(nil)
+	_ GraphNodeConfigResource            = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceConfig      = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceSchema      = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProvisionerSchema   = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachProviderMetaConfigs = (*NodeAbstractResource)(nil)
+	_ GraphNodeTargetable                = (*NodeAbstractResource)(nil)
+	_ graphNodeAttachResourceDependsOn   = (*NodeAbstractResource)(nil)
+	_ dag.GraphNodeDotter                = (*NodeAbstractResource)(nil)
 )
 
 // NewNodeAbstractResource creates an abstract resource graph node for
@@ -164,6 +186,8 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		result = append(result, refs...)
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
+		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.Enabled)
+		result = append(result, refs...)
 
 		if c.ProviderConfigRef != nil && c.ProviderConfigRef.KeyExpression != nil {
 			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.ProviderConfigRef.KeyExpression)
@@ -182,8 +206,13 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 
 		if c.Managed != nil {
+			if c.Managed.PreventDestroy != nil {
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
+				result = append(result, refs...)
+			}
+
 			if c.Managed.Connection != nil {
-				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, connectionBlockSupersetSchema)
+				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, shared.ConnectionBlockSupersetSchema)
 				result = append(result, refs...)
 			}
 
@@ -192,7 +221,7 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 					continue
 				}
 				if p.Connection != nil {
-					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, connectionBlockSupersetSchema)
+					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 					result = append(result, refs...)
 				}
 
@@ -433,8 +462,8 @@ func (n *NodeAbstractResource) SetExcludes(excludes []addrs.Targetable) {
 	n.Excludes = excludes
 }
 
-// graphNodeAttachDataResourceDependsOn
-func (n *NodeAbstractResource) AttachDataResourceDependsOn(deps []addrs.ConfigResource, force bool) {
+// graphNodeAttachResourceDependsOn
+func (n *NodeAbstractResource) AttachResourceDependsOn(deps []addrs.ConfigResource, force bool) {
 	n.dependsOn = deps
 	n.forceDependsOn = force
 }
@@ -474,18 +503,18 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // eval is the only change we get to set the resource "each mode" to list
 // in that case, allowing expression evaluation to see it as a zero-element list
 // rather than as not set at all.
-func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+func (n *NodeAbstractResource) writeResourceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
+	state := evalCtx.State()
 
 	// We'll record our expansion decision in the shared "expander" object
 	// so that later operations (i.e. DynamicExpand and expression evaluation)
 	// can refer to it. Since this node represents the abstract module, we need
 	// to expand the module here to create all resources.
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 
 	switch {
 	case n.Config != nil && n.Config.Count != nil:
-		count, countDiags := evaluateCountExpression(n.Config.Count, ctx, addr)
+		count, countDiags := evaluateCountExpression(ctx, n.Config.Count, evalCtx, addr)
 		diags = diags.Append(countDiags)
 		if countDiags.HasErrors() {
 			return diags
@@ -494,8 +523,18 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
+	case n.Config != nil && n.Config.Enabled != nil:
+		enabled, enabledDiags := evaluateEnabledExpression(ctx, n.Config.Enabled, evalCtx)
+		diags = diags.Append(enabledDiags)
+		if enabledDiags.HasErrors() {
+			return diags
+		}
+
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
+		expander.SetResourceEnabled(addr.Module, n.Addr.Resource, enabled)
+
 	case n.Config != nil && n.Config.ForEach != nil:
-		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, ctx, addr)
+		forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, addr)
 		diags = diags.Append(forEachDiags)
 		if forEachDiags.HasErrors() {
 			return diags
@@ -520,9 +559,9 @@ func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) 
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -575,9 +614,9 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -657,7 +696,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx 
 func graphNodesAreResourceInstancesInDifferentInstancesOfSameModule(a, b dag.Vertex) bool {
 	aRI, aOK := a.(GraphNodeResourceInstance)
 	bRI, bOK := b.(GraphNodeResourceInstance)
-	if !(aOK && bOK) {
+	if !aOK || !bOK {
 		return false
 	}
 	aModInst := aRI.ResourceInstanceAddr().Module

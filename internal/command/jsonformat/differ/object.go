@@ -17,15 +17,15 @@ import (
 )
 
 func computeAttributeDiffAsObject(change structured.Change, attributes map[string]cty.Type) computed.Diff {
-	attributeDiffs, action := processObject(change, attributes, func(value structured.Change, ctype cty.Type) computed.Diff {
+	attributeDiffs, action := processObject(change, attributes, func(value structured.Change, ctype cty.Type, _ plans.Action) computed.Diff {
 		return ComputeDiffForType(value, ctype)
 	})
 	return computed.NewDiff(renderers.Object(attributeDiffs), action, change.ReplacePaths.Matches())
 }
 
 func computeAttributeDiffAsNestedObject(change structured.Change, attributes map[string]*jsonprovider.Attribute) computed.Diff {
-	attributeDiffs, action := processObject(change, attributes, func(value structured.Change, attribute *jsonprovider.Attribute) computed.Diff {
-		return ComputeDiffForAttribute(value, attribute)
+	attributeDiffs, action := processObject(change, attributes, func(value structured.Change, attribute *jsonprovider.Attribute, parentAction plans.Action) computed.Diff {
+		return ComputeDiffForAttribute(value, attribute, parentAction)
 	})
 	return computed.NewDiff(renderers.NestedObject(attributeDiffs), action, change.ReplacePaths.Matches())
 }
@@ -41,7 +41,7 @@ func computeAttributeDiffAsNestedObject(change structured.Change, attributes map
 // Also, as it generic we cannot make this function a method on Change as you
 // can't create generic methods on structs. Instead, we make this a generic
 // function that receives the value as an argument.
-func processObject[T any](v structured.Change, attributes map[string]T, computeDiff func(structured.Change, T) computed.Diff) (map[string]computed.Diff, plans.Action) {
+func processObject[T any](v structured.Change, attributes map[string]T, computeDiff func(structured.Change, T, plans.Action) computed.Diff) (map[string]computed.Diff, plans.Action) {
 	attributeDiffs := make(map[string]computed.Diff)
 	mapValue := v.AsMap()
 
@@ -58,7 +58,7 @@ func processObject[T any](v structured.Change, attributes map[string]T, computeD
 		attributeValue.BeforeExplicit = false
 		attributeValue.AfterExplicit = false
 
-		attributeDiff := computeDiff(attributeValue, attribute)
+		attributeDiff := computeDiff(attributeValue, attribute, currentAction)
 		if attributeDiff.Action == plans.NoOp && attributeValue.Before == nil && attributeValue.After == nil {
 			// We skip attributes of objects that are null both before and
 			// after. We don't even count these as unchanged attributes.

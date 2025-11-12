@@ -62,13 +62,13 @@ func renderPrimitiveValue(value interface{}, t cty.Type, opts computed.RenderHum
 		return opts.Colorize.Color("[dark_gray]null[reset]")
 	}
 
-	switch {
-	case t == cty.Bool:
+	switch t {
+	case cty.Bool:
 		if value.(bool) {
 			return "true"
 		}
 		return "false"
-	case t == cty.Number:
+	case cty.Number:
 		num := value.(json.Number)
 		return num.String()
 	default:
@@ -171,7 +171,7 @@ func (renderer primitiveRenderer) renderStringDiff(diff computed.Diff, indent in
 
 			lines = append(lines, fmt.Sprintf("%s%s%s", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), beforeLines[beforeIx]))
 		}
-		isObjType := func(_ string) bool {
+		isObjType := func(_, _ string) bool {
 			return false
 		}
 

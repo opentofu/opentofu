@@ -15,10 +15,9 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -76,7 +75,7 @@ func TestModuleInstaller(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -102,7 +101,6 @@ func TestModuleInstaller_error(t *testing.T) {
 	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
-
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
@@ -144,7 +142,7 @@ func TestModuleInstaller_invalidModuleName(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
@@ -168,7 +166,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
-		err = os.WriteFile(rootFilename, final, 0644)
+		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -183,7 +181,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -208,7 +206,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := bytes.ReplaceAll(template, []byte("%%BASE%%"), []byte(filepath.ToSlash(dir)))
-		err = os.WriteFile(rootFilename, final, 0644)
+		err = os.WriteFile(rootFilename, final, 0o644)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -223,7 +221,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if diags.HasErrors() {
@@ -307,7 +305,7 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			modulesDir := filepath.Join(dir, ".terraform/modules")
 
 			loader := configload.NewLoaderForTests(t)
-			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 			if tc.shouldError {
@@ -441,7 +439,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -482,7 +480,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -597,7 +595,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -620,7 +618,6 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		gotTraces[path] = varDesc
 	})
 	assertResultDeepEqual(t, gotTraces, wantTraces)
-
 }
 
 func TestLoaderInstallModules_goGetter(t *testing.T) {
@@ -643,7 +640,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -725,7 +722,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -748,7 +745,6 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 		gotTraces[path] = varDesc
 	})
 	assertResultDeepEqual(t, gotTraces, wantTraces)
-
 }
 
 func TestModuleInstaller_fromTests(t *testing.T) {
@@ -785,7 +781,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests[filepath.Join("tests", "main.tftest.hcl")].Runs[0].ConfigUnderTest == nil {
@@ -813,7 +809,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -891,11 +887,131 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests["main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
 		t.Fatalf("should have loaded config into the relevant run block but did not")
+	}
+}
+
+func TestIsSubDirNonExistent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test directory structure
+	existingDir := filepath.Join(tmpDir, "existing")
+	nestedExistingDir := filepath.Join(existingDir, "nested", "deep")
+	err := os.MkdirAll(nestedExistingDir, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name           string
+		path           string
+		wantExists     bool
+		wantMissingDir string
+	}{
+		{
+			name:           "directory exists",
+			path:           existingDir,
+			wantExists:     false,
+			wantMissingDir: "",
+		},
+		{
+			name:           "nested directory exists",
+			path:           nestedExistingDir,
+			wantExists:     false,
+			wantMissingDir: "",
+		},
+		{
+			name:           "single missing directory with existing parent",
+			path:           filepath.Join(existingDir, "missing"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "nested missing directory",
+			path:           filepath.Join(existingDir, "missing", "nested"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "deeply nested missing with existing parent",
+			path:           filepath.Join(nestedExistingDir, "missing"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "multiple missing levels",
+			path:           filepath.Join(existingDir, "missing", "also", "missingtoo"),
+			wantExists:     true,
+			wantMissingDir: "missing",
+		},
+		{
+			name:           "completely non-existent path",
+			path:           filepath.Join(tmpDir, "completely", "missing", "path"),
+			wantExists:     true,
+			wantMissingDir: "completely",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotExists, gotMissingDir := isSubDirNonExistent(tt.path)
+
+			if gotExists != tt.wantExists {
+				t.Errorf("isSubDirNonExistent() exists = %v, want %v", gotExists, tt.wantExists)
+			}
+			if gotMissingDir != tt.wantMissingDir {
+				t.Errorf("isSubDirNonExistent() missingDir = %q, want %q", gotMissingDir, tt.wantMissingDir)
+			}
+		})
+	}
+}
+
+// TestModuleInstaller_nonExistentSubmodule ensures that the error message returned when a module does not exist in an existing module
+// is not that it's a bug in OpenTofu. See issue https://github.com/opentofu/opentofu/issues/3142 for more information
+//
+// Code is taken from tests above
+func TestModuleInstaller_nonExistentSubmodule(t *testing.T) {
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("this test accesses github.com; set TF_ACC=1 to run it")
+	}
+
+	fixtureDir := filepath.Clean("testdata/submodule-non-existent")
+	tmpDir := tempChdir(t, fixtureDir)
+
+	// the module installer runs filepath.EvalSymlinks() on the destination
+	// directory before copying files, and the resultant directory is what is
+	// returned by the install hooks. Without this, tests could fail on machines
+	// where the default temp dir was a symlink.
+	dir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Error(err)
+	}
+
+	hooks := &testInstallHooks{}
+	modulesDir := filepath.Join(dir, ".terraform/modules")
+
+	loader := configload.NewLoaderForTests(t)
+	fetcher := getmodules.NewPackageFetcher(t.Context(), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), fetcher)
+	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
+
+	if !diags.HasErrors() {
+		t.Fatal("expected error for non-existent submodule, but got none")
+	}
+
+	errorStr := diags.Err().Error()
+	t.Logf("Actual error: %s", errorStr)
+
+	if !strings.Contains(errorStr, "subdirectory") && !strings.Contains(errorStr, "does not exist") {
+		t.Errorf("Expected error to mention missing subdirectory. Got: %s", errorStr)
+	}
+
+	if !strings.Contains(errorStr, "Module subdirectory not found") {
+		t.Errorf("Expected 'Module subdirectory not found' in error message. Got: %s", errorStr)
 	}
 }
 
@@ -990,12 +1106,13 @@ func assertDiagnosticSummary(t *testing.T, diags tfdiags.Diagnostics, want strin
 	return true
 }
 
-func assertResultDeepEqual(t *testing.T, got, want interface{}) bool {
+func assertResultDeepEqual(t *testing.T, got, want any) bool {
+	// Note that, unlike some "assert" functions elsewhere, this function
+	// returns true to indicate that the assertion _failed_, and false
+	// to indicate that it succeeded.
 	t.Helper()
-	if diff := deep.Equal(got, want); diff != nil {
-		for _, problem := range diff {
-			t.Errorf("%s", problem)
-		}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result:\n" + diff)
 		return true
 	}
 	return false

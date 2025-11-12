@@ -27,8 +27,9 @@ const (
 	// consuming parser.
 	FormatVersion = "1.0"
 
-	ManagedResourceMode = "managed"
-	DataResourceMode    = "data"
+	ManagedResourceMode   = "managed"
+	DataResourceMode      = "data"
+	EphemeralResourceMode = "ephemeral"
 )
 
 // State is the top-level representation of the json format of a tofu
@@ -48,9 +49,10 @@ type StateValues struct {
 }
 
 type Output struct {
-	Sensitive bool            `json:"sensitive"`
-	Value     json.RawMessage `json:"value,omitempty"`
-	Type      json.RawMessage `json:"type,omitempty"`
+	Sensitive  bool            `json:"sensitive"`
+	Deprecated string          `json:"deprecated,omitempty"`
+	Value      json.RawMessage `json:"value,omitempty"`
+	Type       json.RawMessage `json:"type,omitempty"`
 }
 
 // Module is the representation of a module in state. This can be the root module
@@ -241,9 +243,10 @@ func MarshalOutputs(outputs map[string]*states.OutputValue) (map[string]Output, 
 			return ret, err
 		}
 		ret[k] = Output{
-			Value:     ov,
-			Type:      ot,
-			Sensitive: v.Sensitive,
+			Value:      ov,
+			Type:       ot,
+			Sensitive:  v.Sensitive,
+			Deprecated: v.Deprecated,
 		}
 	}
 
@@ -363,8 +366,9 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 			resAddr := r.Addr.Resource
 
+			instAddr := r.Addr.Instance(k)
 			current := Resource{
-				Address:      r.Addr.Instance(k).String(),
+				Address:      instAddr.String(),
 				Type:         resAddr.Type,
 				Name:         resAddr.Name,
 				ProviderName: r.ProviderConfig.Provider.String(),
@@ -382,6 +386,8 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				current.Mode = ManagedResourceMode
 			case addrs.DataResourceMode:
 				current.Mode = DataResourceMode
+			case addrs.EphemeralResourceMode:
+				return ret, fmt.Errorf("ephemeral resource %q detected in the current state. This is an error in OpenTofu", resAddr.String())
 			default:
 				return ret, fmt.Errorf("resource %s has an unsupported mode %s",
 					resAddr.String(),
@@ -413,11 +419,18 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				current.AttributeValues = marshalAttributeValues(riObj.Value)
 
-				value, marks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsSensitive() {
-					marks = append(marks, schema.ValueMarks(value, nil)...)
+				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
+				if schema.ContainsMarks() {
+					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
 				}
-				s := SensitiveAsBoolWithPathValueMarks(value, marks)
+				// NOTE: Even though at this point, the resources that are processed here
+				// should have no ephemeral mark, we want to validate that before having
+				// these written to the state.
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+					return nil, fmt.Errorf("%s: %w", instAddr, err)
+				}
+
+				s := SensitiveAsBoolWithPathValueMarks(value, valMarks)
 				v, err := ctyjson.Marshal(s, s.Type())
 				if err != nil {
 					return nil, err
@@ -464,11 +477,17 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				deposed.AttributeValues = marshalAttributeValues(riObj.Value)
 
-				value, marks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsSensitive() {
-					marks = append(marks, schema.ValueMarks(value, nil)...)
+				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
+				if schema.ContainsMarks() {
+					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
 				}
-				s := SensitiveAsBool(value.MarkWithPaths(marks))
+				// NOTE: Even though at this point, the resources that are processed here
+				// should have no ephemeral mark, we want to validate that before having
+				// these written to the state.
+				if err := marks.EnsureNoEphemeralMarks(valMarks); err != nil {
+					return nil, fmt.Errorf("%s: %w", instAddr, err)
+				}
+				s := SensitiveAsBool(value.MarkWithPaths(valMarks))
 				v, err := ctyjson.Marshal(s, s.Type())
 				if err != nil {
 					return nil, err

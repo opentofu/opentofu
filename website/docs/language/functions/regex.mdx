@@ -40,54 +40,60 @@ language, the quoted string itself already uses backslash `\` as an escape
 character for the string, so any backslashes intended to be recognized as part
 of the pattern must be escaped as `\\`.
 
-| Sequence               | Matches                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------- |
-| `.`                    | Any character except newline                                                     |
-| `[xyz]`                | Any character listed between the brackets (`x`, `y`, and `z` in this example)    |
-| `[a-z]`                | Any character between `a` and `z`, inclusive                                     |
-| `[^xyz]`               | The opposite of `[xyz]`                                                          |
-| `\d`                   | ASCII digits (0 through 9, inclusive)                                            |
-| `\D`                   | Anything except ASCII digits                                                     |
-| `\s`                   | ASCII spaces (space, tab, newline, carriage return, form feed)                   |
-| `\S`                   | Anything except ASCII spaces                                                     |
-| `\w`                   | The same as `[0-9A-Za-z_]`                                                       |
-| `\W`                   | Anything except the characters matched by `\w`                                   |
-| `[[:alnum:]]`          | The same as `[0-9A-Za-z]`                                                        |
-| `[[:alpha:]]`          | The same as `[A-Za-z]`                                                           |
-| `[[:ascii:]]`          | Any ASCII character                                                              |
-| `[[:blank:]]`          | ASCII tab or space                                                               |
-| `[[:cntrl:]]`          | ASCII/Unicode control characters                                                 |
-| `[[:digit:]]`          | The same as `[0-9]`                                                              |
-| `[[:graph:]]`          | All "graphical" (printable) ASCII characters                                     |
-| `[[:lower:]]`          | The same as `[a-z]`                                                              |
-| `[[:print:]]`          | The same as `[[:graph:]]`                                                        |
-| `[[:punct:]]`          | The same as ``[!-/:-@[-`{-~]``                                                   |
-| `[[:space:]]`          | The same as `[\t\n\v\f\r ]`                                                      |
-| `[[:upper:]]`          | The same as `[A-Z]`                                                              |
-| `[[:word:]]`           | The same as `\w`                                                                 |
-| `[[:xdigit:]]`         | The same as `[0-9A-Fa-f]`                                                        |
-| `\pN`                  | Unicode character class by using single-letter class names ("N" in this example) |
-| `\p{Greek}`            | Unicode character class by unicode name ("Greek" in this example)                |
-| `\PN`                  | The opposite of `\pN`                                                            |
-| `\P{Greek}`            | The opposite of `\p{Greek}`                                                      |
-| `xy`                   | `x` followed immediately by `y`                                                  |
-| `x&#124;y`             | either `x` or `y`, preferring `x`                                                |
-| `x*`                   | zero or more `x`, preferring more                                                |
-| `x*?`                  | zero or more `x`, preferring fewer                                               |
-| `x+`                   | one or more `x`, preferring more                                                 |
-| `x+?`                  | one or more `x`, preferring fewer                                                |
-| `x?`                   | zero or one `x`, preferring one                                                  |
-| `x??`                  | zero or one `x`, preferring zero                                                 |
-| `x{n,m}`               | between `n` and `m` repetitions of `x`, preferring more                          |
-| `x{n,m}?`              | between `n` and `m` repetitions of `x`, preferring fewer                         |
-| `x{n,}`                | at least `n` repetitions of `x`, preferring more                                 |
-| `x{n,}?`               | at least `n` repetitions of `x`, preferring fewer                                |
-| `x{n}`                 | exactly `n` repetitions of `x`                                                   |
-| `(x)`                  | unnamed capture group for sub-pattern `x`                                        |
-| `(?P<name>x)`          | named capture group, named `name`, for sub-pattern `x`                           |
-| `(?:x)`                | non-capturing sub-pattern `x`                                                    |
-| `\*`                   | Literal `*` for any punctuation character `*`                                    |
-| `\Q...\E`              | Literal `...` for any text `...` as long as it does not include literally `\E`   |
+| Sequence               | Matches                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| `.`                    | Any character except newline                                                       |
+| `[xyz]`                | Any character listed between the brackets (`x`, `y`, and `z` in this example)      |
+| `[a-z]`                | Any character between `a` and `z`, inclusive                                       |
+| `[^xyz]`               | The opposite of `[xyz]`                                                            |
+| `\d`                   | ASCII digits (0 through 9, inclusive)                                              |
+| `\D`                   | Anything except ASCII digits                                                       |
+| `\s`                   | ASCII spaces (space, tab, newline, carriage return, form feed)                     |
+| `\S`                   | Anything except ASCII spaces                                                       |
+| `\w`                   | The same as `[0-9A-Za-z_]`                                                         |
+| `\W`                   | Anything except the characters matched by `\w`                                     |
+| `[[:alnum:]]`          | The same as `[0-9A-Za-z]`                                                          |
+| `[[:alpha:]]`          | The same as `[A-Za-z]`                                                             |
+| `[[:ascii:]]`          | Any ASCII character                                                                |
+| `[[:blank:]]`          | ASCII tab or space                                                                 |
+| `[[:cntrl:]]`          | ASCII/Unicode control characters                                                   |
+| `[[:digit:]]`          | The same as `[0-9]`                                                                |
+| `[[:graph:]]`          | All "graphical" (printable) ASCII characters                                       |
+| `[[:lower:]]`          | The same as `[a-z]`                                                                |
+| `[[:print:]]`          | The same as `[[:graph:]]`                                                          |
+| `[[:punct:]]`          | The same as ``[!-/:-@[-`{-~]``                                                     |
+| `[[:space:]]`          | The same as `[\t\n\v\f\r ]`                                                        |
+| `[[:upper:]]`          | The same as `[A-Z]`                                                                |
+| `[[:word:]]`           | The same as `\w`                                                                   |
+| `[[:xdigit:]]`         | The same as `[0-9A-Fa-f]`                                                          |
+| `\pN`                  | Unicode general category by using single-letter abbreviation ("N" in this example) |
+| `\p{Letter}`           | Unicode general category by name ("Letter" in this example)                        |
+| `\p{Greek}`            | Unicode script by name ("Greek" in this example)                                   |
+| `\PN`                  | The opposite of `\pN`                                                              |
+| `\P{Letter}`           | The opposite of `\p{Letter}`                                                       |
+| `\P{Greek}`            | The opposite of `\p{Greek}`                                                        |
+| `xy`                   | `x` followed immediately by `y`                                                    |
+| `x&#124;y`             | either `x` or `y`, preferring `x`                                                  |
+| `x*`                   | zero or more `x`, preferring more                                                  |
+| `x*?`                  | zero or more `x`, preferring fewer                                                 |
+| `x+`                   | one or more `x`, preferring more                                                   |
+| `x+?`                  | one or more `x`, preferring fewer                                                  |
+| `x?`                   | zero or one `x`, preferring one                                                    |
+| `x??`                  | zero or one `x`, preferring zero                                                   |
+| `x{n,m}`               | between `n` and `m` repetitions of `x`, preferring more                            |
+| `x{n,m}?`              | between `n` and `m` repetitions of `x`, preferring fewer                           |
+| `x{n,}`                | at least `n` repetitions of `x`, preferring more                                   |
+| `x{n,}?`               | at least `n` repetitions of `x`, preferring fewer                                  |
+| `x{n}`                 | exactly `n` repetitions of `x`                                                     |
+| `(x)`                  | unnamed capture group for sub-pattern `x`                                          |
+| `(?P<name>x)`          | named capture group, named `name`, for sub-pattern `x`                             |
+| `(?:x)`                | non-capturing sub-pattern `x`                                                      |
+| `\*`                   | Literal `*` for any punctuation character `*`                                      |
+| `\Q...\E`              | Literal `...` for any text `...` as long as it does not include literally `\E`     |
+
+The Unicode property names for use with `\p` and `\P` are defined in:
+- [General Category property names](https://www.unicode.org/reports/tr44/tr44-30.html#General_Category_Values)
+- [Script property names](https://www.unicode.org/reports/tr24/tr24-34.html#Special_Explicit)
 
 In addition to the above matching operators that consume the characters they
 match, there are some additional operators that _only_ match, but consume

@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -48,11 +50,11 @@ type EvalGraphBuilder struct {
 }
 
 // See GraphBuilder
-func (b *EvalGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *EvalGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "EvalGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -85,11 +87,16 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// Attach the state
 		&AttachStateTransformer{State: b.State},
 
-		transformProviders(concreteProvider, b.Config),
+		transformProviders(concreteProvider, b.Config, walkEval),
 
 		// Must attach schemas before ReferenceTransformer so that we can
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
+
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
 		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},

@@ -37,8 +37,24 @@ func NewChanges() *Changes {
 	return &Changes{}
 }
 
+// BuildChanges is a helper -- primarily intended for tests -- to build a state
+// using imperative code against the StateSync type while still acting as
+// an expression of type *State to assign into a containing struct.
+func BuildChanges(cb func(sync *ChangesSync)) *Changes {
+	c := NewChanges()
+	cb(c.SyncWrapper())
+	return c
+}
+
 func (c *Changes) Empty() bool {
 	for _, res := range c.Resources {
+		// We ignore Open actions which are specific to ephemeral resources.
+		// A configuration containing ephemeral resources will always have changes planned,
+		// but if there is no other change recorded, there is no need for a prompt
+		// on the user.
+		if res.Action == Open {
+			continue
+		}
 		if res.Action != NoOp || res.Moved() {
 			return false
 		}
@@ -378,7 +394,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 // apply step.
 type ResourceInstanceChangeActionReason rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=ResourceInstanceChangeActionReason changes.go
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=ResourceInstanceChangeActionReason changes.go
 
 const (
 	// In most cases there's no special reason for choosing a particular
@@ -431,6 +447,10 @@ const (
 	// isn't one of the keys included in the current configured resource
 	// "for_each" value.
 	ResourceInstanceDeleteBecauseEachKey ResourceInstanceChangeActionReason = 'E'
+
+	// ResourceInstanceDeleteBecauseEnabledFalse indicates that the resource
+	// instance is planned to be deleted because its enabled argument is false.
+	ResourceInstanceDeleteBecauseEnabledFalse ResourceInstanceChangeActionReason = 'L'
 
 	// ResourceInstanceDeleteBecauseNoModule indicates that the resource
 	// instance is planned to be deleted because it belongs to a module

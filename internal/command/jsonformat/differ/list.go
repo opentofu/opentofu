@@ -6,15 +6,15 @@
 package differ
 
 import (
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/jsondiff"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) computed.Diff {
@@ -46,11 +46,11 @@ func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) 
 		return ComputeDiffForType(value, elementType)
 	}
 
-	isObjType := func(_ interface{}) bool {
-		return elementType.IsObjectType()
+	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
+	shouldDiffElement := func(a, b interface{}) bool {
+		return elementType.IsObjectType() || jsondiff.ShouldDiffMultilineStrings(a, b)
 	}
-
-	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, isObjType)
+	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement)
 	return computed.NewDiff(renderers.List(elements), current, change.ReplacePaths.Matches())
 }
 

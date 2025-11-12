@@ -9,6 +9,12 @@ import (
 	"context"
 	"fmt"
 	"maps"
+
+	getter "github.com/hashicorp/go-getter"
+
+	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // PackageFetcher is a low-level utility for fetching remote module packages
@@ -35,17 +41,34 @@ type PackageFetcher struct {
 // It's valid to set "env" to nil, but that will make certain module
 // package source types unavailable for use and so that concession is
 // intended only for use in unit tests.
-func NewPackageFetcher(env PackageFetcherEnvironment) *PackageFetcher {
+func NewPackageFetcher(ctx context.Context, env PackageFetcherEnvironment) *PackageFetcher {
 	env = preparePackageFetcherEnvironment(env)
+
+	var httpClient = httpclient.New(ctx)
 
 	// We use goGetterGetters as our starting point for the available
 	// getters, but some need to be instantiated dynamically based on
 	// the given "env". We shallow-copy the source map so that multiple
 	// instances of PackageFetcher don't clobber each other's getters.
 	getters := maps.Clone(goGetterGetters)
+
+	// The OCI Distribution getter needs to acquire credentials based on
+	// centrally-configured policy, encapsulated in env.OCIRepositoryStore.
 	getters["oci"] = &ociDistributionGetter{
 		getOCIRepositoryStore: env.OCIRepositoryStore,
 	}
+
+	// The HTTP getter (used for both "http" and "https" schemes) uses
+	// the HTTP client we instantiated above, whose behavior can be
+	// incluenced by the ctx argument we passed to it, such as by
+	// enabling OpenTelemetry tracing when appropriate.
+	var httpGetter = &getter.HttpGetter{
+		Client:             httpClient,
+		Netrc:              true,
+		XTerraformGetLimit: 10,
+	}
+	getters["http"] = httpGetter
+	getters["https"] = httpGetter
 
 	return &PackageFetcher{
 		getter: newReusingGetter(getters),
@@ -65,7 +88,16 @@ func NewPackageFetcher(env PackageFetcherEnvironment) *PackageFetcher {
 // caller must resolve that itself, possibly with the help of the
 // getmodules.SplitPackageSubdir and getmodules.ExpandSubdirGlobs functions.
 func (f *PackageFetcher) FetchPackage(ctx context.Context, instDir string, packageAddr string) error {
-	return f.getter.getWithGoGetter(ctx, instDir, packageAddr)
+	ctx, span := tracing.Tracer().Start(ctx, "Fetch Package",
+		tracing.SpanAttributes(traceattrs.URLFull(packageAddr)),
+	)
+	defer span.End()
+	err := f.getter.getWithGoGetter(ctx, instDir, packageAddr)
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+	return nil
 }
 
 // PackageFetcherEnvironment is an interface used with [NewPackageFetcher]

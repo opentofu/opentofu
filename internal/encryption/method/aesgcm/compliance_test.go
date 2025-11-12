@@ -168,6 +168,17 @@ func TestCompliance(t *testing.T) {
 					return nil
 				},
 			},
+			"encryption-key-len-fail-on-build": {
+				HCL: `method "aes_gcm" "foo" {
+						keys = {
+							encryption_key = []
+							decryption_key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+						}
+					}`,
+				ValidHCL:   true,
+				ValidBuild: false,
+				Validate:   nil,
+			},
 		},
 		ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *aesgcm]{
 			"empty": {

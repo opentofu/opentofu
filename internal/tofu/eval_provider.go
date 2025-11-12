@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -23,14 +24,14 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
+func buildProviderConfig(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
 	var configBody hcl.Body
 	if config != nil {
 		configBody = config.Config
 	}
 
 	var inputBody hcl.Body
-	inputConfig := ctx.ProviderInput(addr)
+	inputConfig := evalCtx.ProviderInput(ctx, addr)
 	if len(inputConfig) > 0 {
 		inputBody = configs.SynthBody("<input-prompt>", inputConfig)
 	}
@@ -52,24 +53,24 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 	}
 }
 
-func resolveProviderResourceInstance(ctx EvalContext, keyExpr hcl.Expression, resourcePath addrs.AbsResourceInstance) (addrs.InstanceKey, tfdiags.Diagnostics) {
-	keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(resourcePath)
-	keyScope := ctx.EvaluationScope(nil, nil, keyData)
-	return resolveProviderInstance(keyExpr, keyScope, resourcePath.String())
+func resolveProviderResourceInstance(ctx context.Context, evalCtx EvalContext, keyExpr hcl.Expression, resourcePath addrs.AbsResourceInstance) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := evalCtx.InstanceExpander().GetResourceInstanceRepetitionData(resourcePath)
+	keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(ctx, keyExpr, keyScope, resourcePath.String())
 }
 
-func resolveProviderModuleInstance(ctx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
-	keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
+func resolveProviderModuleInstance(ctx context.Context, evalCtx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := evalCtx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
 	// module providers block is evaluated in the parent module scope, similar to GraphNodeReferenceOutside
 	evalPath := modulePath.Parent()
-	keyScope := ctx.WithPath(evalPath).EvaluationScope(nil, nil, keyData)
-	return resolveProviderInstance(keyExpr, keyScope, source)
+	keyScope := evalCtx.WithPath(evalPath).EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(ctx, keyExpr, keyScope, source)
 }
 
-func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+func resolveProviderInstance(ctx context.Context, keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+	keyVal, keyDiags := keyScope.EvalExpr(ctx, keyExpr, cty.DynamicPseudoType)
 	diags = diags.Append(keyDiags)
 	if keyDiags.HasErrors() {
 		return nil, diags
@@ -81,7 +82,16 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 			Summary:  "Invalid provider instance key",
 			Detail:   "A provider instance key must not be derived from a sensitive value.",
 			Subject:  keyExpr.Range().Ptr(),
-			Extra:    evalchecks.DiagnosticCausedBySensitive(true),
+			Extra:    evalchecks.DiagnosticCausedByConfidentialValues(true),
+		})
+	}
+	if keyVal.HasMark(marks.Ephemeral) {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   "A provider instance key must not be derived from an ephemeral value.",
+			Subject:  keyExpr.Range().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedByConfidentialValues(true),
 		})
 	}
 	if keyVal.IsNull() {
@@ -129,18 +139,18 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 }
 
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}
-	provider := ctx.Provider(addr, providerKey)
+	provider := evalCtx.Provider(ctx, addr, providerKey)
 	if provider == nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
-	schema, err := ctx.ProviderSchema(addr)
+	schema, err := evalCtx.ProviderSchema(ctx, addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", addr, err)
 	}

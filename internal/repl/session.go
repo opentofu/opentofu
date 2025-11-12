@@ -6,6 +6,7 @@
 package repl
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -57,7 +58,7 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 		return "", diags
 	}
 
-	val, valDiags := s.Scope.EvalExpr(expr, cty.DynamicPseudoType)
+	val, valDiags := s.Scope.EvalExpr(context.TODO(), expr, cty.DynamicPseudoType)
 	diags = diags.Append(valDiags)
 	if valDiags.HasErrors() {
 		return "", diags

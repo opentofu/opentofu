@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )

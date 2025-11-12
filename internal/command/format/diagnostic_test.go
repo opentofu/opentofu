@@ -17,7 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -149,6 +149,41 @@ func TestDiagnostic(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+		"error with source code subject and expression referring to ephemeral value": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
+						}),
+					},
+				},
+				Extra: diagnosticCausedBySensitive(true),
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on test.tf line 1:
+[red]│[reset]    1: test [underline]source[reset] code
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]boop.beep[reset] has an ephemeral value
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
 		"error with source code subject and unknown string expression": {
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -267,10 +302,167 @@ func TestDiagnostic(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+		"test number assertion difference": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad testing",
+				Detail:   "Number testing went wrong.",
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("3"),
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("5"),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				EvalContext: &hcl.EvalContext{},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on test.tf line 1:
+[red]│[reset]    1: test [underline]source[reset] code
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset]     "3" [yellow]->[reset] "5"
+[red]│[reset]
+[red]│[reset] Number testing went wrong.
+[red]╵[reset]
+`,
+		},
+		"test object assertion difference": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad testing",
+				Detail:   "Test object assertion!",
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.ScopeTraversalExpr{
+						Traversal: hcl.Traversal{
+							hcl.TraverseRoot{Name: "var"},
+							hcl.TraverseAttr{Name: "json_headers"},
+						},
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.ObjectVal(map[string]cty.Value{
+							"Test-Header-1": cty.StringVal("foo"),
+							"Test-Header-2": cty.StringVal("bar"),
+						}),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				Subject: &hcl.Range{
+					Filename: "json_encode.tf",
+					Start:    hcl.Pos{Line: 1, Column: 12, Byte: 12},
+					End:      hcl.Pos{Line: 4, Column: 20, Byte: 150},
+				},
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"var": cty.ObjectVal(map[string]cty.Value{
+							"json_headers": cty.ObjectVal(map[string]cty.Value{
+								"Test-Header-1": cty.StringVal("foo"),
+								"Test-Header-2": cty.StringVal("foo"),
+							}),
+						}),
+					},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on json_encode.tf line 1:
+[red]│[reset]    1: condition = [underline]jsonencode(var.json_headers) == jsonencode([
+[red]│[reset]    2: 			"Test-Header-1: foo",
+[red]│[reset]    3: 			"Test-Header-2: bar"
+[red]│[reset]    4: 		])[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]var.json_headers[reset] is object with 2 attributes
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset]     {
+[red]│[reset]     [dark_gray]│[reset]       [yellow]~[reset] Test-Header-2 = "foo" [yellow]->[reset] "bar"
+[red]│[reset]     [dark_gray]│[reset]         [dark_gray]# (1 unchanged attribute hidden)[reset]
+[red]│[reset]     [dark_gray]│[reset]     }
+[red]│[reset]
+[red]│[reset] Test object assertion!
+[red]╵[reset]
+`,
+		},
+
+		// Any control characters in the summary, detail, source code snippet,
+		// or source filename should be replaced by their corresponding
+		// control pictures to ensure that unexpected/malicious data there
+		// cannot affect the state of a terminal that stdout/stderr is
+		// connected to.
+		"control characters in sourceless diagnostic": {
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"\x1b[2JOh no!",
+				"\x1bHControl sequences!",
+			),
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]␛[2JOh no![reset]
+[red]│[reset]
+[red]│[reset] ␛HControl sequences!
+[red]╵[reset]
+`,
+		},
+		"control characters in source snippet": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "controlchars\x00.tf",
+					Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on controlchars␀.tf line 1:
+[red]│[reset]    1: [underline]before[reset]␛[0;0Hafter
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
+		"control characters in unavailable source snippet": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "unavailable\x00.tf",
+					Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: 1, Column: 7, Byte: 6},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad bad bad[reset]
+[red]│[reset]
+[red]│[reset]   on unavailable␀.tf line 1:
+[red]│[reset]   (source code not available)
+[red]│[reset]
+[red]│[reset] Whatever shall we do?
+[red]╵[reset]
+`,
+		},
 	}
 
 	sources := map[string]*hcl.File{
 		"test.tf": {Bytes: []byte(`test source code`)},
+		"json_encode.tf": {Bytes: []byte(`condition = jsonencode(var.json_headers) == jsonencode([
+			"Test-Header-1: foo",
+			"Test-Header-2: bar"
+		])`)},
+		"controlchars\x00.tf": {Bytes: []byte("before\x1b[0;0Hafter")},
 	}
 
 	// This empty Colorize just passes through all of the formatting codes
@@ -284,8 +476,8 @@ func TestDiagnostic(t *testing.T) {
 			diag := diags[0]
 			got := strings.TrimSpace(Diagnostic(diag, sources, colorize, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("diff:\n%s", diff)
 			}
 		})
 	}
@@ -430,6 +622,71 @@ Whatever shall we do?
 					Variables: map[string]cty.Value{
 						"boop": cty.ObjectVal(map[string]cty.Value{
 							"beep": cty.StringVal("blah").Mark(marks.Sensitive),
+						}),
+					},
+				},
+			},
+			`
+Error: Bad bad bad
+
+  on test.tf line 1:
+   1: test source code
+
+Whatever shall we do?
+`,
+		},
+		"error with source code subject and expression referring to ephemeral value": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
+						}),
+					},
+				},
+				Extra: diagnosticCausedBySensitive(true),
+			},
+			`
+Error: Bad bad bad
+
+  on test.tf line 1:
+   1: test source code
+    ├────────────────
+    │ boop.beep has an ephemeral value
+
+Whatever shall we do?
+`,
+		},
+		"error with source code subject and expression referring to ephemeral value when not related to sensitivity": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad bad bad",
+				Detail:   "Whatever shall we do?",
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "boop"},
+					hcl.TraverseAttr{Name: "beep"},
+				}),
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"boop": cty.ObjectVal(map[string]cty.Value{
+							"beep": cty.StringVal("blah").Mark(marks.Ephemeral),
 						}),
 					},
 				},
@@ -588,8 +845,8 @@ Whatever shall we do?
 			diag := diags[0]
 			got := strings.TrimSpace(DiagnosticPlain(diag, sources, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("diff:\n%s", diff)
 			}
 		})
 	}
@@ -702,8 +959,8 @@ func TestDiagnostic_nonOverlappingHighlightContext(t *testing.T) {
 `
 	output := Diagnostic(diags[0], sources, color, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -750,8 +1007,8 @@ func TestDiagnostic_emptyOverlapHighlightContext(t *testing.T) {
 `
 	output := Diagnostic(diags[0], sources, color, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -793,8 +1050,8 @@ Error: Some error
 `
 	output := DiagnosticPlain(diags[0], sources, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -826,8 +1083,8 @@ func TestDiagnostic_wrapDetailIncludingCommand(t *testing.T) {
 `
 	output := Diagnostic(diags[0], nil, color, 76)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -854,8 +1111,8 @@ eventually make it onto multiple lines. THE END
 `
 	output := DiagnosticPlain(diags[0], nil, 76)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -865,20 +1122,20 @@ eventually make it onto multiple lines. THE END
 // in future from other sources.
 func TestDiagnosticFromJSON_invalid(t *testing.T) {
 	tests := map[string]struct {
-		Diag *viewsjson.Diagnostic
+		Diag *jsonentities.Diagnostic
 		Want string
 	}{
 		"zero-value end range and highlight end byte": {
-			&viewsjson.Diagnostic{
-				Severity: viewsjson.DiagnosticSeverityError,
+			&jsonentities.Diagnostic{
+				Severity: jsonentities.DiagnosticSeverityError,
 				Summary:  "Bad end",
 				Detail:   "It all went wrong.",
-				Range: &viewsjson.DiagnosticRange{
+				Range: &jsonentities.DiagnosticRange{
 					Filename: "ohno.tf",
-					Start:    viewsjson.Pos{Line: 1, Column: 23, Byte: 22},
-					End:      viewsjson.Pos{Line: 0, Column: 0, Byte: 0},
+					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
+					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
 				},
-				Snippet: &viewsjson.DiagnosticSnippet{
+				Snippet: &jsonentities.DiagnosticSnippet{
 					Code:                 `resource "foo_bar "baz" {`,
 					StartLine:            1,
 					HighlightStartOffset: 22,
@@ -905,8 +1162,8 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := strings.TrimSpace(DiagnosticFromJSON(test.Diag, colorize, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(got, want); diff != "" {
+				t.Errorf("wrong result\n%s", diff)
 			}
 		})
 	}
@@ -943,8 +1200,8 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // diagnostics that are explicitly marked as being caused by sensitive values.
 type diagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseConfidentialValues = diagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e diagnosticCausedBySensitive) DiagnosticCausedByConfidentialValues() bool {
 	return bool(e)
 }

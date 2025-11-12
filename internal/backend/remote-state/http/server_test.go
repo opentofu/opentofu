@@ -5,7 +5,7 @@
 
 package http
 
-//go:generate go run go.uber.org/mock/mockgen -package $GOPACKAGE -source $GOFILE -destination mock_$GOFILE
+//go:generate go tool go.uber.org/mock/mockgen -package $GOPACKAGE -source $GOFILE -destination mock_$GOFILE
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -91,7 +90,7 @@ func newHttpServer(opts ...httpServerOpt) *httpServer {
 }
 
 func (h *httpServer) getResource(req *http.Request) string {
-	switch pathParts := strings.SplitN(req.URL.Path, string(filepath.Separator), 3); len(pathParts) {
+	switch pathParts := strings.SplitN(req.URL.Path, "/", 3); len(pathParts) {
 	case 3:
 		return pathParts[2]
 	default:
@@ -283,13 +282,13 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	}
 
 	// Now get a state manager and check that it fails to refresh the state
-	sm, err := b.StateMgr(backend.DefaultStateName)
+	sm, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}
 
 	opErr := new(net.OpError)
-	err = sm.RefreshState()
+	err = sm.RefreshState(t.Context())
 	if err == nil {
 		t.Fatal("expected error when refreshing state without a client cert")
 	}
@@ -354,11 +353,11 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	}
 
 	// Now get a state manager, fetch the state, and ensure that the "foo" output is not set
-	sm, err := b.StateMgr(backend.DefaultStateName)
+	sm, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}
-	if err = sm.RefreshState(); err != nil {
+	if err = sm.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error calling RefreshState: %v", err)
 	}
 	state := sm.State()
@@ -375,7 +374,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		ss.SetOutputValue(
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
-			false)
+			false, "")
 	})
 	stateFoo = state.OutputValue(addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance))
 	if nil == stateFoo {
@@ -399,10 +398,10 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	if err = sm.WriteState(state); err != nil {
 		t.Errorf("error writing state: %v", err)
 	}
-	if err = sm.PersistState(nil); err != nil {
+	if err = sm.PersistState(t.Context(), nil); err != nil {
 		t.Errorf("error persisting state: %v", err)
 	}
-	if err = sm.RefreshState(); err != nil {
+	if err = sm.RefreshState(t.Context()); err != nil {
 		t.Errorf("error refreshing state: %v", err)
 	}
 

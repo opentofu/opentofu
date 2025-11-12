@@ -6,6 +6,8 @@
 package statemgr
 
 import (
+	"context"
+
 	version "github.com/hashicorp/go-version"
 
 	"github.com/opentofu/opentofu/internal/states"
@@ -33,7 +35,7 @@ type Persistent interface {
 // to differentiate reading the state and reading the outputs within the state.
 type OutputReader interface {
 	// GetRootOutputValues fetches the root module output values from state or another source
-	GetRootOutputValues() (map[string]*states.OutputValue, error)
+	GetRootOutputValues(context.Context) (map[string]*states.OutputValue, error)
 }
 
 // Refresher is the interface for managers that can read snapshots from
@@ -63,7 +65,7 @@ type Refresher interface {
 	// return only a subset of what was written. Callers must assume that
 	// ephemeral portions of the state may be unpopulated after calling
 	// RefreshState.
-	RefreshState() error
+	RefreshState(context.Context) error
 }
 
 // Persister is the interface for managers that can write snapshots to
@@ -83,7 +85,7 @@ type Refresher interface {
 // state. For example, when representing state in an external JSON
 // representation.
 type Persister interface {
-	PersistState(*tofu.Schemas) error
+	PersistState(context.Context, *tofu.Schemas) error
 }
 
 // PersistentMeta is an optional extension to Persistent that allows inspecting

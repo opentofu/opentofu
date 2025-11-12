@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -35,7 +36,7 @@ type TargetingTransformer struct {
 	Excludes []addrs.Targetable
 }
 
-func (t *TargetingTransformer) Transform(g *Graph) error {
+func (t *TargetingTransformer) Transform(_ context.Context, g *Graph) error {
 	var targetedNodes dag.Set
 	if len(t.Targets) > 0 {
 		targetedNodes = t.selectTargetedNodes(g, t.Targets)
@@ -203,7 +204,8 @@ func (t *TargetingTransformer) getTargetedOutputNodes(targetedNodes dag.Set, gra
 
 		// root module outputs indicate that while they are an output type,
 		// they not temporary and will return false here.
-		if tv.temporaryValue() {
+		// We use walkInvalid here as we only care about the op as a workaround for nodeVariableReference, which does not apply here
+		if tv.temporaryValue(walkInvalid) {
 			continue
 		}
 

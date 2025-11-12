@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
@@ -26,12 +27,11 @@ import (
 func TestWorkspace_createAndChange(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	newCmd := &WorkspaceNewCommand{}
 
-	current, _ := newCmd.Workspace()
+	current, _ := newCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -44,7 +44,7 @@ func TestWorkspace_createAndChange(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = newCmd.Workspace()
+	current, _ = newCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatalf("current workspace should be 'test', got %q", current)
 	}
@@ -57,7 +57,7 @@ func TestWorkspace_createAndChange(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = newCmd.Workspace()
+	current, _ = newCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -69,7 +69,6 @@ func TestWorkspace_createAndChange(t *testing.T) {
 func TestWorkspace_createAndList(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// make sure a vars file doesn't interfere
@@ -117,7 +116,6 @@ func TestWorkspace_createAndList(t *testing.T) {
 func TestWorkspace_createAndShow(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// make sure a vars file doesn't interfere
@@ -185,7 +183,6 @@ func TestWorkspace_createAndShow(t *testing.T) {
 func TestWorkspace_createInvalid(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	envs := []string{"test_a*", "test_b/foo", "../../../test_c", "好_d"}
@@ -255,7 +252,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 		)
 	})
 
-	err := statemgr.WriteAndPersist(statemgr.NewFilesystem("test.tfstate", encryption.StateEncryptionDisabled()), originalState, nil)
+	err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("test.tfstate", encryption.StateEncryptionDisabled()), originalState, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,13 +270,13 @@ func TestWorkspace_createWithState(t *testing.T) {
 
 	newPath := filepath.Join(local.DefaultWorkspaceDir, "test", DefaultStateFilename)
 	envState := statemgr.NewFilesystem(newPath, encryption.StateEncryptionDisabled())
-	err = envState.RefreshState()
+	err = envState.RefreshState(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b := backend.TestBackendConfig(t, inmem.New(encryption.StateEncryptionDisabled()), nil)
-	sMgr, err := b.StateMgr(workspace)
+	sMgr, err := b.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +290,6 @@ func TestWorkspace_createWithState(t *testing.T) {
 
 func TestWorkspace_delete(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// create the workspace directories
@@ -315,7 +311,7 @@ func TestWorkspace_delete(t *testing.T) {
 		Meta: Meta{Ui: ui, View: view},
 	}
 
-	current, _ := delCmd.Workspace()
+	current, _ := delCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatal("wrong workspace:", current)
 	}
@@ -338,7 +334,7 @@ func TestWorkspace_delete(t *testing.T) {
 		t.Fatalf("error deleting workspace: %s", ui.ErrorWriter)
 	}
 
-	current, _ = delCmd.Workspace()
+	current, _ = delCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatalf("wrong workspace: %q", current)
 	}
@@ -346,7 +342,6 @@ func TestWorkspace_delete(t *testing.T) {
 
 func TestWorkspace_deleteInvalid(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// choose an invalid workspace name
@@ -378,7 +373,6 @@ func TestWorkspace_deleteInvalid(t *testing.T) {
 
 func TestWorkspace_deleteWithState(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// create the workspace directories
@@ -407,10 +401,10 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 	if err := legacy.WriteState(originalState, f); err != nil {
 		t.Fatal(err)
 	}
+	f.Close()
 
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
@@ -445,12 +439,11 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 func TestWorkspace_selectWithOrCreate(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	selectCmd := &WorkspaceSelectCommand{}
 
-	current, _ := selectCmd.Workspace()
+	current, _ := selectCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -463,7 +456,7 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = selectCmd.Workspace()
+	current, _ = selectCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatalf("current workspace should be 'test', got %q", current)
 	}

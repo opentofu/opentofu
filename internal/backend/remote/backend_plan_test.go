@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -95,9 +96,9 @@ func TestRemote_planBasic(t *testing.T) {
 		t.Fatalf("expected plan summary in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after successful plan: %s", err.Error())
 	}
 }
@@ -124,9 +125,9 @@ func TestRemote_planCanceled(t *testing.T) {
 		t.Fatal("expected plan operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after the operation finished
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelled plan: %s", err.Error())
 	}
 }
@@ -836,6 +837,10 @@ func TestRemote_planWorkspaceWithoutOperations(t *testing.T) {
 }
 
 func TestRemote_planLockTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("lockTimeout is implemented using signals. Windows doesn't support sending signals, so we skip this test.")
+	}
+
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 

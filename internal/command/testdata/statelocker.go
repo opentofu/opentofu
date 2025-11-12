@@ -4,11 +4,11 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -28,27 +28,41 @@ func main() {
 	info.Operation = "test"
 	info.Info = "state locker"
 
-	lockID, err := s.Lock(info)
+	lockID, err := s.Lock(context.Background(), info)
 	if err != nil {
-		io.WriteString(os.Stderr, err.Error())
+		io.WriteString(os.Stderr, err.Error()+"\n")
 		return
 	}
 
-	// signal to the caller that we're locked
-	io.WriteString(os.Stdout, "LOCKID "+lockID)
-
 	defer func() {
-		if err := s.Unlock(lockID); err != nil {
-			io.WriteString(os.Stderr, err.Error())
+		if err := s.Unlock(context.Background(), lockID); err != nil {
+			io.WriteString(os.Stderr, err.Error()+"\n")
+			return
 		}
 	}()
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	// signal to the caller that we're locked
+	_, err = io.WriteString(os.Stdout, "LOCKID "+lockID+"\n")
+	if err != nil {
+		io.WriteString(os.Stderr, err.Error()+"\n")
+		return
+	}
+
+	c := make(chan struct{})
+	go waitForEOF(c)
 
 	// timeout after 10 second in case we don't get cleaned up by the test
 	select {
 	case <-time.After(10 * time.Second):
 	case <-c:
 	}
+}
+
+func waitForEOF(resultChan chan struct{}) {
+	_, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		fmt.Errorf("on waiting for input: %s", err.Error())
+	}
+
+	close(resultChan)
 }

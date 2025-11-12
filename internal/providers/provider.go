@@ -6,6 +6,9 @@
 package providers
 
 import (
+	"context"
+	"time"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -22,37 +25,41 @@ type Unconfigured interface {
 	// memory savings.
 
 	// GetSchema returns the complete schema for the provider.
-	GetProviderSchema() GetProviderSchemaResponse
+	GetProviderSchema(context.Context) GetProviderSchemaResponse
 
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The
 	// final configuration is not stored in the state, and any modifications
 	// that need to be made must be made during the Configure method call.
-	ValidateProviderConfig(ValidateProviderConfigRequest) ValidateProviderConfigResponse
+	ValidateProviderConfig(context.Context, ValidateProviderConfigRequest) ValidateProviderConfigResponse
 
 	// ValidateResourceConfig allows the provider to validate the resource
 	// configuration values.
-	ValidateResourceConfig(ValidateResourceConfigRequest) ValidateResourceConfigResponse
+	ValidateResourceConfig(context.Context, ValidateResourceConfigRequest) ValidateResourceConfigResponse
 
 	// ValidateDataResourceConfig allows the provider to validate the data source
 	// configuration values.
-	ValidateDataResourceConfig(ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
+	ValidateDataResourceConfig(context.Context, ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
+
+	// ValidateEphemeralConfig allows the provider to validate the ephemeral resource
+	// configuration values.
+	ValidateEphemeralConfig(context.Context, ValidateEphemeralConfigRequest) ValidateEphemeralConfigResponse
 
 	// MoveResourceState requests that the given resource data be moved from one
 	// type to another, potentially between providers as well.
-	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
+	MoveResourceState(context.Context, MoveResourceStateRequest) MoveResourceStateResponse
 
 	// CallFunction requests that the given function is called and response returned.
 	// There is a bit of a quirk in OpenTofu-land.  We allow providers to supply
 	// additional functions via GetFunctions() after configuration.  Those functions
 	// will only be available via CallFunction after ConfigureProvider is called.
-	CallFunction(CallFunctionRequest) CallFunctionResponse
+	CallFunction(context.Context, CallFunctionRequest) CallFunctionResponse
 
 	// Configure configures and initialized the provider.
-	ConfigureProvider(ConfigureProviderRequest) ConfigureProviderResponse
+	ConfigureProvider(context.Context, ConfigureProviderRequest) ConfigureProviderResponse
 
 	// Close shuts down the plugin process if applicable.
-	Close() error
+	Close(context.Context) error
 
 	// Stop is called when the provider should halt any in-flight actions.
 	//
@@ -61,10 +68,17 @@ type Unconfigured interface {
 	// has received the stop request. OpenTofu will not make any further API
 	// calls to the provider after Stop is called.
 	//
+	// The given context is guaranteed not to be cancelled and to have no
+	// deadline, but the contexts visible to other provider methods
+	// running concurrently might be cancelled either before or after
+	// Stop call. Any provider other operations that need to be able to continue
+	// when reacting to Stop must use [context.WithoutCancel], or equivalent,
+	// to insulate themselves from any incoming cancellation/deadline signals.
+	//
 	// The error returned, if non-nil, is assumed to mean that signaling the
 	// stop somehow failed and that the user should expect potentially waiting
 	// a longer period of time.
-	Stop() error
+	Stop(context.Context) error
 }
 
 // Configured represents a provider plugin that has been configured. It has additional
@@ -78,29 +92,62 @@ type Configured interface {
 	// instance state whose schema version is less than the one reported by the
 	// currently-used version of the corresponding provider, and the upgraded
 	// result is used for any further processing.
-	UpgradeResourceState(UpgradeResourceStateRequest) UpgradeResourceStateResponse
+	UpgradeResourceState(context.Context, UpgradeResourceStateRequest) UpgradeResourceStateResponse
 
 	// ReadResource refreshes a resource and returns its current state.
-	ReadResource(ReadResourceRequest) ReadResourceResponse
+	ReadResource(context.Context, ReadResourceRequest) ReadResourceResponse
 
 	// PlanResourceChange takes the current state and proposed state of a
 	// resource, and returns the planned final state.
-	PlanResourceChange(PlanResourceChangeRequest) PlanResourceChangeResponse
+	PlanResourceChange(context.Context, PlanResourceChangeRequest) PlanResourceChangeResponse
 
 	// ApplyResourceChange takes the planned state for a resource, which may
 	// yet contain unknown computed values, and applies the changes returning
 	// the final state.
-	ApplyResourceChange(ApplyResourceChangeRequest) ApplyResourceChangeResponse
+	//
+	// NOTE: the context passed to this method can potentially be cancelled,
+	// and so any cancel-sensitive operation that needs to be able to complete
+	// gracefully should use [context.WithoutCancel] to create a new context
+	// disconnected from the incoming cancellation chain. The caller doesn't
+	// do this automatically to give implementations flexibility to use a
+	// mixture of both cancelable and non-cancelable requests.
+	ApplyResourceChange(context.Context, ApplyResourceChangeRequest) ApplyResourceChangeResponse
 
 	// ImportResourceState requests that the given resource be imported.
-	ImportResourceState(ImportResourceStateRequest) ImportResourceStateResponse
+	ImportResourceState(context.Context, ImportResourceStateRequest) ImportResourceStateResponse
 
 	// ReadDataSource returns the data source's current state.
-	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
+	ReadDataSource(context.Context, ReadDataSourceRequest) ReadDataSourceResponse
+
+	// OpenEphemeralResource opens the provided ephemeral resource.
+	// This is meant to return the following:
+	// * the ephemeral information that will be used in other ephemeral contexts.
+	//   The OpenEphemeralResourceResponse.Result is meant to be used all the time it's requested
+	//   but this information will not be changed if the Renew will be called.
+	//   Renew is meant to be supported only by a limited number of providers where the actual
+	//   information from Result renewed by updating a remote state (eg: Vault/OpenBao)
+	// * internal private information that needs to be used for future Renew/Close calls.
+	// * a timestamp that will be used to determine if and when Renew call will be performed.
+	// * deferred information containing a reason returned by the provider. This will be used to
+	//   determine if the resource needs to be deferred or not.
+	OpenEphemeralResource(context.Context, OpenEphemeralResourceRequest) OpenEphemeralResourceResponse
+
+	// RenewEphemeralResource is renewing the information related to the OpenEphemeralResourceResponse.Result returned by
+	// the OpenEphemeralResource.
+	// The request is using the private information from the OpenEphemeralResourceResponse.Private
+	// to enable the provider to perform this action.
+	// The information returned in RenewEphemeralResourceResponse.Private needs to be used in any future call to
+	// Renew/Close.
+	RenewEphemeralResource(context.Context, RenewEphemeralResourceRequest) (resp RenewEphemeralResourceResponse)
+
+	// CloseEphemeralResource closes the provided ephemeral resource.
+	// This requires the information from OpenEphemeralResourceResponse.Private or RenewEphemeralResourceResponse.Private
+	// to succeed.
+	CloseEphemeralResource(context.Context, CloseEphemeralResourceRequest) CloseEphemeralResourceResponse
 
 	// GetFunctions returns a full list of functions defined in this provider. It should be a super
 	// set of the functions returned in GetProviderSchema()
-	GetFunctions() GetFunctionsResponse
+	GetFunctions(context.Context) GetFunctionsResponse
 }
 
 // Interface represents the set of methods required for a complete resource
@@ -136,6 +183,9 @@ type GetProviderSchemaResponse struct {
 
 	// Functions lists all functions supported by this provider.
 	Functions map[string]FunctionSpec
+
+	// EphemeralResources maps the ephemeral type name to that type's schema.
+	EphemeralResources map[string]Schema
 }
 
 // Schema pairs a provider or resource schema with that schema's version.
@@ -244,6 +294,20 @@ type ValidateDataResourceConfigRequest struct {
 }
 
 type ValidateDataResourceConfigResponse struct {
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type ValidateEphemeralConfigRequest struct {
+	// TypeName is the name of the ephemeral resource type to validate.
+	TypeName string
+
+	// Config is the configuration value to validate, which may contain unknown
+	// values.
+	Config cty.Value
+}
+
+type ValidateEphemeralConfigResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
 }
@@ -527,6 +591,63 @@ type ReadDataSourceResponse struct {
 	// State is the current state of the requested data source.
 	State cty.Value
 
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type OpenEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource type to Open.
+	TypeName string
+
+	// Config is the complete configuration for the requested ephemeral resource.
+	Config cty.Value
+}
+
+type OpenEphemeralResourceResponse struct {
+	// Result will contain the ephemeral information returned by the ephemeral resource.
+	Result cty.Value
+	// Private is the provider information that needs to be used later on Renew/Close call.
+	Private []byte
+	// Deferred returns only a reason of why the provider is asking deferring the opening.
+	Deferred *EphemeralResourceDeferred
+	// RenewAt indicates if(!=nil) and when(<=time.Now()) the Renew call needs to be performed.
+	RenewAt *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type EphemeralResourceDeferred struct {
+	DeferralReason DeferralReason
+}
+
+type RenewEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource to Renew.
+	TypeName string
+
+	// Private should be the same with the one from the last call on Open/Renew call.
+	Private []byte
+}
+
+type RenewEphemeralResourceResponse struct {
+	// Private needs to be used for the next call on Renew/Close
+	Private []byte
+	// RenewAt indicates if(!=nil) and when(<=time.Now()) the Renew call needs to be performed.
+	RenewAt *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type CloseEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource to Close.
+	TypeName string
+
+	// Private should be the same with the one from the last call on Open/Renew call.
+	Private []byte
+}
+
+type CloseEphemeralResourceResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
 }

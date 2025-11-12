@@ -285,6 +285,25 @@ func (s *State) AllResourceInstanceObjectAddrs() []struct {
 	return ret
 }
 
+// ResourceProvider returns the provider required by the resource if it exists, or
+// null if no such resource exists
+func (s *State) ResourceProvider(addr addrs.AbsResource) *addrs.AbsProviderConfig {
+	if s == nil {
+		panic("State.ResourceProvider on nil *State")
+	}
+	ms := s.Module(addr.Module)
+	if ms == nil {
+		return nil
+	}
+	rs := ms.Resource(addr.Resource)
+	if rs == nil {
+		return nil
+	}
+	// Intentionally copy the struct
+	pc := rs.ProviderConfig
+	return &pc
+}
+
 // ResourceInstance returns the state for the resource instance with the given
 // address, or nil if no such resource is tracked in the state.
 func (s *State) ResourceInstance(addr addrs.AbsResourceInstance) *ResourceInstance {

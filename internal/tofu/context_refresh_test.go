@@ -18,7 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -995,7 +995,7 @@ func TestContext2Refresh_output(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo","foo":"bar"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
-	root.SetOutputValue("foo", cty.StringVal("foo"), false)
+	root.SetOutputValue("foo", cty.StringVal("foo"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{

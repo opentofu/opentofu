@@ -11,9 +11,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -100,8 +101,8 @@ func TestNodeModuleVariableReference(t *testing.T) {
 		},
 	}
 	got := n.References()
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got, addrs.CmpOptionsForTesting); diff != "" {
+		t.Error("wrong references\n" + diff)
 	}
 }
 
@@ -128,8 +129,8 @@ func TestNodeModuleVariableReference_grandchild(t *testing.T) {
 		},
 	}
 	got := n.References()
-	for _, problem := range deep.Equal(got, want) {
-		t.Error(problem)
+	if diff := cmp.Diff(want, got, addrs.CmpOptionsForTesting); diff != "" {
+		t.Error("wrong references\n" + diff)
 	}
 }
 
@@ -242,7 +243,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 			}
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -265,7 +266,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -304,6 +305,93 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 
 		if !found {
 			t.Fatalf("missing expected error\nwant summary: %s\ngot: %s", wantSummary, diags.Err().Error())
+		}
+	})
+}
+
+func TestNodeModuleVariable_warningDiags(t *testing.T) {
+	t.Run("unused object attribute", func(t *testing.T) {
+		n := &nodeModuleVariable{
+			Addr: addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			Config: &configs.Variable{
+				Name: "foo",
+				ConstraintType: cty.Object(map[string]cty.Type{
+					"foo": cty.String,
+					"bar": cty.Object(map[string]cty.Type{"nested": cty.EmptyObject}),
+				}),
+			},
+			Expr: &hclsyntax.ObjectConsExpr{
+				SrcRange: hcl.Range{Filename: "context1.tofu"},
+				Items: []hclsyntax.ObjectConsItem{
+					{
+						KeyExpr: &hclsyntax.LiteralValueExpr{
+							Val: cty.StringVal("baz"),
+							SrcRange: hcl.Range{
+								Filename: "test1.tofu",
+							},
+						},
+						ValueExpr: &hclsyntax.LiteralValueExpr{
+							Val: cty.StringVal("..."),
+						},
+					},
+					{
+						KeyExpr: &hclsyntax.LiteralValueExpr{
+							Val: cty.StringVal("bar"),
+							SrcRange: hcl.Range{
+								Filename: "test.tofu",
+							},
+						},
+						ValueExpr: &hclsyntax.ObjectConsExpr{
+							SrcRange: hcl.Range{Filename: "context2.tofu"},
+							Items: []hclsyntax.ObjectConsItem{
+								{
+									KeyExpr: &hclsyntax.LiteralValueExpr{
+										Val: cty.StringVal("beep"),
+										SrcRange: hcl.Range{
+											Filename: "test2.tofu",
+										},
+									},
+									ValueExpr: &hclsyntax.LiteralValueExpr{
+										Val: cty.StringVal("..."),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ModuleInstance: addrs.RootModuleInstance,
+		}
+		// We use the "ForRPC" representation of the diagnostics just because
+		// it's more friendly for comparison and we care only about the
+		// user-facing information in the diagnostics, not their concrete types.
+		gotDiags := n.warningDiags().ForRPC()
+		var wantDiags tfdiags.Diagnostics
+		wantDiags = wantDiags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail:   `The object type for input variable "foo" does not include an attribute named "baz", so this definition is unused. Did you mean to set attribute "bar" instead?`,
+			Subject: &hcl.Range{
+				Filename: "test1.tofu", // from synthetic source range in constructed expression above
+			},
+			Context: &hcl.Range{
+				Filename: "context1.tofu", // from synthetic source range in constructed expression above
+			},
+		})
+		wantDiags = wantDiags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail:   `The object type for input variable "foo" nested value .bar does not include an attribute named "beep", so this definition is unused.`,
+			Subject: &hcl.Range{
+				Filename: "test2.tofu", // from synthetic source range in constructed expression above
+			},
+			Context: &hcl.Range{
+				Filename: "context2.tofu", // from synthetic source range in constructed expression above
+			},
+		})
+		wantDiags = wantDiags.ForRPC()
+		if diff := cmp.Diff(wantDiags, gotDiags, ctydebug.CmpOptions); diff != "" {
+			t.Error("wrong diagnostics\n" + diff)
 		}
 	})
 }

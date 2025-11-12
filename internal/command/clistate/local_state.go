@@ -7,6 +7,7 @@ package clistate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -71,12 +73,20 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	err := s.writeState(state)
+	if err != nil {
+		return err
+	}
+
+	// Sync after write
+	return s.stateFileOut.Sync()
+}
+func (s *LocalState) writeState(state *tofu.State) error {
 	if s.stateFileOut == nil {
 		if err := s.createStateFiles(); err != nil {
-			return nil
+			return err
 		}
 	}
-	defer s.stateFileOut.Sync()
 
 	s.state = state.DeepCopy() // don't want mutations before we actually get this written to disk
 
@@ -114,12 +124,12 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 // PersistState for LocalState is a no-op since WriteState always persists.
 //
 // StatePersister impl.
-func (s *LocalState) PersistState() error {
+func (s *LocalState) PersistState(_ context.Context) error {
 	return nil
 }
 
 // StateRefresher impl.
-func (s *LocalState) RefreshState() error {
+func (s *LocalState) RefreshState(_ context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -160,7 +170,9 @@ func (s *LocalState) RefreshState() error {
 		}
 
 		// we have a state file, make sure we're at the start
-		s.stateFileOut.Seek(0, io.SeekStart)
+		if _, err := s.stateFileOut.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
 		reader = s.stateFileOut
 	}
 
@@ -176,7 +188,7 @@ func (s *LocalState) RefreshState() error {
 }
 
 // Lock implements a local filesystem state.Locker.
-func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *LocalState) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -190,7 +202,7 @@ func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 		return "", fmt.Errorf("state %q already locked", s.stateFileOut.Name())
 	}
 
-	if err := s.lock(); err != nil {
+	if err := flock.Lock(s.stateFileOut); err != nil {
 		info, infoErr := s.lockInfo()
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
@@ -208,7 +220,7 @@ func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-func (s *LocalState) Unlock(id string) error {
+func (s *LocalState) Unlock(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -233,7 +245,7 @@ func (s *LocalState) Unlock(id string) error {
 
 	fileName := s.stateFileOut.Name()
 
-	unlockErr := s.unlock()
+	unlockErr := flock.Unlock(s.stateFileOut)
 
 	s.stateFileOut.Close()
 	s.stateFileOut = nil

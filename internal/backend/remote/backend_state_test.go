@@ -30,12 +30,12 @@ func TestRemoteClient_stateLock(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	s1, err := b.StateMgr(backend.DefaultStateName)
+	s1, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	s2, err := b.StateMgr(backend.DefaultStateName)
+	s2, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -53,11 +53,14 @@ func TestRemoteClient_Put_withRunID(t *testing.T) {
 	// Create a new empty state.
 	sf := statefile.New(states.NewState(), "", 0)
 	var buf bytes.Buffer
-	statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
+	err := statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
+	if err != nil {
+		t.Fatalf("error writing to statefile, got %v", err)
+	}
 
 	// Store the new state to verify (this will be done
 	// by the mock that is used) that the run ID is set.
-	if err := client.Put(buf.Bytes()); err != nil {
+	if err := client.Put(t.Context(), buf.Bytes()); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 }

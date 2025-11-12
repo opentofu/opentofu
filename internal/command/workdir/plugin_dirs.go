@@ -75,7 +75,7 @@ func (d *Dir) SetForcedPluginDirs(dirs []string) error {
 		// the directory then we'll fail to create the file below too,
 		// and that subsequent error will more directly reflect what we
 		// are trying to do here.
-		d.ensureDataDir()
+		_ = d.ensureDataDir()
 
 		raw, err := json.MarshalIndent(dirs, "", "  ")
 		if err != nil {

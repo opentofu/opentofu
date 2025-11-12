@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -63,7 +64,7 @@ type IntermediateStatePersistInfo struct {
 
 var _ tofu.Hook = (*StateHook)(nil)
 
-func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) {
+func (h *StateHook) PostStateUpdate(mutate func(*states.SyncState)) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -76,12 +77,20 @@ func (h *StateHook) PostStateUpdate(new *states.State) (tofu.HookAction, error) 
 	}
 
 	if h.StateMgr != nil {
-		if err := h.StateMgr.WriteState(new); err != nil {
+		err := h.StateMgr.MutateState(func(state *states.State) *states.State {
+			if state == nil {
+				state = states.NewState()
+			}
+			mutate(state.SyncWrapper())
+			return state
+		})
+		if err != nil {
 			return tofu.HookActionHalt, err
 		}
+
 		if mgrPersist, ok := h.StateMgr.(statemgr.Persister); ok && h.PersistInterval != 0 && h.Schemas != nil {
 			if h.shouldPersist() {
-				err := mgrPersist.PersistState(h.Schemas)
+				err := mgrPersist.PersistState(context.TODO(), h.Schemas)
 				if err != nil {
 					return tofu.HookActionHalt, err
 				}
@@ -115,7 +124,7 @@ func (h *StateHook) Stopping() {
 		h.intermediatePersist.ForcePersist = true
 
 		if h.shouldPersist() {
-			err := mgrPersist.PersistState(h.Schemas)
+			err := mgrPersist.PersistState(context.TODO(), h.Schemas)
 			if err != nil {
 				// This hook can't affect OpenTofu Core's ongoing behavior,
 				// but it's a best effort thing anyway, so we'll just emit a

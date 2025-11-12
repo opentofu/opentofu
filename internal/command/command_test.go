@@ -6,6 +6,7 @@
 package command
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -20,14 +21,14 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -158,13 +159,13 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir, configs.RootModuleCallForTesting())
+	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -354,7 +355,7 @@ func testStateMgrCurrentLineage(mgr statemgr.Persistent) string {
 //	// (do stuff to the state)
 //	assertStateHasMarker(state, mark)
 func markStateForMatching(state *states.State, mark string) string {
-	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false)
+	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false, "")
 	return mark
 }
 
@@ -587,7 +588,9 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 	// Copy the data from the reader to the pipe
 	go func() {
 		defer w.Close()
-		io.Copy(w, src)
+		if _, err := io.Copy(w, src); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
@@ -618,14 +621,21 @@ func testStdoutCapture(t *testing.T, dst io.Writer) func() {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		defer r.Close()
-		io.Copy(dst, r)
+		if _, err := io.Copy(dst, r); err != nil {
+			panic(err)
+		}
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close the writer end of the pipe
-		w.Sync()
-		w.Close()
+		// This test code is racey
+		_ = w.Sync()
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
 
 		// Reset stdout
 		os.Stdout = old
@@ -720,7 +730,9 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// If a state was given, make sure we calculate the proper b64md5
@@ -740,9 +752,10 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
 		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
 	}
-	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
+	httpBackendInit, _ := backendInit.Backend("http")
+	b := httpBackendInit(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
-	hash, _ := backendConfig.Hash(configSchema)
+	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 
 	state := legacy.NewState()
 	state.Backend = &legacy.BackendState{
@@ -777,7 +790,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	retState := legacy.NewState()
@@ -786,7 +801,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	b := &legacy.BackendState{
 		Type: "http",
 	}
-	b.SetConfig(cty.ObjectVal(map[string]cty.Value{
+	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
 		"address": cty.StringVal(srv.URL),
 	}), &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -795,7 +810,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 				Required: true,
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	retState.Backend = b
 
 	if s != nil {
@@ -819,7 +836,12 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	source := filepath.Join(sourceDir, "statelocker.go")
 	lockBin := filepath.Join(buildDir, "statelocker")
 
+	if runtime.GOOS == "windows" {
+		lockBin = lockBin + ".exe"
+	}
+
 	cmd := exec.Command("go", "build", "-o", lockBin, source)
+
 	cmd.Dir = filepath.Dir(sourceDir)
 
 	out, err := cmd.CombinedOutput()
@@ -828,35 +850,49 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	}
 
 	locker := exec.Command(lockBin, path)
-	pr, pw, err := os.Pipe()
+	stdin, err := locker.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
-	defer pw.Close()
-	locker.Stderr = pw
-	locker.Stdout = pw
+	stdout, err := locker.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
 
 	if err := locker.Start(); err != nil {
 		return nil, err
 	}
-	deferFunc := func() {
-		locker.Process.Signal(syscall.SIGTERM)
-		locker.Wait()
+
+	reader := bufio.NewReader(stdout)
+
+	// callback function to unlock the state file
+	cbFunc := func() {
+		stdin.Close()
+		stdout.Close()
+
+		_ = locker.Wait()
+
+		t.Logf("closed statelocker stdin and finished.")
+
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
 	}
 
 	// wait for the process to lock
-	buf := make([]byte, 1024)
-	n, err := pr.Read(buf)
+	buf, err := reader.ReadString('\n')
 	if err != nil {
-		return deferFunc, fmt.Errorf("read from statelocker returned: %w", err)
+		return cbFunc, fmt.Errorf("read from statelocker returned: %w", err)
 	}
 
-	output := string(buf[:n])
+	output := string(buf)
 	if !strings.HasPrefix(output, "LOCKID") {
-		return deferFunc, fmt.Errorf("statelocker wrote: %s", string(buf[:n]))
+		return cbFunc, fmt.Errorf("statelocker wrote: %s", output)
 	}
-	return deferFunc, nil
+	t.Logf("statelocker locked %s", output)
+	return cbFunc, nil
 }
 
 // testCopyDir recursively copies a directory tree, attempting to preserve
@@ -920,6 +956,14 @@ func testCopyDir(t *testing.T, src, dst string) {
 			}
 		}
 	}
+
+	t.Cleanup(func() {
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 }
 
 // normalizeJSON removes all insignificant whitespace from the given JSON buffer
@@ -985,16 +1029,22 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, cleanup func()) {
 	services, close := testServices(t)
-	source = getproviders.NewRegistrySource(services)
+	source = getproviders.NewRegistrySource(t.Context(), services, nil, getproviders.LocationConfig{ProviderDownloadRetries: 0})
 	return source, close
 }
 
 func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	path := req.URL.EscapedPath()
 
+	write := func(data string) {
+		if _, err := resp.Write([]byte(data)); err != nil {
+			panic(err)
+		}
+	}
+
 	if !strings.HasPrefix(path, "/providers/v1/") {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
+		write(`not a provider registry endpoint`)
 		return
 	}
 
@@ -1002,13 +1052,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if len(pathParts) != 3 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unrecognized path scheme`))
+		write(`unrecognized path scheme`)
 		return
 	}
 
 	if pathParts[2] != "versions" {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`this registry only supports legacy namespace lookup requests`))
+		write(`this registry only supports legacy namespace lookup requests`)
 		return
 	}
 
@@ -1020,13 +1070,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			if movedNamespace, ok := movedProviderNamespaces[name]; ok {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)
 			} else {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 			}
 		} else {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`provider not found`))
+			write(`provider not found`)
 		}
 		return
 	}
@@ -1035,10 +1085,10 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
 		resp.Header().Set("Content-Type", "application/json")
 		resp.WriteHeader(200)
-		resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+		fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 	} else {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`provider not found`))
+		write(`provider not found`)
 	}
 }
 

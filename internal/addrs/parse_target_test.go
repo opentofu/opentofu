@@ -8,9 +8,10 @@ package addrs
 import (
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -323,7 +324,158 @@ func TestParseTarget(t *testing.T) {
 			},
 			``,
 		},
+		// ephemeral
 
+		{
+			`ephemeral.aws_instance.baz`,
+			&Target{
+				Subject: AbsResource{
+					Resource: Resource{
+						Mode: EphemeralResourceMode,
+						Type: "aws_instance",
+						Name: "baz",
+					},
+					Module: RootModuleInstance,
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 27, Byte: 26},
+				},
+			},
+			``,
+		},
+		{
+			`ephemeral.aws_instance.baz[1]`,
+			&Target{
+				Subject: AbsResourceInstance{
+					Resource: ResourceInstance{
+						Resource: Resource{
+							Mode: EphemeralResourceMode,
+							Type: "aws_instance",
+							Name: "baz",
+						},
+						Key: IntKey(1),
+					},
+					Module: RootModuleInstance,
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 30, Byte: 29},
+				},
+			},
+			``,
+		},
+		{
+			`module.foo.ephemeral.aws_instance.baz`,
+			&Target{
+				Subject: AbsResource{
+					Resource: Resource{
+						Mode: EphemeralResourceMode,
+						Type: "aws_instance",
+						Name: "baz",
+					},
+					Module: ModuleInstance{
+						{Name: "foo"},
+					},
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 38, Byte: 37},
+				},
+			},
+			``,
+		},
+		{
+			`module.foo.module.bar.ephemeral.aws_instance.baz`,
+			&Target{
+				Subject: AbsResource{
+					Resource: Resource{
+						Mode: EphemeralResourceMode,
+						Type: "aws_instance",
+						Name: "baz",
+					},
+					Module: ModuleInstance{
+						{Name: "foo"},
+						{Name: "bar"},
+					},
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 49, Byte: 48},
+				},
+			},
+			``,
+		},
+		{
+			`module.foo.module.bar[0].ephemeral.aws_instance.baz`,
+			&Target{
+				Subject: AbsResource{
+					Resource: Resource{
+						Mode: EphemeralResourceMode,
+						Type: "aws_instance",
+						Name: "baz",
+					},
+					Module: ModuleInstance{
+						{Name: "foo", InstanceKey: NoKey},
+						{Name: "bar", InstanceKey: IntKey(0)},
+					},
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 52, Byte: 51},
+				},
+			},
+			``,
+		},
+		{
+			`module.foo.module.bar["a"].ephemeral.aws_instance.baz["hello"]`,
+			&Target{
+				Subject: AbsResourceInstance{
+					Resource: ResourceInstance{
+						Resource: Resource{
+							Mode: EphemeralResourceMode,
+							Type: "aws_instance",
+							Name: "baz",
+						},
+						Key: StringKey("hello"),
+					},
+					Module: ModuleInstance{
+						{Name: "foo", InstanceKey: NoKey},
+						{Name: "bar", InstanceKey: StringKey("a")},
+					},
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 63, Byte: 62},
+				},
+			},
+			``,
+		},
+		{
+			`module.foo.module.bar.ephemeral.aws_instance.baz["hello"]`,
+			&Target{
+				Subject: AbsResourceInstance{
+					Resource: ResourceInstance{
+						Resource: Resource{
+							Mode: EphemeralResourceMode,
+							Type: "aws_instance",
+							Name: "baz",
+						},
+						Key: StringKey("hello"),
+					},
+					Module: ModuleInstance{
+						{Name: "foo"},
+						{Name: "bar"},
+					},
+				},
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 58, Byte: 57},
+				},
+			},
+			``,
+		},
+		// errors
 		{
 			`aws_instance`,
 			nil,
@@ -385,8 +537,8 @@ func TestParseTarget(t *testing.T) {
 				return
 			}
 
-			for _, problem := range deep.Equal(got, test.Want) {
-				t.Errorf("%s", problem)
+			if diff := cmp.Diff(test.Want, got, CmpOptionsForTesting); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}

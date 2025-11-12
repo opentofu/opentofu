@@ -1,0 +1,110 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 1 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: larger-runners
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      # Prepare the nightly version to be able to have it returned correctly when running `tofu --version`.
+      - name: Prepare version file
+        run: |
+          commit_created_at=`git show --no-patch --format=%cd --date=format:%Y%m%d%H%M%S ${GITHUB_SHA}`
+          short_commit=`git rev-parse --short=12 ${GITHUB_SHA}`
+          sed -i "s/-dev/-nightly${commit_created_at}-${short_commit}/" version/VERSION
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
+        with:
+          version: v1.21.2
+          distribution: goreleaser-pro
+          args: release --nightly --clean --timeout=60m --skip=sign,docker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          RELEASE_FLAG_LATEST: "false"
+          RELEASE_FLAG_PRERELEASE: "true"
+
+      # The step before goreleaser one updated version/VERSION to have it stored in the binary, but we want to bring the
+      # repo to a clean state now.
+      - name: Restore version
+        run: git restore version/VERSION
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-dist
+          path: dist
+          retention-days: 7
+
+      - name: Setup dependencies
+        run: sudo apt-get update && sudo apt-get install rclone jq
+
+      - name: Prepare nightly artifacts
+        run: |
+          # Get today's date in YYYYMMDD format
+          DATE=$(date +%Y%m%d)
+          VERSION=$(grep -E '"version":' dist/metadata.json | cut -d'"' -f4)
+          COMMIT=$(git rev-parse --short HEAD)
+
+          # Create a staging directory for upload
+          mkdir -p ./upload/nightlies/${DATE}
+
+          # Copy relevant artifacts
+          cp dist/*.tar.gz ./upload/nightlies/${DATE}/ 2>/dev/null || true
+          cp dist/*.zip ./upload/nightlies/${DATE}/ 2>/dev/null || true
+          cp dist/*SHA256SUMS* ./upload/nightlies/${DATE}/ 2>/dev/null || true
+
+          # Create latest.json
+          cat > ./upload/nightlies/latest.json <<EOF
+          {
+            "version": "${VERSION}",
+            "date": "${DATE}",
+            "commit": "${COMMIT}",
+            "path": "/nightlies/${DATE}/",
+            "artifacts": $(ls -1 ./upload/nightlies/${DATE}/*.{tar.gz,zip} 2>/dev/null | xargs -n1 basename | jq -R -s -c 'split("\n")[:-1]')
+          }
+          EOF
+
+          echo "nightly build artifacts for ${DATE} ready to upload"
+          echo "Version: ${VERSION}"
+          echo "Commit: ${COMMIT}"
+
+      - name: Sync to R2
+        run: |
+          set -euo pipefail
+
+          echo "Starting upload to R2..."
+          echo "Files to upload:"
+          find ./upload -type f -name "*.tar.gz" -o -name "*.zip" -o -name "*SHA256SUMS*" -o -name "*.json"
+          
+          if ! rclone copy --verbose ./upload/ R2:${{ secrets.R2_BUCKET_NAME }}; then
+            echo "ERROR: Failed to upload artifacts to R2"
+            exit 1
+          fi
+
+          echo "Successfully uploaded nightly build artifacts to R2"
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}

@@ -216,7 +216,7 @@ func TestBackendConfig(t *testing.T) {
 
 			obj = newObj
 
-			confDiags := b.Configure(obj)
+			confDiags := b.Configure(t.Context(), obj)
 			if tc.ExpectConnectionError != "" {
 				err := confDiags.InConfigBody(config, "").ErrWithWarnings()
 				if err == nil {
@@ -292,12 +292,12 @@ func TestBackendConfig(t *testing.T) {
 				}
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			_, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -484,12 +484,12 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 				}
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			_, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -602,7 +602,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		if b == nil {
 			t.Fatal("Backend could not be configured")
 		}
-		stateMgr, err := b.StateMgr(backend.DefaultStateName)
+		stateMgr, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			t.Fatalf("Failed to get the state manager: %v", err)
 		}
@@ -630,48 +630,48 @@ func TestBackendConcurrentLock(t *testing.T) {
 
 	// First we need to create the workspace as the lock for creating them is
 	// global
-	lockID1, err := s1.Lock(i1)
+	lockID1, err := s1.Lock(t.Context(), i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	if err = s1.PersistState(nil); err != nil {
+	if err = s1.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err = s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(t.Context(), lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	lockID2, err := s2.Lock(i2)
+	lockID2, err := s2.Lock(t.Context(), i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err = s2.PersistState(nil); err != nil {
+	if err = s2.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err = s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(t.Context(), lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
 	// Now we can test concurrent lock
-	lockID1, err = s1.Lock(i1)
+	lockID1, err = s1.Lock(t.Context(), i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	lockID2, err = s2.Lock(i2)
+	lockID2, err = s2.Lock(t.Context(), i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err = s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(t.Context(), lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	if err = s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(t.Context(), lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 }

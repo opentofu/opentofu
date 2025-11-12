@@ -10,9 +10,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -33,6 +35,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			},
 		},
 	}
+	streams, _ := terminal.StreamsForTesting(t)
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
 	c := &ConsoleCommand{
@@ -40,6 +43,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
+			Streams:          streams,
 		},
 	}
 
@@ -113,8 +117,8 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			}
 
 			got := output.String()
-			if got != tc.expected {
-				t.Fatalf("unexpected output. For input: %s\ngot: %q\nexpected: %q", tc.input, got, tc.expected)
+			if diff := cmp.Diff(got, tc.expected); diff != "" {
+				t.Fatalf("unexpected output. For input: %s\n%s", tc.input, diff)
 			}
 		})
 	}

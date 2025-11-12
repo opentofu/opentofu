@@ -36,6 +36,13 @@ When using a saved plan, you cannot specify any additional planning modes or opt
 actions to take, and the plan file contains the final results of those
 decisions.
 
+#### Ephemeral variables
+Since ephemeral variables can't be stored in a planfile, any ephemeral variables set during the generation of a planfile from `tofu plan` must also be set when running tofu apply.
+
+For example, if `-var` has been used to provide an ephemeral variable `token` to create the planfile (`tofu plan -var "token=$MY_TOKEN"`), the same argument _must_
+be set for the apply command (`tofu apply -var "token=$MY_TOKEN" planfile`).
+If required ephemeral variables are not provided to the apply command, OpenTofu will exit with a clear message of additional variables that must be specified.
+
 ### Plan Options
 
 Without a saved plan file, `tofu apply` supports all planning modes and planning options available for `tofu plan`.
@@ -56,6 +63,14 @@ The following options change how the apply command executes and reports on the a
   includes only the summary messages, unless the warnings are accompanied by
   at least one error and thus the warning text might be useful context for
   the errors.
+
+- `-consolidate-warnings=false` - If OpenTofu produces any warnings, no
+  consolidation will be performed. All locations, for all warnings will
+  be listed. Enabled by default.
+
+- `-consolidate-errors` - If OpenTofu produces any errors, attempt to
+  consolidate similar messages into a single item.
+
 
 - `-input=false` - Disables all of OpenTofu's interactive prompts. Note that
   this also prevents OpenTofu from prompting for interactive approval of a
@@ -85,6 +100,22 @@ The following options change how the apply command executes and reports on the a
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults to
   10\.
+
+- `-var 'foo=bar'` - Set a variable in the OpenTofu configuration.
+  This flag can be set multiple times.
+
+- `-var-file=foo` - Set variables in the OpenTofu configuration from a file.
+  If "terraform.tfvars" or any ".auto.tfvars" files are present, they will
+  be automatically loaded.
+
+- `-show-sensitive` - If specified, sensitive values will not be
+  redacted in te UI output.
+
+- `-deprecation` - Specify what type of warnings are shown.
+  Accepted values: "module:all", "module:local", "module:none". Default: module:all. When "module:all" is selected,
+  OpenTofu will show the deprecation warnings for all modules. When "module:local" is selected,
+  the warnings will be shown only for the modules that are imported with a relative
+  path. When "module:none" is selected, all the deprecation warnings will be dropped.
 
 - All [planning modes](plan.mdx#planning-modes) and
 [planning options](plan.mdx#planning-options) for

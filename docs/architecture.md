@@ -279,7 +279,7 @@ a plan operation would include the following high-level steps:
   this operation.
 
 Each execution step for a vertex is an implementation of
-[`tofu.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/erraform#Execute).
+[`tofu.Execute`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#GraphNodeExecutable.Execute).
 As with graph transforms, the behavior of these implementations varies widely:
 whereas graph transforms can take any action against the graph, an `Execute`
 implementation can take any action against the `EvalContext`.

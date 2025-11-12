@@ -339,6 +339,190 @@ func TestJSONHook_refresh(t *testing.T) {
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 }
 
+func TestJSONHook_ephemeral(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_instance",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	cases := []struct {
+		name  string
+		preF  func(hook tofu.Hook) (tofu.HookAction, error)
+		postF func(hook tofu.Hook) (tofu.HookAction, error)
+		want  []map[string]interface{}
+	}{
+		{
+			name: "opening",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreOpen(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostOpen(addr, nil)
+			},
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Opening...",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Opening...",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_started",
+				},
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Open complete",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Open complete",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_complete",
+				},
+			},
+		},
+		{
+			name: "renewing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreRenew(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostRenew(addr, nil)
+			},
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Renewing...",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Renewing...",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_started",
+				},
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Renew complete",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Renew complete",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_complete",
+				},
+			},
+		},
+		{
+			name: "closing",
+			preF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PreClose(addr)
+			},
+			postF: func(hook tofu.Hook) (tofu.HookAction, error) {
+				return hook.PostClose(addr, nil)
+			},
+			want: []map[string]interface{}{
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Closing...",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Closing...",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_started",
+				},
+				{
+					"@level":   "info",
+					"@message": "ephemeral.test_instance.foo: Close complete",
+					"@module":  "tofu.ui",
+					"hook": map[string]any{
+						"Msg": "Close complete",
+						"resource": map[string]any{
+							"addr":             "ephemeral.test_instance.foo",
+							"implied_provider": "test",
+							"module":           "",
+							"resource":         "ephemeral.test_instance.foo",
+							"resource_key":     nil,
+							"resource_name":    "foo",
+							"resource_type":    "test_instance",
+						},
+					},
+					"type": "ephemeral_action_complete",
+				},
+			},
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			h := newJSONHook(NewJSONView(NewView(streams)))
+
+			action, err := tt.preF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Fatalf("Expected hook to continue, given: %#v", action)
+			}
+
+			<-time.After(1100 * time.Millisecond)
+
+			// call postF that will stop the waiting for the action
+			action, err = tt.postF(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if action != tofu.HookActionContinue {
+				t.Errorf("Expected hook to continue, given: %#v", action)
+			}
+
+			testJSONViewOutputEquals(t, done(t).Stdout(), tt.want)
+		})
+	}
+}
+
 func testHookReturnValues(t *testing.T, action tofu.HookAction, err error) {
 	t.Helper()
 

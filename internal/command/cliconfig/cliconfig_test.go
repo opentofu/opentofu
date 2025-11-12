@@ -6,6 +6,7 @@
 package cliconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,45 +14,29 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // This is the directory where our test fixtures are.
 const fixtureDir = "./testdata"
 
-func TestLoadConfig(t *testing.T) {
+func TestLoadConfig_ignore_providers_provisioners(t *testing.T) {
+	// There used to be providers and provisioners in cli config files
+	// We want to make sure config files load properly despite their
+	// possible presence.
 	c, err := loadConfigFile(filepath.Join(fixtureDir, "config"))
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	expected := &Config{
-		Providers: map[string]string{
-			"aws": "foo",
-			"do":  "bar",
-		},
-	}
-
-	if !reflect.DeepEqual(c, expected) {
-		t.Fatalf("bad: %#v", c)
-	}
-}
-
-func TestLoadConfig_envSubst(t *testing.T) {
-	t.Setenv("TFTEST", "hello")
-
-	c, err := loadConfigFile(filepath.Join(fixtureDir, "config-env"))
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	expected := &Config{
-		Providers: map[string]string{
-			"aws":    "hello",
-			"google": "bar",
-		},
-		Provisioners: map[string]string{
-			"local": "hello",
+		Hosts: map[string]*ConfigHost{
+			"example.com": {
+				Services: map[string]interface{}{
+					"modules.v1": "https://example.com/",
+				},
+			},
 		},
 	}
 
@@ -66,20 +51,20 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 
 	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
-	c, errs := LoadConfig()
+	c, errs := LoadConfig(context.Background())
 	if errs.HasErrors() || c.Validate().HasErrors() {
 		t.Fatalf("err: %s", errs)
 	}
 
-	hasOpenFileWarn := false
+	hasStatFileWarn := false
 	for _, err := range errs {
 		if err.Severity() == tfdiags.Warning && err.Description().Summary == "Unable to open CLI configuration file" {
-			hasOpenFileWarn = true
+			hasStatFileWarn = true
 			break
 		}
 	}
 
-	if !hasOpenFileWarn {
+	if !hasStatFileWarn {
 		t.Fatal("expecting a warning message because of nonexisting CLI configuration file")
 	}
 }
@@ -380,14 +365,6 @@ func TestConfigValidate(t *testing.T) {
 
 func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
-		Providers: map[string]string{
-			"foo": "bar",
-			"bar": "blah",
-		},
-		Provisioners: map[string]string{
-			"local":  "local",
-			"remote": "bad",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
 				Services: map[string]interface{}{
@@ -430,13 +407,6 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	c2 := &Config{
-		Providers: map[string]string{
-			"bar": "baz",
-			"baz": "what",
-		},
-		Provisioners: map[string]string{
-			"remote": "remote",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.net": {
 				Services: map[string]interface{}{
@@ -474,15 +444,6 @@ func TestConfig_Merge(t *testing.T) {
 	}
 
 	expected := &Config{
-		Providers: map[string]string{
-			"foo": "bar",
-			"bar": "baz",
-			"baz": "what",
-		},
-		Provisioners: map[string]string{
-			"local":  "local",
-			"remote": "remote",
-		},
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
 				Services: map[string]interface{}{

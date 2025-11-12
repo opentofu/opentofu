@@ -6,6 +6,7 @@
 package jsonformat
 
 import (
+	"fmt"
 	"sort"
 
 	ctyjson "github.com/zclconf/go-cty/cty/json"
@@ -36,6 +37,8 @@ func (state State) GetSchema(resource jsonstate.Resource) *jsonprovider.Schema {
 		return state.ProviderSchemas[resource.ProviderName].ResourceSchemas[resource.Type]
 	case jsonstate.DataResourceMode:
 		return state.ProviderSchemas[resource.ProviderName].DataSourceSchemas[resource.Type]
+	case jsonstate.EphemeralResourceMode:
+		panic(fmt.Errorf("ephemeral resources are not meant to be stored in the state file but schema for ephemeral %s.%s has been requested", resource.Type, resource.Name))
 	default:
 		panic("found unrecognized resource mode: " + resource.Mode)
 	}
@@ -74,6 +77,8 @@ func (state State) renderHumanStateModule(renderer Renderer, module jsonstate.Mo
 		case jsonstate.DataResourceMode:
 			change := structured.FromJsonResource(resource)
 			renderer.Streams.Printf("data %q %q %s", resource.Type, resource.Name, differ.ComputeDiffForBlock(change, schema.Block).RenderHuman(0, opts))
+		case jsonstate.EphemeralResourceMode:
+			panic(fmt.Errorf("ephemeral resource %s %s not allowed to be stored in the state", resource.Type, resource.Name))
 		default:
 			panic("found unrecognized resource mode: " + resource.Mode)
 		}

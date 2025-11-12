@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
@@ -98,11 +97,11 @@ type Change struct {
 // structs into generic interface{} types that can be reasoned about.
 func FromJsonChange(change jsonplan.Change, relevantAttributes attribute_path.Matcher) Change {
 	return Change{
-		Before:             unmarshalGeneric(change.Before),
-		After:              unmarshalGeneric(change.After),
-		Unknown:            unmarshalGeneric(change.AfterUnknown),
-		BeforeSensitive:    unmarshalGeneric(change.BeforeSensitive),
-		AfterSensitive:     unmarshalGeneric(change.AfterSensitive),
+		Before:             UnmarshalGeneric(change.Before),
+		After:              UnmarshalGeneric(change.After),
+		Unknown:            UnmarshalGeneric(change.AfterUnknown),
+		BeforeSensitive:    UnmarshalGeneric(change.BeforeSensitive),
+		AfterSensitive:     UnmarshalGeneric(change.AfterSensitive),
 		ReplacePaths:       attribute_path.Parse(change.ReplacePaths, false),
 		RelevantAttributes: relevantAttributes,
 	}
@@ -118,8 +117,8 @@ func FromJsonResource(resource jsonstate.Resource) Change {
 
 		// We have some sensitive values, but we don't have any unknown values.
 		Unknown:         false,
-		BeforeSensitive: unmarshalGeneric(resource.SensitiveValues),
-		AfterSensitive:  unmarshalGeneric(resource.SensitiveValues),
+		BeforeSensitive: UnmarshalGeneric(resource.SensitiveValues),
+		AfterSensitive:  UnmarshalGeneric(resource.SensitiveValues),
 
 		// We don't display replacement data for resources, and all attributes
 		// are relevant.
@@ -133,28 +132,8 @@ func FromJsonResource(resource jsonstate.Resource) Change {
 func FromJsonOutput(output jsonstate.Output) Change {
 	return Change{
 		// We model resource formatting as NoOps.
-		Before: unmarshalGeneric(output.Value),
-		After:  unmarshalGeneric(output.Value),
-
-		// We have some sensitive values, but we don't have any unknown values.
-		Unknown:         false,
-		BeforeSensitive: output.Sensitive,
-		AfterSensitive:  output.Sensitive,
-
-		// We don't display replacement data for resources, and all attributes
-		// are relevant.
-		ReplacePaths:       attribute_path.Empty(false),
-		RelevantAttributes: attribute_path.AlwaysMatcher(),
-	}
-}
-
-// FromJsonViewsOutput unmarshals the raw values in the viewsjson.Output structs into
-// generic interface{} types that can be reasoned about.
-func FromJsonViewsOutput(output viewsjson.Output) Change {
-	return Change{
-		// We model resource formatting as NoOps.
-		Before: unmarshalGeneric(output.Value),
-		After:  unmarshalGeneric(output.Value),
+		Before: UnmarshalGeneric(output.Value),
+		After:  UnmarshalGeneric(output.Value),
 
 		// We have some sensitive values, but we don't have any unknown values.
 		Unknown:         false,
@@ -262,7 +241,9 @@ func (change Change) AsCreate() Change {
 	}
 }
 
-func unmarshalGeneric(raw json.RawMessage) interface{} {
+// UnmarshalGeneric unmarshal the []byte values from the raw encoded JSON value
+// into generic interface{} types.
+func UnmarshalGeneric(raw json.RawMessage) interface{} {
 	if raw == nil {
 		return nil
 	}
@@ -279,7 +260,7 @@ func unmarshalGeneric(raw json.RawMessage) interface{} {
 func unwrapAttributeValues(values jsonstate.AttributeValues) map[string]interface{} {
 	out := make(map[string]interface{})
 	for key, value := range values {
-		out[key] = unmarshalGeneric(value)
+		out[key] = UnmarshalGeneric(value)
 	}
 	return out
 }

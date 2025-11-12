@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -33,6 +34,8 @@ func TestModuleOverrideVariable(t *testing.T) {
 			Deprecated:     "b_override deprecated",
 			Nullable:       false,
 			NullableSet:    true,
+			Ephemeral:      false,
+			EphemeralSet:   true,
 			Type:           cty.String,
 			ConstraintType: cty.String,
 			ParsingMode:    VariableParseLiteral,
@@ -72,6 +75,125 @@ func TestModuleOverrideVariable(t *testing.T) {
 					Line:   7,
 					Column: 32,
 					Byte:   134,
+				},
+			},
+		},
+	}
+	assertResultDeepEqual(t, got, want)
+}
+
+func TestModuleOverrideOutput(t *testing.T) {
+	mod, diags := testModuleFromDir("testdata/valid-modules/override-output")
+	assertNoDiagnostics(t, diags)
+	if mod == nil {
+		t.Fatalf("module is nil")
+	}
+
+	got := mod.Outputs
+	want := map[string]*Output{
+		"fully_overridden": {
+			Name:           "fully_overridden",
+			Description:    "b_override description",
+			DescriptionSet: true,
+			Expr: &hclsyntax.TemplateExpr{
+				Parts: []hclsyntax.Expression{
+					&hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("b_override"),
+						SrcRange: hcl.Range{
+							Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
+							Start: hcl.Pos{
+								Line:   2,
+								Column: 12,
+								Byte:   39,
+							},
+							End: hcl.Pos{
+								Line:   2,
+								Column: 22,
+								Byte:   49,
+							},
+						},
+					},
+				},
+				SrcRange: hcl.Range{
+					Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
+					Start: hcl.Pos{
+						Line:   2,
+						Column: 11,
+						Byte:   38,
+					},
+					End: hcl.Pos{
+						Line:   2,
+						Column: 23,
+						Byte:   50,
+					},
+				},
+			},
+			Deprecated:   "b_override deprecated",
+			Ephemeral:    false,
+			EphemeralSet: true,
+			DeclRange: hcl.Range{
+				Filename: filepath.FromSlash("testdata/valid-modules/override-output/primary.tf"),
+				Start: hcl.Pos{
+					Line:   1,
+					Column: 1,
+					Byte:   0,
+				},
+				End: hcl.Pos{
+					Line:   1,
+					Column: 26,
+					Byte:   25,
+				},
+			},
+		},
+		"partially_overridden": {
+			Name:           "partially_overridden",
+			Description:    "base description",
+			DescriptionSet: true,
+			Expr: &hclsyntax.TemplateExpr{
+				Parts: []hclsyntax.Expression{
+					&hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("b_override partial"),
+						SrcRange: hcl.Range{
+							Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
+							Start: hcl.Pos{
+								Line:   9,
+								Column: 12,
+								Byte:   197,
+							},
+							End: hcl.Pos{
+								Line:   9,
+								Column: 30,
+								Byte:   215,
+							},
+						},
+					},
+				},
+				SrcRange: hcl.Range{
+					Filename: filepath.FromSlash("testdata/valid-modules/override-output/b_override.tf"),
+					Start: hcl.Pos{
+						Line:   9,
+						Column: 11,
+						Byte:   196,
+					},
+					End: hcl.Pos{
+						Line:   9,
+						Column: 31,
+						Byte:   216,
+					},
+				},
+			},
+			Deprecated: "b_override deprecated",
+			DeclRange: hcl.Range{
+				Filename: filepath.FromSlash("testdata/valid-modules/override-output/primary.tf"),
+				Start: hcl.Pos{
+					Line:   6,
+					Column: 1,
+					Byte:   83,
+				},
+				End: hcl.Pos{
+					Line:   6,
+					Column: 30,
+					Byte:   112,
 				},
 			},
 		},
@@ -302,6 +424,61 @@ func TestModuleOverrideSensitiveVariable(t *testing.T) {
 
 			if got[v].SensitiveSet != want.sensitiveSet {
 				t.Errorf("wrong result for sensitive set\ngot: %t want: %t", got[v].Sensitive, want.sensitive)
+			}
+		})
+	}
+}
+
+func TestModuleOverrideEphemeralVariable(t *testing.T) {
+	type testCase struct {
+		ephemeral    bool
+		ephemeralSet bool
+	}
+	cases := map[string]testCase{
+		"false_true": {
+			ephemeral:    true,
+			ephemeralSet: true,
+		},
+		"true_false": {
+			ephemeral:    false,
+			ephemeralSet: true,
+		},
+		"false_false_true": {
+			ephemeral:    true,
+			ephemeralSet: true,
+		},
+		"true_true_false": {
+			ephemeral:    false,
+			ephemeralSet: true,
+		},
+		"false_true_false": {
+			ephemeral:    false,
+			ephemeralSet: true,
+		},
+		"true_false_true": {
+			ephemeral:    true,
+			ephemeralSet: true,
+		},
+	}
+
+	mod, diags := testModuleFromDir("testdata/valid-modules/override-variable-ephemeral")
+
+	assertNoDiagnostics(t, diags)
+
+	if mod == nil {
+		t.Fatalf("module is nil")
+	}
+
+	got := mod.Variables
+
+	for v, want := range cases {
+		t.Run(fmt.Sprintf("variable %s", v), func(t *testing.T) {
+			if got[v].Ephemeral != want.ephemeral {
+				t.Errorf("wrong result for ephemeral\ngot: %t want: %t", got[v].Sensitive, want.ephemeral)
+			}
+
+			if got[v].EphemeralSet != want.ephemeralSet {
+				t.Errorf("wrong result for ephemeral set\ngot: %t want: %t", got[v].Sensitive, want.ephemeral)
 			}
 		})
 	}

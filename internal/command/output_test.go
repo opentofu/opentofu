@@ -23,6 +23,7 @@ func TestOutput(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -58,6 +59,7 @@ func TestOutput_json(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -122,6 +124,7 @@ func TestOutput_badVar(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -151,11 +154,13 @@ func TestOutput_blank(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "name"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("john-doe"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -275,6 +280,7 @@ func TestOutput_stateDefault(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -384,6 +390,7 @@ func stateWithSensitiveValueForOutput() *states.State {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			true,
+			"",
 		)
 	})
 	return state

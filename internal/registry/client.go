@@ -13,20 +13,19 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -35,34 +34,11 @@ const (
 	xTerraformVersion  = "X-Terraform-Version"
 	modulesServiceID   = "modules.v1"
 	providersServiceID = "providers.v1"
-
-	// registryDiscoveryRetryEnvName is the name of the environment variable that
-	// can be configured to customize number of retries for module and provider
-	// discovery requests with the remote registry.
-	registryDiscoveryRetryEnvName = "TF_REGISTRY_DISCOVERY_RETRY"
-	defaultRetry                  = 1
-
-	// registryClientTimeoutEnvName is the name of the environment variable that
-	// can be configured to customize the timeout duration (seconds) for module
-	// and provider discovery with the remote registry.
-	registryClientTimeoutEnvName = "TF_REGISTRY_CLIENT_TIMEOUT"
-
-	// defaultRequestTimeout is the default timeout duration for requests to the
-	// remote registry.
-	defaultRequestTimeout = 10 * time.Second
 )
 
 var (
 	tfVersion = version.String()
-
-	discoveryRetry int
-	requestTimeout time.Duration
 )
-
-func init() {
-	configureDiscoveryRetry()
-	configureRequestTimeout()
-}
 
 // Client provides methods to query OpenTofu Registries.
 type Client struct {
@@ -75,37 +51,26 @@ type Client struct {
 }
 
 // NewClient returns a new initialized registry client.
-func NewClient(services *disco.Disco, client *http.Client) *Client {
+func NewClient(ctx context.Context, services *disco.Disco, client *retryablehttp.Client) *Client {
 	if services == nil {
 		services = disco.New()
 	}
 
 	if client == nil {
-		client = httpclient.New()
-		client.Timeout = requestTimeout
+		// The following is a fallback client configuration intended primarily
+		// for our test cases that directly call this function.
+		client = httpclient.NewForRegistryRequests(ctx, 1, 10*time.Second)
 	}
-	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = client
-	retryableClient.RetryMax = discoveryRetry
-	retryableClient.RequestLogHook = requestLogHook
-	retryableClient.ErrorHandler = maxRetryErrorHandler
-
-	logOutput := logging.LogOutput()
-	retryableClient.Logger = log.New(logOutput, "", log.Flags())
-
-	services.Transport = retryableClient.HTTPClient.Transport
-
-	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 	return &Client{
-		client:   retryableClient,
+		client:   client,
 		services: services,
 	}
 }
 
 // Discover queries the host, and returns the url for the registry.
-func (c *Client) Discover(host svchost.Hostname, serviceID string) (*url.URL, error) {
-	service, err := c.services.DiscoverServiceURL(host, serviceID)
+func (c *Client) Discover(ctx context.Context, host svchost.Hostname, serviceID string) (*url.URL, error) {
+	service, err := c.services.DiscoverServiceURL(ctx, host, serviceID)
 	if err != nil {
 		return nil, &ServiceUnreachableError{err}
 	}
@@ -117,12 +82,17 @@ func (c *Client) Discover(host svchost.Hostname, serviceID string) (*url.URL, er
 
 // ModuleVersions queries the registry for a module, and returns the available versions.
 func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*response.ModuleVersions, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "List Versions", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(module.RawName),
+	))
+	defer span.End()
+
 	host, err := module.SvcHost()
 	if err != nil {
 		return nil, err
 	}
 
-	service, err := c.Discover(host, modulesServiceID)
+	service, err := c.Discover(ctx, host, modulesServiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,13 +106,13 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 
 	log.Printf("[DEBUG] fetching module versions from %q", service)
 
-	req, err := retryablehttp.NewRequest("GET", service.String(), nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", service.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 	req = req.WithContext(ctx)
 
-	c.addRequestCreds(host, req.Request)
+	c.addRequestCreds(ctx, host, req.Request)
 	req.Header.Set(xTerraformVersion, tfVersion)
 
 	resp, err := c.client.Do(req)
@@ -176,8 +146,8 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 	return &versions, nil
 }
 
-func (c *Client) addRequestCreds(host svchost.Hostname, req *http.Request) {
-	creds, err := c.services.CredentialsForHost(host)
+func (c *Client) addRequestCreds(ctx context.Context, host svchost.Hostname, req *http.Request) {
+	creds, err := c.services.CredentialsForHost(ctx, host)
 	if err != nil {
 		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", host, err)
 		return
@@ -191,12 +161,19 @@ func (c *Client) addRequestCreds(host svchost.Hostname, req *http.Request) {
 // ModuleLocation find the download location for a specific version module.
 // This returns a string, because the final location may contain special go-getter syntax.
 func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, version string) (string, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "Find Module Location", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(module.RawName),
+		traceattrs.OpenTofuModuleSource(module.Module()),
+		traceattrs.OpenTofuModuleVersion(version),
+	))
+	defer span.End()
+
 	host, err := module.SvcHost()
 	if err != nil {
 		return "", err
 	}
 
-	service, err := c.Discover(host, modulesServiceID)
+	service, err := c.Discover(ctx, host, modulesServiceID)
 	if err != nil {
 		return "", err
 	}
@@ -214,14 +191,14 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 
 	log.Printf("[DEBUG] looking up module location from %q", download)
 
-	req, err := retryablehttp.NewRequest("GET", download.String(), nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", download.String(), nil)
 	if err != nil {
 		return "", err
 	}
 
 	req = req.WithContext(ctx)
 
-	c.addRequestCreds(host, req.Request)
+	c.addRequestCreds(ctx, host, req.Request)
 	req.Header.Set(xTerraformVersion, tfVersion)
 
 	resp, err := c.client.Do(req)
@@ -289,61 +266,4 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	}
 
 	return location, nil
-}
-
-// configureDiscoveryRetry configures the number of retries the registry client
-// will attempt for requests with retryable errors, like 502 status codes
-func configureDiscoveryRetry() {
-	discoveryRetry = defaultRetry
-
-	if v := os.Getenv(registryDiscoveryRetryEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			discoveryRetry = retry
-		}
-	}
-}
-
-func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
-	if i > 0 {
-		logger.Printf("[INFO] Previous request to the remote registry failed, attempting retry.")
-	}
-}
-
-func maxRetryErrorHandler(resp *http.Response, err error, numTries int) (*http.Response, error) {
-	// Close the body per library instructions
-	if resp != nil {
-		resp.Body.Close()
-	}
-
-	// Additional error detail: if we have a response, use the status code;
-	// if we have an error, use that; otherwise nothing. We will never have
-	// both response and error.
-	var errMsg string
-	if resp != nil {
-		errMsg = fmt.Sprintf(": %s returned from %s", resp.Status, resp.Request.URL)
-	} else if err != nil {
-		errMsg = fmt.Sprintf(": %s", err)
-	}
-
-	// This function is always called with numTries=RetryMax+1. If we made any
-	// retry attempts, include that in the error message.
-	if numTries > 1 {
-		return resp, fmt.Errorf("the request failed after %d attempts, please try again later%s",
-			numTries, errMsg)
-	}
-	return resp, fmt.Errorf("the request failed, please try again later%s", errMsg)
-}
-
-// configureRequestTimeout configures the registry client request timeout from
-// environment variables
-func configureRequestTimeout() {
-	requestTimeout = defaultRequestTimeout
-
-	if v := os.Getenv(registryClientTimeoutEnvName); v != "" {
-		timeout, err := strconv.Atoi(v)
-		if err == nil && timeout > 0 {
-			requestTimeout = time.Duration(timeout) * time.Second
-		}
-	}
 }

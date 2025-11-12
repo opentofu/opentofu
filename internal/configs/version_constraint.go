@@ -31,6 +31,7 @@ func decodeVersionConstraint(attr *hcl.Attribute) (VersionConstraint, hcl.Diagno
 	}
 	return decodeVersionConstraintValue(attr, val)
 }
+
 func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionConstraint, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -43,6 +44,14 @@ func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionCo
 			Severity: hcl.DiagError,
 			Summary:  "Invalid version constraint",
 			Detail:   fmt.Sprintf("Sensitive values, or values derived from sensitive values, cannot be used as %s arguments.", attr.Name),
+			Subject:  attr.Expr.Range().Ptr(),
+		})
+	}
+	if val.HasMark(marks.Ephemeral) {
+		return ret, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid version constraint",
+			Detail:   fmt.Sprintf("Ephemeral values, or values derived from ephemeral values, cannot be used as %s arguments.", attr.Name),
 			Subject:  attr.Expr.Range().Ptr(),
 		})
 	}

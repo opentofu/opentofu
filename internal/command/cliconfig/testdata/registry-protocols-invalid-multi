@@ -1,0 +1,6 @@
+# The following is intentionally invalid: registry_protocols is allowed
+# only once per configuration file (but can be specified separately across
+# _separate_ configuration files)
+registry_protocols {}
+registry_protocols {}
+

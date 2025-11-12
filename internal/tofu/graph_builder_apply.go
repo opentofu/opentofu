@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -70,11 +72,11 @@ type ApplyGraphBuilder struct {
 }
 
 // See GraphBuilder
-func (b *ApplyGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *ApplyGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "ApplyGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -145,7 +147,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&AttachResourceConfigTransformer{Config: b.Config},
 
 		// add providers
-		transformProviders(concreteProvider, b.Config),
+		transformProviders(concreteProvider, b.Config, b.Operation),
 
 		// Remove modules no longer present in the config
 		&RemovedModuleTransformer{Config: b.Config, State: b.State},
@@ -153,6 +155,11 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		// Must attach schemas before ReferenceTransformer so that we can
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
+
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
 		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
@@ -192,10 +199,15 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		// We need to remove configuration nodes that are not used at all, as
 		// they may not be able to evaluate, especially during destroy.
 		// These include variables, locals, and instance expanders.
-		&pruneUnusedNodesTransformer{},
+		&pruneUnusedNodesTransformer{
+			Op: b.Operation,
+		},
 
 		// Target
 		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
+
+		// Detect the ephemeral expandable resources and create nodes to close them
+		&CloseableResourceTransformer{},
 
 		// Close opened plugin connections
 		&CloseProviderTransformer{},

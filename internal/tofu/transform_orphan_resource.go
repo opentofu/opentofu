@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -36,7 +37,7 @@ type OrphanResourceInstanceTransformer struct {
 	skip bool
 }
 
-func (t *OrphanResourceInstanceTransformer) Transform(g *Graph) error {
+func (t *OrphanResourceInstanceTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.skip {
 		return nil
 	}

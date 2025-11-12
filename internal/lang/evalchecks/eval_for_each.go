@@ -179,7 +179,19 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByConfidentialValues(true),
+		})
+		resultVal = cty.NullVal(ty)
+	}
+	if forEachVal.HasMark(marks.Ephemeral) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      "Ephemeral values, or values derived from ephemeral values, cannot be used as for_each arguments. If used, the ephemeral value could be exposed as a resource instance key.",
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByConfidentialValues(true),
 		})
 		resultVal = cty.NullVal(ty)
 	}
@@ -225,7 +237,8 @@ func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEach
 
 	// A set of strings may contain null, which makes it impossible to
 	// convert to a map, so we must return an error
-	it := forEachVal.ElementIterator()
+	forEachValUnmarked, _ := forEachVal.UnmarkDeep()
+	it := forEachValUnmarked.ElementIterator()
 	for it.Next() {
 		item, _ := it.Element()
 		if item.IsNull() {

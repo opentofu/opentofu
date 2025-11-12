@@ -43,6 +43,8 @@ func (plan Plan) getSchema(change jsonplan.ResourceChange) *jsonprovider.Schema 
 		return plan.ProviderSchemas[change.ProviderName].ResourceSchemas[change.Type]
 	case jsonstate.DataResourceMode:
 		return plan.ProviderSchemas[change.ProviderName].DataSourceSchemas[change.Type]
+	case jsonstate.EphemeralResourceMode:
+		return plan.ProviderSchemas[change.ProviderName].EphemeralResourceSchemas[change.Type]
 	default:
 		panic("found unrecognized resource mode: " + change.Mode)
 	}
@@ -74,6 +76,10 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		}
 		if action == plans.Delete && diff.change.Mode != jsonstate.ManagedResourceMode {
 			// Don't render anything for deleted data sources.
+			continue
+		}
+		if diff.change.Mode == jsonstate.EphemeralResourceMode {
+			// Do not render ephemeral changes.
 			continue
 		}
 
@@ -296,7 +302,7 @@ func renderHumanDiffOutputs(renderer Renderer, outputs map[string]computed.Diff)
 	for _, key := range keys {
 		output := outputs[key]
 		if output.Action != plans.NoOp {
-			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(format.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive))))
+			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(renderers.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive))))
 		}
 	}
 	return strings.Join(rendered, "\n")
@@ -361,6 +367,10 @@ func renderHumanDiffDrift(renderer Renderer, diffs diffs, mode plans.Mode) bool 
 }
 
 func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) {
+	if diff.change.Mode == jsonstate.EphemeralResourceMode {
+		// render nothing for ephemeral resources
+		return "", false
+	}
 
 	// Internally, our computed diffs can't tell the difference between a
 	// replace action (eg. CreateThenDestroy, DestroyThenCreate) and a simple
@@ -386,7 +396,7 @@ func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) 
 	}
 	opts.ShowUnchangedChildren = diff.Importing()
 
-	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(format.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
+	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(renderers.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
 	return buf.String(), true
 }
 
@@ -479,6 +489,8 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			}
 		case jsonplan.ResourceInstanceDeleteBecauseCountIndex:
 			buf.WriteString(fmt.Sprintf("\n  # (because index [%s] is out of range for count)", resource.Index))
+		case jsonplan.ResourceInstanceDeleteBecauseEnabledFalse:
+			buf.WriteString("\n  # (because enabled is false)")
 		case jsonplan.ResourceInstanceDeleteBecauseEachKey:
 			buf.WriteString(fmt.Sprintf("\n  # (because key [%s] is not in for_each map)", resource.Index))
 		}
@@ -560,7 +572,7 @@ func actionDescription(action plans.Action) string {
 	case plans.Delete:
 		return "  [red]-[reset] destroy"
 	case plans.Update:
-		return "  [yellow]~[reset] update in-place"
+		return "  [yellow]~[reset] update in-place (current -> planned)"
 	case plans.CreateThenDelete:
 		return "[green]+[reset]/[red]-[reset] create replacement and then destroy"
 	case plans.DeleteThenCreate:
@@ -569,6 +581,8 @@ func actionDescription(action plans.Action) string {
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
 		return "  [red].[reset] forget"
+	case plans.Open:
+		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))

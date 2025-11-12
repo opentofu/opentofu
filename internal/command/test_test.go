@@ -6,7 +6,9 @@
 package command
 
 import (
+	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -30,6 +32,10 @@ func TestTest(t *testing.T) {
 		code     int
 		skip     bool
 	}{
+		"function_call_in_variables": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
 		"simple_pass": {
 			expected: "1 passed, 0 failed.",
 			code:     0,
@@ -671,15 +677,15 @@ managed resources and data sources.
 
 Failure! 0 passed, 1 failed, 1 skipped.
 `,
-			expectedErr: `
+			expectedErr: fmt.Sprintf(`
 Error: Reference to undeclared input variable
 
-  on setup/main.tf line 3, in resource "test_resource" "setup":
+  on %s line 3, in resource "test_resource" "setup":
    3:     value = var.not_real // Oh no!
 
 An input variable with the name "not_real" has not been declared. This
 variable can be declared with a variable "not_real" {} block.
-`,
+`, filepath.FromSlash("setup/main.tf")),
 		},
 		"missing-provider": {
 			expectedOut: `main.tftest.hcl... fail
@@ -1037,7 +1043,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
@@ -1052,7 +1058,7 @@ Plan: 0 to add, 1 to change, 0 to destroy.
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
-  ~ update in-place
+  ~ update in-place (current -> planned)
 
 OpenTofu will perform the following actions:
 
@@ -1206,7 +1212,7 @@ func TestTest_LocalVariables(t *testing.T) {
 		skip     bool
 	}{
 		"pass_with_local_variable": {
-			expected: `tests/test.tftest.hcl... pass
+			expected: fmt.Sprintf(`%s... pass
   run "first"... pass
 
 
@@ -1221,7 +1227,7 @@ OpenTofu has compared your real infrastructure against your configuration and
 found no differences, so no changes are needed.
 
 Success! 2 passed, 0 failed.
-`,
+`, filepath.FromSlash("tests/test.tftest.hcl")),
 			code: 0,
 		},
 		"pass_var_inside_variables": {
@@ -1496,6 +1502,18 @@ func TestTest_MockProviderValidation(t *testing.T) {
 							Type:     cty.String,
 							Optional: true,
 						},
+						"object_attr": {
+							Computed: true,
+							NestedType: &configschema.Object{
+								Nesting: configschema.NestingSingle,
+								Attributes: map[string]*configschema.Attribute{
+									"string_attr": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
 						"computed_value": {
 							Type:     cty.String,
 							Computed: true,
@@ -1506,14 +1524,12 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		},
 	}
 
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
-		Streams:          streams,
 		ProviderSource:   providerSource,
 	}
 
@@ -1521,7 +1537,99 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		Meta: meta,
 	}
 
-	if code := testCmd.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+}
+
+// TestTest_MockProviderValidationForEach checks if tofu test runs proper validation for
+// mock_provider with for_each. Even if provider schema has required fields, tofu test should
+// ignore it completely, because the provider is mocked.
+func TestTest_MockProviderValidationForEach(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/mock_provider_validation_for_each"), td)
+	t.Chdir(td)
+
+	provider := testing_command.NewProvider(nil)
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer closePS()
+
+	provider.Provider.ConfigureProviderCalled = true
+	provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"value": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"object_attr": {
+							Computed: true,
+							NestedType: &configschema.Object{
+								Nesting: configschema.NestingSingle,
+								Attributes: map[string]*configschema.Attribute{
+									"string_attr": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
+						"computed_value": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	view, done := testView(t)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		Ui:               ui,
+		View:             view,
+		ProviderSource:   providerSource,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
+	}
+}
+
+// See https://github.com/opentofu/opentofu/issues/3246
+func TestTest_DeprecatedOutputs(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/deprecated_outputs"), td)
+	t.Chdir(td)
+
+	view, done := testView(t)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		Ui:   ui,
+		View: view,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }

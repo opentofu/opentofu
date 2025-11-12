@@ -6,6 +6,8 @@
 package remote
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
@@ -13,9 +15,9 @@ import (
 // driver. It supports dumb put/get/delete, and the higher level structs
 // handle persisting the state properly here.
 type Client interface {
-	Get() (*Payload, error)
-	Put([]byte) error
-	Delete() error
+	Get(context.Context) (*Payload, error)
+	Put(context.Context, []byte) error
+	Delete(context.Context) error
 }
 
 // ClientForcePusher is an optional interface that allows a remote

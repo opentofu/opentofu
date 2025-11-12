@@ -12,10 +12,10 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
-func remoteModulePackageFetcher(getOCICredsPolicy ociCredsPolicyBuilder) *getmodules.PackageFetcher {
+func remoteModulePackageFetcher(ctx context.Context, getOCICredsPolicy ociCredsPolicyBuilder) *getmodules.PackageFetcher {
 	// TODO: Pass in a real getmodules.PackageFetcherEnvironment here,
 	// which knows how to make use of the OCI authentication policy.
-	return getmodules.NewPackageFetcher(&modulePackageFetcherEnvironment{
+	return getmodules.NewPackageFetcher(ctx, &modulePackageFetcherEnvironment{
 		getOCICredsPolicy: getOCICredsPolicy,
 	})
 }

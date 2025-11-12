@@ -6,7 +6,6 @@
 package initwd
 
 import (
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -35,10 +34,10 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 	var diags tfdiags.Diagnostics
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 
 	call := configs.RootModuleCallForTesting()
-	_, moreDiags := inst.InstallModules(context.Background(), rootDir, testsDir, true, false, ModuleInstallHooksImpl{}, call)
+	_, moreDiags := inst.InstallModules(t.Context(), rootDir, testsDir, true, false, ModuleInstallHooksImpl{}, call)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
@@ -51,7 +50,7 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir, call)
+	config, hclDiags := loader.LoadConfig(t.Context(), rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, loader, diags
 }
@@ -71,4 +70,21 @@ func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Co
 		t.Fatal(diags.Err())
 	}
 	return config, loader
+}
+
+// MustLoadConfigWithSnapshot is similar with MustLoadConfigForTests, but additionally it returns also the
+// snapshot of the config that is needed to create an actual plan file for tests.
+func MustLoadConfigWithSnapshot(t testing.TB, rootDir, testsDir string) (*configs.Config, *configload.Loader, *configload.Snapshot) {
+	t.Helper()
+
+	_, loader, diags := LoadConfigForTests(t, rootDir, testsDir)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	call := configs.RootModuleCallForTesting()
+	cfg, snap, nDiags := loader.LoadConfigWithSnapshot(t.Context(), rootDir, call)
+	if nDiags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	return cfg, loader, snap
 }

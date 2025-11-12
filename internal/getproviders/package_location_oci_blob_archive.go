@@ -17,6 +17,9 @@ import (
 	ociDigest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	orasContent "oras.land/oras-go/v2/content"
+
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ociPackageMediaType is the specific media type we're expecting for the blob
@@ -82,6 +85,25 @@ var _ PackageLocation = PackageOCIBlobArchive{}
 
 func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
 	pkgDesc := p.blobDescriptor
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch provider package",
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuOCIRegistryDomain(p.registryDomain),
+			traceattrs.OpenTofuOCIRepositoryName(p.repositoryName),
+			traceattrs.OpenTofuOCIBlobDigest(pkgDesc.Digest.String()),
+			traceattrs.OpenTofuOCIBlobMediaType(pkgDesc.MediaType),
+			traceattrs.OpenTofuOCIBlobSize(pkgDesc.Size),
+			traceattrs.String("opentofu.provider.local_dir", targetDir),
+			traceattrs.OpenTofuProviderAddress(meta.Provider.String()),
+			traceattrs.OpenTofuProviderVersion(meta.Version.String()),
+			traceattrs.OpenTofuTargetPlatform(meta.TargetPlatform.String()),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
 
 	// First we'll make sure that what we've been given makes sense to be the descriptor
 	// for a provider package blob. A failure here suggests a bug in the [Source] that
@@ -89,13 +111,13 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 	// location type cannot support.
 	err := checkOCIBlobDescriptor(pkgDesc, meta)
 	if err != nil {
-		return nil, err
+		return nil, prepErr(err)
 	}
 
 	// If we have a fixed set of allowed hashes then we'll check that our
 	// selected descriptor matches before we waste time fetching the package.
 	if len(allowedHashes) > 0 && !ociPackageDescriptorDigestMatchesAnyHash(pkgDesc.Digest, allowedHashes) {
-		return nil, fmt.Errorf(
+		return nil, prepErr(fmt.Errorf(
 			// FIXME: We currently have slightly-different variations of this error
 			// message spread across the different [PackageLocation] implementations.
 			// It would be good to settle on a single good version of this text,
@@ -105,7 +127,7 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 			// separate task from implementing OCI-based installation as a new feature.
 			"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
 			meta.Provider, meta.Version,
-		)
+		))
 	}
 
 	// If we reach this point then we have a descriptor for what will hopefully
@@ -114,7 +136,7 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 	// into its final location.
 	localLoc, err := fetchOCIBlobToTemporaryFile(ctx, pkgDesc, p.repoStore)
 	if err != nil {
-		return nil, fmt.Errorf("fetching provider package blob %s: %w", pkgDesc.Digest.String(), err)
+		return nil, prepErr(fmt.Errorf("fetching provider package blob %s: %w", pkgDesc.Digest.String(), err))
 	}
 	defer os.Remove(string(localLoc)) // Best effort to remove the temporary file before we return
 
@@ -136,7 +158,8 @@ func (p PackageOCIBlobArchive) InstallProviderPackage(ctx context.Context, meta 
 		Location:         localLoc,
 		Authentication:   meta.Authentication,
 	}
-	return localLoc.InstallProviderPackage(ctx, localMeta, targetDir, allowedHashes)
+	authResult, err := localLoc.InstallProviderPackage(ctx, localMeta, targetDir, allowedHashes)
+	return authResult, prepErr(err)
 }
 
 func (p PackageOCIBlobArchive) String() string {
@@ -205,6 +228,7 @@ func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, sto
 		// file we've created, so we'll make a best effort to proactively
 		// remove it. If we succeed then it's the caller's responsibility to
 		// remove the file once it's no longer needed.
+		f.Close() // always close this file, so that caller can safely remove it.
 		if err != nil {
 			os.Remove(f.Name())
 		}
@@ -213,7 +237,6 @@ func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, sto
 	// We'll borrow go-getter's "cancelable copy" implementation here so that
 	// the download can potentially be interrupted partway through.
 	n, err := getter.Copy(ctx, f, reader)
-	f.Close() // we're done using the filehandle now, even if the copy failed
 	if err == nil && n < desc.Size {
 		// This should be impossible because we used io.LimitReader, but we'll check
 		// anyway to be robust since go-getter returns this information regardless.

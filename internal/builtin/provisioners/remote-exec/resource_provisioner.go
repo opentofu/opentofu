@@ -55,6 +55,7 @@ func (p *provisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
 				Optional: true,
 			},
 		},
+		Ephemeral: true,
 	}
 
 	resp.Provisioner = schema
@@ -245,7 +246,9 @@ func runScripts(ctx context.Context, o provisioners.UIOutput, comm communicator.
 	// Wait for the context to end and then disconnect
 	go func() {
 		<-ctx.Done()
-		comm.Disconnect()
+		if err := comm.Disconnect(); err != nil {
+			log.Printf("[ERROR] Unable to close provisioner connection: %s", err.Error())
+		}
 	}()
 
 	for _, script := range scripts {

@@ -28,7 +28,7 @@ var _ Source = (*FilesystemMirrorSource)(nil)
 
 // NewFilesystemMirrorSource constructs and returns a new filesystem-based
 // mirror source with the given base directory.
-func NewFilesystemMirrorSource(baseDir string) *FilesystemMirrorSource {
+func NewFilesystemMirrorSource(_ context.Context, baseDir string) *FilesystemMirrorSource {
 	return &FilesystemMirrorSource{
 		baseDir: baseDir,
 	}

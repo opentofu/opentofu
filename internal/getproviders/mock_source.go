@@ -135,7 +135,7 @@ func FakePackageMeta(provider addrs.Provider, version Version, protocols Version
 		// Some fake but somewhat-realistic-looking other metadata. This
 		// points nowhere, so will fail if attempting to actually use it.
 		Filename: fmt.Sprintf("terraform-provider-%s_%s_%s.zip", provider.Type, version.String(), target.String()),
-		Location: PackageHTTPURL(fmt.Sprintf("https://fake.invalid/terraform-provider-%s_%s.zip", provider.Type, version.String())),
+		Location: PackageHTTPURL{URL: fmt.Sprintf("https://fake.invalid/terraform-provider-%s_%s.zip", provider.Type, version.String())},
 	}
 }
 
@@ -166,10 +166,6 @@ func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protoc
 
 	if execFilename == "" {
 		execFilename = fmt.Sprintf("terraform-provider-%s_%s", provider.Type, version.String())
-		if target.OS == "windows" {
-			// For a little more (technically unnecessary) realism...
-			execFilename += ".exe"
-		}
 	}
 
 	zw := zip.NewWriter(f)
@@ -185,9 +181,13 @@ func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protoc
 
 	// Compute the SHA256 checksum of the generated file, to allow package
 	// authentication code to be exercised.
-	f.Seek(0, io.SeekStart)
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return PackageMeta{}, close, err
+	}
 	h := sha256.New()
-	io.Copy(h, f)
+	if _, err := io.Copy(h, f); err != nil {
+		return PackageMeta{}, close, err
+	}
 	checksum := [32]byte{}
 	h.Sum(checksum[:0])
 

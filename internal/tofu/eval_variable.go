@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -51,6 +52,25 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 			// redundant downstream errors.
 			return cty.UnknownVal(cfg.Type), diags
 		}
+	}
+
+	if marks.Contains(raw.Value, marks.Ephemeral) && !cfg.Ephemeral {
+		log.Printf("[TRACE] prepareFinalInputVariableValue: %q references an ephemeral value but not configured accordingly", addr)
+		// For child modules variables, this logic is unnecessary since those variables
+		// do always have a SourceRange defined.
+		// We generate subj this way because of the root module variables. In many cases,
+		// the SourceRange can be missing for root module variables.
+		subj := cfg.DeclRange
+		if raw.HasSourceRange() {
+			subj = raw.SourceRange.ToHCL()
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Variable does not allow ephemeral value`,
+			Detail:   fmt.Sprintf("The value used for the variable %q is ephemeral, but it is not configured to allow one.", cfg.Name),
+			Subject:  subj.Ptr(),
+		})
+		return cty.UnknownVal(cfg.Type), diags
 	}
 
 	var sourceRange tfdiags.SourceRange
@@ -123,18 +143,23 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 				"The given value is not suitable for %s declared at %s: %s.",
 				addr, cfg.DeclRange.String(), err,
 			)
-			subject = sourceRange.ToHCL().Ptr()
 
 			// In some workflows, the operator running tofu does not have access to the variables
 			// themselves. They are for example stored in encrypted files that will be used by the CI toolset
 			// and not by the operator directly. In such a case, the failing secret value should not be
 			// displayed to the operator
-			if cfg.Sensitive {
+			subject = cfg.DeclRange.Ptr()
+			switch {
+			case cfg.Ephemeral:
+				detail = fmt.Sprintf(
+					"The given value is not suitable for %s, which is ephemeral: %s. Invalid value defined at %s.",
+					addr, err, sourceRange.ToHCL(),
+				)
+			case cfg.Sensitive:
 				detail = fmt.Sprintf(
 					"The given value is not suitable for %s, which is sensitive: %s. Invalid value defined at %s.",
 					addr, err, sourceRange.ToHCL(),
 				)
-				subject = cfg.DeclRange.Ptr()
 			}
 		}
 
@@ -201,14 +226,14 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 // This must be used only after any side-effects that make the value of the
 // variable available for use in expression evaluation, such as
 // EvalModuleCallArgument for variables in descendent modules.
-func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) (diags tfdiags.Diagnostics) {
+func evalVariableValidations(ctx context.Context, addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	if config == nil || len(config.Validations) == 0 {
 		log.Printf("[TRACE] evalVariableValidations: no validation rules declared for %s, so skipping", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableValidations: validating %s", addr)
 
-	checkState := ctx.Checks()
+	checkState := evalCtx.Checks()
 	if !checkState.ConfigHasChecks(addr.ConfigCheckable()) {
 		// We have nothing to do if this object doesn't have any checks,
 		// but the "rules" slice should agree that we don't.
@@ -227,7 +252,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 	// bypass our usual evaluation machinery here and just produce a minimal
 	// evaluation context containing just the required value, and thus avoid
 	// the problem that ctx's evaluation functions refer to the wrong module.
-	val := ctx.GetVariableValue(addr)
+	val := evalCtx.GetVariableValue(addr)
 	if val == cty.NilVal {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -236,13 +261,18 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		})
 		return diags
 	}
+
+	// Normally this marking is handled automatically during construction
+	// of the HCL eval context the evaluation scope, but this code path
+	// augments that scope with the not-yet-finalized input variable
+	// value, so we need to apply these marks separately.
 	if config.Sensitive {
-		// Normally this marking is handled automatically during construction
-		// of the HCL eval context the evaluation scope, but this codepath
-		// augments that scope with the not-yet-finalized input variable
-		// value, so we need to apply this mark separately.
 		val = val.Mark(marks.Sensitive)
 	}
+	if config.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
+	}
+
 	for ix, validation := range config.Validations {
 		condRefs, condDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
 		diags = diags.Append(condDiags)
@@ -253,7 +283,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condRefs, errRefs...))
+		hclCtx, ctxDiags := evalCtx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(ctx, append(condRefs, errRefs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue
@@ -387,7 +417,7 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	}
 
 	// Validation condition may be marked if the input variable is bound to
-	// a sensitive value. This is irrelevant to the validation process, so
+	// a sensitive or ephemeral value. This is irrelevant to the validation process, so
 	// we discard the marks now.
 	result, _ = result.Unmark()
 	status := checks.StatusForCtyValue(result)
@@ -426,7 +456,8 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 				EvalContext: hclCtx,
 			})
 		} else {
-			if marks.Has(errorValue, marks.Sensitive) {
+			switch {
+			case marks.Has(errorValue, marks.Sensitive):
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 
@@ -438,10 +469,25 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
-					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
-			} else {
+			case marks.Has(errorValue, marks.Ephemeral):
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+
+					Summary: "Error message refers to ephemeral values",
+					Detail: `The error expression used to explain this condition refers to ephemeral values. OpenTofu will not display the resulting message.
+
+You can correct this by removing references to ephemeral values or by utilizing the builtin ephemeralasnull() function.`,
+
+					Subject:     validation.ErrorMessage.Range().Ptr(),
+					Expression:  validation.ErrorMessage,
+					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
+				})
+				errorMessage = "The error message included an ephemeral value, so it will not be displayed."
+			default:
 				// errorValue could have deprecated marks as well,
 				// so we need to unmark to not get panic from AsString()
 				errorValue = marks.RemoveDeepDeprecated(errorValue)
@@ -488,28 +534,76 @@ You can correct this by removing references to sensitive values, or by carefully
 	}, diags
 }
 
-// evalVariableDeprecation checks if a variable is deprecated and if so it returns a warning diagnostic to be shown to the user
-func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) tfdiags.Diagnostics {
+// evalVariableDeprecation checks if a variable is deprecated and if so, it returns a warning diagnostic to be shown to the user
+func evalVariableDeprecation(
+	addr addrs.AbsInputVariableInstance,
+	config *configs.Variable,
+	expr hcl.Expression,
+	ctx EvalContext,
+	variableFromRemoteModule bool) tfdiags.Diagnostics {
 	if config.Deprecated == "" {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s does not have deprecation configured", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q does not have deprecation configured", addr)
 		return nil
 	}
 	// if the variable is not given in the module call, do not show a warning
 	if expr == nil {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but is not used", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but is not used", addr)
 		return nil
 	}
 	val := ctx.GetVariableValue(addr)
 	if val == cty.NilVal {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but no value given", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but no value given", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)
 	var diags tfdiags.Diagnostics
 	return diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagWarning,
-		Summary:  fmt.Sprintf(`The variable %q is marked as deprecated by module author`, config.Name),
-		Detail:   fmt.Sprintf("This variable is marked as deprecated with the following message:\n%s", config.Deprecated),
+		Summary:  `Variable marked as deprecated by the module author`,
+		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
+		Extra: VariableDeprecationCause{
+			// Used to identify the input on the consolidation diagnostics and
+			// make sure they are showed separately, by using the address of the
+			// module variable. Since these always be different, variables won't consolidate,
+			// but after we have a reliable way to get the address on remote modules, we can consolidate them.
+			Key:                fmt.Sprintf("%s\n%s", config.Name, config.Deprecated),
+			IsFromRemoteModule: variableFromRemoteModule,
+		},
 	})
+}
+
+// diagnosticExtraVariableDeprecationCause is defining the contract a struct needs to fulfill
+// to be able to mark a diagnostic as one carrying information about a deprecated variable.
+type diagnosticExtraVariableDeprecationCause interface {
+	diagnosticDeprecationCause() VariableDeprecationCause
+}
+
+// DiagnosticVariableDeprecationCause checks whether the given diagnostic is
+// a deprecation warning, and if so returns the deprecation cause and
+// true. If not, returns the zero value of DeprecationCause and false.
+func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprecationCause, bool) {
+	maybe := tfdiags.ExtraInfo[diagnosticExtraVariableDeprecationCause](diag)
+	if maybe == nil {
+		return VariableDeprecationCause{}, false
+	}
+	return maybe.diagnosticDeprecationCause(), true
+}
+
+// VariableDeprecationCause is just a container that it holds the flag that the deprecated variable was marked with.
+// This flag is going to be used later to decide on showing this diagnostic or not based on the level that the user
+// has provided in the CLI args.
+type VariableDeprecationCause struct {
+	IsFromRemoteModule bool
+	Key                string
+}
+
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+func (c VariableDeprecationCause) ExtraInfoKey() string {
+	return c.Key
+}
+
+// VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause
+func (c VariableDeprecationCause) diagnosticDeprecationCause() VariableDeprecationCause {
+	return c
 }

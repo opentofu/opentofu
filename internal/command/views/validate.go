@@ -11,7 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -94,10 +94,10 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		// We include some summary information that is actually redundant
 		// with the detailed diagnostics, but avoids the need for callers
 		// to re-implement our logic for deciding these.
-		Valid        bool                    `json:"valid"`
-		ErrorCount   int                     `json:"error_count"`
-		WarningCount int                     `json:"warning_count"`
-		Diagnostics  []*viewsjson.Diagnostic `json:"diagnostics"`
+		Valid        bool                       `json:"valid"`
+		ErrorCount   int                        `json:"error_count"`
+		WarningCount int                        `json:"warning_count"`
+		Diagnostics  []*jsonentities.Diagnostic `json:"diagnostics"`
 	}
 
 	output := Output{
@@ -106,7 +106,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	}
 	configSources := v.view.configSources()
 	for _, diag := range diags {
-		output.Diagnostics = append(output.Diagnostics, viewsjson.NewDiagnostic(diag, configSources))
+		output.Diagnostics = append(output.Diagnostics, jsonentities.NewDiagnostic(diag, configSources))
 
 		switch diag.Severity() {
 		case tfdiags.Error:
@@ -119,7 +119,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	if output.Diagnostics == nil {
 		// Make sure this always appears as an array in our output, since
 		// this is easier to consume for dynamically-typed languages.
-		output.Diagnostics = []*viewsjson.Diagnostic{}
+		output.Diagnostics = []*jsonentities.Diagnostic{}
 	}
 
 	j, err := json.MarshalIndent(&output, "", "  ")

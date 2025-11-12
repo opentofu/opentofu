@@ -6,11 +6,13 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -86,9 +88,9 @@ type PlanGraphBuilder struct {
 	// ImportTargets are the list of resources to import.
 	ImportTargets []*ImportTarget
 
-	// EndpointsToRemove are the list of resources and modules to forget from
+	// RemoveStatements are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
 	// any import targets that do not already have configuration.
@@ -100,12 +102,12 @@ type PlanGraphBuilder struct {
 }
 
 // See GraphBuilder
-func (b *PlanGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *PlanGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] building graph for %s", b.Operation)
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "PlanGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder
@@ -129,8 +131,19 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 			Concrete: b.ConcreteResource,
 			Config:   b.Config,
 
-			// Resources are not added from the config on destroy.
-			skip: b.Operation == walkPlanDestroy,
+			// Instead of just skipping the ConfigTransformer altogether during walkPlanDestroy,
+			// we want to add only the ephemeral resources.
+			// This is needed to be able later to use the changes generated to create
+			// actual applyable instance nodes to have the ephemeral information fetched
+			// for the nodes that depend on it (ie: configuring a "provider" block with ephemeral values)
+			ModeFilter: func(mode addrs.ResourceMode) bool {
+				if b.Operation != walkPlanDestroy {
+					// Allow all the resource types on the operations that are not walkPlanDestroy
+					return false
+				}
+				// For the walkPlanDestroy, allow only ephemeral resources
+				return mode != addrs.EphemeralResourceMode
+			},
 
 			importTargets: b.ImportTargets,
 
@@ -195,7 +208,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&AttachResourceConfigTransformer{Config: b.Config},
 
 		// add providers
-		transformProviders(b.ConcreteProvider, b.Config),
+		transformProviders(b.ConcreteProvider, b.Config, b.Operation),
 
 		// Remove modules no longer present in the config
 		&RemovedModuleTransformer{Config: b.Config, State: b.State},
@@ -203,6 +216,11 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Must attach schemas before ReferenceTransformer so that we can
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
+
+		// Replace providers that have no config or dependencies to
+		// NodeEvalableProvider. This allows using provider-defined functions
+		// even when the provider isn't configured.
+		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
 		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
@@ -224,9 +242,9 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 		&AttachDependenciesTransformer{},
 
-		// Make sure data sources are aware of any depends_on from the
-		// configuration
-		&attachDataResourceDependsOnTransformer{},
+		// Make sure data sources and ephemeral resources are aware of any
+		// depends_on from the configuration
+		&attachResourceDependsOnTransformer{},
 
 		// DestroyEdgeTransformer is only required during a plan so that the
 		// TargetingTransformer can determine which nodes to keep in the graph.
@@ -235,7 +253,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		&pruneUnusedNodesTransformer{
-			skip: b.Operation != walkPlanDestroy,
+			Op: b.Operation,
 		},
 
 		// Target
@@ -244,6 +262,12 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.
 		&ForcedCBDTransformer{},
+
+		// Detect the ephemeral plannable resources and create nodes to close them
+		&CloseableResourceTransformer{
+			// Closeable nodes are not needed to be added during validate.
+			skip: b.Operation == walkValidate,
+		},
 
 		// Close opened plugin connections
 		&CloseProviderTransformer{},
@@ -283,7 +307,7 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  b.skipRefresh,
 			skipPlanChanges:              b.skipPlanChanges,
-			EndpointsToRemove:            b.EndpointsToRemove,
+			RemoveStatements:             b.RemoveStatements,
 		}
 	}
 
@@ -292,9 +316,9 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			DeposedKey:                   key,
 
-			skipRefresh:       b.skipRefresh,
-			skipPlanChanges:   b.skipPlanChanges,
-			EndpointsToRemove: b.EndpointsToRemove,
+			skipRefresh:      b.skipRefresh,
+			skipPlanChanges:  b.skipPlanChanges,
+			RemoveStatements: b.RemoveStatements,
 		}
 	}
 }

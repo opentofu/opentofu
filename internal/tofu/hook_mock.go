@@ -141,10 +141,48 @@ type MockHook struct {
 	PostApplyForgetReturn HookAction
 	PostApplyForgetError  error
 
+	DeferredCalled bool
+	DeferredReturn HookAction
+	DeferredError  error
+
+	PreOpenCalled bool
+	PreOpenAddr   addrs.AbsResourceInstance
+	PreOpenReturn HookAction
+	PreOpenError  error
+
+	PostOpenCalled      bool
+	PostOpenAddr        addrs.AbsResourceInstance
+	PostOpenError       error
+	PostOpenReturn      HookAction
+	PostOpenReturnError error
+
+	PreRenewCalled bool
+	PreRenewAddr   addrs.AbsResourceInstance
+	PreRenewReturn HookAction
+	PreRenewError  error
+
+	PostRenewCalled      bool
+	PostRenewAddr        addrs.AbsResourceInstance
+	PostRenewError       error
+	PostRenewReturn      HookAction
+	PostRenewReturnError error
+
+	PreCloseCalled bool
+	PreCloseAddr   addrs.AbsResourceInstance
+	PreCloseAction plans.Action
+	PreCloseReturn HookAction
+	PreCloseError  error
+
+	PostCloseCalled      bool
+	PostCloseAddr        addrs.AbsResourceInstance
+	PostCloseError       error
+	PostCloseReturn      HookAction
+	PostCloseReturnError error
+
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
-	PostStateUpdateState  *states.State
+	PostStateUpdateFn     func(*states.SyncState)
 	PostStateUpdateReturn HookAction
 	PostStateUpdateError  error
 }
@@ -351,6 +389,74 @@ func (h *MockHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, err
 	return h.PostApplyForgetReturn, h.PostApplyForgetError
 }
 
+func (h *MockHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.DeferredCalled = true
+	return h.DeferredReturn, h.DeferredError
+}
+
+func (h *MockHook) PreOpen(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreOpenCalled = true
+	h.PreOpenAddr = addr
+	return h.PreOpenReturn, h.PreOpenError
+}
+
+func (h *MockHook) PostOpen(addr addrs.AbsResourceInstance, err error) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostOpenCalled = true
+	h.PostOpenAddr = addr
+	h.PostOpenError = err
+
+	return h.PostOpenReturn, h.PostOpenReturnError
+}
+
+func (h *MockHook) PreRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreRenewCalled = true
+	h.PreRenewAddr = addr
+	return h.PreRenewReturn, h.PreRenewError
+}
+
+func (h *MockHook) PostRenew(addr addrs.AbsResourceInstance, err error) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostRenewCalled = true
+	h.PostRenewAddr = addr
+	h.PostRenewError = err
+
+	return h.PostRenewReturn, h.PostRenewReturnError
+}
+
+func (h *MockHook) PreClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreCloseCalled = true
+	h.PreCloseAddr = addr
+	return h.PreCloseReturn, h.PreCloseError
+}
+
+func (h *MockHook) PostClose(addr addrs.AbsResourceInstance, err error) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostCloseCalled = true
+	h.PostCloseAddr = addr
+	h.PostCloseError = err
+
+	return h.PostCloseReturn, h.PostCloseReturnError
+}
+
 func (h *MockHook) Stopping() {
 	h.Lock()
 	defer h.Unlock()
@@ -358,11 +464,11 @@ func (h *MockHook) Stopping() {
 	h.StoppingCalled = true
 }
 
-func (h *MockHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *MockHook) PostStateUpdate(fn func(*states.SyncState)) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
 	h.PostStateUpdateCalled = true
-	h.PostStateUpdateState = new
+	h.PostStateUpdateFn = fn
 	return h.PostStateUpdateReturn, h.PostStateUpdateError
 }

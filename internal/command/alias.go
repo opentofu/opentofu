@@ -18,6 +18,8 @@ func (c *AliasCommand) Run(args []string) int {
 	return c.Command.Run(args)
 }
 
+// Help returns the text with information about the command.
+// The returned text needs to be hard-wrapped at 80 columns.
 func (c *AliasCommand) Help() string {
 	return c.Command.Help()
 }

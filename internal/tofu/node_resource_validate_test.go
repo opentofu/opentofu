@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 		},
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if diags.HasErrors() {
 		t.Fatalf("node.Eval failed: %s", diags.Err())
 	}
@@ -101,7 +102,7 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 		}
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if len(diags) != 1 {
 		t.Fatalf("wrong number of diagnostics in %s; want one warning", diags.ErrWithWarnings())
 	}
@@ -146,7 +147,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 		},
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if !diags.HasErrors() {
 		t.Fatalf("node.Eval succeeded; want error")
 	}
@@ -155,7 +156,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 	}
 
 	errStr := diags.Err().Error()
-	if !(strings.Contains(errStr, "bananananananana") && strings.Contains(errStr, "bazaz")) {
+	if !strings.Contains(errStr, "bananananananana") || !strings.Contains(errStr, "bazaz") {
 		t.Fatalf("wrong errors %q; want something about each of our invalid connInfo keys", errStr)
 	}
 }
@@ -195,10 +196,10 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	err := node.validateResource(ctx)
+	err := node.validateResource(t.Context(), ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -225,7 +226,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
 	tests := []struct {
@@ -261,7 +262,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 				},
 			}
 
-			diags := node.validateResource(ctx)
+			diags := node.validateResource(t.Context(), ctx)
 			if diags.HasErrors() {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -271,6 +272,84 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 			}
 		})
 	}
+}
+
+func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T) {
+	mp := simpleMockProvider()
+
+	p := providers.Interface(mp)
+	rc := &configs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_object",
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.StringVal("bar"),
+			"test_number": cty.NumberIntVal(2).Mark(marks.Sensitive),
+		}),
+	}
+
+	node := NodeValidatableResource{
+		NodeAbstractResource: &NodeAbstractResource{
+			Addr:             mustConfigResourceAddr("ephemeral.test_foo.bar"),
+			Config:           rc,
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+		},
+	}
+
+	ctx := &MockEvalContext{}
+	ctx.installSimpleEval()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.ProviderProvider = p
+
+	t.Run("no errors", func(t *testing.T) {
+		mp.ValidateEphemeralConfigCalled = false
+		mp.ValidateEphemeralConfigFn = func(req providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+			if got, want := req.TypeName, "test_object"; got != want {
+				t.Fatalf("wrong resource type\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := req.Config.GetAttr("test_string"), cty.StringVal("bar"); !got.RawEquals(want) {
+				t.Fatalf("wrong value for test_string\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := req.Config.GetAttr("test_number"), cty.NumberIntVal(2); !got.RawEquals(want) {
+				t.Fatalf("wrong value for test_number\ngot:  %#v\nwant: %#v", got, want)
+			}
+			return providers.ValidateEphemeralConfigResponse{}
+		}
+		diags := node.validateResource(t.Context(), ctx)
+		if diags.HasErrors() {
+			t.Fatalf("err: %s", diags.Err())
+		}
+
+		if !mp.ValidateEphemeralConfigCalled {
+			t.Fatal("Expected ValidateEphemeralResourceConfig to be called, but it was not!")
+		}
+	})
+	t.Run("validation diagnostics returned", func(t *testing.T) {
+		mp.ValidateEphemeralConfigCalled = false
+		mp.ValidateEphemeralConfigFn = func(req providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+			return providers.ValidateEphemeralConfigResponse{
+				Diagnostics: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "validation summary",
+					Detail:   "validation detail",
+				}),
+			}
+		}
+
+		diags := node.validateResource(t.Context(), ctx)
+		if !mp.ValidateEphemeralConfigCalled {
+			t.Fatal("Expected ValidateEphemeralResourceConfig to be called, but it was not!")
+		}
+		if !diags.HasErrors() {
+			t.Fatalf("expected err. Got nothing")
+		}
+		if got, want := diags[0].Description().Summary, "validation summary"; got != want {
+			t.Fatalf("expected diagnostic summary %q but got %q", want, got)
+		}
+		if got, want := diags[0].Description().Detail, "validation detail"; got != want {
+			t.Fatalf("expected diagnostic detail %q but got %q", want, got)
+		}
+	})
 }
 
 func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
@@ -309,10 +388,10 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -345,10 +424,10 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -382,10 +461,10 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("unexpected success; want error")
 	}
@@ -445,10 +524,10 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -469,7 +548,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid depends_on")
 	}
@@ -485,7 +564,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid depends_on")
 	}
@@ -529,10 +608,10 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -545,7 +624,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid ignore_changes")
 	}
@@ -612,10 +691,10 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -628,7 +707,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("got unexpected error: %s", diags.ErrWithWarnings())
 	}
@@ -636,5 +715,125 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 
 The attribute computed_string is decided by the provider alone and therefore there can be no configured value to compare with. Including this attribute in ignore_changes has no effect. Remove the attribute from ignore_changes to quiet this warning.`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error\ngot:  %s\nwant: Message containing %q", got, want)
+	}
+}
+
+// TestNodeValidatableResource_ValidateResource_suggestion validates that the suggestions generated for mismatched block types
+// are generated correctly. This was added when ephemeral resource were added and the suggestion code refactored to accommodate
+// all resource modes in one.
+func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
+	ms := &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"test_string": {
+				Type:     cty.String,
+				Optional: true,
+			},
+			"computed_string": {
+				Type:     cty.String,
+				Computed: true,
+				Optional: false,
+			},
+		},
+	}
+
+	mp := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: ms},
+			ResourceTypes: map[string]providers.Schema{
+				"test_managed_resource": {Block: ms},
+			},
+			DataSources: map[string]providers.Schema{
+				"test_data_source": {Block: ms},
+			},
+			EphemeralResources: map[string]providers.Schema{
+				"test_ephemeral_resource": {Block: ms},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		mode  addrs.ResourceMode
+		rtype string
+
+		wantSummary string
+		wantDetail  string
+	}{
+		"managed resource with resource type of a data source": {
+			mode:        addrs.ManagedResourceMode,
+			rtype:       "test_data_source",
+			wantSummary: "Invalid resource type",
+			wantDetail:  "The provider hashicorp/aws does not support resource type \"test_data_source\".\n\nDid you intend to use a block of type \"data\" \"test_data_source\"? If so, declare this using a block of type \"data\" instead of one of type \"resource\".",
+		},
+		"managed resource with resource type of an ephemeral resource": {
+			mode:        addrs.ManagedResourceMode,
+			rtype:       "test_ephemeral_resource",
+			wantSummary: "Invalid resource type",
+			wantDetail:  "The provider hashicorp/aws does not support resource type \"test_ephemeral_resource\".\n\nDid you intend to use a block of type \"ephemeral\" \"test_ephemeral_resource\"? If so, declare this using a block of type \"ephemeral\" instead of one of type \"resource\".",
+		},
+		"data source with resource type of a managed resource": {
+			mode:        addrs.DataResourceMode,
+			rtype:       "test_managed_resource",
+			wantSummary: "Invalid data source",
+			wantDetail:  "The provider hashicorp/aws does not support data source \"test_managed_resource\".\n\nDid you intend to use a block of type \"resource\" \"test_managed_resource\"? If so, declare this using a block of type \"resource\" instead of one of type \"data\".",
+		},
+		"data source with resource type of an ephemeral resource": {
+			mode:        addrs.DataResourceMode,
+			rtype:       "test_ephemeral_resource",
+			wantSummary: "Invalid data source",
+			wantDetail:  "The provider hashicorp/aws does not support data source \"test_ephemeral_resource\".\n\nDid you intend to use a block of type \"ephemeral\" \"test_ephemeral_resource\"? If so, declare this using a block of type \"ephemeral\" instead of one of type \"data\".",
+		},
+		"ephemeral resource with resource type of a managed resource": {
+			mode:        addrs.EphemeralResourceMode,
+			rtype:       "test_managed_resource",
+			wantSummary: "Invalid ephemeral resource",
+			wantDetail:  "The provider hashicorp/aws does not support ephemeral resource \"test_managed_resource\".\n\nDid you intend to use a block of type \"resource\" \"test_managed_resource\"? If so, declare this using a block of type \"resource\" instead of one of type \"ephemeral\".",
+		},
+		"ephemeral resource with resource type of a data source": {
+			mode:        addrs.EphemeralResourceMode,
+			rtype:       "test_data_source",
+			wantSummary: "Invalid ephemeral resource",
+			wantDetail:  "The provider hashicorp/aws does not support ephemeral resource \"test_data_source\".\n\nDid you intend to use a block of type \"data\" \"test_data_source\"? If so, declare this using a block of type \"data\" instead of one of type \"ephemeral\".",
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			p := providers.Interface(mp)
+			rc := &configs.Resource{
+				Mode:   tt.mode,
+				Type:   tt.rtype,
+				Name:   "foo",
+				Config: configs.SynthBody("", map[string]cty.Value{}),
+			}
+			var prefix string
+			if tt.mode != addrs.ManagedResourceMode {
+				prefix = addrs.ResourceModeBlockName(tt.mode)
+			}
+			node := NodeValidatableResource{
+				NodeAbstractResource: &NodeAbstractResource{
+					Addr:             mustConfigResourceAddr(fmt.Sprintf("%s%s.bar", prefix, tt.rtype)),
+					Config:           rc,
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				},
+			}
+
+			ctx := &MockEvalContext{}
+			ctx.installSimpleEval()
+
+			ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+			ctx.ProviderProvider = p
+
+			diags := node.validateResource(t.Context(), ctx)
+			if got, want := len(diags), 1; got != want {
+				t.Fatalf("expected to have %d diagnostics but got %d", want, got)
+			}
+			d := diags[0]
+
+			if got, want := d.Description().Summary, tt.wantSummary; got != want {
+				t.Fatalf("unexpected diagnostic summary. \nwant:\n\t%s\ngot:\n\t%s", want, got)
+			}
+			if got, want := d.Description().Detail, tt.wantDetail; got != want {
+				t.Fatalf("unexpected diagnostic detail. \nwant:\n\t%s\ngot:\n\t%s", want, got)
+			}
+		})
 	}
 }

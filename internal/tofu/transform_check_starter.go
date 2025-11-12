@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -25,7 +27,7 @@ type checkStartTransformer struct {
 	Operation walkOperation
 }
 
-func (s *checkStartTransformer) Transform(graph *Graph) error {
+func (s *checkStartTransformer) Transform(_ context.Context, graph *Graph) error {
 	if s.Operation != walkApply && s.Operation != walkPlan {
 		// We only actually execute the checks during plan apply operations
 		// so if we are doing something else we can just skip this and

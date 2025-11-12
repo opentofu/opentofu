@@ -15,7 +15,10 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // A Config is a node in the tree of modules within a configuration.
@@ -419,47 +422,9 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	// Each resource in the configuration creates an *implicit* provider
 	// dependency, though we'll only record it if there isn't already
 	// an explicit dependency on the same provider.
-	for _, rc := range c.Module.ManagedResources {
-		fqn := rc.Provider
-		if _, exists := reqs[fqn]; exists {
-			// If this is called for a child module, and the provider was added from another implicit reference and not
-			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-				CfgRes:            rc.Addr().InModule(c.Path),
-				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-				ProviderAttribute: rc.ProviderConfigRef != nil,
-			})
-			// Explicit dependency already present
-			continue
-		}
-		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-			CfgRes:            rc.Addr().InModule(c.Path),
-			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-			ProviderAttribute: rc.ProviderConfigRef != nil,
-		})
-		reqs[fqn] = nil
-	}
-	for _, rc := range c.Module.DataResources {
-		fqn := rc.Provider
-		if _, exists := reqs[fqn]; exists {
-			// If this is called for a child module, and the provider was added from another implicit reference and not
-			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-				CfgRes:            rc.Addr().InModule(c.Path),
-				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-				ProviderAttribute: rc.ProviderConfigRef != nil,
-			})
-
-			// Explicit dependency already present
-			continue
-		}
-		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-			CfgRes:            rc.Addr().InModule(c.Path),
-			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-			ProviderAttribute: rc.ProviderConfigRef != nil,
-		})
-		reqs[fqn] = nil
-	}
+	c.collectImplicitProviders(c.Module.ManagedResources, reqs, qualifs)
+	c.collectImplicitProviders(c.Module.DataResources, reqs, qualifs)
+	c.collectImplicitProviders(c.Module.EphemeralResources, reqs, qualifs)
 
 	// Import blocks that are generating config may also have a custom provider
 	// meta argument. Like the provider meta argument used in resource blocks,
@@ -571,6 +536,31 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	}
 
 	return diags
+}
+
+// collectImplicitProviders is checking the provider configuration of each resource.
+// For the resources whose required provider is not explicitly configured, an implicit one is collected.
+// This is mainly used for enabling warnings when OpenTofu fails to resolve the implicitly generated provider.
+func (c *Config) collectImplicitProviders(resources map[string]*Resource, reqs getproviders.Requirements, qualifs *getproviders.ProvidersQualification) {
+	for _, rc := range resources {
+		fqn := rc.Provider
+		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
+			continue
+		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
+		reqs[fqn] = nil
+	}
 }
 
 func (c *Config) addProviderRequirementsFromProviderBlock(reqs getproviders.Requirements, provider *Provider) hcl.Diagnostics {
@@ -999,6 +989,8 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 					Version:           testProvider.Version,
 					Config:            providerConfig,
 					DeclRange:         testProvider.DeclRange,
+					ForEach:           testProvider.ForEach,
+					Instances:         testProvider.Instances,
 					IsMocked:          testProvider.IsMocked,
 					MockResources:     testProvider.MockResources,
 					OverrideResources: testProvider.OverrideResources,
@@ -1017,12 +1009,16 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 				next[key] = provider
 			}
 			for _, mp := range file.MockProviders {
+				providerDiags := mp.evaluateProviderConfig(evalCtx)
+				diags = append(diags, providerDiags...)
 				next[mp.moduleUniqueKey()] = &Provider{
 					Name:              mp.Name,
 					NameRange:         mp.NameRange,
 					Alias:             mp.Alias,
 					AliasRange:        mp.AliasRange,
 					DeclRange:         mp.DeclRange,
+					ForEach:           mp.ForEach,
+					Instances:         mp.Instances,
 					IsMocked:          true,
 					MockResources:     mp.MockResources,
 					OverrideResources: mp.OverrideResources,
@@ -1037,6 +1033,39 @@ func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) tes
 			c.Module.ProviderConfigs = previous
 		}, diags
 	}
+}
+
+// evaluateProviderConfig evaluates code for the mock provider. for_each is the only attribute
+// that is evaluated for the mock provider, but support for other provider attributes can be added
+// here if needed.
+func (mp *MockProvider) evaluateProviderConfig(evalCtx *hcl.EvalContext) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if mp.ForEach == nil {
+		// Since we're evaluating only for_each expressions, return it if it's not present.
+		return diags
+	}
+
+	// Create a dummy forEachRefsFunc to be used with EvaluateForEachExpression.
+	forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		return evalCtx, nil
+	}
+
+	forVal, evalDiags := evalchecks.EvaluateForEachExpression(mp.ForEach, forEachRefsFunc, nil)
+	diags = append(diags, evalDiags.ToHCL()...)
+	if evalDiags.HasErrors() {
+		return diags
+	}
+
+	mp.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
+	for k, v := range forVal {
+		mp.Instances[addrs.StringKey(k)] = instances.RepetitionData{
+			EachKey:   cty.StringVal(k),
+			EachValue: v,
+		}
+	}
+
+	return diags
 }
 
 func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
@@ -1067,6 +1096,7 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		if res.Mode != overrideRes.Mode {
+			// TODO ephemeral testing support - include also the ephemeral resource and the test_file.go#override_ephemeral
 			blockName, targetMode := blockNameOverrideResource, "data"
 			if overrideRes.Mode == addrs.DataResourceMode {
 				blockName, targetMode = blockNameOverrideData, "resource"
@@ -1221,4 +1251,32 @@ func mergeOverriddenModules(runModules, fileModules []*OverrideModule) ([]*Overr
 	}
 
 	return modules, diags
+}
+
+// IsModuleCallFromRemoteModule is traversing upwards from the module call to the root module and is looking for any
+// module on the path for which configs.Module.EntersNewPackage=true.
+// This is needed to know if a variable is referenced from a module imported from a remote source or from a local one.
+func (c *Config) IsModuleCallFromRemoteModule(callName string) bool {
+	if _, ok := c.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		return true
+	}
+	calledModuleName := callName
+	parent := c.Parent
+	for parent != nil {
+		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
+		if !ok {
+			log.Printf("[ERROR] no module call found in %q for %q", parent.Path, calledModuleName)
+			return false
+		}
+		if refCallCfg.EntersNewPackage() {
+			return true
+		}
+		if parent.Path.IsRoot() {
+			return false
+		}
+		_, call := parent.Path.Call()
+		calledModuleName = call.Name
+		parent = parent.Parent
+	}
+	return false
 }

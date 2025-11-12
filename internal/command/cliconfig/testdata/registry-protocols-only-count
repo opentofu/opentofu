@@ -1,0 +1,3 @@
+registry_protocols {
+  retry_count = 256
+}

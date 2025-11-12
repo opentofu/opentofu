@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -21,7 +23,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
@@ -291,6 +292,86 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 				aesgcm.Is,
 			},
 		},
+		"invalid-method-identifier-format-missing-method-keyword": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				method "unencrypted" "for_migration" {
+				}
+				state {
+					# Missing method. prefix - this will trigger the invalid format error
+					method = aes_gcm.example
+					fallback {
+						method = method.unencrypted.for_migration
+					}
+				}
+			`,
+			wantErr: "Test Config Source:12,15-30: Invalid encryption method identifier; Expected method of form method.<type>.<name>",
+		},
+		"invalid-method-identifier-format-incorrect-method-keyword": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				method "unencrypted" "for_migration" {
+				}
+				state {
+					# using methodzzzzz. prefix - this will trigger the invalid format error
+					method = methodzzzzz.aes_gcm.example
+				}
+			`,
+			wantErr: "Test Config Source:12,15-42: Invalid encryption method identifier; Expected method of form method.<type>.<name>",
+		},
+		"invalid-method-identifier-format-incorrect-method-keyword-with-fallback": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				method "unencrypted" "for_migration" {
+				}
+				state {
+					# using methodzzzzz. prefix - this will trigger the invalid format error
+					method = methodzzzzz.aes_gcm.example
+					fallback {
+						method = method.unencrypted.for_migration
+					}
+				}
+			`,
+			wantErr: "Test Config Source:12,15-42: Invalid encryption method identifier; Expected method of form method.<type>.<name>",
+		},
+		"reference-to-undeclared-method-with-fallback": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				method "unencrypted" "for_migration" {
+				}
+				state {
+					# Correct format but referencing a non-existent method
+					method = method.aes_gcm.nonexistent
+					fallback {
+						method = method.unencrypted.for_migration
+					}
+				}
+			`,
+			wantErr: `Test Config Source:12,15-41: Reference to undeclared encryption method; There is no method "aes_gcm" "nonexistent" block declared in the encryption block.`,
+			wantMethods: []func(method.Method) bool{
+				unencrypted.Is,
+			},
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
@@ -364,7 +445,7 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 		var methods []method.Method
 		methodConfigs, diags := methodConfigsFromTarget(cfg, target, "test", cfg.State.Enforced)
 		for _, methodConfig := range methodConfigs {
-			m, mDiags := setupMethod(cfg, methodConfig, meta, reg, staticEval)
+			m, mDiags := setupMethod(t.Context(), cfg, methodConfig, meta, reg, staticEval)
 			diags = diags.Extend(mDiags)
 			if !mDiags.HasErrors() {
 				methods = append(methods, m)

@@ -32,6 +32,11 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 			wantErr: "Invalid import id argument: The import ID cannot be sensitive.",
 		},
 		{
+			name:    "ephemeral_value",
+			expr:    hcltest.MockExprLiteral(cty.StringVal("value").Mark(marks.Ephemeral)),
+			wantErr: "Invalid import id argument: The import ID cannot be ephemeral.",
+		},
+		{
 			name:    "expr_is_nil",
 			expr:    nil,
 			wantErr: "Invalid import id argument: The import ID cannot be null.",

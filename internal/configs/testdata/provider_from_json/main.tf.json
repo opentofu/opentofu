@@ -1,0 +1,21 @@
+{
+    "locals": {
+        "instances":{
+            "a": 1
+        }
+    },
+    "provider": {
+        "null":{
+            "alias": "blah",
+            "for_each": "${local.instances}"
+        }
+    },
+    "resource": {
+        "null_resource": {
+            "test": {
+                "for_each": "${local.instances}",
+                "provider": "null.blah[each.key]"
+            }
+        }
+    }
+}

@@ -88,7 +88,7 @@ func (b *Local) opRefresh(
 	}
 
 	// get schemas before writing state
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -119,7 +119,7 @@ func (b *Local) opRefresh(
 		return
 	}
 
-	err := statemgr.WriteAndPersist(opState, newState, schemas)
+	err := statemgr.WriteAndPersist(context.TODO(), opState, newState, schemas)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("failed to write state: %w", err))
 		op.ReportResult(runningOp, diags)

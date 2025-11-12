@@ -32,9 +32,24 @@ permissions:
   contents: read
 
 jobs:
+  fileschanged:
+    name: List files changed for pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Fetch source code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: diff 
+        run: |
+          git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin ${{github.event.pull_request.base.ref}}
+          echo "go=$(git diff --name-only origin/${{github.event.pull_request.base.ref}} | grep -e '\.go' -e '\.github' -e 'go\.mod' -e 'go\.sum' -e '\.tf' -e '\.gitattributes' | wc -l)" | tee -a "$GITHUB_OUTPUT"
+    outputs:
+      go: ${{ steps.diff.outputs.go }}
+    
   unit-tests:
     name: Unit tests for ${{ matrix.goos }}_${{ matrix.goarch }}
     runs-on: ${{ matrix.runson }}
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
     env:
       TF_APPEND_USER_AGENT: Integration-Test
       GOOS: ${{ matrix.goos }}
@@ -47,9 +62,7 @@ jobs:
           - { runson: ubuntu-latest, goos: linux, goarch: "386" }
           - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
           - { runson: macos-latest, goos: darwin, goarch: "arm64" }
-          # - { runson: windows-latest, goos: windows, goarch: "amd64" }
-          # https://github.com/opentofu/opentofu/issues/1201 if fixed
-          #  ^ un-comment the  windows-latest line
+          - { runson: windows-latest, goos: windows, goarch: "amd64" }
       fail-fast: false
     steps:
       # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
@@ -61,25 +74,10 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
-
-      # NOTE: This cache is shared so the following step must always be
-      # identical across the unit-tests, e2e-tests, and consistency-checks
-      # jobs, or else weird things could happen.
-      - name: Cache Go modules
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: "~/go/pkg"
-          key: go-mod-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-mod-
+          go-version-file: 'go.mod'
 
       - name: "Unit tests"
         run: |
@@ -88,30 +86,17 @@ jobs:
   race-tests:
     name: "Race Tests"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
-
-      # NOTE: This cache is shared so the following step must always be
-      # identical across the unit-tests, e2e-tests, and consistency-checks
-      # jobs, or else weird things could happen.
-      - name: Cache Go modules
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: "~/go/pkg"
-          key: go-mod-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-mod-
+          go-version-file: 'go.mod'
 
       # The race detector add significant time to the unit tests, so only run
       # it for select packages.
@@ -126,30 +111,17 @@ jobs:
     # that might leak through this.
     name: "End-to-end Tests"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
-
-      # NOTE: This cache is shared so the following step must always be
-      # identical across the unit-tests, e2e-tests, and consistency-checks
-      # jobs, or else weird things could happen.
-      - name: Cache Go modules
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: "~/go/pkg"
-          key: go-mod-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-mod-
+          go-version-file: 'go.mod'
 
       - name: "End-to-end tests"
         run: |
@@ -158,6 +130,8 @@ jobs:
   consistency-checks:
     name: "Code Consistency Checks"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
@@ -165,30 +139,15 @@ jobs:
         with:
           fetch-depth: 0 # We need to do comparisons against the main branch.
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
-
-      # NOTE: This cache is shared so the following step must always be
-      # identical across the unit-tests, e2e-tests, and consistency-checks
-      # jobs, or else weird things could happen.
-      - name: Cache Go modules
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: "~/go/pkg"
-          key: go-mod-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            go-mod-
+          go-version-file: 'go.mod'
 
       - name: "go.mod and go.sum consistency check"
         run: |
           go mod tidy
-          if [[ -n "$(git status --porcelain)" ]]; then
+          if [[ -n "$(git status --porcelain go.mod go.sum)" ]]; then
             echo >&2 "ERROR: go.mod/go.sum are not up-to-date. Run 'go mod tidy' and then commit the updated files."
             exit 1
           fi
@@ -210,15 +169,16 @@ jobs:
             exit 1
           fi
       - name: "Code linting"
-        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.0
-        with:
-          version: v1.64.5
-          # Only compare with changes from when we introduced linting.  Eventually we can get rid of this and lint the whole project
-          args: --new-from-rev dd5f9afe8948186c76fe6b8b1193d7a8f46919d8
+        run: |
+          # We use our own Makefile target here, rather than the
+          # golangci/golangci-lint-action action, because it ought to be
+          # possible for someone who encounters a failure here to replicate
+          # exactly the same run in their local development environment.
+          make golangci-lint
       
       - name: "Copyright headers"
         run: |
-          go run github.com/hashicorp/copywrite headers --plan
+          go tool github.com/hashicorp/copywrite headers --plan
           if [[ $? != 0 ]]; then
             echo >&2 "ERROR: some files are missing required copyright headers. Run `scripts/add-copyright-headers.sh` locally and then commit the updated files."
             exit 1
@@ -244,14 +204,10 @@ jobs:
           restore-keys: |
             licensei-cache-
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{ steps.go.outputs.version }}
+          go-version-file: 'go.mod'
 
       - name: Run licensei
         env:
@@ -266,14 +222,3 @@ jobs:
         with:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
- 
-  installation-instructions:
-    name: "Test Installation Instructions"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "Fetch source code"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: "Run Installation Instructions Test"
-        run: make test-linux-install-instructions

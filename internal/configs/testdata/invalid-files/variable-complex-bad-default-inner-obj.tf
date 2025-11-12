@@ -9,7 +9,6 @@ variable "bad_type_for_inner_field" {
     default = {
         "mykey" = {
             field = "not a bool"
-            dont = "mind me"
         }
     }
 }

@@ -54,6 +54,10 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 	if ov.Deprecated != "" {
 		v.Deprecated = ov.Deprecated
 	}
+	if ov.EphemeralSet {
+		v.EphemeralSet = ov.EphemeralSet
+		v.Ephemeral = ov.Ephemeral
+	}
 	if ov.Default != cty.NilVal {
 		v.Default = ov.Default
 	}
@@ -156,6 +160,10 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 	if oo.Deprecated != "" {
 		o.Deprecated = oo.Deprecated
 	}
+	if oo.EphemeralSet {
+		o.EphemeralSet = oo.EphemeralSet
+		o.Ephemeral = oo.Ephemeral
+	}
 
 	// We don't allow depends_on to be overridden because that is likely to
 	// cause confusing misbehavior.
@@ -254,9 +262,8 @@ func (r *Resource) merge(or *Resource, rps map[string]*RequiredProvider) hcl.Dia
 		if or.Managed.IgnoreAllChanges {
 			r.Managed.IgnoreAllChanges = true
 		}
-		if or.Managed.PreventDestroySet {
+		if or.Managed.PreventDestroy != nil {
 			r.Managed.PreventDestroy = or.Managed.PreventDestroy
-			r.Managed.PreventDestroySet = or.Managed.PreventDestroySet
 		}
 		if len(or.Managed.Provisioners) != 0 {
 			r.Managed.Provisioners = or.Managed.Provisioners

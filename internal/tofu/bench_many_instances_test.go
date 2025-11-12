@@ -179,7 +179,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 		plan, planDiags := tofuCtx.Plan(ctx, m, priorState, planOpts)
 		assertNoDiagnostics(b, planDiags)
 
-		_, applyDiags := tofuCtx.Apply(ctx, plan, m)
+		_, applyDiags := tofuCtx.Apply(ctx, plan, m, nil)
 		assertNoDiagnostics(b, applyDiags)
 	}
 }
@@ -253,7 +253,7 @@ func BenchmarkManyModuleInstances(b *testing.B) {
 		plan, planDiags := tofuCtx.Plan(ctx, m, states.NewState(), planOpts)
 		assertNoDiagnostics(b, planDiags)
 
-		_, applyDiags := tofuCtx.Apply(ctx, plan, m)
+		_, applyDiags := tofuCtx.Apply(ctx, plan, m, nil)
 		assertNoDiagnostics(b, applyDiags)
 	}
 }

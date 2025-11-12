@@ -31,6 +31,8 @@ func Provisioner(p provisioners.Interface) tfplugin5.ProvisionerServer {
 type provisioner struct {
 	provisioner provisioners.Interface
 	schema      *configschema.Block
+
+	tfplugin5.UnimplementedProvisionerServer
 }
 
 func (p *provisioner) GetSchema(_ context.Context, req *tfplugin5.GetProvisionerSchema_Request) (*tfplugin5.GetProvisionerSchema_Response, error) {
@@ -74,15 +76,13 @@ func (p *provisioner) ProvisionResource(req *tfplugin5.ProvisionResource_Request
 	configVal, err := decodeDynamicValue(req.Config, ty)
 	if err != nil {
 		srvResp.Diagnostics = convert.AppendProtoDiag(srvResp.Diagnostics, err)
-		srv.Send(srvResp)
-		return nil
+		return srv.Send(srvResp)
 	}
 
 	connVal, err := decodeDynamicValue(req.Connection, shared.ConnectionBlockSupersetSchema.ImpliedType())
 	if err != nil {
 		srvResp.Diagnostics = convert.AppendProtoDiag(srvResp.Diagnostics, err)
-		srv.Send(srvResp)
-		return nil
+		return srv.Send(srvResp)
 	}
 
 	resp := p.provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
@@ -92,8 +92,7 @@ func (p *provisioner) ProvisionResource(req *tfplugin5.ProvisionResource_Request
 	})
 
 	srvResp.Diagnostics = convert.AppendProtoDiag(srvResp.Diagnostics, resp.Diagnostics)
-	srv.Send(srvResp)
-	return nil
+	return srv.Send(srvResp)
 }
 
 func (p *provisioner) Stop(context.Context, *tfplugin5.Stop_Request) (*tfplugin5.Stop_Response, error) {

@@ -6,33 +6,47 @@
 package local
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestStateHook_impl(t *testing.T) {
 	var _ tofu.Hook = new(StateHook)
 }
 
+func stateHookExpected() *states.State {
+	expected := states.NewState()
+	expected.RootModule().SetOutputValue("sensitive_output", cty.StringVal("it's a secret"), true, "")
+	return expected
+}
+func stateHookMutator(state *states.SyncState) {
+	state.SetOutputValue(addrs.AbsOutputValue{OutputValue: addrs.OutputValue{Name: "sensitive_output"}}, cty.StringVal("it's a secret"), true, "")
+}
+
 func TestStateHook(t *testing.T) {
 	is := statemgr.NewTransientInMemory(nil)
-	var hook tofu.Hook = &StateHook{StateMgr: is}
+	var hook tofu.Hook = &StateHook{
+		StateMgr: is,
+	}
 
-	s := statemgr.TestFullInitialState()
-	action, err := hook.PostStateUpdate(s)
+	action, err := hook.PostStateUpdate(stateHookMutator)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if action != tofu.HookActionContinue {
 		t.Fatalf("bad: %v", action)
 	}
-	if !is.State().Equal(s) {
+
+	if !is.State().Equal(stateHookExpected()) {
 		t.Fatalf("bad state: %#v", is.State())
 	}
 }
@@ -48,8 +62,8 @@ func TestStateHookStopping(t *testing.T) {
 		},
 	}
 
-	s := statemgr.TestFullInitialState()
-	action, err := hook.PostStateUpdate(s)
+	s := stateHookExpected()
+	action, err := hook.PostStateUpdate(stateHookMutator)
 	if err != nil {
 		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
 	}
@@ -66,14 +80,20 @@ func TestStateHookStopping(t *testing.T) {
 	// We'll now force lastPersist to be long enough ago that persisting
 	// should be due on the next call.
 	hook.intermediatePersist.LastPersist = time.Now().Add(-5 * time.Hour)
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
@@ -84,14 +104,14 @@ func TestStateHookStopping(t *testing.T) {
 	gotLog := is.CallLog
 	wantLog := []string{
 		// Initial call before we reset lastPersist
-		"WriteState",
+		"MutateState",
 
 		// Write and then persist after we reset lastPersist
-		"WriteState",
+		"MutateState",
 		"PersistState",
 
 		// Final call when persisting wasn't due yet.
-		"WriteState",
+		"MutateState",
 	}
 	if diff := cmp.Diff(wantLog, gotLog); diff != "" {
 		t.Fatalf("wrong call log so far\n%s", diff)
@@ -108,12 +128,18 @@ func TestStateHookStopping(t *testing.T) {
 	}
 
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
@@ -126,9 +152,9 @@ func TestStateHookStopping(t *testing.T) {
 		// PostStateUpdate then writes and persists on every call,
 		// on the assumption that we're now bailing out after
 		// being cancelled and trying to save as much state as we can.
-		"WriteState",
+		"MutateState",
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"PersistState",
 	}
 	if diff := cmp.Diff(wantLog, gotLog); diff != "" {
@@ -147,8 +173,8 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 		},
 	}
 
-	s := statemgr.TestFullInitialState()
-	action, err := hook.PostStateUpdate(s)
+	s := stateHookExpected()
+	action, err := hook.PostStateUpdate(stateHookMutator)
 	if err != nil {
 		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
 	}
@@ -165,14 +191,20 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	// We'll now force lastPersist to be long enough ago that persisting
 	// should be due on the next call.
 	hook.intermediatePersist.LastPersist = time.Now().Add(-5 * time.Hour)
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
 	if is.Persisted != nil {
 		t.Fatalf("has a persisted state, but shouldn't")
 	}
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Written == nil || !is.Written.Equal(s) {
 		t.Fatalf("mismatching state written")
 	}
@@ -183,17 +215,17 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	gotLog := is.CallLog
 	wantLog := []string{
 		// Initial call before we reset lastPersist
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 
 		// Write and then decline to persist
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 
 		// Final call before we start "stopping".
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return false, preventing a "PersistState" call
 	}
@@ -212,12 +244,18 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 	}
 
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
 	is.Persisted = nil
-	hook.PostStateUpdate(s)
+	_, err = hook.PostStateUpdate(stateHookMutator)
+	if err != nil {
+		t.Fatalf("unexpected error from PostStateUpdate: %s", err)
+	}
 	if is.Persisted == nil || !is.Persisted.Equal(s) {
 		t.Fatalf("mismatching state persisted")
 	}
@@ -227,11 +265,11 @@ func TestStateHookCustomPersistRule(t *testing.T) {
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
-		"WriteState",
+		"MutateState",
 		"ShouldPersistIntermediateState",
 		// Previous call should return true, allowing the following "PersistState" call
 		"PersistState",
@@ -257,7 +295,13 @@ func (sm *testPersistentState) WriteState(state *states.State) error {
 	return nil
 }
 
-func (sm *testPersistentState) PersistState(schemas *tofu.Schemas) error {
+func (sm *testPersistentState) MutateState(fn func(*states.State) *states.State) error {
+	sm.CallLog = append(sm.CallLog, "MutateState")
+	sm.Written = fn(sm.Written)
+	return nil
+}
+
+func (sm *testPersistentState) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	if schemas == nil {
 		return fmt.Errorf("no schemas")
 	}
@@ -283,7 +327,13 @@ func (sm *testPersistentStateThatRefusesToPersist) WriteState(state *states.Stat
 	return nil
 }
 
-func (sm *testPersistentStateThatRefusesToPersist) PersistState(schemas *tofu.Schemas) error {
+func (sm *testPersistentStateThatRefusesToPersist) MutateState(fn func(*states.State) *states.State) error {
+	sm.CallLog = append(sm.CallLog, "MutateState")
+	sm.Written = fn(sm.Written)
+	return nil
+}
+
+func (sm *testPersistentStateThatRefusesToPersist) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	if schemas == nil {
 		return fmt.Errorf("no schemas")
 	}

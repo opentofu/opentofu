@@ -98,6 +98,8 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				case addrs.DataResourceMode:
 					modeStr = "data"
 				default:
+					// This covers also addrs.EphemeralResourceMode. Should never happen, so this comment is just an indication
+					// that this part was checked during ephemeral resources implementation.
 					return nil, fmt.Errorf("state contains resource %s with an unsupported resource mode %#v", resAddr, resAddr.Mode)
 				}
 
@@ -176,12 +178,12 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				}
 
 				rs = &resourceStateV4{
-					Module:         moduleAddr.String(),
-					Mode:           modeStr,
-					Type:           resAddr.Type,
-					Name:           resAddr.Name,
-					Instances:      []instanceObjectStateV4{},
-					ProviderConfig: providerAddr.LegacyString(),
+					Module:           moduleAddr.String(),
+					Mode:             modeStr,
+					Type:             resAddr.Type,
+					Name:             resAddr.Name,
+					Instances:        []instanceObjectStateV4{},
+					ProviderInstance: providerAddr.LegacyString(),
 				}
 				resourceStates[resAddr.String()] = rs
 			}
@@ -368,6 +370,10 @@ func upgradeInstanceObjectV3ToV4(_ *resourceStateV2, isOld *instanceStateV2, ins
 
 // parseLegacyResourceAddress parses the different identifier format used
 // state formats before version 4, like "instance.name.0".
+//
+// This function intentionally is not handling anything related to ephemeral resources since the ephemeral
+// feature was introduced long after OpenTofu migrated to v4 state files. Therefore, v3 state files
+// should never contain things related to ephemeral.
 func parseLegacyResourceAddress(s string) (addrs.ResourceInstance, error) {
 	var ret addrs.ResourceInstance
 

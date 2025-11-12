@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 

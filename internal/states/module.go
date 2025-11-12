@@ -79,6 +79,24 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 	delete(ms.Resources, addr.String())
 }
 
+// SetResourceInstance saves the given full resource instance data within the
+// specified resource.  This both ensures that the resource exists and overwrites
+// any existing value for the resource instance.
+// Any value for the instance data should not be modified after being passed to
+// this function (deepcopy'd ahead of time).
+func (ms *Module) SetResourceInstance(addr addrs.ResourceInstance, inst *ResourceInstance, provider addrs.AbsProviderConfig) {
+	rs := ms.Resource(addr.Resource)
+	if rs == nil {
+		ms.SetResourceProvider(addr.Resource, provider)
+		rs = ms.Resource(addr.Resource)
+	}
+	if inst != nil {
+		rs.Instances[addr.Key] = inst
+	} else {
+		delete(rs.Instances, addr.Key)
+	}
+}
+
 // SetResourceInstanceCurrent saves the given instance object as the current
 // generation of the resource instance with the given address, simultaneously
 // updating the recorded provider configuration address and dependencies.
@@ -259,7 +277,7 @@ func (ms *Module) maybeRestoreResourceInstanceDeposed(addr addrs.ResourceInstanc
 
 // SetOutputValue writes an output value into the state, overwriting any
 // existing value of the same name.
-func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *OutputValue {
+func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool, deprecated string) *OutputValue {
 	os := &OutputValue{
 		Addr: addrs.AbsOutputValue{
 			Module: ms.Addr,
@@ -267,8 +285,9 @@ func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *
 				Name: name,
 			},
 		},
-		Value:     value,
-		Sensitive: sensitive,
+		Value:      value,
+		Sensitive:  sensitive,
+		Deprecated: deprecated,
 	}
 	ms.OutputValues[name] = os
 	return os

@@ -1,0 +1,3 @@
+registry_protocols {
+  retry_count = "not a number"
+}

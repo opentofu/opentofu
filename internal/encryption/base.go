@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +40,7 @@ type keyProviderMetadata struct {
 	output keyProviderMetamap
 }
 
-func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
+func newBaseEncryption(ctx context.Context, enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
 	// Lookup method configs for the target, ordered by fallback precedence
 	methods, diags := methodConfigsFromTarget(enc.cfg, target, name, enforced)
 	if diags.HasErrors() {
@@ -82,7 +83,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 
 	// methodConfigsFromTarget guarantees that there will be at least one encryption method.  They are not optional in the common target
 	// block, which is required to get to this code.
-	encMethod, encDiags := setupMethod(enc.cfg, methods[0], encMeta, enc.reg, staticEval)
+	encMethod, encDiags := setupMethod(ctx, enc.cfg, methods[0], encMeta, enc.reg, staticEval)
 	diags = diags.Extend(encDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -134,6 +135,7 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 		Meta:    base.encMeta.output,
 		Data:    encd,
 	}
+
 	jsond, err := json.Marshal(enhance(es))
 	if err != nil {
 		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
@@ -151,7 +153,7 @@ const (
 )
 
 // TODO Find a way to make these errors actionable / clear
-func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, EncryptionStatus, error) {
+func (base *baseEncryption) decrypt(ctx context.Context, data []byte, validator func([]byte) error) ([]byte, EncryptionStatus, error) {
 	inputData := basedata{}
 	err := json.Unmarshal(data, &inputData)
 
@@ -206,7 +208,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		}
 
 		// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
-		decMethod, diags := setupMethod(base.enc.cfg, method, keyProviderMetadata{
+		decMethod, diags := setupMethod(ctx, base.enc.cfg, method, keyProviderMetadata{
 			input:  inputData.Meta,
 			output: outputData.Meta,
 		}, base.enc.reg, base.staticEval)
@@ -229,12 +231,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", base.name, err))
 	}
 
-	// This is good enough for now until we have better/distinct errors
-	errMessage := "decryption failed for all provided methods: "
-	sep := ""
-	for _, err := range errs {
-		errMessage += err.Error() + sep
-		sep = "\n"
-	}
-	return nil, StatusUnknown, errors.New(errMessage)
+	errs = append([]error{fmt.Errorf("decryption failed for all provided methods")}, errs...)
+
+	return nil, StatusUnknown, errors.New(errors.Join(errs...).Error())
 }

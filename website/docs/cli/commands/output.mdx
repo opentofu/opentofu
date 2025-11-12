@@ -36,7 +36,17 @@ The command-line flags are all optional. The following flags are available:
   it only supports string, number, and boolean values. Use `-json` instead
   for processing complex data types.
 
-* `-no-color` - If specified, output won't contain any color.
+    :::warning
+    In this mode the result is written to stdout without any quoting or escaping,
+    and so you should avoid using this mode when stdout is a terminal if the
+    output value could potentially be controlled by an attacker: the string
+    could potentially contain control sequences that may cause undesirable
+    terminal behavior.
+    :::
+
+* `-no-color` - If specified, output won't contain any color. This option is
+  ineffective when using `-raw` with an output value that contains inline
+  control sequences itself.
 
 * `-state=path` - Path to the state file. Defaults to "terraform.tfstate".
   Ignored when [remote state](../../language/state/remote.mdx) is used.

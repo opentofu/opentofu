@@ -6,6 +6,7 @@
 package static_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -47,7 +48,7 @@ func Example() {
 
 	staticEvaluator := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-	enc, diags := encryption.New(registry, cfg, staticEvaluator)
+	enc, diags := encryption.New(context.Background(), registry, cfg, staticEvaluator)
 	if diags.HasErrors() {
 		panic(diags)
 	}

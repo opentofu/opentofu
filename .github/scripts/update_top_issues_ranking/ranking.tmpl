@@ -1,13 +1,10 @@
+The following rankings are based on the number of :+1: reactions on each issue.
+
 ## Top Enhancements
-{{range .EnhancementIssues}}1. {{.HTMLURL}} - {{.Reactions.PlusOne}} :+1:
+{{range .EnhancementIssues}}1. {{.HTMLURL}} ({{.Reactions.PlusOne}})
 {{end}}
 
 ## Top Bugs
 
-{{range .BugIssues}}1. {{.HTMLURL}} - {{.Reactions.PlusOne}} :+1:
-{{end}}
-
-## Top RFCs
-
-{{range .RFCIssues}}1. {{.HTMLURL}} - {{.Reactions.PlusOne}} :+1:
+{{range .BugIssues}}1. {{.HTMLURL}} ({{.Reactions.PlusOne}})
 {{end}}

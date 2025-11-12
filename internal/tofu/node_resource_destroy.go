@@ -6,16 +6,19 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodeDestroyResourceInstance represents a resource instance that is to be
@@ -50,10 +53,20 @@ func (n *NodeDestroyResourceInstance) Name() string {
 }
 
 func (n *NodeDestroyResourceInstance) ProvidedBy() RequestedProvider {
-	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
+	switch n.Addr.Resource.Resource.Mode {
+	case addrs.DataResourceMode:
 		// indicate that this node does not require a configured provider
 		return RequestedProvider{}
+	case addrs.EphemeralResourceMode:
+		// Since ephemeral resources are not stored into the state or plan files,
+		// a change of type delete cannot be generated for it, meaning that this
+		// code path is not meant to be reached.
+		// Even though, let's ensure that ever the case, a destroy node for an
+		// ephemeral resource indicates correctly that for its removal there
+		// is no provider needed.
+		return RequestedProvider{}
 	}
+
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
 
@@ -124,7 +137,7 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 
 			if p.When == configs.ProvisionerWhenDestroy {
 				if p.Connection != nil {
-					result = append(result, ReferencesFromConfig(p.Connection.Config, connectionBlockSupersetSchema)...)
+					result = append(result, ReferencesFromConfig(p.Connection.Config, shared.ConnectionBlockSupersetSchema)...)
 				}
 				result = append(result, ReferencesFromConfig(p.Config, schema)...)
 			}
@@ -137,25 +150,47 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, traceNameApplyResourceInstance,
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+		),
+	)
+	defer span.End()
 
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		diags = n.resolveProvider(ctx, false, states.NotDeposed)
+		diags = n.resolveProvider(ctx, evalCtx, false, states.NotDeposed)
 		if diags.HasErrors() {
+			tracing.SetSpanError(span, diags)
 			return diags
 		}
-		return n.managedResourceExecute(ctx)
+		span.SetAttributes(
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		)
+		diags = diags.Append(
+			n.managedResourceExecute(ctx, evalCtx),
+		)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		diags = diags.Append(
+			n.dataResourceExecute(ctx, evalCtx),
+		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
+	tracing.SetSpanError(span, diags)
+	return diags
 }
 
-func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Get our state
@@ -168,13 +203,13 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	changeApply, err = n.readDiff(ctx, providerSchema)
+	changeApply, err = n.readDiff(evalCtx, providerSchema)
 	diags = diags.Append(err)
 	if changeApply == nil || diags.HasErrors() {
 		return diags
@@ -187,7 +222,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -198,21 +233,21 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	diags = diags.Append(n.preApplyHook(ctx, changeApply))
+	diags = diags.Append(n.preApplyHook(evalCtx, changeApply))
 	if diags.HasErrors() {
 		return diags
 	}
 
 	// Run destroy provisioners if not tainted
 	if state.Status != states.ObjectTainted {
-		applyProvisionersDiags := n.evalApplyProvisioners(ctx, state, false, configs.ProvisionerWhenDestroy)
+		applyProvisionersDiags := n.evalApplyProvisioners(ctx, evalCtx, state, false, configs.ProvisionerWhenDestroy)
 		diags = diags.Append(applyProvisionersDiags)
 		// keep the diags separate from the main set until we handle the cleanup
 
 		if diags.HasErrors() {
 			// If we have a provisioning error, then we just call
 			// the post-apply hook now.
-			diags = diags.Append(n.postApplyHook(ctx, state, diags.Err()))
+			diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
 			return diags
 		}
 	}
@@ -220,24 +255,37 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 	// Managed resources need to be destroyed, while data sources
 	// are only removed from state.
 	// we pass a nil configuration to apply because we are destroying
-	s, d := n.apply(ctx, state, changeApply, nil, instances.RepetitionData{}, false)
+	s, d := n.apply(ctx, evalCtx, state, changeApply, nil, instances.RepetitionData{}, false)
 	state, diags = s, diags.Append(d)
 	// we don't return immediately here on error, so that the state can be
 	// finalized
 
-	err = n.writeResourceInstanceState(ctx, state, workingState)
+	err = n.writeResourceInstanceState(ctx, evalCtx, state, workingState)
 	if err != nil {
 		return diags.Append(err)
 	}
 
 	// create the err value for postApplyHook
-	diags = diags.Append(n.postApplyHook(ctx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(ctx))
+	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
+	diags = diags.Append(updateStateHook(evalCtx, n.Addr))
 	return diags
 }
 
-func (n *NodeDestroyResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) dataResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
-	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	return diags.Append(updateStateHook(ctx))
+	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	return diags.Append(updateStateHook(evalCtx, n.Addr))
+}
+
+// ephemeralResourceExecute for NodeDestroyResourceInstance is only here to return an error.
+// An ephemeral resource, by definition, cannot be destroyed. If the execution path is reaching this part, it means that
+// there is an issue somewhere else, most probably in the planning phase since the generation of NodeDestroyResourceInstance
+// is strictly related to the changes from the plan.
+func (n *NodeDestroyResourceInstance) ephemeralResourceExecute(_ context.Context, _ EvalContext) (diags tfdiags.Diagnostics) {
+	log.Printf("[TRACE] NodeDestroyResourceInstance: called for ephemeral resource %s", n.Addr)
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Destroy invoked for an ephemeral resource",
+		fmt.Sprintf("A destroy operation has been invoked for the ephemeral resource %q. This is an OpenTofu error. Please report this.", n.Addr),
+	))
 }

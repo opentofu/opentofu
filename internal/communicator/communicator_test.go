@@ -95,10 +95,13 @@ func TestRetryFuncBackoff(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	Retry(ctx, func() error {
+	err := Retry(ctx, func() error {
 		count++
 		return io.EOF
 	})
+	if !errors.Is(err, io.EOF) {
+		t.Fatal(err)
+	}
 	cancel()
 	retryTestWg.Wait()
 

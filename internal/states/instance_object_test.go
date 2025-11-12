@@ -98,6 +98,7 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 	tests := []struct {
 		inputObj           *ResourceInstanceObject
 		wantSensitivePaths bool
+		wantTransientPaths bool
 	}{
 		{
 			inputObj: &ResourceInstanceObject{
@@ -110,6 +111,7 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 				Dependencies: depsOne,
 			},
 			wantSensitivePaths: true,
+			wantTransientPaths: true,
 		},
 		{
 			inputObj: &ResourceInstanceObject{
@@ -122,6 +124,20 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 				Dependencies: depsOne,
 			},
 			wantSensitivePaths: false,
+			wantTransientPaths: true,
+		},
+		{
+			inputObj: &ResourceInstanceObject{
+				Value: cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.ObjectVal(map[string]cty.Value{
+						"bar": cty.BoolVal(true),
+					}),
+				}),
+				Status:       ObjectPlanned,
+				Dependencies: depsOne,
+			},
+			wantSensitivePaths: false,
+			wantTransientPaths: false,
 		},
 	}
 
@@ -137,6 +153,14 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 
 		if !test.wantSensitivePaths && len(encoded.AttrSensitivePaths) != 0 {
 			t.Fatalf("Got unexpected AttrSensitivePaths: %v", encoded.AttrSensitivePaths)
+		}
+
+		if test.wantTransientPaths && len(encoded.TransientPathValueMarks) == 0 {
+			t.Fatalf("No TransientPathValueMarks found")
+		}
+
+		if !test.wantTransientPaths && len(encoded.TransientPathValueMarks) != 0 {
+			t.Fatalf("Got unexpected TransientPathValueMarks: %v", encoded.TransientPathValueMarks)
 		}
 	}
 }

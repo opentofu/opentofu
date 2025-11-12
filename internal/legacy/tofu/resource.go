@@ -18,7 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 )
 
 // Resource is a legacy way to identify a particular resource instance.
@@ -125,6 +125,9 @@ func NewInstanceInfo(addr addrs.AbsResourceInstance) *InstanceInfo {
 	id := fmt.Sprintf("%s.%s", addr.Resource.Resource.Type, addr.Resource.Resource.Name)
 	if addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		id = "data." + id
+	}
+	if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		panic("ephemeral resources are not meant to be processed by this function. Are you sure that this code should be reused?")
 	}
 	if addr.Resource.Key != addrs.NoKey {
 		switch k := addr.Resource.Key.(type) {

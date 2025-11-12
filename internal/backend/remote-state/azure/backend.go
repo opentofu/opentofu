@@ -7,11 +7,17 @@ package azure
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/azure/auth"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 )
 
 const defaultTimeout = 300 // 5 minutes
@@ -39,17 +45,19 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			},
 
 			"metadata_host": {
-				Type:        schema.TypeString,
-				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("ARM_METADATA_HOST", ""),
-				Description: "The Metadata URL which will be used to obtain the Cloud Environment.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				Description:   "The Metadata URL which will be used to obtain the Cloud Environment.",
+				DefaultFunc:   schema.EnvDefaultFunc("ARM_METADATA_HOST", nil),
+				ConflictsWith: []string{"environment"},
 			},
 
 			"environment": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "The Azure cloud environment.",
-				DefaultFunc: schema.EnvDefaultFunc("ARM_ENVIRONMENT", "public"),
+				Type:          schema.TypeString,
+				Optional:      true,
+				Description:   "The Azure cloud environment.",
+				DefaultFunc:   schema.EnvDefaultFunc("ARM_ENVIRONMENT", nil),
+				ConflictsWith: []string{"metadata_host"},
 			},
 
 			"access_key": {
@@ -86,11 +94,18 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_ID", ""),
 			},
 
+			"client_id_file_path": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The path to a file containing the Client ID.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_ID_FILE_PATH", ""),
+			},
+
 			"endpoint": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "A custom Endpoint used to access the Azure Resource Manager API's.",
-				DefaultFunc: schema.EnvDefaultFunc("ARM_ENDPOINT", ""),
+				Deprecated:  "This variable is unused and does not affect any execution. Please use environment or metadata host instead.",
 			},
 
 			"timeout_seconds": {
@@ -122,16 +137,25 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			},
 
 			// Service Principal (Client Certificate) specific
+
+			"client_certificate": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "A Base64-encoded PKCS#12 (PFX, not PEM) certificate used as the Client Certificate when authenticating as a Service Principal. The file must encode both the public certificate and its private key.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE", ""),
+			},
+
 			"client_certificate_password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The password associated with the Client Certificate specified in `client_certificate_path`",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE_PASSWORD", ""),
 			},
+
 			"client_certificate_path": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "The path to the PFX file used as the Client Certificate when authenticating as a Service Principal",
+				Description: "The path to the PKCS#12 PFX file used as the Client Certificate when authenticating as a Service Principal. The file must encode both the public certificate and its private key.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_CERTIFICATE_PATH", ""),
 			},
 
@@ -141,6 +165,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Description: "The Client Secret.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_SECRET", ""),
+			},
+
+			"client_secret_file_path": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The path to a file containing the Client Secret.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_CLIENT_SECRET_FILE_PATH", ""),
 			},
 
 			// Managed Service Identity specific
@@ -154,7 +185,8 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "The Managed Service Identity Endpoint.",
-				DefaultFunc: schema.EnvDefaultFunc("ARM_MSI_ENDPOINT", ""),
+				DefaultFunc: schema.EnvDefaultFunc("ARM_MSI_ENDPOINT", nil),
+				Deprecated:  "This configuration is now managed in a dependent library, not directly by OpenTofu. Please use the `MSI_ENDPOINT` environment variable to set the Managed Service Identity endpoint.",
 			},
 
 			// OIDC auth specific fields
@@ -189,12 +221,26 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Description: "The bearer token to use for the request to the OIDC providers `oidc_request_url` URL to fetch an ID token. Needs to be used in conjunction with `oidc_request_url`. This is meant to be used for Github Actions.",
 			},
 
+			"use_aks_workload_identity": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_AKS_WORKLOAD_IDENTITY", false),
+				Description: "Set to true to if you want to use Azure's AKS Workload Identity to authenticate to Azure. Defaults to false.",
+			},
+
 			// Feature Flags
 			"use_azuread_auth": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Description: "Should OpenTofu use AzureAD Authentication to access the Blob?",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_AZUREAD", false),
+			},
+
+			"use_cli": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Set to true if you want to use the Azure CLI to authenticate to Azure. Defaults to true.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_USE_CLI", true),
 			},
 		},
 	}
@@ -209,42 +255,16 @@ type Backend struct {
 	encryption encryption.StateEncryption
 
 	// The fields below are set from configure
-	armClient     *ArmClient
+	containerClient *container.Client
+	// containerName is set here so that, in a unit test, we can
+	// check that the container name is propagated correctly
+	// from the configuration
 	containerName string
 	keyName       string
-	accountName   string
 	snapshot      bool
+	timeout       time.Duration
 }
 
-type BackendConfig struct {
-	// Required
-	StorageAccountName string
-
-	// Optional
-	AccessKey                     string
-	ClientID                      string
-	ClientCertificatePassword     string
-	ClientCertificatePath         string
-	ClientSecret                  string
-	CustomResourceManagerEndpoint string
-	TimeoutSeconds                int
-	MetadataHost                  string
-	Environment                   string
-	MsiEndpoint                   string
-	OIDCToken                     string
-	OIDCTokenFilePath             string
-	OIDCRequestURL                string
-	OIDCRequestToken              string
-	ResourceGroupName             string
-	SasToken                      string
-	SubscriptionID                string
-	TenantID                      string
-	UseMsi                        bool
-	UseOIDC                       bool
-	UseAzureADAuthentication      bool
-}
-
-//nolint:errcheck //at this stage type conversion is safe
 func (b *Backend) configure(ctx context.Context) error {
 	if b.containerName != "" {
 		return nil
@@ -253,45 +273,154 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Grab the resource data
 	data := schema.FromContextBackendConfig(ctx)
 	b.containerName = data.Get("container_name").(string)
-	b.accountName = data.Get("storage_account_name").(string)
 	b.keyName = data.Get("key").(string)
 	b.snapshot = data.Get("snapshot").(bool)
+	b.timeout = time.Duration(data.Get("timeout_seconds").(int)) * time.Second
 
-	config := BackendConfig{
-		AccessKey:                     data.Get("access_key").(string),
-		ClientID:                      data.Get("client_id").(string),
-		ClientCertificatePassword:     data.Get("client_certificate_password").(string),
-		ClientCertificatePath:         data.Get("client_certificate_path").(string),
-		ClientSecret:                  data.Get("client_secret").(string),
-		CustomResourceManagerEndpoint: data.Get("endpoint").(string),
-		TimeoutSeconds:                data.Get("timeout_seconds").(int),
-		MetadataHost:                  data.Get("metadata_host").(string),
-		Environment:                   data.Get("environment").(string),
-		MsiEndpoint:                   data.Get("msi_endpoint").(string),
-		OIDCToken:                     data.Get("oidc_token").(string),
-		OIDCTokenFilePath:             data.Get("oidc_token_file_path").(string),
-		OIDCRequestURL:                data.Get("oidc_request_url").(string),
-		OIDCRequestToken:              data.Get("oidc_request_token").(string),
-		ResourceGroupName:             data.Get("resource_group_name").(string),
-		SasToken:                      data.Get("sas_token").(string),
-		StorageAccountName:            data.Get("storage_account_name").(string),
-		SubscriptionID:                data.Get("subscription_id").(string),
-		TenantID:                      data.Get("tenant_id").(string),
-		UseMsi:                        data.Get("use_msi").(bool),
-		UseOIDC:                       data.Get("use_oidc").(bool),
-		UseAzureADAuthentication:      data.Get("use_azuread_auth").(bool),
-	}
+	accessKey := data.Get("access_key").(string)
+	sasToken := data.Get("sas_token").(string)
+	useAzureADAuthentication := data.Get("use_azuread_auth").(bool)
 
-	armClient, err := buildArmClient(context.TODO(), config)
+	environment := data.Get("environment").(string)
+	metadataHost := data.Get("metadata_host").(string)
+
+	cloudConfig, storageSuffix, err := auth.CloudConfigFromAddresses(
+		ctx,
+		environment,
+		metadataHost,
+	)
+
 	if err != nil {
 		return err
 	}
 
-	thingsNeededToLookupAccessKeySpecified := config.AccessKey == "" && config.SasToken == "" && config.ResourceGroupName == ""
-	if thingsNeededToLookupAccessKeySpecified && !config.UseAzureADAuthentication {
-		return fmt.Errorf("Either an Access Key / SAS Token or the Resource Group for the Storage Account must be specified - or Azure AD Authentication must be enabled")
+	config := &auth.Config{
+		AzureCLIAuthConfig: auth.AzureCLIAuthConfig{
+			CLIAuthEnabled: data.Get("use_cli").(bool),
+		},
+		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{
+			ClientID:             data.Get("client_id").(string),
+			ClientIDFilePath:     data.Get("client_id_file_path").(string),
+			ClientSecret:         data.Get("client_secret").(string),
+			ClientSecretFilePath: data.Get("client_secret_file_path").(string),
+		},
+		ClientCertificateAuthConfig: auth.ClientCertificateAuthConfig{
+			ClientCertificate:         data.Get("client_certificate").(string),
+			ClientCertificatePassword: data.Get("client_certificate_password").(string),
+			ClientCertificatePath:     data.Get("client_certificate_path").(string),
+		},
+		OIDCAuthConfig: auth.OIDCAuthConfig{
+			UseOIDC:           data.Get("use_oidc").(bool),
+			OIDCToken:         data.Get("oidc_token").(string),
+			OIDCTokenFilePath: data.Get("oidc_token_file_path").(string),
+			OIDCRequestURL:    data.Get("oidc_request_url").(string),
+			OIDCRequestToken:  data.Get("oidc_request_token").(string)},
+		MSIAuthConfig: auth.MSIAuthConfig{
+			UseMsi:   data.Get("use_msi").(bool),
+			Endpoint: data.Get("msi_endpoint").(string),
+		},
+		StorageAddresses: auth.StorageAddresses{
+			CloudConfig:      cloudConfig,
+			ResourceGroup:    data.Get("resource_group_name").(string),
+			StorageAccount:   data.Get("storage_account_name").(string),
+			StorageContainer: b.containerName,
+			StorageSuffix:    storageSuffix,
+			SubscriptionID:   data.Get("subscription_id").(string),
+			TenantID:         data.Get("tenant_id").(string),
+		},
+		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{
+			UseAKSWorkloadIdentity: data.Get("use_aks_workload_identity").(bool),
+		},
 	}
 
-	b.armClient = armClient
+	// MUST check storage account name and container name before trying to create a client.
+	// We are going to be constructing URLs from these names, they should be restricted before we call those functions
+	err = checkAccountAndContainerNames(config.StorageAccount, config.StorageContainer)
+	if err != nil {
+		return err
+	}
+
+	// Check for nonempty Storage Account Shared Access Key
+	if accessKey != "" {
+		containerClient, err := auth.NewContainerClientFromStorageAccessKey(ctx, config.StorageAddresses, accessKey)
+		if err != nil {
+			return err
+		}
+
+		b.containerClient = containerClient
+		return nil
+	}
+
+	// Shared Access Key is now known to be empty
+
+	// Check for nonempty SAS Token
+	if sasToken != "" {
+		containerClient, err := auth.NewContainerClientFromSAS(ctx, config.StorageAddresses, sasToken)
+		if err != nil {
+			return err
+		}
+
+		b.containerClient = containerClient
+		return nil
+	}
+
+	// Shared Access Key and SAS Token are both empty
+
+	// Get auth credentials
+	authMethod, err := auth.GetAuthMethod(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	// If we use Azure AD (Entra ID) Auth, we're done!
+	// Just set up the client with these auth credentials
+	if useAzureADAuthentication {
+		authCred, err := authMethod.Construct(ctx, config)
+		if err != nil {
+			return err
+		}
+		bootstrapContainerClient, err := auth.NewContainerClient(ctx, config.StorageAddresses, authCred)
+		if err != nil {
+			return fmt.Errorf("error getting container client: %w", err)
+		}
+		b.containerClient = bootstrapContainerClient
+		return nil
+	}
+
+	// We are not using Azure AD Auth
+	// We're going to use these credentials to bootstrap obtaining the Shared Access Key credentials
+	authCred, err := authMethod.Construct(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	// We also call on the auth method to augment the configuration, to ensure resource group and subscription ID are present
+	err = authMethod.AugmentConfig(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	containerClient, err := auth.NewContainerClientWithSharedKeyCredential(ctx, config.StorageAddresses, authCred)
+	if err != nil {
+		return fmt.Errorf("error getting container client: %w", err)
+	}
+
+	b.containerClient = containerClient
+	return nil
+}
+
+func checkAccountAndContainerNames(storageAccount, storageContainer string) error {
+	accountPattern := regexp.MustCompile(`^[0-9a-z]{3,24}$`)
+	containerPattern := regexp.MustCompile(`^[0-9a-z][0-9a-z\-]{1,61}[0-9a-z]$`)
+	hyphenPattern := regexp.MustCompile(`\-\-`)
+	if !accountPattern.Match([]byte(storageAccount)) {
+		return errors.New("invalid storage account name: Azure requires a storage account name consists of 3-24 lowercase characters and numbers only. See documentation here: https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage")
+	}
+	if !containerPattern.Match([]byte(storageContainer)) {
+		return errors.New("invalid storage container name: Azure requires a storage container name consists of 3-63 lowercase characters, numbers, and hyphens only. It cannot start or end with a hyphen. See documentation here: https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage")
+	}
+	if hyphenPattern.Match([]byte(storageContainer)) {
+		return errors.New("invalid storage container name: Hyphens in a storage container name must be nonconsecutive. See documentation here: https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules#microsoftstorage")
+	}
 	return nil
 }

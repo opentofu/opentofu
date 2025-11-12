@@ -1,0 +1,9 @@
+variable "in" {
+  ephemeral = true
+  default = "default value"
+  type = string
+}
+module "test" {
+  source = "./__mod-ephemeral-output-with-precondition"
+  variable_for_output_precondition = var.in
+}

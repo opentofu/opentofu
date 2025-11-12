@@ -163,23 +163,23 @@ func TestLocal_planOutputsChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed"},
-		}, cty.StringVal("before"), false)
+		}, cty.StringVal("before"), false, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_before"},
-		}, cty.StringVal("before"), true)
+		}, cty.StringVal("before"), true, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
-		}, cty.StringVal("before"), false)
+		}, cty.StringVal("before"), false, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "removed"}, // not present in the config fixture
-		}, cty.StringVal("before"), false)
+		}, cty.StringVal("before"), false, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "unchanged"},
-		}, cty.StringVal("before"), false)
+		}, cty.StringVal("before"), false, "")
 		// NOTE: This isn't currently testing the situation where the new
 		// value of an output is unknown, because to do that requires there to
 		// be at least one managed resource Create action in the plan and that
@@ -243,7 +243,7 @@ func TestLocal_planModuleOutputsChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance.Child("mod", addrs.NoKey),
 			OutputValue: addrs.OutputValue{Name: "changed"},
-		}, cty.StringVal("before"), false)
+		}, cty.StringVal("before"), false, "")
 	}))
 	outDir := t.TempDir()
 	defer os.RemoveAll(outDir)

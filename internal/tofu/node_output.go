@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -41,17 +42,17 @@ type nodeExpandOutput struct {
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandOutput)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandOutput)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandOutput)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceOutside                      = (*nodeExpandOutput)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandOutput)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandOutput)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandOutput)(nil)
 )
 
-func (n *nodeExpandOutput) expandsInstances() {}
+func (n *nodeExpandOutput) retainDuringUnusedPruning() {}
 
-func (n *nodeExpandOutput) temporaryValue() bool {
+func (n *nodeExpandOutput) temporaryValue(_ walkOperation) bool {
 	// non root outputs are temporary
 	return !n.Module.IsRoot()
 }
@@ -219,7 +220,7 @@ var (
 	_ dag.GraphNodeDotter       = (*NodeApplyableOutput)(nil)
 )
 
-func (n *NodeApplyableOutput) temporaryValue() bool {
+func (n *NodeApplyableOutput) temporaryValue(_ walkOperation) bool {
 	// this must always be evaluated if it is a root module output
 	return !n.Addr.Module.IsRoot()
 }
@@ -302,13 +303,13 @@ func (n *NodeApplyableOutput) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	state := evalCtx.State()
 	if state == nil {
 		return
 	}
 
-	changes := ctx.Changes() // may be nil, if we're not working on a changeset
+	changes := evalCtx.Changes() // may be nil, if we're not working on a changeset
 
 	val := cty.UnknownVal(cty.DynamicPseudoType)
 	changeRecorded := n.Change != nil
@@ -330,9 +331,10 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 			checkRuleSeverity = tfdiags.Warning
 		}
 		checkDiags := evalCheckRules(
+			ctx,
 			addrs.OutputPrecondition,
 			n.Config.Preconditions,
-			ctx, n.Addr, EvalDataForNoInstanceKey,
+			evalCtx, n.Addr, EvalDataForNoInstanceKey,
 			checkRuleSeverity,
 		)
 		diags = diags.Append(checkDiags)
@@ -350,7 +352,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 			// This has to run before we have a state lock, since evaluation also
 			// reads the state
 			var evalDiags tfdiags.Diagnostics
-			val, evalDiags = ctx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
+			val, evalDiags = evalCtx.EvaluateExpr(ctx, n.Config.Expr, cty.DynamicPseudoType, nil)
 			diags = diags.Append(evalDiags)
 
 		// If the module is being overridden and we have a value to use,
@@ -367,8 +369,13 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 		// We'll handle errors below, after we have loaded the module.
 		// Outputs don't have a separate mode for validation, so validate
 		// depends_on expressions here too
-		diags = diags.Append(validateDependsOn(ctx, n.Config.DependsOn))
+		diags = diags.Append(validateDependsOn(ctx, evalCtx, n.Config.DependsOn))
 
+		// Before checking for the sensitivity, we want to check for ephemerality, since it's
+		// a more restrictive mark.
+		if ephDiags := n.validateEphemerality(val); ephDiags.HasErrors() {
+			return diags.Append(ephDiags)
+		}
 		// For root module outputs in particular, an output value must be
 		// statically declared as sensitive in order to dynamically return
 		// a sensitive result, to help avoid accidental exposure in the state
@@ -415,14 +422,58 @@ If you do intend to export this data, annotate the output value as sensitive by 
 		}
 		return diags
 	}
+
+	if ephDiags := n.validateEphemerality(val); ephDiags.HasErrors() {
+		return diags.Append(ephDiags)
+	}
+
 	n.setValue(state, changes, val)
 
 	// If we were able to evaluate a new value, we can update that in the
 	// refreshed state as well.
-	if state = ctx.RefreshState(); state != nil && val.IsWhollyKnown() {
+	if state = evalCtx.RefreshState(); state != nil && val.IsWhollyKnown() {
 		// we only need to update the state, do not pass in the changes again
 		n.setValue(state, nil, val)
 	}
+
+	return diags
+}
+
+func (n *NodeApplyableOutput) validateEphemerality(val cty.Value) (diags tfdiags.Diagnostics) {
+	if n.Config.Ephemeral && n.Addr.Module.IsRoot() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid output configuration",
+			Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
+			Subject:  n.Config.DeclRange.Ptr(),
+		})
+	}
+
+	// We don't want to check when the value is unknown and is not marked.
+	// If the value is unknown due to the referenced values and inherited the marks from those,
+	// we do want to validate though.
+	if !val.IsWhollyKnown() && !val.IsMarked() {
+		return diags
+	}
+	ephemeralMarked := marks.Contains(val, marks.Ephemeral)
+	// We don't allow ephemeral values in outputs that are not marked as such.
+	if !n.Config.Ephemeral && ephemeralMarked {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Output does not allow ephemeral value",
+			Detail:   "The value that was generated for the output is ephemeral, but it is not configured to allow one.",
+			Subject:  n.Config.UsageRange().Ptr(),
+		})
+	}
+	// There would be a 3rd validation that could be added: when the value generated for a
+	// root module output is marked as ephemeral.
+	// But considering the other 2 validations above, that validation could not be reached:
+	//   - 1st validation does not allow for a root module output to be configured
+	//   - 2nd validation does not allow for an ephemeral value to be stored
+	//     into an output without the "ephemeral = true" config
+	// Therefore, since we do not allow ephemeral marked values to be stored into an output
+	// without "ephemeral = true" AND we don't allow "ephemeral = true" on root modules, then
+	// the 3rd validation can be skipped.
 
 	return diags
 }
@@ -459,14 +510,14 @@ func (n *NodeDestroyableOutput) ModulePath() addrs.Module {
 	return n.Addr.Module.Module()
 }
 
-func (n *NodeDestroyableOutput) temporaryValue() bool {
+func (n *NodeDestroyableOutput) temporaryValue(_ walkOperation) bool {
 	// this must always be evaluated if it is a root module output
 	return !n.Addr.Module.IsRoot()
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyableOutput) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	state := ctx.State()
+func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	state := evalCtx.State()
 	if state == nil {
 		return nil
 	}
@@ -488,7 +539,7 @@ func (n *NodeDestroyableOutput) Execute(ctx EvalContext, op walkOperation) tfdia
 		}
 	}
 
-	changes := ctx.Changes()
+	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
 			Addr:      n.Addr,
@@ -531,6 +582,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// if this is a root module, try to get a before value from the state for
 		// the diff
 		sensitiveBefore := false
+		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
 		// is this output new to our state?
@@ -542,6 +594,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
 					sensitiveBefore = o.Sensitive
+					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
 				}
@@ -558,9 +611,12 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		action := plans.Update
 		switch {
-		case val.IsNull() && before.IsNull():
+		case val.IsNull() && before.IsNull() &&
+			n.Config.Deprecated == deprecatedBefore:
 			// This is separate from the NoOp case below, since we can ignore
 			// sensitivity here when there are only null values.
+			// However, we still need to ensure deprecation update is going to
+			// be written.
 			action = plans.NoOp
 
 		case newOutput:
@@ -569,8 +625,9 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.Sensitive == sensitiveBefore:
-			// Sensitivity must also match to be a NoOp.
+			n.Config.Sensitive == sensitiveBefore &&
+			n.Config.Deprecated == deprecatedBefore:
+			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
 			// only one we can act on, and the state will have been loaded
 			// without any marks to consider.
@@ -627,5 +684,5 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		val = cty.UnknownAsNull(val).MarkWithPaths(pvms)
 	}
 
-	state.SetOutputValue(n.Addr, val, n.Config.Sensitive)
+	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
 }

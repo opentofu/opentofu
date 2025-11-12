@@ -9,8 +9,9 @@ import (
 	"os"
 
 	"github.com/hashicorp/hcl/v2"
-	tfaddr "github.com/opentofu/registry-address"
+	regaddr "github.com/opentofu/registry-address/v2"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/states"
@@ -66,8 +67,8 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 	for _, module := range stateCopy.Modules {
 		for _, resource := range module.Resources {
 			_, referencedInConfig := providers[resource.ProviderConfig.Provider]
-			if resource.ProviderConfig.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
-				resource.ProviderConfig.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
+			if resource.ProviderConfig.Provider.Hostname == regaddr.TransitionalDefaultProviderRegistryHost && !referencedInConfig {
+				resource.ProviderConfig.Provider.Hostname = addrs.DefaultProviderRegistryHost
 			}
 		}
 	}

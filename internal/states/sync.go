@@ -94,12 +94,12 @@ func (s *SyncState) OutputValue(addr addrs.AbsOutputValue) *OutputValue {
 //
 // If the module containing the output is not yet tracked in state then it
 // be added as a side-effect.
-func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, sensitive bool) {
+func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, sensitive bool, deprecated string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetOutputValue(addr.OutputValue.Name, value, sensitive)
+	ms.SetOutputValue(addr.OutputValue.Name, value, sensitive, deprecated)
 }
 
 // RemoveOutputValue removes the stored value for the output value with the
@@ -171,6 +171,15 @@ func (s *SyncState) Resource(addr addrs.AbsResource) *Resource {
 	return ret
 }
 
+// ResourceProvider returns the provider required by the resource if it exists, or
+// null if no such resource exists
+func (s *SyncState) ResourceProvider(addr addrs.AbsResource) *addrs.AbsProviderConfig {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.state.ResourceProvider(addr)
+}
+
 // ResourceInstance returns a snapshot of the state the resource instance with
 // the given address, or nil if no such instance is tracked.
 //
@@ -200,7 +209,7 @@ func (s *SyncState) ResourceInstanceObject(addr addrs.AbsResourceInstance, gen G
 	return inst.GetGeneration(gen).DeepCopy()
 }
 
-// SetResourceMeta updates the resource-level metadata for the resource at
+// SetResourceProvider updates the resource-level metadata for the resource at
 // the given address, creating the containing module state and resource state
 // as a side-effect if not already present.
 func (s *SyncState) SetResourceProvider(addr addrs.AbsResource, provider addrs.AbsProviderConfig) {
@@ -209,6 +218,20 @@ func (s *SyncState) SetResourceProvider(addr addrs.AbsResource, provider addrs.A
 
 	ms := s.state.EnsureModule(addr.Module)
 	ms.SetResourceProvider(addr.Resource, provider)
+}
+
+// SetResourceInstance saves the given full resource instance data within the
+// specified resource.  This both ensures that the resource exists and overwrites
+// any existing value for the resource instance.
+// It may create the module and resource as a side effect. The value of inst shall
+// not be modified during the function call.
+func (s *SyncState) SetResourceInstance(addr addrs.AbsResourceInstance, inst *ResourceInstance, provider addrs.AbsProviderConfig) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ms := s.state.EnsureModule(addr.Module)
+	ms.SetResourceInstance(addr.Resource, inst.DeepCopy(), provider)
+	s.maybePruneModule(addr.Module)
 }
 
 // RemoveResource removes the entire state for the given resource, taking with

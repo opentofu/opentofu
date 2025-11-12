@@ -6,7 +6,6 @@
 package cloud
 
 import (
-	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -119,8 +118,7 @@ func TestTaskStagesWithAllStages(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	runID := MockAllTaskStages(t, client)
 
-	ctx := context.TODO()
-	taskStages, err := b.runTaskStages(ctx, client, runID)
+	taskStages, err := b.runTaskStages(t.Context(), client, runID)
 
 	if err != nil {
 		t.Fatalf("Expected to not error but received %s", err)
@@ -151,8 +149,7 @@ func TestTaskStagesWithOneStage(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	runID := MockPrePlanTaskStage(t, client)
 
-	ctx := context.TODO()
-	taskStages, err := b.runTaskStages(ctx, client, runID)
+	taskStages, err := b.runTaskStages(t.Context(), client, runID)
 
 	if err != nil {
 		t.Fatalf("Expected to not error but received %s", err)
@@ -182,8 +179,7 @@ func TestTaskStagesWithOldTFC(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	runID := MockTaskStageUnsupported(t, client)
 
-	ctx := context.TODO()
-	taskStages, err := b.runTaskStages(ctx, client, runID)
+	taskStages, err := b.runTaskStages(t.Context(), client, runID)
 
 	if err != nil {
 		t.Fatalf("Expected to not error but received %s", err)
@@ -204,8 +200,7 @@ func TestTaskStagesWithErrors(t *testing.T) {
 	client, _ := tfe.NewClient(config)
 	MockTaskStageUnsupported(t, client)
 
-	ctx := context.TODO()
-	_, err := b.runTaskStages(ctx, client, "this run ID will not exist is invalid anyway")
+	_, err := b.runTaskStages(t.Context(), client, "this run ID will not exist is invalid anyway")
 
 	if err == nil {
 		t.Error("Expected to error but did not")

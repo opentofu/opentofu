@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -116,10 +117,10 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 			return
 		}
 		defer func() {
-			provider.Close()
+			provider.Close(context.Background())
 		}()
 
-		resp := provider.GetProviderSchema()
+		resp := provider.GetProviderSchema(context.Background())
 		if resp.Diagnostics.HasErrors() {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls.
@@ -166,6 +167,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 				)
 			}
 		}
+		// NOTE: No ephemeral resources schema for the legacy code
 
 		schemas[fqn] = s
 
@@ -270,6 +272,8 @@ func (ps *ProviderSchema) SchemaForResourceType(mode addrs.ResourceMode, typeNam
 	case addrs.DataResourceMode:
 		// Data resources don't have schema versions right now, since state is discarded for each refresh
 		return ps.DataSources[typeName], 0
+	case addrs.EphemeralResourceMode:
+		panic("ephemeral resource is not meant to be in the schema for legacy providers")
 	default:
 		// Shouldn't happen, because the above cases are comprehensive.
 		return nil, 0

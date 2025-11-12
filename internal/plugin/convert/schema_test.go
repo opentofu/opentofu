@@ -51,6 +51,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 						Type:     []byte(`"number"`),
 						Required: true,
 					},
+					{
+						Name:      "write_only",
+						Type:      []byte(`"number"`),
+						WriteOnly: true,
+					},
 				},
 			},
 			&configschema.Block{
@@ -71,6 +76,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 					"required": {
 						Type:     cty.Number,
 						Required: true,
+					},
+					"write_only": {
+						Type:      cty.Number,
+						WriteOnly: true,
 					},
 				},
 			},
@@ -103,6 +112,11 @@ func TestConvertSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"dynamic"`),
 									Required: true,
 								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"dynamic"`),
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -126,6 +140,10 @@ func TestConvertSchemaBlocks(t *testing.T) {
 								"foo": {
 									Type:     cty.DynamicPseudoType,
 									Required: true,
+								},
+								"write_only": {
+									Type:      cty.DynamicPseudoType,
+									WriteOnly: true,
 								},
 							},
 						},
@@ -223,6 +241,11 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 						Type:     []byte(`"number"`),
 						Required: true,
 					},
+					{
+						Name:      "write_only",
+						Type:      []byte(`"number"`),
+						WriteOnly: true,
+					},
 				},
 			},
 			&configschema.Block{
@@ -243,6 +266,10 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 					"required": {
 						Type:     cty.Number,
 						Required: true,
+					},
+					"write_only": {
+						Type:      cty.Number,
+						WriteOnly: true,
 					},
 				},
 			},
@@ -275,6 +302,11 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 									Type:     []byte(`"dynamic"`),
 									Required: true,
 								},
+								{
+									Name:      "write_only",
+									Type:      []byte(`"dynamic"`),
+									WriteOnly: true,
+								},
 							},
 						},
 					},
@@ -298,6 +330,10 @@ func TestConvertProtoSchemaBlocks(t *testing.T) {
 								"foo": {
 									Type:     cty.DynamicPseudoType,
 									Required: true,
+								},
+								"write_only": {
+									Type:      cty.DynamicPseudoType,
+									WriteOnly: true,
 								},
 							},
 						},

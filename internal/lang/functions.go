@@ -25,9 +25,6 @@ var impureFunctions = []string{
 	"uuid",
 }
 
-// This should probably be replaced with addrs.Function everywhere
-const CoreNamespace = addrs.FunctionNamespaceCore + "::"
-
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.
 func (s *Scope) Functions() map[string]function.Function {
@@ -62,7 +59,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		}
 		// Copy all stdlib funcs into core:: namespace
 		for _, name := range coreNames {
-			s.funcs[CoreNamespace+name] = s.funcs[name]
+			s.funcs[addrs.ParseFunction(name).FullyQualified().String()] = s.funcs[name]
 		}
 	}
 	s.funcsLock.Unlock()
@@ -146,6 +143,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"distinct":         stdlib.DistinctFunc,
 		"element":          stdlib.ElementFunc,
 		"endswith":         funcs.EndsWithFunc,
+		"ephemeralasnull":  funcs.EphemeralAsNullFunc,
 		"chunklist":        stdlib.ChunklistFunc,
 		"file":             funcs.MakeFileFunc(baseDir, false),
 		"fileexists":       funcs.MakeFileExistsFunc(baseDir),

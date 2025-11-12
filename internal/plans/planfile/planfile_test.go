@@ -7,8 +7,8 @@ package planfile
 
 import (
 	"path/filepath"
-	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -34,7 +34,7 @@ func TestRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
+	_, snapIn, diags := loader.LoadConfigWithSnapshot(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -67,7 +67,9 @@ func TestRoundtrip(t *testing.T) {
 		DriftedResources: []*plans.ResourceInstanceChangeSrc{},
 		VariableValues: map[string]plans.DynamicValue{
 			"foo": plans.DynamicValue([]byte("foo placeholder")),
+			"bar": plans.DynamicValue([]byte("bar placeholder")),
 		},
+		EphemeralVariables: map[string]bool{"foo": false, "bar": true},
 		Backend: plans.Backend{
 			Type:      "local",
 			Config:    plans.DynamicValue([]byte("config placeholder")),
@@ -83,6 +85,17 @@ func TestRoundtrip(t *testing.T) {
 		// below.
 		PrevRunState: prevStateFileIn.State,
 		PriorState:   stateFileIn.State,
+	}
+	// By deleting the ephemeral variable from the VariableValues, we change the given plan
+	// to match a plan read from the file. While loading the plan, the variables stored with
+	// a null value are only stored in EphemeralVariables but not in VariableValues.
+	deleteEphemeralVarFromVars := func(in plans.Plan) *plans.Plan {
+		for vn, eph := range in.EphemeralVariables {
+			if eph {
+				delete(in.VariableValues, vn)
+			}
+		}
+		return &in
 	}
 
 	locksIn := depsfile.NewLocks()
@@ -125,7 +138,7 @@ func TestRoundtrip(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read plan: %s", err)
 		}
-		if diff := cmp.Diff(planIn, planOut); diff != "" {
+		if diff := cmp.Diff(deleteEphemeralVarFromVars(*planIn), planOut); diff != "" {
 			t.Errorf("plan did not survive round-trip\n%s", diff)
 		}
 	})
@@ -164,7 +177,7 @@ func TestRoundtrip(t *testing.T) {
 		// Reading from snapshots is tested in the configload package, so
 		// here we'll just test that we can successfully do it, to see if the
 		// glue code in _this_ package is correct.
-		_, diags := pr.ReadConfig(configs.RootModuleCallForTesting())
+		_, diags := pr.ReadConfig(t.Context(), configs.RootModuleCallForTesting())
 		if diags.HasErrors() {
 			t.Errorf("when reading config: %s", diags.Err())
 		}
@@ -191,13 +204,8 @@ func TestWrappedError(t *testing.T) {
 		t.Fatalf("expected  %q, got %q", wrongFile, err)
 	}
 
-	// Open something that doesn't exist: should error
-	var missingFileError string
-	if runtime.GOOS == "windows" {
-		missingFileError = "The system cannot find the file specified"
-	} else {
-		missingFileError = "no such file or directory"
-	}
+	missingFileError := syscall.ENOENT.Error()
+
 	_, err = OpenWrapped(filepath.Join("testdata", "absent.tfplan"), encryption.PlanEncryptionDisabled())
 	if !strings.Contains(err.Error(), missingFileError) {
 		t.Fatalf("expected  %q, got %q", missingFileError, err)

@@ -42,10 +42,9 @@ type Backend struct {
 	encryption encryption.StateEncryption
 	credential *common.Credential
 
-	cosContext context.Context
-	cosClient  *cos.Client
-	tagClient  *tag.Client
-	stsClient  *sts.Client
+	cosClient *cos.Client
+	tagClient *tag.Client
+	stsClient *sts.Client
 
 	region  string
 	bucket  string
@@ -211,8 +210,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		return nil
 	}
 
-	b.cosContext = ctx
-	data := schema.FromContextBackendConfig(b.cosContext)
+	data := schema.FromContextBackendConfig(ctx)
 
 	b.region = data.Get("region").(string)
 	b.bucket = data.Get("bucket").(string)

@@ -35,7 +35,7 @@ func TestEvaluatorGetTerraformAttr(t *testing.T) {
 
 	t.Run("terraform.workspace", func(t *testing.T) {
 		want := cty.StringVal("foo")
-		got, diags := scope.Data.GetTerraformAttr(addrs.NewTerraformAttr("terraform", "workspace"), tfdiags.SourceRange{})
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("terraform", "workspace"), tfdiags.SourceRange{})
 		if len(diags) != 0 {
 			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 		}
@@ -46,7 +46,31 @@ func TestEvaluatorGetTerraformAttr(t *testing.T) {
 
 	t.Run("tofu.workspace", func(t *testing.T) {
 		want := cty.StringVal("foo")
-		got, diags := scope.Data.GetTerraformAttr(addrs.NewTerraformAttr("tofu", "workspace"), tfdiags.SourceRange{})
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "workspace"), tfdiags.SourceRange{})
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %q; want %q", got, want)
+		}
+	})
+
+	evaluator.Operation = walkPlan
+	t.Run("tofu.applying", func(t *testing.T) {
+		want := cty.False.Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "applying"), tfdiags.SourceRange{})
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %q; want %q", got, want)
+		}
+	})
+
+	evaluator.Operation = walkApply
+	t.Run("tofu.applying", func(t *testing.T) {
+		want := cty.True.Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "applying"), tfdiags.SourceRange{})
 		if len(diags) != 0 {
 			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 		}
@@ -74,7 +98,7 @@ func TestEvaluatorGetPathAttr(t *testing.T) {
 
 	t.Run("module", func(t *testing.T) {
 		want := cty.StringVal("bar/baz")
-		got, diags := scope.Data.GetPathAttr(addrs.PathAttr{
+		got, diags := scope.Data.GetPathAttr(t.Context(), addrs.PathAttr{
 			Name: "module",
 		}, tfdiags.SourceRange{})
 		if len(diags) != 0 {
@@ -87,7 +111,7 @@ func TestEvaluatorGetPathAttr(t *testing.T) {
 
 	t.Run("root", func(t *testing.T) {
 		want := cty.StringVal("bar/baz")
-		got, diags := scope.Data.GetPathAttr(addrs.PathAttr{
+		got, diags := scope.Data.GetPathAttr(t.Context(), addrs.PathAttr{
 			Name: "root",
 		}, tfdiags.SourceRange{})
 		if len(diags) != 0 {
@@ -111,6 +135,10 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 						Name:      "some_output",
 						Sensitive: true,
 					},
+					"ephemeral_output": {
+						Name:      "ephemeral_output",
+						Ephemeral: true,
+					},
 					"some_other_output": {
 						Name: "some_other_output",
 					},
@@ -123,13 +151,19 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 				OutputValue: addrs.OutputValue{
 					Name: "some_output",
 				},
-			}, cty.StringVal("first"), true)
+			}, cty.StringVal("first"), true, "")
 			state.SetOutputValue(addrs.AbsOutputValue{
 				Module: addrs.RootModuleInstance,
 				OutputValue: addrs.OutputValue{
 					Name: "some_other_output",
 				},
-			}, cty.StringVal("second"), false)
+			}, cty.StringVal("second"), false, "")
+			state.SetOutputValue(addrs.AbsOutputValue{
+				Module: addrs.RootModuleInstance,
+				OutputValue: addrs.OutputValue{
+					Name: "ephemeral_output",
+				},
+			}, cty.StringVal("third"), false, "")
 		}).SyncWrapper(),
 	}
 
@@ -139,7 +173,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 	scope := evaluator.Scope(data, nil, nil, nil)
 
 	want := cty.StringVal("first").Mark(marks.Sensitive)
-	got, diags := scope.Data.GetOutput(addrs.OutputValue{
+	got, diags := scope.Data.GetOutput(t.Context(), addrs.OutputValue{
 		Name: "some_output",
 	}, tfdiags.SourceRange{})
 
@@ -151,8 +185,22 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 	}
 
 	want = cty.StringVal("second")
-	got, diags = scope.Data.GetOutput(addrs.OutputValue{
+	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
 		Name: "some_other_output",
+	}, tfdiags.SourceRange{})
+
+	if len(diags) != 0 {
+		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+	}
+	if !got.RawEquals(want) {
+		t.Errorf("wrong result %#v; want %#v", got, want)
+	}
+
+	// TODO ephemeral testing support - uncomment the line with the ephemeral mark once the testing support implementation is done
+	// want = cty.StringVal("third").Mark(marks.Ephemeral)
+	want = cty.StringVal("third")
+	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
+		Name: "ephemeral_output",
 	}, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
@@ -164,7 +212,8 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 }
 
 // This particularly tests that a sensitive attribute in config
-// results in a value that has a "sensitive" cty Mark
+// results in a value that has a "sensitive" cty Mark.
+// It also checks the same thing for marks.Ephemeral.
 func TestEvaluatorGetInputVariable(t *testing.T) {
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
@@ -188,13 +237,30 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 						Type:           cty.String,
 						ConstraintType: cty.String,
 					},
+					"some_ephemeral_var_with_unmarked_val": {
+						Name:           "some_ephemeral_var",
+						Ephemeral:      true,
+						Default:        cty.StringVal("foo"),
+						Type:           cty.String,
+						ConstraintType: cty.String,
+					},
+					// Avoid double marking a value
+					"some_ephemeral_var_with_marked_val": {
+						Name:           "some_ephemeral_var",
+						Ephemeral:      true,
+						Default:        cty.StringVal("foo"),
+						Type:           cty.String,
+						ConstraintType: cty.String,
+					},
 				},
 			},
 		},
 		VariableValues: map[string]map[string]cty.Value{
 			"": {
-				"some_var":       cty.StringVal("bar"),
-				"some_other_var": cty.StringVal("boop").Mark(marks.Sensitive),
+				"some_var":                             cty.StringVal("bar"),
+				"some_other_var":                       cty.StringVal("boop").Mark(marks.Sensitive),
+				"some_ephemeral_var_with_unmarked_val": cty.StringVal("blop"),
+				"some_ephemeral_var_with_marked_val":   cty.StringVal("bloop").Mark(marks.Ephemeral),
 			},
 		},
 		VariableValuesLock: &sync.Mutex{},
@@ -205,28 +271,58 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 	}
 	scope := evaluator.Scope(data, nil, nil, nil)
 
-	want := cty.StringVal("bar").Mark(marks.Sensitive)
-	got, diags := scope.Data.GetInputVariable(addrs.InputVariable{
-		Name: "some_var",
-	}, tfdiags.SourceRange{})
+	{ // variable configured as sensitive but value not marked before
+		want := cty.StringVal("bar").Mark(marks.Sensitive)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_var",
+		}, tfdiags.SourceRange{})
 
-	if len(diags) != 0 {
-		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
-	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+	{ // variable configured as sensitive and value marked - avoiding double marking
+		want := cty.StringVal("boop").Mark(marks.Sensitive)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_other_var",
+		}, tfdiags.SourceRange{})
+
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
 
-	want = cty.StringVal("boop").Mark(marks.Sensitive)
-	got, diags = scope.Data.GetInputVariable(addrs.InputVariable{
-		Name: "some_other_var",
-	}, tfdiags.SourceRange{})
+	{ // variable configured as ephemeral but value not marked before
+		want := cty.StringVal("blop").Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_ephemeral_var_with_unmarked_val",
+		}, tfdiags.SourceRange{})
 
-	if len(diags) != 0 {
-		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
-	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+	{ // variable configured as ephemeral and value marked - avoiding double marking
+		want := cty.StringVal("bloop").Mark(marks.Ephemeral)
+		got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
+			Name: "some_ephemeral_var_with_marked_val",
+		}, tfdiags.SourceRange{})
+
+		if len(diags) != 0 {
+			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+		}
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result %#v; want %#v", got, want)
+		}
 	}
 }
 
@@ -391,7 +487,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 		Type: "test_resource",
 		Name: "foo",
 	}
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(t.Context(), addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -532,7 +628,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 		}).Mark(marks.Sensitive),
 	})
 
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(t.Context(), addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -543,6 +639,191 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	}
 }
 
+func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
+	rc := &configs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_resource",
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"secret_name": cty.StringVal("foo"),
+		}),
+		Provider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
+	}
+	ephemeralSchema := providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {
+					Type:     cty.String,
+					Computed: true,
+				},
+				"value": {
+					Type:     cty.String,
+					Computed: true,
+				},
+			},
+			BlockTypes: map[string]*configschema.NestedBlock{
+				"nesting_map": {
+					Block: configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"foo": {
+								Type:     cty.String,
+								Optional: true,
+								// Sensitive is added here to ensure that the mark is kept after processing the ephemeral ones
+								Sensitive: true,
+							},
+						},
+					},
+					Nesting: configschema.NestingSet,
+				},
+			},
+		},
+	}
+	tests := map[string]struct {
+		changes *plans.ChangesSync
+		state   *states.SyncState
+		want    cty.Value
+	}{
+		"no changes and no state": {
+			plans.NewChanges().SyncWrapper(),
+			states.NewState().SyncWrapper(),
+			cty.DynamicVal.Mark(marks.Ephemeral),
+		},
+		"with state and planned changes": {
+			plans.BuildChanges(func(sync *plans.ChangesSync) {
+				sync.AppendResourceInstanceChange(
+					&plans.ResourceInstanceChangeSrc{
+						Addr:        rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						PrevRunAddr: rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						DeposedKey:  states.NotDeposed,
+						ProviderAddr: addrs.AbsProviderConfig{
+							Provider: rc.Provider,
+							Module:   addrs.RootModule,
+						},
+						ChangeSrc: plans.ChangeSrc{
+							After: encodeDynamicValue(t, cty.ObjectVal(map[string]cty.Value{
+								"id":    cty.StringVal("foo"),
+								"value": cty.StringVal("tacos"),
+								"nesting_map": cty.SetVal([]cty.Value{
+									cty.ObjectVal(map[string]cty.Value{
+										"foo": cty.StringVal("test"),
+									}),
+								}),
+							})),
+							AfterValMarks: []cty.PathValueMarks{
+								{
+									Path: cty.GetAttrPath("nesting_map").Index(cty.ObjectVal(map[string]cty.Value{"foo": cty.StringVal("test")})).GetAttr("foo"),
+									Marks: map[interface{}]struct{}{
+										// added the ephemeral mark here to validate that it is removed and the
+										// sensitive one is added based on the schema
+										marks.Ephemeral: {},
+									},
+								},
+							},
+						},
+					},
+				)
+			}).SyncWrapper(),
+			states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectPlanned,
+						AttrsJSON: []byte(`{"id":"foo", "val":"tacos"}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: rc.Provider,
+						Module:   addrs.RootModule,
+					},
+					addrs.NoKey,
+				)
+			}).SyncWrapper(),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":    cty.StringVal("foo"),
+				"value": cty.StringVal("tacos"),
+				"nesting_map": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
+					}),
+				}),
+			}).Mark(marks.Ephemeral),
+		},
+		"with object ready state and no changes": {
+			plans.BuildChanges(func(sync *plans.ChangesSync) {}).SyncWrapper(),
+			states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: []byte(`{"id":"foo", "value":"tacos", "nesting_map": [{"foo": "test"}]}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: rc.Provider,
+						Module:   addrs.RootModule,
+					},
+					addrs.NoKey,
+				)
+			}).SyncWrapper(),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":    cty.StringVal("foo"),
+				"value": cty.StringVal("tacos"),
+				"nesting_map": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
+					}),
+				}),
+			}).Mark(marks.Ephemeral),
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			// having these here for easier reference in the test body
+			state := tt.state
+			changes := tt.changes
+			want := tt.want
+
+			evaluator := &Evaluator{
+				Meta: &ContextMeta{
+					Env: "foo",
+				},
+				Changes: changes,
+				Config: &configs.Config{
+					Module: &configs.Module{
+						EphemeralResources: map[string]*configs.Resource{
+							rc.Addr().String(): rc,
+						},
+					},
+				},
+				State: state,
+				Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						EphemeralResources: map[string]providers.Schema{
+							"test_resource": ephemeralSchema,
+						},
+					},
+				}, t),
+			}
+			data := &evaluationStateData{
+				Evaluator: evaluator,
+			}
+			scope := evaluator.Scope(data, nil, nil, nil)
+
+			got, diags := scope.Data.GetResource(t.Context(), rc.Addr(), tfdiags.SourceRange{})
+
+			if len(diags) != 0 {
+				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+			}
+
+			if !got.RawEquals(want) {
+				t.Errorf("wrong result:\ngot: %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}
+
 func TestEvaluatorGetModule(t *testing.T) {
 	// Create a new evaluator with an existing state
 	stateSync := states.BuildState(func(ss *states.SyncState) {
@@ -550,6 +831,13 @@ func TestEvaluatorGetModule(t *testing.T) {
 			addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
 			cty.StringVal("bar"),
 			true,
+			"",
+		)
+		ss.SetOutputValue(
+			addrs.OutputValue{Name: "out2"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+			cty.StringVal("baz"),
+			false,
+			"",
 		)
 	}).SyncWrapper()
 	evaluator := evaluatorForModule(stateSync, plans.NewChanges().SyncWrapper())
@@ -557,8 +845,11 @@ func TestEvaluatorGetModule(t *testing.T) {
 		Evaluator: evaluator,
 	}
 	scope := evaluator.Scope(data, nil, nil, nil)
-	want := cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("bar").Mark(marks.Sensitive)})
-	got, diags := scope.Data.GetModule(addrs.ModuleCall{
+	want := cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("bar").Mark(marks.Sensitive),
+		"out2": cty.StringVal("baz").Mark(marks.Ephemeral),
+	})
+	got, diags := scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 
@@ -566,7 +857,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 	}
 	if !got.RawEquals(want) {
-		t.Errorf("wrong result %#v; want %#v", got, want)
+		t.Errorf("wrong result %#v\nwant %#v", got, want)
 	}
 
 	// Changes should override the state value
@@ -580,13 +871,24 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 	cs, _ := change.Encode()
 	changesSync.AppendOutputChange(cs)
+	change2 := &plans.OutputChange{
+		Addr: addrs.OutputValue{Name: "out2"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+		Change: plans.Change{
+			After: cty.StringVal("bazz"),
+		},
+	}
+	cs2, _ := change2.Encode()
+	changesSync.AppendOutputChange(cs2)
 	evaluator = evaluatorForModule(stateSync, changesSync)
 	data = &evaluationStateData{
 		Evaluator: evaluator,
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
-	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
-	got, diags = scope.Data.GetModule(addrs.ModuleCall{
+	want = cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("baz").Mark(marks.Sensitive),
+		"out2": cty.StringVal("bazz").Mark(marks.Ephemeral),
+	})
+	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 
@@ -603,8 +905,11 @@ func TestEvaluatorGetModule(t *testing.T) {
 		Evaluator: evaluator,
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
-	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
-	got, diags = scope.Data.GetModule(addrs.ModuleCall{
+	want = cty.ObjectVal(map[string]cty.Value{
+		"out":  cty.StringVal("baz").Mark(marks.Sensitive),
+		"out2": cty.StringVal("bazz").Mark(marks.Ephemeral),
+	})
+	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 
@@ -637,6 +942,10 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 							"out": {
 								Name:      "out",
 								Sensitive: true,
+							},
+							"out2": {
+								Name:      "out2",
+								Ephemeral: true,
 							},
 						},
 					},

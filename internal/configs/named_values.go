@@ -7,17 +7,21 @@ package configs
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/didyoumean"
+	"github.com/opentofu/opentofu/internal/lang/lint"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // A consistent detail message for all "not a valid identifier" diagnostics.
@@ -40,9 +44,11 @@ type Variable struct {
 	Validations []*CheckRule
 	Sensitive   bool
 	Deprecated  string
+	Ephemeral   bool
 
 	DescriptionSet bool
 	SensitiveSet   bool
+	EphemeralSet   bool
 
 	// Nullable indicates that null is a valid value for this variable. Setting
 	// Nullable to false means that the module can expect this variable to
@@ -138,6 +144,12 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		}
 	}
 
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Ephemeral)
+		diags = append(diags, valDiags...)
+		v.EphemeralSet = true
+	}
+
 	if attr, exists := content.Attributes["nullable"]; exists {
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Nullable)
 		diags = append(diags, valDiags...)
@@ -178,6 +190,10 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				})
 				val = cty.DynamicVal
 			}
+			// We might generate some warnings even if the default value is
+			// technically valid, if it seems like anything is highly likely
+			// to be a mistake.
+			diags = append(diags, lintVariableDefaultValue(attr.Expr, v.ConstraintType)...)
 		}
 
 		if !v.Nullable && val.IsNull() {
@@ -208,6 +224,52 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	}
 
 	return v, diags
+}
+
+// lintVariableDefaultValue checks for situations where the expression used to
+// set the default value for an input variable is highly likely to be a mistake
+// despite being technically valid, and returns warnings for those cases.
+//
+// This function never returns error diagnostics.
+func lintVariableDefaultValue(expr hcl.Expression, targetTy cty.Type) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	// If the expression used to define the default vaue includes any object
+	// constructor expressions with attribute names that would definitely have
+	// been discarded during type conversion then we'll warn about that, because
+	// there's no useful reason to do that.
+	for unused := range lint.DiscardedObjectConstructorAttrs(expr, targetTy) {
+		// The final step of the path is the one representing the problem
+		// while any that appear before it are just context.
+		prePath, problemStep := unused.Path[:len(unused.Path)-1], unused.Path[len(unused.Path)-1]
+		attrName := problemStep.(cty.GetAttrStep).Name
+
+		attrs := slices.Collect(maps.Keys(unused.TargetType.AttributeTypes()))
+		suggestion := ""
+		if similarName := didyoumean.NameSuggestion(attrName, attrs); similarName != "" {
+			suggestion = fmt.Sprintf(" Did you mean to set attribute %q instead?", similarName)
+		}
+
+		var nounPhrase string
+		if len(prePath) != 0 {
+			nounPhrase = fmt.Sprintf("The object type for %s", tfdiags.FormatCtyPath(prePath))
+		} else {
+			nounPhrase = "The object type for this variable"
+		}
+
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Object attribute is ignored",
+			Detail: fmt.Sprintf(
+				"%s does not include an attribute named %q, so this definition is unused.%s",
+				nounPhrase, attrName, suggestion,
+			),
+			Subject: unused.NameRange.ToHCL().Ptr(),
+			Context: unused.ContextRange.ToHCL().Ptr(),
+		})
+	}
+
+	return diags
 }
 
 func decodeVariableType(expr hcl.Expression) (cty.Type, *typeexpr.Defaults, VariableParsingMode, hcl.Diagnostics) {
@@ -418,11 +480,13 @@ type Output struct {
 	DependsOn   []hcl.Traversal
 	Sensitive   bool
 	Deprecated  string
+	Ephemeral   bool
 
 	Preconditions []*CheckRule
 
 	DescriptionSet bool
 	SensitiveSet   bool
+	EphemeralSet   bool
 
 	DeclRange hcl.Range
 
@@ -490,6 +554,12 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		}
 	}
 
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Ephemeral)
+		diags = append(diags, valDiags...)
+		o.EphemeralSet = true
+	}
+
 	if attr, exists := content.Attributes["depends_on"]; exists {
 		deps, depsDiags := decodeDependsOn(attr)
 		diags = append(diags, depsDiags...)
@@ -521,6 +591,17 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 
 func (o *Output) Addr() addrs.OutputValue {
 	return addrs.OutputValue{Name: o.Name}
+}
+
+// UsageRange returns the location where the output value is configured, but if the expression is not configured
+// then it returns the output definition location.
+// Useful for generating diagnostics.
+func (o *Output) UsageRange() hcl.Range {
+	subj := o.DeclRange
+	if o.Expr != nil {
+		subj = o.Expr.Range()
+	}
+	return subj
 }
 
 // Local represents a single entry from a "locals" block in a module or file.
@@ -582,6 +663,9 @@ var variableBlockSchema = &hcl.BodySchema{
 			Name: "sensitive",
 		},
 		{
+			Name: "ephemeral",
+		},
+		{
 			Name: "deprecated",
 		},
 		{
@@ -609,6 +693,9 @@ var outputBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "sensitive",
+		},
+		{
+			Name: "ephemeral",
 		},
 		{
 			Name: "deprecated",

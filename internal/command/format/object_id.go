@@ -10,6 +10,10 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+func isValueMarkedUnusable(v cty.Value) bool {
+	return v.HasMark(marks.Sensitive) || v.HasMark(marks.Ephemeral)
+}
+
 // ObjectValueID takes a value that is assumed to be an object representation
 // of some resource instance object and attempts to heuristically find an
 // attribute of it that is likely to be a unique identifier in the remote
@@ -36,7 +40,7 @@ func ObjectValueID(obj cty.Value) (k, v string) {
 
 	case atys["id"] == cty.String:
 		v := obj.GetAttr("id")
-		if v.HasMark(marks.Sensitive) {
+		if isValueMarkedUnusable(v) {
 			break
 		}
 		v, _ = v.Unmark()
@@ -49,7 +53,7 @@ func ObjectValueID(obj cty.Value) (k, v string) {
 		// "name" isn't always globally unique, but if there isn't also an
 		// "id" then it _often_ is, in practice.
 		v := obj.GetAttr("name")
-		if v.HasMark(marks.Sensitive) {
+		if isValueMarkedUnusable(v) {
 			break
 		}
 		v, _ = v.Unmark()
@@ -93,7 +97,7 @@ func ObjectValueName(obj cty.Value) (k, v string) {
 
 	case atys["name"] == cty.String:
 		v := obj.GetAttr("name")
-		if v.HasMark(marks.Sensitive) {
+		if isValueMarkedUnusable(v) {
 			break
 		}
 		v, _ = v.Unmark()
@@ -104,7 +108,7 @@ func ObjectValueName(obj cty.Value) (k, v string) {
 
 	case atys["tags"].IsMapType() && atys["tags"].ElementType() == cty.String:
 		tags := obj.GetAttr("tags")
-		if tags.IsNull() || !tags.IsWhollyKnown() || tags.HasMark(marks.Sensitive) {
+		if tags.IsNull() || !tags.IsWhollyKnown() || isValueMarkedUnusable(tags) {
 			break
 		}
 		tags, _ = tags.Unmark()
@@ -112,7 +116,7 @@ func ObjectValueName(obj cty.Value) (k, v string) {
 		switch {
 		case tags.HasIndex(cty.StringVal("name")).RawEquals(cty.True):
 			v := tags.Index(cty.StringVal("name"))
-			if v.HasMark(marks.Sensitive) {
+			if isValueMarkedUnusable(v) {
 				break
 			}
 			v, _ = v.Unmark()
@@ -123,7 +127,7 @@ func ObjectValueName(obj cty.Value) (k, v string) {
 		case tags.HasIndex(cty.StringVal("Name")).RawEquals(cty.True):
 			// AWS-style naming convention
 			v := tags.Index(cty.StringVal("Name"))
-			if v.HasMark(marks.Sensitive) {
+			if isValueMarkedUnusable(v) {
 				break
 			}
 			v, _ = v.Unmark()

@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/mitchellh/go-homedir"
@@ -52,6 +53,7 @@ func (p *provisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
 				Required: true,
 			},
 		},
+		Ephemeral: true,
 	}
 	resp.Provisioner = schema
 	return resp
@@ -170,7 +172,9 @@ func copyFiles(ctx context.Context, comm communicator.Communicator, src, dst str
 	// Apply as well.
 	go func() {
 		<-ctx.Done()
-		comm.Disconnect()
+		if err := comm.Disconnect(); err != nil {
+			log.Printf("[ERROR] Unable to close provisioner connection: %s", err.Error())
+		}
 	}()
 
 	info, err := os.Stat(src)

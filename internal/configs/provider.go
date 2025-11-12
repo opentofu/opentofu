@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -165,13 +166,13 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	return provider, diags
 }
 
-func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+func (p *Provider) decodeStaticFields(ctx context.Context, eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if p.ForEach != nil {
 		forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
 			var diags tfdiags.Diagnostics
-			evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
+			evalContext, evalDiags := eval.EvalContext(ctx, StaticIdentifier{
 				Module:    eval.call.addr,
 				Subject:   fmt.Sprintf("provider.%s.%s.for_each", p.Name, p.Alias),
 				DeclRange: p.ForEach.Range(),

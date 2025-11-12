@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,7 +75,7 @@ func (s staticScopeData) enhanceDiagnostics(ident StaticIdentifier, diags tfdiag
 }
 
 // Early check to only allow references we expect in a static context
-func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ addrs.Referenceable, _ addrs.Referenceable) tfdiags.Diagnostics {
+func (s staticScopeData) StaticValidateReferences(_ context.Context, refs []*addrs.Reference, _ addrs.Referenceable, _ addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	top := s.stack[len(s.stack)-1]
 	for _, ref := range refs {
@@ -113,19 +114,19 @@ func (s staticScopeData) StaticValidateReferences(refs []*addrs.Reference, _ add
 	return diags
 }
 
-func (s staticScopeData) GetCountAttr(addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetCountAttr(context.Context, addrs.CountAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s staticScopeData) GetForEachAttr(addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetForEachAttr(context.Context, addrs.ForEachAttr, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s staticScopeData) GetResource(addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetResource(context.Context, addrs.Resource, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetLocalValue(ctx context.Context, ident addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	local, ok := s.eval.cfg.Locals[ident.Name]
@@ -150,15 +151,15 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 		return cty.DynamicVal, diags
 	}
 
-	val, valDiags := scope.EvalExpr(local.Expr, cty.DynamicPseudoType)
+	val, valDiags := scope.EvalExpr(ctx, local.Expr, cty.DynamicPseudoType)
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 
-func (s staticScopeData) GetModule(addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetModule(context.Context, addrs.ModuleCall, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetPathAttr(_ context.Context, addr addrs.PathAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// TODO this is copied and trimmed down from tofu/evaluate.go GetPathAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
@@ -207,10 +208,18 @@ func (s staticScopeData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.SourceRang
 	}
 }
 
-func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetTerraformAttr(_ context.Context, addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	// TODO this is copied and trimmed down from tofu/evaluate.go GetTerraformAttr.  Ideally this should be refactored to a common location.
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
+	case "applying":
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid attribute in static context`,
+			Detail:   `The applying attribute can not be used during static evaluation and is only valid in the plan and apply phases of execution`,
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
 	case "workspace":
 		workspaceName := s.eval.call.workspace
 		return cty.StringVal(workspaceName), diags
@@ -238,7 +247,7 @@ func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.
 	}
 }
 
-func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetInputVariable(_ context.Context, ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variable, ok := s.eval.cfg.Variables[ident.Name]
@@ -362,6 +371,11 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 		// that their sensitivity can propagate to derived expressions.
 		val = val.Mark(marks.Sensitive)
 	}
+	if variable.Ephemeral {
+		// Ephemeral input variables must always be marked as such, so
+		// that their ephemerality can propagate to derived expressions.
+		val = val.Mark(marks.Ephemeral)
+	}
 
 	// TODO: We should check the variable validations here too, since module
 	// authors expect that any value that doesn't meet the validation requirements
@@ -375,10 +389,10 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	return val, s.enhanceDiagnostics(id, diags)
 }
 
-func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetOutput(context.Context, addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }
 
-func (s staticScopeData) GetCheckBlock(addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+func (s staticScopeData) GetCheckBlock(context.Context, addrs.Check, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	panic("Not Available in Static Context")
 }

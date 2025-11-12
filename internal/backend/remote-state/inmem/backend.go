@@ -80,19 +80,22 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// set the default client lock info per the test config
 	data := schema.FromContextBackendConfig(ctx)
-	if v, ok := data.GetOk("lock_id"); ok && v.(string) != "" {
+	_, hasDefaultLock := locks.m[backend.DefaultStateName]
+	if v, ok := data.GetOk("lock_id"); ok && v.(string) != "" && !hasDefaultLock {
 		info := statemgr.NewLockInfo()
 		info.ID = v.(string)
 		info.Operation = "test"
 		info.Info = "test config"
 
-		locks.lock(backend.DefaultStateName, info)
+		if _, err := locks.lock(backend.DefaultStateName, info); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	states.Lock()
 	defer states.Unlock()
 
@@ -106,7 +109,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return workspaces, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	states.Lock()
 	defer states.Unlock()
 
@@ -118,7 +121,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	states.Lock()
 	defer states.Unlock()
 
@@ -136,20 +139,37 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		// take a lock and create a new state if it doesn't exist.
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := s.Lock(lockInfo)
+		lockID, err := s.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
-		defer s.Unlock(lockID)
+
+		// Local helper function so we can call it multiple places
+		lockUnlock := func(parent error) error {
+			if err := s.Unlock(context.TODO(), lockID); err != nil {
+				return errors.Join(
+					fmt.Errorf("error unlocking inmem state: %w", err),
+					parent,
+				)
+			}
+			return parent
+		}
 
 		// If we have no state, we have to create an empty state
 		if v := s.State(); v == nil {
 			if err := s.WriteState(statespkg.NewState()); err != nil {
+				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := s.PersistState(nil); err != nil {
+			if err := s.PersistState(context.TODO(), nil); err != nil {
+				err = lockUnlock(err)
 				return nil, err
 			}
+		}
+
+		// Unlock, the state should now be initialized
+		if err := lockUnlock(nil); err != nil {
+			return nil, err
 		}
 	}
 

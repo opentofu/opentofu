@@ -243,3 +243,4 @@ func TestPlanOnlyInAutomation(t *testing.T) {
 		t.Error("plan file was created, but was not expected")
 	}
 }
+

@@ -18,14 +18,14 @@ func TestModuleVariableTransformer(t *testing.T) {
 
 	{
 		tf := &RootVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		tf := &ModuleVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -43,14 +43,14 @@ func TestModuleVariableTransformer_nested(t *testing.T) {
 
 	{
 		tf := &RootVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		tf := &ModuleVariableTransformer{Config: module}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

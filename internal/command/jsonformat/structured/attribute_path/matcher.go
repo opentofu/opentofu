@@ -7,7 +7,6 @@ package attribute_path
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 )
 
@@ -153,7 +152,14 @@ func (p *PathMatcher) GetChildWithKey(key string) Matcher {
 			continue
 		}
 
-		if path[0].(string) == key {
+		// The next step should be a string that equals the given key.
+		// This must tolerate the next step being something other than a string
+		// because the paths we are matching against are not guaranteed to
+		// conform to the schema of the item they apply to. For example, the
+		// path might have been extracted by the lang/globalref reference
+		// analyzer from an argument to the "try" function and so would've been
+		// allowed to pass through without causing a validation error.
+		if gotKey, ok := path[0].(string); ok && gotKey == key {
 			child.Paths = append(child.Paths, path[1:])
 		}
 	}
@@ -185,10 +191,15 @@ func (p *PathMatcher) GetChildWithIndex(index int) Matcher {
 		//    - test_resource.resource.list[0].attribute
 		//    - test_resource.resource.list["0"].attribute
 		//
-		// Note, that OpenTofu will raise a validation error if the string
-		// can't be coerced into a number, so we will panic here if anything
-		// goes wrong safe in the knowledge the validation should stop this from
-		// happening.
+		// In most cases a string that can't be converted to a number will
+		// get caught by static checks in the language runtime, but that isn't
+		// true if test_resource.resource.list above is dynamically-typed,
+		// so we must tolerate and ignore strings that can't be converted.
+		// (In practice we'd get here in that case only if the invalid
+		// expression were used inside the "try" or "can" functions where a
+		// dynamic type check failure is suppressed, so it's okay to just
+		// silently ignore those here since that's the likely intention of
+		// using those functions.)
 
 		switch val := path[0].(type) {
 		case float64:
@@ -197,14 +208,9 @@ func (p *PathMatcher) GetChildWithIndex(index int) Matcher {
 			}
 		case string:
 			f, err := strconv.ParseFloat(val, 64)
-			if err != nil {
-				panic(fmt.Errorf("found invalid type within path (%v:%T), the validation shouldn't have allowed this to happen; this is a bug in OpenTofu, please report it", val, val))
-			}
-			if int(f) == index {
+			if err == nil && int(f) == index {
 				child.Paths = append(child.Paths, path[1:])
 			}
-		default:
-			panic(fmt.Errorf("found invalid type within path (%v:%T), the validation shouldn't have allowed this to happen; this is a bug in OpenTofu, please report it", val, val))
 		}
 	}
 	return child

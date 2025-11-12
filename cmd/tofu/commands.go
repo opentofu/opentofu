@@ -11,16 +11,16 @@ import (
 	"os/signal"
 
 	"github.com/hashicorp/go-plugin"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
@@ -98,7 +98,7 @@ func initCommands(
 		Ui:               Ui,
 
 		Services:        services,
-		BrowserLauncher: webbrowser.NewNativeLauncher(),
+		BrowserLauncher: browserLauncher(),
 
 		RunningInAutomation: inAutomation,
 		CLIConfigDir:        configDir,
@@ -109,12 +109,23 @@ func initCommands(
 		ShutdownCh:    makeShutdownCh(),
 		CallerContext: ctx,
 
+		MakeRegistryHTTPClient: func() *retryablehttp.Client {
+			// This ctx is used only to choose global configuration settings
+			// for the client, and is not retained as part of the result for
+			// making individual HTTP requests.
+			return newRegistryHTTPClient(ctx, config.RegistryProtocols)
+		},
 		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
+
+		// ProviderSourceLocationConfig is used for some commands that do not make
+		// use of the OpenTofu configuration files. Therefore, there is no way to configure
+		// the retries from other places than env vars.
+		ProviderSourceLocationConfig: providerSourceLocationConfigFromEnv(),
 	}
 
 	// The command list is included in the tofu -help
@@ -355,9 +366,9 @@ func initCommands(
 			}, nil
 		},
 
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 		// Plumbing
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
 			return &command.UnlockCommand{
@@ -479,7 +490,7 @@ func makeShutdownCh() <-chan struct{} {
 	return resultCh
 }
 
-func credentialsSource(config *cliconfig.Config) (auth.CredentialsSource, error) {
+func credentialsSource(config *cliconfig.Config) (svcauth.CredentialsSource, error) {
 	helperPlugins := pluginDiscovery.FindPlugins("credentials", globalPluginDirs())
 	return config.CredentialsSource(helperPlugins)
 }

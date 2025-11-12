@@ -6,6 +6,7 @@
 package jsonformat
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -159,7 +160,7 @@ func testSchemas() *tofu.Schemas {
 	provider := testProvider()
 	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(context.TODO()),
 		},
 	}
 }
@@ -255,7 +256,7 @@ func basicState(t *testing.T) *states.State {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -301,14 +302,14 @@ func stateWithMoreOutputs(t *testing.T) *states.State {
 		t.Errorf("root module is nil; want valid object")
 	}
 
-	rootModule.SetOutputValue("string_var", cty.StringVal("string value"), false)
-	rootModule.SetOutputValue("int_var", cty.NumberIntVal(42), false)
-	rootModule.SetOutputValue("bool_var", cty.BoolVal(true), false)
-	rootModule.SetOutputValue("sensitive_var", cty.StringVal("secret!!!"), true)
+	rootModule.SetOutputValue("string_var", cty.StringVal("string value"), false, "")
+	rootModule.SetOutputValue("int_var", cty.NumberIntVal(42), false, "")
+	rootModule.SetOutputValue("bool_var", cty.BoolVal(true), false, "")
+	rootModule.SetOutputValue("sensitive_var", cty.StringVal("secret!!!"), true, "")
 	rootModule.SetOutputValue("map_var", cty.MapVal(map[string]cty.Value{
 		"first":  cty.StringVal("foo"),
 		"second": cty.StringVal("bar"),
-	}), false)
+	}), false, "")
 
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{

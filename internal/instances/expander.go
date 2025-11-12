@@ -15,8 +15,9 @@ import (
 )
 
 // Expander instances serve as a coordination point for gathering object
-// repetition values (count and for_each in configuration) and then later
-// making use of them to fully enumerate all of the instances of an object.
+// repetition values (count, enabled and for_each in configuration) and
+// then later making use of them to fully enumerate all of the instances
+// of an object.
 //
 // The two repeatable object types in OpenTofu are modules and resources.
 // Because resources belong to modules and modules can nest inside other
@@ -58,6 +59,12 @@ func (e *Expander) SetModuleSingle(parentAddr addrs.ModuleInstance, callAddr add
 	e.setModuleExpansion(parentAddr, callAddr, expansionSingleVal)
 }
 
+// SetModuleEnabled records that the given module call inside the given parent
+// module uses the "enabled" lifecycle repetition argument, with the given value.
+func (e *Expander) SetModuleEnabled(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, enabled bool) {
+	e.setModuleExpansion(parentAddr, callAddr, expansionEnabled(enabled))
+}
+
 // SetModuleCount records that the given module call inside the given parent
 // module instance uses the "count" repetition argument, with the given value.
 func (e *Expander) SetModuleCount(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, count int) {
@@ -85,6 +92,12 @@ func (e *Expander) SetResourceSingle(moduleAddr addrs.ModuleInstance, resourceAd
 // uses the "count" repetition argument, with the given value.
 func (e *Expander) SetResourceCount(moduleAddr addrs.ModuleInstance, resourceAddr addrs.Resource, count int) {
 	e.setResourceExpansion(moduleAddr, resourceAddr, expansionCount(count))
+}
+
+// SetResourceEnabled records that the given resource inside the given module
+// uses the "enabled" repetition argument, with the given value.
+func (e *Expander) SetResourceEnabled(moduleAddr addrs.ModuleInstance, resourceAddr addrs.Resource, enabled bool) {
+	e.setResourceExpansion(moduleAddr, resourceAddr, expansionEnabled(enabled))
 }
 
 // SetResourceForEach records that the given resource inside the given module

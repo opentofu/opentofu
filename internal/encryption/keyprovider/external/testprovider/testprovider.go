@@ -47,6 +47,8 @@ go 1.22`)
 	targetBinary := path.Join(dir, "testprovider")
 	if runtime.GOOS == "windows" {
 		targetBinary += ".exe"
+		// If we do not use raw backslashes below, the binary won't be found by HCL after parsing.
+		targetBinary = strings.ReplaceAll(targetBinary, "\\", `\\`)
 	}
 	t.Logf("\033[32mCompiling test provider binary...\033[0m")
 	cmd := exec.Command("go", "build", "-o", targetBinary)
@@ -72,6 +74,10 @@ func Python(t *testing.T) []string {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testprovider.py")
+	if runtime.GOOS == "windows" {
+		// If we do not use raw backslashes below, the binary won't be found by HCL after parsing.
+		target = strings.ReplaceAll(target, "\\", `\\`)
+	}
 	if err := ejectFile("testprovider.py", target); err != nil {
 		t.Errorf("%v", err)
 	}

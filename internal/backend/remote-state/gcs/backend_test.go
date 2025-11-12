@@ -8,6 +8,7 @@ package gcs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"cloud.google.com/go/storage"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -23,7 +25,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/version"
 	"google.golang.org/api/option"
-	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
 const (
@@ -82,7 +83,7 @@ func TestRemoteClient(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, noEncryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -101,7 +102,7 @@ func TestRemoteClientWithEncryption(t *testing.T) {
 	be := setupBackend(t, bucket, noPrefix, encryptionKey, noKmsKeyName)
 	defer teardownBackend(t, be, noPrefix)
 
-	ss, err := be.StateMgr(backend.DefaultStateName)
+	ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("be.StateMgr(%q) = %v", backend.DefaultStateName, err)
 	}
@@ -122,7 +123,7 @@ func TestRemoteLocks(t *testing.T) {
 	defer teardownBackend(t, be, noPrefix)
 
 	remoteClient := func() (remote.Client, error) {
-		ss, err := be.StateMgr(backend.DefaultStateName)
+		ss, err := be.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			return nil, err
 		}
@@ -176,6 +177,7 @@ func TestBackendWithPrefix(t *testing.T) {
 	backend.TestBackendStates(t, be0)
 	backend.TestBackendStateLocks(t, be0, be1)
 }
+
 func TestBackendWithCustomerSuppliedEncryption(t *testing.T) {
 	t.Parallel()
 
@@ -244,16 +246,16 @@ func setupBackend(t *testing.T, bucket, prefix, key, kmsName string) backend.Bac
 
 	// create the bucket if it doesn't exist
 	bkt := be.storageClient.Bucket(bucket)
-	_, err := bkt.Attrs(be.storageContext)
+	_, err := bkt.Attrs(t.Context())
 	if err != nil {
-		if err != storage.ErrBucketNotExist {
+		if !errors.Is(err, storage.ErrBucketNotExist) {
 			t.Fatal(err)
 		}
 
 		attrs := &storage.BucketAttrs{
 			Location: os.Getenv("GOOGLE_REGION"),
 		}
-		err := bkt.Create(be.storageContext, projectID, attrs)
+		err := bkt.Create(t.Context(), projectID, attrs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -346,7 +348,7 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 	// Get GCS Service account email, check has necessary permission on key
 	// Note: we cannot reuse the backend's storage client (like in the setupBackend function)
 	// because the KMS key needs to exist before the backend buckets are made in the test.
-	sc, err := storage.NewClient(ctx, opts...) //reuse opts from KMS client
+	sc, err := storage.NewClient(ctx, opts...) // reuse opts from KMS client
 	if err != nil {
 		e := fmt.Errorf("storage.NewClient() failed: %w", err)
 		t.Fatal(e)
@@ -383,7 +385,7 @@ func teardownBackend(t *testing.T, be backend.Backend, prefix string) {
 	if !ok {
 		t.Fatalf("be is a %T, want a *gcsBackend", be)
 	}
-	ctx := gcsBE.storageContext
+	ctx := t.Context()
 
 	bucket := gcsBE.storageClient.Bucket(gcsBE.bucketName)
 	objs := bucket.Objects(ctx, nil)

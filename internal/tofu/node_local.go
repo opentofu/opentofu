@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -28,17 +29,17 @@ type nodeExpandLocal struct {
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandLocal)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandLocal)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandLocal)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandLocal)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandLocal)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandLocal)(nil)
+	_ graphNodeTemporaryValue                        = (*nodeExpandLocal)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandLocal)(nil)
 )
 
-func (n *nodeExpandLocal) expandsInstances() {}
+func (n *nodeExpandLocal) retainDuringUnusedPruning() {}
 
 // graphNodeTemporaryValue
-func (n *nodeExpandLocal) temporaryValue() bool {
+func (n *nodeExpandLocal) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -102,7 +103,7 @@ var (
 )
 
 // graphNodeTemporaryValue
-func (n *NodeLocal) temporaryValue() bool {
+func (n *NodeLocal) temporaryValue(_ walkOperation) bool {
 	return true
 }
 
@@ -135,7 +136,7 @@ func (n *NodeLocal) References() []*addrs.Reference {
 // NodeLocal.Execute is an Execute implementation that evaluates the
 // expression for a local value and writes it into a transient part of
 // the state.
-func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeLocal) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	expr := n.Config.Expr
 	addr := n.Addr.LocalValue
 
@@ -157,19 +158,19 @@ func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Di
 		return diags
 	}
 
-	val, moreDiags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
+	val, moreDiags := evalCtx.EvaluateExpr(ctx, expr, cty.DynamicPseudoType, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags
 	}
 
-	state := ctx.State()
+	state := evalCtx.State()
 	if state == nil {
 		diags = diags.Append(fmt.Errorf("cannot write local value to nil state"))
 		return diags
 	}
 
-	state.SetLocalValue(addr.Absolute(ctx.Path()), val)
+	state.SetLocalValue(addr.Absolute(evalCtx.Path()), val)
 
 	return diags
 }

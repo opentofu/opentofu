@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcltest"
 )
 
 func TestOverride_UpdatesSeverity(t *testing.T) {
@@ -53,6 +54,44 @@ func TestOverride_WrapsExtra(t *testing.T) {
 	}
 	if wrapper.original.(string) != "extra" {
 		t.Errorf("invalid wrapped extra info %v", override.ExtraInfo())
+	}
+}
+
+func TestOverride_Contextual(t *testing.T) {
+	// Wrapping a body-contextual diagnostic with Override should still allow
+	// for the final elaboration of the wrapped diagnostic, while also
+	// preserving the override data.
+	original := WholeContainingBody(
+		Error,
+		"Placeholder error",
+		"...",
+	)
+	override := Override(original, Warning, func() DiagnosticExtraWrapper {
+		return &extraWrapper{
+			mine: "mine",
+		}
+	})
+	var diags Diagnostics
+	diags = diags.Append(override)
+	diags = diags.InConfigBody(hcltest.MockBody(&hcl.BodyContent{}), "placeholder address")
+
+	if got, want := len(diags), 1; got != want {
+		t.Fatalf("wrong number of diagnostics after elaboration %d; want %d", got, want)
+	}
+	diag := diags[0]
+	desc := diag.Description()
+	if got, want := desc.Address, "placeholder address"; got != want {
+		t.Errorf("wrong value for diag.Description().Address\ngot:  %q\nwant: %q", got, want)
+	}
+	if got, want := diag.Severity(), Warning; got != want {
+		t.Errorf("wrong final severity %s; want %s", got, want)
+	}
+	wrapper, ok := diag.ExtraInfo().(*extraWrapper)
+	if !ok {
+		t.Fatalf("final diagnostic has wrong ExtraInfo type\ngot:  %T\nwant: %T", diag.ExtraInfo(), wrapper)
+	}
+	if got, want := wrapper.mine, "mine"; got != want {
+		t.Errorf("wrong ExtraInfo value\ngot:  %q\nwant: %q", got, want)
 	}
 }
 

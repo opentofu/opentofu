@@ -6,12 +6,18 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
+	"log"
+
+	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -35,7 +41,13 @@ var (
 	_ GraphNodeAttachResourceState  = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeExecutable           = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeProviderConsumer     = (*NodePlanDestroyableResourceInstance)(nil)
+	_ dag.NamedVertex               = (*NodePlanDestroyableResourceInstance)(nil)
 )
+
+// dag.NamedVertex
+func (n *NodePlanDestroyableResourceInstance) Name() string {
+	return n.NodeAbstractResourceInstance.Name() + " (destroy)"
+}
 
 // GraphNodeDestroyer
 func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceInstance {
@@ -44,25 +56,48 @@ func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceIn
 }
 
 // GraphNodeEvalable
-func (n *NodePlanDestroyableResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	diags = diags.Append(n.resolveProvider(ctx, false, states.NotDeposed))
+	ctx, span := tracing.Tracer().Start(
+		ctx, traceNamePlanResourceInstance,
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+		),
+	)
+	defer span.End()
+
+	diags = diags.Append(n.resolveProvider(ctx, evalCtx, false, states.NotDeposed))
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
+	span.SetAttributes(
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+	)
 
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx, op)
+		diags = diags.Append(
+			n.managedResourceExecute(ctx, evalCtx, op),
+		)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx, op)
+		diags = diags.Append(
+			n.dataResourceExecute(ctx, evalCtx, op),
+		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx, op),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
+	tracing.SetSpanError(span, diags)
+	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Declare a bunch of variables that are used for state during
@@ -71,7 +106,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	var change *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	state, err := n.readResourceInstanceState(ctx, addr)
+	state, err := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -87,32 +122,32 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	// conditionals must agree (be exactly opposite) in order to get the
 	// correct behavior in both cases.
 	if n.skipRefresh {
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, prevRunState))
+		diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, prevRunState))
 		if diags.HasErrors() {
 			return diags
 		}
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
 	}
 
-	change, destroyPlanDiags := n.planDestroy(ctx, state, "")
+	change, destroyPlanDiags := n.planDestroy(ctx, evalCtx, state, "")
 	diags = diags.Append(destroyPlanDiags)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.checkPreventDestroy(change))
+	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
 
 	// We may not be able to read a prior data source from the state if the
 	// schema was upgraded and we are destroying before ever refreshing that
@@ -120,7 +155,7 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 	// null state, which we can do with a null prior state too.
 	change := &plans.ResourceInstanceChange{
 		Addr:        n.ResourceInstanceAddr(),
-		PrevRunAddr: n.prevRunAddr(ctx),
+		PrevRunAddr: n.prevRunAddr(evalCtx),
 		Change: plans.Change{
 			Action: plans.Delete,
 			Before: cty.NullVal(cty.DynamicPseudoType),
@@ -128,5 +163,14 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 		},
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 	}
-	return diags.Append(n.writeChange(ctx, change, ""))
+	return diags.Append(n.writeChange(ctx, evalCtx, change, ""))
+}
+
+func (n *NodePlanDestroyableResourceInstance) ephemeralResourceExecute(_ context.Context, _ EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+	log.Printf("[TRACE] NodePlanDestroyableResourceInstance: called for ephemeral resource %s", n.Addr)
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"An ephemeral resource planned for destroy",
+		fmt.Sprintf("A destroy operation has been planned for the ephemeral resource %q. This is an OpenTofu error. Please report this.", n.Addr),
+	))
 }

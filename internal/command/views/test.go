@@ -394,7 +394,7 @@ func (t *TestJSON) File(file *moduletest.File) {
 	t.view.log.Info(
 		fmt.Sprintf("%s... %s", file.Name, testStatus(file.Status)),
 		"type", json.MessageTestFile,
-		json.MessageTestFile, json.TestFileStatus{file.Name, json.ToTestStatus(file.Status)},
+		json.MessageTestFile, json.TestFileStatus{Path: file.Name, Status: json.ToTestStatus(file.Status)},
 		"@testfile", file.Name)
 	t.Diagnostics(nil, file, file.Diagnostics)
 }
@@ -403,7 +403,7 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 	t.view.log.Info(
 		fmt.Sprintf("  %q... %s", run.Name, testStatus(run.Status)),
 		"type", json.MessageTestRun,
-		json.MessageTestRun, json.TestRunStatus{file.Name, run.Name, json.ToTestStatus(run.Status)},
+		json.MessageTestRun, json.TestRunStatus{Path: file.Name, Run: run.Name, Status: json.ToTestStatus(run.Status)},
 		"@testfile", file.Name,
 		"@testrun", run.Name)
 

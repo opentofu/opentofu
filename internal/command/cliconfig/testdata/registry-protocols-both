@@ -1,0 +1,4 @@
+registry_protocols {
+  retry_count             = 256
+  request_timeout_seconds = 50
+}

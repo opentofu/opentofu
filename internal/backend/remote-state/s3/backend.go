@@ -49,6 +49,8 @@ type Backend struct {
 	serverSideEncryption  bool
 	customerEncryptionKey []byte
 	acl                   string
+	lockTags              map[string]string
+	stateTags             map[string]string
 	kmsKeyID              string
 	ddbTable              string
 	workspaceKeyPrefix    string
@@ -143,6 +145,16 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "Canned ACL to be applied to the state file",
+			},
+			"state_tags": {
+				Type:        cty.Map(cty.String),
+				Optional:    true,
+				Description: "Tags to be applied to the state object",
+			},
+			"lock_tags": {
+				Type:        cty.Map(cty.String),
+				Optional:    true,
+				Description: "Tags to be applied to the lock object",
 			},
 			"access_key": {
 				Type:        cty.String,
@@ -647,7 +659,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 // The given configuration is assumed to have already been validated
 // against the schema returned by ConfigSchema and passed validation
 // via PrepareConfig.
-func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -673,6 +685,12 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.bucketName = stringAttr(obj, "bucket")
 	b.keyName = stringAttr(obj, "key")
 	b.acl = stringAttr(obj, "acl")
+	if val, ok := stringMapAttrOk(obj, "state_tags"); ok {
+		b.stateTags = val
+	}
+	if val, ok := stringMapAttrOk(obj, "lock_tags"); ok {
+		b.lockTags = val
+	}
 	b.workspaceKeyPrefix = stringAttrDefault(obj, "workspace_key_prefix", "env:")
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")
@@ -718,7 +736,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		}
 	}
 
-	ctx := context.TODO()
 	ctx, baselog := attachLoggerToContext(ctx)
 
 	cfg := &awsbase.Config{
@@ -746,9 +763,11 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		Insecure:             boolAttr(obj, "insecure"),
 		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
-		UserAgent: awsbase.UserAgentProducts{
-			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.DefaultApplicationName, Version: version.String()},
+		APNInfo: &awsbase.APNInfo{
+			PartnerName: "OpenTofu-S3-Backend",
+			Products: []awsbase.UserAgentProduct{
+				{Name: httpclient.DefaultApplicationName, Version: version.String()},
+			},
 		},
 		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
@@ -1114,15 +1133,6 @@ func stringMapAttrOk(obj cty.Value, name string) (map[string]string, bool) {
 	return stringMapValueOk(obj.GetAttr(name))
 }
 
-func customEndpointAttrDefaultEnvVarOk(obj cty.Value, endpointsKey, deprecatedKey string, envvars ...string) (string, bool) {
-	if val := obj.GetAttr("endpoints"); !val.IsNull() {
-		if v, ok := stringAttrDefaultEnvVarOk(val, endpointsKey, envvars...); ok {
-			return v, true
-		}
-	}
-	return stringAttrDefaultEnvVarOk(obj, deprecatedKey, envvars...)
-}
-
 func pathString(path cty.Path) string {
 	var buf strings.Builder
 	for i, step := range path {
@@ -1136,10 +1146,10 @@ func pathString(path cty.Path) string {
 			val := x.Key
 			typ := val.Type()
 			var s string
-			switch {
-			case typ == cty.String:
+			switch typ {
+			case cty.String:
 				s = val.AsString()
-			case typ == cty.Number:
+			case cty.Number:
 				num := val.AsBigFloat()
 				if num.IsInt() {
 					s = num.Text('f', -1)

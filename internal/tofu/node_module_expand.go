@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,6 +21,8 @@ type ConcreteModuleNodeFunc func(n *nodeExpandModule) dag.Vertex
 // nodeExpandModule represents a module call in the configuration that
 // might expand into multiple module instances depending on how it is
 // configured.
+//
+// "Expand" in the name refers to instances.Expander usage. This node doesn't generate a dynamic subgraph.
 type nodeExpandModule struct {
 	Addr       addrs.Module
 	Config     *configs.Module
@@ -30,10 +33,11 @@ var (
 	_ GraphNodeExecutable       = (*nodeExpandModule)(nil)
 	_ GraphNodeReferencer       = (*nodeExpandModule)(nil)
 	_ GraphNodeReferenceOutside = (*nodeExpandModule)(nil)
-	_ graphNodeExpandsInstances = (*nodeExpandModule)(nil)
+	// nodeExpandModule needs to be retained during unused nodes pruning to register the module in instances.Expander
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandModule)(nil)
 )
 
-func (n *nodeExpandModule) expandsInstances() {}
+func (n *nodeExpandModule) retainDuringUnusedPruning() {}
 
 func (n *nodeExpandModule) Name() string {
 	return n.Addr.String() + " (expand)"
@@ -72,6 +76,10 @@ func (n *nodeExpandModule) References() []*addrs.Reference {
 	if n.ModuleCall.ForEach != nil {
 		forEachRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.ForEach)
 		refs = append(refs, forEachRefs...)
+	}
+	if n.ModuleCall.Enabled != nil {
+		enabledRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.Enabled)
+		refs = append(refs, enabledRefs...)
 	}
 
 	for _, passed := range n.ModuleCall.Providers {
@@ -112,18 +120,18 @@ func (n *nodeExpandModule) ReferenceOutside() (selfPath, referencePath addrs.Mod
 }
 
 // GraphNodeExecutable
-func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	expander := ctx.InstanceExpander()
+func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	expander := evalCtx.InstanceExpander()
 	_, call := n.Addr.Call()
 
 	// nodeExpandModule itself does not have visibility into how its ancestors
 	// were expanded, so we use the expander here to provide all possible paths
 	// to our module, and register module instances with each of them.
 	for _, module := range expander.ExpandModule(n.Addr.Parent()) {
-		ctx = ctx.WithPath(module)
+		evalCtx = evalCtx.WithPath(module)
 		switch {
 		case n.ModuleCall.Count != nil:
-			count, ctDiags := evaluateCountExpression(n.ModuleCall.Count, ctx, module)
+			count, ctDiags := evaluateCountExpression(ctx, n.ModuleCall.Count, evalCtx, module)
 			diags = diags.Append(ctDiags)
 			if diags.HasErrors() {
 				return diags
@@ -131,13 +139,30 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 			expander.SetModuleCount(module, call, count)
 
 		case n.ModuleCall.ForEach != nil:
-			forEach, feDiags := evaluateForEachExpression(n.ModuleCall.ForEach, ctx, module)
+			forEach, feDiags := evaluateForEachExpression(ctx, n.ModuleCall.ForEach, evalCtx, module)
 			diags = diags.Append(feDiags)
 			if diags.HasErrors() {
 				return diags
 			}
 			expander.SetModuleForEach(module, call, forEach)
 
+		case n.ModuleCall.Enabled != nil:
+			// For enabled expressions, we need to evaluate in the parent module context
+			// since the expression may reference variables defined in the parent module. e.g.
+			// variable "on" { type = bool }
+			// module "mod1" {
+			// 	 source = "./mod1"
+			// 	 lifecycle {
+			// 	   enabled = var.on
+			// 	 }
+			// }
+			parentEvalCtx := evalCtx.WithPath(module.Parent())
+			enabled, enDiags := evaluateEnabledExpression(ctx, n.ModuleCall.Enabled, parentEvalCtx)
+			diags = diags.Append(enDiags)
+			if diags.HasErrors() {
+				return diags
+			}
+			expander.SetModuleEnabled(module, call, enabled)
 		default:
 			expander.SetModuleSingle(module, call)
 		}
@@ -202,19 +227,19 @@ func (n *nodeCloseModule) IsOverridden(addr addrs.Module) bool {
 	return modConfig.Module.IsOverridden
 }
 
-func (n *nodeCloseModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeCloseModule) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	if !n.Addr.IsRoot() {
 		return
 	}
 
 	// If this is the root module, we are cleaning up the walk, so close
 	// any running provisioners
-	diags = diags.Append(ctx.CloseProvisioners())
+	diags = diags.Append(evalCtx.CloseProvisioners())
 
 	switch op {
 	case walkApply, walkDestroy:
-		state := ctx.State().Lock()
-		defer ctx.State().Unlock()
+		state := evalCtx.State().Lock()
+		defer evalCtx.State().Unlock()
 
 		for modKey, mod := range state.Modules {
 			// clean out any empty resources
@@ -246,33 +271,33 @@ type nodeValidateModule struct {
 var _ GraphNodeExecutable = (*nodeValidateModule)(nil)
 
 // GraphNodeEvalable
-func (n *nodeValidateModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeValidateModule) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, call := n.Addr.Call()
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 
 	// Modules all evaluate to single instances during validation, only to
 	// create a proper context within which to evaluate. All parent modules
 	// will be a single instance, but still get our address in the expected
 	// manner anyway to ensure they've been registered correctly.
 	for _, module := range expander.ExpandModule(n.Addr.Parent()) {
-		ctx = ctx.WithPath(module)
+		evalCtx = evalCtx.WithPath(module)
 
 		// Validate our for_each and count expressions at a basic level
 		// We skip validation on known, because there will be unknown values before
 		// a full expansion, presuming these errors will be caught in later steps
 		switch {
 		case n.ModuleCall.Count != nil:
-			_, countDiags := evaluateCountExpressionValue(n.ModuleCall.Count, ctx)
+			_, countDiags := evaluateCountExpressionValue(ctx, n.ModuleCall.Count, evalCtx)
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:
 			const unknownsAllowed = true
 			const tupleNotAllowed = false
-			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, unknownsAllowed, tupleNotAllowed, module)
+			_, forEachDiags := evaluateForEachExpressionValue(ctx, n.ModuleCall.ForEach, evalCtx, unknownsAllowed, tupleNotAllowed, module)
 			diags = diags.Append(forEachDiags)
 		}
 
-		diags = diags.Append(validateDependsOn(ctx, n.ModuleCall.DependsOn))
+		diags = diags.Append(validateDependsOn(ctx, evalCtx, n.ModuleCall.DependsOn))
 
 		// now set our own mode to single
 		expander.SetModuleSingle(module, call)

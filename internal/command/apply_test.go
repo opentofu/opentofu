@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -322,6 +323,8 @@ func TestApply_parallelism(t *testing.T) {
 	// called once we reach the desired concurrency, allowing all apply calls
 	// to proceed in unison.
 	beginCtx, begin := context.WithCancel(context.Background())
+	// Ensure cancel is fired regardless of test
+	defer begin()
 
 	// Since our mock provider has its own mutex preventing concurrent calls
 	// to ApplyResourceChange, we need to use a number of separate providers
@@ -441,7 +444,7 @@ func TestApply_defaultState(t *testing.T) {
 	}
 
 	// create an existing state file
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), states.NewState(), nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), states.NewState(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -731,7 +734,7 @@ func TestApply_plan_backup(t *testing.T) {
 	// create a state file that needs to be backed up
 	fs := statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled())
 	fs.StateSnapshotMeta()
-	if err := statemgr.WriteAndPersist(fs, states.NewState(), nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), fs, states.NewState(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -752,6 +755,10 @@ func TestApply_plan_backup(t *testing.T) {
 
 	// Should have a backup file
 	testStateRead(t, backupPath)
+
+	// Force a garbage collection to ensure the backup file is closed
+	// to avoid TempDir RemoveAll cleanup errors on Windows.
+	runtime.GC()
 }
 
 func TestApply_plan_noBackup(t *testing.T) {

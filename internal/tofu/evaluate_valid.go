@@ -6,11 +6,11 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -33,16 +33,16 @@ import (
 //
 // The result may include warning diagnostics if, for example, deprecated
 // features are referenced.
-func (d *evaluationStateData) StaticValidateReferences(refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+func (d *evaluationStateData) StaticValidateReferences(ctx context.Context, refs []*addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, ref := range refs {
-		moreDiags := d.staticValidateReference(ref, self, source)
+		moreDiags := d.staticValidateReference(ctx, ref, self, source)
 		diags = diags.Append(moreDiags)
 	}
 	return diags
 }
 
-func (d *evaluationStateData) staticValidateReference(ref *addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
+func (d *evaluationStateData) staticValidateReference(ctx context.Context, ref *addrs.Reference, self addrs.Referenceable, source addrs.Referenceable) tfdiags.Diagnostics {
 	modCfg := d.Evaluator.Config.DescendentForInstance(d.ModulePath)
 	if modCfg == nil {
 		// This is a bug in the caller rather than a problem with the
@@ -82,13 +82,13 @@ func (d *evaluationStateData) staticValidateReference(ref *addrs.Reference, self
 	// staticValidateMultiResourceReference respectively.
 	case addrs.Resource:
 		var diags tfdiags.Diagnostics
-		diags = diags.Append(d.staticValidateSingleResourceReference(modCfg, addr, ref.Remaining, ref.SourceRange))
-		diags = diags.Append(d.staticValidateResourceReference(modCfg, addr, source, ref.Remaining, ref.SourceRange))
+		diags = diags.Append(d.staticValidateSingleResourceReference(ctx, modCfg, addr, ref.Remaining, ref.SourceRange))
+		diags = diags.Append(d.staticValidateResourceReference(ctx, modCfg, addr, source, ref.Remaining, ref.SourceRange))
 		return diags
 	case addrs.ResourceInstance:
 		var diags tfdiags.Diagnostics
-		diags = diags.Append(d.staticValidateMultiResourceReference(modCfg, addr, ref.Remaining, ref.SourceRange))
-		diags = diags.Append(d.staticValidateResourceReference(modCfg, addr.ContainingResource(), source, ref.Remaining, ref.SourceRange))
+		diags = diags.Append(d.staticValidateMultiResourceReference(ctx, modCfg, addr, ref.Remaining, ref.SourceRange))
+		diags = diags.Append(d.staticValidateResourceReference(ctx, modCfg, addr.ContainingResource(), source, ref.Remaining, ref.SourceRange))
 		return diags
 
 	// We also handle all module call references the same way, disregarding index.
@@ -120,7 +120,7 @@ func (d *evaluationStateData) staticValidateReference(ref *addrs.Reference, self
 	}
 }
 
-func (d *evaluationStateData) staticValidateSingleResourceReference(modCfg *configs.Config, addr addrs.Resource, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (d *evaluationStateData) staticValidateSingleResourceReference(_ context.Context, modCfg *configs.Config, addr addrs.Resource, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	// If we have at least one step in "remain" and this resource has
 	// "count" set then we know for sure this in invalid because we have
 	// something like:
@@ -165,7 +165,7 @@ func (d *evaluationStateData) staticValidateSingleResourceReference(modCfg *conf
 	return diags
 }
 
-func (d *evaluationStateData) staticValidateMultiResourceReference(modCfg *configs.Config, addr addrs.ResourceInstance, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (d *evaluationStateData) staticValidateMultiResourceReference(ctx context.Context, modCfg *configs.Config, addr addrs.ResourceInstance, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	cfg := modCfg.Module.ResourceByAddr(addr.ContainingResource())
@@ -177,7 +177,7 @@ func (d *evaluationStateData) staticValidateMultiResourceReference(modCfg *confi
 
 	if addr.Key == addrs.NoKey {
 		// This is a different path into staticValidateSingleResourceReference
-		return d.staticValidateSingleResourceReference(modCfg, addr.ContainingResource(), remain, rng)
+		return d.staticValidateSingleResourceReference(ctx, modCfg, addr.ContainingResource(), remain, rng)
 	} else {
 		if cfg.Count == nil && cfg.ForEach == nil {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -192,7 +192,7 @@ func (d *evaluationStateData) staticValidateMultiResourceReference(modCfg *confi
 	return diags
 }
 
-func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Config, addr addrs.Resource, source addrs.Referenceable, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (d *evaluationStateData) staticValidateResourceReference(ctx context.Context, modCfg *configs.Config, addr addrs.Resource, source addrs.Referenceable, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var modeAdjective string
@@ -201,6 +201,8 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		modeAdjective = "managed"
 	case addrs.DataResourceMode:
 		modeAdjective = "data"
+	case addrs.EphemeralResourceMode:
+		modeAdjective = "ephemeral"
 	default:
 		// should never happen
 		modeAdjective = "<invalid-mode>"
@@ -208,21 +210,14 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 
 	cfg := modCfg.Module.ResourceByAddr(addr)
 	if cfg == nil {
-		var suggestion string
-		// A common mistake is omitting the data. prefix when trying to refer
-		// to a data resource, so we'll add a special hint for that.
-		if addr.Mode == addrs.ManagedResourceMode {
-			candidateAddr := addr // not a pointer, so this is a copy
-			candidateAddr.Mode = addrs.DataResourceMode
-			if candidateCfg := modCfg.Module.ResourceByAddr(candidateAddr); candidateCfg != nil {
-				suggestion = fmt.Sprintf("\n\nDid you mean the data resource %s?", candidateAddr)
-			}
-		}
+		// A common mistake is omitting the "data." (or "ephemeral.") prefix when trying to refer
+		// to a data (or ephemeral) resource, so we'll add a special hint for that.
+		suggestion := candidateSuggestion(addr, modCfg)
 
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Reference to undeclared resource`,
-			Detail:   fmt.Sprintf(`A %s resource %q %q has not been declared in %s.%s`, modeAdjective, addr.Type, addr.Name, moduleConfigDisplayAddr(modCfg.Path), suggestion),
+			Detail:   fmt.Sprintf(`There is no %s resource %q %q definition in %s.%s`, modeAdjective, addr.Type, addr.Name, moduleConfigDisplayAddr(modCfg.Path), suggestion),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return diags
@@ -237,8 +232,9 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		})
 	}
 
+	// TODO: Plugin a suitable context.Context through to here.
 	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerFqn, addr.Mode, addr.Type)
+	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerFqn, addr.Mode, addr.Type)
 	if err != nil {
 		// Prior validation should've taken care of a schema lookup error,
 		// so we should never get here but we'll handle it here anyway for
@@ -258,7 +254,7 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid resource type`,
-			Detail:   fmt.Sprintf(`A %s resource type %q is not supported by provider %q.`, modeAdjective, addr.Type, providerFqn.String()),
+			Detail:   fmt.Sprintf(`The %s resource type %q is not supported by provider %q.`, modeAdjective, addr.Type, providerFqn.String()),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return diags
@@ -286,6 +282,39 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 	diags = diags.Append(moreDiags)
 
 	return diags
+}
+
+// candidateSuggestion is trying to return a close candidate by simply trying to find a different type of resource
+// with the same type and name to suggest. We are trying to do so because a common mistake is omitting the "data." (or "ephemeral.")
+// prefix when trying to refer to a data (or ephemeral) resource, so we'll add a special hint for that.
+func candidateSuggestion(addr addrs.Resource, cfg *configs.Config) interface{} {
+	candidateAddr := addr // not a pointer, so this is a copy
+	tpl := "\n\nDid you mean the %s resource %s?"
+	filterOnOtherModes := func(targetModes []addrs.ResourceMode) *configs.Resource {
+		for _, candidateMode := range targetModes {
+			candidateAddr.Mode = candidateMode
+			if b := cfg.Module.ResourceByAddr(candidateAddr); b != nil {
+				return b
+			}
+		}
+		return nil
+	}
+	switch addr.Mode {
+	case addrs.ManagedResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.DataResourceMode, addrs.EphemeralResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	case addrs.DataResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.EphemeralResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	case addrs.EphemeralResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.DataResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	}
+
+	return ""
 }
 
 func (d *evaluationStateData) staticValidateModuleCallReference(modCfg *configs.Config, addr addrs.ModuleCall, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {

@@ -50,7 +50,9 @@ func TestCopyDir_symlinks(t *testing.T) {
 	}
 
 	targetDir := filepath.Join(tmpdir, "target")
-	os.Mkdir(targetDir, os.ModePerm)
+	if err := os.Mkdir(targetDir, os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
 
 	err = CopyDir(targetDir, moduleDir)
 	if err != nil {
@@ -86,7 +88,9 @@ func TestCopyDir_symlink_file(t *testing.T) {
 	}
 
 	targetDir := filepath.Join(tmpdir, "target")
-	os.Mkdir(targetDir, os.ModePerm)
+	if err := os.Mkdir(targetDir, os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
 
 	err = CopyDir(targetDir, moduleDir)
 	if err != nil {
