@@ -26,7 +26,7 @@ When FIPS mode is enabled:
 
 ## Known Limitations
 
-*   **GPG Provider Signature Validation Skipped:** Due to limitations in the underlying OpenPGP library used by OpenTofu, **GPG signature validation for provider packages is automatically skipped when FIPS mode is enabled.** OpenTofu will log a warning when this occurs. In this scenario, the integrity of the provider package relies solely on the secure TLS connection to the provider registry. This limitation may be addressed in future releases if a FIPS-compliant OpenPGP library becomes available for Go.
+*   **GPG Provider Signature Validation Skipped:** The `github.com/ProtonMail/go-crypto/openpgp` library used for GPG signature verification is not FIPS 140-3 compliant. Therefore, **GPG signature validation for provider packages is automatically skipped when FIPS mode is enabled.** OpenTofu will log a warning when this occurs. In this scenario, provider package integrity relies on the FIPS-validated TLS connection to the registry and FIPS-approved checksum verification. This limitation may be addressed in future releases if a FIPS-compliant OpenPGP library becomes available for Go.
 
 ## Supported Platforms
 

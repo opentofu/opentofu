@@ -30,17 +30,33 @@ When `GODEBUG=fips140=on` is set:
 *   **Random Number Generation:** `crypto/rand` uses a FIPS-approved DRBG (Deterministic Random Bit Generator).
 *   **Performance:** Some cryptographic operations, particularly key generation, may experience a performance impact due to required FIPS self-tests (e.g., pairwise consistency tests).
 
-## Provider GPG Signature Validation (Potential Limitation)
+## Provider GPG Signature Validation (Known Limitation)
 
-OpenTofu verifies the authenticity of provider plugins using GPG signatures. This verification process currently relies on the `github.com/ProtonMail/go-crypto/openpgp` library.
+OpenTofu verifies the authenticity of provider plugins using GPG signatures. This verification process relies on the `github.com/ProtonMail/go-crypto/openpgp` library, which is not FIPS 140-3 compliant.
 
-**The compatibility of this library with Go's FIPS mode is currently unverified.**
+**When FIPS mode is enabled, GPG signature validation is automatically skipped.**
 
-It is possible that the `go-crypto/openpgp` library uses cryptographic algorithms or implementations that conflict with FIPS requirements. If this is the case, running `tofu init` in FIPS mode might fail during provider signature validation.
+### How This Works
 
-**Current Plan:**
+When OpenTofu detects that FIPS mode is active (`GODEBUG=fips140=on`):
 
-1.  **Testing:** Compatibility will be tested thoroughly (Phase 2 of the implementation plan).
-2.  **Mitigation (If Necessary):** If incompatibility is confirmed, the plan is to investigate replacing the `go-crypto/openpgp` library with a FIPS-compatible alternative (Phase 3). If replacement is not feasible, a decision will be made whether to conditionally disable GPG validation in FIPS mode (with clear documentation) or block FIPS support.
+1.  A warning is logged: `"Skipping GPG validation of provider package [name]: FIPS mode is enabled and the underlying GPG library (ProtonMail/go-crypto) is not FIPS-compliant"`
+2.  GPG signature verification is bypassed
+3.  Provider package integrity relies on:
+    - The secure **FIPS-validated TLS connection** to the provider registry
+    - Checksum verification using FIPS-approved hash algorithms
 
-Users relying on FIPS compliance should be aware of this potential limitation during the experimental phase. The status will be updated as testing progresses.
+This approach maintains security through FIPS-validated TLS while avoiding the use of non-FIPS-compliant cryptographic libraries.
+
+### Security Implications
+
+In FIPS mode, provider authenticity is verified through:
+- **✅ FIPS-validated TLS** securing the connection to the registry
+- **✅ FIPS-approved hash algorithms** for checksum verification
+- **❌ GPG signatures** are NOT verified (library incompatibility)
+
+Organizations with strict FIPS requirements should evaluate whether this security model meets their compliance needs.
+
+### Future Improvements
+
+Future versions may explore FIPS-compliant alternatives for GPG signature verification if they become available in the Go ecosystem.
