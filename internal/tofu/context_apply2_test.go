@@ -6678,3 +6678,68 @@ resource "test_resource" "res" {
 	assertNoErrors(t, diags)
 	assertState(t, state)
 }
+
+// TestContext2Apply_ephemeralInModuleWithExpansion checks that the expansion of the
+// ephemeral resources is not pruned even when there is an ephemeral instance node to
+// be executed.
+// This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
+// was provided.
+func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`mod/main.tf`: `
+ephemeral "test_ephemeral_resource" "secret" {
+}
+
+output "exit" {
+  ephemeral = true
+  value = ephemeral.test_ephemeral_resource.secret.secret
+}
+`,
+		`main.tf`: `
+module "auth" {
+  for_each = toset(["i18n"])
+  source = "./mod"
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+		Result: cty.ObjectVal(map[string]cty.Value{
+			"id":     cty.StringVal("id val"),
+			"secret": cty.StringVal("secret val"),
+		}),
+	}
+
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	h := &testHook{}
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+			Hooks:     []Hook{h},
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m, nil)
+	}
+
+	_, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Apply again to be sure that nothing changes and it still working
+	_, diags = apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+}

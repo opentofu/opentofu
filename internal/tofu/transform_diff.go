@@ -205,7 +205,14 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 
 			g.Add(node)
 			rsrcAddr := addr.ContainingResource().String()
-			for _, rsrcNode := range resourceNodes[rsrcAddr] {
+			resources := resourceNodes[rsrcAddr]
+			if len(resources) == 0 && addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				ephAddr := addr.ContainingResource()
+				ephAddr.Module = ephAddr.Module.Module().UnkeyedInstanceShim()
+				ephRsrcAddr := ephAddr.String()
+				resources = resourceNodes[ephRsrcAddr]
+			}
+			for _, rsrcNode := range resources {
 				g.Connect(dag.BasicEdge(node, rsrcNode))
 			}
 		}
