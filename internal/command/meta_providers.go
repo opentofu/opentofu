@@ -18,6 +18,7 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	memoryProvider "github.com/opentofu/opentofu/internal/builtin/providers/memory"
 	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -344,6 +345,14 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 	return map[string]providers.Factory{
 		"terraform": func() (providers.Interface, error) {
 			return terraformProvider.NewProvider(), nil
+		},
+		// FIXME: If we actually decide to ship this one then we should
+		// rework this so that the "terraform" provider belongs to
+		// the "terraform.io/builtin/" namespace, but "memory" belongs to
+		// the "opentofu.org/builtin/" namespace, because the Terraform-flavored
+		// namespace is not controlled by the OpenTofu project.
+		"memory": func() (providers.Interface, error) {
+			return memoryProvider.NewProvider(), nil
 		},
 	}
 }
