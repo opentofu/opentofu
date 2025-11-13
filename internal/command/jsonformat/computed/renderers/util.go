@@ -89,7 +89,7 @@ func DiffActionSymbol(action plans.Action) string {
 		return "[red]-[reset]/[green]+[reset]"
 	case plans.CreateThenDelete:
 		return "[green]+[reset]/[red]-[reset]"
-	case plans.CreateAndForget:
+	case plans.ForgetAndCreate:
 		return "  [red].[reset]/[green]+[reset]"
 	case plans.Create:
 		return "  [green]+[reset]"

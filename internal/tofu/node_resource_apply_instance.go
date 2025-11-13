@@ -481,6 +481,10 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(evalCtx EvalContext, 
 
 	if plannedChange.Action != actualChange.Action {
 		switch {
+		case plannedChange.Action == plans.ForgetAndCreate && actualChange.Action == plans.Create:
+			// This is an expected alteration of the action, since we are, first - forgetting the resource and then calling
+			// the diffApply plan, with no state for the resource, we are generating the Create action instead of ForgetAndCreate
+			log.Printf("[DEBUG] For apply the action ForgetAndCreate was changed to Create for resource %s", absAddr)
 		case plannedChange.Action == plans.Update && actualChange.Action == plans.NoOp:
 			// It's okay for an update to become a NoOp once we've filled in
 			// all of the unknown values, since the final values might actually

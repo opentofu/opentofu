@@ -97,7 +97,7 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Declare a bunch of variables that are used for state during
@@ -146,6 +146,11 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
+	}
+
+	// In case we are forgetting a resource during the destroy mode, we need to give an error.
+	if op == walkPlanDestroy && change.Action == plans.Forget {
+		return diags.Append(tfdiags.Sourceless(tfdiags.Error, "Err1", "err"))
 	}
 
 	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))

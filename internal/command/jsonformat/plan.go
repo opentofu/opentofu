@@ -89,7 +89,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			importingCount++
 		}
 
-		if action == plans.Forget || action == plans.CreateAndForget {
+		if action == plans.Forget || action == plans.ForgetAndCreate {
 			forgettingCount++
 		}
 
@@ -214,8 +214,8 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if counts[plans.Read] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Read)))
 		}
-		if counts[plans.CreateAndForget] > 0 {
-			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.CreateAndForget)))
+		if counts[plans.ForgetAndCreate] > 0 {
+			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.ForgetAndCreate)))
 		}
 		if counts[plans.Forget] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Forget)))
@@ -237,7 +237,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			}
 		}
 
-		toAdd := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete] + counts[plans.CreateAndForget]
+		toAdd := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete] + counts[plans.ForgetAndCreate]
 		toDestroy := counts[plans.Delete] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete]
 
 		if importingCount > 0 {
@@ -521,7 +521,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
-	case plans.CreateAndForget:
+	case plans.ForgetAndCreate:
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceReplaceBecauseTainted:
 			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr))
@@ -607,7 +607,7 @@ func actionDescription(action plans.Action) string {
 		return "[green]+[reset]/[red]-[reset] create replacement and then destroy"
 	case plans.DeleteThenCreate:
 		return "[red]-[reset]/[green]+[reset] destroy and then create replacement"
-	case plans.CreateAndForget:
+	case plans.ForgetAndCreate:
 		return "[red].[reset]/[green]+[reset] forget the old instance and create replacement"
 	case plans.Read:
 		return " [cyan]<=[reset] read (data resources)"

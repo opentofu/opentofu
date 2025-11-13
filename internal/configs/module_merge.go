@@ -265,10 +265,9 @@ func (r *Resource) merge(or *Resource, rps map[string]*RequiredProvider) hcl.Dia
 		if or.Managed.PreventDestroy != nil {
 			r.Managed.PreventDestroy = or.Managed.PreventDestroy
 		}
-		if or.Managed.DestroySet {
-			r.Managed.Destroy = or.Managed.Destroy
-			r.Managed.DestroySet = or.Managed.DestroySet
-		}
+
+		r.Managed.SkipDestroy = or.Managed.SkipDestroy
+
 		if len(or.Managed.Provisioners) != 0 {
 			r.Managed.Provisioners = or.Managed.Provisioners
 		}

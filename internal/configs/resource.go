@@ -71,22 +71,18 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      hcl.Expression
-	// Destroy flag indicates if the resource should be destroyed if it is planned.
-	// By default Destroy is set to true. And the user needs to set this to false, if they want to skip destroying the resource.
-	// Note that the resource will still be removed from the state file even if Destroy is set to false, but won't call the underlying provider destroy.
-	Destroy          bool
-	IgnoreChanges       []hcl.Traversal
-	IgnoreAllChanges    bool
+	// SkipDestroy flag indicates if the resource should be retained if it is planned for destruction. This flag corresponds to the `lifecycle.destroy` attribute and is opposite of it.
+	// The name choice of SkipDestroy (Being opposite of the destroy flag) is due to the default behavior being better aligned with the default value - false.
+	// This name choice will likely avoid initialization mistakes, since it is likely to forget setting the default value of true every time.
+	// SkipDestroy set to true will skip destroying the resource.
+	// Note that the resource will still be removed from the state file even if SkipDestroy is set to true, but won't call the underlying provider for destruction.
+	SkipDestroy      bool
+	IgnoreChanges    []hcl.Traversal
+	IgnoreAllChanges bool
 
 	CreateBeforeDestroySet bool
-	DestroySet             bool
 }
 
-
-// ShouldSkipDestroy returns if the manage resource has explicitly set destroy = false
-func (r *ManagedResource) ShouldSkipDestroy() bool {
-	return r.DestroySet && !r.Destroy
-}
 func (r *Resource) moduleUniqueKey() string {
 	return r.Addr().String()
 }
@@ -135,10 +131,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		Name:      block.Labels[1],
 		DeclRange: block.DefRange,
 		TypeRange: block.LabelRanges[0],
-		Managed: &ManagedResource{
-			// By default, we destroy the resource when it is no longer needed or being replaced.
-			Destroy: true,
-		},
+		Managed:   &ManagedResource{},
 	}
 
 	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
@@ -225,9 +218,10 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			}
 
 			if attr, exists := lcContent.Attributes["destroy"]; exists {
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.Destroy)
+				var destroy bool
+				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &destroy)
 				diags = append(diags, valDiags...)
-				r.Managed.DestroySet = true
+				r.Managed.SkipDestroy = !destroy
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {

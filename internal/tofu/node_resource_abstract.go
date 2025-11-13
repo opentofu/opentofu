@@ -703,7 +703,7 @@ func (n *NodeAbstractResource) shouldSkipDestroy() bool {
 		return false
 	}
 	// Checking if we have explicit destroy set to false
-	return n.Config.Managed.ShouldSkipDestroy()
+	return n.Config.Managed.SkipDestroy
 }
 
 // graphNodesAreResourceInstancesInDifferentInstancesOfSameModule is an

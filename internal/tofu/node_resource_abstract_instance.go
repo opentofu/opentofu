@@ -1570,8 +1570,8 @@ func (n *NodeAbstractResourceInstance) plan(
 	// so far we thought the action was "replace".
 	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
 	if action.IsReplace() && n.shouldSkipDestroy() {
-		// We alter the action to "create" and "forget" to not trigger resource destruction
-		action = plans.CreateAndForget
+		// We alter the action to "forget" and "create" to not trigger resource destruction
+		action = plans.ForgetAndCreate
 	}
 
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity

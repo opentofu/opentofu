@@ -391,6 +391,71 @@ func TestApply_destroyPath(t *testing.T) {
 	}
 }
 
+func TestApply_destroySkipInConfigAndState(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("skip-destroy"), td)
+	t.Chdir(td)
+
+	// Create some existing state
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:   []byte(`{"id":"baz"}`),
+				Status:      states.ObjectReady,
+				SkipDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Destroy: true,
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Log(output.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+}
+
 func TestApply_targetedDestroy(t *testing.T) {
 	testCases := []struct {
 		name         string

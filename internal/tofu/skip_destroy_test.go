@@ -38,7 +38,7 @@ func TestSkipDestroy_planAndApply_stateFlagChecks(t *testing.T) {
 
 	change := plan.Changes.Resources[0]
 	if change.Action != plans.Create {
-		t.Fatalf("\nexpected action: %q\ngot:             %q\n", plans.Create, change.Action)
+		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Create, "got", change.Action)
 	}
 
 	if !plan.PlannedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
@@ -87,8 +87,8 @@ func TestSkipDestroy_resourceReplace(t *testing.T) {
 	}
 
 	change := plan.Changes.Resources[0]
-	if change.Action != plans.CreateAndForget {
-		t.Fatalf("\nexpected action: %q\ngot:             %q\n", plans.Forget, change.Action)
+	if change.Action != plans.ForgetAndCreate {
+		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.ForgetAndCreate, "got", change.Action)
 	}
 
 	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
@@ -143,7 +143,7 @@ func TestSkipDestroy_destroy(t *testing.T) {
 
 	change := plan.Changes.Resources[0]
 	if change.Action != plans.Forget {
-		t.Fatalf("\nexpected action: %q\ngot:             %q\n", plans.Forget, change.Action)
+		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
 	}
 
 	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
@@ -192,7 +192,7 @@ func TestSkipDestroy_removedFromConfig(t *testing.T) {
 
 	change := plan.Changes.Resources[0]
 	if change.Action != plans.Forget {
-		t.Fatalf("\nexpected action: %q\ngot:             %q\n", plans.Forget, change.Action)
+		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
 	}
 
 }
@@ -243,7 +243,7 @@ func TestSkipDestroy_plan_deposedAndOrphaned(t *testing.T) {
 
 	for _, change := range plan.Changes.Resources {
 		if change.Action != plans.Forget {
-			t.Fatalf("\nexpected action: %q\ngot: %q\n", plans.Forget, change.Action)
+			t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
 		}
 	}
 	if !plan.PlannedState.Empty() {
@@ -299,7 +299,7 @@ func TestSkipDestroy_plan_deposedAndInConfig_deposedWithoutFlag(t *testing.T) {
 		if change.DeposedKey.String() != "" {
 			// Check we forget the deposed instance
 			if change.Action != plans.Forget {
-				t.Fatalf("\ndeposed resource\nexpected action: %q\ngot: %q\n", plans.Forget, change.Action)
+				t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
 			}
 		} else {
 			// For the resource still in config we should have no-op
