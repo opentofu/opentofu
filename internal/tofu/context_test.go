@@ -766,6 +766,10 @@ func testProviderSchema(name string) *providers.GetProviderSchemaResponse {
 						Optional: true,
 						Computed: true,
 					},
+					"input": {
+						Type:     cty.String,
+						Optional: true,
+					},
 				},
 			},
 		},
