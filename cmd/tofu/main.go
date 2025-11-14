@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"crypto/fips140"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -128,6 +129,9 @@ func realMain() int {
 		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
 	}
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
+	if fips140.Enabled() {
+		log.Printf("[WARNING] Go runtime FIPS 140-3 mode is enabled; OpenTofu is not supported in this configuration, which may cause undesirable behavior")
+	}
 	log.Printf("[INFO] CLI args: %#v", os.Args)
 	if experimentsAreAllowed() {
 		log.Printf("[INFO] This build of OpenTofu allows using experimental features")
