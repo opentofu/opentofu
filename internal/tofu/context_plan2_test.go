@@ -8815,6 +8815,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -8848,6 +8849,7 @@ ephemeral "test_ephemeral_resource" "a" {
 	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
 		"id":     cty.StringVal("id val"),
 		"secret": cty.StringVal("val"),
+		"input":  cty.NullVal(cty.String),
 	}), objTy)
 	if err != nil {
 		t.Fatalf("unexpected error creating after val: %s", err)
