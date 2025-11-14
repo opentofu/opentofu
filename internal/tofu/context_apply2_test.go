@@ -5759,6 +5759,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -5795,7 +5796,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
 			addrs.NoKey: {
 				Current: &states.ResourceInstanceObjectSrc{
-					AttrsJSON:          []byte(`{"id":"id val","secret":"val"}`),
+					AttrsJSON:          []byte(`{"id":"id val","input":null,"secret":"val"}`),
 					Status:             states.ObjectReady,
 					AttrSensitivePaths: []cty.PathValueMarks{},
 					Dependencies:       []addrs.ConfigResource{},
@@ -6677,4 +6678,275 @@ resource "test_resource" "res" {
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
 	assertNoErrors(t, diags)
 	assertState(t, state)
+}
+
+// TestContext2Apply_ephemeralInModuleWithExpansion checks that the expansion of the
+// ephemeral resources is not pruned even when there is an ephemeral instance node to
+// be executed.
+// This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
+// was provided.
+func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
+	cfgs := map[string]map[string]string{
+		"1 level deep with for_each on module call": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					input = "module1"
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = ephemeral.test_ephemeral_resource.mod1_secret.secret
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					input = "root"
+				}
+				module "level1call" {
+				    for_each = toset(["root_1", "root_2"])
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull(ephemeral.test_ephemeral_resource.root_secret.secret)
+				}
+		`,
+		},
+		"1 level deep with count on module call": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					input = "module1"
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = ephemeral.test_ephemeral_resource.mod1_secret.secret
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					input = "root"
+				}
+				module "level1call" {
+				    count = 2
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull(ephemeral.test_ephemeral_resource.root_secret.secret)
+				}
+		`,
+		},
+		"for_each 1 level deep": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					for_each = toset(["module1_1", "module1_2"])
+					input = each.key
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					for_each = toset(["root_1", "root_2"])
+					input = each.key
+				}
+				module "level1call" {
+				    for_each = ephemeral.test_ephemeral_resource.root_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+                      for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+                    ])
+				}
+		`,
+		},
+		"for_each 2 levels deep": {
+			`mod/mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod2_secret" {
+					for_each = toset(["module2_1", "module2_2"])
+					input = each.key
+				}
+		
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod2_secret: s.secret]
+				}
+		`,
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					for_each = toset(["module1_1", "module1_2"])
+					input = each.key
+				}
+				module "level2call" {
+				    for_each = ephemeral.test_ephemeral_resource.mod1_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					for_each = toset(["root_1", "root_2"])
+					input = each.key
+				}
+				module "level1call" {
+				    for_each = ephemeral.test_ephemeral_resource.root_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+		              for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+		            ])
+				}
+		`,
+		},
+		"count 1 level deep": {
+			`mod/main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+                locals {
+                    elements = ["root_1", "root_2"]
+                }
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level1call" {
+				    count = length(ephemeral.test_ephemeral_resource.root_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+                      for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+                    ])
+				}
+		`,
+		},
+		"count 2 levels deep": {
+			`mod/mod/main.tf`: `
+                locals {
+                    elements = ["module2_1", "module2_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod2_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+		
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod2_secret: s.secret]
+				}
+		`,
+			`mod/main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level2call" {
+				    count = length(ephemeral.test_ephemeral_resource.mod1_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level1call" {
+				    count = length(ephemeral.test_ephemeral_resource.root_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+		              for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+		            ])
+				}
+		`,
+		},
+	}
+
+	for name, cfg := range cfgs {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, cfg)
+
+			provider := testProvider("test")
+			provider.OpenEphemeralResourceFn = func(request providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+				val := request.Config.GetAttr("input").AsString()
+				return providers.OpenEphemeralResourceResponse{
+					Result: cty.ObjectVal(map[string]cty.Value{
+						"id":     cty.StringVal("id val"),
+						"secret": cty.StringVal(fmt.Sprintf("%s: secret val", val)),
+						"input":  cty.StringVal(val),
+					}),
+				}
+			}
+			provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+				Result: cty.ObjectVal(map[string]cty.Value{
+					"id":     cty.StringVal("id val"),
+					"secret": cty.StringVal("secret val"),
+				}),
+			}
+
+			ps := map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+			}
+
+			h := &testHook{}
+			apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+				ctx := testContext2(t, &ContextOpts{
+					Providers: ps,
+					Hooks:     []Hook{h},
+				})
+
+				plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+					Mode: plans.NormalMode,
+				})
+				if diags.HasErrors() {
+					return nil, diags
+				}
+
+				return ctx.Apply(context.Background(), plan, m, nil)
+			}
+
+			_, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+
+			// Apply again to be sure that nothing changes and it still working
+			newState, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+			fmt.Println(newState)
+		})
+
+	}
 }
