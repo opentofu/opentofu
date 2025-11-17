@@ -168,6 +168,29 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	return nil
 }
 
+// DestroyReferences is a _partial_ implementation of [GraphNodeDestroyer],
+// providing a default implementation of this method for any embedder of
+// [NodeAbstractResourceInstance] that implements all of the other methods
+// of that interface.
+func (n *NodeAbstractResourceInstance) DestroyReferences() []*addrs.Reference {
+	// If we have a configuration attached then we'll delegate to our
+	// embedded abstract resource, which knows how to extract dependencies
+	// from configuration. If there is no config, then the dependencies will
+	// be connected during destroy from those stored in the state.
+	if n.Config != nil {
+		if n.Schema == nil {
+			// We'll produce a log message about this out here so that
+			// we can include the full instance address, since the equivalent
+			// message in NodeAbstractResource.References cannot see it.
+			log.Printf("[WARN] no schema is attached to %s, so destroy-time config references cannot be detected", n.Name())
+			return nil
+		}
+		return n.NodeAbstractResource.DestroyReferences()
+	}
+
+	return nil
+}
+
 func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, evalCtx EvalContext, hasExpansionData bool, deposedKey states.DeposedKey) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
