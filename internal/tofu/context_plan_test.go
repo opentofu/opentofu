@@ -1819,6 +1819,93 @@ func TestContext2Plan_preventDestroy_dynamicFromDataResource(t *testing.T) {
 	})
 }
 
+func TestContext2Plan_preventDestroy_dynamicFromManagedResourceDestroyMode(t *testing.T) {
+	// This test is verifying that a prevent_destroy argument's dependencies
+	// are respected even when we're in plans.DestroyMode, which has separate
+	// rules for how its graph gets built.
+	//
+	// With the design of the system at the time of writing this comment, the
+	// likely failure mode is that no dependency from test_instance.foo to
+	// var.prevent_destroy is created in the child module, and so the variable
+	// itself is eligible to be "pruned" from the graph as apparently irrelevant
+	// to the destroy phase. That's incorrect because, unlike most of the rest
+	// of a resource configuration, prevent_destroy is relevant during destroy
+	// planning just like in normal planning.
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+				module "child" {
+					source = "./child"
+
+					prevent_destroy = true
+				}
+			`,
+		"child/main.tf": `
+				variable "prevent_destroy" {
+					type = bool
+				}
+
+				resource "test_instance" "foo" {
+					require_new = "yes"
+
+					lifecycle {
+						prevent_destroy = var.prevent_destroy
+					}
+				}
+			`,
+	})
+	mainP := testProvider("test")
+	mainP.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		// Because we're simulating a "replace" situation here, the
+		// plan function actually gets called twice with the second
+		// one planning the "create" part of the replace. We want
+		// do do our fake synctest sleep only on the first plan call
+		// (where there's a prior state) because that's the one whose
+		// execution is supposed to wait until the data resource read
+		// has completed.
+		if !req.PriorState.IsNull() {
+			log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromManagedResourceDestroyMode: test_instance.foo plan")
+		} else {
+			log.Printf("[TRACE] TestContext2Plan_preventDestroy_dynamicFromManagedResourceDestroyMode: test_instance.foo followup plan")
+		}
+		return testDiffFn(req)
+	}
+	state := states.NewState()
+	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_instance.foo").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(mainP),
+		},
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode:        plans.DestroyMode,
+		SkipRefresh: true,
+	})
+	if !diags.HasErrors() {
+		t.Fatalf("unexpected success; want error about prevent_destroy being set")
+	}
+	gotErr := diags.Err().Error()
+	wantErr := `test_instance.foo has prevent_destroy set`
+	if strings.Contains(gotErr, "has a prevent_destroy argument but its value will not be known until the apply step") {
+		// This is just a best-effort hint for one failure mode we've seen before,
+		// so that if it regresses we'll have a clue about what to investigate.
+		t.Errorf("unexpected error about unknown values; is there a missing dependency edge between the resource and the input variable in the walkPlanDestroy graph?")
+	}
+	if !strings.Contains(gotErr, wantErr) {
+		t.Fatalf("missing expected error\ngot: %s\nwant error diagnostics with substring %q", gotErr, wantErr)
+	}
+}
+
 func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
 	m := testModule(t, "plan-prevent-destroy-count-bad")
 	p := testProvider("aws")
