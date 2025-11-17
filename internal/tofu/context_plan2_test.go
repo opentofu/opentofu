@@ -3519,6 +3519,59 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 			}),
 		},
+		"from nested enabled-module multiple-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "parent" {
+						source        = "./parent"
+						child_enabled = true
+					}`,
+				"parent/main.tf": `
+					variable "child_enabled" {
+						type = bool
+					}
+
+					module "child" {
+						source   = "../child"
+						lifecycle {
+							enabled = var.child_enabled
+						}
+						grandchild1_enabled = true
+					}`,
+				"child/main.tf": `
+					variable "grandchild1_enabled" {
+						type = bool
+					}
+					variable "grandchild2_enabled" {
+						type    = bool
+						default = true
+					}
+					module "grandchild1" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild1_enabled
+						}
+					}
+					module "grandchild2" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild2_enabled
+						}
+					}
+					`,
+				"grandchild/main.tf": `resource "test_object" "a" {
+					count = 1
+				}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
 	}
 
 	p := simpleMockProvider()
