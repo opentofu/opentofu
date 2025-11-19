@@ -19,7 +19,21 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, allowUnknown bool) (string, tfdiags.Diagnostics) {
+func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
+	return evaluateImportIdExpressionInner(expr, evalCtx, keyData, false)
+}
+
+// Checks for any potential issues in the import id expression, allowing unknowns as this is part
+// of the validate phase
+func validateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
+	_, diags := evaluateImportIdExpressionInner(expr, evalCtx, keyData, true)
+	return diags
+}
+
+// This should not be used directly, use one of the wrapping methods above
+// Note: When allowUnknown is true, it may return "" as the import id. This is safe as the result is discarded in the validate
+// function above
+func evaluateImportIdExpressionInner(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, allowUnknown bool) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
