@@ -71,12 +71,11 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      hcl.Expression
-	// SkipDestroy flag indicates if the resource should be retained if it is planned for destruction. This flag corresponds to the `lifecycle.destroy` attribute and is opposite of it.
-	// The name choice of SkipDestroy (Being opposite of the destroy flag) is due to the default behavior being better aligned with the default value - false.
-	// This name choice will likely avoid initialization mistakes, since it is likely to forget setting the default value of true every time.
-	// SkipDestroy set to true will skip destroying the resource.
-	// Note that the resource will still be removed from the state file even if SkipDestroy is set to true, but won't call the underlying provider for destruction.
-	SkipDestroy      bool
+	// Destroy flag indicates if the resource should be destroy once it is planned for destruction. This flag corresponds to the `lifecycle.destroy` attribute.
+	// The default behavior is to destroy the resource when it is planned for destruction, so the value of false will skip destroying the resource.
+	// Note that the resource will still be removed from the state file even if Destroy is set to false but won't call the underlying provider for destruction.
+	// This field will accept only constant boolean expressions. This is of type hcl.Expression to make future extensions of dynamic evaluation easier.
+	Destroy          hcl.Expression
 	IgnoreChanges    []hcl.Traversal
 	IgnoreAllChanges bool
 
@@ -218,10 +217,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			}
 
 			if attr, exists := lcContent.Attributes["destroy"]; exists {
-				var destroy bool
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &destroy)
-				diags = append(diags, valDiags...)
-				r.Managed.SkipDestroy = !destroy
+				r.Managed.Destroy = attr.Expr
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {

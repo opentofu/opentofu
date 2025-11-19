@@ -4,6 +4,5 @@ resource "aws_instance" "foo" {
 
   lifecycle {
     destroy = false
-    create_before_destroy = true
   }
 }

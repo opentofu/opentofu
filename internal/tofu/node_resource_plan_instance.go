@@ -324,11 +324,17 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 
 			// This change is usually written to the refreshState and then
 			// updated value used for further graph execution. However, with
-			// "refresh=false", refreshState is not being written and then
+			// "refresh=false", refreshState is not being written, and then
 			// some resources with updated configuration could be detached
 			// due to missaligned create_before_destroy and skip_destroy in different graph nodes.
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
-			instanceRefreshState.SkipDestroy = n.Config.Managed.SkipDestroy
+			// Destroy coming from the config is an hcl.Expression, so we need to evaluate it here, currently this only supports constant booleans
+			skipDestroy, skipDiags := n.shouldSkipDestroy()
+			diags = diags.Append(skipDiags)
+			if diags.HasErrors() {
+				return diags
+			}
+			instanceRefreshState.SkipDestroy = skipDestroy
 
 			if n.skipRefresh {
 				if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy || prevSkipDestroy != instanceRefreshState.SkipDestroy {

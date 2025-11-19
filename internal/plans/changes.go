@@ -487,6 +487,12 @@ const (
 	// a check block and when the check assertions execute we want them to use
 	// the most up-to-date data.
 	ResourceInstanceReadBecauseCheckNested ResourceInstanceChangeActionReason = '#'
+
+	// ResourceInstanceForgottenBecauseOfLifecycleDestroyInState indicates that the resource
+	// instance is being forgotten because the resource has a lifecycle configuration with "destroy" set to false in the state.
+	// This is used to avoid confusion for users not having a flag in the current configuration (or the resource has been removed entirely).
+	// However, we still have the flag in the state to avoid deleting resources that should have been retained.
+	ResourceInstanceForgottenBecauseOfLifecycleDestroyInState ResourceInstanceChangeActionReason = 'X'
 )
 
 // OutputChange describes a change to an output value.

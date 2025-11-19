@@ -162,13 +162,18 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 	if !n.skipPlanChanges {
 		var change *plans.ResourceInstanceChange
 		var planDiags tfdiags.Diagnostics
+		skipDestroy, skipDiags := n.shouldSkipDestroy()
+		diags = diags.Append(skipDiags)
+		if diags.HasErrors() {
+			return diags
+		}
 
-		// We skip destroy of a depose instance in 2 cases:
+		// We skip destroy for a depose instance in 2 cases:
 		// 1) Resource had lifecycle attribute destroy explicitly set to false
 		// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
 		// For every other case, we should destroy the resource
 		// If the deposed instance has skip_destroy set in state, we skip destroying
-		shouldDestroy := !n.shouldSkipDestroy() && !state.SkipDestroy
+		shouldDestroy := !skipDestroy && !state.SkipDestroy
 
 		// Note that removed statements take precedence, since it is the latest intent the user declared
 		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed
@@ -187,6 +192,9 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 			})
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
+			if state.SkipDestroy {
+				change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState
+			}
 		}
 
 		diags = diags.Append(planDiags)

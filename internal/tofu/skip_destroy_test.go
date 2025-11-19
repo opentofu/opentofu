@@ -147,8 +147,8 @@ func TestSkipDestroy_destroy(t *testing.T) {
 	}
 
 	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
+	if !diags.HasErrors() {
+		t.Fatalf("expected errors when leaving behind forgotten resource instance; got none")
 	}
 
 	if !appliedState.Empty() {

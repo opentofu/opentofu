@@ -97,7 +97,7 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Declare a bunch of variables that are used for state during
@@ -133,8 +133,16 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	}
 
 	var planDiags tfdiags.Diagnostics
-	if n.shouldSkipDestroy() {
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+	if skipDestroy {
 		change = n.planForget(ctx, evalCtx, state, "")
+	} else if state.SkipDestroy {
+		change = n.planForget(ctx, evalCtx, state, "")
+		change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState
 	} else {
 		change, planDiags = n.planDestroy(ctx, evalCtx, state, "")
 	}
@@ -147,12 +155,6 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	if diags.HasErrors() {
 		return diags
 	}
-
-	// In case we are forgetting a resource during the destroy mode, we need to give an error.
-	if op == walkPlanDestroy && change.Action == plans.Forget {
-		return diags.Append(tfdiags.Sourceless(tfdiags.Error, "Err1", "err"))
-	}
-
 	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 	return diags
 }

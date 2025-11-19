@@ -187,12 +187,18 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 	var change *plans.ResourceInstanceChange
 	var planDiags tfdiags.Diagnostics
 
-	// We skip destroy of an orphaned resource instance in 2 cases:
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// We skip destroy for an orphaned resource instance in 2 cases:
 	// 1) Resource had lifecycle attribute destroy explicitly set to false
 	// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
 	// For every other case, we should destroy the resource
 	// If the orphan instance has skip_destroy set in state, we skip destroying
-	shouldDestroy := !n.shouldSkipDestroy() && !oldState.SkipDestroy
+	shouldDestroy := !skipDestroy && !oldState.SkipDestroy
 
 	// Note that removed statements take precedence, since it is the latest intent the user declared
 	// As opposed to the lifecycle attribute, which was the previous intention declared on the orphaned resource
@@ -211,6 +217,9 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 			Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 		})
 		change = n.planForget(ctx, evalCtx, oldState, "")
+		if oldState.SkipDestroy {
+			change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState
+		}
 	}
 
 	diags = diags.Append(planDiags)

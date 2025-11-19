@@ -1256,6 +1256,12 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return nil, nil, keyData, diags
+	}
+
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
 		Config:           unmarkedConfigVal,
@@ -1569,7 +1575,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	// We check here if user declared lifecycle destroy attribute as false, intending to retain this resource even if
 	// so far we thought the action was "replace".
 	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
-	if action.IsReplace() && n.shouldSkipDestroy() {
+	if action.IsReplace() && skipDestroy {
 		// We alter the action to "forget" and "create" to not trigger resource destruction
 		action = plans.ForgetAndCreate
 	}
@@ -1640,7 +1646,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		Status:      states.ObjectPlanned,
 		Value:       plannedNewVal,
 		Private:     plannedPrivate,
-		SkipDestroy: n.shouldSkipDestroy(),
+		SkipDestroy: skipDestroy,
 	}
 
 	return plan, state, keyData, diags
@@ -3073,6 +3079,9 @@ func (n *NodeAbstractResourceInstance) apply(
 		newVal = cty.UnknownAsNull(newVal)
 	}
 
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+
 	if change.Action != plans.Delete && !diags.HasErrors() {
 		// Only values that were marked as unknown in the planned value are allowed
 		// to change during the apply operation. (We do this after the unknown-ness
@@ -3165,7 +3174,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
-			SkipDestroy:         n.shouldSkipDestroy(),
+			SkipDestroy:         state.SkipDestroy,
 		}
 
 		// if the resource was being deleted, the dependencies are not going to
@@ -3183,12 +3192,12 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
-			SkipDestroy:         n.shouldSkipDestroy(),
+			SkipDestroy:         skipDestroy,
 		}
 		return newState, diags
 
 	default:
-		// Non error case, were the object was deleted
+		// Non-error case, where the object was deleted
 		return nil, diags
 	}
 }
