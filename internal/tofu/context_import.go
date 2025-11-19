@@ -144,12 +144,12 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		}
 
 		for _, keyData := range repetitions {
-			_, evalDiags = evaluateImportIdExpression(importTarget.Config.ID, evalCtx, keyData)
+			_, evalDiags = evaluateImportIdExpression(importTarget.Config.ID, evalCtx, keyData, true)
 			diags = diags.Append(evalDiags)
 		}
 	} else {
 		// The import target is singular, no need to expand
-		_, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, evalCtx, EvalDataForNoInstanceKey)
+		_, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, evalCtx, EvalDataForNoInstanceKey, true)
 		diags = diags.Append(evalDiags)
 	}
 
@@ -212,7 +212,7 @@ func (ri *ImportResolver) ExpandAndResolveImport(ctx context.Context, importTarg
 func (ri *ImportResolver) resolveImport(importTarget *ImportTarget, ctx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx, keyData)
+	importId, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, ctx, keyData, false)
 	diags = diags.Append(evalDiags)
 	if diags.HasErrors() {
 		return diags

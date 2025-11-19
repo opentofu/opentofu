@@ -19,7 +19,7 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
+func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, allowUnknown bool) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -48,18 +48,6 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 		})
 	}
 
-	if !importIdVal.IsKnown() {
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
-			Subject:  expr.Range().Ptr(),
-			//	Expression:
-			//	EvalContext:
-			Extra: evalchecks.DiagnosticCausedByUnknown(true),
-		})
-	}
-
 	if importIdVal.HasMark(marks.Sensitive) {
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -74,6 +62,21 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 			Summary:  "Invalid import id argument",
 			Detail:   "The import ID cannot be ephemeral.",
 			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	if !importIdVal.IsKnown() {
+		if allowUnknown {
+			return "", diags
+		}
+		return "", diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import id argument",
+			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
+			Subject:  expr.Range().Ptr(),
+			//	Expression:
+			//	EvalContext:
+			Extra: evalchecks.DiagnosticCausedByUnknown(true),
 		})
 	}
 
