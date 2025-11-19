@@ -37,7 +37,7 @@ The validation process must perform static analysis of the configuration to dete
 
 Regarding [20241118-module-vars-and-outputs-deprecation RFC](https://github.com/opentofu/opentofu/blob/main/rfc/20241118-module-vars-and-outputs-deprecation.md#silencing-deprecation-warnings-for-dependencies) we can use a dedicated flag "deprecation" to activate the detection feature to avoid weird interactions for users that don't really care about this.
 
-The "deprecation" Flag can be define the warning type that we want to have (module:all, module:local, module:none) according with the RFC.
+The "deprecation" flag can be define the warning type that we want to have (module:all, module:local, module:none) according with the RFC.
 
 ### Future Considerations
 
