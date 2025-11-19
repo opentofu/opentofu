@@ -20,6 +20,20 @@ import (
 )
 
 func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
+	return evaluateImportIdExpressionInner(expr, evalCtx, keyData, false)
+}
+
+// Checks for any potential issues in the import id expression, allowing unknowns as this is part
+// of the validate phase
+func validateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) tfdiags.Diagnostics {
+	_, diags := evaluateImportIdExpressionInner(expr, evalCtx, keyData, true)
+	return diags
+}
+
+// This should not be used directly, use one of the wrapping methods above
+// Note: When allowUnknown is true, it may return "" as the import id. This is safe as the result is discarded in the validate
+// function above
+func evaluateImportIdExpressionInner(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData, allowUnknown bool) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -48,18 +62,6 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 		})
 	}
 
-	if !importIdVal.IsKnown() {
-		return "", diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid import id argument",
-			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
-			Subject:  expr.Range().Ptr(),
-			//	Expression:
-			//	EvalContext:
-			Extra: evalchecks.DiagnosticCausedByUnknown(true),
-		})
-	}
-
 	if importIdVal.HasMark(marks.Sensitive) {
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -74,6 +76,21 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 			Summary:  "Invalid import id argument",
 			Detail:   "The import ID cannot be ephemeral.",
 			Subject:  expr.Range().Ptr(),
+		})
+	}
+
+	if !importIdVal.IsKnown() {
+		if allowUnknown {
+			return "", diags
+		}
+		return "", diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid import id argument",
+			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
+			Subject:  expr.Range().Ptr(),
+			//	Expression:
+			//	EvalContext:
+			Extra: evalchecks.DiagnosticCausedByUnknown(true),
 		})
 	}
 
