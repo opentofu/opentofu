@@ -144,12 +144,12 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		}
 
 		for _, keyData := range repetitions {
-			_, evalDiags = evaluateImportIdExpression(importTarget.Config.ID, evalCtx, keyData)
+			evalDiags = validateImportIdExpression(importTarget.Config.ID, evalCtx, keyData)
 			diags = diags.Append(evalDiags)
 		}
 	} else {
 		// The import target is singular, no need to expand
-		_, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, evalCtx, EvalDataForNoInstanceKey)
+		evalDiags := validateImportIdExpression(importTarget.Config.ID, evalCtx, EvalDataForNoInstanceKey)
 		diags = diags.Append(evalDiags)
 	}
 
