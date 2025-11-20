@@ -107,10 +107,7 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 	var lock sync.Mutex
 	lock.Lock() // Prevent anything from started until we have finished schema map reads
 	for fqn := range schemas {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", fqn.String())
 			schema, err := plugins.ProviderSchema(ctx, fqn)
 
@@ -124,10 +121,10 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 			}
 
 			schemas[fqn] = schema
-		}()
+		})
 	}
 
-	// Allow execution to start now that reading of schemas has completed
+	// Allow execution to start now that reading of schemas map has completed
 	lock.Unlock()
 
 	// Wait for all of the scheduled routines to complete
