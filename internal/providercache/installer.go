@@ -496,7 +496,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			)
 			defer span.End()
 
-			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, locks.Provider(provider), reqs[provider], mode, provider, version, targetPlatform)
+			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, locks.Provider(provider), mode, provider, version, targetPlatform)
 			if err != nil {
 				tracing.SetSpanError(span, err)
 			}
@@ -530,7 +530,6 @@ func (i *Installer) ensureProviderVersionsInstall(
 func (i *Installer) ensureProviderVersionInstalled(
 	ctx context.Context,
 	lock *depsfile.ProviderLock,
-	constraint getproviders.VersionConstraints,
 	mode InstallMode,
 	provider addrs.Provider,
 	version getproviders.Version,
@@ -565,7 +564,7 @@ func (i *Installer) ensureProviderVersionInstalled(
 		linkTo = nil // no linking needed
 	}
 
-	result, newHashes, err := i.ensureProviderVersionInDirectory(ctx, lock, constraint, mode, provider, version, targetPlatform, installTo)
+	result, newHashes, err := i.ensureProviderVersionInDirectory(ctx, lock, mode, provider, version, targetPlatform, installTo)
 
 	if err != nil {
 		return result, newHashes, err
@@ -618,7 +617,6 @@ func (i *Installer) ensureProviderVersionInstalled(
 func (i *Installer) ensureProviderVersionInDirectory(
 	ctx context.Context,
 	lock *depsfile.ProviderLock,
-	constraint getproviders.VersionConstraints,
 	mode InstallMode,
 	provider addrs.Provider,
 	version getproviders.Version,
