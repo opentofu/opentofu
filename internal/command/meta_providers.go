@@ -291,16 +291,18 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
 
+		if cached == nil {
+			errs[provider] = fmt.Errorf(
+				"there is no package for %s %s cached in %s",
+				provider, version, cacheDir.BasePath(),
+			)
+			continue
+		}
+
 		checkedProvider := false
 		var checkErr error
 
 		checkProvider := func() error {
-			if cached == nil {
-				return fmt.Errorf(
-					"there is no package for %s %s cached in %s",
-					provider, version, cacheDir.BasePath(),
-				)
-			}
 			// The cached package must match one of the checksums recorded in
 			// the lock file, if any.
 			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
@@ -313,7 +315,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 				}
 				if !matched {
 					return fmt.Errorf(
-						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file, run tofu init to ensure all providers are correctly installed",
 						provider, version, cacheDir.BasePath(),
 					)
 				}
