@@ -24,15 +24,14 @@ import (
 // A MemoizeSource can be called concurrently, with incoming requests processed
 // sequentially.
 type MemoizeSource struct {
-	underlying             Source
-	mu                     sync.Mutex
-	availableVersions      map[addrs.Provider]memoizeAvailableVersionsRet
-	availableVersionsLocks map[addrs.Provider]*sync.Mutex
-	packageMetas           map[memoizePackageMetaCall]memoizePackageMetaRet
-	packageMetasLocks      map[memoizePackageMetaCall]*sync.Mutex
+	underlying        Source
+	mu                sync.Mutex
+	availableVersions map[addrs.Provider]*memoizeAvailableVersionsRet
+	packageMetas      map[memoizePackageMetaCall]*memoizePackageMetaRet
 }
 
 type memoizeAvailableVersionsRet struct {
+	sync.Mutex
 	VersionList VersionList
 	Warnings    Warnings
 	Err         error
@@ -45,6 +44,7 @@ type memoizePackageMetaCall struct {
 }
 
 type memoizePackageMetaRet struct {
+	sync.Mutex
 	PackageMeta PackageMeta
 	Err         error
 }
@@ -55,11 +55,9 @@ var _ Source = (*MemoizeSource)(nil)
 // the given underlying source and memoizes its results.
 func NewMemoizeSource(underlying Source) *MemoizeSource {
 	return &MemoizeSource{
-		underlying:             underlying,
-		availableVersionsLocks: make(map[addrs.Provider]*sync.Mutex),
-		availableVersions:      make(map[addrs.Provider]memoizeAvailableVersionsRet),
-		packageMetas:           make(map[memoizePackageMetaCall]memoizePackageMetaRet),
-		packageMetasLocks:      make(map[memoizePackageMetaCall]*sync.Mutex),
+		underlying:        underlying,
+		availableVersions: make(map[addrs.Provider]*memoizeAvailableVersionsRet),
+		packageMetas:      make(map[memoizePackageMetaCall]*memoizePackageMetaRet),
 	}
 }
 
@@ -67,26 +65,35 @@ func NewMemoizeSource(underlying Source) *MemoizeSource {
 // and caches them before returning them, or on subsequent calls returns the
 // result directly from the cache.
 func (s *MemoizeSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
+	shouldComputeAvailableVersions := false
+
 	s.mu.Lock()
-	if _, ok := s.availableVersionsLocks[provider]; !ok {
-		s.availableVersionsLocks[provider] = &sync.Mutex{}
+
+	entry, exists := s.availableVersions[provider]
+	if !exists {
+		// Add entry to the map
+		entry = &memoizeAvailableVersionsRet{}
+		s.availableVersions[provider] = entry
+
+		// We are now responsible for computing the entry
+		shouldComputeAvailableVersions = true
+		// Take the lock early to prevent anyone else from holding it
+		entry.Lock()
+		defer entry.Unlock()
 	}
+
 	s.mu.Unlock()
 
-	s.availableVersionsLocks[provider].Lock()
-	defer s.availableVersionsLocks[provider].Unlock()
-
-	if existing, exists := s.availableVersions[provider]; exists {
-		return existing.VersionList, nil, existing.Err
+	if shouldComputeAvailableVersions {
+		// Compute result, we already have the lock from above
+		entry.VersionList, entry.Warnings, entry.Err = s.underlying.AvailableVersions(ctx, provider)
+	} else {
+		// Wait for the result to be available
+		entry.Lock()
+		defer entry.Unlock()
 	}
 
-	ret, warnings, err := s.underlying.AvailableVersions(ctx, provider)
-	s.availableVersions[provider] = memoizeAvailableVersionsRet{
-		VersionList: ret,
-		Err:         err,
-		Warnings:    warnings,
-	}
-	return ret, warnings, err
+	return entry.VersionList, entry.Warnings, entry.Err
 }
 
 // PackageMeta requests package metadata from the underlying source and caches
@@ -99,25 +106,35 @@ func (s *MemoizeSource) PackageMeta(ctx context.Context, provider addrs.Provider
 		Target:   target,
 	}
 
+	shouldComputePackageMeta := false
+
 	s.mu.Lock()
-	if _, ok := s.packageMetasLocks[key]; !ok {
-		s.packageMetasLocks[key] = &sync.Mutex{}
+
+	entry, exists := s.packageMetas[key]
+	if !exists {
+		// Add entry to the map
+		entry = &memoizePackageMetaRet{}
+		s.packageMetas[key] = entry
+
+		// We are now responsible for computing the entry
+		shouldComputePackageMeta = true
+		// Take the lock early to prevent anyone else from holding it
+		entry.Lock()
+		defer entry.Unlock()
 	}
+
 	s.mu.Unlock()
 
-	s.packageMetasLocks[key].Lock()
-	defer s.packageMetasLocks[key].Unlock()
-
-	if existing, exists := s.packageMetas[key]; exists {
-		return existing.PackageMeta, existing.Err
+	if shouldComputePackageMeta {
+		// Compute result, we already have the lock from above
+		entry.PackageMeta, entry.Err = s.underlying.PackageMeta(ctx, provider, version, target)
+	} else {
+		// Wait for the result to be available
+		entry.Lock()
+		defer entry.Unlock()
 	}
 
-	ret, err := s.underlying.PackageMeta(ctx, provider, version, target)
-	s.packageMetas[key] = memoizePackageMetaRet{
-		PackageMeta: ret,
-		Err:         err,
-	}
-	return ret, err
+	return entry.PackageMeta, entry.Err
 }
 
 func (s *MemoizeSource) ForDisplay(provider addrs.Provider) string {
