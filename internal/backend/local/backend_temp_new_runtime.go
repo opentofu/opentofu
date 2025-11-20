@@ -13,11 +13,17 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
+	"github.com/apparentlymart/go-versions/versions"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -136,18 +142,37 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		return
 	}
 
+	plugins := &newRuntimePlugins{
+		// TODO: ...
+	}
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      op.ConfigDir,
 		OriginalWorkingDir: b.ContextOpts.Meta.OriginalWorkingDir,
-		// TODO: Modules, Providers, Provisioners
+		Modules: &newRuntimeModules{
+			loader: op.ConfigLoader,
+		},
+		Providers:    plugins,
+		Provisioners: plugins,
 	}
 
 	// The new config-loading system wants to work in terms of module source
-	// addresses rather than raw local filenames, so we'll do that in a
-	// kinda-hacky way for now and consider adding a more robust function for
-	// translating filepaths to local source addresses in package addrs later.
-	rootModuleSourceStr := "./" + filepath.ToSlash(op.ConfigDir)
-	rootModuleSource := addrs.ModuleSourceLocal(rootModuleSourceStr)
+	// addresses rather than raw local filenames, so we'll ask the
+	// addrs package to parse the path we were given. We need to adjust
+	// a little though, because this function was designed for parsing
+	// the "source" argument in a module block, not a plain filepath.
+	// We should add a function in package addrs that's actually intended for
+	// turning arbitrary filesystem paths in to addrs.LocalSource in the long
+	// run, but this will do for now.
+	configDir := op.ConfigDir
+	if !filepath.IsAbs(configDir) {
+		configDir = "." + string(filepath.Separator) + configDir
+	}
+	rootModuleSource, err := addrs.ParseModuleSource(configDir)
+	if err != nil {
+		diags = diags.Append(fmt.Errorf("invalid root module source address: %w", err))
+		op.ReportResult(runningOp, diags)
+		return
+	}
 	configCall := &eval.ConfigCall{
 		RootModuleSource: rootModuleSource,
 		// TODO: InputValues
@@ -229,4 +254,60 @@ func (b *Local) opRefreshWithExperimentalRuntime(stopCtx context.Context, cancel
 		"The command \"tofu refresh\" is not yet supported under the experimental language runtime.",
 	))
 	op.ReportResult(runningOp, diags)
+}
+
+// newRuntimeModules is an implementation of [eval.ExternalModules] that makes
+// a best effort to shim to OpenTofu's current module loader, even though
+// it works in some slightly-different terms than this new API expects.
+type newRuntimeModules struct {
+	loader *configload.Loader
+}
+
+var _ eval.ExternalModules = (*newRuntimeModules)(nil)
+
+// ModuleConfig implements evalglue.ExternalModules.
+func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (eval.UncompiledModule, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"New runtime codepath can't load modules yet",
+		fmt.Sprintf("Cannot load %q. The experimental codepath for the new language runtime can't actually load modules yet, making it actually rather useless.", source),
+	))
+	return nil, diags
+}
+
+type newRuntimePlugins struct {
+}
+
+var _ eval.Providers = (*newRuntimePlugins)(nil)
+var _ eval.Provisioners = (*newRuntimePlugins)(nil)
+
+// NewConfiguredProvider implements evalglue.Providers.
+func (n *newRuntimePlugins) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
+	panic("unimplemented")
+}
+
+// ProviderConfigSchema implements evalglue.Providers.
+func (n *newRuntimePlugins) ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics) {
+	panic("unimplemented")
+}
+
+// ResourceTypeSchema implements evalglue.Providers.
+func (n *newRuntimePlugins) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
+	panic("unimplemented")
+}
+
+// ValidateProviderConfig implements evalglue.Providers.
+func (n *newRuntimePlugins) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	panic("unimplemented")
+}
+
+// ValidateResourceConfig implements evalglue.Providers.
+func (n *newRuntimePlugins) ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics {
+	panic("unimplemented")
+}
+
+// ProvisionerConfigSchema implements evalglue.Provisioners.
+func (n *newRuntimePlugins) ProvisionerConfigSchema(ctx context.Context, typeName string) (*configschema.Block, tfdiags.Diagnostics) {
+	panic("unimplemented")
 }
