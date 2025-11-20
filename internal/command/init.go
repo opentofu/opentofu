@@ -961,7 +961,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		},
 	}
 	// Ensure that events emitted on multiple routines do not trigger race conditions
-	evts = evts.Serialized()
+	evts = evts.Sync()
 	ctx = evts.OnContext(ctx)
 
 	mode := providercache.InstallNewProvidersOnly

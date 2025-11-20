@@ -269,7 +269,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			},
 		}
 		// Ensure that events emitted on multiple routines do not trigger race conditions
-		evts = evts.Serialized()
+		evts = evts.Sync()
 		ctx := evts.OnContext(ctx)
 
 		dir := providercache.NewDirWithPlatform(tempDir, platform)

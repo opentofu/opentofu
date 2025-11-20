@@ -152,10 +152,10 @@ func (e *InstallerEvents) OnContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctxInstallerEvents, e)
 }
 
-// As these events may be emitted by multiple go-routines. This wraps the
-// events in a single lock to allow consumers of the InstallerEvents concept
-// to not have to worry about race conditions
-func (e *InstallerEvents) Serialized() *InstallerEvents {
+// Sync wraps the events in a single lock to allow consumers of the
+// InstallerEvents concept to not have to worry about race conditions
+// as these events may be emitted by multiple go-routines
+func (e *InstallerEvents) Sync() *InstallerEvents {
 	lock := sync.Mutex{}
 
 	return &InstallerEvents{
