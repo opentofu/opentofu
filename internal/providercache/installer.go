@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/apparentlymart/go-versions/versions"
 
@@ -426,32 +427,27 @@ func (i *Installer) ensureProviderVersionsNeed(
 		return getproviders.Version{}, err
 	}
 
-	type providerNeeds struct {
-		provider addrs.Provider
-		version  getproviders.Version
-		err      error
-	}
-	results := make(chan providerNeeds, len(mightNeed))
-	for provider, acceptableVersions := range mightNeed {
-		go func(provider addrs.Provider, acceptableVersions getproviders.VersionSet) {
-			version, err := computeNeeds(provider, acceptableVersions)
-			results <- providerNeeds{
-				provider: provider,
-				version:  version,
-				err:      err,
-			}
-		}(provider, acceptableVersions)
-	}
-
 	need := map[addrs.Provider]getproviders.Version{}
-	for range mightNeed {
-		r := <-results
-		if r.err != nil {
-			errs[r.provider] = r.err
-			continue
-		}
-		need[r.provider] = r.version
+	var updateLock sync.Mutex
+	var wg sync.WaitGroup
+
+	for provider, acceptableVersions := range mightNeed {
+		wg.Go(func() {
+			// Heavy lifting
+			version, err := computeNeeds(provider, acceptableVersions)
+
+			// Update results
+			updateLock.Lock()
+			defer updateLock.Unlock()
+
+			if err != nil {
+				errs[provider] = err
+			} else {
+				need[provider] = version
+			}
+		})
 	}
+	wg.Wait()
 
 	return need, nil
 }
@@ -473,19 +469,11 @@ func (i *Installer) ensureProviderVersionsInstall(
 	}
 
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
-
-	type providerInstallResult struct {
-		provider   addrs.Provider
-		version    getproviders.Version
-		authResult *getproviders.PackageAuthenticationResult
-		newHashes  []getproviders.Hash
-		err        error
-	}
-	results := make(chan providerInstallResult, len(need))
-	defer close(results)
+	var updateLock sync.Mutex
+	var wg sync.WaitGroup
 
 	for provider, version := range need {
-		go func(provider addrs.Provider, version getproviders.Version) {
+		wg.Go(func() {
 			traceCtx, span := tracing.Tracer().Start(ctx,
 				fmt.Sprintf("Install Provider %q", provider.String()),
 				tracing.SpanAttributes(
@@ -496,33 +484,28 @@ func (i *Installer) ensureProviderVersionsInstall(
 			)
 			defer span.End()
 
+			// Heavy lifting
 			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, locks.Provider(provider), mode, provider, version, targetPlatform)
+
+			// Update results
+			updateLock.Lock()
+			defer updateLock.Unlock()
+
 			if err != nil {
 				tracing.SetSpanError(span, err)
+				errs[provider] = err
 			}
-			results <- providerInstallResult{
-				provider:   provider,
-				version:    version,
-				authResult: authResult,
-				newHashes:  newHashes,
-				err:        err,
+
+			if authResult != nil {
+				authResults[provider] = authResult
 			}
-		}(provider, version)
+			if len(newHashes) > 0 {
+				locks.SetProvider(provider, version, reqs[provider], newHashes)
+			}
+		})
 	}
 
-	for range need {
-		i := <-results
-
-		if i.authResult != nil {
-			authResults[i.provider] = i.authResult
-		}
-		if len(i.newHashes) > 0 {
-			locks.SetProvider(i.provider, i.version, reqs[i.provider], i.newHashes)
-		}
-		if i.err != nil {
-			errs[i.provider] = i.err
-		}
-	}
+	wg.Wait()
 
 	return authResults, nil
 }
