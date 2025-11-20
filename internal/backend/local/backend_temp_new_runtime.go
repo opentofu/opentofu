@@ -7,11 +7,18 @@ package local
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/engine/planning"
+	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -66,14 +73,140 @@ func experimentalRuntimeEnabled() bool {
 }
 
 func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
-	log.Println("[WARN] Using plan implementation from the experimental language runtime")
 	var diags tfdiags.Diagnostics
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Operation unsupported in experimental language runtime",
-		"The command \"tofu plan\" is not yet supported under the experimental language runtime.",
-	))
+	log.Println("[WARN] Using plan implementation from the experimental language runtime")
+
+	// Currently we're using the caller's "stopCtx" as the main context, using
+	// it both for its values and as a signal for graceful shutdown. This is
+	// just to get the closest fit with how current callers of the backend
+	// API populate these contexts with what the new runtime is expecting. We
+	// should revisit this and make sure this still makes sense before we
+	// finalize any implementation here.
+	ctx := stopCtx
+
+	if op.PlanFile != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Can't re-plan a saved plan",
+			"The plan command was given a saved plan file as its input. This command generates "+
+				"a new plan, and so it requires a configuration directory as its argument.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	// Local planning requires a config, unless we're planning to destroy.
+	if op.PlanMode != plans.DestroyMode && !op.HasConfig() {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"No configuration files",
+			"Plan requires configuration to be present. Planning without a configuration would "+
+				"mark everything for destruction, which is normally not what is desired. If you "+
+				"would like to destroy everything, run plan with the -destroy option. Otherwise, "+
+				"create a OpenTofu configuration file (.tf file) and try again.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	if len(op.GenerateConfigOut) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Config generation not supported",
+			"The experimental language runtime cannot yet support -generate-config-out.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	// The following is a limited inline reimplementation of the just parts of
+	// Local.localRun that we need to start executing the new runtime, since
+	// that codepath is currently quite specific to the needs of the old
+	// runtime. At a later point we'll want to consolidate these back together
+	// again somehow, but this is just enough to help us do basix execution
+	// during the "walking skeleton" phase of the project.
+	stateMgr, err := b.StateMgr(ctx, op.Workspace)
+	if err != nil {
+		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	prevRoundState, err := statemgr.RefreshAndRead(ctx, stateMgr)
+	if err != nil {
+		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	evalCtx := &eval.EvalContext{
+		RootModuleDir:      op.ConfigDir,
+		OriginalWorkingDir: b.ContextOpts.Meta.OriginalWorkingDir,
+		// TODO: Modules, Providers, Provisioners
+	}
+
+	// The new config-loading system wants to work in terms of module source
+	// addresses rather than raw local filenames, so we'll do that in a
+	// kinda-hacky way for now and consider adding a more robust function for
+	// translating filepaths to local source addresses in package addrs later.
+	rootModuleSourceStr := "./" + filepath.ToSlash(op.ConfigDir)
+	rootModuleSource := addrs.ModuleSourceLocal(rootModuleSourceStr)
+	configCall := &eval.ConfigCall{
+		RootModuleSource: rootModuleSource,
+		// TODO: InputValues
+		AllowImpureFunctions: false,
+		EvalContext:          evalCtx,
+	}
+	configInst, moreDiags := eval.NewConfigInstance(ctx, configCall)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	plan, moreDiags := planning.PlanChanges(ctx, prevRoundState, configInst)
+	diags = diags.Append(moreDiags)
+	// We intentionally continue with errors here because we make a best effort
+	// to render a partial plan output even when we have errors, in case
+	// the partial plan is helpful for debugging.
+
+	// Even if there are errors we need to handle anything that may be
+	// contained within the plan, so only exit if there is no data at all.
+	if plan == nil {
+		runningOp.PlanEmpty = true
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	// Record whether this plan includes any side-effects that could be applied.
+	runningOp.PlanEmpty = !plan.CanApply()
+
+	wroteConfig := false
+	if path := op.PlanOutPath; path != "" {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Saved plan files not supported",
+			"The experimental language runtime cannot yet support -out=PLANFILE.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	// TODO: Actually render the plan. But to do that we need provider schemas
+	// and our schema-loading code expects us to be holding an old-style
+	// *configs.Config, so we have some more work to do before we can do that.
+
+	// If we've accumulated any diagnostics along the way then we'll show them
+	// here just before we show the summary and next steps. This can potentially
+	// include errors, because we intentionally try to show a partial plan
+	// above even if OpenTofu Core encountered an error partway through
+	// creating it.
 	op.ReportResult(runningOp, diags)
+
+	if !runningOp.PlanEmpty {
+		if wroteConfig {
+			op.View.PlanNextStep(op.PlanOutPath, op.GenerateConfigOut)
+		} else {
+			op.View.PlanNextStep(op.PlanOutPath, "")
+		}
+	}
 }
 
 func (b *Local) opApplyWithExperimentalRuntime(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
