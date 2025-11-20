@@ -51,9 +51,6 @@ func (ss *Schemas) ProviderConfig(provider addrs.Provider) *configschema.Block {
 // redundant.
 func (ss *Schemas) ResourceTypeConfig(provider addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (block *configschema.Block, schemaVersion uint64) {
 	ps := ss.ProviderSchema(provider)
-	if ps.ResourceTypes == nil {
-		return nil, 0
-	}
 	return ps.SchemaForResourceType(resourceMode, resourceType)
 }
 
