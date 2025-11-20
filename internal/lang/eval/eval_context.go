@@ -23,6 +23,7 @@ type EvalContext = evalglue.EvalContext
 type Providers = evalglue.Providers
 type Provisioners = evalglue.Provisioners
 type ExternalModules = evalglue.ExternalModules
+type UncompiledModule = evalglue.UncompiledModule
 
 func ModulesForTesting(modules map[addrs.ModuleSourceLocal]*configs.Module) ExternalModules {
 	// This one actually lives in tofu2024 because evalglue isn't allowed to
