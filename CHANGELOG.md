@@ -15,7 +15,7 @@ BUG FIXES:
 
 - `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
 - In the unlikely event that text included in a diagnostic message includes C0 control characters (e.g. terminal escape sequences), OpenTofu will now replace them with printable characters to avoid the risk of inadvertently changing terminal state when stdout or stderr is a terminal. ([#3479](https://github.com/opentofu/opentofu/issues/3479))
-
+- Added debug log to identify the key version used for state encryption/decryption ([#3450](https://github.com/opentofu/opentofu/issues/3450))
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
