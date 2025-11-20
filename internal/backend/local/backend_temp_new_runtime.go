@@ -14,16 +14,19 @@ import (
 	"sync/atomic"
 
 	"github.com/apparentlymart/go-versions/versions"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -141,6 +144,9 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		op.ReportResult(runningOp, diags)
 		return
 	}
+	if prevRoundState == nil {
+		prevRoundState = states.NewState() // this is the first round, starting with an empty state
+	}
 
 	plugins := &newRuntimePlugins{
 		// TODO: ...
@@ -217,6 +223,12 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 	// TODO: Actually render the plan. But to do that we need provider schemas
 	// and our schema-loading code expects us to be holding an old-style
 	// *configs.Config, so we have some more work to do before we can do that.
+	// For now, we'll just show the internals of the plan object.
+	// (Note that we are expecting that [planning.PlanChanges] will return
+	// something other than [plans.Plan] before long, because in our new
+	// approach we want to save the execution graph as part of the plan and
+	// so our old model is not sufficient. This is just a placeholder for now.)
+	spew.Dump(plan)
 
 	// If we've accumulated any diagnostics along the way then we'll show them
 	// here just before we show the summary and next steps. This can potentially
@@ -268,12 +280,32 @@ var _ eval.ExternalModules = (*newRuntimeModules)(nil)
 // ModuleConfig implements evalglue.ExternalModules.
 func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (eval.UncompiledModule, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"New runtime codepath can't load modules yet",
-		fmt.Sprintf("Cannot load %q. The experimental codepath for the new language runtime can't actually load modules yet, making it actually rather useless.", source),
-	))
-	return nil, diags
+
+	var sourceDir string
+	switch source := source.(type) {
+	case addrs.ModuleSourceLocal:
+		sourceDir = filepath.Clean(filepath.FromSlash(string(source)))
+	default:
+		// For this early stub implementation we only support local source
+		// addresses. We'll expand this later but that'll require this codepath
+		// to have access to the information about what's in the module cache
+		// directory at ".terraform/modules", which we've not arranged for yet.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"New runtime codepath only supports local module sources",
+			fmt.Sprintf("Cannot load %q, because our temporary codepath for the new language runtime only supports local module sources for now.", source),
+		))
+		return nil, diags
+	}
+	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
+
+	mod, hclDiags := n.loader.Parser().LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
+	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		return nil, diags
+	}
+
+	return eval.PrepareTofu2024Module(source, mod), diags
 }
 
 type newRuntimePlugins struct {
@@ -284,30 +316,66 @@ var _ eval.Provisioners = (*newRuntimePlugins)(nil)
 
 // NewConfiguredProvider implements evalglue.Providers.
 func (n *newRuntimePlugins) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provider %q: new runtime codepath doesn't know how to instantiate providers yet", provider),
+	))
+	return nil, diags
 }
 
 // ProviderConfigSchema implements evalglue.Providers.
 func (n *newRuntimePlugins) ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics) {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provider %q: new runtime codepath doesn't know how to instantiate providers yet", provider),
+	))
+	return nil, diags
 }
 
 // ResourceTypeSchema implements evalglue.Providers.
 func (n *newRuntimePlugins) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provider %q: new runtime codepath doesn't know how to instantiate providers yet", provider),
+	))
+	return nil, diags
 }
 
 // ValidateProviderConfig implements evalglue.Providers.
 func (n *newRuntimePlugins) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provider %q: new runtime codepath doesn't know how to instantiate providers yet", provider),
+	))
+	return diags
 }
 
 // ValidateResourceConfig implements evalglue.Providers.
 func (n *newRuntimePlugins) ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provider %q: new runtime codepath doesn't know how to instantiate providers yet", provider),
+	))
+	return diags
 }
 
 // ProvisionerConfigSchema implements evalglue.Provisioners.
 func (n *newRuntimePlugins) ProvisionerConfigSchema(ctx context.Context, typeName string) (*configschema.Block, tfdiags.Diagnostics) {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Cannot use providers in new runtime codepath",
+		fmt.Sprintf("Can't use provisioner %q: new runtime codepath doesn't know how to instantiate provisioners yet", typeName),
+	))
+	return nil, diags
 }
