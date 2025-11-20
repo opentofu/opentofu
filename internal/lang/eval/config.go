@@ -11,7 +11,9 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/tofu2024"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -125,4 +127,12 @@ func (c *ConfigInstance) newRootModuleInstance(ctx context.Context, glue evalglu
 	})
 	diags = diags.Append(moreDiags)
 	return ret, diags
+}
+
+// PrepareTofu2024Module wraps a module targeting the current HCL-based edition
+// of the OpenTofu language (which is called "tofu2024" in this set of packages)
+// in an [UncompiledModule] value to return from an [ExternalModules]
+// implementation.
+func PrepareTofu2024Module(sourceAddr addrs.ModuleSource, mod *configs.Module) UncompiledModule {
+	return tofu2024.NewUncompiledModule(sourceAddr, mod)
 }

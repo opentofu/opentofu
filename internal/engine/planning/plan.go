@@ -7,6 +7,7 @@ package planning
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -75,6 +76,11 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		plan := planCtx.Close()
 		plan.Errored = true
 		return plan, diags
+	}
+	if evalResult == nil {
+		// This should not happen: we should always have an evalResult if
+		// there weren't any errors.
+		panic(fmt.Sprintf("%T.DrivePlanning returned nil result without any error diagnostics", configInst))
 	}
 
 	// We also need to deal with any "deposed" resource instances that were

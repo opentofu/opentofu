@@ -178,6 +178,8 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	diags = diags.Append(moreDiags)
 	return &PlanningResult{
 		RootModuleOutputs: configgraph.PrepareOutgoingValue(outputsVal),
+		Glue:              glue,
+		Oracle:            oracle,
 	}, diags
 }
 
