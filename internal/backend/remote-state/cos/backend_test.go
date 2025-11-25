@@ -22,6 +22,15 @@ const (
 	defaultKey    = "terraform.tfstate"
 )
 
+// To run these tests, go to https://console.tencentcloud.com/cam/capi
+// and create an API key (ignore the security warnings, this isn't long-lived)
+// Assign environment variables as follows:
+// APPID     -> TF_COS_APPID
+// SecretId  -> TENCENTCLOUD_SECRET_ID
+// SecretKey -> TENCENTCLOUD_SECRET_KEY
+// finally, optionally but recommended if you're in the US,
+// set TENCENTCLOUD_REGION to "na-ashburn" in Virginia
+
 // Testing Thanks to GCS
 
 func TestStateFile(t *testing.T) {

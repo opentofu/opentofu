@@ -24,6 +24,13 @@ func (b *Local) opRefresh(
 	op *backend.Operation,
 	runningOp *backend.RunningOperation) {
 
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		b.opRefreshWithExperimentalRuntime(stopCtx, cancelCtx, op, runningOp)
+		return
+	}
+
 	var diags tfdiags.Diagnostics
 
 	// For the moment we have a bit of a tangled mess of context.Context here, for

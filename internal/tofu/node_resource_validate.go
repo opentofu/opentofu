@@ -12,8 +12,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/communicator/shared"
@@ -26,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodeValidatableResource represents a resource that is used for validation
@@ -54,8 +54,8 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, span := tracing.Tracer().Start(
 		ctx, traceNameValidateResource,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrConfigResourceAddr, n.Addr.String()),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrConfigResourceAddr, n.Addr.String()),
 		),
 	)
 	defer span.End()
@@ -69,6 +69,31 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 	diags = diags.Append(n.validateCheckRules(ctx, evalCtx, n.Config))
 
 	if managed := n.Config.Managed; managed != nil {
+		if pdExpr := managed.PreventDestroy; pdExpr != nil {
+			// This validation focuses only on the simple case of a valid
+			// constant expression, because it's replacing some static
+			// type-checking that was previously done during config loading,
+			// before we allowed dynamic expressions here. If the expression
+			// refers to anything else in the configuration, or if it fails
+			// evaluation for any other reason, then we'll wait until the plan
+			// phase to check it properly so we can have more information
+			// available to generate better error messages.
+			if val, hclDiags := pdExpr.Value(nil); !hclDiags.HasErrors() {
+				_, err := convert.Convert(val, cty.Bool)
+				if err != nil {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid value for prevent_destroy",
+						Detail: fmt.Sprintf(
+							"Resource instance %s has an invalid value for its prevent_destroy argument: %s.",
+							n.Addr.String(), tfdiags.FormatError(err),
+						),
+						Subject: pdExpr.Range().Ptr(),
+					})
+				}
+			}
+		}
+
 		// Validate all the provisioners
 		for _, p := range managed.Provisioners {
 			// Create a local shallow copy of the provisioner

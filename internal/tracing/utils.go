@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -118,4 +118,27 @@ func extractImportPath(fullName string) string {
 	}
 
 	return fullName[:lastSlash+dotAfterSlash]
+}
+
+// Span is an alias for [trace.Span] just to centralize all of our direct
+// imports of OpenTelemetry packages into our tracing packages, to help
+// avoid dependency hell.
+type Span = trace.Span
+
+// SpanFromContext returns the trace span asssociated with the given context,
+// or nil if there is no associated span.
+//
+// This is a wrapper around [trace.SpanFromContext] just to centralize all of
+// our imports of OpenTelemetry packages into our tracing packages, to help
+// avoid dependency hell.
+func SpanFromContext(ctx context.Context) trace.Span {
+	return trace.SpanFromContext(ctx)
+}
+
+// SpanAttributes wraps [trace.WithAttributes] just so that we can minimize
+// how many different OpenTofu packages directly import the OpenTelemetry
+// packages, because we tend to need to control which versions we're using
+// quite closely to avoid dependency hell.
+func SpanAttributes(attrs ...attribute.KeyValue) trace.SpanStartEventOption {
+	return trace.WithAttributes(attrs...)
 }

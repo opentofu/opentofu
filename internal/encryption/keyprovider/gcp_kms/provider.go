@@ -8,6 +8,7 @@ package gcp_kms
 import (
 	"context"
 	"crypto/rand"
+	"log"
 
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/googleapis/gax-go/v2"
@@ -67,6 +68,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 			Cause:   err,
 		}
 	}
+	log.Printf("[DEBUG] GCP KMS: encrypted state: %s", encryptedKeyData.Name)
 
 	outMeta.Ciphertext = encryptedKeyData.Ciphertext
 
@@ -74,6 +76,7 @@ func (p keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 	// and that is handled below when we check if the inMeta has a CiphertextBlob
 
 	if inMeta.isPresent() {
+		log.Printf("[DEBUG] GCP KMS: decrypting state: %s", p.keyName)
 		// We have an existing decryption key to decrypt, so we should now populate the DecryptionKey
 		decryptedKeyData, decryptErr := p.svc.Decrypt(p.ctx, &kmspb.DecryptRequest{
 			Name:       p.keyName,

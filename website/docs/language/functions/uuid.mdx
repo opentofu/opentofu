@@ -16,7 +16,7 @@ This function produces a new value each time it is called, and so using it
 directly in resource arguments will result in spurious diffs. We do not
 recommend using the `uuid` function in resource configurations, but it can
 be used with care in conjunction with
-[the `ignore_changes` lifecycle meta-argument](../../language/meta-arguments/lifecycle.mdx#ignore_changes).
+[the `ignore_changes` lifecycle meta-argument](../../language/resources/behavior.mdx#ignore_changes).
 
 In most cases we recommend using [the `random` provider](https://registry.terraform.io/providers/hashicorp/random/latest/docs)
 instead, since it allows the one-time generation of random values that are

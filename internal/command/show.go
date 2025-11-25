@@ -12,9 +12,6 @@ import (
 	"os"
 	"strings"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
@@ -29,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -76,11 +74,11 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 
 	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
 	ctx, span := tracing.Tracer().Start(ctx, "Show",
-		trace.WithAttributes(
-			otelAttr.String("opentofu.show.view", args.ViewType.String()),
-			otelAttr.String("opentofu.show.target", args.TargetType.String()),
-			otelAttr.String("opentofu.show.target_arg", args.TargetArg),
-			otelAttr.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.show.view", args.ViewType.String()),
+			traceattrs.String("opentofu.show.target", args.TargetType.String()),
+			traceattrs.String("opentofu.show.target_arg", args.TargetArg),
+			traceattrs.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
 		),
 	)
 	defer span.End()

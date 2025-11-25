@@ -22,8 +22,8 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
@@ -3797,9 +3797,29 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 			return
 		}
 
+		// The original version of this test function was actually completely
+		// ineffective because it was using deep.Equal from
+		// github.com/go-test/deep which defaults to silently ignoring
+		// unexported fields, and ALL fields of cty.Value are unexported so
+		// this was effectively comparing nothing at all.
+		//
+		// We later made this actually effective by using [cmp.Diff], but to
+		// avoid making significant changes to the original test cases (which
+		// would risk invalidating them) this takes the unusual strategy of
+		// comparing attribute-by-attribute instead of comparing the entire
+		// object, because the "want" values were originally written containing
+		// only a subset of attributes that the test actually wanted to check.
 		t.Run("config for "+key, func(t *testing.T) {
-			for _, problem := range deep.Equal(got, want) {
-				t.Errorf("%s", problem)
+			for attrName := range want.Type().AttributeTypes() {
+				if !got.Type().HasAttribute(attrName) {
+					t.Errorf("missing attribute %q; should be set to %#v", attrName, want.GetAttr(attrName))
+					continue
+				}
+				gotAttr := got.GetAttr(attrName)
+				wantAttr := want.GetAttr(attrName)
+				if diff := cmp.Diff(wantAttr, gotAttr, ctydebug.CmpOptions); diff != "" {
+					t.Errorf("wrong value for attribute %q:\n%s", attrName, diff)
+				}
 			}
 		})
 	}
@@ -3831,7 +3851,7 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 			cty.StringVal("source.1"),
 			cty.StringVal("source.2"),
 		}),
-		"source_ids_from_func": cty.UnknownVal(cty.String),
+		"source_ids_from_func": cty.UnknownVal(cty.List(cty.String)).RefineNotNull(),
 		"source_names_from_func": cty.ListVal([]cty.Value{
 			cty.StringVal("source.0"),
 			cty.StringVal("source.1"),

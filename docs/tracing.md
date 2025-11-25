@@ -2,8 +2,14 @@
 
 This document describes how to use and implement tracing in OpenTofu Core using OpenTelemetry.
 
-> [!NOTE]  
-> For background on the design decisions and motivation behind OpenTofu's tracing implementation, see the [OpenTelemetry Tracing RFC](https://github.com/opentofu/opentofu/blob/main/rfc/20250129-Tracing-For-Extra-Context.md).
+There's background information on OpenTofu's tracing implementation in [the OpenTelemetry Tracing RFC](https://github.com/opentofu/opentofu/blob/main/rfc/20250129-Tracing-For-Extra-Context.md)
+
+> [!WARNING]
+> If you change which version of the `go.opentelemetry.io/otel/sdk` we have selected in our `go.mod`, you **must** make sure that `internal/tracing/traceattrs/semconv.go` imports the same subpackage of `go.opentelemetry.io/otel/semconv/*` that is used by the selected version of `go.opentelemetry.io/otel/sdk`.
+>
+> This is important because our tracing setup uses a blend of directly-constructed `semconv` attributes and attributes chosen indirectly through the `resource` package, and they must all be using the same version of the semantic conventions schema or there will be a "conflicting Schema URL" error at runtime.
+>
+> (Problems of this sort should be detected both by a unit test in `internal/tracing/traceattrs` and an end-to-end test that executes OpenTofu with tracing enabled.)
 
 ## Overview
 
@@ -56,7 +62,7 @@ Then configure OpenTofu as shown above and access the Jaeger UI at http://localh
 ## Adding Tracing to OpenTofu Code
 
 > [!NOTE]  
-> **For Contributors**: When adding tracing to OpenTofu, remember that the primary audience is **end users** who need to understand performance, not developers. Add spans sparingly to avoid polluting traces with too much detail.
+> **For Contributors**: When adding tracing to OpenTofu, remember that the primary audience is **end users** who need to understand performance, not OpenTofu developers. Add spans sparingly to avoid polluting traces with too much detail.
 
 ### Basic Span Creation
 
@@ -64,19 +70,25 @@ Then configure OpenTofu as shown above and access the Jaeger UI at http://localh
 import (
     "github.com/opentofu/opentofu/internal/tracing"
     "github.com/opentofu/opentofu/internal/tracing/traceattrs"
-    otelAttr "go.opentelemetry.io/otel/attribute"  // Note the alias
 )
 
 func SomeFunction(ctx context.Context) error {
     // Create a new span
-    ctx, span := tracing.Tracer().Start(ctx, "Human readable operation name")
+    ctx, span := tracing.Tracer().Start(ctx, "Human readable operation name",
+        tracing.SpanAttributes(
+            traceattrs.String("opentofu.some_attribute", "value")
+        ),
+    )
     defer span.End()
     
-    // Add attributes to provide context
-    span.SetAttributes(otelAttr.String("opentofu.some.attribute", "value"))
+    // Optionally add additional attributes after the span is created, if
+    // they only need to appear in certain cases.
+    span.SetAttributes(traceattrs.String("opentofu.some_other_attribute", "value"))
     
-    // Using predefined attributes from traceattrs package
-    span.SetAttributes(otelAttr.String(traceattrs.ProviderAddress, "hashicorp/aws"))
+    // Use the more specific attribute-construction helpers from package
+    // traceattrs where they are relevant, to ensure we follow consistent
+    // semantic conventions for cross-cutting concerns.
+    span.SetAttributes(traceattrs.OpenTofuProviderAddress("hashicorp/aws"))
     
     // Your function logic here...
     
@@ -90,9 +102,14 @@ func SomeFunction(ctx context.Context) error {
 }
 ```
 
-> [!TIP]  
-> We should use the `otelAttr` alias for OpenTelemetry's attribute package to clearly distinguish it from OpenTofu's trace attribute constants in the `traceattrs` package.
-> This convention makes the code more readable and prevents import conflicts.
+OpenTelemetry has many different packages spread across a variety of different Go modules, and those different modules often need to be upgraded together to ensure consistent behavior and avoid errors at runtime.
+
+Therefore we prefer to directly import `go.opentelemetry.io/otel/*` packages only from our packages under `internal/tracing`, and then reexport certain functions from our own packages so that we can manage all of the OpenTelemetry dependencies in a centralized place to minimize "dependency hell" problems when upgrading. Packages under `go.opentelemetry.io/contrib/instrumentation/*` are an exception because they tend to be more tightly-coupled to whatever they are instrumenting than to the other OpenTelemetry packages, and so it's better to import those from the same file that's importing whatever other package the instrumentation is being applied to.
+
+> [!WARNING]
+> Don't import `go.opentelemetry.io/otel/semconv/*` packages from anywhere except `internal/tracing/traceattrs/semconv.go`!
+>
+> If you want to use standard OpenTelemetry semantic conventions from other packages, use them indirectly through reexports in `package traceattrs` instead, so we can make sure there's only one file in OpenTofu deciding which version of semconv we are currently depending on.
 
 ### Tracing Conventions
 
@@ -105,17 +122,10 @@ func SomeFunction(ctx context.Context) error {
 
 #### Attributes
 
-- Prefer standard [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/) where applicable
-- Follow the [OpenTelemetry attribute naming convention](https://opentelemetry.io/docs/specs/semconv/general/naming/)
-- Cross-cutting attributes are defined in `internal/tracing/traceattrs`
-
-```go
-// Good attribute names
-"opentofu.provider.address"      // For provider addresses
-"opentofu.module.source"         // For module sources
-"opentofu.operation.target_count" // For operation-specific counts
-```
-
+- Prefer standard [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/) where applicable, using helper functions from [`internal/tracing/traceattrs`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tracing/traceattrs).
+- Use `OpenTofu`-prefixed functions in [`internal/tracing/traceattrs`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tracing/traceattrs) for OpenTofu-specific cross-cutting concerns.
+- It's okay to use one-off inline strings for attribute names specific to a single span, but make sure to still follow the [OpenTelemetry attribute naming conventions](https://opentelemetry.io/docs/specs/semconv/general/naming/) and use the `opentofu.` prefix for anything that is not a standardized semantic convention.
+- If a particular subsystem of OpenTofu has some repeated conventions for attribute names, consider creating unexported string constants or attribute construction helper functions in the same package to centralize those naming conventions.
 
 #### Error Handling
 

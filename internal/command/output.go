@@ -153,6 +153,9 @@ Options:
                      string directly, rather than a human-oriented
                      representation of the value.
 
+					 Use this with care when stdout is a terminal and when
+					 the output value might contain control characters.
+
   -show-sensitive    If specified, sensitive values will be displayed.
 
   -var 'foo=bar'     Set a value for one of the input variables in the root

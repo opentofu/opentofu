@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/opentofu/opentofu/internal/configs"
 )
@@ -50,11 +50,8 @@ func TestLoadConfigWithSnapshot(t *testing.T) {
 		for key, module := range wantModuleDirs {
 			wantModuleDirs[key] = filepath.Clean(module)
 		}
-		problems := deep.Equal(wantModuleDirs, gotModuleDirs)
-		for _, problem := range problems {
-			t.Errorf("%s", problem)
-		}
-		if len(problems) > 0 {
+		if diff := cmp.Diff(wantModuleDirs, gotModuleDirs); diff != "" {
+			t.Error("wrong module dirs:\n" + diff)
 			return
 		}
 	}

@@ -618,3 +618,40 @@ func escapeStringJSON(v string) string {
 
 	return string(marshaledV[1 : len(marshaledV)-2])
 }
+
+// TestTelemetrySchemaConflict reproduces the issue where OpenTofu fails to initialize
+// telemetry due to conflicting OpenTelemetry schema URLs from different semconv versions.
+//
+// The issue occurs because different parts of the codebase import different versions
+// of go.opentelemetry.io/otel/semconv, like internal/tracing/init.go.
+//
+// When OTEL_* variables are set, OpenTelemetry tries to initialize and
+// detects these conflicting schema URLs, causing conflicting schema errors.
+// For more information, see: https://github.com/opentofu/opentofu/pull/3446
+func TestTelemetrySchemaConflict(t *testing.T) {
+	t.Parallel()
+
+	fixturePath := filepath.Join("testdata", "empty")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	// Set the environment variable that triggers telemetry initialization errors
+	tf.AddEnv("OTEL_TRACES_EXPORTER=otlp")
+	// We're actually using an invalid endpoint because the key error is the
+	// initialization error. Sending the traces themselves is not relevant to this test.
+	tf.AddEnv("OTEL_EXPORTER_OTLP_ENDPOINT=http://invalid/")
+	tf.AddEnv("OTEL_EXPORTER_OTLP_INSECURE=true")
+
+	_, stderr, err := tf.Run("init")
+
+	if err != nil {
+		t.Fatalf("Expected success, got error: %s", err)
+	}
+
+	if strings.Contains(stderr, "Could not initialize telemetry") {
+		t.Errorf("Expected no error message to contain 'Could not initialize telemetry', but got: %s", stderr)
+	}
+
+	if strings.Contains(stderr, "conflicting Schema URL") {
+		t.Errorf("Expected no error message to contain 'conflicting Schema URL', but got: %s", stderr)
+	}
+}

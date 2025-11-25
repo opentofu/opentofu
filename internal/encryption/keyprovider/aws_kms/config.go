@@ -160,9 +160,11 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 		Insecure:             c.Insecure,
 		UseDualStackEndpoint: c.UseDualStackEndpoint,
 		UseFIPSEndpoint:      c.UseFIPSEndpoint,
-		UserAgent: awsbase.UserAgentProducts{
-			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.DefaultApplicationName, Version: version.String()},
+		APNInfo: &awsbase.APNInfo{
+			PartnerName: "OpenTofu-AWS-KMS",
+			Products: []awsbase.UserAgentProduct{
+				{Name: httpclient.DefaultApplicationName, Version: version.String()},
+			},
 		},
 		CustomCABundle: stringAttrEnvFallback(c.CustomCABundle, "AWS_CA_BUNDLE"),
 
