@@ -165,12 +165,14 @@ type preparationGlue struct {
 	// preparationGlue uses provider schema information to prepare placeholder
 	// "final state" values for resource instances because validation does
 	// not use information from the state.
-	providers Providers
+	providers ProvidersSchema
 }
 
 // ValidateProviderConfig implements evalglue.Glue.
 func (v *preparationGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return v.providers.ValidateProviderConfig(ctx, provider, configVal)
+	// TODO maybe this is why we create validation glue?
+	//return v.providers.ValidateProviderConfig(ctx, provider, configVal)
+	return nil
 }
 
 // ResourceInstanceValue implements evaluationGlue.
@@ -186,12 +188,13 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 		return cty.DynamicVal, diags
 	}
 
+	/* TODO maybe this is why we create validation glue?
 	validateDiags := v.providers.ValidateResourceConfig(ctx, ri.Provider, ri.Addr.Resource.Resource.Mode, ri.Addr.Resource.Resource.Type, configVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		// Provider indicated an invalid resource configuration
 		return cty.DynamicVal, diags
-	}
+	}*/
 
 	// FIXME: If we have a managed or data resource instance, as opposed to
 	// an ephemeral resource instance, then we should check to make sure

@@ -71,7 +71,6 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 	oracle := planGlue.oracle
 	once := pi.active.Get(addr)
 	return once.Do(ctx, func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
-		evalCtx := oracle.EvalContext(ctx)
 		configVal := oracle.ProviderInstanceConfig(ctx, addr)
 		if configVal == cty.NilVal {
 			// This suggests that the provider instance has an invalid
@@ -93,7 +92,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// then this should return "nil, nil" in the error case so that the
 		// caller will treat it the same as a "configuration not valid enough"
 		// problem.
-		ret, diags := evalCtx.Providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
+		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
 
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our

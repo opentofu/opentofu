@@ -32,7 +32,7 @@ type EvalContext struct {
 
 	// Providers gives access to all of the providers available for use
 	// in this context.
-	Providers Providers
+	Providers ProvidersSchema
 
 	// Provisioners gives access to all of the provisioners available for
 	// use in this context.

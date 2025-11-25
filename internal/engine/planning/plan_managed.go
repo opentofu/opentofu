@@ -66,7 +66,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return cty.DynamicVal, diags
 	}
 
-	validateDiags := evalCtx.Providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags

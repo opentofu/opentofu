@@ -33,11 +33,7 @@ type ExternalModules interface {
 	ModuleConfig(ctx context.Context, source addrs.ModuleSource, allowedVersions versions.Set, forCall *addrs.AbsModuleCall) (UncompiledModule, tfdiags.Diagnostics)
 }
 
-// Providers is implemented by callers of this package to provide access
-// to the providers needed by a configuration without this package needing
-// to know anything about how provider plugins work, or whether plugins are
-// even being used.
-type Providers interface {
+type ProvidersSchema interface {
 	// ProviderConfigSchema returns the schema that should be used to evaluate
 	// a "provider" block associated with the given provider.
 	//
@@ -45,6 +41,22 @@ type Providers interface {
 	// providers it is completely empty to represent that no explicit
 	// configuration is needed.
 	ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics)
+
+	// ResourceTypeSchema returns the schema for configuration and state of
+	// a resource of the given type, or nil if the given provider does not
+	// offer any such resource type.
+	//
+	// Returns error diagnostics if the given provider isn't available for use
+	// at all, regardless of the resource type.
+	ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics)
+}
+
+// Providers is implemented by callers of this package to provide access
+// to the providers needed by a configuration without this package needing
+// to know anything about how provider plugins work, or whether plugins are
+// even being used.
+type Providers interface {
+	ProvidersSchema
 
 	// ValidateProviderConfig runs provider-specific logic to check whether
 	// the given configuration is valid. Returns at least one error diagnostic
@@ -55,14 +67,6 @@ type Providers interface {
 	// the schema returned by a previous call to ProviderConfigSchema for
 	// the same provider.
 	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
-
-	// ResourceTypeSchema returns the schema for configuration and state of
-	// a resource of the given type, or nil if the given provider does not
-	// offer any such resource type.
-	//
-	// Returns error diagnostics if the given provider isn't available for use
-	// at all, regardless of the resource type.
-	ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics)
 
 	// ValidateResourceConfig runs provider-specific logic to check whether
 	// the given configuration is valid. Returns at least one error diagnostic
@@ -124,7 +128,7 @@ func ensureExternalModules(given ExternalModules) ExternalModules {
 	return given
 }
 
-func ensureProviders(given Providers) Providers {
+func ensureProviders(given ProvidersSchema) ProvidersSchema {
 	if given == nil {
 		return emptyDependencies{}
 	}

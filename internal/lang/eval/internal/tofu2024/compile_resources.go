@@ -27,7 +27,7 @@ func compileModuleInstanceResources(
 	declScope exprs.Scope,
 	providersSideChannel *moduleProvidersSideChannel,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.Providers,
+	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics),
 ) map[addrs.Resource]*configgraph.Resource {
 	ret := make(map[addrs.Resource]*configgraph.Resource, len(managedConfigs)+len(dataConfigs)+len(ephemeralConfigs))
@@ -52,7 +52,7 @@ func compileModuleInstanceResource(
 	declScope exprs.Scope,
 	providersSideChannel *moduleProvidersSideChannel,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.Providers,
+	providers evalglue.ProvidersSchema,
 	getResultValue func(context.Context, *configgraph.ResourceInstance, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics),
 ) (addrs.Resource, *configgraph.Resource) {
 	resourceAddr := config.Addr()

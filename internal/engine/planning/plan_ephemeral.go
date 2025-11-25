@@ -18,8 +18,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
 
-	evalCtx := p.oracle.EvalContext(ctx)
-	validateDiags := evalCtx.Providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags

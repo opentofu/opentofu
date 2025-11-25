@@ -206,7 +206,7 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		return
 	}
 
-	plan, moreDiags := planning.PlanChanges(ctx, prevRoundState, configInst)
+	plan, moreDiags := planning.PlanChanges(ctx, prevRoundState, configInst, plugins)
 	diags = diags.Append(moreDiags)
 	// We intentionally continue with errors here because we make a best effort
 	// to render a partial plan output even when we have errors, in case

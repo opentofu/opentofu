@@ -21,6 +21,7 @@ import (
 
 type EvalContext = evalglue.EvalContext
 type Providers = evalglue.Providers
+type ProvidersSchema = evalglue.ProvidersSchema
 type Provisioners = evalglue.Provisioners
 type ExternalModules = evalglue.ExternalModules
 type UncompiledModule = evalglue.UncompiledModule

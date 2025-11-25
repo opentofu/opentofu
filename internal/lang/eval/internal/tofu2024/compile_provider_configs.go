@@ -28,7 +28,7 @@ func compileModuleInstanceProviderConfigs(
 	declScope exprs.Scope,
 	reqdProviders map[string]*configs.RequiredProvider,
 	moduleInstanceAddr addrs.ModuleInstance,
-	providers evalglue.Providers,
+	providers evalglue.ProvidersSchema,
 	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
 ) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
 	// FIXME: The following is just enough to make simple examples work, but
