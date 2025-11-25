@@ -175,6 +175,10 @@ block for a managed resource:
   "forget" the resource, removing it from the state without destroying the actual
   infrastructure object.
 
+  :::note
+  `lifecycle.destroy` only accepts constant boolean values (`true` or `false`).
+  :::
+
   When a resource with `destroy = false` is removed from the configuration or requires replacement,
   OpenTofu will plan to **forget** it rather than **destroy** it. The resource will
   be removed from the state file, but the actual infrastructure object will
