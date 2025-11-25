@@ -168,6 +168,11 @@ type preparationGlue struct {
 	providers Providers
 }
 
+// ValidateProviderConfig implements evalglue.Glue.
+func (v *preparationGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	return v.providers.ValidateProviderConfig(ctx, provider, configVal)
+}
+
 // ResourceInstanceValue implements evaluationGlue.
 func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, _ configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {
 	schema, diags := v.providers.ResourceTypeSchema(ctx,
