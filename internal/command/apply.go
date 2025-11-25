@@ -14,6 +14,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/classifier"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -115,6 +117,16 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
 
+	if args.AutoApproveSafe && planFile != nil && !args.AutoApprove {
+		if c.canAutoApproveSafe(planFile) {
+			c.Ui.Output("Auto-approving save changes")
+			opReq.AutoApprove = true
+		} else {
+			c.Ui.Output("Use -auto-approve to override safety check (not recommended)")
+			return 1
+		}
+	}
+
 	// Before we delegate to the backend, we'll print any warning diagnostics
 	// we've accumulated here, since the backend will start fresh with its own
 	// diagnostics.
@@ -151,6 +163,66 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	return 0
+}
+
+func (c *ApplyCommand) canAutoApproveSafe(planFile *planfile.WrappedPlanFile) bool {
+	if planFile == nil {
+		c.Ui.Output("Auto-approve-safe requires a saved plan file")
+		return false
+	}
+
+	plan, err := c.readPlanFromFile(planFile)
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("Error reading plan: %s", err))
+		return false
+	}
+
+	classifier := classifier.NewResourceClassifier()
+
+	if classifier.HasOnlySafeChanges(plan) {
+		c.Ui.Output("Plan contains only safe changes - auto-approving")
+		c.showChangeSummary(plan)
+		return true
+	} else {
+		c.Ui.Output("Plan contains risky or destructive changes - manual approval required")
+		c.showChangeSummary(plan)
+		return false
+	}
+}
+
+func (c *ApplyCommand) readPlanFromFile(planFile *planfile.WrappedPlanFile) (*plans.Plan, error) {
+	if localPlan, ok := planFile.Local(); ok {
+		plan, err := localPlan.ReadPlan()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read plan: %w", err)
+		}
+		return plan, nil
+	}
+	return nil, fmt.Errorf("cloud plans not supported")
+}
+
+func (c *ApplyCommand) showChangeSummary(plan *plans.Plan) {
+	classifier := classifier.NewResourceClassifier()
+	counts := classifier.CountBySafetyLevel(plan)
+	classifications := classifier.ClassifyPlan(plan)
+
+	c.Ui.Output("\n--- Change Safety Analysis ---")
+
+	c.Ui.Output(fmt.Sprintf("Safe changes: %d", counts[1]))
+	c.Ui.Output(fmt.Sprintf("Risky changes: %d", counts[2]))
+	c.Ui.Output(fmt.Sprintf("Destructive changes: %d", counts[3]))
+
+	hasRiskyOrDestructive := false
+	for addr, classification := range classifications {
+		if classification.SafetyLevel == 2 || classification.SafetyLevel == 3 {
+			if !hasRiskyOrDestructive {
+				c.Ui.Output("\n--- Changes Requiring Review ---")
+				hasRiskyOrDestructive = true
+			}
+
+			c.Ui.Output(fmt.Sprintf("%s: %s", addr, classification.Reason))
+		}
+	}
 }
 
 func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
@@ -338,6 +410,8 @@ Usage: tofu [global options] apply [options] [PLAN]
   confirmation prompt.
 
 Options:
+
+  -auto-approve-safe         Automatically approve if plan contains only safe changes.
 
   -auto-approve                Skip interactive approval of plan before applying.
 

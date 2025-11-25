@@ -14,6 +14,9 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/classifier"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -114,6 +117,15 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	if args.ClassifyChanges {
+		if args.OutPath != "" {
+			c.analyzeSavedPlan(args.OutPath)
+		} else {
+			c.Ui.Output("Note: Use -out flag with -classify-changes for detailed analysis")
+			c.Ui.Output("Example: tofu plan -classify-changes -out=plan.tfplan")
+		}
+	}
+
 	if op.Result != backend.OperationSuccess {
 		return op.Result.ExitStatus()
 	}
@@ -202,6 +214,118 @@ func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
 	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
+func (c *PlanCommand) analyzeSavedPlan(planPath string) {
+	c.Ui.Output("\n" + strings.Repeat("=", 50))
+	c.Ui.Output("Change classification report")
+	c.Ui.Output(strings.Repeat("=", 50))
+
+	plan, err := c.readPlanFromFile(planPath)
+	if err != nil {
+		c.Ui.Output(fmt.Sprintf("Error reading plan: %s", err))
+		return
+	}
+
+	classifier := classifier.NewResourceClassifier()
+	classifications := classifier.ClassifyPlan(plan)
+	c.showClassificationResults(classifications, plan)
+}
+
+func (c *PlanCommand) showClassificationResults(classifications map[string]*classifier.ChangeClassification, plan *plans.Plan) {
+	c.Ui.Output(fmt.Sprintf("Total resource changes: %d", len(plan.Changes.Resources)))
+	c.Ui.Output(fmt.Sprintf("Classified changes: %d", len(classifications)))
+
+	safe, risky, destructive := 0, 0, 0
+	for _, classification := range classifications {
+		switch classification.SafetyLevel {
+		case classifier.SafetyLevel(1): // SafetySafe
+			safe++
+		case classifier.SafetyLevel(2): // SafetyRisky
+			risky++
+		case classifier.SafetyLevel(3): // SafetyDestructive
+			destructive++
+		}
+	}
+
+	c.Ui.Output("\n--- Change Classification ---")
+	c.Ui.Output(fmt.Sprintf("Safe changes: %d", safe))
+	c.Ui.Output(fmt.Sprintf("Risky changes: %d", risky))
+	c.Ui.Output(fmt.Sprintf("Destructive changes: %d", destructive))
+
+	if len(classifications) > 0 {
+		c.Ui.Output("\n--- Change Details ---")
+		for addr, classification := range classifications {
+			c.Ui.Output(fmt.Sprintf("%s: %s", addr, classification.Reason))
+		}
+	}
+
+	c.Ui.Output("\n--- Recommendations ---")
+	if destructive > 0 {
+		c.Ui.Output("CRITICAL: Destructive changes detected!")
+		c.Ui.Output("These will DELETE or REPLACE resources")
+		c.Ui.Output("Review carefully before applying!")
+	} else if risky > 0 {
+		c.Ui.Output("WARNING: Risky changes detected")
+		c.Ui.Output("May affect service availability")
+		c.Ui.Output("Review recommended")
+	} else if safe > 0 {
+		c.Ui.Output("SAFE: Only safe changes detected")
+		c.Ui.Output("These are typically safe to apply")
+	} else {
+		c.Ui.Output("No changes to apply")
+	}
+
+	c.Ui.Output("\n" + strings.Repeat("=", 50))
+}
+
+func (c *PlanCommand) readPlanFromFile(planPath string) (*plans.Plan, error) {
+	ctx := context.Background()
+
+	enc, err := c.Encryption(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get encryption: %w", err)
+	}
+
+	planFile, diags := c.LoadPlanFile(planPath, enc)
+	if diags.HasErrors() {
+		return nil, fmt.Errorf("failed to load plan file: %s", diags.Err().Error())
+	}
+
+	if localPlan, ok := planFile.Local(); ok {
+		plan, err := localPlan.ReadPlan()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read plan: %w", err)
+		}
+		return plan, nil
+	}
+
+	return nil, fmt.Errorf("cloud plans not supported for classification")
+}
+
+func (c *PlanCommand) LoadPlanFile(path string, enc encryption.Encryption) (*planfile.WrappedPlanFile, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	planFile, err := c.PlanFile(path, enc.Plan())
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			fmt.Sprintf("Failed to load %q as a plan file", path),
+			fmt.Sprintf("Error: %s", err),
+		))
+		return nil, diags
+	}
+
+	if planFile == nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			fmt.Sprintf("Failed to load %q as a plan file", path),
+			"The specified path is a directory, not a plan file.",
+		))
+		return nil, diags
+	}
+
+	return planFile, diags
+}
+
 func (c *PlanCommand) Help() string {
 	helpText := `
 Usage: tofu [global options] plan [options]
@@ -271,6 +395,9 @@ Plan Customization Options:
                           include more than one variables file.
 
 Other Options:
+
+  -classify-changes         Classify changes by safety level. 
+                            Use with -out flag to save plan for analysis.
 
   -compact-warnings            If OpenTofu produces any warnings that are not
                                accompanied by errors, shows them in a more

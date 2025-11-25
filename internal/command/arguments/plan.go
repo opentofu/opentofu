@@ -40,6 +40,8 @@ type Plan struct {
 
 	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
 	ModuleDeprecationWarnLevel string
+
+	ClassifyChanges bool
 }
 
 // ParsePlan processes CLI arguments, returning a Plan value and errors.
@@ -60,6 +62,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")
 	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.StringVar(&plan.ModuleDeprecationWarnLevel, "deprecation", "", "control the level of deprecation warnings")
+	cmdFlags.BoolVar(&plan.ClassifyChanges, "classify-changes", false, "classify changes by safety level")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")

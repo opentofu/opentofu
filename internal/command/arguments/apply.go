@@ -22,6 +22,8 @@ type Apply struct {
 	// AutoApprove skips the manual verification step for the apply operation.
 	AutoApprove bool
 
+	AutoApproveSafe bool
+
 	// InputEnabled is used to disable interactive input for unspecified
 	// variable and backend config values. Default is true.
 	InputEnabled bool
@@ -52,6 +54,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("apply", apply.State, apply.Operation, apply.Vars)
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
+	cmdFlags.BoolVar(&apply.AutoApproveSafe, "auto-approve-safe", false, "Automatically approve safe changes")
 	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.StringVar(&apply.ModuleDeprecationWarnings, "deprecation", "", "control the level of deprecation warnings")
