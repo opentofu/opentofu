@@ -60,6 +60,11 @@ var protocSteps = []protocStep{
 		"internal/plans/internal/planproto",
 		[]string{"--go_out=.", "--go_opt=paths=source_relative", "planfile.proto"},
 	},
+	{
+		"opentofu_execgraph (execution graph serialization)",
+		"internal/engine/internal/execgraph/execgraphproto",
+		[]string{"--go_out=.", "--go_opt=paths=source_relative", "execgraph.proto"},
+	},
 }
 
 func main() {
