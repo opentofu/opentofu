@@ -87,8 +87,8 @@ func TestSkipDestroy_resourceReplace(t *testing.T) {
 	}
 
 	change := plan.Changes.Resources[0]
-	if change.Action != plans.ForgetAndCreate {
-		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.ForgetAndCreate, "got", change.Action)
+	if change.Action != plans.ForgetThenCreate {
+		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.ForgetThenCreate, "got", change.Action)
 	}
 
 	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)

@@ -16,7 +16,7 @@ func _() {
 	_ = x[CreateThenDelete-177]
 	_ = x[Delete-45]
 	_ = x[Forget-46]
-	_ = x[ForgetAndCreate-8856]
+	_ = x[ForgetThenCreate-8856]
 	_ = x[Open-8272]
 }
 
@@ -29,7 +29,7 @@ const (
 	_Action_name_5 = "Open"
 	_Action_name_6 = "Read"
 	_Action_name_7 = "DeleteThenCreate"
-	_Action_name_8 = "ForgetAndCreate"
+	_Action_name_8 = "ForgetThenCreate"
 )
 
 var (

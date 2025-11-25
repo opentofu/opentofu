@@ -1578,8 +1578,8 @@ func (n *NodeAbstractResourceInstance) plan(
 	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
 	if action.IsReplace() && skipDestroy {
 		// We alter the action to "forget" and "create" to not trigger resource destruction
-		action = plans.ForgetAndCreate
-		log.Printf("[DEBUG] plan: %s changing action from %s to ForgetAndCreate due to lifecycle.destroy=false", n.Addr, action)
+		action = plans.ForgetThenCreate
+		log.Printf("[DEBUG] plan: %s changing action from %s to ForgetThenCreate due to lifecycle.destroy=false", n.Addr, action)
 	}
 
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity

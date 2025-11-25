@@ -364,7 +364,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					GeneratedConfig: rc.GeneratedConfig,
 				},
 			}
-		case CreateThenDelete, DeleteThenCreate, ForgetAndCreate:
+		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
 			return &ResourceInstanceChange{
 				Addr:         rc.Addr,
 				DeposedKey:   rc.DeposedKey,

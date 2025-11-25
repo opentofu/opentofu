@@ -89,7 +89,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			importingCount++
 		}
 
-		if action == plans.Forget || action == plans.ForgetAndCreate {
+		if action == plans.Forget || action == plans.ForgetThenCreate {
 			forgettingCount++
 		}
 
@@ -214,8 +214,8 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if counts[plans.Read] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Read)))
 		}
-		if counts[plans.ForgetAndCreate] > 0 {
-			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.ForgetAndCreate)))
+		if counts[plans.ForgetThenCreate] > 0 {
+			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.ForgetThenCreate)))
 		}
 		if counts[plans.Forget] > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color(actionDescription(plans.Forget)))
@@ -237,7 +237,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			}
 		}
 
-		toAdd := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete] + counts[plans.ForgetAndCreate]
+		toAdd := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete] + counts[plans.ForgetThenCreate]
 		toDestroy := counts[plans.Delete] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete]
 
 		if importingCount > 0 {
@@ -516,8 +516,8 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 
 		// We need to identify a special case where the resource is being forgotten instead of destroyed due to lifecycle.destroy flag persisted in state.
 		// The flag might no longer be present in the configuration, and we need to inform the user to avoid confusion.
-		// We don't need to separate this case in ForgetAndCreate, because the message already contains this information.
-		// Note that ForgetAndCreate is only used when lifecycle.destroy is set to false and the resource needs to be replaced.
+		// We don't need to separate this case in ForgetThenCreate, because the message already contains this information.
+		// Note that ForgetThenCreate is only used when lifecycle.destroy is set to false and the resource needs to be replaced.
 		if resource.ActionReason == jsonplan.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState {
 			buf.WriteString(" \n (because [bold]lifecycle.destroy = false[reset] was configured before this resource was removed from the configuration)")
 		}
@@ -529,7 +529,7 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			// context about this unusual situation.
 			buf.WriteString("\n  # (left over from a partially-failed replacement of this instance)")
 		}
-	case plans.ForgetAndCreate:
+	case plans.ForgetThenCreate:
 		switch resource.ActionReason {
 		case jsonplan.ResourceInstanceReplaceBecauseTainted:
 			buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] is tainted, so it must be [bold][red]replaced[reset]", dispAddr))
@@ -615,7 +615,7 @@ func actionDescription(action plans.Action) string {
 		return "[green]+[reset]/[red]-[reset] create replacement and then destroy"
 	case plans.DeleteThenCreate:
 		return "[red]-[reset]/[green]+[reset] destroy and then create replacement"
-	case plans.ForgetAndCreate:
+	case plans.ForgetThenCreate:
 		return "[red].[reset]/[green]+[reset] forget the old instance and create replacement"
 	case plans.Read:
 		return " [cyan]<=[reset] read (data resources)"
