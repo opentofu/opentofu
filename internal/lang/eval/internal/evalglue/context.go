@@ -36,7 +36,7 @@ type EvalContext struct {
 
 	// Provisioners gives access to all of the provisioners available for
 	// use in this context.
-	Provisioners Provisioners
+	Provisioners ProvisionersSchema
 
 	// RootModuleDir and OriginalWorkingDir both represent local filesystem
 	// directories whose paths are exposed in various ways to expressions
