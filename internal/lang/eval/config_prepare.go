@@ -181,6 +181,13 @@ func (v *preparationGlue) ResourceInstanceValue(ctx context.Context, ri *configg
 		return cty.DynamicVal, diags
 	}
 
+	validateDiags := v.providers.ValidateResourceConfig(ctx, ri.Provider, ri.Addr.Resource.Resource.Mode, ri.Addr.Resource.Resource.Type, configVal)
+	diags = diags.Append(validateDiags)
+	if diags.HasErrors() {
+		// Provider indicated an invalid resource configuration
+		return cty.DynamicVal, diags
+	}
+
 	// FIXME: If we have a managed or data resource instance, as opposed to
 	// an ephemeral resource instance, then we should check to make sure
 	// that ephemeral-marked values only appear in parts of the configVal

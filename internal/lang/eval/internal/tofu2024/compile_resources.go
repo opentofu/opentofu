@@ -105,9 +105,6 @@ func compileModuleInstanceResource(
 			// in the current phase. (The planned new state during the plan
 			// phase, for example.)
 			inst.Glue = &resourceInstanceGlue{
-				validateConfig: func(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
-					return providers.ValidateResourceConfig(ctx, config.Provider, resourceAddr.Mode, resourceAddr.Type, configVal)
-				},
 				getResultValue: func(ctx context.Context, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {
 					return getResultValue(ctx, inst, configVal, providerInst)
 				},
@@ -123,13 +120,7 @@ func compileModuleInstanceResource(
 // to us for needs that require interacting with outside concerns like
 // provider plugins, an active plan or apply process, etc.
 type resourceInstanceGlue struct {
-	validateConfig func(context.Context, cty.Value) tfdiags.Diagnostics
 	getResultValue func(context.Context, cty.Value, configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics)
-}
-
-// ValidateConfig implements configgraph.ResourceInstanceGlue.
-func (r *resourceInstanceGlue) ValidateConfig(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics {
-	return r.validateConfig(ctx, configVal)
 }
 
 // ResultValue implements configgraph.ResourceInstanceGlue.
