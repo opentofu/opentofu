@@ -7,6 +7,8 @@ package execgraph
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/zclconf/go-cty-debug/ctydebug"
@@ -124,8 +126,16 @@ func (g *Graph) DebugRepr() string {
 	if g.resourceInstanceResults.Len() != 0 && (len(g.ops) != 0 || len(g.constantVals) != 0) {
 		buf.WriteByte('\n')
 	}
+	// We'll sort the resource instance results by instance address key just
+	// so that the resulting order is consistent for comparison in tests.
+	resourceInstanceResults := make(map[string]string)
 	for _, elem := range g.resourceInstanceResults.Elems {
-		fmt.Fprintf(&buf, "%s = %s;\n", elem.Key.String(), g.resultDebugRepr(elem.Value))
+		resourceInstanceResults[elem.Key.String()] = g.resultDebugRepr(elem.Value)
+	}
+	resourceInstanceAddrs := slices.Collect(maps.Keys(resourceInstanceResults))
+	slices.Sort(resourceInstanceAddrs)
+	for _, addrStr := range resourceInstanceAddrs {
+		fmt.Fprintf(&buf, "%s = %s;\n", addrStr, resourceInstanceResults[addrStr])
 	}
 	return buf.String()
 }
