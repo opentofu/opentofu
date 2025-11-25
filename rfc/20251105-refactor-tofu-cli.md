@@ -292,6 +292,20 @@ Most probably will have to do a custom function just because of the flags being 
 
 You can compare this with the output generated when running `tofu -h` so that we can have a discussion around this.
 
+#### Autocomplete
+We have several tickets that suggest some enhance approaches related to autocompletion:
+* [#2239](https://github.com/opentofu/opentofu/issues/2239) - Provide pre-generated autocompletion configuration scripts for inclusion in deb/rpm/homebrew/etc packages
+* [#3500](https://github.com/opentofu/opentofu/issues/3500) - Expose shell completion content
+ 
+As seen, there would be preference in being able to expose the autocomplete scripts and not have a direct installation of those, as it's done right now.
+The current CLI library uses https://github.com/posener/complete that is doing only the installation of the autocomplete scripts,
+without giving the option to print those to stdout for allowing the users to source those on the fly.
+
+Compared with the library that we use right now for autocompletion, by using other libraries that support autocompletion, we would should target on a solution
+that:
+* allows customisation of the installation scripts (to be able to use the same ones that we use today)
+* allows customisation of the stream to write the autocompletion to, therefore enabling us to use the same installation approach that we have today and in addition, allowing us to write those directly to stdout.
+
 ### Open Questions
 * Is out there some context and quirks that we need to know about the order of execution of specific bits in our startup? 
   * To explain what I am referring to, I've seen that there is a specific logic around `chdir` where CLI configuration needs to be loaded before executing `chdir` to reference the initial workdir.
