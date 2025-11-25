@@ -200,11 +200,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 	// If the orphan instance has skip_destroy set in state, we skip destroying
 	shouldDestroy := !skipDestroy && !oldState.SkipDestroy
 
+	log.Printf("[TRACE] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan): shouldDestroy=%t (based on config)", n.Addr, shouldDestroy)
 	// Note that removed statements take precedence, since it is the latest intent the user declared
 	// As opposed to the lifecycle attribute, which was the previous intention declared on the orphaned resource
 	for _, rs := range n.RemoveStatements {
 		if rs.From.TargetContains(n.Addr) {
 			shouldDestroy = rs.Destroy
+			log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) removed block found, overriding shouldDestroy to %t", addr, shouldDestroy)
 		}
 	}
 
@@ -216,6 +218,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 			Summary:  "Resource going to be removed from the state",
 			Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 		})
+		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy", addr)
 		change = n.planForget(ctx, evalCtx, oldState, "")
 		if oldState.SkipDestroy {
 			change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState

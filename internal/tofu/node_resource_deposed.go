@@ -175,11 +175,13 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		// If the deposed instance has skip_destroy set in state, we skip destroying
 		shouldDestroy := !skipDestroy && !state.SkipDestroy
 
+		log.Printf("[TRACE] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s): skipDestroy based on config=%t; based on state.SkipDestroy=%t; shouldDestroy=%t", n.Addr, n.DeposedKey, skipDestroy, state.SkipDestroy, shouldDestroy)
 		// Note that removed statements take precedence, since it is the latest intent the user declared
 		// As opposed to the lifecycle attribute, which might have been altered after the resource got deposed
 		for _, rs := range n.RemoveStatements {
 			if rs.From.TargetContains(n.Addr) {
 				shouldDestroy = rs.Destroy
+				log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) removed block found, overriding shouldDestroy to %t", n.Addr, n.DeposedKey, shouldDestroy)
 			}
 		}
 
@@ -191,6 +193,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 				Summary:  "Resource going to be removed from the state",
 				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 			})
+			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy", n.Addr, n.DeposedKey)
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
 			if state.SkipDestroy {
 				change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState

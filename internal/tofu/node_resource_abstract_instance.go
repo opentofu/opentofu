@@ -1261,6 +1261,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	if diags.HasErrors() {
 		return nil, nil, keyData, diags
 	}
+	log.Printf("[TRACE] plan: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
 
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
@@ -1578,6 +1579,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	if action.IsReplace() && skipDestroy {
 		// We alter the action to "forget" and "create" to not trigger resource destruction
 		action = plans.ForgetAndCreate
+		log.Printf("[DEBUG] plan: %s changing action from %s to ForgetAndCreate due to lifecycle.destroy=false", n.Addr, action)
 	}
 
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity
@@ -3081,6 +3083,7 @@ func (n *NodeAbstractResourceInstance) apply(
 
 	skipDestroy, skipDiags := n.shouldSkipDestroy()
 	diags = diags.Append(skipDiags)
+	log.Printf("[TRACE] apply: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
 
 	if change.Action != plans.Delete && !diags.HasErrors() {
 		// Only values that were marked as unknown in the planned value are allowed
