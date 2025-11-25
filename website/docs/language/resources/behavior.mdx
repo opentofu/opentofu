@@ -172,7 +172,7 @@ block for a managed resource:
   requires replacement, or is explicitly destroyed using the `tofu destroy` command,
   OpenTofu will destroy the corresponding infrastructure object. Setting this
   meta-argument to `false` changes this behavior so that OpenTofu will instead
-  "forget" the resource, removing it from the state without destroying the actual
+  "forget" the resource instance, removing it from the state without destroying the actual
   infrastructure object.
 
   :::note
