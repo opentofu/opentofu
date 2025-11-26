@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -90,10 +91,11 @@ func TestLock_Contention(t *testing.T) {
 		t.Logf("Second lock failed as expected - true contention detected: %v", err)
 		
 		// Verify that unlocking the first handle allows the second to succeed
-		// This tests that locks are properly released and not "stuck"
-		err = Unlock(f1)
+		// We are likely in a Windows OS now and our Unlock implementation for Windows is a no-op
+		// As commented there, we need to use Close
+		err = f1.Close()
 		if err != nil {
-			t.Fatalf("Failed to unlock first handle: %v", err)
+			t.Fatalf("Failed to close the first file: %v", err)
 		}
 
 		// After releasing first lock, second should be able to acquire it
@@ -172,7 +174,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 
 	f2, err := os.OpenFile(lockFile, os.O_RDWR, 0644)
 	if err != nil {
-		t.Fatalf("Failed to open test file: %v", err)
+		t.Fatalf("Failed to open test file with a second handler: %v", err)
 	}
 	defer f2.Close()
 
@@ -200,7 +202,7 @@ func TestLockBlocking_Cancellation(t *testing.T) {
 	t.Logf("System supports real contention between same-process handles")
 
 	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
 	// Attempt blocking lock with second handle - should be cancelled
@@ -247,7 +249,7 @@ func TestLockBlocking_EventualSuccess(t *testing.T) {
 
 	f2, err := os.OpenFile(lockFile, os.O_RDWR, 0644)
 	if err != nil {
-		t.Fatalf("Failed to open test file: %v", err)
+		t.Fatalf("Failed to open test file with a second handler: %v", err)
 	}
 	defer f2.Close()
 
@@ -270,7 +272,11 @@ func TestLockBlocking_EventualSuccess(t *testing.T) {
 
 	// Release first lock after short delay
 	time.Sleep(50 * time.Millisecond)
-	err = Unlock(f1)
+	if runtime.GOOS == "windows" {
+		err = f1.Close()
+	} else {
+		err = Unlock(f1)
+	}
 	if err != nil {
 		t.Fatalf("Failed to unlock first: %v", err)
 	}
