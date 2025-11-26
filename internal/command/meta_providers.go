@@ -364,11 +364,14 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 			Managed:          true,
 			Cmd:              exec.Command(execFile),
-			AutoMTLS:         enableProviderAutoMTLS,
 			VersionedPlugins: tfplugin.VersionedPlugins,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
 		}
+
+		// FIPS Compliance: Go's crypto/tls automatically uses FIPS-validated modules
+		// when GODEBUG=fips140=on is set, so AutoMTLS works correctly in FIPS mode.
+		config.AutoMTLS = enableProviderAutoMTLS
 
 		client := plugin.NewClient(config)
 		rpcClient, err := client.Client()

@@ -6,6 +6,10 @@ UPGRADE NOTES:
 
     If you run OpenTofu in a context where an environment variable of that name is already set, it may cause OpenTofu to now open a web browser in a different way than previous versions would have. Unsetting that environment variable will restore the previous platform-specific behavior.
 
+NEW FEATURES:
+
+* **Experimental: FIPS 140-3 Mode Support:** OpenTofu can now optionally be run in a mode that utilizes FIPS 140-3 validated cryptographic modules provided by the underlying Go 1.24+ runtime. This helps organizations meet certain compliance requirements by ensuring only approved cryptographic algorithms are used for operations like TLS connections. To enable FIPS mode, ensure your OpenTofu binary was built with Go 1.24 or later and set the environment variable `GODEBUG=fips140=on` before running `tofu` commands. **Important Limitation:** The `ProtonMail/go-crypto/openpgp` library is not FIPS-compliant, so GPG signature validation for provider packages is **automatically skipped** when FIPS mode is enabled. A warning will be logged when this occurs. In this mode, provider integrity relies on FIPS-validated TLS connections and checksum verification. See the [FIPS Mode documentation](./docs/usage/fips.md) for more details.
+
 ENHANCEMENTS:
 
 - `prevent_destroy` arguments in the `lifecycle` block for managed resources can now use references to other symbols in the same module, such as to a module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))

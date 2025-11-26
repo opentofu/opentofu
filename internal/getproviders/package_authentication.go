@@ -8,6 +8,7 @@ package getproviders
 import (
 	"bufio"
 	"bytes"
+	"crypto/fips140"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -464,6 +465,34 @@ func (s signatureAuthentication) shouldEnforceGPGExpiration() bool {
 }
 
 func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (*PackageAuthenticationResult, error) {
+	// Check if FIPS mode is enabled - skip GPG validation if so
+	if fips140.Enabled() {
+		return s.skipGPGValidation(location, "FIPS mode is enabled and the underlying GPG library (ProtonMail/go-crypto) is not FIPS-compliant")
+	}
+
+	// Perform normal GPG validation
+	return s.performGPGValidation(location)
+}
+
+// skipGPGValidation returns an authentication result that skips GPG signature verification.
+// This is used when GPG validation cannot be performed (e.g., in FIPS mode) but we still
+// trust the registry's report via the secure TLS connection.
+func (s signatureAuthentication) skipGPGValidation(location PackageLocation, reason string) (*PackageAuthenticationResult, error) {
+	log.Printf("[WARN] Skipping GPG validation of provider package %s: %s", location, reason)
+
+	// Create hash dispositions that rely on registry trust via TLS
+	hashes := make(HashDispositions)
+	for _, hash := range s.acceptableHashes() {
+		hashes[hash] = &HashDisposition{
+			ReportedByRegistry: true,
+			// No signing key IDs since validation was skipped
+		}
+	}
+	return &PackageAuthenticationResult{hashes: hashes}, nil
+}
+
+// performGPGValidation performs normal GPG signature validation when not in FIPS mode.
+func (s signatureAuthentication) performGPGValidation(location PackageLocation) (*PackageAuthenticationResult, error) {
 	shouldValidate := s.shouldEnforceGPGValidation()
 
 	var signingKeyIDs collections.Set[string]
@@ -489,7 +518,7 @@ func (s signatureAuthentication) AuthenticatePackage(location PackageLocation) (
 	for _, hash := range s.acceptableHashes() {
 		hashes[hash] = &HashDisposition{
 			ReportedByRegistry: true,
-			SignedByGPGKeyIDs:  signingKeyIDs,
+			SignedByGPGKeyIDs:  signingKeyIDs, // This will be empty if validation was skipped due to policy
 		}
 	}
 	return &PackageAuthenticationResult{hashes: hashes}, nil
