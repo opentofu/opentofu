@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 )
@@ -19,7 +18,26 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 	var methods []config.MethodConfig
 
 	for target != nil {
-		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
+		// In https://github.com/opentofu/opentofu/issues/3482 was discovered that interpolation for
+		// target.method does not work, but only literal reference.
+		// This solves the inconsistencies between the way string expressions are evaluated for state.method vs method.keys.
+		traversals := target.Method.Variables()
+		var traversal hcl.Traversal
+		var travDiags hcl.Diagnostics
+		l := len(traversals)
+		switch {
+		case l == 1:
+			traversal = traversals[0]
+		case l > 1:
+			travDiags = travDiags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid encryption method expression",
+				Detail:   fmt.Sprintf(`Found %d expressions but "method" is meant to have just 1.`, len(traversals)),
+				Subject:  target.Method.Range().Ptr(),
+			})
+		default:
+			traversal, travDiags = hcl.AbsTraversalForExpr(target.Method)
+		}
 		diags = diags.Extend(travDiags)
 
 		if !travDiags.HasErrors() {
