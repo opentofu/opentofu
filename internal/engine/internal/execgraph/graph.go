@@ -95,7 +95,7 @@ type Graph struct {
 	// operation for each resource instance should also directly depend on
 	// the results of any resource instances that were identified as
 	// resource-instance-graph dependencies during the planning process.
-	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObject]]
+	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
 }
 
 // DebugRepr returns a relatively-concise string representation of the

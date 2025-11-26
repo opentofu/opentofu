@@ -75,13 +75,14 @@ type resourceInstancePriorStateResultRef struct {
 	index int
 }
 
-var _ ResultRef[*states.ResourceInstanceObject] = resourceInstancePriorStateResultRef{}
+var _ ResultRef[*states.ResourceInstanceObjectFull] = resourceInstancePriorStateResultRef{}
 
 // anyResultPlaceholderSigil implements ResultRef.
 func (r resourceInstancePriorStateResultRef) anyResultPlaceholderSigil() {}
 
 // resultPlaceholderSigil implements ResultRef.
-func (r resourceInstancePriorStateResultRef) resultPlaceholderSigil(*states.ResourceInstanceObject) {}
+func (r resourceInstancePriorStateResultRef) resultPlaceholderSigil(*states.ResourceInstanceObjectFull) {
+}
 
 // providerInstanceConfigResultRef is a [ResultRef] referring to an item in a
 // graph's table of provider instance configuration requests.
