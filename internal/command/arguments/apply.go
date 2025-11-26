@@ -34,9 +34,6 @@ type Apply struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
-
-	// ModuleDeprecationWarnings is used to control what kind of deprecation warnings are shown.
-	ModuleDeprecationWarnings string
 }
 
 // ParseApply processes CLI arguments, returning an Apply value and errors.
@@ -54,7 +51,6 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
 	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	cmdFlags.StringVar(&apply.ModuleDeprecationWarnings, "deprecation", "", "control the level of deprecation warnings")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")
