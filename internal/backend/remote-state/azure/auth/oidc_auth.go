@@ -24,6 +24,7 @@ type OIDCAuthConfig struct {
 	OIDCTokenFilePath string
 	OIDCRequestURL    string
 	OIDCRequestToken  string
+	ADOPipelineServiceConnectionID string
 }
 
 type oidcAuth struct{}
@@ -71,6 +72,9 @@ type TokenResponse struct {
 }
 
 func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, error) {
+	if config.ADOPipelineServiceConnectionID != "" {
+		return getTokenFromADO(client, config)
+	}
 	// GET from the request URL, using the bearer token
 	req, err := http.NewRequest(http.MethodGet, config.OIDCRequestURL, nil)
 	if err != nil {
@@ -106,6 +110,45 @@ func getTokenFromRemote(client *http.Client, config OIDCAuthConfig) (string, err
 	return token.Value, nil
 }
 
+type ADOTokenResponse struct {
+	IDToken string   `json:"id_token"`
+}
+
+func getTokenFromADO(client *http.Client, config OIDCAuthConfig) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, config.OIDCRequestURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("malformed ADO OIDC token request: %w", err)
+
+	}
+	req.Header.Add("Authorization", "Bearer "+config.OIDCRequestToken)
+	req.Header.Add("Accept", "application/json; api-version=7.1-preview.1")
+	req.Header.Add("Content-Type", "application/json")
+
+	query := req.URL.Query()
+	query.Set("audience", config.ADOPipelineServiceConnectionID)
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error obtaining ADO OIDC token: %w", err)
+	}
+    defer resp.Body.Close()
+
+    raw, err:= io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading ADO response body: %w", err)
+	}
+    if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+        return "", fmt.Errorf("non-2xx response from ADO: %s", raw)
+    }
+    var token ADOTokenResponse
+    if err := json.Unmarshal(raw, &token); err != nil {
+        return "", fmt.Errorf("invalid ADO token JSON: %w", err)
+    }
+    return token.IDToken, nil
+
+}
+
 func consolidateToken(config *Config) (string, error) {
 	return consolidateFileAndValue(config.OIDCToken, config.OIDCTokenFilePath, "token", true)
 }
@@ -137,13 +180,24 @@ func (cred *oidcAuth) Validate(ctx context.Context, config *Config) tfdiags.Diag
 	}
 	directTokenUnset := config.OIDCToken == "" && config.OIDCTokenFilePath == ""
 	indirectTokenUnset := config.OIDCRequestURL == "" || config.OIDCRequestToken == ""
-	if directTokenUnset && indirectTokenUnset {
+	isADORequest := config.ADOPipelineServiceConnectionID != ""
+
+	if directTokenUnset && indirectTokenUnset && !isADORequest {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure OpenID Connect Auth",
 			"An access token must be provided, either directly with a variable or through a file, or indirectly through a request URL and request token (as in GitHub Actions).",
 		))
 	}
+
+	if isADORequest && (config.OIDCRequestURL == "" || config.OIDCRequestToken == "") {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid Azure OpenID Connect Auth",
+			"When `ado_pipeline_service_connection_id` is specified, `oidc_request_url` and `oidc_request_token` must also be specified for Azure DevOps OIDC authentication.",
+		))
+	}
+
 	if directTokenUnset {
 		// check request URL and token
 		_, err := getTokenFromRemote(httpclient.New(ctx), config.OIDCAuthConfig)
