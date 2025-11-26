@@ -176,7 +176,7 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			if !ok {
 				return cty.DynamicVal
 			}
-			finalStateObj := rawResult.(*states.ResourceInstanceObject)
+			finalStateObj := rawResult.(*states.ResourceInstanceObjectFull)
 			return finalStateObj.Value
 		})
 	}

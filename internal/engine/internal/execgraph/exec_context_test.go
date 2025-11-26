@@ -25,7 +25,7 @@ type MockExecContext struct {
 	DesiredResourceInstanceFunc    func(ctx context.Context, addr addrs.AbsResourceInstance) *eval.DesiredResourceInstance
 	NewProviderClientFunc          func(ctx context.Context, addr addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics)
 	ProviderInstanceConfigFunc     func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value
-	ResourceInstancePriorStateFunc func(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObject
+	ResourceInstancePriorStateFunc func(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObjectFull
 
 	mu sync.Mutex
 }
@@ -64,8 +64,8 @@ func (m *MockExecContext) ProviderInstanceConfig(ctx context.Context, addr addrs
 }
 
 // ResourceInstancePriorState implements ExecContext.
-func (m *MockExecContext) ResourceInstancePriorState(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObject {
-	var result *states.ResourceInstanceObject
+func (m *MockExecContext) ResourceInstancePriorState(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObjectFull {
+	var result *states.ResourceInstanceObjectFull
 	if m.ResourceInstancePriorStateFunc != nil {
 		result = m.ResourceInstancePriorStateFunc(ctx, addr, deposedKey)
 	}

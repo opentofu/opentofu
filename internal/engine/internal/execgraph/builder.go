@@ -38,7 +38,7 @@ type Builder struct {
 	// we throw these away after building is complete because the graph
 	// becomes immutable at that point.
 	desiredStateRefs       addrs.Map[addrs.AbsResourceInstance, ResultRef[*eval.DesiredResourceInstance]]
-	priorStateRefs         addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObject]]
+	priorStateRefs         addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
 	providerAddrRefs       map[addrs.Provider]ResultRef[addrs.Provider]
 	providerInstConfigRefs addrs.Map[addrs.AbsProviderInstanceCorrect, ResultRef[cty.Value]]
 	openProviderRefs       addrs.Map[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[providers.Configured]]
@@ -48,10 +48,10 @@ type Builder struct {
 func NewBuilder() *Builder {
 	return &Builder{
 		graph: &Graph{
-			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObject]](),
+			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]](),
 		},
 		desiredStateRefs:       addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*eval.DesiredResourceInstance]](),
-		priorStateRefs:         addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObject]](),
+		priorStateRefs:         addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]](),
 		providerAddrRefs:       make(map[addrs.Provider]ResultRef[addrs.Provider]),
 		providerInstConfigRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ResultRef[cty.Value]](),
 		openProviderRefs:       addrs.MakeMap[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[providers.Configured]](),
@@ -122,7 +122,7 @@ func (b *Builder) DesiredResourceInstance(addr addrs.AbsResourceInstance) Result
 // state model, but a real implementation of this might benefit from a slightly
 // different model tailored to be used in isolation, without the rest of the
 // state tree it came from.
-func (b *Builder) ResourceInstancePriorState(addr addrs.AbsResourceInstance) ResultRef[*states.ResourceInstanceObject] {
+func (b *Builder) ResourceInstancePriorState(addr addrs.AbsResourceInstance) ResultRef[*states.ResourceInstanceObjectFull] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -148,7 +148,7 @@ func (b *Builder) ResourceInstancePriorState(addr addrs.AbsResourceInstance) Res
 // codepath attempting to register the chain of nodes for any deposed object,
 // and no resource instance should depend on the result of applying changes
 // to a deposed object.
-func (b *Builder) ResourceDeposedObjectState(instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) ResultRef[*states.ResourceInstanceObject] {
+func (b *Builder) ResourceDeposedObjectState(instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) ResultRef[*states.ResourceInstanceObjectFull] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -288,7 +288,7 @@ func (b *Builder) CloseProviderClient(clientResult ResultRef[providers.Configure
 // resource-instance-graph dependencies have had their changes applied.
 func (b *Builder) ManagedResourceObjectFinalPlan(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	priorState ResultRef[*states.ResourceInstanceObject],
+	priorState ResultRef[*states.ResourceInstanceObjectFull],
 	plannedVal ResultRef[cty.Value],
 	providerClient ResultRef[providers.Configured],
 	waitFor AnyResultRef,
@@ -312,11 +312,11 @@ func (b *Builder) ManagedResourceObjectFinalPlan(
 func (b *Builder) ApplyManagedResourceObjectChanges(
 	finalPlan ResultRef[*ManagedResourceObjectFinalPlan],
 	providerClient ResultRef[providers.Configured],
-) ResultRef[*states.ResourceInstanceObject] {
+) ResultRef[*states.ResourceInstanceObjectFull] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObject](b, operationDesc{
+	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
 		opCode:   opManagedApplyChanges,
 		operands: []AnyResultRef{finalPlan, providerClient},
 	})
@@ -326,12 +326,12 @@ func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	providerClient ResultRef[providers.Configured],
 	waitFor AnyResultRef,
-) ResultRef[*states.ResourceInstanceObject] {
+) ResultRef[*states.ResourceInstanceObjectFull] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[*states.ResourceInstanceObject](b, operationDesc{
+	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
 		opCode:   opDataRead,
 		operands: []AnyResultRef{desiredInst, providerClient, waiter},
 	})
@@ -345,7 +345,7 @@ func (b *Builder) DataRead(
 // Only one call is allowed per distinct [addrs.AbsResourceInstance] value. If
 // two callers try to register for the same address then the second call will
 // panic.
-func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result ResultRef[*states.ResourceInstanceObject]) {
+func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result ResultRef[*states.ResourceInstanceObjectFull]) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

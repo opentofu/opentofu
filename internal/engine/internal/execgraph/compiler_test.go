@@ -81,12 +81,20 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				ProviderInstance: &providerInstAddr,
 			}
 		},
-		ResourceInstancePriorStateFunc: func(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObject {
-			return &states.ResourceInstanceObject{
+		ResourceInstancePriorStateFunc: func(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObjectFull {
+			return &states.ResourceInstanceObjectFull{
 				Status: states.ObjectReady,
 				Value: cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("prior"),
 				}),
+				ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
+					Config: addrs.AbsProviderConfigCorrect{
+						Config: addrs.ProviderConfigCorrect{
+							Provider: addrs.NewBuiltInProvider("test"),
+						},
+					},
+				},
+				ResourceType: addr.Resource.Resource.Type,
 			}
 		},
 		ProviderInstanceConfigFunc: func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
@@ -185,11 +193,19 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		{
 			MethodName: "ResourceInstancePriorState",
 			Args:       []any{resourceInstAddr, states.NotDeposed},
-			Result: &states.ResourceInstanceObject{
+			Result: &states.ResourceInstanceObjectFull{
 				Status: states.ObjectReady,
 				Value: cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("prior"),
 				}),
+				ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
+					Config: addrs.AbsProviderConfigCorrect{
+						Config: addrs.ProviderConfigCorrect{
+							Provider: addrs.NewBuiltInProvider("test"),
+						},
+					},
+				},
+				ResourceType: "bar_thing",
 			},
 		},
 		{
