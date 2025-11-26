@@ -27,11 +27,6 @@ import (
 // with the self-dependency detection used by this package to prevent
 // deadlocks.
 type ResourceInstanceGlue interface {
-	// ValidateConfig determines whether the given value is a valid
-	// configuration for a resource instance of the expected type, presumably
-	// by asking the provider that the resource type belongs to.
-	ValidateConfig(ctx context.Context, configVal cty.Value) tfdiags.Diagnostics
-
 	// ResultValue returns the results of whatever side-effects are happening
 	// for this resource in the current phase, such as getting the "planned new
 	// state" of the resource instance during the plan phase, while keeping this

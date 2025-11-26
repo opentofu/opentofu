@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -45,10 +46,10 @@ import (
 // implementation of how it decides what to plan and how to plan it, and less
 // on where it gets the information to make those decisions and how it
 // represents those decisions in its return value.
-func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *eval.ConfigInstance) (*plans.Plan, tfdiags.Diagnostics) {
+func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState)
+	planCtx := newPlanContext(configInst.EvalContext(), prevRoundState, providers)
 
 	// This configInst.DrivePlanning call blocks until the evaluator has
 	// visited all expressions in the configuration and calls

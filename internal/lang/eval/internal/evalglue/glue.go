@@ -10,6 +10,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -24,6 +25,9 @@ import (
 // of [Glue] to adapt that into the minimal set of operations
 // that are needed regardless of what overall operation we're currently driving.
 type Glue interface {
+	// I'm not sure that this belongs here
+	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+
 	// ResourceInstanceValue returns the result value for the given resource
 	// instance.
 	//

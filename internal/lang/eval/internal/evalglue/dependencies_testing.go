@@ -21,15 +21,15 @@ import (
 // information directly from the given map.
 //
 // This is intended for unit testing only.
-func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) Providers {
+func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) ProvidersSchema {
 	return providersStatic{schemas}
 }
 
-// ProvisionersForTesting returns a [Provisioners] implementation that just
+// ProvisionersForTesting returns a [ProvisionersSchema] implementation that just
 // returns information directly from the given map.
 //
 // This is intended for unit testing only.
-func ProvisionersForTesting(schemas map[string]*configschema.Block) Provisioners {
+func ProvisionersForTesting(schemas map[string]*configschema.Block) ProvisionersSchema {
 	return provisionersStatic{schemas}
 }
 

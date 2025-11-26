@@ -26,6 +26,9 @@ import (
 // each other, and so implementations must use suitable synchronization to
 // avoid data races between calls.
 type PlanGlue interface {
+	// I'm not sure that this belongs here
+	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
 	//
@@ -214,6 +217,11 @@ type planningEvalGlue struct {
 }
 
 var _ evalglue.Glue = (*planningEvalGlue)(nil)
+
+// ValidateProviderConfig implements evalglue.Glue.
+func (p *planningEvalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	return p.planEngineGlue.ValidateProviderConfig(ctx, provider, configVal)
+}
 
 // ResourceInstanceValue implements evalglue.Glue.
 func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {

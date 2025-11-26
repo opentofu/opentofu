@@ -325,6 +325,11 @@ type planGlueCallLog struct {
 	mu                       sync.Mutex
 }
 
+// I'm not sure that this belongs here
+func (p *planGlueCallLog) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	return p.providers.ValidateProviderConfig(ctx, provider, configVal)
+}
+
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	p.mu.Lock()

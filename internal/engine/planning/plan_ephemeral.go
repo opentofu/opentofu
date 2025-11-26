@@ -16,6 +16,13 @@ import (
 func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
+	var diags tfdiags.Diagnostics
+
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
+	diags = diags.Append(validateDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
 
 	// TODO: Implement
 	panic("unimplemented")
