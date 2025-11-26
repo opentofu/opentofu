@@ -925,6 +925,8 @@ func TestEvaluatorGetModule(t *testing.T) {
 
 // TestEvaluatorGetModule_ForEach verifies that GetModule correctly evaluates
 // a module with for_each that has output values defined in state.
+// This is a regression test to ensure the fix for (modules without outputs)
+// doesn't break the existing behavior for modules WITH outputs.
 func TestEvaluatorGetModule_ForEach(t *testing.T) {
 	expander := instances.NewExpander()
 	expander.SetModuleForEach(
