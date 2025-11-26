@@ -63,7 +63,7 @@ func (m *graphMarshaler) EnsureOperationPresent(idx int) uint64 {
 	return m.ensureRefTarget(erasedRef)
 }
 
-func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObject]]) {
+func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]) {
 	m.resourceInstanceResults = make(map[string]uint64)
 	for _, mapElem := range results.Elems {
 		instAddr := mapElem.Key
