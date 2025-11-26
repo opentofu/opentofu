@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/apparentlymart/go-versions/versions"
 
@@ -365,36 +366,33 @@ func (i *Installer) ensureProviderVersionsNeed(
 	errs map[addrs.Provider]error,
 ) (map[addrs.Provider]getproviders.Version, error) {
 	evts := installerEventsForContext(ctx)
-	need := map[addrs.Provider]getproviders.Version{}
-NeedProvider:
 
-	for provider, acceptableVersions := range mightNeed {
-		if err := ctx.Err(); err != nil {
-			// If our context has been cancelled or reached a timeout then
-			// we'll abort early, because subsequent operations against
-			// that context will fail immediately anyway.
-			return nil, err
-		}
+	if err := ctx.Err(); err != nil {
+		// If our context has been cancelled or reached a timeout then
+		// we'll abort early, because subsequent operations against
+		// that context will fail immediately anyway.
+		return nil, err
+	}
+
+	computeNeeds := func(provider addrs.Provider, acceptableVersions getproviders.VersionSet) (getproviders.Version, error) {
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
 		// Version 0.0.0 not supported
 		if err := checkUnspecifiedVersion(acceptableVersions); err != nil {
-			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
 			}
-			continue
+			return getproviders.Version{}, err
 		}
 
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
-			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
 			}
 			// We will take no further actions for this provider.
-			continue
+			return getproviders.Version{}, err
 		}
 		if len(warnings) > 0 {
 			if cb := evts.QueryPackagesWarning; cb != nil {
@@ -404,11 +402,10 @@ NeedProvider:
 		available.Sort()                           // put the versions in increasing order of precedence
 		for i := len(available) - 1; i >= 0; i-- { // walk backwards to consider newer versions first
 			if acceptableVersions.Has(available[i]) {
-				need[provider] = available[i]
 				if cb := evts.QueryPackagesSuccess; cb != nil {
 					cb(provider, available[i])
 				}
-				continue NeedProvider
+				return available[i], nil
 			}
 		}
 		// If we get here then the source has no packages that meet the given
@@ -424,11 +421,33 @@ NeedProvider:
 			log.Printf("[DEBUG] %s", err.Error())
 			log.Printf("[DEBUG] Available releases: %s", available)
 		}
-		errs[provider] = err
 		if cb := evts.QueryPackagesFailure; cb != nil {
 			cb(provider, err)
 		}
+		return getproviders.Version{}, err
 	}
+
+	need := map[addrs.Provider]getproviders.Version{}
+	var updateLock sync.Mutex
+	var wg sync.WaitGroup
+
+	for provider, acceptableVersions := range mightNeed {
+		wg.Go(func() {
+			// Heavy lifting
+			version, err := computeNeeds(provider, acceptableVersions)
+
+			// Update results
+			updateLock.Lock()
+			defer updateLock.Unlock()
+
+			if err != nil {
+				errs[provider] = err
+			} else {
+				need[provider] = version
+			}
+		})
+	}
+	wg.Wait()
 
 	return need, nil
 }
@@ -442,50 +461,64 @@ func (i *Installer) ensureProviderVersionsInstall(
 	targetPlatform getproviders.Platform,
 	errs map[addrs.Provider]error,
 ) (map[addrs.Provider]*getproviders.PackageAuthenticationResult, error) {
+	if err := ctx.Err(); err != nil {
+		// If our context has been cancelled or reached a timeout then
+		// we'll abort early, because subsequent operations against
+		// that context will fail immediately anyway.
+		return nil, err
+	}
+
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
+	var updateLock sync.Mutex
+	var wg sync.WaitGroup
 
 	for provider, version := range need {
-		traceCtx, span := tracing.Tracer().Start(ctx,
-			fmt.Sprintf("Install Provider %q", provider.String()),
-			tracing.SpanAttributes(
-				traceattrs.OpenTofuProviderAddress(provider.String()),
-				traceattrs.OpenTofuProviderVersion(version.String()),
-				traceattrs.OpenTofuTargetPlatform(targetPlatform.String()),
-			),
-		)
+		wg.Go(func() {
+			traceCtx, span := tracing.Tracer().Start(ctx,
+				fmt.Sprintf("Install Provider %q", provider.String()),
+				tracing.SpanAttributes(
+					traceattrs.OpenTofuProviderAddress(provider.String()),
+					traceattrs.OpenTofuProviderVersion(version.String()),
+					traceattrs.OpenTofuTargetPlatform(targetPlatform.String()),
+				),
+			)
+			defer span.End()
 
-		if err := traceCtx.Err(); err != nil {
-			// If our context has been cancelled or reached a timeout then
-			// we'll abort early, because subsequent operations against
-			// that context will fail immediately anyway.
-			tracing.SetSpanError(span, err)
-			span.End()
-			return nil, err
-		}
+			// Heavy lifting
+			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, locks.Provider(provider), mode, provider, version, targetPlatform)
 
-		authResult, err := i.ensureProviderVersionInstalled(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
-		if authResult != nil {
-			authResults[provider] = authResult
-		}
-		if err != nil {
-			errs[provider] = err
-		}
-		span.End()
+			// Update results
+			updateLock.Lock()
+			defer updateLock.Unlock()
+
+			if err != nil {
+				tracing.SetSpanError(span, err)
+				errs[provider] = err
+			}
+
+			if authResult != nil {
+				authResults[provider] = authResult
+			}
+			if len(newHashes) > 0 {
+				locks.SetProvider(provider, version, reqs[provider], newHashes)
+			}
+		})
 	}
+
+	wg.Wait()
+
 	return authResults, nil
 }
 
 func (i *Installer) ensureProviderVersionInstalled(
 	ctx context.Context,
-	locks *depsfile.Locks,
-	reqs getproviders.Requirements,
+	lock *depsfile.ProviderLock,
 	mode InstallMode,
 	provider addrs.Provider,
 	version getproviders.Version,
 	targetPlatform getproviders.Platform,
-) (*getproviders.PackageAuthenticationResult, error) {
+) (*getproviders.PackageAuthenticationResult, []getproviders.Hash, error) {
 	evts := installerEventsForContext(ctx)
-	lock := locks.Provider(provider)
 
 	var preferredHashes []getproviders.Hash
 	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
@@ -499,11 +532,8 @@ func (i *Installer) ensureProviderVersionInstalled(
 				if cb := evts.ProviderAlreadyInstalled; cb != nil {
 					cb(provider, version, false)
 				}
-
 				// Even though the package is installed, the requirements in the lockfile may still need to be updated
-				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
-
-				return nil, nil
+				return nil, lock.AllHashes(), nil
 			}
 		}
 	}
@@ -517,10 +547,10 @@ func (i *Installer) ensureProviderVersionInstalled(
 		linkTo = nil // no linking needed
 	}
 
-	result, err := i.ensureProviderVersionInDirectory(ctx, locks, reqs, mode, provider, version, targetPlatform, installTo)
+	result, newHashes, err := i.ensureProviderVersionInDirectory(ctx, lock, mode, provider, version, targetPlatform, installTo)
 
 	if err != nil {
-		return result, err
+		return result, newHashes, err
 	}
 
 	if linkTo != nil {
@@ -536,7 +566,7 @@ func (i *Installer) ensureProviderVersionInstalled(
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		// We should now also find the package in the linkTo dir, which
@@ -549,14 +579,14 @@ func (i *Installer) ensureProviderVersionInstalled(
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		if _, err := new.ExecutableFile(); err != nil {
 			err := fmt.Errorf("provider binary not found: %w", err)
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
-			return nil, err
+			return nil, nil, err
 		}
 
 		if cb := evts.LinkFromCacheSuccess; cb != nil {
@@ -564,21 +594,19 @@ func (i *Installer) ensureProviderVersionInstalled(
 		}
 	}
 
-	return result, err
+	return result, newHashes, err
 }
 
 func (i *Installer) ensureProviderVersionInDirectory(
 	ctx context.Context,
-	locks *depsfile.Locks,
-	reqs getproviders.Requirements,
+	lock *depsfile.ProviderLock,
 	mode InstallMode,
 	provider addrs.Provider,
 	version getproviders.Version,
 	targetPlatform getproviders.Platform,
 	installTo *Dir,
-) (*getproviders.PackageAuthenticationResult, error) {
+) (*getproviders.PackageAuthenticationResult, []getproviders.Hash, error) {
 	evts := installerEventsForContext(ctx)
-	lock := locks.Provider(provider)
 
 	var preferredHashes []getproviders.Hash
 	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
@@ -596,9 +624,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 				}
 
 				// Even though the package is installed, the requirements in the lockfile may still need to be updated
-				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
-
-				return nil, nil
+				return nil, lock.AllHashes(), nil
 			}
 		}
 	}
@@ -616,7 +642,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Step 3c: Retrieve the package indicated by the metadata we received,
@@ -639,7 +665,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	new := installTo.ProviderVersion(provider, version)
@@ -648,14 +674,14 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if _, err := new.ExecutableFile(); err != nil {
 		err := fmt.Errorf("provider binary not found: %w", err)
 		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
 	// The InstallPackage call above should've verified that
@@ -688,7 +714,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return authResult, err
+		return authResult, nil, err
 	}
 
 	// localHashes is the set of hashes that we were able to verify locally
@@ -723,7 +749,6 @@ func (i *Installer) ensureProviderVersionInDirectory(
 	newHashes = append(newHashes, localHashes...)
 	newHashes = append(newHashes, signedHashes...)
 
-	locks.SetProvider(provider, version, reqs[provider], newHashes)
 	if cb := evts.ProvidersLockUpdated; cb != nil {
 		// priorHashes is already sorted, but we do need to sort
 		// the newly-generated localHashes and signedHashes.
@@ -746,7 +771,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 		cb(provider, version, new.PackageDir, authResult)
 	}
 
-	return authResult, nil
+	return authResult, newHashes, nil
 }
 
 // checkUnspecifiedVersion Check the presence of version 0.0.0 and return an error with a tip
