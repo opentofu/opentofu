@@ -1,9 +1,9 @@
-# Cleaner and better structured CLI layer
+# Cleaner and extensible CLI layer
 
 Due to a multiple legacy reasons, the whole startup procedure of OpenTofu, today is really intertwined and scattered all over the place.
 
-This RFC will try to explain how it is working now, what the pain points of that are. It will also try to propose different approaches to rework the whole
-startup to make it more maintainable and clear its intent.
+This RFC will try to explain how it is working now, what the pain points of that are. It will also try to propose a different approach on how to rework the whole
+startup to make it more maintainable extensible.
 
 _This RFC was created during the Hackathon we had on November 2025._
 
@@ -11,34 +11,33 @@ _This RFC was created during the Hackathon we had on November 2025._
 In this section, I will try to go in a natural flow of the components, starting from the `main` function and branching down in different existing flows.
 
 ### `main` function
-For testing purposes, the `main` function calls another `realMain` function. This should be kept.
+For testing purposes, the `main` function calls another `realMain` function. This should be kept for testing purposes.
 In order to highlight some of the issues in here, I want to list all the things that the `realMain` function does.
-These will be listed in the order they are done in the code.
-A mark (XX) in front of the item suggests that the step should be performed later in the execution and not in the `realMain` function.
+These will be listed in the order they are executed in the code.
+A mark (X) in front of the item suggests that the step should be performed later in the execution and not in the `realMain` function.
 If you don't want to read the entire list (and I agree that it's not that interesting), look for the bolded entries:
 * Configure UI (to print into the terminal updates of the initialisation process)
 * Enable CPU Profiling if requested through an env var (`TOFU_CPU_PROFILE`)
-* Enable OTEL if requested
+* Enable OTEL if configured
 * Create a log file if requested by the env var `TF_TEMP_LOG_PATH`
 * Print versions of some go dependencies the current build is using
-* loads the CLI configuration XX
-* loads credentials source based on the CLI configuration XX
-* creates a new service discovery (for providers and modules) XX
-* creates a package fetcher for modules and providers XX
-* figure out if it should reattach to a running provider instance by checking env var `TF_REATTACH_PROVIDERS` XX
-* creates a factory of backends XX
+* (X) loads the CLI configuration
+* (X) loads credentials source based on the CLI configuration
+* (X) creates a new service discovery (for providers and modules)
+* (X) creates a package fetcher for modules and providers
+* (X) figure out if it should reattach to a running provider instance by checking env var `TF_REATTACH_PROVIDERS`
+* (X) initialize the backends factory
 * extracts and executes `-chdir` out of the given args
-* transforms the CLI configuration into actionable provider sources to be able to download providers XX
-* initializes the commands (this will have a different section later since it's one of the biggest pain points)
-* performs some actions to extract the subcommand that is requested in order to inject some of the env variables into the `args` slice before actually running the requested command XX
-  * I know how it sounds, this is another huge pain point
+* (X) transforms the CLI configuration into actionable provider sources to be able to download providers 
+* initializes the commands (the way these are initialised today is one of the reasons why this RFC exists)
+* (X) executes logic to extract the subcommand that is requested in order to inject some of the env variables into the `args` slice before actually running the requested command
 * **If the user requested to print the version (by specifying `-v` or `--version` or `-version`) in the args, it will replace all the args with the version subcommand to run that**
 * **After this, it tries to run the command. There is some custom logic to suggest another command in case the one given is misspelled.**
 
 As you can see, the last 2 steps can be easily performed way before running any of the marked steps, boosting the basic validations way before doing all the heavy work listed before.
 
 ### `Meta` structure
-The current `Meta` structure contains way too many options and responsibilities, being used as a container to carry additional information between
+The current `Meta` structure contains way too many configurations and responsibilities, being used as a container to carry common information between
 `main` and other parts of the system.
 The idea is not a bad one, but the fact that it's only one structure to rule everything, makes things hard to follow since not all of the commands
 use all the attributes/functionality inside `Meta`.
@@ -60,6 +59,11 @@ Another thing that is handled kind of weird, is the functionality around help te
 that, adding a lot to the maintenance cost whenever a new argument needs to be added or updated.
 There is no auto generation of the help information of the flags or the commands from the command structure itself. All the help text is written separately in
 a manually wrapped text at 80 characters.
+
+Another tricky part (tackled later too) is that this library uses https://github.com/posener/complete for autocompletion functionality.
+The autocomplete works totally fine even though its capabilities are limited:
+* No autocompletion for flags and only autocompletion for basic commands.
+* No way to customize where the autocompletion scripts are written, are always written to specific files based on the detected shell that's running it.
 
 ## Proposed Solution
 If OpenTofu will decide to go forward with the refactoring of the stated issues above, here is a rough list of the actions that should be taken and the order of those.
@@ -326,4 +330,11 @@ We need to ensure that the current unit tests keep working and the changes on th
 
 ## Potential Alternatives
 
-* Do not replace `github.com/mitchellh/cli` library since the `github.com/spf13/cobra` addition does not add that much of a value
+As seen in the current RFC, the level of customisation that we have to add on top of the cobra library is significant.
+But most of the customisation is due to the legacy behavior that we still want to keep:
+* help texts formatting
+* golang style flags
+* autocompletion scripts similar with what we have today but more capable
+
+That being said, by writing this RFC, I realised that there is no bullet proof CLI library that we can
+choose to cover all the use cases that we have and want to keep, so _the most customisable_ library would be the one to go with.
