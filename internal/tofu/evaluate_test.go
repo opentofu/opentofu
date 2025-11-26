@@ -923,6 +923,8 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 }
 
+// TestEvaluatorGetModule_ForEach verifies that GetModule correctly evaluates
+// a module with for_each that has output values defined in state.
 func TestEvaluatorGetModule_ForEach(t *testing.T) {
 	expander := instances.NewExpander()
 	expander.SetModuleForEach(

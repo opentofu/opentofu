@@ -444,19 +444,21 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 	// module instance.
 	moduleInstances := map[addrs.InstanceKey]map[string]cty.Value{}
 
-	// First, we need to determine which module instances actually exist.
-	if d.Evaluator.InstanceExpander != nil {
+	// Pre-populate moduleInstances using InstanceExpander to handle modules with no outputs.
+	// This ensures that expressions like length(module.foo) work correctly even when a module
+	// has no output values defined, by consulting the expansion state to determine which
+	// module instances exist based on count/for_each.
+	// We only do this during non-validation operations (plan, apply, etc.) because during
+	// validation, the InstanceExpander may not be fully populated yet.
+	if d.Evaluator.InstanceExpander != nil && d.Evaluator.Operation != walkValidate {
 		childModuleAddr := d.ModulePath.Module().Child(addr.Name)
 		moduleInstanceAddrs := d.Evaluator.InstanceExpander.ExpandModule(childModuleAddr)
 
 		for _, moduleInstanceAddr := range moduleInstanceAddrs {
-			if len(moduleInstanceAddr) > 0 {
-				lastStep := moduleInstanceAddr[len(moduleInstanceAddr)-1]
-				key := lastStep.InstanceKey
-
-				if _, exists := moduleInstances[key]; !exists {
-					moduleInstances[key] = map[string]cty.Value{}
-				}
+			_, callInstance := moduleInstanceAddr.CallInstance()
+			key := callInstance.Key
+			if _, exists := moduleInstances[key]; !exists {
+				moduleInstances[key] = map[string]cty.Value{}
 			}
 		}
 	}
