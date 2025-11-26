@@ -1022,6 +1022,10 @@ func TestEvaluatorGetModule_ForEach(t *testing.T) {
 	}
 }
 
+// TestEvaluatorGetModule_ForEachWithoutOutputs verifies that GetModule correctly returns
+// the expected length for a module with for_each but no output values defined.
+// This tests the fix for (modules without outputs) where length(module.empty) would incorrectly
+// return 0 for modules without outputs, even when for_each has multiple keys.
 func TestEvaluatorGetModule_ForEachWithoutOutputs(t *testing.T) {
 	expander := instances.NewExpander()
 	expander.SetModuleForEach(
