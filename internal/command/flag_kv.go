@@ -38,6 +38,11 @@ func (v *FlagStringKV) Set(raw string) error {
 // command line, e.g. -target=aws_instance.foo -target=aws_vpc.bar
 type FlagStringSlice []string
 
+// This method satisfies pflag.Value
+func (v *FlagStringSlice) Type() string {
+	return "stringSlice"
+}
+
 func (v *FlagStringSlice) String() string {
 	return ""
 }

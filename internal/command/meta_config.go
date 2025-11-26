@@ -568,6 +568,11 @@ func (f rawFlags) Set(str string) error {
 	return nil
 }
 
+// This method satisfies pflag.Value
+func (f rawFlags) Type() string {
+	return "stringSlice"
+}
+
 type rawFlag struct {
 	Name  string
 	Value string
