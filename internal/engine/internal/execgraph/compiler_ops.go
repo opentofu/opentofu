@@ -21,7 +21,7 @@ import (
 
 func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExecuteRaw {
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
-	getPrior := nextOperand[*states.ResourceInstanceObject](operands)
+	getPrior := nextOperand[*states.ResourceInstanceObjectFull](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
 	getProviderClient := nextOperand[providers.Configured](operands)
 	waitForDeps := operands.OperandWaiter()
@@ -178,10 +178,15 @@ func (c *compiler) compileOpManagedApplyChanges(operands *compilerOperands) node
 		// directly, which is annoying since it would be nice if that were all
 		// encapsulated away somewhere.
 
-		ret := &states.ResourceInstanceObject{
+		ret := &states.ResourceInstanceObjectFull{
 			Value:   resp.NewState,
 			Private: resp.Private,
 			Status:  states.ObjectReady,
+			// TODO: ProviderInstanceAddr, which we don't currently have here
+			// because we're just holding an already-open client for that
+			// provider. Should we extend [providers.Interface] with a method
+			// to find which provider instance the client is acting on behalf of?
+			ResourceType: finalPlan.ResourceType,
 			// TODO: Dependencies ... they come from the "desired" object
 			// so maybe we should send that whole thing over here instead of
 			// just the ConfigVal?

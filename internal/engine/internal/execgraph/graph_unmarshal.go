@@ -116,7 +116,7 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 		if diags.HasErrors() {
 			return nil, fmt.Errorf("invalid resource instance address %q: %w", instAddrStr, diags.Err())
 		}
-		resultRef, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObject](results, resultIdx)
+		resultRef, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](results, resultIdx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid result element for %s: %w", instAddr, err)
 		}
@@ -156,7 +156,7 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan desiredInst: %w", err)
 	}
-	priorState, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObject](prevResults, rawOperands[1])
+	priorState, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan priorState: %w", err)
 	}

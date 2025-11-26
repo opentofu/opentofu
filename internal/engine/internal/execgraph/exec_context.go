@@ -48,7 +48,7 @@ type ExecContext interface {
 	// the planning engine, because it should only generate requests for
 	// prior state objects that were present and valid in the refreshed state
 	// during the planning step.
-	ResourceInstancePriorState(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObject
+	ResourceInstancePriorState(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObjectFull
 
 	// ProviderInstanceConfig returns the value that should be sent when
 	// configuring the specified provider instance, or [cty.NilVal] if
