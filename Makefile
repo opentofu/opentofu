@@ -46,10 +46,19 @@ generate:
 protobuf:
 	go run ./tools/protobuf-compile .
 
-# Golangci-lint
+# Golangci-lint is installed first and then run twice to cover all platforms.
 .PHONY: golangci-lint
 golangci-lint:
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0 run --timeout 60m ./...
+	PREV_GOBIN=$(shell go env GOBIN)
+	PREV_GOOS=$(shell go env GOOS)
+	$(shell go env -w GOBIN=./tools)
+	$(shell go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0)
+	$(shell go env -w GOOS=windows)
+	tools/golangci-lint${EXT} run --timeout 60m ./...
+	$(shell go env -w GOOS=linux)
+	tools/golangci-lint${EXT} run --timeout 60m ./...
+	$(shell go env -w GOBIN=$(PREV_GOBIN))
+	$(shell go env -w GOOS=$(PREV_GOOS))
 
 # Run license check
 .PHONY: license-check

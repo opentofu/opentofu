@@ -23,6 +23,9 @@ website/node_modules
 website/vendor
 vendor/
 
+# Golangci-lint
+tools/golangci-lint*
+
 # VSCode debugging configurations
 .vscode/launch.json
 
