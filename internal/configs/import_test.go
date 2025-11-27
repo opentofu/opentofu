@@ -290,6 +290,224 @@ func TestImportBlock_decode(t *testing.T) {
 	}
 }
 
+func TestImportBlock_lifecycle_enabled(t *testing.T) {
+	blockRange := hcl.Range{
+		Filename: "mock.tf",
+		Start:    hcl.Pos{Line: 3, Column: 12, Byte: 27},
+		End:      hcl.Pos{Line: 3, Column: 19, Byte: 34},
+	}
+	pos := hcl.Pos{Line: 1, Column: 1}
+
+	fooStrExpr, hclDiags := hclsyntax.ParseExpression([]byte("\"foo\""), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+	barExpr, hclDiags := hclsyntax.ParseExpression([]byte("test_instance.bar"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+	enabledExpr, hclDiags := hclsyntax.ParseExpression([]byte("var.enable_import"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+	forEachExpr, hclDiags := hclsyntax.ParseExpression([]byte("toset([\"a\", \"b\"])"), "", pos)
+	if hclDiags.HasErrors() {
+		t.Fatal(hclDiags)
+	}
+
+	barResource := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_instance",
+		Name: "bar",
+	}
+
+	tests := map[string]struct {
+		input *hcl.Block
+		want  *Import
+		err   string
+	}{
+		"lifecycle with enabled": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"enabled": {
+										Name: "enabled",
+										Expr: enabledExpr,
+									},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Import{
+				To: barExpr,
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{Resource: barResource},
+				},
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				ID:        fooStrExpr,
+				Enabled:   enabledExpr,
+				DeclRange: blockRange,
+			},
+			``,
+		},
+		"error: duplicate lifecycle blocks": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"enabled": {
+										Name: "enabled",
+										Expr: enabledExpr,
+									},
+								},
+							}),
+						},
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"enabled": {
+										Name: "enabled",
+										Expr: enabledExpr,
+									},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			nil,
+			"Duplicate lifecycle block",
+		},
+		"error: invalid lifecycle attribute": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"create_before_destroy": {
+										Name: "create_before_destroy",
+										Expr: enabledExpr,
+									},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			nil,
+			"Invalid import lifecycle argument",
+		},
+		"error: enabled with for_each": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+						"for_each": {
+							Name: "for_each",
+							Expr: forEachExpr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"enabled": {
+										Name: "enabled",
+										Expr: enabledExpr,
+									},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			nil,
+			"Invalid combination of lifecycle.enabled and for_each",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, diags := decodeImportBlock(test.input)
+
+			if diags.HasErrors() {
+				if test.err == "" {
+					t.Fatalf("unexpected error: %s", diags.Errs())
+				}
+				if gotErr := diags[0].Summary; gotErr != test.err {
+					t.Errorf("wrong error, got %q, want %q", gotErr, test.err)
+				}
+			} else if test.err != "" {
+				t.Fatal("expected error")
+			}
+
+			if test.want != nil && !cmp.Equal(got, test.want, typeComparer, valueComparer, traversalComparer) {
+				t.Fatalf("wrong result: %s", cmp.Diff(got, test.want, typeComparer, valueComparer, traversalComparer))
+			}
+		})
+	}
+}
+
 // Taken from traversalsAreEquivalent of hcl/v2
 func traversalsAreEquivalent(a, b hcl.Traversal) bool {
 	if len(a) != len(b) {
