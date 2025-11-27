@@ -1,5 +1,11 @@
 # Cleaner and extensible CLI layer
 
+Tickets that are targeted to be resolved by this:
+* https://github.com/opentofu/opentofu/issues/748
+* https://github.com/opentofu/opentofu/issues/3500
+* https://github.com/opentofu/opentofu/issues/3050
+* https://github.com/opentofu/opentofu/issues/2239
+
 Due to a multiple legacy reasons, the whole startup procedure of OpenTofu, today is really intertwined and scattered all over the place.
 
 This RFC will try to explain how it is working now, what the pain points of that are. It will also try to propose a different approach on how to rework the whole
