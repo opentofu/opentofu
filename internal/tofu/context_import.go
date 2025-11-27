@@ -120,6 +120,20 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 	// relative to the root module
 	rootCtx := evalCtx.WithPath(addrs.RootModuleInstance)
 
+	// Check if the import is enabled via lifecycle.enabled
+	if importTarget.Config.Enabled != nil {
+		enabled, enabledDiags := evaluateEnabledExpression(ctx, importTarget.Config.Enabled, rootCtx)
+		diags = diags.Append(enabledDiags)
+		if diags.HasErrors() {
+			return diags
+		}
+
+		// If the import is disabled, skip validation
+		if !enabled {
+			return diags
+		}
+	}
+
 	if importTarget.Config.ForEach != nil {
 		const unknownsNotAllowed = false
 		const tupleAllowed = true
@@ -169,6 +183,20 @@ func (ri *ImportResolver) ExpandAndResolveImport(ctx context.Context, importTarg
 	// We need to explicitly use the context with the path of the root module, so that all references will be
 	// relative to the root module
 	rootCtx := evalCtx.WithPath(addrs.RootModuleInstance)
+
+	// Check if the import is enabled via lifecycle.enabled
+	if importTarget.Config.Enabled != nil {
+		enabled, enabledDiags := evaluateEnabledExpression(ctx, importTarget.Config.Enabled, rootCtx)
+		diags = diags.Append(enabledDiags)
+		if diags.HasErrors() {
+			return diags
+		}
+
+		// If the import is disabled, skip it entirely
+		if !enabled {
+			return diags
+		}
+	}
 
 	if importTarget.Config.ForEach != nil {
 		const unknownsNotAllowed = false
