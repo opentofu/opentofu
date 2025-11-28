@@ -195,7 +195,7 @@ block for a managed resource:
   Note that this argument is **persisted in the state**, once you set and apply `destroy = false` for a resource
   OpenTofu will not plan the resource destruction unless you explicitly change it back to `true` or remove the option from the corresponding resource configuration block.
   OpenTofu errs on the side of caution and avoids destroying resources that were marked with `destroy = false` in the last applied configuration for the resource instance.
-  You can override this flag in the state by writing explicit `removed` block for the resource instance with `destroy = true` option.
+  If you are using single instance resources (no count or for_each), you can override this flag in the state by writing explicit `removed` block for the resource instance with `destroy = true` option.
 
   :::note
   This argument can also be used in [`removed` blocks](syntax.mdx#removing-resources)
