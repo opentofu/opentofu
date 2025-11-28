@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // traceNameValidateResource is a standardized trace span name we use for the
@@ -695,6 +696,49 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	}
 
 	return obj, diags
+}
+
+// checkSkipDestroy checks if the resource should be forgotten instead of destroyed
+func (n *NodeAbstractResource) shouldSkipDestroy() (bool, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if n.Config == nil || n.Config.Managed == nil {
+		return false, diags
+	}
+
+	skipDestroy, skipDestroyDiags := skipDestroyValueFromConstantExpression(n.Config.Managed.Destroy)
+	diags = diags.Append(skipDestroyDiags)
+	if diags.HasErrors() {
+		return false, diags
+	}
+
+	return skipDestroy, diags
+}
+
+// skipDestroyValueFromConstantExpression evaluates (lifecycle.)destroy expression coming from the config and returns !destroy (Corresponding to SkipDestroy)
+// As of now, this can only be a constant expression of a boolean type. We will likely extend this in the future to make dynamic values possible
+func skipDestroyValueFromConstantExpression(destroyExpr hcl.Expression) (bool, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	// If destroyExpr is nil, we do not need to set SkipDestroy, as its zero value is false, which results in the desired default behavior (of not skipping destruction)
+	if destroyExpr == nil {
+		return false, diags
+	}
+
+	destroyVal, valDiags := destroyExpr.Value(nil)
+	if diags.HasErrors() {
+		return false, valDiags
+	}
+
+	if destroyVal.Type() != cty.Bool {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid lifecycle destroy expression",
+			Detail:   "The lifecycle destroy expression must be a boolean constant.",
+			Subject:  destroyExpr.Range().Ptr(),
+		})
+		return false, diags
+	}
+
+	return destroyVal.False(), diags
 }
 
 // graphNodesAreResourceInstancesInDifferentInstancesOfSameModule is an

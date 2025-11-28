@@ -249,6 +249,9 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		case plans.CreateThenDelete, plans.DeleteThenCreate:
 			cs.Add++
 			cs.Remove++
+		case plans.ForgetThenCreate:
+			cs.Add++
+			cs.Forget++
 		case plans.Forget:
 			cs.Forget++
 		}

@@ -1256,6 +1256,13 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return nil, nil, keyData, diags
+	}
+	log.Printf("[TRACE] plan: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
+
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
 		Config:           unmarkedConfigVal,
@@ -1566,6 +1573,15 @@ func (n *NodeAbstractResourceInstance) plan(
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
+	// We check here if user declared lifecycle destroy attribute as false, intending to retain this resource even if
+	// so far we thought the action was "replace".
+	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
+	if action.IsReplace() && skipDestroy {
+		// We alter the action to "forget" and "create" to not trigger resource destruction
+		action = plans.ForgetThenCreate
+		log.Printf("[DEBUG] plan: %s changing action from %s to ForgetThenCreate due to lifecycle.destroy=false", n.Addr, action)
+	}
+
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity
 	// in the new value that requires an update
 	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
@@ -1629,9 +1645,10 @@ func (n *NodeAbstractResourceInstance) plan(
 		// must _also_ record the returned change in the active plan,
 		// which the expression evaluator will use in preference to this
 		// incomplete value recorded in the state.
-		Status:  states.ObjectPlanned,
-		Value:   plannedNewVal,
-		Private: plannedPrivate,
+		Status:      states.ObjectPlanned,
+		Value:       plannedNewVal,
+		Private:     plannedPrivate,
+		SkipDestroy: skipDestroy,
 	}
 
 	return plan, state, keyData, diags
@@ -2941,6 +2958,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		// Copy the previous state, changing only the value
 		newState := &states.ResourceInstanceObject{
 			CreateBeforeDestroy: state.CreateBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 			Dependencies:        state.Dependencies,
 			Private:             state.Private,
 			Status:              state.Status,
@@ -3063,6 +3081,10 @@ func (n *NodeAbstractResourceInstance) apply(
 		newVal = cty.UnknownAsNull(newVal)
 	}
 
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	log.Printf("[TRACE] apply: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
+
 	if change.Action != plans.Delete && !diags.HasErrors() {
 		// Only values that were marked as unknown in the planned value are allowed
 		// to change during the apply operation. (We do this after the unknown-ness
@@ -3155,6 +3177,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 		}
 
 		// if the resource was being deleted, the dependencies are not going to
@@ -3172,11 +3195,12 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         skipDestroy,
 		}
 		return newState, diags
 
 	default:
-		// Non error case, were the object was deleted
+		// Non-error case, where the object was deleted
 		return nil, diags
 	}
 }

@@ -72,6 +72,7 @@ type ResourceInstanceObjectSrc struct {
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+	SkipDestroy         bool
 }
 
 // Compare two lists using an given element equal function, ignoring order and duplicates
@@ -161,6 +162,10 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 		return false
 	}
 
+	if os.SkipDestroy != other.SkipDestroy {
+		return false
+	}
+
 	return true
 }
 
@@ -211,6 +216,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		Dependencies:        os.Dependencies,
 		Private:             os.Private,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
+		SkipDestroy:         os.SkipDestroy,
 	}, nil
 }
 
