@@ -1,8 +1,3 @@
-// Copyright (c) The OpenTofu Authors
-// SPDX-License-Identifier: MPL-2.0
-// Copyright (c) 2023 HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 package tofu
 
 import (
@@ -14,298 +9,1163 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 )
 
-func TestSkipDestroy_planAndApply_stateFlagChecks(t *testing.T) {
-	m := testModule(t, "skip-destroy")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
-
-	state := states.NewState()
-
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 1 {
-		t.Fatalf("expected 1 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	change := plan.Changes.Resources[0]
-	if change.Action != plans.Create {
-		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Create, "got", change.Action)
-	}
-
-	if !plan.PlannedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
-		t.Fatal("skip_destroy wasn't set correctly in state")
-	}
-
-	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-	if !appliedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
-		t.Fatal("skip_destroy wasn't set correctly in state")
-	}
+type skipStateInstance struct {
+	addr        string
+	attrsJSON   string
+	skipDestroy bool
+	deposedKey  string            // if set, creates a deposed instance
+	instanceKey addrs.InstanceKey // optional, defaults to NoKey
 }
 
-func TestSkipDestroy_resourceReplace(t *testing.T) {
-	m := testModule(t, "skip-destroy")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
-
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
-
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 1 {
-		t.Fatalf("expected 1 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	change := plan.Changes.Resources[0]
-	if change.Action != plans.ForgetThenCreate {
-		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.ForgetThenCreate, "got", change.Action)
-	}
-
-	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	// Applied state after replace with skip destroy set in the config should contain a single resource with the skip_destroy flag set
-	if !appliedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
-		t.Fatal("skip_destroy wasn't set correctly in state")
-	}
-
-	if len(appliedState.RootModule().Resources) != 1 {
-		t.Fatalf("expected 1 resource; got %d", len(appliedState.RootModule().Resources))
-	}
+type skipExpectedChange struct {
+	addr       string
+	action     plans.Action
+	deposedKey string
 }
 
-func TestSkipDestroy_destroy(t *testing.T) {
-	m := testModule(t, "skip-destroy")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
-
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:      states.ObjectReady,
-			AttrsJSON:   []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-			SkipDestroy: true,
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
-
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, &PlanOpts{
-		Mode: plans.DestroyMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 1 {
-		t.Fatalf("expected 1 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	change := plan.Changes.Resources[0]
-	if change.Action != plans.Forget {
-		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
-	}
-
-	appliedState, diags := ctx.Apply(t.Context(), plan, m, nil)
-	if !diags.HasErrors() {
-		t.Fatalf("expected errors when leaving behind forgotten resource instance; got none")
-	}
-
-	if !appliedState.Empty() {
-		t.Fatalf("\nexpected plannedState to be empty; got %q\n", appliedState.String())
-	}
-
+type skipDestroyTestCase struct {
+	name            string
+	module          string
+	stateInstances  []skipStateInstance
+	planMode        plans.Mode
+	expectedChanges []skipExpectedChange
+	expectPlanError bool
+	// For apply tests
+	runApply         bool
+	expectApplyError bool
+	expectEmptyState bool
 }
 
-func TestSkipDestroy_removedFromConfig(t *testing.T) {
-	m := testModule(t, "empty")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
-
+func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.State {
+	t.Helper()
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:      states.ObjectReady,
-			AttrsJSON:   []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-			SkipDestroy: true,
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
 
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 1 {
-		t.Fatalf("expected 1 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	change := plan.Changes.Resources[0]
-	if change.Action != plans.Forget {
-		t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
-	}
-
-}
-
-func TestSkipDestroy_plan_deposedAndOrphaned(t *testing.T) {
-	m := testModule(t, "empty")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
-
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:      states.ObjectReady,
-			AttrsJSON:   []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-			SkipDestroy: true,
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
-	root.SetResourceInstanceDeposed(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		states.DeposedKey("00000001"),
-		&states.ResourceInstanceObjectSrc{
-			Status:      states.ObjectReady,
-			AttrsJSON:   []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-			SkipDestroy: true,
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
-
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 2 {
-		t.Fatalf("expected 2 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	for _, change := range plan.Changes.Resources {
-		if change.Action != plans.Forget {
-			t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
+	for _, inst := range instances {
+		if inst.attrsJSON == "" {
+			inst.attrsJSON = `{"id":"baz","require_new":"old","type":"aws_instance"}`
 		}
-	}
-	if !plan.PlannedState.Empty() {
-		t.Fatalf("expected planned state to be empty; got %q\n", plan.PlannedState.String())
-	}
-}
 
-// In case we have a deposed instance without `skip_destroy` set, but the corresponding config block has `destroy=false`
-// We need to retain the deposed instance to be safe
-func TestSkipDestroy_plan_deposedAndInConfig_deposedWithoutFlag(t *testing.T) {
-	m := testModule(t, "skip-destroy")
-	p := testProvider("aws")
-	p.PlanResourceChangeFn = testDiffFn
+		instanceKey := inst.instanceKey
+		if instanceKey == nil {
+			instanceKey = addrs.NoKey
+		}
 
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"baz","require_new":"new","type":"aws_instance"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
-	root.SetResourceInstanceDeposed(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
-		states.DeposedKey("00000001"),
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"baz","require_new":"old","type":"aws_instance"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.NoKey,
-	)
+		obj := &states.ResourceInstanceObjectSrc{
+			Status:      states.ObjectReady,
+			AttrsJSON:   []byte(inst.attrsJSON),
+			SkipDestroy: inst.skipDestroy,
+		}
 
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
-
-	plan, diags := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors: %s", diags.Err())
-	}
-
-	if len(plan.Changes.Resources) != 2 {
-		t.Fatalf("expected 2 resource; got %d", len(plan.Changes.Resources))
-	}
-
-	for _, change := range plan.Changes.Resources {
-		if change.DeposedKey.String() != "" {
-			// Check we forget the deposed instance
-			if change.Action != plans.Forget {
-				t.Fatalf("\n%-15s: %10q\n%-15s: %10q\n", "expected action", plans.Forget, "got", change.Action)
-			}
+		if inst.deposedKey != "" {
+			root.SetResourceInstanceDeposed(
+				mustResourceInstanceAddr(inst.addr).Resource,
+				states.DeposedKey(inst.deposedKey),
+				obj,
+				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				instanceKey,
+			)
 		} else {
-			// For the resource still in config we should have no-op
-			if change.Action != plans.NoOp {
-				t.Fatalf("expected no op; got %q\n", change.Action)
+			root.SetResourceInstanceCurrent(
+				mustResourceInstanceAddr(inst.addr).Resource,
+				obj,
+				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				instanceKey,
+			)
+		}
+	}
+
+	return state
+}
+
+func setupSkipTestDefaultContext(t *testing.T) (*Context, *MockProvider) {
+	t.Helper()
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	return ctx, p
+}
+
+func runSkipDestroyTestCase(t *testing.T, tc skipDestroyTestCase) {
+	t.Helper()
+
+	m := testModule(t, tc.module)
+	ctx, _ := setupSkipTestDefaultContext(t)
+	state := setupSkipTestState(t, tc.stateInstances)
+
+	planOpts := DefaultPlanOpts
+	// We may also need to set destroy mode here
+	if tc.planMode != 0 {
+		planOpts = &PlanOpts{Mode: tc.planMode}
+	}
+
+	plan, diags := ctx.Plan(t.Context(), m, state, planOpts)
+
+	if tc.expectPlanError {
+		if !diags.HasErrors() {
+			t.Fatal("expected plan error, got none")
+		}
+		return
+	}
+
+	if diags.HasErrors() {
+		t.Fatalf("unexpected plan errors: %s", diags.Err())
+	}
+
+	verifySkipPlanChanges(t, plan, tc.expectedChanges)
+
+	if tc.runApply {
+		appliedState, applyDiags := ctx.Apply(t.Context(), plan, m, nil)
+
+		if tc.expectApplyError {
+			if !applyDiags.HasErrors() {
+				t.Fatal("expected apply error, got none")
+			}
+		} else if applyDiags.HasErrors() {
+			t.Fatalf("unexpected apply errors: %s", applyDiags.Err())
+		}
+
+		if tc.expectEmptyState && !appliedState.Empty() {
+			t.Fatalf("expected empty state, got %s", appliedState.String())
+		}
+	}
+}
+
+func verifySkipPlanChanges(t *testing.T, plan *plans.Plan, expected []skipExpectedChange) {
+	t.Helper()
+
+	if len(expected) > 0 && len(plan.Changes.Resources) < len(expected) {
+		t.Fatalf("expected at least %d changes, got %d", len(expected), len(plan.Changes.Resources))
+	}
+
+	for _, exp := range expected {
+		found := false
+		for _, change := range plan.Changes.Resources {
+			addrMatch := change.Addr.String() == exp.addr
+			deposedMatch := exp.deposedKey == "" || string(change.DeposedKey) == exp.deposedKey
+
+			if addrMatch && deposedMatch {
+				found = true
+				if change.Action != exp.action {
+					t.Errorf("resource %s (deposed=%s): expected %s, got %s",
+						exp.addr, exp.deposedKey, exp.action, change.Action)
+				}
+				break
 			}
 		}
+		if !found {
+			t.Errorf("did not find expected change for %s (deposed=%s)", exp.addr, exp.deposedKey)
+		}
+	}
+}
+
+// Destroy Mode Tests
+func TestSkipDestroy_DestroyMode(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// The simplest case: resource with SkipDestroy=true in state and in config.
+			// Check that in destroy mode we forget the resource.
+			name:   "ConfigAndStateFlag",
+			module: "skip-destroy",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+		{
+			// The resource instance has no SkipDestroy flag in the state, but it comes from config.
+			// Check that in destroy mode we forget the resource and respect the latest config
+			// corresponding to this resource.
+			name:   "ConfigFlagOnly",
+			module: "skip-destroy",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+		{
+			// This first updates the configuration and then runs destroy.
+			// Since config has destroy=true (same as no flag), this should result in resource deletion,
+			// even though state has SkipDestroy=true.
+			name:   "StateFlagOnly_ShouldDelete",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// Deposed objects are a special case, since they correspond to old instances.
+			// Deposed objects in state should respect the SkipDestroy flag set in the state.
+			// In case both (state and config) SkipDestroy flags are present, if either is true,
+			// the resource should be forgotten. This is for security, to avoid accidental deletions
+			// of resource instances that once had SkipDestroy set.
+			//
+			// Here we have no config (empty module), so deposed instances respect their state flags:
+			// - 00000001 has SkipDestroy=false -> Delete
+			// - 00000002 has SkipDestroy=true -> Forget
+			name:   "NoConfig_RespectStateFlags",
+			module: "empty",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+				{addr: "aws_instance.foo", deposedKey: "00000002", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+				{addr: "aws_instance.foo", deposedKey: "00000002", action: plans.Forget},
+			},
+		},
+		{
+			// Same as above, but here we have SkipDestroy=true from config and two deposed instances
+			// in state, one with SkipDestroy=true and one with SkipDestroy=false.
+			// Either way, both should be forgotten in this case because config flag takes precedence.
+			name:   "ConfigFlag_BothForget",
+			module: "skip-destroy",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+				{addr: "aws_instance.foo", deposedKey: "00000002", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+				{addr: "aws_instance.foo", deposedKey: "00000002", action: plans.Forget},
+			},
+		},
+		{
+			// Same as the two above, but here we have SkipDestroy=false from config (destroy=true) and still
+			// two deposed instances in state, one with SkipDestroy=true and one with SkipDestroy=false.
+			// We check that the deposed instance state flags are respected and not overridden by
+			// config when config says destroy=true. The state flag protects the instance.
+			name:   "NegativeConfigFlag_RespectStateFlags",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+				{addr: "aws_instance.foo", deposedKey: "00000002", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+				{addr: "aws_instance.foo", deposedKey: "00000002", action: plans.Forget},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// TestSkipDestroy_DestroyMode_ErrorOnForgotten checks that applies in destroy mode
+// return an error if there are forgotten resources.
+func TestSkipDestroy_DestroyMode_ErrorOnForgotten(t *testing.T) {
+	tc := []skipDestroyTestCase{
+		{
+			name:   "ErrorOnForgotten",
+			module: "skip-destroy",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+			runApply:         true,
+			expectApplyError: true,
+			expectEmptyState: true,
+		},
+		{
+			name:   "NoErrorOnDelete",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo"},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+			runApply:         true,
+			expectApplyError: false,
+			expectEmptyState: true,
+		},
+	}
+
+	for _, tc := range tc {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// Orphan Resource-Specific Tests
+//
+// An "orphan" resource is one that has been removed from configuration but
+// is still present in state.
+
+func TestSkipDestroy_Orphan(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// Resource aws_instance.foo has been removed from configuration and is only present in state
+			// If the SkipDestroy flag is set in state, we should plan to Forget the resource.
+			name:   "StateFlag_Forget",
+			module: "empty",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+		{
+			// Sanity check: if the orphan resource does not have SkipDestroy flag in state,
+			// we should plan to Delete it.
+			name:   "NoStateFlag_Delete",
+			module: "empty",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// TestSkipDestroy_Orphan_RemovedBlockOverrides tests that orphan resource's
+// SkipDestroy flag in state should be overridden by removed block in config.
+func TestSkipDestroy_Orphan_RemovedBlockOverrides(t *testing.T) {
+	tc := skipDestroyTestCase{
+		name:   "RemovedBlockOverridesStateFlag",
+		module: "skip-destroy-orphan-removed",
+		stateInstances: []skipStateInstance{
+			// The corresponding removed block has destroy=true in config;
+			// this should override SkipDestroy=true from state, resulting in Delete
+			{addr: "aws_instance.skip_destroy_not_set", skipDestroy: true},
+			// The corresponding removed block has destroy=false in config;
+			// this should override SkipDestroy=false from state, resulting in Forget
+			{addr: "aws_instance.skip_destroy_set", skipDestroy: false},
+		},
+		expectedChanges: []skipExpectedChange{
+			{addr: "aws_instance.skip_destroy_not_set", action: plans.Delete},
+			{addr: "aws_instance.skip_destroy_set", action: plans.Forget},
+		},
+	}
+
+	t.Run(tc.name, func(t *testing.T) {
+		runSkipDestroyTestCase(t, tc)
+	})
+}
+
+// Resource Replacement Tests
+//
+// When the current resource instance has a corresponding config present, the differences
+// between the state and config SkipDestroy values should not matter, since the newest configuration applies.
+
+func TestSkipDestroy_Replace(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// Basic case: resource with SkipDestroy=true in config (destroy=false).
+			// Check that in replacement we plan to ForgetThenCreate the resource.
+			name:   "ForgetThenCreate",
+			module: "skip-destroy-replace",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.ForgetThenCreate},
+			},
+		},
+		{
+			// We have a resource instance in state with SkipDestroy=true, but the
+			// corresponding resource config exists with no destroy flag (equivalent to destroy=true).
+			// Value from config should overrule the state flag, and the action should be DeleteThenCreate.
+			name:   "NoConfigFlag_DeleteThenCreate",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.DeleteThenCreate},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// Deposed Instance Tests
+//
+// Deposed instances are old instances that were replaced but not yet destroyed.
+// We handle them a bit differently, since they correspond to old instances, we choose to be safe
+// and respect the SkipDestroy flag in state even if the current config has no destroy flag set.
+// Hence, SkipDestroy set to true either in state or config should retain the instance.
+
+// tests the combinations of state/config flags:
+// 1. Deposed with flag, config without -> Forget (state flag protects)
+// 2. Deposed without flag, config with -> Forget
+// 3. Both with flag -> Forget
+// 4. Neither with flag -> Delete
+// 5. Orphaned deposed instance with flag -> Forget
+func TestSkipDestroy_Deposed(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// Config has destroy=true (no flag). Deposed instance having SkipDestroy=true in state.
+			// We respect the state flag and forget the instance.
+			name:   "NoConfigFlag_Forget",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+		{
+			// Config has destroy=false. Deposed instance without state flag should still
+			// be forgotten because config flag applies.
+			name:   "ConfigFlag_Forget",
+			module: "skip-destroy",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+		{
+			// Deposed instance with SkipDestroy=true in state and in config.
+			// Basic case: deposed instance should be forgotten.
+			name:   "StateFlag_Forget",
+			module: "skip-destroy-replace",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				// we only expect deposed instance action
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+		{
+			// Config has destroy=true (no flag). Deposed instance having SkipDestroy=false in state.
+			// We must delete the instance.
+			name:   "NoConfigFlag_Forget",
+			module: "skip-destroy-no-flag",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+			},
+		},
+		{
+			// Orphaned deposed instance (no config) with SkipDestroy=true should be forgotten.
+			name:   "Orphaned_Forget",
+			module: "empty",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+		{
+			// Orphaned deposed instance (no config) with SkipDestroy=false should be deleted.
+			name:   "Orphaned_Forget",
+			module: "empty",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// Multi-Instance Tests (count/for_each/enabled)
+//
+// Tests for count and for_each resources with various flag combinations.
+// Config flag: destroy=true/false in lifecycle block
+// State flag: SkipDestroy=true/false stored in state per instance
+//
+// Flag interaction rules:
+// - For kept instances: config flag determines the stored state flag
+// - When instances are removed/reduced state flag protects instances even if config has destroy=true
+
+func TestSkipDestroy_Count_Reduction(t *testing.T) {
+	tcs := []skipDestroyTestCase{
+		// Config has destroy=false (skip-destroy-count)
+		{
+			// Config: destroy=false, State: all SkipDestroy=true
+			// Removed instance (index 2) should be Forget because config says destroy=false
+			name:   "ConfigFalse_StateTrue_OrphanForgotten",
+			module: "skip-destroy-count", // count=2, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: true, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: true, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[2]", skipDestroy: true, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Forget},
+			},
+		},
+		{
+			// Config: destroy=false, State: all SkipDestroy=false
+			// Removed instance should still be Forget because config destroy=false takes precedence
+			name:   "ConfigFalse_StateFalse_OrphanForgotten",
+			module: "skip-destroy-count", // count=2, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: false, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[2]", skipDestroy: false, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Forget},
+			},
+		},
+		{
+			// Config: destroy=false, State: mixed flags (index 2 has SkipDestroy=false)
+			// Removed instance should still be Forget because config destroy=false takes precedence
+			// Quite similar to the previous test, but ensures mixed state flags are handled correctly, unlikely though this case may be
+			name:   "ConfigFalse_StateMixed_OrphanForgotten",
+			module: "skip-destroy-count", // count=2, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: true, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[2]", skipDestroy: false, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Forget},
+			},
+		},
+
+		// Config has destroy=true (skip-destroy-count-no-flag)
+		{
+			// Config: destroy=true, State: all SkipDestroy=false
+			// Removed instance should be Deleted because both config and state say destroy
+			name:   "ConfigTrue_StateFalse_OrphanDeleted",
+			module: "skip-destroy-count-no-flag", // count=2, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: false, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[2]", skipDestroy: false, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Delete},
+			},
+		},
+		{
+			// Config: destroy=true, State: removed instance has SkipDestroy=true
+			// State flag protects the removed instance -> Forget instead of Delete
+			//
+			// This is a side effect of our design choice to respect state flags for orphans, does this make sense in this case?
+			//
+			// FOR REVIEWERS: Please let me know if this seems wrong. Currently users can apply with SkipDestroy value changed and then reduce count.
+			// If for some reason they want to change the SkipDestroy value in state and then reduce count to cause resource destruction, they can do it in two steps.
+			// This usecase seems rare enough to not complicate the logic further.
+			name:   "ConfigTrue_StateTrue_OrphanProtectedByStateFlag",
+			module: "skip-destroy-count-no-flag", // count=2, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: false, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[2]", skipDestroy: true, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Forget},
+			},
+		},
+		{
+			// Config: destroy=true, State: mixed flags for removed instances
+			// Multiple orphans with different state flags - each respects its own flag
+			name:   "ConfigTrue_StateMixed_MultipleOrphans",
+			module: "skip-destroy-count-no-flag", // count=2, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: false, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				// Two removed: one protected, one not
+				{addr: "aws_instance.foo[2]", skipDestroy: true, instanceKey: addrs.IntKey(2),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[3]", skipDestroy: false, instanceKey: addrs.IntKey(3),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.NoOp},
+				{addr: "aws_instance.foo[1]", action: plans.NoOp},
+				{addr: "aws_instance.foo[2]", action: plans.Forget}, // protected by state flag
+				{addr: "aws_instance.foo[3]", action: plans.Delete}, // not protected
+			},
+		},
+
+		// Destroy mode with count
+		{
+			// Destroy mode: Config destroy=false, all should be forgotten and apply in destroy mode should return error
+			name:   "DestroyMode_ConfigFalse_AllForgotten",
+			module: "skip-destroy-count", // count=2, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: true, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: true, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.Forget},
+				{addr: "aws_instance.foo[1]", action: plans.Forget},
+			},
+			runApply:         true,
+			expectEmptyState: true,
+			expectApplyError: true,
+		},
+		{
+			// Destroy mode: Config destroy=true, state flags mixed
+			// In destroy mode, config destroy=true takes precedence since it still corresponds to current instances in state.
+			// Meaning we will apply the latest config and then run destroy, resulting in deletions.
+			name:   "DestroyMode_ConfigTrue_AllDeleted",
+			module: "skip-destroy-count-no-flag", // count=2, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo[0]", skipDestroy: true, instanceKey: addrs.IntKey(0),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: "aws_instance.foo[1]", skipDestroy: false, instanceKey: addrs.IntKey(1),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo[0]", action: plans.Delete}, // config destroy=true overrides state flag
+				{addr: "aws_instance.foo[1]", action: plans.Delete},
+			},
+			runApply:         true,
+			expectEmptyState: true,
+			expectApplyError: false,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+func TestSkipDestroy_ForEach(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		// Config (skip-destroy-for-each)
+		// for_each = toset(["a", "b"])
+		// destroy = false
+		{
+			// Config: destroy=false, State: all SkipDestroy=true
+			// Resource instance c should be Forgotten
+			name:   "ConfigFalse_StateTrue_OrphanForgotten",
+			module: "skip-destroy-for-each", // keys: a, b, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: true, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: true, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget},
+			},
+		},
+		{
+			// Config: destroy=false, State: removed instance c has SkipDestroy=false
+			// Config destroy=false still takes precedence -> Forget
+			name:   "ConfigFalse_StateFalse_OrphanForgotten",
+			module: "skip-destroy-for-each", // keys: a, b, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: false, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: false, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget},
+			},
+		},
+		{
+			// State has keys a, c. Config has keys a, b.
+			// instance c is removed (Forget), b is added (Create), a is kept (NoOp).
+			name:   "ConfigFalse_AddAndRemove",
+			module: "skip-destroy-for-each", // keys: a, b
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: true, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget},
+				{addr: `aws_instance.foo["b"]`, action: plans.Create},
+			},
+		},
+
+		// Config (skip-destroy-for-each-no-flag)
+		// for_each = toset(["a", "b"])
+		// destroy=true
+		{
+			// Config: destroy=true, State: all SkipDestroy=false
+			// Removed instance c should be Deleted
+			name:   "ConfigTrue_StateFalse_OrphanDeleted",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: false, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: false, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Delete},
+			},
+		},
+		{
+			// Config: destroy=true, State: removed instance c has SkipDestroy=true
+			// state flag protects the removed resource -> Forget
+			name:   "ConfigTrue_StateTrue_OrphanProtected",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: false, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget},
+			},
+		},
+		{
+			// Config: destroy=true, State: mixed flags for 2 removed instances
+			// Each orphan respects its own state flag
+			name:   "ConfigTrue_StateMixed_MultipleOrphans",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: false, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				// Two orphans with different state flags
+				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["d"]`, skipDestroy: false, instanceKey: addrs.StringKey("d"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget},
+				{addr: `aws_instance.foo["d"]`, action: plans.Delete},
+			},
+		},
+
+		// Keys changed to a new set
+		{
+			// State has keys x, y. Config has keys a, b.
+			// We should Forget the removed instances (x, y) because config destroy=false,
+			name:   "ConfigFalse_CompleteKeyChange",
+			module: "skip-destroy-for-each", // keys: a, b, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["x"]`, skipDestroy: true, instanceKey: addrs.StringKey("x"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["y"]`, skipDestroy: false, instanceKey: addrs.StringKey("y"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				// config destroy=false -> Both get Forgotten
+				{addr: `aws_instance.foo["x"]`, action: plans.Forget},
+				{addr: `aws_instance.foo["y"]`, action: plans.Forget},
+				// New instances get created
+				{addr: `aws_instance.foo["a"]`, action: plans.Create},
+				{addr: `aws_instance.foo["b"]`, action: plans.Create},
+			},
+		},
+		{
+			// State has keys x, y. Config has keys a, b with destroy=true.
+			// Removed instances (now orphans) respect their individual state flags.
+			name:   "ConfigTrue_CompleteKeyChange_MixedStateFlags",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["x"]`, skipDestroy: true, instanceKey: addrs.StringKey("x"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["y"]`, skipDestroy: false, instanceKey: addrs.StringKey("y"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["x"]`, action: plans.Forget},
+				{addr: `aws_instance.foo["y"]`, action: plans.Delete},
+				{addr: `aws_instance.foo["a"]`, action: plans.Create},
+				{addr: `aws_instance.foo["b"]`, action: plans.Create},
+			},
+		},
+
+		// Destroy mode with for_each
+		{
+			// Destroy mode: Config destroy=false, all should be forgotten
+			name:   "DestroyMode_ConfigFalse_AllForgotten",
+			module: "skip-destroy-for-each", // keys: a, b, destroy=false
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: true, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: true, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["a"]`, action: plans.Forget},
+				{addr: `aws_instance.foo["b"]`, action: plans.Forget},
+			},
+
+			runApply:         true,
+			expectEmptyState: true,
+			expectApplyError: true,
+		},
+		{
+			// Destroy mode: Config destroy=true, state flags mixed
+			// In destroy mode, config destroy=true takes precedence - all instances deleted
+			name:   "DestroyMode_ConfigTrue_AllDeleted",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: true, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["a"]`, action: plans.Delete},
+				{addr: `aws_instance.foo["b"]`, action: plans.Delete},
+			},
+		},
+		{
+			// Destroy mode: Config destroy=true, state flags mixed
+			// In destroy mode, config destroy=true takes precedence - all current instances deleted
+			// Orphaned instances respect their state flags
+			name:   "DestroyMode_ConfigTrue_AllDeleted",
+			module: "skip-destroy-for-each-no-flag", // keys: a, b, destroy=true
+			stateInstances: []skipStateInstance{
+				{addr: `aws_instance.foo["a"]`, skipDestroy: true, instanceKey: addrs.StringKey("a"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+				{addr: `aws_instance.foo["d"]`, skipDestroy: false, instanceKey: addrs.StringKey("d"),
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: `aws_instance.foo["a"]`, action: plans.Delete},
+				{addr: `aws_instance.foo["b"]`, action: plans.Delete},
+
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget}, // protected by state flag
+				{addr: `aws_instance.foo["d"]`, action: plans.Delete}, // not protected
+			},
+			runApply:         true,
+			expectEmptyState: true,
+			expectApplyError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// Lifecycle Enabled Flag Tests
+
+func TestSkipDestroy_Enabled(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		{
+			// Resource exists in state with SkipDestroy=true, but enabled=false set.
+			// The resource should be forgotten instead of deleted.
+			name:   "False_Forget",
+			module: "skip-destroy-enabled-false",
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// Removed Block Tests
+
+// The removed block takes precedence over both resource config and state flags.
+// Interaction with removed block in config:
+// 1. Resource destroy=true, Removed destroy=true -> Delete
+// 2. Resource destroy=true, Removed destroy=false -> Forget
+// 3. Resource destroy=false, Removed destroy=true -> Delete
+// 4. Resource destroy=false, Removed destroy=false -> Forget
+
+func TestSkipDestroy_RemovedBlock(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		// State SkipDestroy=true, Removed destroy=true -> Delete
+		{
+			name:   "StateTrue_RemovedTrue_Delete",
+			module: "skip-destroy-removed", // removed { destroy = true }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+		},
+
+		// State SkipDestroy=true, Removed destroy=false -> Forget
+		{
+			name:   "StateTrue_RemovedFalse_Forget",
+			module: "skip-destroy-removed-no-destroy", // removed { destroy = false }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+
+		// State SkipDestroy=false, Removed destroy=true -> Delete
+		{
+			name:   "StateFalse_RemovedTrue_Delete",
+			module: "skip-destroy-removed", // removed { destroy = true }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Delete},
+			},
+		},
+
+		// State SkipDestroy=false, Removed destroy=false -> Forget
+		{
+			name:   "StateFalse_RemovedFalse_Forget",
+			module: "skip-destroy-removed-no-destroy", // removed { destroy = false }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: false,
+					attrsJSON: `{"id":"baz","require_new":"new","type":"aws_instance"}`},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// TestSkipDestroy_RemovedBlock_DeposedInstance tests removed block interactions with deposed instances.
+// Deposed instances follow the same rules as current instances for removed blocks.
+func TestSkipDestroy_RemovedBlock_DeposedInstance(t *testing.T) {
+	tests := []skipDestroyTestCase{
+		// Deposed with SkipDestroy=true, Removed destroy=true -> Delete
+		{
+			name:   "DeposedStateTrue_RemovedTrue_Delete",
+			module: "skip-destroy-removed", // removed { destroy = true }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+			},
+		},
+
+		// Deposed with SkipDestroy=true, Removed destroy=false -> Forget
+		{
+			name:   "DeposedStateTrue_RemovedFalse_Forget",
+			module: "skip-destroy-removed-no-destroy", // removed { destroy = false }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+
+		// Deposed with SkipDestroy=false, Removed destroy=true -> Delete
+		{
+			name:   "DeposedStateFalse_RemovedTrue_Delete",
+			module: "skip-destroy-removed", // removed { destroy = true }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+			},
+		},
+
+		// Deposed with SkipDestroy=false, Removed destroy=false -> Forget
+		{
+			name:   "DeposedStateFalse_RemovedFalse_Forget",
+			module: "skip-destroy-removed-no-destroy", // removed { destroy = false }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+			},
+		},
+
+		// Multiple deposed instances with mixed state flags, removed destroy=true
+		// Removed block overrides all state flags
+		{
+			name:   "MultipleDeposed_RemovedTrue_AllDelete",
+			module: "skip-destroy-removed", // removed { destroy = true }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+				{addr: "aws_instance.foo", deposedKey: "00000002", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Delete},
+				{addr: "aws_instance.foo", deposedKey: "00000002", action: plans.Delete},
+			},
+		},
+
+		// Multiple deposed instances with mixed state flags, removed destroy=false
+		// Removed block overrides all state flags
+		{
+			name:   "MultipleDeposed_RemovedFalse_AllForget",
+			module: "skip-destroy-removed-no-destroy", // removed { destroy = false }
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", deposedKey: "00000001", skipDestroy: true},
+				{addr: "aws_instance.foo", deposedKey: "00000002", skipDestroy: false},
+			},
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", deposedKey: "00000001", action: plans.Forget},
+				{addr: "aws_instance.foo", deposedKey: "00000002", action: plans.Forget},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runSkipDestroyTestCase(t, tc)
+		})
+	}
+}
+
+// TestSkipDestroy_ConfigChange_UpdatesState verifies the full cycle:
+// Apply with destroy=false and verify flag is set in state
+// Another apply with destroy=true and verify flag is removed from state
+func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
+	// Apply with destroy=false
+	m := testModule(t, "skip-destroy")
+	ctx, _ := setupSkipTestDefaultContext(t)
+	state := states.NewState()
+
+	plan, _ := ctx.Plan(t.Context(), m, state, DefaultPlanOpts)
+	appliedState, _ := ctx.Apply(t.Context(), plan, m, nil)
+
+	if !appliedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
+		t.Fatal("SkipDestroy flag not set initially")
+	}
+
+	// Change config to destroy=true (using "simple" module which has default destroy=true)
+	// and apply. This should remove the flag.
+	m2 := testModule(t, "simple")
+	plan2, diags := ctx.Plan(t.Context(), m2, appliedState, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	appliedState2, diags := ctx.Apply(t.Context(), plan2, m2, nil)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	if appliedState2.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
+		t.Fatal("SkipDestroy flag not removed after config change")
 	}
 }
