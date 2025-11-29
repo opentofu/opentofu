@@ -280,9 +280,9 @@ func (c *PlanCommand) showClassificationResults(classifications map[string]*clas
 func (c *PlanCommand) readPlanFromFile(planPath string) (*plans.Plan, error) {
 	ctx := context.Background()
 
-	enc, err := c.Encryption(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get encryption: %w", err)
+	enc, encDiags := c.Encryption(ctx)
+	if encDiags.HasErrors() {
+		return nil, fmt.Errorf("failed to get encryption: %s", encDiags.Err().Error())
 	}
 
 	planFile, diags := c.LoadPlanFile(planPath, enc)

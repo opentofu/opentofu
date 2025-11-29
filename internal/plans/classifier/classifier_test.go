@@ -78,6 +78,7 @@ func TestIntegration(t *testing.T) {
 		classification := classifier.ClassifyByAction(action)
 		if classification == nil {
 			t.Errorf("Classification for %s should not be nil", action.String())
+			continue
 		}
 		t.Logf("Action: %s -> Safety: %v, Reason: %s",
 			action.String(), classification.SafetyLevel, classification.Reason)
