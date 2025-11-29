@@ -10,6 +10,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"golang.org/x/exp/slices"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -596,6 +598,118 @@ output "out" {
 		if c.Action != plans.NoOp {
 			t.Errorf("Unexpcetd %s change for %s", c.Action, c.Addr)
 		}
+	}
+}
+
+// TestContext2Apply_sensitiveInsideUnknown verifies that OpenTofu uses
+// sensitive value information from provider schema when deciding what to
+// mark as sensitive in the final state after apply, even if the values in
+// question were not yet available during the planning phase.
+//
+// For additional context, refer to https://github.com/opentofu/opentofu/issues/3367 .
+func TestContext2Apply_sensitiveInsideUnknown(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "example.com/foo/test"
+					}
+				}
+			}
+
+			resource "test_sensitive" "test" {
+			}
+		`,
+	})
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test_sensitive": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							// We need at least one level of container
+							// indirection here, because we're verifying
+							// that the nested attribute has its sensitivity
+							// recorded in the final state even though
+							// the entire container will be unknown during
+							// planning and therefore the nested value cannot
+							// be marked in the "planned new state".
+							"container": {
+								Computed: true,
+								NestedType: &configschema.Object{
+									Nesting: configschema.NestingSingle,
+									Attributes: map[string]*configschema.Attribute{
+										"sensitive": {
+											Type:      cty.String,
+											Sensitive: true,
+											Computed:  true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		PlanResourceChangeResponse: &providers.PlanResourceChangeResponse{
+			PlannedState: cty.ObjectVal(map[string]cty.Value{
+				// The whole container is initially unknown, so the sensitivity
+				// of the nested "sensitive" attribute cannot be tracked as
+				// part of this value, forcing the apply phase to rely on
+				// the provider schema for that information.
+				"container": cty.UnknownVal(cty.Object(map[string]cty.Type{"sensitive": cty.String})),
+			}),
+		},
+		ApplyResourceChangeResponse: &providers.ApplyResourceChangeResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"container": cty.ObjectVal(map[string]cty.Value{
+					// This nested string value should be automatically marked
+					// as sensitive in the final state due to the provider
+					// schema, even though it wasn't present in the "planned
+					// state" in PlanResourceChangeResponse above.
+					"sensitive": cty.StringVal("hello"),
+				}),
+			}),
+		},
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	state, diags := tofuCtx.Apply(context.Background(), plan, m, &ApplyOpts{})
+	assertNoErrors(t, diags)
+
+	riState := state.ResourceInstance(addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_sensitive",
+		Name: "test",
+	}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey))
+	if riState == nil {
+		t.Fatal("resource instance state is missing")
+	}
+	if riState.Current == nil {
+		t.Fatal("resource instance has no current object")
+	}
+	foundSensitive := false
+	for _, pvm := range riState.Current.AttrSensitivePaths {
+		t.Logf("marks at %s: %#v", tfdiags.FormatCtyPath(pvm.Path), pvm.Marks)
+		if _, ok := pvm.Marks[marks.Sensitive]; !ok {
+			continue
+		}
+		if !pvm.Path.Equals(cty.GetAttrPath("container").GetAttr("sensitive")) {
+			continue
+		}
+		foundSensitive = true
+	}
+	if !foundSensitive {
+		t.Errorf("no sensitive mark for .container.sensitive in %s", spew.Sdump(riState.Current))
 	}
 }
 
@@ -5645,6 +5759,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -5681,7 +5796,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Instances: map[addrs.InstanceKey]*states.ResourceInstance{
 			addrs.NoKey: {
 				Current: &states.ResourceInstanceObjectSrc{
-					AttrsJSON:          []byte(`{"id":"id val","secret":"val"}`),
+					AttrsJSON:          []byte(`{"id":"id val","input":null,"secret":"val"}`),
 					Status:             states.ObjectReady,
 					AttrSensitivePaths: []cty.PathValueMarks{},
 					Dependencies:       []addrs.ConfigResource{},
@@ -6353,5 +6468,485 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
 		}
+	}
+}
+
+func TestContext2Apply_enabledForModule(t *testing.T) {
+	m := testModule(t, "apply-enabled-module")
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+	tfCtx := testContext2(t, &ContextOpts{
+		Providers: ps,
+	})
+
+	resourceInstAddr := mustResourceInstanceAddr(`module.mod1.test_instance.a`)
+	// We'll overwrite this after each round, but it starts empty.
+	state := states.NewState()
+
+	{
+		t.Logf("First round: var.on = false")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		if instPlan := plan.Changes.ResourceInstance(resourceInstAddr); instPlan != nil {
+			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+	{
+		t.Logf("Second round: var.on = true")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.True,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Create; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		instState := newState.ResourceInstance(resourceInstAddr)
+		if instState == nil {
+			t.Fatalf("missing state entry for %s", resourceInstAddr)
+		}
+
+		state = newState // "persist" the state for the next round
+	}
+	{
+		t.Logf("Third round: var.on = false, again")
+
+		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			SetVariables: InputValues{
+				"on": &InputValue{
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoDiagnostics(t, diags)
+
+		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
+		if instPlan == nil {
+			t.Fatalf("missing plan for %s", resourceInstAddr)
+		}
+		if got, want := instPlan.Action, plans.Delete; got != want {
+			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
+		assertNoDiagnostics(t, diags)
+
+		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
+			t.Fatalf("unexpected state entry for %s (should be disabled)", resourceInstAddr)
+		}
+	}
+}
+
+// TestContext2Apply_callingProviderFunctionFromDynamicBlock checks that a
+// provider function can be used by referencing it in a dynamic block inside
+// a resource.
+func TestContext2Apply_callingProviderFunctionFromDynamicBlock(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+		test = {
+			source = "example.com/foo/test"
+		}
+	}
+}
+
+locals {
+	urls = ["foo:80", "bar:81"]
+}
+resource "test_resource" "res" {
+  dynamic "allow" {
+	iterator = item
+    for_each = {
+      for z in local.urls :
+      z => provider::test::extract_port(z) if contains([80, 81], provider::test::extract_port(z))
+    }
+    content {
+      port = item.value
+    }
+  }
+}
+`,
+	})
+
+	p := MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"allow": {
+							Nesting: configschema.NestingList,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"port": {
+										Type:     cty.Number,
+										Optional: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Functions: map[string]providers.FunctionSpec{
+			"extract_port": {
+				Parameters: []providers.FunctionParameterSpec{
+					{
+						Name:               "in",
+						Type:               cty.String,
+						AllowNullValue:     false,
+						AllowUnknownValues: false,
+					},
+				},
+				Return: cty.Number,
+			},
+		},
+	}
+	p.CallFunctionFn = func(request providers.CallFunctionRequest) providers.CallFunctionResponse {
+		// Since there is only a single function defined, we don't want to make this implementation more complex than
+		// needed, so we have only the implementation for that.
+		v := request.Arguments[0].AsString()
+		idx := strings.LastIndex(v, ":")
+		if idx >= 0 {
+			v = v[idx+1:]
+		}
+		port, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return providers.CallFunctionResponse{
+				Error: err,
+			}
+		}
+		return providers.CallFunctionResponse{
+			Result: cty.NumberVal(big.NewFloat(port)),
+		}
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.MustParseProviderSourceString("example.com/foo/test"): testProviderFuncFixed(&p),
+		},
+	})
+
+	assertState := func(t *testing.T, s *states.State) {
+		res := s.Resource(mustAbsResourceAddr("test_resource.res"))
+		diff := cmp.Diff(`{"allow":[{"port":81},{"port":80}]}`, string(res.Instances[addrs.NoKey].Current.AttrsJSON))
+		if diff != "" {
+			t.Fatalf("wrong expected resource change found (-wanted, +got):\n%s", diff)
+		}
+	}
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, nil))
+	assertNoErrors(t, diags)
+	assertState(t, plan.PlannedState)
+
+	state, diags := ctx.Apply(context.Background(), plan, m, nil)
+	assertNoErrors(t, diags)
+	assertState(t, state)
+}
+
+// TestContext2Apply_ephemeralInModuleWithExpansion checks that the expansion of the
+// ephemeral resources is not pruned even when there is an ephemeral instance node to
+// be executed.
+// This test has been added when a fix for https://github.com/opentofu/opentofu/issues/3489
+// was provided.
+func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
+	cfgs := map[string]map[string]string{
+		"1 level deep with for_each on module call": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					input = "module1"
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = ephemeral.test_ephemeral_resource.mod1_secret.secret
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					input = "root"
+				}
+				module "level1call" {
+				    for_each = toset(["root_1", "root_2"])
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull(ephemeral.test_ephemeral_resource.root_secret.secret)
+				}
+		`,
+		},
+		"1 level deep with count on module call": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					input = "module1"
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = ephemeral.test_ephemeral_resource.mod1_secret.secret
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					input = "root"
+				}
+				module "level1call" {
+				    count = 2
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull(ephemeral.test_ephemeral_resource.root_secret.secret)
+				}
+		`,
+		},
+		"for_each 1 level deep": {
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					for_each = toset(["module1_1", "module1_2"])
+					input = each.key
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					for_each = toset(["root_1", "root_2"])
+					input = each.key
+				}
+				module "level1call" {
+				    for_each = ephemeral.test_ephemeral_resource.root_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+                      for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+                    ])
+				}
+		`,
+		},
+		"for_each 2 levels deep": {
+			`mod/mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod2_secret" {
+					for_each = toset(["module2_1", "module2_2"])
+					input = each.key
+				}
+		
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod2_secret: s.secret]
+				}
+		`,
+			`mod/main.tf`: `
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					for_each = toset(["module1_1", "module1_2"])
+					input = each.key
+				}
+				module "level2call" {
+				    for_each = ephemeral.test_ephemeral_resource.mod1_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					for_each = toset(["root_1", "root_2"])
+					input = each.key
+				}
+				module "level1call" {
+				    for_each = ephemeral.test_ephemeral_resource.root_secret
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+		              for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+		            ])
+				}
+		`,
+		},
+		"count 1 level deep": {
+			`mod/main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+                locals {
+                    elements = ["root_1", "root_2"]
+                }
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level1call" {
+				    count = length(ephemeral.test_ephemeral_resource.root_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+                      for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+                    ])
+				}
+		`,
+		},
+		"count 2 levels deep": {
+			`mod/mod/main.tf`: `
+                locals {
+                    elements = ["module2_1", "module2_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod2_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+		
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod2_secret: s.secret]
+				}
+		`,
+			`mod/main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "mod1_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level2call" {
+				    count = length(ephemeral.test_ephemeral_resource.mod1_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				  ephemeral = true
+				  value = [for s in ephemeral.test_ephemeral_resource.mod1_secret: s.secret]
+				}
+		`,
+			`main.tf`: `
+                locals {
+                    elements = ["module1_1", "module1_2"]
+                }
+				ephemeral "test_ephemeral_resource" "root_secret" {
+					count = length(local.elements)
+					input = local.elements[count.index]
+				}
+				module "level1call" {
+				    count = length(ephemeral.test_ephemeral_resource.root_secret)
+				    source = "./mod"
+				}
+				output "exit" {
+				    value = ephemeralasnull([
+		              for s in ephemeral.test_ephemeral_resource.root_secret: s.secret
+		            ])
+				}
+		`,
+		},
+	}
+
+	for name, cfg := range cfgs {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, cfg)
+
+			provider := testProvider("test")
+			provider.OpenEphemeralResourceFn = func(request providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+				val := request.Config.GetAttr("input").AsString()
+				return providers.OpenEphemeralResourceResponse{
+					Result: cty.ObjectVal(map[string]cty.Value{
+						"id":     cty.StringVal("id val"),
+						"secret": cty.StringVal(fmt.Sprintf("%s: secret val", val)),
+						"input":  cty.StringVal(val),
+					}),
+				}
+			}
+			provider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+				Result: cty.ObjectVal(map[string]cty.Value{
+					"id":     cty.StringVal("id val"),
+					"secret": cty.StringVal("secret val"),
+				}),
+			}
+
+			ps := map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+			}
+
+			h := &testHook{}
+			apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+				ctx := testContext2(t, &ContextOpts{
+					Providers: ps,
+					Hooks:     []Hook{h},
+				})
+
+				plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+					Mode: plans.NormalMode,
+				})
+				if diags.HasErrors() {
+					return nil, diags
+				}
+
+				return ctx.Apply(context.Background(), plan, m, nil)
+			}
+
+			_, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+
+			// Apply again to be sure that nothing changes and it still working
+			newState, diags := apply(t, m, states.NewState())
+			if diags.HasErrors() {
+				t.Fatal(diags.Err())
+			}
+			fmt.Println(newState)
+		})
+
 	}
 }

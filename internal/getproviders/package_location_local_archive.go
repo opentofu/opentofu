@@ -12,9 +12,9 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-getter"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -67,7 +67,7 @@ func (p PackageLocalArchive) InstallProviderPackage(ctx context.Context, meta Pa
 	}
 
 	filename := meta.Location.String()
-	span.SetAttributes(semconv.FilePath(filename))
+	span.SetAttributes(traceattrs.FilePath(filename))
 
 	// NOTE: Packages are immutable, but we may want to skip overwriting the existing
 	// files in due to specific scenarios defined below.

@@ -20,7 +20,7 @@ You should see some environment variables that look like this:
 
 ```bash
 export TF_AZURE_TEST_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-export TF_AZURE_TEST_SECRET=some~secret~string
+export TF_AZURE_TEST_CLIENT_SECRET=some~secret~string
 ```
 
 Copy and paste these into the command line to provide the secrets for the backend tests.

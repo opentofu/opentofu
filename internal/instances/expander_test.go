@@ -22,6 +22,7 @@ func TestExpander(t *testing.T) {
 	count2ModuleAddr := addrs.ModuleCall{Name: "count2"}
 	count0ModuleAddr := addrs.ModuleCall{Name: "count0"}
 	forEachModuleAddr := addrs.ModuleCall{Name: "for_each"}
+	enabledModuleAddr := addrs.ModuleCall{Name: "enabled"}
 	singleResourceAddr := addrs.Resource{
 		Mode: addrs.ManagedResourceMode,
 		Type: "test",
@@ -41,6 +42,11 @@ func TestExpander(t *testing.T) {
 		Mode: addrs.ManagedResourceMode,
 		Type: "test",
 		Name: "for_each",
+	}
+	enabledResourceAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test",
+		Name: "enabled",
 	}
 	eachMap := map[string]cty.Value{
 		"a": cty.NumberIntVal(1),
@@ -88,6 +94,7 @@ func TestExpander(t *testing.T) {
 		ex.SetResourceCount(addrs.RootModuleInstance, count2ResourceAddr, 2)
 		ex.SetResourceCount(addrs.RootModuleInstance, count0ResourceAddr, 0)
 		ex.SetResourceForEach(addrs.RootModuleInstance, forEachResourceAddr, eachMap)
+		ex.SetResourceEnabled(addrs.RootModuleInstance, enabledResourceAddr, true)
 
 		ex.SetModuleSingle(addrs.RootModuleInstance, singleModuleAddr)
 		{
@@ -95,6 +102,12 @@ func TestExpander(t *testing.T) {
 			moduleInstanceAddr := addrs.RootModuleInstance.Child("single", addrs.NoKey)
 			ex.SetResourceSingle(moduleInstanceAddr, singleResourceAddr)
 			ex.SetResourceCount(moduleInstanceAddr, count2ResourceAddr, 2)
+		}
+
+		ex.SetModuleEnabled(addrs.RootModuleInstance, enabledModuleAddr, true)
+		{
+			moduleInstanceAddr := addrs.RootModuleInstance.Child("enabled", addrs.NoKey)
+			ex.SetResourceSingle(moduleInstanceAddr, singleResourceAddr)
 		}
 
 		ex.SetModuleCount(addrs.RootModuleInstance, count2ModuleAddr, 2)
@@ -146,6 +159,19 @@ func TestExpander(t *testing.T) {
 			t.Errorf("wrong result\n%s", diff)
 		}
 	})
+
+	t.Run("resource enabled", func(t *testing.T) {
+		got := ex.ExpandModuleResource(
+			addrs.RootModule,
+			enabledResourceAddr,
+		)
+		want := []addrs.AbsResourceInstance{
+			mustAbsResourceInstanceAddr(`test.enabled`),
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
 	t.Run("resource count2", func(t *testing.T) {
 		got := ex.ExpandModuleResource(
 			addrs.RootModule,
@@ -169,6 +195,18 @@ func TestExpander(t *testing.T) {
 			t.Errorf("wrong result\n%s", diff)
 		}
 	})
+	t.Run("resource enabled", func(t *testing.T) {
+		got := ex.ExpandModuleResource(
+			addrs.RootModule,
+			enabledResourceAddr,
+		)
+		want := []addrs.AbsResourceInstance{
+			mustAbsResourceInstanceAddr(`test.enabled`),
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
 	t.Run("resource for_each", func(t *testing.T) {
 		got := ex.ExpandModuleResource(
 			addrs.RootModule,
@@ -186,6 +224,16 @@ func TestExpander(t *testing.T) {
 		got := ex.ExpandModule(addrs.RootModule.Child("single"))
 		want := []addrs.ModuleInstance{
 			mustModuleInstanceAddr(`module.single`),
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong result\n%s", diff)
+		}
+	})
+
+	t.Run("module enabled", func(t *testing.T) {
+		got := ex.ExpandModule(addrs.RootModule.Child("enabled"))
+		want := []addrs.ModuleInstance{
+			mustModuleInstanceAddr(`module.enabled`),
 		}
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("wrong result\n%s", diff)

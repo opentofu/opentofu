@@ -20,8 +20,6 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
@@ -84,11 +82,9 @@ func (c *Client) Discover(ctx context.Context, host svchost.Hostname, serviceID 
 
 // ModuleVersions queries the registry for a module, and returns the available versions.
 func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*response.ModuleVersions, error) {
-	ctx, span := tracing.Tracer().Start(ctx, "List Versions",
-		trace.WithAttributes(
-			otelAttr.String("opentofu.module.name", module.RawName),
-		),
-	)
+	ctx, span := tracing.Tracer().Start(ctx, "List Versions", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(module.RawName),
+	))
 	defer span.End()
 
 	host, err := module.SvcHost()
@@ -165,13 +161,11 @@ func (c *Client) addRequestCreds(ctx context.Context, host svchost.Hostname, req
 // ModuleLocation find the download location for a specific version module.
 // This returns a string, because the final location may contain special go-getter syntax.
 func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, version string) (string, error) {
-	ctx, span := tracing.Tracer().Start(ctx, "Find Module Location",
-		trace.WithAttributes(
-			otelAttr.String(traceattrs.ModuleCallName, module.RawName),
-			otelAttr.String(traceattrs.ModuleSource, module.Module()),
-			otelAttr.String(traceattrs.ModuleVersion, version),
-		),
-	)
+	ctx, span := tracing.Tracer().Start(ctx, "Find Module Location", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(module.RawName),
+		traceattrs.OpenTofuModuleSource(module.Module()),
+		traceattrs.OpenTofuModuleVersion(version),
+	))
 	defer span.End()
 
 	host, err := module.SvcHost()

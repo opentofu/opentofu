@@ -15,12 +15,21 @@ import (
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk"
-	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 
-	"github.com/opentofu/opentofu/version"
+	// ---------------------------------------------------------------------
+	// DO NOT IMPORT ANY "go.opentelemetry.io/otel/semconv/*" PACKAGES HERE!
+	// ---------------------------------------------------------------------
+	// Instead, use semconv indirectly through wrappers and reexports in
+	// ./traceattrs/semconv.go, because we need to coordinate our chosen
+	// semconv version with the OTel SDK's "resource" package.
+
+	// The version number at the end of this package math MUST match the
+	// semconv version imported by the "go.opentelemetry.io/otel/sdk/resource",
+	// so we will typically need to update this each time we upgrade
+	// the module "go.opentelemetry.io/otel/sdk".
+
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 /*
@@ -104,26 +113,7 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 		serviceName = envServiceName
 	}
 
-	otelResource, err := resource.New(context.Background(),
-		// Use built-in detectors to simplify the collation of the racing information
-		resource.WithOS(),
-		resource.WithHost(),
-		resource.WithProcess(),
-		resource.WithSchemaURL(semconv.SchemaURL),
-		resource.WithAttributes(),
-
-		// Add custom service attributes
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(version.Version),
-
-			// We add in the telemetry SDK information so that we don't end up with
-			// duplicate schema urls that clash
-			semconv.TelemetrySDKName("opentelemetry"),
-			semconv.TelemetrySDKLanguageGo,
-			semconv.TelemetrySDKVersion(sdk.Version()),
-		),
-	)
+	otelResource, err := traceattrs.NewResource(ctx, serviceName)
 	if err != nil {
 		return ctx, fmt.Errorf("failed to create resource: %w", err)
 	}

@@ -93,7 +93,7 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 		// Depending on the action we'll need some different combinations of
 		// nodes, because destroying uses a special node type separate from
 		// other actions.
-		var update, delete, forget, createBeforeDestroy bool
+		var update, delete, forget, open, createBeforeDestroy bool
 		switch rc.Action {
 		case plans.NoOp:
 			// For a no-op change we don't take any action but we still
@@ -109,6 +109,8 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			update = true
 			delete = true
 			createBeforeDestroy = (rc.Action == plans.CreateThenDelete)
+		case plans.Open:
+			open = true
 		default:
 			update = true
 		}
@@ -162,12 +164,41 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			}
 		}
 
+		if open {
+			// Ephemeral resources are always opened, even if the value is not used.
+			// This means that to ensure that the ephemeral resource instance node is created and connected
+			// to the resource node, we create it here.
+			// If we do not have this logic here, ephemeral resource instances that are not used by any other resource
+			// or output would be pruned away during the unused nodes pruning step, and thus not opened.
+			abstract := NewNodeAbstractResourceInstance(addr)
+			var node dag.Vertex = abstract
+			if t.Concrete != nil {
+				node = t.Concrete(abstract)
+			}
+
+			g.Add(node)
+
+			resourceContaining := addr.ContainingResource()
+			// strip the instance key from the module instance
+			resourceAddress := addrs.AbsResource{
+				Module:   resourceContaining.Module.Module().UnkeyedInstanceShim(),
+				Resource: resourceContaining.Resource,
+			}.String()
+
+			// Ensure that the ephemeral resource instance node connects to
+			// the resource node. This is needed to ensure that the ephemeral
+			// expansion node will not get pruned due to having no connections
+			for _, resourceNode := range resourceNodes[resourceAddress] {
+				g.Connect(dag.BasicEdge(node, resourceNode))
+			}
+		}
+
 		if update {
 			// All actions except destroying the node type chosen by t.Concrete
 			abstract := NewNodeAbstractResourceInstance(addr)
 			var node dag.Vertex = abstract
-			if f := t.Concrete; f != nil {
-				node = f(abstract)
+			if t.Concrete != nil {
+				node = t.Concrete(abstract)
 			}
 
 			if createBeforeDestroy {

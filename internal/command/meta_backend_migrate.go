@@ -990,7 +990,8 @@ Migrating state from cloud backend to another backend is not yet implemented.
 const errInteractiveInputDisabled = `
 Can't ask approval for state migration when interactive input is disabled.
 
-Please remove the "-input=false" option and try again.
+If non-interactive operation is desired, consider adding the "-force-copy"
+option. Otherwise, please remove the "-input=false" option and try again.
 `
 
 const tfcInputBackendMigrateMultiToMultiPattern = `

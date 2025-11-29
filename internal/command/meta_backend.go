@@ -103,6 +103,16 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		opts = &BackendOpts{}
 	}
 
+	if m.AllowExperimentalFeatures {
+		// TEMP: While we're in early development of the new language runtime
+		// we have an experimental shim to enable it using an environment
+		// variable, but that's allowed only in builds where experimental
+		// features are enabled. Refer to the file containing the following
+		// function for more information. This should be completely removed
+		// once the experiment is concluded.
+		backendLocal.SetExperimentalRuntimeAllowed(true)
+	}
+
 	// Initialize a backend from the config unless we're forcing a purely
 	// local operation.
 	var b backend.Backend

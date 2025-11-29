@@ -77,6 +77,10 @@ func (n *nodeExpandModule) References() []*addrs.Reference {
 		forEachRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.ForEach)
 		refs = append(refs, forEachRefs...)
 	}
+	if n.ModuleCall.Enabled != nil {
+		enabledRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.Enabled)
+		refs = append(refs, enabledRefs...)
+	}
 
 	for _, passed := range n.ModuleCall.Providers {
 		if passed.InParent.KeyExpression != nil {
@@ -142,6 +146,13 @@ func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op 
 			}
 			expander.SetModuleForEach(module, call, forEach)
 
+		case n.ModuleCall.Enabled != nil:
+			enabled, enDiags := evaluateEnabledExpression(ctx, n.ModuleCall.Enabled, evalCtx)
+			diags = diags.Append(enDiags)
+			if diags.HasErrors() {
+				return diags
+			}
+			expander.SetModuleEnabled(module, call, enabled)
 		default:
 			expander.SetModuleSingle(module, call)
 		}

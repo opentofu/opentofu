@@ -565,16 +565,23 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 		}
 
 	default:
-		val, ok := moduleInstances[addrs.NoKey]
+		vals, ok := moduleInstances[addrs.NoKey]
 		if !ok {
-			// create the object if there wasn't one known
-			val = map[string]cty.Value{}
-			for k := range outputConfigs {
-				val[k] = cty.DynamicVal
+			if callConfig.Enabled == nil {
+				// create the object if there wasn't one known
+				vals = map[string]cty.Value{}
+				for k := range outputConfigs {
+					vals[k] = cty.DynamicVal
+				}
+				ret = cty.ObjectVal(vals)
+			} else {
+				// when we're using enabled it's okay to have no
+				// instance, and the entire object is null.
+				ret = cty.NullVal(cty.DynamicPseudoType)
 			}
+		} else {
+			ret = cty.ObjectVal(vals)
 		}
-
-		ret = cty.ObjectVal(val)
 	}
 
 	// The module won't be expanded during validation, so we need to return an

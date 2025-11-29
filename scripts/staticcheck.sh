@@ -20,4 +20,4 @@ packages=$(go list ./... | egrep -v ${skip})
 # may result in bugs. We also disable function deprecation checks (SA1019)
 # because our policy is to update deprecated calls locally while making other
 # nearby changes, rather than to make cross-cutting changes to update them all.
-go run honnef.co/go/tools/cmd/staticcheck -checks 'all,-SA1019,-ST*' ${packages}
+go tool honnef.co/go/tools/cmd/staticcheck -checks 'all,-SA1019,-ST*' ${packages}

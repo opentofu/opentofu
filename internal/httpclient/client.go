@@ -11,8 +11,8 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -34,7 +34,7 @@ func New(ctx context.Context) *http.Client {
 		inner:     cli.Transport,
 	}
 
-	if span := otelTrace.SpanFromContext(ctx); span != nil && span.IsRecording() {
+	if span := tracing.SpanFromContext(ctx); span != nil && span.IsRecording() {
 		// We consider the presence of an active span -- that is, one whose
 		// presence is going to be reported to a trace collector outside of
 		// the OpenTofu process -- as sufficient signal that generating

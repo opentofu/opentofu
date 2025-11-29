@@ -206,6 +206,11 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 
 		if c.Managed != nil {
+			if c.Managed.PreventDestroy != nil {
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
+				result = append(result, refs...)
+			}
+
 			if c.Managed.Connection != nil {
 				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, shared.ConnectionBlockSupersetSchema)
 				result = append(result, refs...)
@@ -243,6 +248,28 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 	}
 
+	return result
+}
+
+// DestroyReferences is a _partial_ implementation of [GraphNodeDestroyer]
+// providing a default implementation for any embedding node type that has
+// its own implementations of all of the other methods of that interface.
+func (n *NodeAbstractResource) DestroyReferences() []*addrs.Reference {
+	// Config is always optional at destroy time, but if it's present then
+	// it might influence how we plan and apply the destroy actions.
+	var result []*addrs.Reference
+	if c := n.Config; c != nil {
+		if c.Managed != nil {
+			// The prevent_destroy setting, if present, forces planning to fail
+			// if the planned action for any instance of the resource is to
+			// destroy it, so we need to be able to evaluate the given expression
+			// for destroy nodes too.
+			if c.Managed.PreventDestroy != nil {
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
+				result = append(result, refs...)
+			}
+		}
+	}
 	return result
 }
 

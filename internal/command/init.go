@@ -17,8 +17,6 @@ import (
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -36,6 +34,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -164,8 +163,8 @@ func (c *InitCommand) Run(args []string) int {
 			ShowLocalPaths: false, // since they are in a weird location for init
 		}
 
-		ctx, span := tracing.Tracer().Start(ctx, "From module", trace.WithAttributes(
-			otelAttr.String("opentofu.module_source", src),
+		ctx, span := tracing.Tracer().Start(ctx, "From module", tracing.SpanAttributes(
+			traceattrs.OpenTofuModuleSource(src),
 		))
 		defer span.End()
 
@@ -407,8 +406,8 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		return false, false, nil
 	}
 
-	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", trace.WithAttributes(
-		otelAttr.Bool("opentofu.modules.upgrade", upgrade),
+	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", tracing.SpanAttributes(
+		traceattrs.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()
 

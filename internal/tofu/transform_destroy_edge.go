@@ -22,6 +22,14 @@ type GraphNodeDestroyer interface {
 	// destroyed by this node. If this returns nil, then this node
 	// is not destroying anything.
 	DestroyAddr() *addrs.AbsResourceInstance
+
+	// DestroyReferences is the equivalent of [GraphNodeReferencer.References]
+	// for destroy-related nodes, representing the fact that when destroying
+	// we only care about references in the subset of expressions that relate
+	// to destroying. Destroy is _mostly_ a state-only operation, but considers
+	// some metadata from the configuration when available to influence how
+	// destroying is planned.
+	DestroyReferences() []*addrs.Reference
 }
 
 // GraphNodeCreator must be implemented by nodes that create OR update resources.

@@ -19,8 +19,9 @@ const _DeferralReason_name = "DeferredReasonUnknownDeferredBecauseResourceConfig
 var _DeferralReason_index = [...]uint8{0, 21, 57, 93, 120}
 
 func (i DeferralReason) String() string {
-	if i < 0 || i >= DeferralReason(len(_DeferralReason_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_DeferralReason_index)-1 {
 		return "DeferralReason(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _DeferralReason_name[_DeferralReason_index[i]:_DeferralReason_index[i+1]]
+	return _DeferralReason_name[_DeferralReason_index[idx]:_DeferralReason_index[idx+1]]
 }

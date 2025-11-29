@@ -7,7 +7,7 @@ description: >-
 # The `count` Meta-Argument
 
 :::note
-A given resource or module block cannot use both `count` and `for_each`.
+A given resource or module block cannot use `count` together with `enabled` or `for_each`.
 :::
 
 By default, a [resource block](../../language/resources/syntax.mdx) configures one real
@@ -44,6 +44,13 @@ resource "aws_instance" "server" {
   }
 }
 ```
+
+:::tip
+If you're using `count = var.enabled ? 1 : 0` to conditionally enable/disable a
+single resource or module, consider using the [the `enabled` argument in a `lifecycle` block](../../language/meta-arguments/enabled.mdx)
+argument instead. It provides cleaner syntax without requiring array indexing and supports
+automatic migration from the `count` pattern.
+:::
 
 ## The `count` Object
 

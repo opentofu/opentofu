@@ -11,11 +11,13 @@ provider_installation {
     url     = "https://tf-Mirror.example.com/"
     include = ["registry.opentofu.org/*/*"]
     exclude = ["registry.OpenTofu.org/foobar/*"]
+    download_retry_count = 2
   }
   filesystem_mirror {
     path    = "/tmp/example2"
   }
   direct {
     exclude = ["example.com/*/*"]
+    download_retry_count = 3
   }
 }

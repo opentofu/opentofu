@@ -7,12 +7,269 @@ package tofu
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 )
+
+// TestResourceTypeConfig checks that ResourceTypeConfig works correctly in all possible combinations:
+// * Provider has schema for all types (managed && data && ephemeral)
+// * Provider has schema for only 2 types (managed && data or managed && ephemeral or data && ephemeral)
+// * Provider has schema for only 1 type (managed or data or ephemeral)
+//
+// This is due to a check that was in [ResourceTypeConfig] that could have created issues
+// but was guarded by an initialisation of the [providers.ProviderSchema.ResourceTypes] during
+// proto.GetProviderSchema (both, for protov5 and protov6).
+func TestResourceTypeConfig(t *testing.T) {
+	type resCheck struct {
+		resourceMode addrs.ResourceMode
+		resourceType string
+		exist        bool
+	}
+
+	cases := map[string]struct {
+		schema       *Schemas
+		providerAddr addrs.Provider
+		checks       []resCheck
+	}{
+		"all types": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						ResourceTypes: map[string]providers.Schema{
+							"testmanaged": {Block: &configschema.Block{}},
+						},
+						DataSources: map[string]providers.Schema{
+							"testdata": {Block: &configschema.Block{}},
+						},
+						EphemeralResources: map[string]providers.Schema{
+							"testephemeral": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        true,
+				},
+			},
+		},
+		"only managed and data": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						ResourceTypes: map[string]providers.Schema{
+							"testmanaged": {Block: &configschema.Block{}},
+						},
+						DataSources: map[string]providers.Schema{
+							"testdata": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        false,
+				},
+			},
+		},
+		"only managed and ephemeral": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						ResourceTypes: map[string]providers.Schema{
+							"testmanaged": {Block: &configschema.Block{}},
+						},
+						EphemeralResources: map[string]providers.Schema{
+							"testephemeral": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        true,
+				},
+			},
+		},
+		"only data and ephemeral": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						DataSources: map[string]providers.Schema{
+							"testdata": {Block: &configschema.Block{}},
+						},
+						EphemeralResources: map[string]providers.Schema{
+							"testephemeral": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        true,
+				},
+			},
+		},
+		"only managed": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						ResourceTypes: map[string]providers.Schema{
+							"testmanaged": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        false,
+				},
+			},
+		},
+		"only data": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						DataSources: map[string]providers.Schema{
+							"testdata": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        true,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        false,
+				},
+			},
+		},
+		"only ephemeral": {
+			schema: &Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						EphemeralResources: map[string]providers.Schema{
+							"testephemeral": {Block: &configschema.Block{}},
+						},
+					},
+				},
+			},
+			providerAddr: addrs.NewDefaultProvider("test"),
+			checks: []resCheck{
+				{
+					resourceMode: addrs.ManagedResourceMode,
+					resourceType: "testmanaged",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.DataResourceMode,
+					resourceType: "testdata",
+					exist:        false,
+				},
+				{
+					resourceMode: addrs.EphemeralResourceMode,
+					resourceType: "testephemeral",
+					exist:        true,
+				},
+			},
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			for _, check := range tt.checks {
+				checkTestName := fmt.Sprintf("%s:%s.%s", name, check.resourceMode.String(), check.resourceType)
+				t.Run(checkTestName, func(t *testing.T) {
+					b, _ := tt.schema.ResourceTypeConfig(tt.providerAddr, check.resourceMode, check.resourceType)
+					if b == nil && check.exist {
+						t.Fatalf("expected to have a schema for resource mode %q and type %q for the provider %q but got nothing. schema:\n%+v", check.resourceMode, check.resourceType, tt.providerAddr, tt.schema)
+					} else if b != nil && !check.exist {
+						t.Fatalf("expected to have no schema for resource mode %q and type %q for the provider %q but got one. schema:\n%+v", check.resourceMode, check.resourceType, tt.providerAddr, tt.schema)
+					}
+				})
+			}
+		})
+	}
+}
 
 func simpleTestSchemas() *Schemas {
 	provider := simpleMockProvider()

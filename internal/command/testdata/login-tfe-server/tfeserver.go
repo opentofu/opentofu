@@ -11,7 +11,12 @@ import (
 const (
 	goodToken      = "good-token"
 	accountDetails = `{"data":{"id":"user-abc123","type":"users","attributes":{"username":"testuser","email":"testuser@example.com"}}}`
-	MOTD           = `{"msg":"Welcome to the cloud backend!"}`
+	// NOTE: The [bold] and [reset] sequences here are the supported way for
+	// a motd.v1 implementation to introduce limited color sequences to the
+	// output. No _direct_ control characters are allowed, so the U+0000
+	// character at the end is a disallowed character included intentionally
+	// so we can verify that it is filtered as expected.
+	MOTD = `{"msg":"Welcome to [bold]the cloud backend[reset]!\u0000"}`
 )
 
 // Handler is an implementation of net/http.Handler that provides a stub

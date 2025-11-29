@@ -142,6 +142,17 @@ func (r ResourceInstance) UniqueKey() UniqueKey {
 	return r // A ResourceInstance is its own UniqueKey
 }
 
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r ResourceInstance) IsPlaceholder() bool {
+	_, ok := r.Key.(WildcardKey)
+	return ok
+}
+
 func (r ResourceInstance) uniqueKeySigil() {}
 
 // Absolute returns an AbsResourceInstance from the receiver and the given module
@@ -187,6 +198,16 @@ func (r AbsResource) Config() ConfigResource {
 		Module:   r.Module.Module(),
 		Resource: r.Resource,
 	}
+}
+
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r AbsResource) IsPlaceholder() bool {
+	return r.Module.IsPlaceholder()
 }
 
 // TargetContains implements Targetable by returning true if the given other
@@ -322,6 +343,16 @@ func (r AbsResourceInstance) TargetContains(other Targetable) bool {
 
 func (r AbsResourceInstance) AddrType() TargetableAddrType {
 	return AbsResourceInstanceAddrType
+}
+
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the resource it belongs to, rather than for
+// an actual resource instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (r AbsResourceInstance) IsPlaceholder() bool {
+	return r.Module.IsPlaceholder() || r.Resource.IsPlaceholder()
 }
 
 func (r AbsResourceInstance) String() string {
@@ -499,7 +530,7 @@ func (k configResourceKey) uniqueKeySigil() {}
 // resource lifecycle has a slightly different address format.
 type ResourceMode rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type ResourceMode
+//go:generate go tool golang.org/x/tools/cmd/stringer -type ResourceMode
 
 const (
 	// InvalidResourceMode is the zero value of ResourceMode and is not

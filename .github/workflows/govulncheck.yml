@@ -23,10 +23,10 @@ jobs:
       matrix:
         include:
           - { branch: main }
+          - { branch: v1.11 }
           - { branch: v1.10 }
           - { branch: v1.9 }
           - { branch: v1.8 }
-          - { branch: v1.7 }
       fail-fast: false
     steps:
       - name: Checkout branch to be scanned

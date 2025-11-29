@@ -14,7 +14,7 @@ import (
 // the currently-available context.
 type DeferralReason int
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=DeferralReason
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=DeferralReason
 
 const (
 	// DeferredReasonUnknown is the zero value of DeferralReason, used when

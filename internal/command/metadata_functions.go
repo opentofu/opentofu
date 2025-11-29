@@ -8,6 +8,7 @@ package command
 import (
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/command/jsonfunction"
@@ -15,7 +16,10 @@ import (
 )
 
 var (
-	ignoredFunctions = []string{"map", "list"}
+	ignoredFunctions = []addrs.Function{
+		addrs.ParseFunction("map").FullyQualified(),
+		addrs.ParseFunction("list").FullyQualified(),
+	}
 )
 
 // MetadataFunctionsCommand is a Command implementation that prints out information
@@ -78,8 +82,9 @@ Usage: tofu [global options] metadata functions -json
 `
 
 func isIgnoredFunction(name string) bool {
+	funcAddr := addrs.ParseFunction(name).FullyQualified().String()
 	for _, i := range ignoredFunctions {
-		if i == name || lang.CoreNamespace+i == name {
+		if funcAddr == i.String() {
 			return true
 		}
 	}

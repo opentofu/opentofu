@@ -9,11 +9,12 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/enctest"
 )
@@ -72,10 +73,8 @@ func TestRoundtrip(t *testing.T) {
 				t.Fatal(diags.Err())
 			}
 
-			problems := deep.Equal(oGot, oWant)
-			sort.Strings(problems)
-			for _, problem := range problems {
-				t.Error(problem)
+			if diff := cmp.Diff(oWant, oGot, cmpopts.IgnoreFields(File{}, "TerraformVersion")); diff != "" {
+				t.Error("wrong result:\n" + diff)
 			}
 		})
 	}
@@ -130,9 +129,7 @@ func TestRoundtripEncryption(t *testing.T) {
 	originalState.EncryptionStatus = newState.EncryptionStatus
 
 	// Compare before/after encryption workflow
-	problems := deep.Equal(newState, originalState)
-	sort.Strings(problems)
-	for _, problem := range problems {
-		t.Error(problem)
+	if diff := cmp.Diff(originalState, newState, cmpopts.IgnoreFields(File{}, "TerraformVersion")); diff != "" {
+		t.Error("wrong result:\n" + diff)
 	}
 }

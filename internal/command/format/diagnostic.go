@@ -82,15 +82,14 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 	// We don't wrap the summary, since we expect it to be terse, and since
 	// this is where we put the text of a native Go error it may not always
 	// be pure text that lends itself well to word-wrapping.
-	fmt.Fprintf(&buf, color.Color("[bold]%s[reset]\n\n"), diag.Summary)
+	fmt.Fprintf(&buf, color.Color("[bold]%s[reset]\n\n"), ReplaceControlChars(diag.Summary))
 
 	appendSourceSnippets(&buf, diag, color)
 
 	if diag.Detail != "" {
 		paraWidth := width - leftRuleWidth - 1 // leave room for the left rule
 		if paraWidth > 0 {
-			lines := strings.Split(diag.Detail, "\n")
-			for _, line := range lines {
+			for line := range strings.SplitSeq(ReplaceControlChars(diag.Detail), "\n") {
 				if !strings.HasPrefix(line, " ") {
 					line = wordwrap.WrapString(line, uint(paraWidth))
 				}
@@ -261,7 +260,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 		// loaded through the main loader. We may load things in other
 		// ways in weird cases, so we'll tolerate it at the expense of
 		// a not-so-helpful error message.
-		fmt.Fprintf(buf, "  on %s line %d:\n  (source code not available)\n", diag.Range.Filename, diag.Range.Start.Line)
+		fmt.Fprintf(buf, "  on %s line %d:\n  (source code not available)\n", ReplaceControlChars(diag.Range.Filename), diag.Range.Start.Line)
 	} else {
 		snippet := diag.Snippet
 		code := snippet.Code
@@ -270,7 +269,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 		if snippet.Context != nil {
 			contextStr = fmt.Sprintf(", in %s", *snippet.Context)
 		}
-		fmt.Fprintf(buf, "  on %s line %d%s:\n", diag.Range.Filename, diag.Range.Start.Line, contextStr)
+		fmt.Fprintf(buf, "  on %s line %d%s:\n", ReplaceControlChars(diag.Range.Filename), diag.Range.Start.Line, contextStr)
 
 		// Split the snippet and render the highlighted section with underlines
 		start := snippet.HighlightStartOffset
@@ -301,7 +300,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 		}
 
 		before, highlight, after := code[0:start], code[start:end], code[end:]
-		code = fmt.Sprintf(color.Color("%s[underline]%s[reset]%s"), before, highlight, after)
+		code = fmt.Sprintf(color.Color("%s[underline]%s[reset]%s"), ReplaceControlChars(before), ReplaceControlChars(highlight), ReplaceControlChars(after))
 
 		// Split the snippet into lines and render one at a time
 		lines := strings.Split(code, "\n")
