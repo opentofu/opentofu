@@ -10,6 +10,7 @@ ENHANCEMENTS:
 
 - `prevent_destroy` arguments in the `lifecycle` block for managed resources can now use references to other symbols in the same module, such as to a module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))
 - OpenTofu now uses the `BROWSER` environment variable when launching a web browser on Unix platforms, as long as it's set to a single command that can accept a URL to open as its first and only argument. ([#3456](https://github.com/opentofu/opentofu/issues/3456))
+- Improve performance around provider checking and schema management. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
 
 BUG FIXES:
 
