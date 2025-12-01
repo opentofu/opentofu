@@ -23,8 +23,8 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -270,15 +270,6 @@ func realMain() int {
 		}
 	}
 
-	// In tests, Commands may already be set to provide mock commands
-	if commands == nil {
-		// Commands get to hold on to the original working directory here,
-		// in case they need to refer back to it for any special reason, though
-		// they should primarily be working with the override working directory
-		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
-	}
-
 	// Attempt to ensure the config directory exists.
 	configDir, err := cliconfig.ConfigDir()
 	if err != nil {
@@ -289,6 +280,25 @@ func realMain() int {
 
 	// Make sure we clean up any managed plugins at the end of this
 	defer plugin.CleanupClients()
+
+	{
+		m := buildMeta(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+		runner := command.CobraCommands(m)
+		exitCode, rootCause := command.ExtractExitCode(runner.ExecuteContext(ctx))
+		if rootCause != nil {
+			Ui.Error(fmt.Sprintf("Error executing CLI: %s", rootCause.Error()))
+			return command.DefaultErrorExitCode
+		}
+		// if we are exiting with a non-zero code, check if it was caused by any
+		// plugins crashing
+		if exitCode != 0 {
+			for _, panicLog := range logging.PluginPanics() {
+				Ui.Error(panicLog)
+			}
+		}
+
+		return exitCode
+	}
 
 	// Build the CLI so far, we do this so we can query the subcommand.
 	cliRunner := &cli.CLI{
@@ -385,7 +395,6 @@ func realMain() int {
 			Ui.Error(panicLog)
 		}
 	}
-
 	return exitCode
 }
 
