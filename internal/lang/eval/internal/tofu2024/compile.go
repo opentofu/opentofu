@@ -98,6 +98,7 @@ func CompileModuleInstance(
 		module.ProviderRequirements.RequiredProviders,
 		call.CalleeAddr,
 		call.EvalContext.Providers,
+		call.EvaluationGlue.ValidateProviderConfig,
 	)
 	providersSidechannel := compileModuleProvidersSidechannel(ctx, call.ProvidersFromParent, ret.providerConfigNodes)
 

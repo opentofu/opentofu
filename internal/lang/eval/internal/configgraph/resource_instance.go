@@ -92,15 +92,6 @@ func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagn
 		return exprs.AsEvalError(cty.DynamicVal), diags
 	}
 
-	// We need some help from our caller to validate the configuration,
-	// which typically involves asking whatever provider this type of
-	// resource belongs to.
-	moreDiags := ri.Glue.ValidateConfig(ctx, configVal)
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return exprs.AsEvalError(cty.DynamicVal), diags
-	}
-
 	providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {

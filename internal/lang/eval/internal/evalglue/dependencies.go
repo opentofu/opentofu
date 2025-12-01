@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/apparentlymart/go-versions/versions"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -34,10 +33,10 @@ type ExternalModules interface {
 }
 
 // Providers is implemented by callers of this package to provide access
-// to the providers needed by a configuration without this package needing
+// to the provider schemas needed by a configuration without this package needing
 // to know anything about how provider plugins work, or whether plugins are
 // even being used.
-type Providers interface {
+type ProvidersSchema interface {
 	// ProviderConfigSchema returns the schema that should be used to evaluate
 	// a "provider" block associated with the given provider.
 	//
@@ -46,16 +45,6 @@ type Providers interface {
 	// configuration is needed.
 	ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics)
 
-	// ValidateProviderConfig runs provider-specific logic to check whether
-	// the given configuration is valid. Returns at least one error diagnostic
-	// if the configuration is not valid, and may also return warning
-	// diagnostics regardless of whether the configuration is valid.
-	//
-	// The given config value is guaranteed to be an object conforming to
-	// the schema returned by a previous call to ProviderConfigSchema for
-	// the same provider.
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
-
 	// ResourceTypeSchema returns the schema for configuration and state of
 	// a resource of the given type, or nil if the given provider does not
 	// offer any such resource type.
@@ -63,41 +52,11 @@ type Providers interface {
 	// Returns error diagnostics if the given provider isn't available for use
 	// at all, regardless of the resource type.
 	ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics)
-
-	// ValidateResourceConfig runs provider-specific logic to check whether
-	// the given configuration is valid. Returns at least one error diagnostic
-	// if the configuration is not valid, and may also return warning
-	// diagnostics regardless of whether the configuration is valid.
-	//
-	// The given config value is guaranteed to be an object conforming to
-	// the schema returned by a previous call to ResourceTypeSchema for
-	// the same resource type.
-	ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics
-
-	// NewConfiguredProvider starts a _configured_ instance of the given
-	// provider using the given configuration value.
-	//
-	// The evaluation system itself makes no use of configured providers, but
-	// higher-level processes wrapping it (e.g. the plan and apply engines)
-	// need to use configured providers for actions related to resources, etc,
-	// and so this is for their benefit to help ensure that they are definitely
-	// creating a configured instance of the same provider that other methods
-	// would be using to return schema information and validation results.
-	//
-	// It's the caller's responsibility to ensure that the given configuration
-	// value is valid according to the provider's schema and validation rules.
-	// That's usually achieved by taking a value provided by the evaluation
-	// system, which would then have already been processed using the results
-	// from [Providers.ProviderConfigSchema] and
-	// [Providers.ValidateProviderConfig]. If the returned diagnostics contains
-	// errors then the [providers.Configured] result is invalid and must not be
-	// used.
-	NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics)
 }
 
 // Providers is implemented by callers of this package to provide access
 // to the provisioners needed by a configuration.
-type Provisioners interface {
+type ProvisionersSchema interface {
 	// ProvisionerConfigSchema returns the schema that should be used to
 	// evaluate a "provisioner" block associated with the given provisioner
 	// type, or nil if there is no known provisioner of the given name.
@@ -124,14 +83,14 @@ func ensureExternalModules(given ExternalModules) ExternalModules {
 	return given
 }
 
-func ensureProviders(given Providers) Providers {
+func ensureProviders(given ProvidersSchema) ProvidersSchema {
 	if given == nil {
 		return emptyDependencies{}
 	}
 	return given
 }
 
-func ensureProvisioners(given Provisioners) Provisioners {
+func ensureProvisioners(given ProvisionersSchema) ProvisionersSchema {
 	if given == nil {
 		return emptyDependencies{}
 	}
@@ -160,35 +119,8 @@ func (e emptyDependencies) ProviderConfigSchema(ctx context.Context, provider ad
 	return nil, diags
 }
 
-// ValidateProviderConfig implements Providers.
-func (e emptyDependencies) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	// Because our ResourceTypeSchema implementation never succeeds, there
-	// can never be a call to this function in practice and so we'll just
-	// do nothing here.
-	return nil
-}
-
 // ResourceTypeSchema implements Providers.
 func (e emptyDependencies) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"No providers are available",
-		"There are no providers available for use in this context.",
-	))
-	return nil, diags
-}
-
-// ValidateResourceConfig implements Providers.
-func (e emptyDependencies) ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics {
-	// Because our ResourceTypeSchema implementation never succeeds, there
-	// can never be a call to this function in practice and so we'll just
-	// do nothing here.
-	return nil
-}
-
-// NewConfiguredProvider implements Providers.
-func (e emptyDependencies) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
 		tfdiags.Error,

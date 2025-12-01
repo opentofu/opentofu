@@ -10,6 +10,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/lifecycle"
+	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -40,12 +41,14 @@ type planContext struct {
 
 	providerInstances *providerInstances
 
+	providers plugins.Providers
+
 	// TODO: something to track which ephemeral resource instances are currently
 	// open? (Do we actually need that, or can we just rely on a background
 	// goroutine to babysit those based on the completion tracker?)
 }
 
-func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State) *planContext {
+func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers) *planContext {
 	if prevRoundState == nil {
 		prevRoundState = states.NewState()
 	}
@@ -61,6 +64,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State) *pl
 		refreshedState:    refreshedState.SyncWrapper(),
 		completion:        completion,
 		providerInstances: newProviderInstances(completion),
+		providers:         providers,
 	}
 }
 

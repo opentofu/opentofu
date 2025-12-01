@@ -20,8 +20,8 @@ import (
 // here so that other parts of OpenTofu can interact with the evaluator.
 
 type EvalContext = evalglue.EvalContext
-type Providers = evalglue.Providers
-type Provisioners = evalglue.Provisioners
+type ProvidersSchema = evalglue.ProvidersSchema
+type ProvisionersSchema = evalglue.ProvisionersSchema
 type ExternalModules = evalglue.ExternalModules
 type UncompiledModule = evalglue.UncompiledModule
 
@@ -33,10 +33,10 @@ func ModulesForTesting(modules map[addrs.ModuleSourceLocal]*configs.Module) Exte
 	return tofu2024.ModulesForTesting(modules)
 }
 
-func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) Providers {
+func ProvidersForTesting(schemas map[addrs.Provider]*providers.GetProviderSchemaResponse) ProvidersSchema {
 	return evalglue.ProvidersForTesting(schemas)
 }
 
-func ProvisionersForTesting(schemas map[string]*configschema.Block) Provisioners {
+func ProvisionersForTesting(schemas map[string]*configschema.Block) ProvisionersSchema {
 	return evalglue.ProvisionersForTesting(schemas)
 }

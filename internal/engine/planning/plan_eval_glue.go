@@ -35,6 +35,11 @@ type planGlue struct {
 
 var _ eval.PlanGlue = (*planGlue)(nil)
 
+// I'm not sure that this belongs here
+func (p *planGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	return p.planCtx.providers.ValidateProviderConfig(ctx, provider, configVal)
+}
+
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 //
 // This is called each time the evaluation system discovers a new resource

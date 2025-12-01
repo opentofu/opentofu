@@ -66,6 +66,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return cty.DynamicVal, diags
 	}
 
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
+	diags = diags.Append(validateDiags)
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
 	prevRoundState := p.planCtx.prevRoundState.ResourceInstance(inst.Addr)
