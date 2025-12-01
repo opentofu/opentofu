@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 
@@ -281,15 +282,6 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
 	for provider, lock := range providerLocks {
-		reportError := func(thisErr error) {
-			errs[provider] = thisErr
-			// We'll populate a provider factory that just echoes our error
-			// again if called, which allows us to still report a helpful
-			// error even if it gets detected downstream somewhere from the
-			// caller using our partial result.
-			factories[provider] = providerFactoryError(thisErr)
-		}
-
 		if locks.ProviderIsOverridden(provider) {
 			// Overridden providers we'll handle with the other separate
 			// loops below, for dev overrides etc.
@@ -298,33 +290,54 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
+
 		if cached == nil {
-			reportError(fmt.Errorf(
+			errs[provider] = fmt.Errorf(
 				"there is no package for %s %s cached in %s",
 				provider, version, cacheDir.BasePath(),
-			))
+			)
 			continue
 		}
-		// The cached package must match one of the checksums recorded in
-		// the lock file, if any.
-		if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
-			matched, err := cached.MatchesAnyHash(allowedHashes)
-			if err != nil {
-				reportError(fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %w",
-					provider, version, cacheDir.BasePath(), err,
-				))
-				continue
+
+		checkProvider := func() error {
+			// The cached package must match one of the checksums recorded in
+			// the lock file, if any.
+			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
+				matched, err := cached.MatchesAnyHash(allowedHashes)
+				if err != nil {
+					return fmt.Errorf(
+						"failed to verify checksum of %s %s package cached in in %s: %w",
+						provider, version, cacheDir.BasePath(), err,
+					)
+				}
+				if !matched {
+					return fmt.Errorf(
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file, run tofu init to ensure all providers are correctly installed",
+						provider, version, cacheDir.BasePath(),
+					)
+				}
 			}
-			if !matched {
-				reportError(fmt.Errorf(
-					"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
-					provider, version, cacheDir.BasePath(),
-				))
-				continue
-			}
+			return nil
 		}
-		factories[provider] = providerFactory(cached)
+
+		var checkLock sync.Mutex
+		checkedProvider := false
+		var checkErr error
+
+		factories[provider] = func() (providers.Interface, error) {
+			checkLock.Lock()
+			if !checkedProvider {
+				checkedProvider = true
+				checkErr = checkProvider()
+			}
+			checkLock.Unlock()
+
+			if checkErr != nil {
+				return nil, checkErr
+			}
+
+			return providerFactory(cached)()
+		}
 	}
 	for provider, localDir := range devOverrideProviders {
 		factories[provider] = devOverrideProviderFactory(provider, localDir)
@@ -478,16 +491,6 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 		}
 
 		return initializeProviderInstance(raw, protoVer, client, provider)
-	}
-}
-
-// providerFactoryError is a stub providers.Factory that returns an error
-// when called. It's used to allow providerFactories to still produce a
-// factory for each available provider in an error case, for situations
-// where the caller can do something useful with that partial result.
-func providerFactoryError(err error) providers.Factory {
-	return func() (providers.Interface, error) {
-		return nil, err
 	}
 }
 
