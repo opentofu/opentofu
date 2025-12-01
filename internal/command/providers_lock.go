@@ -268,6 +268,8 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				c.Ui.Output(fmt.Sprintf("- Retrieved %s %s for %s (%s%s)", provider.ForDisplay(), version, platform, auth, keyID))
 			},
 		}
+		// Ensure that events emitted on multiple routines do not trigger race conditions
+		evts = evts.Sync()
 		ctx := evts.OnContext(ctx)
 
 		dir := providercache.NewDirWithPlatform(tempDir, platform)

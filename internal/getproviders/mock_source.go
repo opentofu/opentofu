@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -22,6 +23,7 @@ type MockSource struct {
 	packages []PackageMeta
 	warnings map[addrs.Provider]Warnings
 	calls    [][]interface{}
+	lock     sync.Mutex
 }
 
 var _ Source = (*MockSource)(nil)
@@ -43,6 +45,9 @@ func NewMockSource(packages []PackageMeta, warns map[addrs.Provider]Warnings) *M
 // are available in the fixed set of packages that were passed to
 // NewMockSource when creating the receiving source.
 func (s *MockSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.calls = append(s.calls, []interface{}{"AvailableVersions", provider})
 	var ret VersionList
 	for _, pkg := range s.packages {
@@ -79,6 +84,9 @@ func (s *MockSource) AvailableVersions(ctx context.Context, provider addrs.Provi
 // of other sources in an equivalent situation because it's a degenerate case
 // with undefined results.
 func (s *MockSource) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	s.calls = append(s.calls, []interface{}{"PackageMeta", provider, version, target})
 
 	for _, pkg := range s.packages {

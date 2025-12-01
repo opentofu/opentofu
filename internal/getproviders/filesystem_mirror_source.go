@@ -8,6 +8,7 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -22,6 +23,8 @@ type FilesystemMirrorSource struct {
 	// packages on the first call that needs package availability information,
 	// to avoid re-scanning the filesystem on subsequent operations.
 	allPackages map[addrs.Provider]PackageMetaList
+
+	lock sync.Mutex
 }
 
 var _ Source = (*FilesystemMirrorSource)(nil)
@@ -117,6 +120,9 @@ func (s *FilesystemMirrorSource) AllAvailablePackages() (map[addrs.Provider]Pack
 }
 
 func (s *FilesystemMirrorSource) scanAllVersions() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if s.allPackages != nil {
 		// we're distinguishing nil-ness from emptiness here so we can
 		// recognize when we've scanned the directory without errors, even
