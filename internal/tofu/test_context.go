@@ -131,7 +131,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			return nil
 		}
 		log.Printf("[INFO] Starting test provider %s", addr)
-		inst, err := factory()
+		inst, err := factory(nil, nil)
 		if err != nil {
 			log.Printf("[WARN] Unable to start provider %s in test context", addr)
 			providerInstances[addr] = nil
