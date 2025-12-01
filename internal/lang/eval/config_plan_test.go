@@ -318,16 +318,16 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 
 type planGlueCallLog struct {
 	oracle    *eval.PlanningOracle
-	providers eval.Providers
+	providers eval.ProvidersSchema
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
 	providerInstanceConfigs  addrs.Map[addrs.AbsProviderInstanceCorrect, cty.Value]
 	mu                       sync.Mutex
 }
 
-// I'm not sure that this belongs here
+// ValidateProviderConfig implements eval.PlanGlue
 func (p *planGlueCallLog) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return p.providers.ValidateProviderConfig(ctx, provider, configVal)
+	return nil
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
