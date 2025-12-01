@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 
@@ -287,7 +288,6 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 			continue
 		}
 
-		provider := provider
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
 
@@ -298,9 +298,6 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 			)
 			continue
 		}
-
-		checkedProvider := false
-		var checkErr error
 
 		checkProvider := func() error {
 			// The cached package must match one of the checksums recorded in
@@ -323,11 +320,17 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 			return nil
 		}
 
+		var checkLock sync.Mutex
+		checkedProvider := false
+		var checkErr error
+
 		factories[provider] = func() (providers.Interface, error) {
+			checkLock.Lock()
 			if !checkedProvider {
 				checkedProvider = true
 				checkErr = checkProvider()
 			}
+			checkLock.Unlock()
 
 			if checkErr != nil {
 				return nil, checkErr
