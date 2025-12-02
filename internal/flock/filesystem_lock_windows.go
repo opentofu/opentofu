@@ -10,6 +10,7 @@ package flock
 import (
 	"context"
 	"errors"
+	"log"
 	"math"
 	"os"
 	"syscall"
@@ -40,7 +41,12 @@ func Lock(f *os.File) error {
 	if err != nil {
 		return err
 	}
-	defer syscall.CloseHandle(ol.HEvent)
+	defer func() {
+		err := syscall.CloseHandle(ol.HEvent)
+		if err != nil {
+			log.Printf("[ERROR] failed to close file locking event handle: %v", err)
+		}
+	}()
 
 	return lockFileEx(
 		syscall.Handle(f.Fd()),
@@ -96,9 +102,8 @@ func Unlock(*os.File) error {
 }
 
 func lockFileEx(h syscall.Handle, flags, reserved, locklow, lockhigh uint32, ol *syscall.Overlapped) (err error) {
-	r1, _, e1 := syscall.Syscall6(
+	r1, _, e1 := syscall.SyscallN(
 		procLockFileEx.Addr(),
-		6,
 		uintptr(h),
 		uintptr(flags),
 		uintptr(reserved),
@@ -136,9 +141,8 @@ func createEvent(sa *syscall.SecurityAttributes, manualReset bool, initialState 
 		_p1 = 1
 	}
 
-	r0, _, e1 := syscall.Syscall6(
+	r0, _, e1 := syscall.SyscallN(
 		procCreateEventW.Addr(),
-		4,
 		uintptr(unsafe.Pointer(sa)),
 		uintptr(_p0),
 		uintptr(_p1),
