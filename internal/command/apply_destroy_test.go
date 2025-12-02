@@ -460,8 +460,8 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 	}
 }
 
-// In this case, the user has removed skip-destroy from config, but it's still set in state
-// We will plan a new state first, which will remove the skip-destroy flag from state and then proceed to destroy the resource
+// In this case, the user has removed skip-destroy from config, but it's still set in state.
+// We will plan a new state first, which will remove the skip-destroy attribute from state and then proceed to destroy the resource
 func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -584,7 +584,7 @@ func TestApply_destroySkipInStateOrphaned(t *testing.T) {
 		t.Fatalf("did not expect skip-destroy message in output:\n\n%s", output.Stderr())
 	}
 
-	// Check action reason - we must clarify to user that the flag is stored in state even if not in config
+	// Check action reason - we must clarify to user that the attribute is stored in state even if not in config
 	if !strings.Contains(output.Stdout(), "lifecycle.destroy = false") {
 		t.Fatalf("did not find expected lifecycle.destroy reason in output:\n\n%s", output.Stdout())
 	}

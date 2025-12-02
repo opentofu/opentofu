@@ -195,7 +195,7 @@ func TestSkipDestroy_DestroyMode(t *testing.T) {
 			},
 		},
 		{
-			// The resource instance has no SkipDestroy flag in the state, but it comes from config.
+			// The resource instance has no SkipDestroy attribute in the state, but it comes from config.
 			// Check that in destroy mode we forget the resource and respect the latest config
 			// corresponding to this resource.
 			name: "ConfigFlagOnly",
@@ -216,7 +216,7 @@ func TestSkipDestroy_DestroyMode(t *testing.T) {
 		},
 		{
 			// This first updates the configuration and then runs destroy.
-			// Since config has destroy=true (same as no flag), this should result in resource deletion,
+			// Since config has destroy=true (same as no attribute), this should result in resource deletion,
 			// even though state has SkipDestroy=true.
 			name: "StateFlagOnly_ShouldDelete",
 			config: `
@@ -247,12 +247,12 @@ func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
 	tests := []skipDestroyTestCase{
 		{
 			// Deposed objects are a special case, since they correspond to old instances.
-			// Deposed objects in state should respect the SkipDestroy flag set in the state.
-			// In case both (state and config) SkipDestroy flags are present, if either is true,
+			// Deposed objects in the state should respect the SkipDestroy attribute set in the state.
+			// In case both (state and config) SkipDestroy attributes are present, if either is true,
 			// the resource should be forgotten. This is for security, to avoid accidental deletions
 			// of resource instances that once had SkipDestroy set.
 			//
-			// Here we have no config (empty module), so deposed instances respect their state flags:
+			// Here we have no config (empty module), so deposed instances respect their state attribute:
 			// - 00000001 has SkipDestroy=false -> Delete
 			// - 00000002 has SkipDestroy=true -> Forget
 			name: "NoConfig_RespectStateFlags",
@@ -271,8 +271,8 @@ func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
 		},
 		{
 			// Same as above, but here we have SkipDestroy=true from config and two deposed instances
-			// in state, one with SkipDestroy=true and one with SkipDestroy=false.
-			// Either way, both should be forgotten in this case because config flag takes precedence.
+			// in the state, one with SkipDestroy=true and one with SkipDestroy=false.
+			// Either way, both should be forgotten in this case because the attribute from config takes precedence.
 			name: "ConfigFlag_BothForget",
 			config: `
 				resource "aws_instance" "foo" {
@@ -294,8 +294,8 @@ func TestSkipDestroy_DestroyMode_Deposed(t *testing.T) {
 		{
 			// Same as the two above, but here we have SkipDestroy=false from config (destroy=true) and still
 			// two deposed instances in state, one with SkipDestroy=true and one with SkipDestroy=false.
-			// We check that the deposed instance state flags are respected and not overridden by
-			// config when config says destroy=true. The state flag protects the instance.
+			// We check that the deposed instance state attributes are respected and not overridden by
+			// config when config says destroy=true. The state attribute protects the instance.
 			name: "NegativeConfigFlag_RespectStateFlags",
 			config: `
 				resource "aws_instance" "foo" {
@@ -385,7 +385,7 @@ func TestSkipDestroy_Orphan(t *testing.T) {
 	tests := []skipDestroyTestCase{
 		{
 			// Resource aws_instance.foo has been removed from configuration and is only present in state
-			// If the SkipDestroy flag is set in state, we should plan to Forget the resource.
+			// If the SkipDestroy attribute is set in state, we should plan to Forget the resource.
 			name: "StateFlag_Forget",
 			config: `
 				# Empty
@@ -398,7 +398,7 @@ func TestSkipDestroy_Orphan(t *testing.T) {
 			},
 		},
 		{
-			// Sanity check: if the orphan resource does not have SkipDestroy flag in state,
+			// Sanity check: if the orphan resource does not have SkipDestroy attribute in state,
 			// we should plan to Delete it.
 			name: "NoStateFlag_Delete",
 			config: `
@@ -421,7 +421,7 @@ func TestSkipDestroy_Orphan(t *testing.T) {
 }
 
 // TestSkipDestroy_Orphan_RemovedBlockOverrides tests that orphan resource's
-// SkipDestroy flag in state should be overridden by removed block in config.
+// SkipDestroy attribute in state should be overridden by removed block in config.
 func TestSkipDestroy_Orphan_RemovedBlockOverrides(t *testing.T) {
 	tc := skipDestroyTestCase{
 		name: "RemovedBlockOverridesStateFlag",
@@ -486,8 +486,8 @@ func TestSkipDestroy_Replace(t *testing.T) {
 		},
 		{
 			// We have a resource instance in state with SkipDestroy=true, but the
-			// corresponding resource config exists with no destroy flag (equivalent to destroy=true).
-			// Value from config should overrule the state flag, and the action should be DeleteThenCreate.
+			// corresponding resource config exists with no destroy attribute (equivalent to destroy=true).
+			// Value from config should overrule the state attribute, and the action should be DeleteThenCreate.
 			name: "NoConfigFlag_DeleteThenCreate",
 			config: `
 				resource "aws_instance" "foo" {
@@ -517,20 +517,20 @@ func TestSkipDestroy_Replace(t *testing.T) {
 //
 // Deposed instances are old instances that were replaced but not yet destroyed.
 // We handle them a bit differently, since they correspond to old instances, we choose to be safe
-// and respect the SkipDestroy flag in state even if the current config has no destroy flag set.
+// and respect the SkipDestroy attribute in state even if the current config has no destroy attribute set.
 // Hence, SkipDestroy set to true either in state or config should retain the instance.
 
-// tests the combinations of state/config flags:
-// 1. Deposed with flag, config without -> Forget (state flag protects)
-// 2. Deposed without flag, config with -> Forget
-// 3. Both with flag -> Forget
-// 4. Neither with flag -> Delete
-// 5. Orphaned deposed instance with flag -> Forget
+// tests the combinations of state/config attributes:
+// 1. Deposed with attribute, config without -> Forget (state attribute protects)
+// 2. Deposed without attribute, config with -> Forget
+// 3. Both with attribute -> Forget
+// 4. Neither with attribute -> Delete
+// 5. Orphaned deposed instance with attribute -> Forget
 func TestSkipDestroy_Deposed(t *testing.T) {
 	tests := []skipDestroyTestCase{
 		{
-			// Config has destroy=true (no flag). Deposed instance having SkipDestroy=true in state.
-			// We respect the state flag and forget the instance.
+			// Config has destroy=true (no attribute). Deposed instance having SkipDestroy=true in state.
+			// We respect the state attribute and forget the instance.
 			name: "NoConfigFlag_Forget",
 			config: `
 				resource "aws_instance" "foo" {
@@ -550,8 +550,8 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 			},
 		},
 		{
-			// Config has destroy=false. Deposed instance without state flag should still
-			// be forgotten because config flag applies.
+			// Config has destroy=false. Deposed instance without state attribute should still
+			// be forgotten because config attribute applies.
 			name: "ConfigFlag_Forget",
 			config: `
 				resource "aws_instance" "foo" {
@@ -591,7 +591,7 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 			},
 		},
 		{
-			// Config has destroy=true (no flag). Deposed instance having SkipDestroy=false in state.
+			// Config has destroy=true (no attribute). Deposed instance having SkipDestroy=false in state.
 			// We must delete the instance.
 			name: "NoConfigFlag_Delete",
 			config: `
@@ -647,13 +647,13 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 
 // Multi-Instance Tests (count/for_each/enabled)
 //
-// Tests for count and for_each resources with various flag combinations.
-// Config flag: destroy=true/false in lifecycle block
-// State flag: SkipDestroy=true/false stored in state per instance
+// Tests for count and for_each resources with various attribute combinations.
+// Config attribute: destroy=true/false in lifecycle block
+// State attribute: SkipDestroy=true/false stored in state per instance
 //
 // Flag interaction rules:
-// - For kept instances: config flag determines the stored state flag
-// - When instances are removed/reduced state flag protects instances even if config has destroy=true
+// - For kept instances: config attribute determines the stored state attribute
+// - When instances are removed/reduced state attribute protects instances even if config has destroy=true
 
 func TestSkipDestroy_Enabled_Toggle(t *testing.T) {
 	tests := []skipDestroyTestCase{
@@ -697,7 +697,7 @@ func TestSkipDestroy_Enabled_Toggle(t *testing.T) {
 		},
 		{
 			// Resource exists in state with SkipDestroy=true, but config has enabled=false and destroy=true.
-			// The resource should be forgotten because the state flag protects it.
+			// The resource should be forgotten because the state attribute protects it.
 			// The only way to delete it is to apply destroy=true with enabled=true. And then change it to enabled=false if needed.
 			name: "EnabledFalse_StateTrue_Forget",
 			config: `
@@ -790,9 +790,9 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			},
 		},
 		{
-			// Config: destroy=false, State: mixed flags (index 2 has SkipDestroy=false)
+			// Config: destroy=false, State: mixed attributes (index 2 has SkipDestroy=false)
 			// Removed instance should still be Forget because config destroy=false takes precedence
-			// Quite similar to the previous test, but ensures mixed state flags are handled correctly, unlikely though this case may be
+			// Quite similar to the previous test, but ensures mixed state attributes are handled correctly, unlikely though this case may be
 			name: "ConfigFalse_StateMixed_OrphanForgotten",
 			config: `
 				resource "aws_instance" "foo" {
@@ -814,7 +814,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			},
 		},
 
-		// Config has destroy=true (skip-destroy-count-no-flag)
+		// Config has destroy=true
 		{
 			// Config: destroy=true, State: all SkipDestroy=false
 			// Removed instance should be Deleted because both config and state say destroy
@@ -840,9 +840,9 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 		},
 		{
 			// Config: destroy=true, State: removed instance has SkipDestroy=true
-			// State flag protects the removed instance -> Forget instead of Delete
+			// State attribute protects the removed instance -> Forget instead of Delete
 			//
-			// This is a side effect of our design choice to respect state flags for orphans, does this make sense in this case?
+			// This is a side effect of our design choice to respect state attributes for orphans, does this make sense in this case?
 			//
 			// FOR REVIEWERS: Please let me know if this seems wrong. Currently users can apply with SkipDestroy value changed and then reduce count.
 			// If for some reason they want to change the SkipDestroy value in state and then reduce count to cause resource destruction, they can do it in two steps.
@@ -868,8 +868,8 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			},
 		},
 		{
-			// Config: destroy=true, State: mixed flags for removed instances
-			// Multiple orphans with different state flags - each respects its own flag
+			// Config: destroy=true, State: mixed attributes for removed instances
+			// Multiple orphans with different state attributes - each respects its own attribute
 			name: "ConfigTrue_StateMixed_MultipleOrphans",
 			config: `
 				resource "aws_instance" "foo" {
@@ -889,7 +889,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			expectedChanges: []skipExpectedChange{
 				{addr: "aws_instance.foo[0]", action: plans.NoOp},
 				{addr: "aws_instance.foo[1]", action: plans.NoOp},
-				{addr: "aws_instance.foo[2]", action: plans.Forget}, // protected by state flag
+				{addr: "aws_instance.foo[2]", action: plans.Forget}, // protected by state attribute
 				{addr: "aws_instance.foo[3]", action: plans.Delete}, // not protected
 			},
 		},
@@ -920,7 +920,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			expectApplyError: true,
 		},
 		{
-			// Destroy mode: Config destroy=true, state flags mixed
+			// Destroy mode: Config destroy=true, state attributes mixed
 			// In destroy mode, config destroy=true takes precedence since it still corresponds to current instances in state.
 			// Meaning we will apply the latest config and then run destroy, resulting in deletions.
 			name: "DestroyMode_ConfigTrue_AllDeleted",
@@ -938,7 +938,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			},
 			planMode: plans.DestroyMode,
 			expectedChanges: []skipExpectedChange{
-				{addr: "aws_instance.foo[0]", action: plans.Delete}, // config destroy=true overrides state flag
+				{addr: "aws_instance.foo[0]", action: plans.Delete}, // config destroy=true overrides state attribute
 				{addr: "aws_instance.foo[1]", action: plans.Delete},
 			},
 			runApply:         true,
@@ -1050,7 +1050,7 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 		},
 		{
 			// Config: destroy=true, State: removed instance c has SkipDestroy=true
-			// State flag protects the removed instance -> Forget instead of Delete
+			// State attribute protects the removed instance -> Forget instead of Delete
 			name: "ConfigTrue_StateTrue_OrphanProtected",
 			config: `
 				resource "aws_instance" "foo" {
@@ -1072,8 +1072,8 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 			},
 		},
 		{
-			// Config: destroy=true, State: mixed flags for removed instances
-			// Multiple orphans with different state flags - each respects its own flag
+			// Config: destroy=true, State: mixed attributes for removed instances
+			// Multiple orphans with different state attributes - each respects its own attributes
 			name: "ConfigTrue_StateMixed_MultipleOrphans",
 			config: `
 				resource "aws_instance" "foo" {
@@ -1086,7 +1086,7 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 			stateInstances: []skipStateInstance{
 				{addr: `aws_instance.foo["a"]`, skipDestroy: false, instanceKey: addrs.StringKey("a")},
 				{addr: `aws_instance.foo["b"]`, skipDestroy: false, instanceKey: addrs.StringKey("b")},
-				// Two orphans with different state flags
+				// Two orphans with different state attributes
 				{addr: `aws_instance.foo["c"]`, skipDestroy: true, instanceKey: addrs.StringKey("c")},
 				{addr: `aws_instance.foo["d"]`, skipDestroy: false, instanceKey: addrs.StringKey("d")},
 			},
@@ -1129,7 +1129,7 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 		},
 		{
 			// State has keys x, y. Config has keys a, b with destroy=true.
-			// Removed instances (now orphans) respect their individual state flags.
+			// Removed instances (now orphans) respect their individual state attributes.
 			name: "ConfigTrue_CompleteKeyChange_MixedStateFlags",
 			config: `
 				resource "aws_instance" "foo" {
@@ -1182,9 +1182,9 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 			expectApplyError: true,
 		},
 		{
-			// Destroy mode: Config destroy=true, state flags mixed
+			// Destroy mode: Config destroy=true, state attributes mixed
 			// In destroy mode, config destroy=true takes precedence - all current instances deleted
-			// Orphaned instances respect their state flags
+			// Orphaned instances respect their state attributes
 			name: "DestroyMode_ConfigTrue_AllDeleted",
 			config: `
 				resource "aws_instance" "foo" {
@@ -1209,7 +1209,7 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 				{addr: `aws_instance.foo["a"]`, action: plans.Delete},
 				{addr: `aws_instance.foo["b"]`, action: plans.Delete},
 
-				{addr: `aws_instance.foo["c"]`, action: plans.Forget}, // protected by state flag
+				{addr: `aws_instance.foo["c"]`, action: plans.Forget}, // protected by state attribute
 				{addr: `aws_instance.foo["d"]`, action: plans.Delete}, // not protected
 			},
 			runApply:         true,
@@ -1227,7 +1227,7 @@ func TestSkipDestroy_ForEach(t *testing.T) {
 
 // Removed Block Tests
 
-// The removed block takes precedence over both resource config and state flags.
+// The removed block takes precedence over both resource config and state attributes.
 // Interaction with removed block in config:
 // 1. Resource destroy=true, Removed destroy=true -> Delete
 // 2. Resource destroy=true, Removed destroy=false -> Forget
@@ -1383,8 +1383,8 @@ func TestSkipDestroy_RemovedBlock_DeposedInstance(t *testing.T) {
 }
 
 // TestSkipDestroy_ConfigChange_UpdatesState verifies the full cycle:
-// Apply with destroy=false and verify flag is set in state
-// Another apply with destroy=true and verify that the flag is removed from state
+// Apply with destroy=false and verify attribute is set in state
+// Another apply with destroy=true and verify that the attribute is removed from state
 func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 	// Apply with destroy=false
 	m := testModule(t, "skip-destroy")
@@ -1395,11 +1395,11 @@ func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 	appliedState, _ := ctx.Apply(t.Context(), plan, m, nil)
 
 	if !appliedState.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
-		t.Fatal("SkipDestroy flag not set initially")
+		t.Fatal("SkipDestroy attribute not set initially")
 	}
 
 	// Change config to destroy=true (using "simple" module which has default destroy=true)
-	// and apply. This should remove the flag.
+	// and apply. This should remove the attribute.
 	m2 := testModule(t, "simple")
 	plan2, diags := ctx.Plan(t.Context(), m2, appliedState, DefaultPlanOpts)
 	if diags.HasErrors() {
@@ -1412,6 +1412,6 @@ func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 	}
 
 	if appliedState2.RootModule().Resources["aws_instance.foo"].Instance(addrs.NoKey).Current.SkipDestroy {
-		t.Fatal("SkipDestroy flag not removed after config change")
+		t.Fatal("SkipDestroy attribute not removed after config change")
 	}
 }

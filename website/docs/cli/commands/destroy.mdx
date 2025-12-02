@@ -61,10 +61,10 @@ This exit code behavior might be important for automation and CI/CD pipelines, a
 signals that the destroy operation did not complete as a typical destroy would.
 
 :::warning
-The `destroy` flag is persisted in the state file, even when resources are removed from the configuration.
+The `destroy` attribute is persisted in the state file, even when resources are removed from the configuration.
 Meaning that resources will **not** be destroyed even when removed from the configuration.
 If you want to fully destroy such resources (still in the state), you must first add the resource configuration back and
 remove the `lifecycle.destroy` attribute (or set it to `true`).
 
-Alternatively, you can add the `removed` block for the removed resource with `lifecycle.destroy = true`, which will override the `destroy` flag in the state file.
+Alternatively, you can add the `removed` block for the removed resource with `lifecycle.destroy = true`, which will override the `destroy` attribute in the state file.
 :::

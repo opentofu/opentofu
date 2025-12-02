@@ -71,7 +71,7 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      hcl.Expression
-	// Destroy flag indicates if the resource should be destroy once it is planned for destruction. This flag corresponds to the `lifecycle.destroy` attribute.
+	// Destroy attribute indicates if the resource should be destroy once it is planned for destruction. This attribute corresponds to the `lifecycle.destroy` attribute.
 	// The default behavior is to destroy the resource when it is planned for destruction, so the value of false will skip destroying the resource.
 	// Note that the resource will still be removed from the state file even if Destroy is set to false but won't call the underlying provider for destruction.
 	// This field will accept only constant boolean expressions. This is of type hcl.Expression to make future extensions of dynamic evaluation easier.
