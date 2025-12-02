@@ -9,8 +9,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -43,7 +45,8 @@ func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.M
 		}}
 	}
 
-	methodCtx := method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+	var methodCtx method.EvalContext
+	methodCtx = method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		deps := expr.Variables()
@@ -76,7 +79,21 @@ func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.M
 			return cty.NilVal, diags
 		}
 
-		// TODO inspect to see if KP string!
+		if val.Type() == cty.String {
+			// Try to be clever to see if it's a kp string that is actually a reference
+			// We might want a bool to opt-in to this functionality for JSON compat on specific fields
+
+			str := val.AsString()
+			if strings.HasPrefix(str, "key_provider.") {
+				traversal, travDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{})
+				if !travDiags.HasErrors() {
+					// Call into the expr resolver again
+					val, valDiags = methodCtx.ValueForExpression(&hclsyntax.ScopeTraversalExpr{Traversal: traversal, SrcRange: expr.Range()})
+					diags = diags.Extend(valDiags)
+				}
+			}
+
+		}
 
 		return val, diags
 	}}
