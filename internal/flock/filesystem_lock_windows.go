@@ -92,7 +92,6 @@ func LockBlocking(ctx context.Context, f *os.File) error {
 
 func Unlock(*os.File) error {
 	// the lock is released when Close() is called
-	// TODO: Consider together with maintainer whether this should return f.Close()
 	return nil
 }
 
