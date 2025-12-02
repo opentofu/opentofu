@@ -1,5 +1,14 @@
 # Module Version Locking
 
+Main issue:
+- https://github.com/opentofu/opentofu/issues/586
+
+Related links and issues:
+- https://github.com/opentofu/opentofu/issues/2495
+- https://github.com/opentofu/opentofu/issues/1942
+- https://github.com/opentofu/opentofu/issues/1199
+- https://github.com/joeaawad/random-scripts/blob/master/terraform-opentofu-versioning.md
+
 ## Problem Statement
 
 OpenTofu currently lacks a mechanism to lock module versions, similar to how provider versions are locked in `.terraform.lock.hcl`. This creates challenges for reproducibility and security, as module versions can change unexpectedly between runs or across different environments. Users have expressed the need for a feature that allows them to:
