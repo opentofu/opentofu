@@ -44,7 +44,7 @@ func Lock(f *os.File) error {
 	defer func() {
 		err := syscall.CloseHandle(ol.HEvent)
 		if err != nil {
-			log.Printf("failed to close handle: %v", err)
+			log.Printf("[ERROR] failed to close file locking event handle: %v", err)
 		}
 	}()
 
