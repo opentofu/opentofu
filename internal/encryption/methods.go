@@ -11,12 +11,12 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
@@ -43,37 +43,45 @@ func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.M
 		}}
 	}
 
-	methodConfig := encryptionMethod.ConfigStruct()
+	methodCtx := method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
 
-	deps, diags := gohcl.VariablesInBody(cfg.Body, methodConfig)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+		deps := expr.Variables()
 
-	kpConfigs, refs, kpDiags := filterKeyProviderReferences(enc, deps)
-	diags = diags.Extend(kpDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+		kpConfigs, refs, kpDiags := filterKeyProviderReferences(enc, deps)
+		diags = diags.Extend(kpDiags)
+		if diags.HasErrors() {
+			return cty.NilVal, diags
+		}
 
-	hclCtx, kpDiags := setupKeyProviders(ctx, enc, kpConfigs, meta, reg, staticEval)
-	diags = diags.Extend(kpDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+		hclCtx, kpDiags := setupKeyProviders(ctx, enc, kpConfigs, meta, reg, staticEval)
+		diags = diags.Extend(kpDiags)
+		if diags.HasErrors() {
+			return cty.NilVal, diags
+		}
 
-	hclCtx, evalDiags := staticEval.EvalContextWithParent(ctx, hclCtx, configs.StaticIdentifier{
-		Module:    addrs.RootModule,
-		Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
-		DeclRange: enc.DeclRange,
-	}, refs)
-	diags = diags.Extend(evalDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+		hclCtx, evalDiags := staticEval.EvalContextWithParent(ctx, hclCtx, configs.StaticIdentifier{
+			Module:    addrs.RootModule,
+			Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
+			DeclRange: enc.DeclRange,
+		}, refs)
+		diags = diags.Extend(evalDiags)
+		if diags.HasErrors() {
+			return cty.NilVal, diags
+		}
 
-	methodDiags := gohcl.DecodeBody(cfg.Body, hclCtx, methodConfig)
-	diags = diags.Extend(methodDiags)
+		val, valDiags := expr.Value(hclCtx)
+		diags = diags.Extend(valDiags)
+		if diags.HasErrors() {
+			return cty.NilVal, diags
+		}
+
+		// TODO inspect to see if KP string!
+
+		return val, diags
+	}}
+
+	methodConfig, diags := encryptionMethod.DecodeConfig(methodCtx, cfg.Body)
 	if diags.HasErrors() {
 		return nil, diags
 	}

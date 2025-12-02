@@ -6,33 +6,76 @@
 package external
 
 import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
-// Descriptor integrates the method.Descriptor and provides a TypedConfig for easier configuration.
-type Descriptor interface {
-	method.Descriptor
-
-	// TypedConfig returns a config typed for this method.
-	TypedConfig() *Config
-}
-
 // New creates a new descriptor for the AES-GCM encryption method, which requires a 32-byte key.
-func New() Descriptor {
+func New() method.Descriptor {
 	return &descriptor{}
 }
 
 type descriptor struct {
 }
 
-func (f *descriptor) TypedConfig() *Config {
-	return &Config{}
-}
-
 func (f *descriptor) ID() method.ID {
 	return "external"
 }
 
-func (f *descriptor) ConfigStruct() method.Config {
-	return f.TypedConfig()
+func (d *descriptor) DecodeConfig(methodCtx method.EvalContext, body hcl.Body) (method.Config, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	methodCfg := &Config{}
+
+	content, contentDiags := body.Content(&hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: "keys", Required: false},
+			{Name: "encrypt_command", Required: true},
+			{Name: "decrypt_command", Required: true},
+		},
+	})
+	diags = diags.Extend(contentDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	if keyAttr, ok := content.Attributes["keys"]; ok {
+		keyExpr := keyAttr.Expr
+		// keyExpr can either be raw data/references to raw data or a string reference to a key provider (JSON support)
+		keyVal, keyDiags := methodCtx.ValueForExpression(keyExpr)
+		diags = diags.Extend(keyDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		keys, err := keyprovider.DecodeOutput(keyVal, keyExpr.Range())
+		if err != nil {
+			// TODO diags
+			panic(err)
+		}
+		methodCfg.Keys = &keys
+	}
+
+	encryptAttr := content.Attributes["encrypt_command"]
+	encryptVal, valueDiags := methodCtx.ValueForExpression(encryptAttr.Expr)
+	diags = diags.Extend(valueDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	decodeDiags := gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: encryptVal, SrcRange: encryptAttr.Expr.Range()}, nil, &methodCfg.EncryptCommand)
+	diags = diags.Extend(decodeDiags)
+
+	decryptAttr := content.Attributes["decrypt_command"]
+	decryptVal, valueDiags := methodCtx.ValueForExpression(decryptAttr.Expr)
+	diags = diags.Extend(valueDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	decodeDiags = gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: decryptVal, SrcRange: decryptAttr.Expr.Range()}, nil, &methodCfg.DecryptCommand)
+	diags = diags.Extend(decodeDiags)
+
+	return methodCfg, diags
 }

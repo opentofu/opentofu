@@ -22,13 +22,13 @@ var validKeyLengths = collections.NewSet[int](16, 24, 32)
 type Config struct {
 	// Key is the encryption key for the AES-GCM encryption. It has to be 16, 24, or 32 bytes long for AES-128, 192, or
 	// 256, respectively.
-	Keys keyprovider.Output `hcl:"keys" json:"keys" yaml:"keys"`
+	Keys keyprovider.Output
 
 	// AAD is the Additional Authenticated Data that is authenticated, but not encrypted. In the Go implementation, this
 	// data serves as a canary value against replay attacks. The AAD value on decryption must match this setting,
 	// otherwise the decryption will fail. (Note: this is Go-specific and differs from the NIST SP 800-38D description
 	// of the AAD.)
-	AAD []byte `hcl:"aad,optional" json:"aad,omitempty" yaml:"aad,omitempty"`
+	AAD []byte
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
