@@ -842,11 +842,11 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 			// Config: destroy=true, State: removed instance has SkipDestroy=true
 			// State attribute protects the removed instance -> Forget instead of Delete
 			//
-			// This is a side effect of our design choice to respect state attributes for orphans, does this make sense in this case?
+			// This is a side effect of our design choice to respect state attributes for orphans.
 			//
-			// FOR REVIEWERS: Please let me know if this seems wrong. Currently users can apply with SkipDestroy value changed and then reduce count.
 			// If for some reason they want to change the SkipDestroy value in state and then reduce count to cause resource destruction, they can do it in two steps.
-			// This usecase seems rare enough to not complicate the logic further.
+			// First apply a config with the desired destroy value for all instances, then reduce count.
+			// This use case seems rare enough to not complicate the logic further.
 			name: "ConfigTrue_StateTrue_OrphanProtectedByStateFlag",
 			config: `
 				resource "aws_instance" "foo" {
