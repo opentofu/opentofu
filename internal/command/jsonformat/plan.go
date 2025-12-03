@@ -520,9 +520,10 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		// Since the attribute might no longer be present in the configuration, and we need to inform the user to avoid confusion.
 		// We don't need to separate this case in ForgetThenCreate, because the message already contains this information.
 		// Note that ForgetThenCreate is only used when lifecycle.destroy is set to false and the resource needs to be replaced.
-		if resource.ActionReason == jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInState {
+		switch resource.ActionReason {
+		case jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInState:
 			buf.WriteString(" \n (because [bold]lifecycle.destroy = false[reset] was configured before this resource was removed from the configuration)")
-		} else if resource.ActionReason == jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig {
+		case jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig:
 			buf.WriteString(" \n (because [bold]lifecycle.destroy = false[reset] is set in the configuration)")
 		}
 
