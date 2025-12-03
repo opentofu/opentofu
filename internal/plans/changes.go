@@ -488,11 +488,17 @@ const (
 	// the most up-to-date data.
 	ResourceInstanceReadBecauseCheckNested ResourceInstanceChangeActionReason = '#'
 
-	// ResourceInstanceForgottenBecauseOfLifecycleDestroyInState indicates that the resource
+	// ResourceInstanceForgotBecauseOfLifecycleDestroyInState indicates that the resource
 	// instance is being forgotten because the resource has a lifecycle configuration with "destroy" set to false in the state.
 	// This is used to avoid confusion for users not having the "lifecycle.destroy" attribute set in the current configuration (or the resource has been removed entirely).
+	// Used to differentiate between the different origins of the `forgot` action.
 	// However, we still have the attribute in the state to avoid deleting resources that should have been retained.
-	ResourceInstanceForgottenBecauseOfLifecycleDestroyInState ResourceInstanceChangeActionReason = 'X'
+	ResourceInstanceForgotBecauseOfLifecycleDestroyInState ResourceInstanceChangeActionReason = 'X'
+
+	// ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig indicates that the resource
+	// instance is being forgotten because the resource has a lifecycle configuration with "destroy" set to false.
+	// Used to differentiate between the different origins of the `forgot` action.
+	ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig ResourceInstanceChangeActionReason = 'Y'
 )
 
 // OutputChange describes a change to an output value.

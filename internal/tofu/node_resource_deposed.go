@@ -195,8 +195,10 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 			})
 			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy", n.Addr, n.DeposedKey)
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
-			if state.SkipDestroy {
-				change.ActionReason = plans.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState
+			if skipDestroy {
+				change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig
+			} else if state.SkipDestroy {
+				change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInState
 			}
 		}
 

@@ -514,12 +514,16 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 	case plans.Forget:
 		buf.WriteString(fmt.Sprintf("[bold]  # %s[reset] will be removed from the OpenTofu state [bold][red]but will not be destroyed[reset]", dispAddr))
 
-		// We need to identify a special case where the resource is being forgotten instead of destroyed due to lifecycle.destroy attribute persisted in state.
-		// The attribute might no longer be present in the configuration, and we need to inform the user to avoid confusion.
+		// We need to identify a special case where the resource is being forgotten instead of destroyed due to lifecycle.destroy attribute
+		// There are two cases where this can happen: when lifecycle.destroy = false is set in the configuration, and when lifecycle.destroy = false is persisted in state.
+		//
+		// Since the attribute might no longer be present in the configuration, and we need to inform the user to avoid confusion.
 		// We don't need to separate this case in ForgetThenCreate, because the message already contains this information.
 		// Note that ForgetThenCreate is only used when lifecycle.destroy is set to false and the resource needs to be replaced.
-		if resource.ActionReason == jsonplan.ResourceInstanceForgottenBecauseOfLifecycleDestroyInState {
+		if resource.ActionReason == jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInState {
 			buf.WriteString(" \n (because [bold]lifecycle.destroy = false[reset] was configured before this resource was removed from the configuration)")
+		} else if resource.ActionReason == jsonplan.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig {
+			buf.WriteString(" \n (because [bold]lifecycle.destroy = false[reset] is set in the configuration)")
 		}
 
 		if len(resource.Deposed) != 0 {
