@@ -10,6 +10,7 @@ Related links and issues:
 - https://github.com/joeaawad/random-scripts/blob/master/terraform-opentofu-versioning.md
 - https://github.com/hashicorp/terraform/issues/29503
 - https://github.com/opentofu/opentofu/pull/2049
+- https://terragrunt.gruntwork.io/docs/features/cas/
 
 ## Problem Statement
 
