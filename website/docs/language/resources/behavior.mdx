@@ -205,13 +205,11 @@ block for a managed resource:
   Use `destroy` lifecycle argument when you want to control the destruction behavior of resources that are still present in your configuration.
   :::
 
-  :::note
   The `destroy` argument also applies when using the `tofu destroy` command.
   Resources with `destroy = false` will be forgotten rather than destroyed,
   and the command will exit with a non-zero status code to indicate that some
   resources were not fully removed. See the [`tofu destroy` command documentation](../../cli/commands/destroy.mdx#forgotten-resources)
   for more details.
-  :::
 
   :::warning
   Once a resource is forgotten (removed from state), OpenTofu will no longer
