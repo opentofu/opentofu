@@ -745,7 +745,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 		// Config has destroy=false (skip-destroy-count)
 		{
 			// Config: destroy=false, State: all SkipDestroy=true
-			// Removed instance (index 2) should be Forget because config says destroy=false
+			// Removed instance (index 2) should be Forget because both prevent destruction
 			name: "ConfigFalse_StateTrue_OrphanForgotten",
 			config: `
 				resource "aws_instance" "foo" {
@@ -768,7 +768,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 		},
 		{
 			// Config: destroy=false, State: all SkipDestroy=false
-			// Removed instance should still be Forget because config destroy=false takes precedence
+			// Removed instance should still be Forget because config destroy=false is enough
 			name: "ConfigFalse_StateFalse_OrphanForgotten",
 			config: `
 				resource "aws_instance" "foo" {
@@ -791,7 +791,7 @@ func TestSkipDestroy_Count_Reduction(t *testing.T) {
 		},
 		{
 			// Config: destroy=false, State: mixed attributes (index 2 has SkipDestroy=false)
-			// Removed instance should still be Forget because config destroy=false takes precedence
+			// Removed instance should still be Forget because config destroy=false should be enough
 			// Quite similar to the previous test, but ensures mixed state attributes are handled correctly, unlikely though this case may be
 			name: "ConfigFalse_StateMixed_OrphanForgotten",
 			config: `
