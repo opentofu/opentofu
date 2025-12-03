@@ -625,7 +625,7 @@ func TestSkipDestroy_Deposed(t *testing.T) {
 		},
 		{
 			// Orphaned deposed instance (no config) with SkipDestroy=false should be deleted.
-			name: "Orphaned_Forget",
+			name: "Orphaned_Delete",
 			config: `
 				# Empty, use this for any test that requires a module but no config.
 			`,
