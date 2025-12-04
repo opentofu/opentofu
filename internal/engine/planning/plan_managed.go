@@ -74,9 +74,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
-	prevRoundState := p.planCtx.prevRoundState.ResourceInstance(inst.Addr)
-	if prevRoundState != nil && prevRoundState.Current != nil {
-		obj, err := prevRoundState.Current.Decode(schema.Block.ImpliedType())
+	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr, states.NotDeposed)
+	if prevRoundState != nil {
+		obj, err := states.DecodeResourceInstanceObjectFull(prevRoundState, schema.Block.ImpliedType())
 		if err != nil {
 			diags = diags.Append(tfdiags.AttributeValue(
 				tfdiags.Error,
@@ -223,7 +223,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	return planResp.PlannedState, diags
 }
 
-func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 
@@ -231,7 +231,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr a
 	panic("unimplemented")
 }
 
-func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstance) tfdiags.Diagnostics {
+func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
 

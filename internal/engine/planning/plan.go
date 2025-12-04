@@ -102,8 +102,23 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 			for instKey, instState := range resourceState.Instances {
 				instAddr := resourceState.Addr.Instance(instKey)
 				for dk := range instState.Deposed {
+					// We currently have a schism where we do all of the
+					// discovery work using the traditional state model but
+					// we then switch to using our new-style "full" object model
+					// to act on what we've discovered. This is hopefully just
+					// a temporary situation while we're operating in a mixed
+					// world where most of the system doesn't know about the
+					// new runtime yet.
+					objState := prevRoundState.SyncWrapper().ResourceInstanceObjectFull(instAddr, dk)
+					if objState == nil {
+						// If we get here then there's a bug in the
+						// ResourceInstanceObjectFull function, because we
+						// should only be here if instAddr and dk correspond.
+						// to an actual deposed object.
+						panic(fmt.Sprintf("state has %s deposed object %q, but ResourceInstanceObjectFull didn't return it", instAddr, dk))
+					}
 					diags = diags.Append(
-						planGlue.planDeposedResourceInstanceObject(ctx, instAddr, dk, instState),
+						planGlue.planDeposedResourceInstanceObject(ctx, instAddr, dk, objState),
 					)
 				}
 			}
