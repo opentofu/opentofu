@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -114,6 +115,25 @@ func ModuleFromModuleSourceAddr(addr addrs.ModuleSourceRegistry) *Module {
 	ret := ModuleFromRegistryPackageAddr(addr.Package)
 	ret.RawSubmodule = addr.Subdir
 	return ret
+}
+
+// AsModuleSourceRegistry translates this legacy representation of module
+// registry addresses back into the modern model [addrs.ModuleSourceRegistry].
+//
+// Normally [addrs.ModuleSourceRegistry] values are normalized during parsing,
+// but this function doesn't actually do any parsing so its result is not
+// guaranteed to be normalized unless the receiver was originally created
+// with [ModuleFromModuleSourceAddr] and not modified in the meantime.
+func (m *Module) AsModuleSourceRegistry() addrs.ModuleSourceRegistry {
+	return addrs.ModuleSourceRegistry{
+		Package: regaddr.ModulePackage{
+			Host:         svchost.Hostname(m.Host().Normalized()),
+			Namespace:    m.RawNamespace,
+			Name:         m.RawName,
+			TargetSystem: m.RawProvider, // this field was never actually enforced to be a provider address, so now has a more general name
+		},
+		Subdir: m.RawSubmodule,
+	}
 }
 
 // ModuleFromRegistryPackageAddr is similar to ModuleFromModuleSourceAddr, but
