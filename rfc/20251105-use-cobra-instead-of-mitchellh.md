@@ -240,9 +240,17 @@ a lot to be done around details of this:
 * CLI configuration before chdir and provider sources
 * TF_REATTACH_PROVIDERS
 * cleanup provider clients
+* Suggestions for misspelled commands. Something like [this](https://github.com/spf13/cobra/commit/046a67325286b5e4d7c95b1d501ea1cd5ba43600)
 
+We might consider to include [opentofu#3050](https://github.com/opentofu/opentofu/issues/3050) under these
+changes too.
+``
 ## Potential Alternatives
 * Do not migrate to a new library and try to do the most we can by forking the existing ones
   and just add the missing features
 * Do nothing :(
 * Check other libraries
+
+### Additional resources
+Cobra completion command reference ([link](https://github.com/spf13/cobra/blob/main/site/content/completions/_index.md)).
+Cobra user guide ([link](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md#local-flag-on-parent-commands))
