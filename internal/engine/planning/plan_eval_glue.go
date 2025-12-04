@@ -67,7 +67,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 
 }
 
-func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
@@ -90,7 +90,7 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	}
 }
 
-func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstance) tfdiags.Diagnostics {
+func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning deposed resource instance object %s %s", addr, deposedKey)
 	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// Should not be possible because only managed resource instances
@@ -369,16 +369,37 @@ func (p *planGlue) resourceInstancePlaceholderValue(ctx context.Context, provide
 // should adopt a different representation of state which uses a tree structure
 // where we can efficiently scan over subtrees that match a particular prefix,
 // rather than always scanning over everything.
-func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceInstance) bool) iter.Seq2[addrs.AbsResourceInstance, *states.ResourceInstance] {
-	return func(yield func(addrs.AbsResourceInstance, *states.ResourceInstance) bool) {
+func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceInstance) bool) iter.Seq2[addrs.AbsResourceInstance, *states.ResourceInstanceObjectFullSrc] {
+	return func(yield func(addrs.AbsResourceInstance, *states.ResourceInstanceObjectFullSrc) bool) {
 		for _, modState := range state.Modules {
 			for _, resourceState := range modState.Resources {
 				for instKey, instanceState := range resourceState.Instances {
+					if instanceState.Current == nil {
+						// Only the current object for a resource instance
+						// can be an "orphan". (Deposed objects are handled
+						// elsewhere.)
+						continue
+					}
 					instAddr := resourceState.Addr.Instance(instKey)
 					if !want(instAddr) {
 						continue
 					}
-					if !yield(instAddr, instanceState) {
+					// We currently have a schism where we do all of the
+					// discovery work using the traditional state model but
+					// we then switch to using our new-style "full" object model
+					// to act on what we've discovered. This is hopefully just
+					// a temporary situation while we're operating in a mixed
+					// world where most of the system doesn't know about the
+					// new runtime yet.
+					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr, states.NotDeposed)
+					if objState == nil {
+						// If we get here then there's a bug in the
+						// ResourceInstanceObjectFull function, because we
+						// should only be here if instAddr corresponds to a
+						// to an instance with a current object.
+						panic(fmt.Sprintf("state has %s, but ResourceInstanceObjectFull didn't return it", instAddr))
+					}
+					if !yield(instAddr, objState) {
 						return
 					}
 				}

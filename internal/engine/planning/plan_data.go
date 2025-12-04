@@ -83,19 +83,15 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	panic("unimplemented")
 }
 
-func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstance) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 	var diags tfdiags.Diagnostics
 
-	// An orphan data resource is always just discarded completely, because
+	// An orphan data object is always just discarded completely, because
 	// OpenTofu retains them only for esoteric uses like the "tofu console"
 	// command: they are not actually expected to persist between rounds.
-	//
-	// FIXME: We can't actually populate the provider instance address here
-	// because in our current model it's split awkwardly across *states.Resource
-	// and *states.ResourceInstance, and we only have the latter here.
-	p.planCtx.refreshedState.SetResourceInstanceCurrent(addr, nil, addrs.AbsProviderConfig{}, state.ProviderKey)
+	p.planCtx.refreshedState.SetResourceInstanceObjectFull(addr, states.NotDeposed, nil)
 
 	return diags
 }
