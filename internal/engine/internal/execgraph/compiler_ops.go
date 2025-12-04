@@ -71,14 +71,14 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 		var resourceTypeName string
 		if desired != nil {
 			resourceTypeName = desired.Addr.Resource.Resource.Type
+		} else if prior != nil {
+			resourceTypeName = prior.ResourceType
 		} else {
-			// FIXME: We don't haave anywhere to get the resource type name from
-			// if the resource instance is not desired. This is one of the
-			// annoyances of using our existing states.ResourceInstanceObject
-			// model, since it was designed to be used by callers that also have
-			// access to the rest of the state data structure that would've
-			// indicated which resource instance the object belongs to.
-			resourceTypeName = "<FIXME: no resource type available!>"
+			// Should not get here: there's no reason to be applying changes
+			// for a resource instance that has neither a desired state nor
+			// a prior state.
+			diags = diags.Append(fmt.Errorf("attempting to apply final plan for resource instance that has neither desired nor prior state (this is a bug in OpenTofu)"))
+			return nil, false, diags
 		}
 
 		req := providers.PlanResourceChangeRequest{
