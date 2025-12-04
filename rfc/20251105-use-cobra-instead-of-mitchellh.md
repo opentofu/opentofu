@@ -16,7 +16,7 @@ another maintained library.
 The main road blocks we hit because of using this old library are as follows:
 * Deprecated autocompletion scripts for zsh.
   * More details in the [autocomplete](#autocomplete) section.
-* Hardcoded handling of the autocompletion scripts. The library used (https://github.com/posener/complete) is writing these scripts to hardcoded file paths without any option to specify those stream to be written into.
+* Hardcoded handling of the autocompletion scripts. The library used (https://github.com/posener/complete) is writing these scripts to hardcoded file paths without any option to specify the stream to be written into.
 * Flags parsing is scattered all over the place and help text is written and _formatted_ manually for each and every flag.
 * The flags format we have is the golang style which is way more uncommon compared with the POSIX style one.
 
@@ -35,6 +35,7 @@ the risks and the promises that we need to keep about the UI of OpenTofu.
 Risks and careful consideration:
 * flags parsing could result in different parsed values because of some structures that we have today.
 * flags ordering and propagation between commands could be slightly different. This would be handled by cobra instead and not by custom implementation that we have today.
+* autocompletion by using the previously installed scripts could be broken
 
 > [!NOTE]
 > Recommended is to add unit tests for these risks before doing any changes.
@@ -50,7 +51,7 @@ Ensure that:
 
 ### Autocomplete
 In order to preserve the current functionality and the one provided by cobra we would have to create 
-some kind of "bridge" between the two.
+some kind of a "bridge" between the two.
 
 This means that when autocompletion scripts are already installed into a system by an old `tofu` binary,
 we could forward the requests to `posener/complete` to ensure that the users that didn't update yet 
@@ -59,12 +60,12 @@ the autocompletion scripts, will still have the autocompletion work properly.
 To be able to do so, understanding how the options work is crucial.
 #### posener/complete
 `posener/complete` has been created initially as a pure bash autocomplete library.
-Because of that, it relies heavily on the bash inner works to provide this capability, by using tw
+Because of that, it relies heavily on the bash inner works to provide this capability, by using two
 [environment variable](https://github.com/posener/complete/blob/9a4745ac49b29530e07dc2581745a218b646b7a3/complete.go#L85):
 * `COMP_LINE`
 * `COMP_POINT`
 
-As the library evolved, it wanted to include support for others shells (fish, zsh) but it didn't add
+As the library evolved, it included support for others shells (fish, zsh) but it didn't add
 official support of those, but took the shortest path on achieving this capability by exporting
 the env vars aforementioned before calling the binary to provide suggestions (E.g.: [`fish` generated script](https://github.com/posener/complete/blob/9a4745ac49b29530e07dc2581745a218b646b7a3/cmd/install/fish.go#L57)).
 
@@ -82,11 +83,12 @@ by the `__complete` command.
 Here is a list of the scripts cobra generate and their associated official documentation for reference:
 * [bash](https://github.com/spf13/cobra/blob/fc81d2003469e2a5c440306d04a6d82a54065979/bash_completionsV2.go#L37) - official docs ([programmable completion](https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion.html) and [builtins](https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion-Builtins.html))
   * Uses `complete` builtin function together with other functions to provide the aforementioned env vars for the target application to provide completion suggestions.
-* [zsh](https://github.com/spf13/cobra/blob/fc81d2003469e2a5c440306d04a6d82a54065979/zsh_completions.go#L92) [official docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html)
+* [zsh](https://github.com/spf13/cobra/blob/fc81d2003469e2a5c440306d04a6d82a54065979/zsh_completions.go#L92) - [official docs](https://zsh.sourceforge.io/Doc/Release/Completion-System.html)
   * To be able to use `source <(tofu completion zsh)`, it uses the `compdef` function as the second line of the completion script. This works similarly with the `complete` command in bash.
-  * To be able to use the generated script the way zsh encourages to be used, by lazy loading it, it has a [`#compdef` directive](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Autoloaded-files) on the first line.
+  * To allow zsh recommended way to install these scripts, the first line from the cobra script
+    contains [`#compdef` directive](https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Autoloaded-files). This is used by zsh to lazy load the script.
 * [fish](https://github.com/spf13/cobra/blob/fc81d2003469e2a5c440306d04a6d82a54065979/fish_completions.go#L36) - [official docs](https://fishshell.com/docs/current/completions.html)
-  * It uses its own [flavored `complete` function](https://fishshell.com/docs/current/cmds/complete.html) that can be used to handle the completion for a program in multiple ways..
+  * It uses its own [flavored `complete` function](https://fishshell.com/docs/current/cmds/complete.html) that can be used to handle the completion for a program.
 * [powershell](https://github.com/spf13/cobra/blob/fc81d2003469e2a5c440306d04a6d82a54065979/powershell_completions.go#L38) - [official docs](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/register-argumentcompleter?view=powershell-7.5)
   * Uses Microsoft PS Core `Register-ArgumentCompleter` to register a completion script that calls into the cobra logic.
 
@@ -98,23 +100,25 @@ ensured by the community supporting cobra from different shell communities.
 Therefore, for the foreseeable future, the scripts will be updated with the best practices for each 
 shell and we can inherit those with each update of the library. 
 
-
-Now that we've seen how both approaches work, the "bridge" that I propose is to try to provide 
-autocompletion suggestions by using the old library and if that succeeds, we get out and do nothing else.
-But if it fails to do so, we will allow cobra to execute this.
-The logic is already in [`mitchellh/cli`](https://github.com/mitchellh/cli/blob/main/cli.go#L408-L416).
+#### "Bridge" between old and new autocompletion scripts 
+To ensure backwards compatibility, `posener/complete` should be the first called to provide autocompletion
+suggestions if possible.
+When it will provide none, we will allow cobra to execute, which internally will provide suggestions
+if `__complete` command has been invoked.
+The logic for such a "bridge" is already in [`mitchellh/cli`](https://github.com/mitchellh/cli/blob/main/cli.go#L408-L416).
 The idea is quite simple: since `posener/complete` relies on the `COMP_LINE` env var to execute its
-logic, it checks if that is configured and if it isn't returns `false`.
+logic, it checks if that is configured and if it isn't returns `false` announcing that it could not 
+provide suggestions.
 The idea that I sketched is exactly like that, where I do the same check, and if it returns `true`, I
 build the autocompletion context required by `posener/complete` and run its logic. 
-lCheck [this](https://github.com/yottta/cobra_tofu/blob/ea1564d3542062f8016a5f75d6559c498c17797d/commands/autocomplete_legacy.go#L12-L14) for details.
+Check [this](https://github.com/yottta/cobra_tofu/blob/ea1564d3542062f8016a5f75d6559c498c17797d/commands/autocomplete_legacy.go#L12-L14) for details.
 
 Another advantage of using cobra is that the autocompletion scripts can be written to any buffer 
 (default stdout), which allows us to do several things:
-* allow users to `source` the scripts directly, without the need to write those to a file. Helpful
-  when OpenTofu is executed on a system where the files like `.zshrc` are read only
-* allows us to generate these scripts at release time and bake then in the packages for different
-  OSs.
+* allow users to [`source`](https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html#index-source) the scripts directly, without the need to write those to a file. Helpful
+  when OpenTofu is executed on a system where the files like `.zshrc` are read only.
+* allows generating the scripts right before the release and package those in the delivery archives
+  for each OS.
 
 Cobra offers a `ValidArgsFunction` that can calculate on the fly the valid arguments for a command.
 One such example can be seen in [`tofu workspace select`](https://github.com/yottta/cobra_tofu/blob/ea1564d3542062f8016a5f75d6559c498c17797d/commands/cmd_other.go#L66-L68).
@@ -122,7 +126,7 @@ One such example can be seen in [`tofu workspace select`](https://github.com/yot
 ### Flags
 When it comes to flags, this is more of a sensitive topic since these control OpenTofu in a more
 functional manner, so we need to ensure that the parsing of the values is not affected.
-One other thing that we need to be sure, is that the position of these will not raise errors
+One other thing that we need to be sure of, is that the position of these will not raise errors
 to the users once they start using a new version that will include the cobra integration.
 
 #### Problem statement
@@ -143,12 +147,12 @@ defining all the flags by using [spf13/pflag](https://github.com/spf13/pflag), w
 hand in hand with [spf13/cobra](https://github.com/spf13/cobra).
 
 The next two sections shows different approaches on achieving a migration without breaking existing flows.
-#### Copy spf13/pflag/FlagSet to flag/FlagSet
+#### Copy `spf13/pflag/FlagSet` to `flag/FlagSet`
 This was a first attempt since the golang style flags do support [single and double dashes for
 the defined flags](https://pkg.go.dev/flag#hdr-Command_line_flag_syntax) (getting us closer
-to POSIX format flags).
+to POSIX formatted flags).
 
-`spf13/pflag` offers a functionality to [copy the flags](https://github.com/spf13/pflag/pull/330/files#diff-8662a44abae11986156e88dd0d690ae1b76ffa61d2f02909979b2c24fcce22f5R121) defined by using that library into the golang
+`spf13/pflag` offers a functionality to [copy the flags](https://github.com/spf13/pflag/pull/330/files#diff-8662a44abae11986156e88dd0d690ae1b76ffa61d2f02909979b2c24fcce22f5R121) defined into the golang
 standard [lib `flag.FlagSet`](https://pkg.go.dev/flag#FlagSet).
 
 This would achieve 2 things:
@@ -161,17 +165,18 @@ in cobra.
 To be able to use this approach, we would do the following:
 * defined flags using `pflag`
 * _disable cobra flags parsing_
-* copy the flags to stdlib `flags.FlagSet`
-* use the stdlib `flags.FlagSet.Parse(os.Args)`
+* copy the flags to stdlib `flag.FlagSet`
+* use the stdlib `flag.FlagSet.Parse(os.Args)`
 
-This works quite well, but because of the 2nd step, I seen that cobra leaves all the args to be handled
-by each command (`Run`, `RunE`, `PersistentPreRun`, etc for the sub command and parent command as well).
+Because of the 2nd step, since cobra does not parse the flags from the args, it will pass all the args
+(including flags) into the args of the execution function (`Run`, `PreRun`, etc) of each command 
+(root, sub command, etc).
 
 For example, having this command line:
 ```
 tofu -chdir=test apply -auto-approve planfile
 ```
-By having the flags parsing disabled, all the execution functions of the commands will received exactly
+By having the flags parsing disabled, all the execution functions of the commands will receive exactly
 the same args slice: `["-chdir=test", "-auto-approve", "planfile"]`.
 I am talking here about the `rootCmd.PersistentPreRun`, `rootCmd.Run/RunE` and `applyCmd.Run`, etc.
 
@@ -181,7 +186,7 @@ This adds maintenance cost, mixing of concerns and a quite tangled way to have l
 > As noted in the [official documentation](https://github.com/spf13/cobra/blob/main/site/content/user_guide.md#local-flag-on-parent-commands),
 > tried also to use `Command.TraverseChildren` to force args given to each command object to contain
 > only its defined flags, but that works only when `Command.DisableFlagParsing = false`, which breaks
-> the first requirement we have to be able to copy the flags in `flags` stdlib.
+> the first requirement we have to be able to copy the flags in the `flag` stdlib.
 
 #### Use the spf13/pflag parsing
 To use this approach, is quite straight forward:
@@ -189,7 +194,7 @@ To use this approach, is quite straight forward:
 * Those will be parsed before execution of the command
 
 One big benefit that we have with this is that combined with `Command.TraverseChildren`, each `*cobra.Command`
-objects receives strictly the arguments and not the flag values, flags being already parsed and injected
+object receives strictly the arguments and not the flag values, flags being already parsed and injected
 in the structs used to configure the flags.
 
 An additional advantage compared with the copying of the flags, is that for any complex flag configured
