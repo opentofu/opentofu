@@ -621,7 +621,7 @@ func actionDescription(action plans.Action) string {
 	case plans.DeleteThenCreate:
 		return "[red]-[reset]/[green]+[reset] destroy and then create replacement"
 	case plans.ForgetThenCreate:
-		return "[red].[reset]/[green]+[reset] forget the old instance and create replacement"
+		return "[red].[reset]/[green]+[reset] forget and then create replacement"
 	case plans.Read:
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:

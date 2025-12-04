@@ -216,8 +216,8 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 	} else {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
-			Summary:  "Resource going to be removed from the state",
-			Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+			Summary:  "Resource will be removed from the state",
+			Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 		})
 		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy", addr)
 		change = n.planForget(ctx, evalCtx, oldState, "")

@@ -190,8 +190,8 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 			})
 			log.Printf("[DEBUG] NodePlanDeposedResourceInstanceObject.Execute: %s (deposed %s) planning forget instead of destroy", n.Addr, n.DeposedKey)
 			change = n.planForget(ctx, evalCtx, state, n.DeposedKey)
