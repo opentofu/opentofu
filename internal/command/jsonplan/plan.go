@@ -34,20 +34,22 @@ import (
 const (
 	FormatVersion = "1.2"
 
-	ResourceInstanceReplaceBecauseCannotUpdate    = "replace_because_cannot_update"
-	ResourceInstanceReplaceBecauseTainted         = "replace_because_tainted"
-	ResourceInstanceReplaceByRequest              = "replace_by_request"
-	ResourceInstanceReplaceByTriggers             = "replace_by_triggers"
-	ResourceInstanceDeleteBecauseNoResourceConfig = "delete_because_no_resource_config"
-	ResourceInstanceDeleteBecauseWrongRepetition  = "delete_because_wrong_repetition"
-	ResourceInstanceDeleteBecauseCountIndex       = "delete_because_count_index"
-	ResourceInstanceDeleteBecauseEnabledFalse     = "delete_because_enabled_false"
-	ResourceInstanceDeleteBecauseEachKey          = "delete_because_each_key"
-	ResourceInstanceDeleteBecauseNoModule         = "delete_because_no_module"
-	ResourceInstanceDeleteBecauseNoMoveTarget     = "delete_because_no_move_target"
-	ResourceInstanceReadBecauseConfigUnknown      = "read_because_config_unknown"
-	ResourceInstanceReadBecauseDependencyPending  = "read_because_dependency_pending"
-	ResourceInstanceReadBecauseCheckNested        = "read_because_check_nested"
+	ResourceInstanceReplaceBecauseCannotUpdate              = "replace_because_cannot_update"
+	ResourceInstanceReplaceBecauseTainted                   = "replace_because_tainted"
+	ResourceInstanceReplaceByRequest                        = "replace_by_request"
+	ResourceInstanceReplaceByTriggers                       = "replace_by_triggers"
+	ResourceInstanceDeleteBecauseNoResourceConfig           = "delete_because_no_resource_config"
+	ResourceInstanceDeleteBecauseWrongRepetition            = "delete_because_wrong_repetition"
+	ResourceInstanceDeleteBecauseCountIndex                 = "delete_because_count_index"
+	ResourceInstanceDeleteBecauseEnabledFalse               = "delete_because_enabled_false"
+	ResourceInstanceDeleteBecauseEachKey                    = "delete_because_each_key"
+	ResourceInstanceDeleteBecauseNoModule                   = "delete_because_no_module"
+	ResourceInstanceDeleteBecauseNoMoveTarget               = "delete_because_no_move_target"
+	ResourceInstanceReadBecauseConfigUnknown                = "read_because_config_unknown"
+	ResourceInstanceReadBecauseDependencyPending            = "read_because_dependency_pending"
+	ResourceInstanceReadBecauseCheckNested                  = "read_because_check_nested"
+	ResourceInstanceForgotBecauseOfLifecycleDestroyInState  = "forgot_because_of_lifecycle_destroy_in_state"
+	ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig = "forgot_because_of_lifecycle_destroy_in_config"
 )
 
 // Plan is the top-level representation of the json format of a plan. It includes
@@ -573,6 +575,10 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.ActionReason = ResourceInstanceReadBecauseDependencyPending
 		case plans.ResourceInstanceReadBecauseCheckNested:
 			r.ActionReason = ResourceInstanceReadBecauseCheckNested
+		case plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInState:
+			r.ActionReason = ResourceInstanceForgotBecauseOfLifecycleDestroyInState
+		case plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig:
+			r.ActionReason = ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig
 		default:
 			return nil, fmt.Errorf("resource %s has an unsupported action reason %s", r.Address, rc.ActionReason)
 		}
@@ -896,6 +902,8 @@ func actionString(action string) []string {
 		return []string{"update"}
 	case "CreateThenDelete":
 		return []string{"create", "delete"}
+	case "ForgetThenCreate":
+		return []string{"forget", "create"}
 	case "Read":
 		return []string{"read"}
 	case "DeleteThenCreate":
@@ -918,6 +926,10 @@ func UnmarshalActions(actions []string) plans.Action {
 
 		if actions[0] == "delete" && actions[1] == "create" {
 			return plans.DeleteThenCreate
+		}
+
+		if actions[0] == "forget" && actions[1] == "create" {
+			return plans.ForgetThenCreate
 		}
 	}
 

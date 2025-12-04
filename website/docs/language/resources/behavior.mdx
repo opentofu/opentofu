@@ -162,6 +162,63 @@ block for a managed resource:
   case, the `prevent_destroy` setting is removed along with it, and so OpenTofu
   would allow the destroy operation to succeed.
 
+  In case you want to retain the infrastructure object even after removing the
+  `resource` block from configuration, consider using the `destroy` argument
+  documented below instead. Note that, if you set `destroy = false`, OpenTofu will
+  change the `destroy` actions to a variant of `forget` action, and `prevent_destroy`
+  will not have any effect.
+
+* `destroy` (bool) - By default, when a resource is removed from the configuration,
+  requires replacement, or is explicitly destroyed using the `tofu destroy` command,
+  OpenTofu will destroy the corresponding infrastructure object. Setting this
+  meta-argument to `false` changes this behavior so that OpenTofu will instead
+  "forget" the resource instance, removing it from the state without destroying the actual
+  infrastructure object.
+
+  :::note
+  `lifecycle.destroy` only accepts constant boolean values (`true` or `false`).
+  :::
+
+  When a resource with `destroy = false` is removed from the configuration or requires replacement,
+  OpenTofu will plan to **forget** it rather than **destroy** it. The resource will
+  be removed from the state file, but the actual infrastructure object will
+  remain unchanged in your cloud provider or other remote system. If the resource requires replacement,
+  OpenTofu will then create a new resource instance as per the current configuration.
+
+  This is useful when you want to keep the resource in configuration but alter its destruction behavior. Incomplete list of use cases includes:
+    - Retain critical or compliance resources even when destroying the rest of the environment, without manually removing them from configuration beforehand.
+  Enables more automation with reviewable configuration changes.
+    - Retain old resource instances when performing resource replacements or infrastructure upgrades,
+  avoiding downtime or data loss. Making potential rollbacks faster and easier.
+    - Certain resource instances might be impossible or impractical to destroy due to external dependencies or constraints.
+
+  Note that this argument is **persisted in the state**, once you set and apply `destroy = false` for a resource
+  OpenTofu will not plan the resource destruction unless you explicitly change it back to `true` or remove the option from the corresponding resource configuration block.
+  OpenTofu errs on the side of caution and avoids destroying resources that were marked with `destroy = false` in the last applied configuration for the resource instance.
+  If you are using single instance resources (no count or for_each), you can override this attribute in the state by writing explicit `removed` block for the resource instance with `destroy = true` option.
+
+  :::note
+  This argument can also be used in [`removed` blocks](syntax.mdx#removing-resources)
+  to control whether resources should be destroyed or forgotten when explicitly
+  removing them from OpenTofu management. The behavior is identical in both contexts.
+  Generally, prefer to use `removed` blocks when you want to remove resources from your configurations as a method of refactoring.
+  Use `destroy` lifecycle argument when you want to control the destruction behavior of resources that are still present in your configuration.
+  :::
+
+  The `destroy` argument also applies when using the `tofu destroy` command.
+  Resources with `destroy = false` will be forgotten rather than destroyed,
+  and the command will exit with a non-zero status code to indicate that some
+  resources were not fully removed. See the [`tofu destroy` command documentation](../../cli/commands/destroy.mdx#forgotten-resources)
+  for more details.
+
+  :::warning
+  Once a resource is forgotten (removed from state), OpenTofu will no longer
+  track it. If you later add the resource back to your configuration with the
+  same address, OpenTofu will attempt to create a new resource, which may fail
+  if the infrastructure object still exists. You may need to import the existing
+  resource or use a different resource address.
+  :::
+
 * <span id="ignore_changes">`ignore_changes`</span> (list of attribute names) - By default, OpenTofu detects
   any difference in the current settings of a real infrastructure object
   and plans to update the remote object to match configuration.

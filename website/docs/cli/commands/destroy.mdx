@@ -39,3 +39,32 @@ tofu plan -destroy
 
 This will run [`tofu plan`](plan.mdx) in _destroy_ mode, showing
 you the proposed destroy changes without executing them.
+
+## Forgotten Resources
+
+<span id="forgotten-resources"></span>
+
+When you run `tofu destroy`, OpenTofu will attempt to destroy all resources
+managed by the configuration. However, if any resources have the
+[`lifecycle.destroy`](../../language/resources/behavior.mdx#lifecycle-customizations)
+meta-argument set to `false`, those resources will be "forgotten" instead of
+destroyed.
+
+When resources are forgotten:
+
+- They are removed from the OpenTofu state file
+- The actual infrastructure objects remain intact in your cloud provider or remote system
+- The `tofu destroy` command exits with a non-zero status code to indicate
+  that not all resources were fully removed
+
+This exit code behavior might be important for automation and CI/CD pipelines, as it
+signals that the destroy operation did not complete as a typical destroy would.
+
+:::warning
+The `destroy` attribute is persisted in the state file, even when resources are removed from the configuration.
+Meaning that resources will **not** be destroyed even when removed from the configuration.
+If you want to fully destroy such resources (still in the state), you must first add the resource configuration back and
+remove the `lifecycle.destroy` attribute (or set it to `true`).
+
+Alternatively, you can add the `removed` block for the removed resource with `lifecycle.destroy = true`, which will override the `destroy` attribute in the state file.
+:::

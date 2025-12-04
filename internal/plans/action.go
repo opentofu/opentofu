@@ -16,6 +16,7 @@ const (
 	CreateThenDelete Action = '±'
 	Delete           Action = '-'
 	Forget           Action = '.'
+	ForgetThenCreate Action = '⊘'
 	Open             Action = '⁐'
 	// NOTE: Renew and Close missing on purpose.
 	// Those are not meant to be stored in the plan.

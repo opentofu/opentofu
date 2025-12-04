@@ -391,6 +391,219 @@ func TestApply_destroyPath(t *testing.T) {
 	}
 }
 
+func TestApply_destroySkipInConfigAndState(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("skip-destroy"), td)
+	t.Chdir(td)
+
+	// Create some existing state
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:   []byte(`{"id":"baz"}`),
+				Status:      states.ObjectReady,
+				SkipDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Destroy: true,
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Log(output.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	if !strings.Contains(output.Stderr(), "OpenTofu has not deleted some remote objects") {
+		t.Fatalf("did not expect skip-destroy message in output:\n\n%s", output.Stderr())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+}
+
+// In this case, the user has removed skip-destroy from config, but it's still set in state.
+// We will plan a new state first, which will remove the skip-destroy attribute from state and then proceed to destroy the resource
+func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("skip-destroy/no-skip-in-config"), td)
+	t.Chdir(td)
+
+	// Create some existing state
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:   []byte(`{"id":"baz"}`),
+				Status:      states.ObjectReady,
+				SkipDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Destroy: true,
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Log(output.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+	// We will be destroying the resource above
+	if !strings.Contains(output.Stdout(), "1 destroyed") {
+		t.Fatalf("resource should be destroyed, output:\n\n%s", output.Stdout())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+
+}
+func TestApply_destroySkipInStateOrphaned(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("skip-destroy/empty"), td)
+	t.Chdir(td)
+
+	// Create some existing state
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:   []byte(`{"id":"baz"}`),
+				Status:      states.ObjectReady,
+				SkipDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Destroy: true,
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Log(output.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	if !strings.Contains(output.Stderr(), "OpenTofu has not deleted some remote objects") {
+		t.Fatalf("did not expect skip-destroy message in output:\n\n%s", output.Stderr())
+	}
+
+	// Check action reason - we must clarify to user that the attribute is stored in state even if not in config
+	if !strings.Contains(output.Stdout(), "lifecycle.destroy = false") {
+		t.Fatalf("did not find expected lifecycle.destroy reason in output:\n\n%s", output.Stdout())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+}
 func TestApply_targetedDestroy(t *testing.T) {
 	testCases := []struct {
 		name         string

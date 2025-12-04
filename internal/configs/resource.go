@@ -71,8 +71,13 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      hcl.Expression
-	IgnoreChanges       []hcl.Traversal
-	IgnoreAllChanges    bool
+	// Destroy attribute indicates if the resource should be destroy once it is planned for destruction. This attribute corresponds to the `lifecycle.destroy` attribute.
+	// The default behavior is to destroy the resource when it is planned for destruction, so the value of false will skip destroying the resource.
+	// Note that the resource will still be removed from the state file even if Destroy is set to false but won't call the underlying provider for destruction.
+	// This field will accept only constant boolean expressions. This is of type hcl.Expression to make future extensions of dynamic evaluation easier.
+	Destroy          hcl.Expression
+	IgnoreChanges    []hcl.Traversal
+	IgnoreAllChanges bool
 
 	CreateBeforeDestroySet bool
 }
@@ -209,6 +214,10 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 
 			if attr, exists := lcContent.Attributes["prevent_destroy"]; exists {
 				r.Managed.PreventDestroy = attr.Expr
+			}
+
+			if attr, exists := lcContent.Attributes["destroy"]; exists {
+				r.Managed.Destroy = attr.Expr
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -683,6 +692,9 @@ func decodeEphemeralBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagn
 			if _, exists := lcContent.Attributes["create_before_destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("create_before_destroy", block.DefRange))
 			}
+			if _, exists := lcContent.Attributes["destroy"]; exists {
+				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("destroy", block.DefRange))
+			}
 			if _, exists := lcContent.Attributes["prevent_destroy"]; exists {
 				diags = append(diags, invalidEphemeralLifecycleAttributeDiag("prevent_destroy", block.DefRange))
 			}
@@ -1126,6 +1138,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "prevent_destroy",
+		},
+		{
+			Name: "destroy",
 		},
 		{
 			Name: "ignore_changes",

@@ -105,6 +105,9 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			delete = true
 		case plans.Forget:
 			forget = true
+		case plans.ForgetThenCreate:
+			update = true
+			forget = true
 		case plans.DeleteThenCreate, plans.CreateThenDelete:
 			update = true
 			delete = true
@@ -239,6 +242,13 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			for _, rsrcNode := range resourceNodes[rsrcAddr] {
 				g.Connect(dag.BasicEdge(node, rsrcNode))
 			}
+
+			if forget {
+				// We need to first forget the resource instance and make anew
+				forgetNode := produceForgetNode(addr, dk)
+				g.Add(forgetNode)
+				g.Connect(dag.BasicEdge(node, forgetNode))
+			}
 		}
 
 		if delete {
@@ -269,24 +279,8 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			g.Add(node)
 		}
 
-		if forget {
-			var node GraphNodeResourceInstance
-			abstract := NewNodeAbstractResourceInstance(addr)
-			if dk == states.NotDeposed {
-				node = &NodeForgetResourceInstance{
-					NodeAbstractResourceInstance: abstract,
-					DeposedKey:                   dk,
-				}
-				log.Printf("[TRACE] DiffTransformer: %s will be represented for removal from the state by %s", addr, dag.VertexName(node))
-			} else {
-				node = &NodeForgetDeposedResourceInstanceObject{
-					NodeAbstractResourceInstance: abstract,
-					DeposedKey:                   dk,
-				}
-				log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for removal from the state by %s", addr, dk, dag.VertexName(node))
-			}
-
-			g.Add(node)
+		if forget && !update {
+			g.Add(produceForgetNode(addr, dk))
 		}
 
 	}
@@ -294,4 +288,23 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 	log.Printf("[TRACE] DiffTransformer complete")
 
 	return diags.Err()
+}
+
+func produceForgetNode(addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) GraphNodeResourceInstance {
+	var node GraphNodeResourceInstance
+	abstract := NewNodeAbstractResourceInstance(addr)
+	if deposedKey == states.NotDeposed {
+		node = &NodeForgetResourceInstance{
+			NodeAbstractResourceInstance: abstract,
+			DeposedKey:                   deposedKey,
+		}
+		log.Printf("[TRACE] DiffTransformer: %s will be represented for removal from the state by %s", addr, dag.VertexName(node))
+	} else {
+		node = &NodeForgetDeposedResourceInstanceObject{
+			NodeAbstractResourceInstance: abstract,
+			DeposedKey:                   deposedKey,
+		}
+		log.Printf("[TRACE] DiffTransformer: %s deposed object %s will be represented for removal from the state by %s", addr, deposedKey, dag.VertexName(node))
+	}
+	return node
 }
