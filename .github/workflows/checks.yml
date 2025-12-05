@@ -125,7 +125,15 @@ jobs:
 
       - name: "End-to-end tests"
         run: |
-          TF_ACC=1 go test -v ./internal/command/e2etest
+          # This also includes some acceptance tests elsewhere that have
+          # similar dependencies on the OpenTofu Registry and on some
+          # OpenTofu-controlled GitHub repositories, just because this
+          # particular job is already expected to have that kind of external
+          # dependency. Note that this is appropriate only for tests that
+          # make _unauthenticated_ requests to external network services,
+          # because we mustn't put live credentials in a job that can be
+          # triggered by community pull requests.
+          TF_ACC=1 go test -v ./internal/command/e2etest ./internal/initwd ./internal/registry
 
   consistency-checks:
     name: "Code Consistency Checks"
