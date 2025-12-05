@@ -31,7 +31,8 @@ type providerForTest struct {
 	mockResources     mockResourcesForTest
 	overrideResources overrideResourcesForTest
 
-	currentResourceAddress string
+	currentResourceInstanceAddress string
+	currentResourceAddress         string
 }
 
 func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) (providerForTest, error) {
@@ -224,17 +225,20 @@ func (p providerForTest) withCopiedOverrideResources() providerForTest {
 }
 
 func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
+	// make an empty, unused map; we use the "defaultOverrides" to set the value of this overriding resource
+	overrides := make(map[addrs.InstanceKey]map[string]cty.Value)
 	for _, res := range overrideResources {
-		p = p.withOverrideResource(*res.TargetParsed, res.Values)
+		overrides[addrs.NoKey] = res.Values
+		p = p.withOverrideResource(*res.TargetParsed, overrides)
 	}
 
 	return p
 }
 
-func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrides map[string]cty.Value) providerForTest {
+func (p providerForTest) withOverrideResource(addr addrs.AbsResourceInstance, overrides map[addrs.InstanceKey]map[string]cty.Value) providerForTest {
 	var resources map[string]resourceForTest
 
-	switch addr.Resource.Mode {
+	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
 		resources = p.overrideResources.managed
 	case addrs.DataResourceMode:
@@ -242,18 +246,25 @@ func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrid
 	case addrs.InvalidResourceMode:
 		panic("BUG: invalid override resource mode")
 	default:
-		panic("BUG: unsupported override resource mode: " + addr.Resource.Mode.String())
+		panic("BUG: unsupported override resource mode: " + addr.Resource.Resource.Mode.String())
 	}
-
-	resources[addr.String()] = resourceForTest{
-		values: overrides,
+	key := addr.Resource.Key
+	if vals, ok := overrides[key]; ok {
+		resources[addr.String()] = resourceForTest{
+			values: vals,
+		}
+	} else {
+		resources[addr.String()] = resourceForTest{
+			values: overrides[addrs.NoKey],
+		}
 	}
 
 	return p
 }
 
-func (p providerForTest) linkWithCurrentResource(addr addrs.ConfigResource) providerForTest {
-	p.currentResourceAddress = addr.String()
+func (p providerForTest) linkWithCurrentResource(addr addrs.AbsResourceInstance) providerForTest {
+	p.currentResourceInstanceAddress = addr.String()
+	p.currentResourceAddress = addr.ConfigResource().String()
 	return p
 }
 
@@ -293,9 +304,11 @@ func (res overrideResourcesForTest) copy() overrideResourcesForTest {
 }
 
 func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.managed[p.currentResourceAddress]
-		if ok {
+	// Note: if currentResourceInstanceAddress is nonempty then currentResourceAddress is also set
+	if p.currentResourceInstanceAddress != "" {
+		if res, ok := p.overrideResources.managed[p.currentResourceInstanceAddress]; ok {
+			return res.values
+		} else if res, ok := p.overrideResources.managed[p.currentResourceAddress]; ok {
 			return res.values
 		}
 	}
@@ -304,9 +317,11 @@ func (p providerForTest) getMockValuesForManagedResource(typeName string) map[st
 }
 
 func (p providerForTest) getMockValuesForDataResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.data[p.currentResourceAddress]
-		if ok {
+	// Note: if currentResourceInstanceAddress is nonempty then currentResourceAddress is also set
+	if p.currentResourceInstanceAddress != "" {
+		if res, ok := p.overrideResources.data[p.currentResourceInstanceAddress]; ok {
+			return res.values
+		} else if res, ok := p.overrideResources.data[p.currentResourceAddress]; ok {
 			return res.values
 		}
 	}

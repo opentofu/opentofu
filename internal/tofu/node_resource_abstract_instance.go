@@ -3222,7 +3222,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 
 	if n.Config == nil || !n.Config.IsOverridden {
 		if p, ok := underlyingProvider.(providerForTest); ok {
-			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())
+			underlyingProvider = p.linkWithCurrentResource(n.Addr)
 		}
 
 		return underlyingProvider, schema, nil
@@ -3234,8 +3234,8 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	provider = provider.
-		withOverrideResource(n.Addr.ConfigResource(), n.Config.OverrideValues).
-		linkWithCurrentResource(n.Addr.ConfigResource())
+		withOverrideResource(n.Addr, n.Config.OverrideValues).
+		linkWithCurrentResource(n.Addr)
 
 	return provider, schema, nil
 }

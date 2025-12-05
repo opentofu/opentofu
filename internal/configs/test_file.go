@@ -271,7 +271,7 @@ const (
 type OverrideResource struct {
 	// Target references resource or data block to override.
 	Target       hcl.Traversal
-	TargetParsed *addrs.ConfigResource
+	TargetParsed *addrs.AbsResourceInstance
 
 	// Mode indicates if the Target is resource or data block.
 	Mode addrs.ResourceMode
@@ -799,14 +799,14 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 }
 
 func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagnostics) {
-	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.ConfigResource, hcl.Diagnostics) {
+	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.AbsResourceInstance, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
 		diags := traversalDiags
 		if traversalDiags.HasErrors() {
 			return nil, nil, diags
 		}
 
-		configRes, configResDiags := addrs.ParseConfigResource(traversal)
+		configRes, configResDiags := addrs.ParseAbsResourceInstance(traversal)
 		diags = append(diags, configResDiags.ToHCL()...)
 		if configResDiags.HasErrors() {
 			return nil, nil, diags
