@@ -119,6 +119,13 @@ Another advantage of using cobra is that the autocompletion scripts can be writt
   when OpenTofu is executed on a system where the files like `.zshrc` are read only.
 * allows generating the scripts right before the release and package those in the delivery archives
   for each OS.
+  * a good idea got during reviews, was to not generate the scripts during the release, but instead 
+  to generate the scripts by using `go generate` in the normal development flow
+  and include the files in the final binary and serve it like that. 
+  This way, we can configure [goreleaser](https://github.com/opentofu/opentofu/blob/ee0029965f332f2deddc67ab7bc78fa32a970696/.goreleaser.yaml#L298-L302) 
+  to include the already generated files without relying on the binaries compiled during release.
+  An added benefit in doing this is that the scripts will be reviewable before release.
+  Such an example can be seen in the [experiment repo](https://github.com/yottta/cobra_tofu/commit/52fbd6ed1aee8d6fa5c28c423300797363bcaca5).
 
 Cobra offers a `ValidArgsFunction` that can calculate on the fly the valid arguments for a command.
 One such example can be seen in [`tofu workspace select`](https://github.com/yottta/cobra_tofu/blob/ea1564d3542062f8016a5f75d6559c498c17797d/commands/cmd_other.go#L66-L68).
