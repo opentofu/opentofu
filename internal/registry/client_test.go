@@ -18,10 +18,11 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	version "github.com/hashicorp/go-version"
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost/disco"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/registry/test"
 )
@@ -37,12 +38,8 @@ func TestLookupModuleVersions(t *testing.T) {
 		"example.com/test-versions/name/provider",
 		"test-versions/name/provider",
 	} {
-		modsrc, err := regsrc.ParseModuleSource(src)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		resp, err := client.ModuleVersions(context.Background(), modsrc)
+		modsrc := testParseModulePackageAddr(t, src)
+		resp, err := client.ModulePackageVersions(context.Background(), modsrc)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,12 +74,9 @@ func TestInvalidRegistry(t *testing.T) {
 	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "non-existent.localhost.localdomain/test-versions/name/provider"
-	modsrc, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	modsrc := testParseModulePackageAddr(t, src)
 
-	if _, err := client.ModuleVersions(context.Background(), modsrc); err == nil {
+	if _, err := client.ModulePackageVersions(context.Background(), modsrc); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -94,16 +88,13 @@ func TestRegistryAuth(t *testing.T) {
 	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "private/name/provider"
-	mod, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	modsrc := testParseModulePackageAddr(t, src)
 
-	_, err = client.ModuleVersions(context.Background(), mod)
+	_, err := client.ModulePackageVersions(context.Background(), modsrc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.ModuleLocation(context.Background(), mod, "1.0.0")
+	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,11 +103,11 @@ func TestRegistryAuth(t *testing.T) {
 	client.services.SetCredentialsSource(nil)
 
 	// both should fail without auth
-	_, err = client.ModuleVersions(context.Background(), mod)
+	_, err = client.ModulePackageVersions(context.Background(), modsrc)
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	_, err = client.ModuleLocation(context.Background(), mod, "1.0.0")
+	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -129,12 +120,9 @@ func TestLookupModuleLocationRelative(t *testing.T) {
 	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "relative/foo/bar"
-	mod, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	modsrc := testParseModulePackageAddr(t, src)
 
-	got, err := client.ModuleLocation(context.Background(), mod, "0.2.0")
+	got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,15 +144,12 @@ func TestAccLookupModuleVersions(t *testing.T) {
 	// test with and without a hostname
 	for _, src := range []string{
 		"terraform-aws-modules/vpc/aws",
-		regsrc.PublicRegistryHost.String() + "/terraform-aws-modules/vpc/aws",
+		regaddr.DefaultModuleRegistryHost.String() + "/terraform-aws-modules/vpc/aws",
 	} {
-		modsrc, err := regsrc.ParseModuleSource(src)
-		if err != nil {
-			t.Fatal(err)
-		}
+		modsrc := testParseModulePackageAddr(t, src)
 
 		s := NewClient(t.Context(), regDisco, nil)
-		resp, err := s.ModuleVersions(context.Background(), modsrc)
+		resp, err := s.ModulePackageVersions(context.Background(), modsrc)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,10 +180,7 @@ func TestLookupLookupModuleError(t *testing.T) {
 
 	// this should not be found in the registry
 	src := "bad/local/path"
-	mod, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
+	modsrc := testParseModulePackageAddr(t, src)
 
 	// Instrument CheckRetry to make sure 404s are not retried
 	retries := 0
@@ -211,13 +193,22 @@ func TestLookupLookupModuleError(t *testing.T) {
 		return oldCheck(ctx, resp, err)
 	}
 
-	_, err = client.ModuleLocation(context.Background(), mod, "0.2.0")
+	_, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
 	if err == nil {
 		t.Fatal("expected error")
 	}
 
-	// check for the exact quoted string to ensure we didn't prepend a hostname.
-	if !strings.Contains(err.Error(), `"bad/local/path"`) {
+	// Check for the exact quoted string to ensure we prepended the registry
+	// hostname. As a convention we always use the fully-qualified address
+	// syntax when reporting errors because it's helpful for debugging to be
+	// explicit about what registry we were trying to talk to.
+	//
+	// (Historically this code made the opposite decision and just echoed back
+	// the provided source address exactly as given, but we later made a
+	// cross-cutting decision to use canonical forms of addresses in error
+	// messages unless we're reporting a syntax error in particular, which
+	// is not the case here: this is a failed lookup of a valid address.)
+	if !strings.Contains(err.Error(), `"registry.opentofu.org/bad/local/path"`) {
 		t.Fatal("error should not include the hostname. got:", err)
 	}
 }
@@ -229,11 +220,8 @@ func TestLookupModuleRetryError(t *testing.T) {
 	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "example.com/test-versions/name/provider"
-	modsrc, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := client.ModuleVersions(context.Background(), modsrc)
+	modsrc := testParseModulePackageAddr(t, src)
+	resp, err := client.ModulePackageVersions(context.Background(), modsrc)
 	if err == nil {
 		t.Fatal("expected requests to exceed retry", err)
 	}
@@ -258,11 +246,8 @@ func TestLookupModuleNoRetryError(t *testing.T) {
 	)
 
 	src := "example.com/test-versions/name/provider"
-	modsrc, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := client.ModuleVersions(context.Background(), modsrc)
+	modsrc := testParseModulePackageAddr(t, src)
+	resp, err := client.ModulePackageVersions(context.Background(), modsrc)
 	if err == nil {
 		t.Fatal("expected request to fail", err)
 	}
@@ -284,11 +269,8 @@ func TestLookupModuleNetworkError(t *testing.T) {
 	server.Close()
 
 	src := "example.com/test-versions/name/provider"
-	modsrc, err := regsrc.ParseModuleSource(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := client.ModuleVersions(context.Background(), modsrc)
+	modsrc := testParseModulePackageAddr(t, src)
+	resp, err := client.ModulePackageVersions(context.Background(), modsrc)
 	if err == nil {
 		t.Fatal("expected request to fail", err)
 	}
@@ -348,7 +330,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			src: "not-exist/identifier/provider",
 			// note that the version is fixed in the mock
 			// see: /internal/registry/test/mock_registry.go:testMods
-			wantErrorStr:   `module "not-exist/identifier/provider" version "0.2.0" not found`,
+			wantErrorStr:   `module "registry.opentofu.org/not-exist/identifier/provider" version "0.2.0" not found`,
 			wantStatusCode: http.StatusNotFound,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
@@ -367,7 +349,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 		},
 		"shall fail to deserialize JSON response": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `module "foo/bar/baz" version "0.2.0" failed to deserialize response body {: unexpected end of JSON input`,
+			wantErrorStr:   `module "registry.opentofu.org/foo/bar/baz" version "0.2.0" failed to deserialize response body {: unexpected end of JSON input`,
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -376,7 +358,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 		},
 		"shall fail because of unexpected protocol change - 422 http status": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `error getting download location for "foo/bar/baz": 422 Unprocessable Entity resp:bar`,
+			wantErrorStr:   `error getting download location for "registry.opentofu.org/foo/bar/baz": 422 Unprocessable Entity resp:bar`,
 			wantStatusCode: http.StatusUnprocessableEntity,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnprocessableEntity)
@@ -385,7 +367,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 		},
 		"shall fail because location is not found in the response": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `failed to get download URL for "foo/bar/baz": 200 OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
+			wantErrorStr:   `failed to get download URL for "registry.opentofu.org/foo/bar/baz": 200 OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -410,13 +392,9 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			httpClient := retryablehttp.NewClient()
 			httpClient.HTTPClient.Transport = transport
 			client := NewClient(t.Context(), test.Disco(registryServer), httpClient)
+			modsrc := testParseModulePackageAddr(t, tc.src)
 
-			mod, err := regsrc.ParseModuleSource(tc.src)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			got, err := client.ModuleLocation(context.Background(), mod, "0.2.0")
+			got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
 
 			// Validate the results
 			if err != nil && tc.wantErrorStr == "" {
@@ -446,6 +424,24 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testParseModulePackageAddr(t *testing.T, src string) regaddr.ModulePackage {
+	sourceAddr, err := addrs.ParseModuleSourceRegistry(src)
+	if err != nil {
+		t.Fatalf("invalid module package address %q: %s", src, err)
+	}
+	// We used ParseModuleSourceRegistry and it didn't return an error, so this
+	// type assertion should always succeed.
+	registrySourceAddr := sourceAddr.(addrs.ModuleSourceRegistry)
+	if registrySourceAddr.Subdir != "" {
+		// Handling the "subdir" part of a source address is not part of
+		// the registry client's scope: that must be handled by the main
+		// module installer code after the registry client deals with
+		// the module-package-level questions.
+		t.Fatalf("invalid module package address %q: subdirectory part not allowed", src)
+	}
+	return registrySourceAddr.Package
 }
 
 // testTransport is a custom http.RoundTripper that redirects requests to the mock server

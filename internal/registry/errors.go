@@ -8,17 +8,16 @@ package registry
 import (
 	"fmt"
 
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost/disco"
-
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 )
 
 type errModuleNotFound struct {
-	addr *regsrc.Module
+	packageAddr regaddr.ModulePackage
 }
 
 func (e *errModuleNotFound) Error() string {
-	return fmt.Sprintf("module %s not found", e.addr)
+	return fmt.Sprintf("module %s not found", e.packageAddr)
 }
 
 // IsModuleNotFound returns true only if the given error is a "module not found"
