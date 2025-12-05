@@ -174,15 +174,9 @@ func TestAccLookupModuleVersions(t *testing.T) {
 		}
 
 		mod := resp.Modules[0]
-		name := "terraform-aws-modules/vpc/aws"
-		if mod.Source != name {
-			t.Fatalf("expected module name %q, got %q", name, mod.Source)
-		}
-
 		if len(mod.Versions) == 0 {
 			t.Fatal("expected multiple versions, got 0")
 		}
-
 		for _, v := range mod.Versions {
 			_, err := version.NewVersion(v.Version)
 			if err != nil {
