@@ -27,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/opentofu/opentofu/internal/registry"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -538,17 +537,13 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// directory.
 	packageAddr := addr.Package
 
-	// Our registry client is still using the legacy model of addresses, so
-	// we'll shim it here for now.
-	regsrcAddr := regsrc.ModuleFromRegistryPackageAddr(packageAddr)
-
 	// check if we've already looked up this module from the registry
 	if resp, exists = i.registryPackageVersions[packageAddr]; exists {
 		log.Printf("[TRACE] %s using already found available versions of %s at %s", key, addr, hostname)
 	} else {
 		var err error
 		log.Printf("[DEBUG] %s listing available versions of %s at %s", key, addr, hostname)
-		resp, err = reg.ModuleVersions(ctx, regsrcAddr)
+		resp, err = reg.ModulePackageVersions(ctx, packageAddr)
 		if err != nil {
 			if registry.IsModuleNotFound(err) {
 				suggestion := ""
@@ -751,7 +746,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// first check the cache for the download URL
 	moduleAddr := moduleVersion{module: packageAddr, version: latestMatch.String()}
 	if _, exists := i.registryPackageSources[moduleAddr]; !exists {
-		realAddrRaw, err := reg.ModuleLocation(ctx, regsrcAddr, latestMatch.String())
+		realAddrRaw, err := reg.ModulePackageLocation(ctx, packageAddr, latestMatch.String())
 		if err != nil {
 			log.Printf("[ERROR] %s from %s %s: %s", key, addr, latestMatch, err)
 			diags = diags.Append(&hcl.Diagnostic{

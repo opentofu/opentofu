@@ -18,11 +18,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
@@ -30,17 +30,24 @@ import (
 )
 
 const (
-	xTerraformGet      = "X-Terraform-Get"
-	xTerraformVersion  = "X-Terraform-Version"
-	modulesServiceID   = "modules.v1"
-	providersServiceID = "providers.v1"
+	xTerraformGet     = "X-Terraform-Get"
+	xTerraformVersion = "X-Terraform-Version"
+	modulesServiceID  = "modules.v1"
 )
 
 var (
 	tfVersion = version.String()
 )
 
-// Client provides methods to query OpenTofu Registries.
+// Client provides methods to query OpenTofu module registries.
+//
+// This client implements the "modules.v1" protocol. It does not implement
+// any other OpenTofu registry protocols, and in particular the client for
+// provider registry clients lives elsewhere.
+//
+// (The overly-general name of this package is a historical accident, and
+// perhaps one day this package should move to "getmodules/registry" instead of
+// just "registry" to make the scope a little clearer.)
 type Client struct {
 	// this is the client to be used for all requests.
 	client *retryablehttp.Client
@@ -68,9 +75,10 @@ func NewClient(ctx context.Context, services *disco.Disco, client *retryablehttp
 	}
 }
 
-// Discover queries the host, and returns the url for the registry.
-func (c *Client) Discover(ctx context.Context, host svchost.Hostname, serviceID string) (*url.URL, error) {
-	service, err := c.services.DiscoverServiceURL(ctx, host, serviceID)
+// discoverBaseURL performs service discovery to find the base URL for the
+// module registry implementation on the given host.
+func (c *Client) discoverBaseURL(ctx context.Context, host svchost.Hostname) (*url.URL, error) {
+	service, err := c.services.DiscoverServiceURL(ctx, host, modulesServiceID)
 	if err != nil {
 		return nil, &ServiceUnreachableError{err}
 	}
@@ -80,33 +88,23 @@ func (c *Client) Discover(ctx context.Context, host svchost.Hostname, serviceID 
 	return service, nil
 }
 
-// ModuleVersions queries the registry for a module, and returns the available versions.
-func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*response.ModuleVersions, error) {
+// ModulePackageVersions queries the registry for a module package, and returns the available versions.
+func (c *Client) ModulePackageVersions(ctx context.Context, packageAddr regaddr.ModulePackage) (*response.ModuleVersions, error) {
 	ctx, span := tracing.Tracer().Start(ctx, "List Versions", tracing.SpanAttributes(
-		traceattrs.OpenTofuModuleCallName(module.RawName),
+		traceattrs.OpenTofuModuleSource(packageAddr.String()),
 	))
 	defer span.End()
 
-	host, err := module.SvcHost()
+	host := packageAddr.Host
+	baseURL, err := c.discoverBaseURL(ctx, host)
 	if err != nil {
 		return nil, err
 	}
+	versionsURL := modulePackageEndpointURL(baseURL, packageAddr, "versions")
 
-	service, err := c.Discover(ctx, host, modulesServiceID)
-	if err != nil {
-		return nil, err
-	}
+	log.Printf("[DEBUG] fetching module versions from %q", versionsURL)
 
-	p, err := url.Parse(path.Join(module.Module(), "versions"))
-	if err != nil {
-		return nil, err
-	}
-
-	service = service.ResolveReference(p)
-
-	log.Printf("[DEBUG] fetching module versions from %q", service)
-
-	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", service.String(), nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", versionsURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +123,7 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 	case http.StatusOK:
 		// OK
 	case http.StatusNotFound:
-		return nil, &errModuleNotFound{addr: module}
+		return nil, &errModuleNotFound{packageAddr: packageAddr}
 	default:
 		return nil, fmt.Errorf("error looking up module versions: %s", resp.Status)
 	}
@@ -139,59 +137,39 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 
 	for _, mod := range versions.Modules {
 		for _, v := range mod.Versions {
-			log.Printf("[DEBUG] found available version %q for %s", v.Version, module.Module())
+			log.Printf("[DEBUG] found available version %q for %s", v.Version, packageAddr)
 		}
 	}
 
 	return &versions, nil
 }
 
-func (c *Client) addRequestCreds(ctx context.Context, host svchost.Hostname, req *http.Request) {
-	creds, err := c.services.CredentialsForHost(ctx, host)
-	if err != nil {
-		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", host, err)
-		return
-	}
-
-	if creds != nil {
-		creds.PrepareRequest(req)
-	}
-}
-
-// ModuleLocation find the download location for a specific version module.
+// ModulePackageLocation find the download location for a specific module package version.
+//
 // This returns a string, because the final location may contain special go-getter syntax.
-func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, version string) (string, error) {
+func (c *Client) ModulePackageLocation(ctx context.Context, packageAddr regaddr.ModulePackage, version string) (string, error) {
 	ctx, span := tracing.Tracer().Start(ctx, "Find Module Location", tracing.SpanAttributes(
-		traceattrs.OpenTofuModuleCallName(module.RawName),
-		traceattrs.OpenTofuModuleSource(module.Module()),
+		traceattrs.OpenTofuModuleSource(packageAddr.String()),
 		traceattrs.OpenTofuModuleVersion(version),
 	))
 	defer span.End()
 
-	host, err := module.SvcHost()
+	host := packageAddr.Host
+	baseURL, err := c.discoverBaseURL(ctx, host)
 	if err != nil {
 		return "", err
 	}
 
-	service, err := c.Discover(ctx, host, modulesServiceID)
-	if err != nil {
-		return "", err
-	}
+	// Historical note: an older version of this client code accepted "version"
+	// being empty and constructed a different form of URL where the version
+	// component was completely omitted, but the documentation for the registry
+	// protocol doesn't define the meaning of a URL scheme like that and in
+	// practice the callers of the client always populate the version, so we
+	// don't support omitting that anymore: a version string is now always expected.
+	metadataURL := modulePackageEndpointURL(baseURL, packageAddr, version, "download")
+	log.Printf("[DEBUG] looking up module location from %q", metadataURL)
 
-	var p *url.URL
-	if version == "" {
-		p, err = url.Parse(path.Join(module.Module(), "download"))
-	} else {
-		p, err = url.Parse(path.Join(module.Module(), version, "download"))
-	}
-	if err != nil {
-		return "", err
-	}
-	download := service.ResolveReference(p)
-
-	log.Printf("[DEBUG] looking up module location from %q", download)
-
-	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", download.String(), nil)
+	req, err := retryablehttp.NewRequestWithContext(ctx, "GET", metadataURL.String(), nil)
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +197,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 		var v response.ModuleLocationRegistryResp
 		if err := json.Unmarshal(body, &v); err != nil {
 			return "", fmt.Errorf("module %q version %q failed to deserialize response body %s: %w",
-				module, version, body, err)
+				packageAddr, version, body, err)
 		}
 
 		location = v.Location
@@ -234,15 +212,15 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 		location = resp.Header.Get(xTerraformGet)
 
 	case http.StatusNotFound:
-		return "", fmt.Errorf("module %q version %q not found", module, version)
+		return "", fmt.Errorf("module %q version %q not found", packageAddr, version)
 
 	default:
 		// anything else is an error:
-		return "", fmt.Errorf("error getting download location for %q: %s resp:%s", module, resp.Status, body)
+		return "", fmt.Errorf("error getting download location for %q: %s resp:%s", packageAddr, resp.Status, body)
 	}
 
 	if location == "" {
-		return "", fmt.Errorf("failed to get download URL for %q: %s resp:%s", module, resp.Status, body)
+		return "", fmt.Errorf("failed to get download URL for %q: %s resp:%s", packageAddr, resp.Status, body)
 	}
 
 	// If location looks like it's trying to be a relative URL, treat it as
@@ -259,11 +237,39 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 	if strings.HasPrefix(location, "/") || strings.HasPrefix(location, "./") || strings.HasPrefix(location, "../") {
 		locationURL, err := url.Parse(location)
 		if err != nil {
-			return "", fmt.Errorf("invalid relative URL for %q: %w", module, err)
+			return "", fmt.Errorf("invalid relative URL for %q: %w", packageAddr, err)
 		}
-		locationURL = download.ResolveReference(locationURL)
+		locationURL = metadataURL.ResolveReference(locationURL)
 		location = locationURL.String()
 	}
 
 	return location, nil
+}
+
+func (c *Client) addRequestCreds(ctx context.Context, host svchost.Hostname, req *http.Request) {
+	creds, err := c.services.CredentialsForHost(ctx, host)
+	if err != nil {
+		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", host, err)
+		return
+	}
+
+	if creds != nil {
+		creds.PrepareRequest(req)
+	}
+}
+
+func modulePackageEndpointURL(baseURL *url.URL, packageAddr regaddr.ModulePackage, subComponents ...string) *url.URL {
+	parts := make([]string, 3, 3+len(subComponents))
+	parts[0] = packageAddr.Namespace
+	parts[1] = packageAddr.Name
+	parts[2] = packageAddr.TargetSystem
+	parts = append(parts, subComponents...)
+	relPath := path.Join(parts...)
+	relURL, err := url.Parse(relPath)
+	if err != nil {
+		// We control all of the inputs here, so if there's an error then it's
+		// a bug in whatever created the values given as arguments.
+		panic(fmt.Sprintf("constructed invalid relative URL %q for module package endpoint", relPath))
+	}
+	return baseURL.ResolveReference(relURL)
 }

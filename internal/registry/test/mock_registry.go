@@ -10,11 +10,11 @@ import (
 	"regexp"
 	"strings"
 
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
 
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 )
 
@@ -58,7 +58,7 @@ const (
 )
 
 var (
-	regHost  = svchost.Hostname(regsrc.PublicRegistryHost.Normalized())
+	regHost  = regaddr.DefaultModuleRegistryHost
 	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
 		regHost: svcauth.HostCredentialsToken(testCred),
 	})
