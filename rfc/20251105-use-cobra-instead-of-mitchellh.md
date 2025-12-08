@@ -95,7 +95,7 @@ Here is a list of the scripts cobra generate and their associated official docum
 One possible downside of the cobra approach around this is about the length of the scripts. 
 Because for each shell, the script is responsible with converting the shell specific information 
 in arguments for the cobra command, the scripts tend to be quite complex.
-But the advantage off having those scripts baked in cobra is that the maintenance of those is 
+But the advantage of having those scripts baked in cobra is that the maintenance of those is 
 ensured by the community supporting cobra from different shell communities. 
 Therefore, for the foreseeable future, the scripts will be updated with the best practices for each 
 shell and we can inherit those with each update of the library. 
