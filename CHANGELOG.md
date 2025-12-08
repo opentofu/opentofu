@@ -1,4 +1,19 @@
-## 1.10.8 (unreleased)
+## 1.10.9 (unreleased)
+
+## 1.10.8
+
+SECURITY ADVISORIES:
+
+This release contains fixes for some security advisories related to previous releases in this series.
+
+- Incorrect handling of excluded subdomain constraint in conjunction with TLS certificates containing wildcard SANs
+
+    This release incorporates the upstream fixes for [GO-2025-4175](https://pkg.go.dev/vuln/GO-2025-4175).
+
+- Excessive CPU usage when reporting error about crafted TLS certificate with many hostnames
+
+    This release incorporates the upstream fixes for [GO-2025-4155](https://pkg.go.dev/vuln/GO-2025-4155).
+
 
 ## 1.10.7
 
