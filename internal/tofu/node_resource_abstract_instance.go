@@ -3220,6 +3220,17 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, err
 	}
 
+	if n.ResolvedProvider.IsMocked {
+		testP, err := newProviderForTestWithSchema(underlyingProvider, schema)
+		if err != nil {
+			return nil, providers.ProviderSchema{}, err
+		}
+
+		underlyingProvider = testP.
+			withMockResources(n.ResolvedProvider.MockResources).
+			withOverrideResources(n.ResolvedProvider.OverrideResources)
+	}
+
 	if n.Config == nil || !n.Config.IsOverridden {
 		if p, ok := underlyingProvider.(providerForTest); ok {
 			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())

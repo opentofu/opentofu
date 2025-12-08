@@ -34,6 +34,7 @@ var (
 	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeProvider                   = (*NodeAbstractProvider)(nil)
+	_ GraphNodeProviderTestExtension      = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
 	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)
@@ -86,6 +87,13 @@ func (n *NodeAbstractProvider) AttachProvider(c *configs.Provider) {
 // GraphNodeAttachProviderConfigSchema impl.
 func (n *NodeAbstractProvider) AttachProviderConfigSchema(schema *configschema.Block) {
 	n.Schema = schema
+}
+
+func (n *NodeAbstractProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
+	if n.Config == nil {
+		return false, nil, nil
+	}
+	return n.Config.IsMocked, n.Config.MockResources, n.Config.OverrideResources
 }
 
 // GraphNodeDotter impl.

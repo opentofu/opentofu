@@ -386,7 +386,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 		return nil
 	}
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return err
 	}

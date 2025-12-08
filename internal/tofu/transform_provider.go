@@ -55,6 +55,11 @@ type GraphNodeProvider interface {
 	Name() string
 }
 
+type GraphNodeProviderTestExtension interface {
+	GraphNodeProvider
+	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)
+}
+
 // GraphNodeCloseProvider is an interface that nodes that can be a close
 // provider must implement. The CloseProviderName returned is the name of
 // the provider they satisfy.
@@ -77,6 +82,11 @@ type ResolvedProvider struct {
 	KeyModule      addrs.Module
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
+
+	// Test overrides
+	IsMocked          bool
+	MockResources     []*configs.MockResource
+	OverrideResources []*configs.OverrideResource
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -169,14 +179,22 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(ResolvedProvider{
+
+			resolved := ResolvedProvider{
 				ProviderConfig: target.ProviderAddr(),
 				// Pass through key data
 				KeyExpression: req.KeyExpression,
 				KeyModule:     req.KeyModule,
 				KeyResource:   req.KeyResource,
 				KeyExact:      req.KeyExact,
-			})
+			}
+
+			// Include test mocking and override extensions
+			if extended, ok := target.(GraphNodeProviderTestExtension); ok {
+				resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = extended.MocksAndOverrides()
+			}
+			pv.SetProvider(resolved)
+
 			g.Connect(dag.BasicEdge(v, target))
 		case addrs.LocalProviderConfig:
 			// We assume that the value returned from Provider() has already been
@@ -243,6 +261,11 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 				}
 			}
 			resolved.ProviderConfig = target.ProviderAddr()
+
+			// Include test mocking and override extensions
+			if extended, ok := target.(GraphNodeProviderTestExtension); ok {
+				resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = extended.MocksAndOverrides()
+			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(resolved)

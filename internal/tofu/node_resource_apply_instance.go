@@ -212,7 +212,7 @@ func (n *NodeApplyableResourceInstance) ephemeralResourceExecute(ctx context.Con
 }
 
 func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -281,7 +281,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	var deposedKey states.DeposedKey
 
 	addr := n.ResourceInstanceAddr().Resource
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
