@@ -1,3 +1,5 @@
+The v1.11.x release series supported until **August 1 2026**.
+
 ## 1.11.0 (Unreleased)
 
 This release has some changes that might require special attention when upgrading from an earlier release. Refer to "UPGRADE NOTES" below for more information.
