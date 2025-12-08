@@ -19,8 +19,10 @@ import (
 
 var _ providers.Interface = &providerForTest{}
 
-// providerForTest is a wrapper around a real provider to allow a specific resources to be overridden
-// for testing framework.
+// providerForTest is a wrapper around a real provider to allow a specific resource to be overridden
+// for the testing framework.  It is used by [NodeResourceAbstractInstance.getProvider] to fulfil the mocks
+// and overrides for that one specific resource instance, any other usage is a bug in OpenTofu and should
+// be corrected.
 type providerForTest struct {
 	// providers.Interface is not embedded to make it safer to extend
 	// the interface without silently breaking providerForTest functionality.

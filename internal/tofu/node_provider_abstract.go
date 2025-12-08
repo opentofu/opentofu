@@ -34,7 +34,6 @@ var (
 	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeProvider                   = (*NodeAbstractProvider)(nil)
-	_ GraphNodeProviderTestExtension      = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
 	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)
