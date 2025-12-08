@@ -3220,35 +3220,41 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, err
 	}
 
+	var isOverridden bool
+	var overrideValues map[string]cty.Value
+
 	if n.ResolvedProvider.IsMocked {
-		testP, err := newProviderForTestWithSchema(underlyingProvider, schema)
-		if err != nil {
-			return nil, providers.ProviderSchema{}, err
+		isOverridden = true
+
+		// Mocked by the provider
+		for _, res := range n.ResolvedProvider.MockResources {
+			if res.Type == n.Addr.Resource.Resource.Type && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Defaults
+				break
+			}
 		}
 
-		underlyingProvider = testP.
-			withMockResources(n.ResolvedProvider.MockResources).
-			withOverrideResources(n.ResolvedProvider.OverrideResources)
-	}
-
-	if n.Config == nil || !n.Config.IsOverridden {
-		if p, ok := underlyingProvider.(providerForTest); ok {
-			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())
+		// Overridden by the provider (overrides mocks)
+		for _, res := range n.ResolvedProvider.OverrideResources {
+			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Values
+				break
+			}
 		}
-
-		return underlyingProvider, schema, nil
 	}
 
-	provider, err := newProviderForTestWithSchema(underlyingProvider, schema)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, err
+	if n.Config != nil && n.Config.IsOverridden {
+		// Overridden in the currently running test (overrides any provider settings)
+		isOverridden = n.Config.IsOverridden
+		overrideValues = n.Config.OverrideValues
 	}
 
-	provider = provider.
-		withOverrideResource(n.Addr.ConfigResource(), n.Config.OverrideValues).
-		linkWithCurrentResource(n.Addr.ConfigResource())
+	if isOverridden {
+		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues)
+		return provider, schema, err
+	}
 
-	return provider, schema, nil
+	return underlyingProvider, schema, err
 }
 
 func maybeImproveResourceInstanceDiagnostics(diags tfdiags.Diagnostics, excludeAddr addrs.Targetable) tfdiags.Diagnostics {

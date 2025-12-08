@@ -15,7 +15,7 @@ import (
 func TestProviderForTest_ReadResource(t *testing.T) {
 	mockProvider := &MockProvider{}
 
-	provider, err := newProviderForTestWithSchema(mockProvider, mockProvider.GetProviderSchema(t.Context()))
+	provider, err := newProviderForTestWithSchema(mockProvider, mockProvider.GetProviderSchema(t.Context()), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
