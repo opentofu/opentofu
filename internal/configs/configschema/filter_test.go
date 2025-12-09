@@ -176,6 +176,18 @@ func TestFilter(t *testing.T) {
 							Nesting: NestingList,
 						},
 					},
+					"read_only_nested": {
+						NestedType: &Object{
+							Attributes: map[string]*Attribute{
+								"string": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+							Nesting: NestingList,
+						},
+						Computed: true,
+					},
 				},
 
 				BlockTypes: map[string]*NestedBlock{
