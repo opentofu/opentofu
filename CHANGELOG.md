@@ -1,4 +1,4 @@
-The v1.11.x release series supported until **August 1 2026**.
+The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.0 (Unreleased)
 
