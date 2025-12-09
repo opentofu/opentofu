@@ -12,6 +12,8 @@ import (
 type ProviderSchema = providers.ProviderSchema
 
 type ProviderSchemas interface {
+	HasProvider(addr addrs.Provider) bool
+
 	// GetMetadata is not yet implemented or used at this time
 	GetProviderSchema(ctx context.Context, addr addrs.Provider) ProviderSchema
 
@@ -56,9 +58,11 @@ type ProviderManager interface {
 	ValidateResourceConfig(ctx context.Context, addr addrs.Provider, mode addrs.ResourceMode, typeName string, cfgVal cty.Value) tfdiags.Diagnostics
 
 	MoveResourceState(ctx context.Context, addr addrs.Provider, req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse
-	CallFunction(ctx context.Context, addr addrs.Provider, name string, arguments []cty.Value) (cty.Value, error)
 
 	ConfigureProvider(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, cfgVal cty.Value) tfdiags.Diagnostics
+
+	IsProviderConfigured(addr addrs.AbsProviderInstanceCorrect) bool
+	ConfiguredProvider(addr addrs.AbsProviderInstanceCorrect) providers.Configured
 
 	UpgradeResourceState(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse
 	ReadResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.ReadResourceRequest) providers.ReadResourceResponse
@@ -69,7 +73,10 @@ type ProviderManager interface {
 	OpenEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse
 	RenewEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.RenewEphemeralResourceRequest) providers.RenewEphemeralResourceResponse
 	CloseEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse
+
+	// These are weird due to
 	GetFunctions(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) providers.GetFunctionsResponse
+	CallFunction(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, name string, arguments []cty.Value) (cty.Value, error)
 
 	CloseProvider(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) error
 

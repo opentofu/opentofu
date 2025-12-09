@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -24,21 +25,22 @@ var _ providers.Interface = &providerForTest{}
 // and overrides for that one specific resource instance, any other usage is a bug in OpenTofu and should
 // be corrected.
 type providerForTest struct {
-	// providers.Interface is not embedded to make it safer to extend
-	// the interface without silently breaking providerForTest functionality.
-	internal providers.Interface
-	schema   providers.ProviderSchema
+	addr      addrs.Provider
+	providers plugins.ProviderManager
+
+	schema providers.ProviderSchema
 
 	overrideValues map[string]cty.Value
 }
 
-func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema, overrideValues map[string]cty.Value) (providerForTest, error) {
+func newProviderForTestWithSchema(addr addrs.Provider, providers plugins.ProviderManager, schema providers.ProviderSchema, overrideValues map[string]cty.Value) (providerForTest, error) {
 	if schema.Diagnostics.HasErrors() {
 		return providerForTest{}, fmt.Errorf("invalid provider schema for test wrapper: %w", schema.Diagnostics.Err())
 	}
 
 	return providerForTest{
-		internal:       internal,
+		addr:           addr,
+		providers:      providers,
 		schema:         schema,
 		overrideValues: overrideValues,
 	}, nil
@@ -120,10 +122,7 @@ func (p providerForTest) ValidateProviderConfig(_ context.Context, _ providers.V
 // accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
 // for more details.
 func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
-	providerSchema := p.internal.GetProviderSchema(ctx)
-	providerSchema.Provider = providers.Schema{}
-	providerSchema.ProviderMeta = providers.Schema{}
-	return providerSchema
+	return p.schema
 }
 
 // providerForTest doesn't configure its internal provider because it is mocked.
@@ -144,35 +143,41 @@ func (p providerForTest) MoveResourceState(context.Context, providers.MoveResour
 // if called via providerForTest because importing is not supported in testing framework.
 
 func (p providerForTest) ValidateResourceConfig(ctx context.Context, r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
-	return p.internal.ValidateResourceConfig(ctx, r)
+	return providers.ValidateResourceConfigResponse{
+		Diagnostics: p.providers.ValidateResourceConfig(ctx, p.addr, addrs.ManagedResourceMode, r.TypeName, r.Config),
+	}
 }
 
 func (p providerForTest) ValidateDataResourceConfig(ctx context.Context, r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
-	return p.internal.ValidateDataResourceConfig(ctx, r)
+	return providers.ValidateDataResourceConfigResponse{
+		Diagnostics: p.providers.ValidateResourceConfig(ctx, p.addr, addrs.DataResourceMode, r.TypeName, r.Config),
+	}
 }
 
 func (p providerForTest) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
-	return p.internal.UpgradeResourceState(ctx, r)
+	panic("Upgrading is not supported in testing context. providerForTest must not be used to call UpgradeResourceState")
 }
 
-func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
-	return p.internal.ValidateEphemeralConfig(ctx, request)
+func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, r providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	return providers.ValidateEphemeralConfigResponse{
+		Diagnostics: p.providers.ValidateResourceConfig(ctx, p.addr, addrs.EphemeralResourceMode, r.TypeName, r.Config),
+	}
 }
 
 func (p providerForTest) Stop(ctx context.Context) error {
-	return p.internal.Stop(ctx)
+	panic("Stopping is not supported in testing context. providerForTest must not be used to call Stop")
 }
 
 func (p providerForTest) GetFunctions(ctx context.Context) providers.GetFunctionsResponse {
-	return p.internal.GetFunctions(ctx)
+	panic("Functions are not supported in testing context. providerForTest must not be used to call GetFunctions")
 }
 
 func (p providerForTest) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	return p.internal.CallFunction(ctx, r)
+	panic("Functions are not supported in testing context. providerForTest must not be used to call CallFunction")
 }
 
 func (p providerForTest) Close(ctx context.Context) error {
-	return p.internal.Close(ctx)
+	panic("Closing is not supported in testing context. providerForTest must not be used to call Close")
 }
 
 func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {

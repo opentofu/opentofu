@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/plugins"
 )
 
 // GraphNodeAttachResourceSchema is an interface implemented by node types
@@ -49,7 +50,7 @@ type GraphNodeAttachProvisionerSchema interface {
 // GraphNodeAttachProvisionerSchema, looks up the needed schemas for each
 // and then passes them to a method implemented by the node.
 type AttachSchemaTransformer struct {
-	Plugins *contextPlugins
+	Plugins plugins.PluginManager
 	Config  *configs.Config
 }
 
@@ -69,7 +70,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			providerFqn := tv.Provider()
 
 			// TODO: Plumb a useful context.Context through to here.
-			schema, version, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
+			schema, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
 			if err != nil {
 				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
 			}
@@ -78,7 +79,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 				continue
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
-			tv.AttachResourceSchema(schema, version)
+			tv.AttachResourceSchema(schema.Block, uint64(schema.Version))
 		}
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
@@ -93,7 +94,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 				continue
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching provider config schema to %s", dag.VertexName(v))
-			tv.AttachProviderConfigSchema(schema)
+			tv.AttachProviderConfigSchema(schema.Block)
 		}
 
 		if tv, ok := v.(GraphNodeAttachProvisionerSchema); ok {

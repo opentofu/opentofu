@@ -488,7 +488,7 @@ func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error 
 
 		if closer == nil {
 			// create a closer for this provider type
-			closer = &graphNodeCloseProvider{Addr: p.ProviderAddr()}
+			closer = &graphNodeCloseProvider{Provider: p}
 			g.Add(closer)
 			cpm[key] = closer
 		}
@@ -629,7 +629,7 @@ func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
 }
 
 type graphNodeCloseProvider struct {
-	Addr addrs.AbsProviderConfig
+	Provider GraphNodeProvider
 }
 
 var (
@@ -638,21 +638,37 @@ var (
 )
 
 func (n *graphNodeCloseProvider) Name() string {
-	return n.Addr.String() + " (close)"
+	return n.Provider.ProviderAddr().String() + " (close)"
 }
 
 // GraphNodeModulePath
 func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
-	return n.Addr.Module
+	return n.Provider.ProviderAddr().Module
 }
 
 // GraphNodeExecutable impl.
 func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
+	// TODO This whole function is a bad hack now, we should probably send a close function into here instead of the whole provider + inspection
+
+	if configured, ok := n.Provider.(*NodeApplyableProvider); ok && configured.Config != nil && configured.Config.Instances != nil {
+		for key := range configured.Config.Instances {
+			addr := n.Provider.ProviderAddr().InstanceCorrect(key)
+			if evalCtx.Providers().IsProviderConfigured(addr) {
+				diags = diags.Append(evalCtx.Providers().CloseProvider(ctx, addr))
+			}
+		}
+		return diags
+	} else {
+		addr := n.Provider.ProviderAddr().InstanceCorrect(addrs.NoKey)
+		if evalCtx.Providers().IsProviderConfigured(addr) {
+			return diags.Append(evalCtx.Providers().CloseProvider(ctx, addr))
+		}
+		return diags
+	}
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
-	return n.Addr
+	return n.Provider.ProviderAddr()
 }
 
 // GraphNodeDotter impl.

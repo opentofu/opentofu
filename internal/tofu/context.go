@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -80,7 +81,7 @@ type Context struct {
 	// operations.
 	meta *ContextMeta
 
-	plugins *contextPlugins
+	plugins plugins.PluginManager
 
 	hooks   []Hook
 	sh      *stopHook
@@ -135,7 +136,8 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		par = 10
 	}
 
-	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
+	// TODO move up
+	plugins := plugins.NewPluginManager(context.TODO(), opts.Providers, opts.Provisioners)
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 

@@ -22,12 +22,10 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/version"
 )
 
 // BuiltinEvalContext is an EvalContext implementation that is used by
@@ -61,17 +59,13 @@ type BuiltinEvalContext struct {
 
 	// Plugins is a library of plugin components (providers and provisioners)
 	// available for use during a graph walk.
-	Plugins *contextPlugins
+	Plugins plugins.PluginManager
 
 	Hooks      []Hook
 	InputValue UIInput
 
 	ProviderLock        *sync.Mutex
-	ProviderCache       map[string]map[addrs.InstanceKey]providers.Interface
 	ProviderInputConfig map[string]map[string]cty.Value
-
-	ProvisionerLock  *sync.Mutex
-	ProvisionerCache map[string]provisioners.Interface
 
 	ChangesValue            *plans.ChangesSync
 	StateValue              *states.SyncState
@@ -128,95 +122,12 @@ func (c *BuiltinEvalContext) Input() UIInput {
 	return c.InputValue
 }
 
-func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerInstanceKey addrs.InstanceKey) (providers.Interface, error) {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	providerAddrKey := addr.String()
-
-	if c.ProviderCache[providerAddrKey] == nil {
-		c.ProviderCache[providerAddrKey] = make(map[addrs.InstanceKey]providers.Interface)
-	}
-
-	// If we have already initialized, it is an error
-	if _, ok := c.ProviderCache[providerAddrKey][providerInstanceKey]; ok {
-		return nil, fmt.Errorf("%s is already initialized", addr)
-	}
-
-	p, err := c.Plugins.NewProviderInstance(addr.Provider)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerInstanceKey, addr)
-	c.ProviderCache[providerAddrKey][providerInstanceKey] = p
-
-	return p, nil
+func (c *BuiltinEvalContext) Providers() plugins.ProviderManager {
+	return c.Plugins
 }
 
-func (c *BuiltinEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	providerAddrKey := addr.String()
-
-	pm, ok := c.ProviderCache[providerAddrKey]
-	if !ok {
-		return nil
-	}
-
-	return pm[key]
-}
-
-func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return c.Plugins.ProviderSchema(ctx, addr.Provider)
-}
-
-func (c *BuiltinEvalContext) CloseProvider(ctx context.Context, addr addrs.AbsProviderConfig) error {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	var diags tfdiags.Diagnostics
-
-	providerAddrKey := addr.String()
-	providerMap := c.ProviderCache[providerAddrKey]
-	if providerMap != nil {
-		for _, provider := range providerMap {
-			err := provider.Close(ctx)
-			if err != nil {
-				diags = diags.Append(err)
-			}
-		}
-		delete(c.ProviderCache, providerAddrKey)
-	}
-	if diags.HasErrors() {
-		return diags.Err()
-	}
-
-	return nil
-}
-
-func (c *BuiltinEvalContext) ConfigureProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	if !c.Path().IsForModule(addr.Module) {
-		// This indicates incorrect use of ConfigureProvider: it should be used
-		// only from the module that the provider configuration belongs to.
-		panic(fmt.Sprintf("%s configured by wrong module %s", addr, c.Path()))
-	}
-
-	p := c.Provider(ctx, addr, providerKey)
-	if p == nil {
-		diags = diags.Append(fmt.Errorf("%s not initialized", addr.InstanceString(providerKey)))
-		return diags
-	}
-
-	req := providers.ConfigureProviderRequest{
-		TerraformVersion: version.String(),
-		Config:           cfg,
-	}
-
-	resp := p.ConfigureProvider(ctx, req)
-	return resp.Diagnostics
+func (c *BuiltinEvalContext) Provisioners() plugins.ProvisionerManager {
+	return c.Plugins
 }
 
 func (c *BuiltinEvalContext) ProviderInput(_ context.Context, pc addrs.AbsProviderConfig) map[string]cty.Value {
@@ -249,43 +160,6 @@ func (c *BuiltinEvalContext) SetProviderInput(_ context.Context, pc addrs.AbsPro
 	c.ProviderLock.Lock()
 	c.ProviderInputConfig[absProvider.String()] = vals
 	c.ProviderLock.Unlock()
-}
-
-func (c *BuiltinEvalContext) Provisioner(n string) (provisioners.Interface, error) {
-	c.ProvisionerLock.Lock()
-	defer c.ProvisionerLock.Unlock()
-
-	p, ok := c.ProvisionerCache[n]
-	if !ok {
-		var err error
-		p, err = c.Plugins.NewProvisionerInstance(n)
-		if err != nil {
-			return nil, err
-		}
-
-		c.ProvisionerCache[n] = p
-	}
-
-	return p, nil
-}
-
-func (c *BuiltinEvalContext) ProvisionerSchema(n string) (*configschema.Block, error) {
-	return c.Plugins.ProvisionerSchema(n)
-}
-
-func (c *BuiltinEvalContext) CloseProvisioners() error {
-	var diags tfdiags.Diagnostics
-	c.ProvisionerLock.Lock()
-	defer c.ProvisionerLock.Unlock()
-
-	for name, prov := range c.ProvisionerCache {
-		err := prov.Close()
-		if err != nil {
-			diags = diags.Append(fmt.Errorf("provisioner.Close %s: %w", name, err))
-		}
-	}
-
-	return diags.Err()
 }
 
 func (c *BuiltinEvalContext) EvaluateBlock(ctx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
@@ -381,15 +255,12 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	// Since we have a traversal after the resource reference, we will need to
 	// decode the changes, which means we need a schema.
 	providerAddr := change.ProviderAddr
-	schema, err := c.ProviderSchema(ctx, providerAddr)
-	if err != nil {
-		diags = diags.Append(err)
-		return nil, false, diags
-	}
-
 	resAddr := change.Addr.ContainingResource().Resource
-	resSchema, _ := schema.SchemaForResourceType(resAddr.Mode, resAddr.Type)
-	ty := resSchema.ImpliedType()
+	resSchema, resDiags := c.Plugins.ResourceTypeSchema(ctx, providerAddr.Provider, resAddr.Mode, resAddr.Type)
+	if resDiags.HasErrors() {
+		return nil, false, diags.Append(resDiags)
+	}
+	ty := resSchema.Block.ImpliedType()
 
 	before, err := change.ChangeSrc.Before.Decode(ty)
 	if err != nil {
@@ -467,19 +338,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 		}
 
-		provider := c.Provider(ctx, providedBy.Provider, providerKey)
-
-		if provider == nil {
-			// This should not be possible if references are tracked correctly
-			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Uninitialized function provider",
-				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", providedBy.Provider.String()),
-				Subject:  rng.ToHCL().Ptr(),
-			})
-		}
-
-		return evalContextProviderFunction(ctx, provider, c.Evaluator.Operation, pf, rng)
+		return evalContextProviderFunction(ctx, c.Providers(), providedBy.Provider.InstanceCorrect(providerKey), c.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

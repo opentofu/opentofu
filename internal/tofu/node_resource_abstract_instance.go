@@ -30,7 +30,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -282,8 +281,12 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, eval
 		panic("EnsureProvider used with uninitialized provider configuration address")
 	}
 
-	provider := evalCtx.Provider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	if provider != nil {
+	if n.ResolvedProvider.IsMocked {
+		// All good
+		return nil
+	}
+
+	if evalCtx.Providers().IsProviderConfigured(n.ResolvedProvider.ProviderConfig.InstanceCorrect(n.ResolvedProviderKey)) {
 		// All good
 		return nil
 	}
@@ -2684,13 +2687,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 	for _, prov := range provs {
 		log.Printf("[TRACE] applyProvisioners: provisioning %s with %q", n.Addr, prov.Type)
 
-		// Get the provisioner
-		provisioner, err := evalCtx.Provisioner(prov.Type)
-		if err != nil {
-			return diags.Append(err)
-		}
-
-		schema, err := evalCtx.ProvisionerSchema(prov.Type)
+		schema, err := evalCtx.Provisioners().ProvisionerSchema(prov.Type)
 		if err != nil {
 			// This error probably won't be a great diagnostic, but in practice
 			// we typically catch this problem long before we get here, so
@@ -2790,12 +2787,13 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		}
 
 		output := CallbackUIOutput{OutputFn: outputFn}
-		resp := provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
-			Config:     unmarkedConfig,
-			Connection: unmarkedConnInfo,
-			UIOutput:   &output,
-		})
-		applyDiags := resp.Diagnostics.InConfigBody(prov.Config, n.Addr.String())
+		applyDiags := evalCtx.Provisioners().ProvisionResource(
+			ctx,
+			prov.Type,
+			unmarkedConfig,
+			unmarkedConnInfo,
+			&output,
+		).InConfigBody(prov.Config, n.Addr.String())
 
 		// Call post hook
 		hookErr := evalCtx.Hook(func(h Hook) (HookAction, error) {
@@ -3215,10 +3213,7 @@ func resourceInstancePrevRunAddr(evalCtx EvalContext, currentAddr addrs.AbsResou
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx EvalContext) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, err
-	}
+	schema := evalCtx.Providers().GetProviderSchema(ctx, n.ResolvedProvider.ProviderConfig.Provider)
 
 	var isOverridden bool
 	var overrideValues map[string]cty.Value
@@ -3250,8 +3245,12 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	if isOverridden {
-		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues)
+		provider, err := newProviderForTestWithSchema(n.ResolvedProvider.ProviderConfig.Provider, evalCtx.Providers(), schema, overrideValues)
 		return provider, schema, err
+	}
+	underlyingProvider, _, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	if err != nil {
+		return nil, providers.ProviderSchema{}, err
 	}
 
 	return underlyingProvider, schema, err

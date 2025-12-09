@@ -616,7 +616,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 	}
 	if isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(transformArgs)
-	} else {
+	} else if !n.ResolvedProvider.IsMocked {
 		src, diags = upgradeResourceState(transformArgs)
 	}
 
@@ -675,7 +675,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	}
 	if isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(transformArgs)
-	} else {
+	} else if !n.ResolvedProvider.IsMocked {
 		src, diags = upgradeResourceState(transformArgs)
 	}
 

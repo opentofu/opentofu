@@ -35,10 +35,11 @@ type providerUnconfigured struct {
 	active atomic.Int32
 }
 
-func NewProviderMananger(ctx context.Context, factories map[addrs.Provider]providers.Factory) ProviderManager {
+func NewProviderManager(ctx context.Context, factories map[addrs.Provider]providers.Factory) ProviderManager {
 	manager := &providerManager{
 		factories: factories,
 
+		schemas:      map[addrs.Provider]ProviderSchema{},
 		unconfigured: map[addrs.Provider]*providerUnconfigured{},
 		configured:   map[string]providers.Configured{},
 	}
@@ -77,6 +78,11 @@ func NewProviderMananger(ctx context.Context, factories map[addrs.Provider]provi
 	}()
 
 	return manager
+}
+
+func (p *providerManager) HasProvider(addr addrs.Provider) bool {
+	_, ok := p.factories[addr]
+	return ok
 }
 
 // newProviderInst creates a new instance of the given provider.
@@ -248,6 +254,15 @@ func (p *providerManager) ResourceTypeSchema(ctx context.Context, addr addrs.Pro
 	if !ok {
 		return nil, diags
 	}
+
+	// TODO ret.Block == nil error
+	/*
+		schema, currentVersion := (providerSchema).SchemaForResourceAddr(addr.Resource.ContainingResource())
+		if schema == nil {
+			// Shouldn't happen since we should've failed long ago if no schema is present
+			return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
+		}*/
+
 	return &ret, diags
 }
 
@@ -273,15 +288,41 @@ func (p *providerManager) ValidateResourceConfig(ctx context.Context, addr addrs
 	if err != nil {
 		return tfdiags.Diagnostics{}.Append(err)
 	}
-	return inst.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{Config: cfgVal}).Diagnostics
+
+	switch mode {
+	case addrs.ManagedResourceMode:
+		return inst.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
+			TypeName: typeName,
+			Config:   cfgVal,
+		}).Diagnostics
+	case addrs.DataResourceMode:
+		return inst.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
+			TypeName: typeName,
+			Config:   cfgVal,
+		}).Diagnostics
+	case addrs.EphemeralResourceMode:
+		return inst.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
+			TypeName: typeName,
+			Config:   cfgVal,
+		}).Diagnostics
+	default:
+		// We don't support any other modes, so we'll just treat these as
+		// a request for a resource type that doesn't exist at all.
+		return nil
+	}
+
 }
 
 func (p *providerManager) MoveResourceState(ctx context.Context, addr addrs.Provider, req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	panic("not implemented") // TODO: Implement
 }
 
-func (p *providerManager) CallFunction(ctx context.Context, addr addrs.Provider, name string, arguments []cty.Value) (cty.Value, error) {
-	panic("not implemented") // TODO: Implement
+func (p *providerManager) IsProviderConfigured(addr addrs.AbsProviderInstanceCorrect) bool {
+	p.configuredLock.Lock()
+	defer p.configuredLock.Unlock()
+
+	_, ok := p.configured[addr.String()]
+	return ok
 }
 
 func (p *providerManager) ConfigureProvider(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, cfgVal cty.Value) tfdiags.Diagnostics {
@@ -319,7 +360,8 @@ func (p *providerManager) ConfigureProvider(ctx context.Context, addr addrs.AbsP
 		return diags
 	}
 
-	// tfplugin5 may return a different PreparedConfig, but we throw that away in all code paths?
+	// If the provider returns something different, log a warning to help
+	// indicate to provider developers that the value is not used.
 	if validate.PreparedConfig != cty.NilVal && !validate.PreparedConfig.IsNull() && !validate.PreparedConfig.RawEquals(cfgVal) {
 		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", addr)
 	}
@@ -343,7 +385,7 @@ func (p *providerManager) ConfigureProvider(ctx context.Context, addr addrs.AbsP
 	return diags
 }
 
-func (p *providerManager) configuredProvider(addr addrs.AbsProviderInstanceCorrect) providers.Configured {
+func (p *providerManager) ConfiguredProvider(addr addrs.AbsProviderInstanceCorrect) providers.Configured {
 	p.configuredLock.Lock()
 	defer p.configuredLock.Unlock()
 
@@ -357,53 +399,82 @@ func (p *providerManager) configuredProvider(addr addrs.AbsProviderInstanceCorre
 }
 
 func (p *providerManager) UpgradeResourceState(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.UpgradeResourceState(ctx, req)
 }
 
 func (p *providerManager) ReadResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.ReadResourceRequest) providers.ReadResourceResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.ReadResource(ctx, req)
 }
 
 func (p *providerManager) PlanResourceChange(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.PlanResourceChange(ctx, req)
 }
 
 func (p *providerManager) ApplyResourceChange(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.ApplyResourceChange(ctx, req)
 }
 
 func (p *providerManager) ImportResourceState(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.ImportResourceState(ctx, req)
 }
 
 func (p *providerManager) ReadDataSource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.ReadDataSource(ctx, req)
 }
 
 func (p *providerManager) OpenEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.OpenEphemeralResource(ctx, req)
 }
 
 func (p *providerManager) RenewEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.RenewEphemeralResourceRequest) providers.RenewEphemeralResourceResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.RenewEphemeralResource(ctx, req)
 }
 
 func (p *providerManager) CloseEphemeralResource(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, req providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
-	configured := p.configuredProvider(addr)
+	configured := p.ConfiguredProvider(addr)
 	return configured.CloseEphemeralResource(ctx, req)
 }
 
+func (p *providerManager) CallFunction(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, name string, arguments []cty.Value) (cty.Value, error) {
+	req := providers.CallFunctionRequest{
+		Name:      name,
+		Arguments: arguments,
+	}
+
+	var resp providers.CallFunctionResponse
+	if p.IsProviderConfigured(addr) {
+		configured := p.ConfiguredProvider(addr)
+		resp = configured.CallFunction(ctx, req)
+	} else {
+		unconfigured, done, diags := p.unconfiguredProvider(ctx, addr.Config.Config.Provider)
+		defer done()
+		if diags.HasErrors() {
+			return cty.NilVal, diags.Err()
+		}
+		resp = unconfigured.(providers.Interface).CallFunction(ctx, req)
+	}
+
+	return resp.Result, resp.Error
+}
 func (p *providerManager) GetFunctions(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) providers.GetFunctionsResponse {
-	configured := p.configuredProvider(addr)
-	return configured.GetFunctions(ctx)
+	if p.IsProviderConfigured(addr) {
+		configured := p.ConfiguredProvider(addr)
+		return configured.GetFunctions(ctx)
+	}
+	unconfigured, done, diags := p.unconfiguredProvider(ctx, addr.Config.Config.Provider)
+	defer done()
+	if diags.HasErrors() {
+		return providers.GetFunctionsResponse{Diagnostics: diags}
+	}
+	return unconfigured.(providers.Interface).GetFunctions(ctx)
 }
 
 func (p *providerManager) CloseProvider(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) error {
