@@ -166,6 +166,7 @@ const (
 	ResourceInstanceActionReason_READ_BECAUSE_DEPENDENCY_PENDING   ResourceInstanceActionReason = 11
 	ResourceInstanceActionReason_READ_BECAUSE_CHECK_NESTED         ResourceInstanceActionReason = 13
 	ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET     ResourceInstanceActionReason = 12
+	ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE      ResourceInstanceActionReason = 14
 )
 
 // Enum value maps for ResourceInstanceActionReason.
@@ -185,6 +186,7 @@ var (
 		11: "READ_BECAUSE_DEPENDENCY_PENDING",
 		13: "READ_BECAUSE_CHECK_NESTED",
 		12: "DELETE_BECAUSE_NO_MOVE_TARGET",
+		14: "DELETE_BECAUSE_ENABLED_FALSE",
 	}
 	ResourceInstanceActionReason_value = map[string]int32{
 		"NONE":                              0,
@@ -201,6 +203,7 @@ var (
 		"READ_BECAUSE_DEPENDENCY_PENDING":   11,
 		"READ_BECAUSE_CHECK_NESTED":         13,
 		"DELETE_BECAUSE_NO_MOVE_TARGET":     12,
+		"DELETE_BECAUSE_ENABLED_FALSE":      14,
 	}
 )
 
@@ -1444,7 +1447,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\x12CREATE_THEN_DELETE\x10\a\x12\n" +
 	"\n" +
 	"\x06FORGET\x10\b\x12\b\n" +
-	"\x04OPEN\x10\t*\xc8\x03\n" +
+	"\x04OPEN\x10\t*\xea\x03\n" +
 	"\x1cResourceInstanceActionReason\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x1b\n" +
 	"\x17REPLACE_BECAUSE_TAINTED\x10\x01\x12\x16\n" +
@@ -1460,7 +1463,8 @@ const file_planfile_proto_rawDesc = "" +
 	"\x12#\n" +
 	"\x1fREAD_BECAUSE_DEPENDENCY_PENDING\x10\v\x12\x1d\n" +
 	"\x19READ_BECAUSE_CHECK_NESTED\x10\r\x12!\n" +
-	"\x1dDELETE_BECAUSE_NO_MOVE_TARGET\x10\fB@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
+	"\x1dDELETE_BECAUSE_NO_MOVE_TARGET\x10\f\x12 \n" +
+	"\x1cDELETE_BECAUSE_ENABLED_FALSE\x10\x0eB@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
 
 var (
 	file_planfile_proto_rawDescOnce sync.Once

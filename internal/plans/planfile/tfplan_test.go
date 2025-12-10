@@ -473,3 +473,111 @@ func TestTFPlanRoundTripDestroy(t *testing.T) {
 		}
 	}
 }
+
+func TestTFPlanChangeReasonsEncoding(t *testing.T) {
+	tests := []struct {
+		name         string
+		action       plans.Action
+		actionReason plans.ResourceInstanceChangeActionReason
+	}{
+		{
+			name:         "ResourceInstanceDeleteBecauseEnabledFalse",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseEnabledFalse,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseNoResourceConfig",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseNoResourceConfig,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseWrongRepetition",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseWrongRepetition,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseCountIndex",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseCountIndex,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseEachKey",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseEachKey,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseNoModule",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseNoModule,
+		},
+		{
+			name:         "ResourceInstanceDeleteBecauseNoMoveTarget",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceDeleteBecauseNoMoveTarget,
+		},
+	}
+
+	for _, test := range tests {
+		objTy := cty.Object(map[string]cty.Type{
+			"id": cty.String,
+		})
+
+		plan := &plans.Plan{
+			Backend: plans.Backend{
+				Type: "local",
+				Config: mustNewDynamicValue(
+					cty.ObjectVal(map[string]cty.Value{
+						"foo": cty.StringVal("bar"),
+					}),
+					cty.Object(map[string]cty.Type{
+						"foo": cty.String,
+					}),
+				),
+				Workspace: "default",
+			},
+			Changes: &plans.Changes{
+				Resources: []*plans.ResourceInstanceChangeSrc{
+					{
+						Addr: addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
+						PrevRunAddr: addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
+						ProviderAddr: addrs.AbsProviderConfig{
+							Provider: addrs.NewDefaultProvider("test"),
+							Module:   addrs.RootModule,
+						},
+						ChangeSrc: plans.ChangeSrc{
+							Action: test.action,
+							Before: mustNewDynamicValue(cty.ObjectVal(map[string]cty.Value{
+								"id": cty.StringVal("foo-bar-baz"),
+							}), objTy),
+							After: mustNewDynamicValue(cty.NullVal(objTy), objTy),
+						},
+						ActionReason: test.actionReason,
+					},
+				},
+			},
+		}
+
+		var buf bytes.Buffer
+		err := writeTfplan(plan, &buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = readTfplan(&buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err != nil {
+			t.Fatal("should've succeeded, got error: ", err)
+		}
+	}
+}
