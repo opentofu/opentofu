@@ -364,6 +364,8 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		ret.ActionReason = plans.ResourceInstanceReadBecauseCheckNested
 	case planproto.ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET:
 		ret.ActionReason = plans.ResourceInstanceDeleteBecauseNoMoveTarget
+	case planproto.ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE:
+		ret.ActionReason = plans.ResourceInstanceDeleteBecauseEnabledFalse
 	default:
 		return nil, fmt.Errorf("resource has invalid action reason %s", rawChange.ActionReason)
 	}
@@ -771,6 +773,8 @@ func resourceChangeToTfplan(change *plans.ResourceInstanceChangeSrc) (*planproto
 		ret.ActionReason = planproto.ResourceInstanceActionReason_READ_BECAUSE_CHECK_NESTED
 	case plans.ResourceInstanceDeleteBecauseNoMoveTarget:
 		ret.ActionReason = planproto.ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET
+	case plans.ResourceInstanceDeleteBecauseEnabledFalse:
+		ret.ActionReason = planproto.ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE
 	default:
 		return nil, fmt.Errorf("resource %s has unsupported action reason %s", change.Addr, change.ActionReason)
 	}
