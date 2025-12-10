@@ -2641,3 +2641,113 @@ func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
 		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
 	}
 }
+
+func TestContext2Validate_importIntoModuleResource(t *testing.T) {
+	// This test checks that whenever an import is performed into a module resource
+	// the right context is used to evaluate the variables used in the "import" block.
+	// This was added to double check a bug that was discovered in [ImportResolver#ValidateImportIDs]
+	// where the context used for evaluating the `id` expression was wrong (the rootCtx was meant to be
+	// used but was used the node context instead)
+	// Related to: https://github.com/opentofu/opentofu/issues/3562
+	cases := map[string]map[string]string{
+		"direct import": {
+			"mod/main.tf": `
+					variable "mod_var" {
+					  type = string
+					}
+					resource "test_object" "a" {
+						test_string = var.mod_var
+					}
+		`,
+			"main.tf": `
+					variable "root_var" {
+					  type    = string
+					  default = "test"
+					}
+		
+					module "call" {
+					  source  = "./mod"
+					  mod_var = var.root_var
+					}
+		
+					import {
+					  to = module.call.test_object.a
+					  id = var.root_var
+					}
+		`,
+		},
+		"import with for_each": {
+			"mod/main.tf": `
+					variable "mod_var" {
+					  type = string
+					}
+					resource "test_object" "a" {
+						test_string = var.mod_var
+					}
+		`,
+			"main.tf": `
+					variable "root_var" {
+					  type    = string
+					  default = "test"
+					}
+		
+					module "call" {
+					  source  = "./mod"
+					  mod_var = var.root_var
+                      for_each = toset(["0"])
+					}
+		
+					import {
+					  to = module.call[each.key].test_object.a
+					  id = var.root_var
+                      for_each = toset(["0"])
+					}
+		`,
+		},
+	}
+	p := simpleMockProvider()
+	hook := new(MockHook)
+	ctx := testContext2(t, &ContextOpts{
+		Hooks: []Hook{hook},
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
+		return providers.ReadResourceResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"test_string": cty.StringVal("foo"),
+				"test_number": cty.NullVal(cty.Number),
+				"test_bool":   cty.NullVal(cty.Bool),
+				"test_list":   cty.NullVal(cty.List(cty.String)),
+				"test_map":    cty.NullVal(cty.Map(cty.String)),
+			}),
+		}
+	}
+	p.ImportResourceStateFn = func(request providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+		return providers.ImportResourceStateResponse{
+			ImportedResources: []providers.ImportedResource{
+				{
+					TypeName: "test_object",
+					State: cty.ObjectVal(map[string]cty.Value{
+						"test_string": cty.StringVal("foo"),
+						"test_number": cty.NullVal(cty.Number),
+						"test_bool":   cty.NullVal(cty.Bool),
+						"test_list":   cty.NullVal(cty.List(cty.String)),
+						"test_map":    cty.NullVal(cty.Map(cty.String)),
+					}),
+				},
+			},
+		}
+	}
+
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tt)
+			diags := ctx.Validate(context.Background(), m)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+		})
+	}
+}
