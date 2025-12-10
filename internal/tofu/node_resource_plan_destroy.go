@@ -141,11 +141,11 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	if skipDestroy {
 		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in configuration", addr)
 		change = n.planForget(ctx, evalCtx, state, "")
-		change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig
+		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
 	} else if state.SkipDestroy {
 		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in state", addr)
 		change = n.planForget(ctx, evalCtx, state, "")
-		change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInState
+		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
 	} else {
 		change, planDiags = n.planDestroy(ctx, evalCtx, state, "")
 	}

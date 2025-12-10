@@ -366,6 +366,10 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		ret.ActionReason = plans.ResourceInstanceDeleteBecauseNoMoveTarget
 	case planproto.ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE:
 		ret.ActionReason = plans.ResourceInstanceDeleteBecauseEnabledFalse
+	case planproto.ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG:
+		ret.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
+	case planproto.ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE:
+		ret.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
 	default:
 		return nil, fmt.Errorf("resource has invalid action reason %s", rawChange.ActionReason)
 	}
@@ -775,6 +779,10 @@ func resourceChangeToTfplan(change *plans.ResourceInstanceChangeSrc) (*planproto
 		ret.ActionReason = planproto.ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET
 	case plans.ResourceInstanceDeleteBecauseEnabledFalse:
 		ret.ActionReason = planproto.ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE
+	case plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig:
+		ret.ActionReason = planproto.ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG
+	case plans.ResourceInstanceForgotBecauseLifecycleDestroyInState:
+		ret.ActionReason = planproto.ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE
 	default:
 		return nil, fmt.Errorf("resource %s has unsupported action reason %s", change.Addr, change.ActionReason)
 	}

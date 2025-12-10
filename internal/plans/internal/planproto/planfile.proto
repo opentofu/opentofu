@@ -127,6 +127,7 @@ enum Action {
     CREATE_THEN_DELETE = 7;
     FORGET = 8;
     OPEN = 9;
+    FORGET_THEN_CREATE = 10;
 }
 
 // Change represents a change made to some object, transforming it from an old
@@ -186,6 +187,8 @@ enum ResourceInstanceActionReason {
     READ_BECAUSE_CHECK_NESTED = 13;
     DELETE_BECAUSE_NO_MOVE_TARGET = 12;
     DELETE_BECAUSE_ENABLED_FALSE = 14;
+    FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE = 15;
+    FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG = 16;
 }
 
 message ResourceInstanceChange {

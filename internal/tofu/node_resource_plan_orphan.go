@@ -222,9 +222,9 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy", addr)
 		change = n.planForget(ctx, evalCtx, oldState, "")
 		if skipDestroy {
-			change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
 		} else if oldState.SkipDestroy {
-			change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInState
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
 		}
 	}
 
