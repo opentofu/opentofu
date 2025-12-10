@@ -2576,3 +2576,68 @@ resource "test_object" "t" {
 		t.Fatalf("expected error, got: %q\n", diags.Err().Error())
 	}
 }
+
+func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
+	// This tests checks that a validate run works correctly when the import block is configured with a
+	// for_each statement on unknown values.
+	// In this case, the validation is skipped since the expansion cannot be performed.
+	// Related to https://github.com/opentofu/opentofu/issues/3563
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			variable "server_ids" {
+			  type    = list(string)
+			  default = ["one", "two"]
+			}
+			resource "test_object" "a" {
+				test_string = "foo"
+				count = 2
+			}
+			import {
+			  to = test_object.a[tonumber(each.key)]
+			  id = each.value
+			  for_each = {
+				for idx, item in var.server_ids: idx => item
+			  }
+			}
+`,
+	})
+	p := simpleMockProvider()
+	hook := new(MockHook)
+	ctx := testContext2(t, &ContextOpts{
+		Hooks: []Hook{hook},
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
+		return providers.ReadResourceResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"test_string": cty.StringVal("foo"),
+				"test_number": cty.NullVal(cty.Number),
+				"test_bool":   cty.NullVal(cty.Bool),
+				"test_list":   cty.NullVal(cty.List(cty.String)),
+				"test_map":    cty.NullVal(cty.Map(cty.String)),
+			}),
+		}
+	}
+	p.ImportResourceStateFn = func(request providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+		return providers.ImportResourceStateResponse{
+			ImportedResources: []providers.ImportedResource{
+				{
+					TypeName: "test_object",
+					State: cty.ObjectVal(map[string]cty.Value{
+						"test_string": cty.StringVal("foo"),
+						"test_number": cty.NullVal(cty.Number),
+						"test_bool":   cty.NullVal(cty.Bool),
+						"test_list":   cty.NullVal(cty.List(cty.String)),
+						"test_map":    cty.NullVal(cty.Map(cty.String)),
+					}),
+				},
+			},
+		}
+	}
+	diags := ctx.Validate(context.Background(), m)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+}
