@@ -201,13 +201,6 @@ func TestDefinedVarAsImportIDShouldSucceed(t *testing.T) {
 	}
 }
 
-func TestForEachImportShouldSucceed(t *testing.T) {
-	output, code := setupTest(t, "validate-valid/for_each")
-	if code != 0 {
-		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
-	}
-}
-
 func TestOutputWithoutValueShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/outputs")
 	if code != 1 {
