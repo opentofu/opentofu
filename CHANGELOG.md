@@ -6,6 +6,7 @@ BUG FIXES:
 
 * Fixed regression where import validation would incorrectly flag variables used in for_each statements within import blocks ([#3564](https://github.com/opentofu/opentofu/pull/3564))
 * Fixed lifecycle enabled serialization in plan file ([#3566](https://github.com/opentofu/opentofu/pull/3566))
+* Fixed regression when validating import.id expressions ([#3567](https://github.com/opentofu/opentofu/pull/3567))
 
 ## 1.11.0
 
