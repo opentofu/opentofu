@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.1 (Unreleased)
 
+BUG FIXES:
+
+* Fixed regression where import validation would incorrectly flag variables used in for_each statements within import blocks ([#3564](https://github.com/opentofu/opentofu/pull/3564))
+
 ## 1.11.0
 
 This release has some changes that might require special attention when upgrading from an earlier release. Refer to "UPGRADE NOTES" below for more information.
