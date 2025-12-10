@@ -5,6 +5,7 @@ The v1.11.x release series is supported until **August 1 2026**.
 BUG FIXES:
 
 * Fixed regression where import validation would incorrectly flag variables used in for_each statements within import blocks ([#3564](https://github.com/opentofu/opentofu/pull/3564))
+* Fixed lifecycle enabled serialization in plan file ([#3566](https://github.com/opentofu/opentofu/pull/3566))
 
 ## 1.11.0
 
