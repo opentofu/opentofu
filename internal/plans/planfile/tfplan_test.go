@@ -515,6 +515,16 @@ func TestTFPlanChangeReasonsEncoding(t *testing.T) {
 			action:       plans.Delete,
 			actionReason: plans.ResourceInstanceDeleteBecauseNoMoveTarget,
 		},
+		{
+			name:         "ResourceInstanceForgotBecauseOfLifecycleDestroyInState",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceForgotBecauseLifecycleDestroyInState,
+		},
+		{
+			name:         "ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig",
+			action:       plans.Delete,
+			actionReason: plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig,
+		},
 	}
 
 	for _, test := range tests {
