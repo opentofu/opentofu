@@ -272,8 +272,7 @@ random_pet.animal: Creation complete after 0s [id=jae-known-mongoose]
 ### Ephemerality
 [inpage-ephemeral]: #ephemeral-variables
 
-If a variable is set to `ephemeral`, the module author will limit its usage
-only to the allowed ephemeral contexts:
+Setting a variable as `ephemeral` restricts its usage to the following ephemeral contexts:
 * [Ephemeral Resources](../ephemerality/ephemeral-resources.mdx)
 * [Ephemeral Variables](../values/variables.mdx#ephemerality)
 * [Ephemeral Outputs](../values/outputs.mdx#ephemerality)
@@ -283,8 +282,8 @@ only to the allowed ephemeral contexts:
 * [Resource `connection` blocks](../resources/provisioners/connection.mdx#ephemeral-usage)
 * [Resource `write-only` attributes](../ephemerality/write-only-attributes.mdx)
 
-OpenTofu will not store this type of variables in the [state](../../language/state/index.mdx) at all.
-These will be saved in the plan only by their name for further processing during apply.
+OpenTofu will not store ephemeral variable values in the [state](../../language/state/index.mdx) at all.
+Only the variable names will be saved in the plan for further processing during apply.
 
 Declare a variable as ephemeral by setting the `ephemeral` argument to `true`:
 ```hcl
@@ -342,7 +341,7 @@ the collection or structure itself is not null.
 [inpage-deprecated]: #marking-variable-as-deprecated
 
 The `deprecated` argument in a variable block indicates its deprecation and potential
-removal in the future. This attribute should contain non-empty string and should provide
+removal in the future. This attribute should contain a non-empty string and should provide
 instructions on how to migrate away from usage of this variable. Here is an example of the
 configuration:
 
