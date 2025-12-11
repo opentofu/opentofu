@@ -7,11 +7,11 @@ description: >-
 # The `enabled` Meta-Argument
 
 :::note
-A given resource or module block cannot use `enabled` together with `count` or `for_each`.
+A given resource or module block cannot use `enabled` together with `count` or `for_each`. See [Restrictions](#restrictions) for more details.
 :::
 
-The `enabled` meta-argument in a `lifecycle` block provides a cleaner way to conditionally create or skip a
-single resource or module instance. Unlike the traditional `count = var.enabled ? 1 : 0`
+The `enabled` meta-argument, introduced in OpenTofu v1.11, provides a cleaner way to conditionally create or skip a
+single resource or module instance in a `lifecycle` block. Unlike the traditional `count = var.enabled ? 1 : 0`
 workaround, which requires array indexing to access single instances, `enabled` allows
 direct access when the resource is created and properly handles the null state when disabled.
 
@@ -35,6 +35,58 @@ resource "aws_instance" "example" {
 
 When `enabled` is `true` (or not specified), the resource behaves normally. When `enabled`
 is `false`, the resource is not created and evaluates to `null`.
+
+## Migrating from count
+
+If you have existing resources using the `count = var.enabled ? 1 : 0` pattern,
+you can migrate to `enabled` without manual state manipulation.
+
+After migration, you no longer need to reference your resource using the `[0]`
+instance key. Instead of `aws_instance.example[0]`, you can simply use
+`aws_instance.example`. OpenTofu automatically handles the state migration
+from the indexed instance to the non-indexed instance.
+
+### Before
+
+```hcl
+variable "create_instance" {
+  type    = bool
+  default = true
+}
+
+resource "aws_instance" "example" {
+  count = var.create_instance ? 1 : 0
+  # ...
+}
+
+output "instance_id" {
+  value = length(aws_instance.example) > 0 ? aws_instance.example[0].id : "not-created"
+}
+```
+
+### After
+
+```hcl
+variable "create_instance" {
+  type    = bool
+  default = true
+}
+
+resource "aws_instance" "example" {
+  # ...
+  lifecycle {
+    enabled = var.create_instance
+  }
+}
+
+output "instance_id" {
+  value = aws_instance.example != null ? aws_instance.example.id : "not-created"
+}
+```
+
+When you apply this change, OpenTofu will automatically move your existing
+resource from `aws_instance.example[0]` to `aws_instance.example`. No `moved`
+block or manual state manipulation is required.
 
 ## Accessing Disabled Resources
 
