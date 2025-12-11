@@ -12,10 +12,9 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -71,13 +70,13 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+func loadSchemas(ctx context.Context, providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) (*Schemas, error) {
 	var diags tfdiags.Diagnostics
 
-	provisioners, provisionerDiags := loadProvisionerSchemas(ctx, config, plugins)
+	provisioners, provisionerDiags := loadProvisionerSchemas(ctx, provisionerFactories)
 	diags = diags.Append(provisionerDiags)
 
-	providers, providerDiags := loadProviderSchemas(ctx, config, state, plugins)
+	providers, providerDiags := loadProviderSchemas(ctx, providerFactories)
 	diags = diags.Append(providerDiags)
 
 	return &Schemas{
@@ -86,46 +85,45 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 	}, diags.Err()
 }
 
-func loadProviderSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (map[addrs.Provider]providers.ProviderSchema, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
+func loadProviderSchemas(ctx context.Context, providerFactories map[addrs.Provider]providers.Factory) (map[addrs.Provider]providers.ProviderSchema, tfdiags.Diagnostics) {
+	var lock sync.Mutex
+
 	schemas := map[addrs.Provider]providers.ProviderSchema{}
-
-	if config != nil {
-		for _, fqn := range config.ProviderTypes() {
-			schemas[fqn] = providers.ProviderSchema{}
-		}
-	}
-
-	if state != nil {
-		needed := providers.AddressedTypesAbs(state.ProviderAddrs())
-		for _, fqn := range needed {
-			schemas[fqn] = providers.ProviderSchema{}
-		}
-	}
+	var diags tfdiags.Diagnostics
 
 	var wg sync.WaitGroup
-	var lock sync.Mutex
-	lock.Lock() // Prevent anything from started until we have finished schema map reads
-	for fqn := range schemas {
+	for fqn, factory := range providerFactories {
 		wg.Go(func() {
-			log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", fqn.String())
-			schema, err := plugins.ProviderSchema(ctx, fqn)
+			log.Printf("[TRACE] loadProviderSchemas: retrieving schema for provider type %q", fqn.String())
+
+			// Heavy lifting
+			schema, err := func() (providers.ProviderSchema, error) {
+				log.Printf("[TRACE] loadProviderSchemas: Initializing provider %q to read its schema", fqn)
+				provider, err := factory()
+				if err != nil {
+					return providers.ProviderSchema{}, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", fqn, err)
+				}
+				defer provider.Close(ctx)
+
+				resp := providers.ProviderSchema(provider.GetProviderSchema(ctx))
+				if resp.Diagnostics.HasErrors() {
+					return resp, fmt.Errorf("failed to retrieve schema from provider %q: %w", fqn, resp.Diagnostics.Err())
+				}
+
+				if err := resp.Validate(fqn); err != nil {
+					return resp, err
+				}
+
+				return resp, nil
+			}()
 
 			// Ensure that we don't race on diags or schemas now that the hard work is done
 			lock.Lock()
 			defer lock.Unlock()
-
-			if err != nil {
-				diags = diags.Append(err)
-				return
-			}
-
 			schemas[fqn] = schema
+			diags = diags.Append(err)
 		})
 	}
-
-	// Allow execution to start now that reading of schemas map has completed
-	lock.Unlock()
 
 	// Wait for all of the scheduled routines to complete
 	wg.Wait()
@@ -133,33 +131,29 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 	return schemas, diags
 }
 
-func loadProvisionerSchemas(ctx context.Context, config *configs.Config, plugins *contextPlugins) (map[string]*configschema.Block, tfdiags.Diagnostics) {
+func loadProvisionerSchemas(ctx context.Context, provisioners map[string]provisioners.Factory) (map[string]*configschema.Block, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	schemas := map[string]*configschema.Block{}
 
-	// Determine the full list of provisioners recursively
-	var addProvisionersToSchema func(config *configs.Config)
-	addProvisionersToSchema = func(config *configs.Config) {
-		if config == nil {
-			return
-		}
-		for _, rc := range config.Module.ManagedResources {
-			for _, pc := range rc.Managed.Provisioners {
-				schemas[pc.Type] = &configschema.Block{}
-			}
-		}
-
-		// Must also visit our child modules, recursively.
-		for _, cc := range config.Children {
-			addProvisionersToSchema(cc)
-		}
-	}
-	addProvisionersToSchema(config)
-
 	// Populate the schema entries
-	for name := range schemas {
-		log.Printf("[TRACE] LoadSchemas: retrieving schema for provisioner %q", name)
-		schema, err := plugins.ProvisionerSchema(name)
+	for name, factory := range provisioners {
+		log.Printf("[TRACE] loadProvisionerSchemas: retrieving schema for provisioner %q", name)
+
+		schema, err := func() (*configschema.Block, error) {
+			log.Printf("[TRACE] loadProvisionerSchemas: Initializing provisioner %q to read its schema", name)
+			provisioner, err := factory()
+			if err != nil {
+				return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", name, err)
+			}
+			defer provisioner.Close()
+
+			resp := provisioner.GetSchema()
+			if resp.Diagnostics.HasErrors() {
+				return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %w", name, resp.Diagnostics.Err())
+			}
+
+			return resp.Provisioner, nil
+		}()
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls, which would then repeat the same error message

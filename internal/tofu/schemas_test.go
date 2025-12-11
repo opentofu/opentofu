@@ -312,5 +312,9 @@ func schemaOnlyProvidersForTesting(schemas map[addrs.Provider]providers.Provider
 		}
 	}
 
-	return newContextPlugins(factories, nil)
+	cp, diags := newContextPlugins(factories, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	return cp
 }

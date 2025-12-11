@@ -234,7 +234,7 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 
 	// TODO: Plugin a suitable context.Context through to here.
 	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerFqn, addr.Mode, addr.Type)
+	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerFqn, addr.Mode, addr.Type)
 	if err != nil {
 		// Prior validation should've taken care of a schema lookup error,
 		// so we should never get here but we'll handle it here anyway for

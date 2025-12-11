@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -64,9 +65,13 @@ func TestBuildingEvalContextInitProvider(t *testing.T) {
 	ctx = ctx.WithPath(addrs.RootModuleInstance).(*BuiltinEvalContext)
 	ctx.ProviderLock = &lock
 	ctx.ProviderCache = make(map[string]map[addrs.InstanceKey]providers.Interface)
-	ctx.Plugins = newContextPlugins(map[addrs.Provider]providers.Factory{
+	var diags tfdiags.Diagnostics
+	ctx.Plugins, diags = newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(testP),
 	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
 
 	providerAddrDefault := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,

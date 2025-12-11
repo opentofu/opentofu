@@ -20,7 +20,6 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -135,7 +134,11 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		par = 10
 	}
 
-	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
+	plugins, pluginDiags := newContextPlugins(opts.Providers, opts.Provisioners)
+	diags = diags.Append(pluginDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 
@@ -154,19 +157,8 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret, err := loadSchemas(ctx, config, state, c.plugins)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to load plugin schemas",
-			fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
-		))
-		return nil, diags
-	}
-	return ret, diags
+func (c *Context) Schemas() *Schemas {
+	return c.plugins.schemas
 }
 
 type ContextGraphOpts struct {

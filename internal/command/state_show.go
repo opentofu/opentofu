@@ -122,11 +122,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Get the schemas from the context
-	schemas, diags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
-	if diags.HasErrors() {
-		c.View.Diagnostics(diags)
-		return 1
-	}
+	schemas := lr.Core.Schemas()
 
 	// Get the state
 	env, err := c.Workspace(ctx)
@@ -149,6 +145,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintln(errStateNotFound)
 		return 1
 	}
+	var diags tfdiags.Diagnostics
 	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(lr.Config, state)
 	diags = diags.Append(migrateDiags)
 	if migrateDiags.HasErrors() {

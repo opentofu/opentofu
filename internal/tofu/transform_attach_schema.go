@@ -69,7 +69,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			providerFqn := tv.Provider()
 
 			// TODO: Plumb a useful context.Context through to here.
-			schema, version, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
+			schema, version, err := t.Plugins.ResourceTypeSchema(providerFqn, mode, typeName)
 			if err != nil {
 				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
 			}
@@ -84,7 +84,7 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
 			providerAddr := tv.ProviderAddr()
 			// TODO: Plumb a useful context.Context through to here.
-			schema, err := t.Plugins.ProviderConfigSchema(ctx, providerAddr.Provider)
+			schema, err := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
 			if err != nil {
 				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
 			}

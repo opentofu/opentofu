@@ -56,11 +56,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	)
 	defer span.End()
 
-	schemas, moreDiags := c.Schemas(ctx, config, nil)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return diags
-	}
+	schemas := c.Schemas()
 
 	if c.uiInput == nil {
 		log.Printf("[TRACE] Context.Input: uiInput is nil, so skipping")

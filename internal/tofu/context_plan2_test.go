@@ -6760,11 +6760,6 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 func TestContext2Plan_importIdInvalidUnknown(t *testing.T) {
 	p := testProvider("test")
 	m := testModule(t, "import-id-invalid-unknown")
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
-	})
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_resource": {
@@ -6794,6 +6789,11 @@ func TestContext2Plan_importIdInvalidUnknown(t *testing.T) {
 			},
 		},
 	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {

@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -35,10 +36,13 @@ func TestPlanGraphBuilder(t *testing.T) {
 		},
 	}
 	openstackProvider := mockProviderWithResourceTypeSchema("openstack_floating_ip", simpleTestSchema())
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins, diags := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"):       providers.FactoryFixed(awsProvider),
 		addrs.NewDefaultProvider("openstack"): providers.FactoryFixed(openstackProvider),
 	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-basic"),
@@ -79,9 +83,12 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins, diags := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
 	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-dynblock"),
@@ -135,9 +142,12 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins, diags := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
 	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-attr-as-blocks"),
@@ -221,9 +231,12 @@ func TestPlanGraphBuilder_excludeModule(t *testing.T) {
 func TestPlanGraphBuilder_forEach(t *testing.T) {
 	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
 
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins, diags := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
 	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "plan-for-each"),
@@ -256,9 +269,6 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 	b := &PlanGraphBuilder{
 		Config:    &configs.Config{Module: &configs.Module{}},
 		Operation: walkPlanDestroy,
-		Plugins: newContextPlugins(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
-		}, nil),
 		State: &states.State{
 			Modules: map[string]*states.Module{
 				"": {
@@ -278,6 +288,14 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 				},
 			},
 		},
+	}
+
+	var diags tfdiags.Diagnostics
+	b.Plugins, diags = newContextPlugins(map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
+	}, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
 	}
 
 	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
@@ -304,7 +322,7 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 	evalCtx := &MockEvalContext{
 		ProviderProvider: testProvider("aws"),
 	}
-	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
+	diags = found.Execute(t.Context(), evalCtx, walkPlanDestroy)
 	got := diags.Err().Error()
 	want := `An ephemeral resource planned for destroy: A destroy operation has been planned for the ephemeral resource "ephemeral.aws_secretmanager_secret.test". This is an OpenTofu error. Please report this.`
 	if got != want {

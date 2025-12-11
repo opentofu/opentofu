@@ -107,7 +107,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 	validate := func(cfg *configs.Config) tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
-		opts, err := c.contextOpts(ctx)
+		opts, err := c.contextOpts(ctx, cfg, nil)
 		if err != nil {
 			diags = diags.Append(err)
 			return diags

@@ -280,9 +280,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 	}
 
 	if plan != nil {
-		relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(ctx, config, plan)
-		diags = diags.Append(rDiags)
-		plan.RelevantAttributes = relevantAttrs
+		plan.RelevantAttributes = c.relevantResourceAttrsForPlan(ctx, config, plan)
 	}
 
 	if diags.HasErrors() {
@@ -487,10 +485,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		destroyPlan.PrevRunState = prevRunState
 	}
 
-	relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(ctx, config, destroyPlan)
-	diags = diags.Append(rDiags)
-
-	destroyPlan.RelevantAttributes = relevantAttrs
+	destroyPlan.RelevantAttributes = c.relevantResourceAttrsForPlan(ctx, config, destroyPlan)
 	return destroyPlan, diags
 }
 
@@ -931,11 +926,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 		return nil, diags
 	}
 
-	schemas, schemaDiags := c.Schemas(ctx, config, newState)
-	diags = diags.Append(schemaDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+	schemas := c.Schemas()
 
 	var drs []*plans.ResourceInstanceChangeSrc
 
@@ -1108,21 +1099,14 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 // referenceAnalyzer returns a globalref.Analyzer object to help with
 // global analysis of references within the configuration that's attached
 // to the receiving context.
-func (c *Context) referenceAnalyzer(ctx context.Context, config *configs.Config, state *states.State) (*globalref.Analyzer, tfdiags.Diagnostics) {
-	schemas, diags := c.Schemas(ctx, config, state)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-	return globalref.NewAnalyzer(config, schemas.Providers), diags
+func (c *Context) referenceAnalyzer(ctx context.Context, config *configs.Config) *globalref.Analyzer {
+	return globalref.NewAnalyzer(config, c.Schemas().Providers)
 }
 
 // relevantResourceAttrsForPlan implements the heuristic we use to populate the
 // RelevantResources field of returned plans.
-func (c *Context) relevantResourceAttrsForPlan(ctx context.Context, config *configs.Config, plan *plans.Plan) ([]globalref.ResourceAttr, tfdiags.Diagnostics) {
-	azr, diags := c.referenceAnalyzer(ctx, config, plan.PriorState)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+func (c *Context) relevantResourceAttrsForPlan(ctx context.Context, config *configs.Config, plan *plans.Plan) []globalref.ResourceAttr {
+	azr := c.referenceAnalyzer(ctx, config)
 
 	var refs []globalref.Reference
 	for _, change := range plan.Changes.Resources {
@@ -1151,7 +1135,7 @@ func (c *Context) relevantResourceAttrsForPlan(ctx context.Context, config *conf
 		}
 	}
 
-	return contributors, diags
+	return contributors
 }
 
 // warnOnUsedDeprecatedVars is checking for variables whose values are given by the user and if any of that is

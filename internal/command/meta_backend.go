@@ -404,7 +404,9 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 // backendCLIOpts returns a backend.CLIOpts object that should be passed to
 // a backend that supports local CLI operations.
 func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
-	contextOpts, err := m.contextOpts(ctx)
+	// TODO this does not allow for filtering schemas in it's current form
+	// This does not break anything per say, other than being slower and more verbose in some scenarios
+	contextOpts, err := m.contextOpts(ctx, nil, nil)
 	if contextOpts == nil && err != nil {
 		return nil, err
 	}

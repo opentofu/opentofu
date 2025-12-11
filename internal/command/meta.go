@@ -575,7 +575,7 @@ func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *back
 
 // contextOpts returns the options to use to initialize a OpenTofu
 // context with the settings from this Meta.
-func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
+func (m *Meta) contextOpts(ctx context.Context, config *configs.Config, state *states.State) (*tofu.ContextOpts, error) {
 	workspace, err := m.Workspace(ctx)
 	if err != nil {
 		return nil, err
@@ -597,6 +597,49 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 		providerFactories, err = m.providerFactories()
 		opts.Providers = providerFactories
 		opts.Provisioners = m.provisionerFactories()
+	}
+
+	// Only include the providers referenced by configuration or state
+	if config != nil || state != nil {
+		referenced := map[addrs.Provider]providers.Factory{}
+		if config != nil {
+			for _, fqn := range config.ProviderTypes() {
+				referenced[fqn] = opts.Providers[fqn]
+			}
+		}
+
+		if state != nil {
+			needed := providers.AddressedTypesAbs(state.ProviderAddrs())
+			for _, fqn := range needed {
+				referenced[fqn] = opts.Providers[fqn]
+			}
+		}
+		opts.Providers = referenced
+	}
+
+	// Only include provisioners referenced by configuration
+	if config != nil {
+		referenced := map[string]provisioners.Factory{}
+		// Determine the full list of provisioners recursively
+		var addProvisionersToSchema func(config *configs.Config)
+		addProvisionersToSchema = func(config *configs.Config) {
+			if config == nil {
+				return
+			}
+			for _, rc := range config.Module.ManagedResources {
+				for _, pc := range rc.Managed.Provisioners {
+					referenced[pc.Type] = opts.Provisioners[pc.Type]
+				}
+			}
+
+			// Must also visit our child modules, recursively.
+			for _, cc := range config.Children {
+				addProvisionersToSchema(cc)
+			}
+		}
+		addProvisionersToSchema(config)
+
+		opts.Provisioners = referenced
 	}
 
 	opts.Meta = &tofu.ContextMeta{
@@ -951,7 +994,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 	}
 
 	if config != nil || state != nil {
-		opts, err := c.contextOpts(ctx)
+		opts, err := c.contextOpts(ctx, config, state)
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
@@ -962,7 +1005,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 			return nil, diags
 		}
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags := tfCtx.Schemas(ctx, config, state)
+		schemas := tfCtx.Schemas()
 		diags = diags.Append(schemaDiags)
 		if schemaDiags.HasErrors() {
 			return nil, diags
