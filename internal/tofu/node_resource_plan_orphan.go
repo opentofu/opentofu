@@ -233,10 +233,11 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		return diags
 	}
 
+	// In case we haven't already set a reason for the action,
+	// we might be able to offer an approximate reason for why we are
+	// planning a certain action for this object. (This is best-effort; we might
+	// sometimes not have a reason.)
 	if change.ActionReason == plans.ResourceInstanceChangeNoReason {
-		// We might be able to offer an approximate reason for why we are
-		// planning to delete this object. (This is best-effort; we might
-		// sometimes not have a reason.)
 		change.ActionReason = n.deleteActionReason(evalCtx)
 	}
 
