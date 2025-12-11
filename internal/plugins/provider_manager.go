@@ -72,7 +72,7 @@ func NewProviderManager(ctx context.Context, factories map[addrs.Provider]provid
 			}
 		}
 
-		err := manager.Stop(ctx)
+		err := manager.stop(ctx)
 		if err != nil {
 			log.Printf("[ERROR] Unable to stop provider manager: %s", err.Error())
 		}
@@ -495,7 +495,7 @@ func (p *providerManager) CloseProvider(ctx context.Context, addr addrs.AbsProvi
 	return err
 }
 
-func (p *providerManager) Stop(ctx context.Context) error {
+func (p *providerManager) stop(ctx context.Context) error {
 
 	p.configuredLock.Lock()
 	defer p.configuredLock.Unlock()

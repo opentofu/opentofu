@@ -91,45 +91,38 @@ func NewRuntimePlugins(manager plugins.PluginManager) Plugins {
 	}
 }
 
-// NewConfiguredProvider implements evalglue.Providers.
+// NewConfiguredProvider implements Providers.
 func (n *newRuntimePlugins) NewConfiguredProvider(ctx context.Context, provider addrs.AbsProviderInstanceCorrect, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
 	diags := n.providers.ConfigureProvider(ctx, provider, configVal)
 	configured := n.providers.ConfiguredProvider(provider)
 	return configured, diags
 }
 
-// ProviderConfigSchema implements evalglue.Providers.
+// ProviderConfigSchema implements Providers.
 func (n *newRuntimePlugins) ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics) {
 	return n.providers.ProviderConfigSchema(ctx, provider)
 }
 
-// ResourceTypeSchema implements evalglue.Providers.
+// ResourceTypeSchema implements Providers.
 func (n *newRuntimePlugins) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
 	return n.providers.ResourceTypeSchema(ctx, provider, mode, typeName)
 }
 
-// ValidateProviderConfig implements evalglue.Providers.
+// ValidateProviderConfig implements Providers.
 func (n *newRuntimePlugins) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
 	return n.providers.ValidateProviderConfig(ctx, provider, configVal)
 }
 
-// ValidateResourceConfig implements evalglue.Providers.
+// ValidateResourceConfig implements Providers.
 func (n *newRuntimePlugins) ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics {
 	return n.providers.ValidateResourceConfig(ctx, provider, mode, typeName, configVal)
 }
 
-// ProvisionerConfigSchema implements evalglue.Provisioners.
+// ProvisionerConfigSchema implements Provisioners.
 func (n *newRuntimePlugins) ProvisionerConfigSchema(ctx context.Context, typeName string) (*configschema.Block, tfdiags.Diagnostics) {
 	schema, err := n.provisioners.ProvisionerSchema(typeName)
 	if err != nil {
 		return nil, tfdiags.Diagnostics{}.Append(err)
 	}
 	return schema, nil
-}
-
-// Close terminates any plugins that are managed by this object and are still
-// running.
-func (n *newRuntimePlugins) Close(ctx context.Context) error {
-	// TODO use proper close?
-	return n.providers.Stop(ctx)
 }

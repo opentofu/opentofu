@@ -146,7 +146,7 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		prevRoundState = states.NewState() // this is the first round, starting with an empty state
 	}
 
-	plugins := plugins.NewRuntimePlugins(b.ContextOpts.Plugins.Manager(ctx))
+	plugins := plugins.NewRuntimePlugins(b.ContextOpts.Plugins.Manager(stopCtx))
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      op.ConfigDir,
 		OriginalWorkingDir: b.ContextOpts.Meta.OriginalWorkingDir,
@@ -156,16 +156,6 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		Providers:    plugins,
 		Provisioners: plugins,
 	}
-	defer func() {
-		// We'll call close with a cancel-free context because we do still
-		// want to shut the providers down even if we're dealing with
-		// graceful shutdown after cancellation.
-		err := plugins.Close(context.WithoutCancel(ctx))
-		// If a provider fails to close there isn't really much we can do
-		// about that... this shouldn't really be possible unless the
-		// plugin process already exited for some other reason anyway.
-		log.Printf("[ERROR] plugin shutdown failed: %s", err)
-	}()
 
 	// The new config-loading system wants to work in terms of module source
 	// addresses rather than raw local filenames, so we'll ask the

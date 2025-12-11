@@ -79,6 +79,4 @@ type ProviderManager interface {
 	CallFunction(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, name string, arguments []cty.Value) (cty.Value, error)
 
 	CloseProvider(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) error
-
-	Stop(ctx context.Context) error
 }
