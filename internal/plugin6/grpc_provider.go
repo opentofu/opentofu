@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/opentofu/opentofu/internal/plugin6/validation"
@@ -18,7 +17,6 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"google.golang.org/grpc"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -26,6 +24,16 @@ import (
 )
 
 var logger = logging.HCLogger()
+
+// Some providers may generate quite large schemas, and the internal default
+// grpc response size limit is 4MB. 64MB should cover most any use case, and
+// if we get providers nearing that we may want to consider a finer-grained
+// API to fetch individual resource schemas.
+// Note: this option is marked as EXPERIMENTAL in the grpc API. We keep
+// this for compatibility, but recent providers all set the max message
+// size much higher on the server side, which is the supported method for
+// determining payload size.
+const maxRecvSize = 64 << 20
 
 // GRPCProviderPlugin implements plugin.GRPCPlugin for the go-plugin package.
 type GRPCProviderPlugin struct {
@@ -75,11 +83,6 @@ type GRPCProvider struct {
 	// used in an end to end test of a provider.
 	TestServer *grpc.Server
 
-	// Addr uniquely identifies the type of provider.
-	// Normally executed providers will have this set during initialization,
-	// but it may not always be available for alternative execute modes.
-	Addr addrs.Provider
-
 	// Proto client use to make the grpc service calls.
 	client proto6.ProviderClient
 
@@ -94,53 +97,40 @@ type GRPCProvider struct {
 	// to use as the parent context for gRPC API calls.
 	ctx context.Context
 
-	mu sync.Mutex
-	// schema stores the schema for this provider. This is used to properly
-	// serialize the requests for schemas.
-	schema providers.GetProviderSchemaResponse
+	// SchemaCache stores the schema for this provider. This is used to properly
+	// serialize the requests for schemas.  This is shared between instances
+	// of the provider.
+	SchemaCache      func(func() providers.GetProviderSchemaResponse) providers.GetProviderSchemaResponse
+	hasFetchedSchema bool
 }
 
 var _ providers.Interface = new(GRPCProvider)
 
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider.v6: GetProviderSchema")
-	p.mu.Lock()
-	defer p.mu.Unlock()
 
-	// First, we check the global cache.
-	// The cache could contain this schema if an instance of this provider has previously been started.
-	if !p.Addr.IsZero() {
-		// Even if the schema is cached, GetProviderSchemaOptional could be false. This would indicate that once instantiated,
-		// this provider requires the get schema call to be made at least once, as it handles part of the provider's setup.
-		// At this point, we don't know if this is the first call to a provider instance or not, so we don't use the result in that case.
-		if schemaCached, ok := providers.SchemaCache.Get(p.Addr); ok && schemaCached.ServerCapabilities.GetProviderSchemaOptional {
-			logger.Trace("GRPCProvider: GetProviderSchema: serving from global schema cache", "address", p.Addr)
-			return schemaCached
-		}
+	schema := p.SchemaCache(func() providers.GetProviderSchemaResponse {
+		return p.getProviderSchema(ctx)
+	})
+
+	if !p.hasFetchedSchema && !schema.ServerCapabilities.GetProviderSchemaOptional {
+		// Force call
+		p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
+		p.hasFetchedSchema = true
 	}
 
-	// If the local cache is non-zero, we know this instance has called
-	// GetProviderSchema at least once, so has satisfied the possible requirement of `GetProviderSchemaOptional=false`.
-	// This means that we can return early now using the locally cached schema, without making this call again.
-	if p.schema.Provider.Block != nil {
-		return p.schema
-	}
+	return schema
+}
 
+func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
 	resp.EphemeralResources = make(map[string]providers.Schema)
 	resp.Functions = make(map[string]providers.FunctionSpec)
 
-	// Some providers may generate quite large schemas, and the internal default
-	// grpc response size limit is 4MB. 64MB should cover most any use case, and
-	// if we get providers nearing that we may want to consider a finer-grained
-	// API to fetch individual resource schemas.
-	// Note: this option is marked as EXPERIMENTAL in the grpc API. We keep
-	// this for compatibility, but recent providers all set the max message
-	// size much higher on the server side, which is the supported method for
-	// determining payload size.
-	const maxRecvSize = 64 << 20
 	protoResp, err := p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
+	p.hasFetchedSchema = true
+
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -187,23 +177,6 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 		resp.ServerCapabilities.PlanDestroy = protoResp.ServerCapabilities.PlanDestroy
 		resp.ServerCapabilities.GetProviderSchemaOptional = protoResp.ServerCapabilities.GetProviderSchemaOptional
 	}
-
-	// Set the global provider cache so that future calls to this provider can use the cached value.
-	// Crucially, this doesn't look at GetProviderSchemaOptional, because the layers above could use this cache
-	// *without* creating an instance of this provider. And if there is no instance,
-	// then we don't need to set up anything (cause there is nothing to set up), so we need no call
-	// to the providers GetSchema rpc.
-	if !p.Addr.IsZero() {
-		providers.SchemaCache.Set(p.Addr, resp)
-	}
-
-	// Always store this here in the client for providers that are not able to use GetProviderSchemaOptional.
-	// Crucially, this indicates that we've made at least one call to GetProviderSchema to this instance of the provider,
-	// which means in the future we'll be able to return using this cache
-	// (because the possible setup contained in the GetProviderSchema call has happened).
-	// If GetProviderSchemaOptional is true then this cache won't actually ever be used, because the calls to this method
-	// will be satisfied by the global provider cache.
-	p.schema = resp
 
 	return resp
 }
