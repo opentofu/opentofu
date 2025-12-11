@@ -88,128 +88,157 @@ func main() {
 	// This dependency graph _will_ tend to contain cycles because we're
 	// considering each upgrade separately and it's possible that the MVS
 	// ratchet effect provides no ordering that would upgrade only exactly
-	// one module at a time. Since this whole thing is a best-effort process
-	// anyway, we'll just heuristically prune edges from the graph until we
-	// reach a true acyclic graph, which will still give us at least _some_
-	// guidance about what order we might approach upgrades in.
+	// one module at a time.
 	//
-	// For example, the golang.org/x/* family of modules tends to often get
-	// caught up in cycles here because they love to ratchet up the requirements
-	// between them periodically regardless of whether an upgrade is actually
-	// needed for the functionality of the source of the dependency. It's
-	// often impossible to upgrade any one of them without also upgrading
-	// at least one other.
-	for {
-		cycles := g.Cycles()
-		if len(cycles) == 0 {
-			break // We've pruned enough to proceed!
+	// For any cycle we find we'll group all of the involved modules together
+	// into a single node that we treat as a single unit for upgrade purposes.
+	cycles := g.Cycles()
+	for _, cycle := range cycles {
+		group := make(ModulePaths, len(cycle))
+		for _, v := range cycle {
+			group[v.(ModulePath)] = struct{}{}
 		}
-		for _, cycle := range cycles {
-			// Our heuristic here is to prune an edge starting at the node
-			// with the smallest number of total dependencies, so that we're
-			// hopefully minimizing the number of forced-coupled-upgrades
-			// this change introduces.
-			slices.SortFunc(cycle, func(a, b dag.Vertex) int {
-				// dag.Graph doesn't have a method to get the number of
-				// outgoing edges from a vertex without building a slice
-				// of the edges, so this is pretty wasteful but we're
-				// not going to modify package dag just for this ancillary
-				// tool, and our graphs here will always be small.
-				aDeps := len(g.EdgesFrom(a))
-				bDeps := len(g.EdgesFrom(b))
-				if aDeps == bDeps {
-					return 0
-				}
-				if aDeps < bDeps {
-					return -1
-				}
-				return 1
-			})
-			// We're going to prune an edge whose source is now the first
-			// vertex in the sorted "cycle". The remainder are all candidates
-			// to be the destination, in order of preference; we'll choose
-			// the one with the lowest number of outgoing edges that is already
-			// connected to source.
-			source := cycle[0]
-			var deleteEdge dag.Edge
-			for _, dest := range cycle[1:] {
-				candidateEdge := dag.BasicEdge(source, dest)
-				if g.HasEdge(candidateEdge) {
-					deleteEdge = candidateEdge
-					break
-				}
-			}
-			if deleteEdge == nil {
-				// We shouldn't get here because this suggests that the reported
-				// cycle wasn't actually a cycle after all?!
-				log.Fatalf("can't find edge to delete to resolve cycle between %s", cycle)
-			}
-			g.RemoveEdge(deleteEdge)
+		// Calling "Replace" multiple times with the same replacement but
+		// different "original" works because the implicit g.Add in this
+		// function is a silent no-op when the given vertex already exists,
+		// and then it still does all of the necessary edge manipulation.
+		for _, v := range cycle {
+			// We use a pointer to group here, rather than just plain group,
+			// because then the graph membership is based on pointer identity.
+			// (ModulePaths itself is not comparable/hashable).
+			g.Replace(v, &group)
 		}
+		// After all of the replacing we just did it's likely that the group
+		// node now depends on itself, so we'll delete that edge if present.
+		g.RemoveEdge(dag.BasicEdge(&group, &group))
 	}
 
 	order := g.TopologicalOrder()
-	pendingUpgrades := make([]PendingUpgrade, 0, len(order))
+	pendingUpgrades := make([]PendingUpgradeCluster, 0, len(order))
 	for _, v := range slices.Backward(order) {
-		modulePath := v.(ModulePath)
-		candidate := candidates[modulePath]
-		pending := PendingUpgrade{
-			Module:         candidate.Module,
-			CurrentVersion: candidate.CurrentVersion,
-			LatestVersion:  candidate.LatestVersion,
-			Prereqs:        make(map[ModulePath]Version),
+		var modulePaths ModulePaths
+		switch v := v.(type) {
+		case ModulePath:
+			modulePaths = ModulePaths{v: struct{}{}}
+		case *ModulePaths:
+			modulePaths = *v
 		}
-		for depModulePath, depNewVersion := range latestVersionDeps[modulePath] {
-			depCandidate, ok := candidates[depModulePath]
-			if !ok {
-				continue
+
+		var pendingCluster PendingUpgradeCluster
+		for modulePath := range modulePaths {
+			candidate := candidates[modulePath]
+			pending := PendingUpgrade{
+				Module:         candidate.Module,
+				CurrentVersion: candidate.CurrentVersion,
+				LatestVersion:  candidate.LatestVersion,
+				Prereqs:        make(map[ModulePath]Version),
 			}
-			if depCandidate.CurrentVersion.LessThan(depNewVersion) {
-				pending.Prereqs[depModulePath] = depNewVersion
+			for depModulePath, depNewVersion := range latestVersionDeps[modulePath] {
+				depCandidate, ok := candidates[depModulePath]
+				if !ok {
+					continue
+				}
+				if depCandidate.CurrentVersion.LessThan(depNewVersion) {
+					pending.Prereqs[depModulePath] = depNewVersion
+				}
+			}
+			pendingCluster = append(pendingCluster, pending)
+		}
+		// Within a cluster the members will list each other as prereqs,
+		// but we already dealt with that by clustering them together so
+		// we'll just delete those entries to focus only on the prereqs
+		// from outside the group.
+		for i := range pendingCluster {
+			for _, pending := range pendingCluster {
+				delete(pendingCluster[i].Prereqs, pending.Module)
 			}
 		}
-		pendingUpgrades = append(pendingUpgrades, pending)
+		slices.SortFunc(pendingCluster, func(a, b PendingUpgrade) int {
+			return cmp.Compare(a.Module, b.Module)
+		})
+		pendingUpgrades = append(pendingUpgrades, pendingCluster)
 	}
 
-	// We want a topological-ish order for the items that have prerequisites,
-	// but we'll pull all of the ones without any prerequisites at all to
-	// the top of the list because they can always go first.
-	slices.SortStableFunc(pendingUpgrades, func(a, b PendingUpgrade) int {
-		if len(a.Prereqs) != 0 && len(b.Prereqs) != 0 {
-			return 0
+	var readyUpgrades []PendingUpgradeCluster
+	var blockedUpgrades []PendingUpgradeCluster
+	for _, cluster := range pendingUpgrades {
+		ready := true
+		for _, upgrade := range cluster {
+			if len(upgrade.Prereqs) != 0 {
+				ready = false
+				break
+			}
 		}
-		if len(a.Prereqs) == 0 && len(b.Prereqs) == 0 {
-			// Within the set of no-prereq modules we'll order them lexically,
-			// because we have no particular preference order.
-			return cmp.Compare(a.Module, b.Module)
-		}
-		if len(a.Prereqs) == 0 {
-			return -1
-		}
-		// Otherwise, b.Prereqs must be empty.
-		return 1
-	})
-	seenPrereqs := false
-	for _, pending := range pendingUpgrades {
-		if !seenPrereqs && len(pending.Prereqs) != 0 {
-			// We'll include a horizontal rule between the isolated upgrades
-			// and those which have prerequisites just because that makes it
-			// a little easier to scan the list and focus on the easy cases
-			// first.
-			seenPrereqs = true
-			fmt.Print("\n---\n\n")
-		}
-
-		changesURL := changelogURL(pending.Module, pending.CurrentVersion, pending.LatestVersion)
-		if changesURL != "" {
-			fmt.Printf("- [ ] `go get %s@v%s` ([from `v%s`](%s))\n", pending.Module, pending.LatestVersion, pending.CurrentVersion, changesURL)
+		if ready {
+			readyUpgrades = append(readyUpgrades, cluster)
 		} else {
-			fmt.Printf("- [ ] `go get %s@v%s` (from `v%s`)\n", pending.Module, pending.LatestVersion, pending.CurrentVersion)
+			blockedUpgrades = append(blockedUpgrades, cluster)
 		}
-		prereqs := slices.Collect(maps.Keys(pending.Prereqs))
-		slices.Sort(prereqs)
-		for _, depModulePath := range prereqs {
-			fmt.Printf("  - requires `%s@v%s`\n", depModulePath, pending.Prereqs[depModulePath])
+	}
+
+	// We'll sort the "ready" clusters into lexical order because without
+	// any dependencies their topological order is completely arbitrary.
+	// (This intentionally leaves blockedUpgrades untouched because the
+	// topological order of that is relatively useful to plan what
+	// order to run a series of upgrades in.)
+	slices.SortFunc(readyUpgrades, func(a, b PendingUpgradeCluster) int {
+		return cmp.Compare(clusterCaption(a), clusterCaption(b))
+	})
+
+	printPendingUpgradeClusters(readyUpgrades)
+	if len(readyUpgrades) != 0 && len(blockedUpgrades) != 0 {
+		fmt.Print("\n---\n\n")
+	}
+	printPendingUpgradeClusters(blockedUpgrades)
+}
+
+func printPendingUpgradeClusters(clusters []PendingUpgradeCluster) {
+	for _, cluster := range clusters {
+		fmt.Printf("- **%s**\n", clusterCaption(cluster))
+		for _, pending := range cluster {
+			changesURL := changelogURL(pending.Module, pending.CurrentVersion, pending.LatestVersion)
+			if changesURL != "" {
+				fmt.Printf("    - [ ] `go get %s@v%s` ([from `v%s`](%s))\n", pending.Module, pending.LatestVersion, pending.CurrentVersion, changesURL)
+			} else {
+				fmt.Printf("    - [ ] `go get %s@v%s` (from `v%s`)\n", pending.Module, pending.LatestVersion, pending.CurrentVersion)
+			}
+			prereqs := slices.Collect(maps.Keys(pending.Prereqs))
+			slices.Sort(prereqs)
+			for _, depModulePath := range prereqs {
+				fmt.Printf("        - requires `%s@v%s`\n", depModulePath, pending.Prereqs[depModulePath])
+			}
+		}
+	}
+}
+
+func clusterCaption(cluster PendingUpgradeCluster) string {
+	if len(cluster) == 0 {
+		// Should not make an empty cluster, but we'll tolerate it anyway.
+		return "(empty set of modules)"
+	}
+	if len(cluster) == 1 {
+		return "`" + string(cluster[0].Module) + "`"
+	}
+	// If we have more than one item then we'll try to find a prefix that
+	// the module names all have in common, because we commonly end up
+	// in this situation with families of modules like golang.org/x/* where
+	// the maintainers tend to ratchet their cross-dependencies all together.
+	// We expect clusters to have small numbers of members and so this is
+	// a relatively naive "longest common prefix" implementation that isn't
+	// concerned with performance.
+	for i := 0; ; i++ {
+		var first byte // we just assume a null byte cannot appear in a module path
+		if len(cluster[0].Module) != i {
+			first = cluster[0].Module[i]
+		}
+		for _, other := range cluster[1:] {
+			if len(other.Module) == i || other.Module[i] != first {
+				if i == 0 {
+					// There's no common prefix at all
+					return "(set of modules with no common name prefix)"
+				}
+				return "`" + string(cluster[0].Module[:i]) + "...` family"
+			}
 		}
 	}
 }
