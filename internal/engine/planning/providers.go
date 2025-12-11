@@ -92,7 +92,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// then this should return "nil, nil" in the error case so that the
 		// caller will treat it the same as a "configuration not valid enough"
 		// problem.
-		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
+		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr, configVal)
 
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our

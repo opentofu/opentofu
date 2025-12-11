@@ -47,6 +47,7 @@ func NewProviderManager(ctx context.Context, factories map[addrs.Provider]provid
 	go func() {
 		// TODO configurable
 		expiration := time.Duration(15 * time.Second)
+	loop:
 		for {
 			manager.unconfiguredLock.Lock()
 			for addr, entry := range manager.unconfigured {
@@ -67,7 +68,7 @@ func NewProviderManager(ctx context.Context, factories map[addrs.Provider]provid
 			case <-time.After(expiration):
 				continue
 			case <-ctx.Done():
-				break
+				break loop
 			}
 		}
 

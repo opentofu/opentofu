@@ -18,15 +18,55 @@ type PluginManager interface {
 	ProviderManager
 }
 
-func NewPluginManager(ctx context.Context,
+type Plugins interface {
+	HasProvider(addr addrs.Provider) bool
+	HasProvisioner(typ string) bool
+
+	Schemas(ctx context.Context) PluginSchemas
+	Manager(ctx context.Context) PluginManager
+}
+
+type plugins struct {
+	providerFactories    map[addrs.Provider]providers.Factory
+	provisionerFactories map[string]provisioners.Factory
+}
+
+func NewPlugins(
 	providerFactories map[addrs.Provider]providers.Factory,
 	provisionerFactories map[string]provisioners.Factory,
-) PluginManager {
+) Plugins {
+	return &plugins{
+		providerFactories:    providerFactories,
+		provisionerFactories: provisionerFactories,
+	}
+}
+
+func (p *plugins) HasProvider(addr addrs.Provider) bool {
+	_, ok := p.providerFactories[addr]
+	return ok
+}
+
+func (p *plugins) HasProvisioner(typ string) bool {
+	_, ok := p.provisionerFactories[typ]
+	return ok
+}
+
+func (p *plugins) Schemas(ctx context.Context) PluginSchemas {
+	return struct {
+		ProvisionerSchemas
+		ProviderSchemas
+	}{
+		ProvisionerSchemas: NewProvisionerManager(p.provisionerFactories),
+		ProviderSchemas:    NewProviderManager(ctx, p.providerFactories),
+	}
+}
+
+func (p *plugins) Manager(ctx context.Context) PluginManager {
 	return struct {
 		ProvisionerManager
 		ProviderManager
 	}{
-		ProvisionerManager: NewProvisionerManager(provisionerFactories),
-		ProviderManager:    NewProviderManager(ctx, providerFactories),
+		ProvisionerManager: NewProvisionerManager(p.provisionerFactories),
+		ProviderManager:    NewProviderManager(ctx, p.providerFactories),
 	}
 }
