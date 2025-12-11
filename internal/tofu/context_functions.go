@@ -15,17 +15,18 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // This builds a provider function using an EvalContext and some additional information
 // This is split out of BuiltinEvalContext for testing
-func evalContextProviderFunction(ctx context.Context, provider providers.Interface, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+func evalContextProviderFunction(ctx context.Context, providers plugins.ProviderManager, providerAddr addrs.AbsProviderInstanceCorrect, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First try to look up the function from provider schema
-	schema := provider.GetProviderSchema(ctx)
+	schema := providers.GetProviderSchema(ctx, providerAddr.Config.Config.Provider)
 	if schema.Diagnostics.HasErrors() {
 		return nil, schema.Diagnostics
 	}
@@ -54,7 +55,7 @@ func evalContextProviderFunction(ctx context.Context, provider providers.Interfa
 		}
 
 		// The provider may be configured and present additional functions via GetFunctions
-		specs := provider.GetFunctions(ctx)
+		specs := providers.GetFunctions(ctx, providerAddr)
 		if specs.Diagnostics.HasErrors() {
 			return nil, specs.Diagnostics
 		}
@@ -71,7 +72,7 @@ func evalContextProviderFunction(ctx context.Context, provider providers.Interfa
 		}
 	}
 
-	fn := providerFunction(ctx, pf.Function, spec, provider)
+	fn := providerFunction(ctx, pf.Function, spec, providers, providerAddr)
 
 	return &fn, nil
 
@@ -80,7 +81,7 @@ func evalContextProviderFunction(ctx context.Context, provider providers.Interfa
 // Turn a provider function spec into a cty callable function
 // This will use the instance factory to get a provider to support the
 // function call.
-func providerFunction(ctx context.Context, name string, spec providers.FunctionSpec, provider providers.Interface) function.Function {
+func providerFunction(ctx context.Context, name string, spec providers.FunctionSpec, pm plugins.ProviderManager, providerAddr addrs.AbsProviderInstanceCorrect) function.Function {
 	params := make([]function.Parameter, len(spec.Parameters))
 	for i, param := range spec.Parameters {
 		params[i] = providerFunctionParameter(param)
@@ -93,17 +94,14 @@ func providerFunction(ctx context.Context, name string, spec providers.FunctionS
 	}
 
 	impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		resp := provider.CallFunction(ctx, providers.CallFunctionRequest{
-			Name:      name,
-			Arguments: args,
-		})
+		result, err := pm.CallFunction(ctx, providerAddr, name, args)
 
-		if argError, ok := resp.Error.(*providers.CallFunctionArgumentError); ok {
+		if argError, ok := err.(*providers.CallFunctionArgumentError); ok {
 			// Convert ArgumentError to cty error
-			return resp.Result, function.NewArgError(argError.FunctionArgument, errors.New(argError.Text))
+			return result, function.NewArgError(argError.FunctionArgument, errors.New(argError.Text))
 		}
 
-		return resp.Result, resp.Error
+		return result, err
 	}
 
 	return function.New(&function.Spec{

@@ -66,7 +66,7 @@ func (b *Local) opRefresh(
 	op.PlanRefresh = true
 
 	// Get our context
-	lr, _, opState, contextDiags := b.localRun(ctx, op)
+	lr, _, opState, contextDiags := b.localRun(ctx, op, stopCtx)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)

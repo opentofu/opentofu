@@ -22,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
@@ -130,16 +129,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provisioner, err := evalCtx.Provisioner(p.Type)
-	if err != nil {
-		diags = diags.Append(err)
-		return diags
-	}
-
-	if provisioner == nil {
-		return diags.Append(fmt.Errorf("provisioner %s not initialized", p.Type))
-	}
-	provisionerSchema, err := evalCtx.ProvisionerSchema(p.Type)
+	provisionerSchema, err := evalCtx.Provisioners().ProvisionerSchema(p.Type)
 	if err != nil {
 		return diags.Append(fmt.Errorf("failed to read schema for provisioner %s: %w", p.Type, err))
 	}
@@ -158,12 +148,8 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 
 	// Use unmarked value for validate request
 	unmarkedConfigVal, _ := configVal.UnmarkDeep()
-	req := provisioners.ValidateProvisionerConfigRequest{
-		Config: unmarkedConfigVal,
-	}
-
-	resp := provisioner.ValidateProvisionerConfig(req)
-	diags = diags.Append(resp.Diagnostics)
+	valDiags := evalCtx.Provisioners().ValidateProvisionerConfig(ctx, p.Type, unmarkedConfigVal)
+	diags = diags.Append(valDiags)
 
 	if p.Connection != nil {
 		// We can't comprehensively validate the connection config since its
@@ -186,12 +172,6 @@ func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx Eva
 
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
-	diags = diags.Append(err)
-	if diags.HasErrors() {
-		return diags
-	}
 
 	keyData := EvalDataForNoInstanceKey
 
@@ -256,129 +236,67 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	// because the ProviderAddr for the resource isn't available on the EvalValidate
 	// struct.
 
-	// Provider entry point varies depending on resource mode, because
-	// managed resources and data resources are two distinct concepts
-	// in the provider abstraction.
-	switch n.Config.Mode {
-	case addrs.ManagedResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
-			suggestion := n.noResourceSchemaSuggestion(providerSchema)
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid resource type",
-				Detail:   fmt.Sprintf("The provider %s does not support resource type %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
-				Subject:  &n.Config.TypeRange,
-			})
-			return diags
-		}
+	providerSchema := evalCtx.Providers().GetProviderSchema(ctx, n.ResolvedProvider.ProviderConfig.Provider)
+	diags = diags.Append(providerSchema.Diagnostics)
+	if diags.HasErrors() {
+		return diags
+	}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
-		if valDiags.HasErrors() {
-			return diags
-		}
+	schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+	if schema == nil {
+		suggestion := n.noResourceSchemaSuggestion(providerSchema)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Invalid %s type", n.Config.Mode.HumanString()),
+			Detail:   fmt.Sprintf("The provider %s does not support %s type %q.%s", n.Provider().ForDisplay(), n.Config.Mode.HumanString(), n.Config.Type, suggestion),
+			Subject:  &n.Config.TypeRange,
+		})
+		return diags
+	}
 
-		if n.Config.Managed != nil { // can be nil only in tests with poorly-configured mocks
-			for _, traversal := range n.Config.Managed.IgnoreChanges {
-				// validate the ignore_changes traversals apply.
-				moreDiags := schema.StaticValidateTraversal(traversal)
-				diags = diags.Append(moreDiags)
+	configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+	diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
+	if valDiags.HasErrors() {
+		return diags
+	}
 
-				// ignore_changes cannot be used for Computed attributes,
-				// unless they are also Optional.
-				// If the traversal was valid, convert it to a cty.Path and
-				// use that to check whether the Attribute is Computed and
-				// non-Optional.
-				if !diags.HasErrors() {
-					path := traversalToPath(traversal)
+	if n.Config.Managed != nil { // can be nil only in tests with poorly-configured mocks
+		for _, traversal := range n.Config.Managed.IgnoreChanges {
+			// validate the ignore_changes traversals apply.
+			moreDiags := schema.StaticValidateTraversal(traversal)
+			diags = diags.Append(moreDiags)
 
-					attrSchema := schema.AttributeByPath(path)
+			// ignore_changes cannot be used for Computed attributes,
+			// unless they are also Optional.
+			// If the traversal was valid, convert it to a cty.Path and
+			// use that to check whether the Attribute is Computed and
+			// non-Optional.
+			if !diags.HasErrors() {
+				path := traversalToPath(traversal)
 
-					if attrSchema != nil && !attrSchema.Optional && attrSchema.Computed {
-						// ignore_changes uses absolute traversal syntax in config despite
-						// using relative traversals, so we strip the leading "." added by
-						// FormatCtyPath for a better error message.
-						attrDisplayPath := strings.TrimPrefix(tfdiags.FormatCtyPath(path), ".")
+				attrSchema := schema.AttributeByPath(path)
 
-						diags = diags.Append(&hcl.Diagnostic{
-							Severity: hcl.DiagWarning,
-							Summary:  "Redundant ignore_changes element",
-							Detail:   fmt.Sprintf("Adding an attribute name to ignore_changes tells OpenTofu to ignore future changes to the argument in configuration after the object has been created, retaining the value originally configured.\n\nThe attribute %s is decided by the provider alone and therefore there can be no configured value to compare with. Including this attribute in ignore_changes has no effect. Remove the attribute from ignore_changes to quiet this warning.", attrDisplayPath),
-							Subject:  &n.Config.TypeRange,
-						})
-					}
+				if attrSchema != nil && !attrSchema.Optional && attrSchema.Computed {
+					// ignore_changes uses absolute traversal syntax in config despite
+					// using relative traversals, so we strip the leading "." added by
+					// FormatCtyPath for a better error message.
+					attrDisplayPath := strings.TrimPrefix(tfdiags.FormatCtyPath(path), ".")
+
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagWarning,
+						Summary:  "Redundant ignore_changes element",
+						Detail:   fmt.Sprintf("Adding an attribute name to ignore_changes tells OpenTofu to ignore future changes to the argument in configuration after the object has been created, retaining the value originally configured.\n\nThe attribute %s is decided by the provider alone and therefore there can be no configured value to compare with. Including this attribute in ignore_changes has no effect. Remove the attribute from ignore_changes to quiet this warning.", attrDisplayPath),
+						Subject:  &n.Config.TypeRange,
+					})
 				}
 			}
 		}
-
-		// Use unmarked value for validate request
-		unmarkedConfigVal, _ := configVal.UnmarkDeep()
-		req := providers.ValidateResourceConfigRequest{
-			TypeName: n.Config.Type,
-			Config:   unmarkedConfigVal,
-		}
-
-		resp := provider.ValidateResourceConfig(ctx, req)
-		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
-
-	case addrs.DataResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
-			suggestion := n.noResourceSchemaSuggestion(providerSchema)
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid data source",
-				Detail:   fmt.Sprintf("The provider %s does not support data source %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
-				Subject:  &n.Config.TypeRange,
-			})
-			return diags
-		}
-
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
-		if valDiags.HasErrors() {
-			return diags
-		}
-
-		// Use unmarked value for validate request
-		unmarkedConfigVal, _ := configVal.UnmarkDeep()
-		req := providers.ValidateDataResourceConfigRequest{
-			TypeName: n.Config.Type,
-			Config:   unmarkedConfigVal,
-		}
-
-		resp := provider.ValidateDataResourceConfig(ctx, req)
-		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
-	case addrs.EphemeralResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
-			suggestion := n.noResourceSchemaSuggestion(providerSchema)
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid ephemeral resource",
-				Detail:   fmt.Sprintf("The provider %s does not support ephemeral resource %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
-				Subject:  &n.Config.TypeRange,
-			})
-			return diags
-		}
-
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags)
-		if valDiags.HasErrors() {
-			return diags
-		}
-
-		// Use unmarked value for validate request
-		unmarkedConfigVal, _ := configVal.UnmarkDeep()
-		req := providers.ValidateEphemeralConfigRequest{
-			TypeName: n.Config.Type,
-			Config:   unmarkedConfigVal,
-		}
-
-		resp := provider.ValidateEphemeralConfig(ctx, req)
-		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 	}
+
+	// Use unmarked value for validate request
+	unmarkedConfigVal, _ := configVal.UnmarkDeep()
+	resp := evalCtx.Providers().ValidateResourceConfig(ctx, n.ResolvedProvider.ProviderConfig.Provider, n.Config.Mode, n.Config.Type, unmarkedConfigVal)
+	diags = diags.Append(resp.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	return diags
 }

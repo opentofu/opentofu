@@ -222,10 +222,6 @@ func (n *nodeCloseModule) Execute(_ context.Context, evalCtx EvalContext, op wal
 		return
 	}
 
-	// If this is the root module, we are cleaning up the walk, so close
-	// any running provisioners
-	diags = diags.Append(evalCtx.CloseProvisioners())
-
 	switch op {
 	case walkApply, walkDestroy:
 		state := evalCtx.State().Lock()

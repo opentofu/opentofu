@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/refactoring"
@@ -186,39 +187,12 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {
-	c.InitProviderCalled = true
-	c.InitProviderType = addr.String()
-	c.InitProviderAddr = addr
-	return c.InitProviderProvider, c.InitProviderError
+func (m *MockEvalContext) Providers() plugins.ProviderManager {
+	panic("not implemented") // TODO: Implement
 }
 
-func (c *MockEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) providers.Interface {
-	c.ProviderCalled = true
-	c.ProviderAddr = addr
-	return c.ProviderProvider
-}
-
-func (c *MockEvalContext) ProviderSchema(_ context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	c.ProviderSchemaCalled = true
-	c.ProviderSchemaAddr = addr
-	return c.ProviderSchemaSchema, c.ProviderSchemaError
-}
-
-func (c *MockEvalContext) CloseProvider(_ context.Context, addr addrs.AbsProviderConfig) error {
-	c.CloseProviderCalled = true
-	c.CloseProviderAddr = addr
-	return nil
-}
-
-func (c *MockEvalContext) ConfigureProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-	c.ConfigureProviderCalled = true
-	c.ConfigureProviderAddr = addr
-	c.ConfigureProviderConfig = cfg
-	if c.ConfigureProviderFn != nil {
-		return c.ConfigureProviderFn(addr, cfg)
-	}
-	return c.ConfigureProviderDiags
+func (m *MockEvalContext) Provisioners() plugins.ProvisionerManager {
+	panic("not implemented") // TODO: Implement
 }
 
 func (c *MockEvalContext) ProviderInput(_ context.Context, addr addrs.AbsProviderConfig) map[string]cty.Value {
@@ -231,18 +205,6 @@ func (c *MockEvalContext) SetProviderInput(_ context.Context, addr addrs.AbsProv
 	c.SetProviderInputCalled = true
 	c.SetProviderInputAddr = addr
 	c.SetProviderInputValues = vals
-}
-
-func (c *MockEvalContext) Provisioner(n string) (provisioners.Interface, error) {
-	c.ProvisionerCalled = true
-	c.ProvisionerName = n
-	return c.ProvisionerProvisioner, nil
-}
-
-func (c *MockEvalContext) ProvisionerSchema(n string) (*configschema.Block, error) {
-	c.ProvisionerSchemaCalled = true
-	c.ProvisionerSchemaName = n
-	return c.ProvisionerSchemaSchema, c.ProvisionerSchemaError
 }
 
 func (c *MockEvalContext) CloseProvisioners() error {

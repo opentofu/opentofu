@@ -39,11 +39,11 @@ func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.L
 
 	op.StateLocker = op.StateLocker.WithContext(context.Background())
 
-	lr, _, stateMgr, diags := b.localRun(ctx, op)
+	lr, _, stateMgr, diags := b.localRun(ctx, op, ctx)
 	return lr, stateMgr, diags
 }
 
-func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
+func (b *Local) localRun(ctx context.Context, op *backend.Operation, stopCtx context.Context) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Get the latest state.
@@ -100,7 +100,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 			stateMeta = &m
 		}
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun from plan file")
-		ret, configSnap, ctxDiags = b.localRunForPlanFile(ctx, op, lp, ret, &coreOpts, stateMeta)
+		ret, configSnap, ctxDiags = b.localRunForPlanFile(ctx, op, lp, ret, &coreOpts, stateMeta, stopCtx)
 		if ctxDiags.HasErrors() {
 			diags = diags.Append(ctxDiags)
 			return nil, nil, nil, diags
@@ -111,7 +111,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		op.ConfigLoader.ImportSourcesFromSnapshot(configSnap)
 	} else {
 		log.Printf("[TRACE] backend/local: populating backend.LocalRun for current working directory")
-		ret, configSnap, ctxDiags = b.localRunDirect(ctx, op, ret, &coreOpts, s)
+		ret, configSnap, ctxDiags = b.localRunDirect(ctx, op, ret, &coreOpts, s, stopCtx)
 	}
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
@@ -144,7 +144,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	return ret, configSnap, s, diags
 }
 
-func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *backend.LocalRun, coreOpts *tofu.ContextOpts, s statemgr.Full, stopCtx context.Context) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the configuration using the caller-provided configuration loader.
@@ -226,7 +226,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	}
 	run.InputState = state
 
-	tfCtx, moreDiags := tofu.NewContext(coreOpts)
+	tfCtx, moreDiags := tofu.NewContext(stopCtx, coreOpts)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags
@@ -235,7 +235,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	return run, configSnap, diags
 }
 
-func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
+func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, pf *planfile.Reader, run *backend.LocalRun, coreOpts *tofu.ContextOpts, currentStateMeta *statemgr.SnapshotMeta, stopCtx context.Context) (*backend.LocalRun, *configload.Snapshot, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	const errSummary = "Invalid plan file"
@@ -370,7 +370,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	// refreshing we did while building the plan.
 	run.InputState = priorStateFile.State
 
-	tfCtx, moreDiags := tofu.NewContext(coreOpts)
+	tfCtx, moreDiags := tofu.NewContext(stopCtx, coreOpts)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags

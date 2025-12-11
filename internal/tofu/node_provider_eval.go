@@ -8,7 +8,6 @@ package tofu
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -24,6 +23,6 @@ var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
 
 // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	_, err := evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
-	return diags.Append(err)
+	// TODO remove me
+	return nil
 }

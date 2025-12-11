@@ -1107,8 +1107,11 @@ func TestApply_shutdown(t *testing.T) {
 		},
 	}
 
+	var closer sync.Once
 	p.StopFn = func() error {
-		close(cancelled)
+		closer.Do(func() {
+			close(cancelled)
+		})
 		return nil
 	}
 

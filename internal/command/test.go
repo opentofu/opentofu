@@ -701,7 +701,7 @@ func (runner *TestFileRunner) validate(ctx context.Context, config *configs.Conf
 
 	var diags tfdiags.Diagnostics
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(ctx, runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return diags
@@ -759,7 +759,7 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 		SetVariables: variables,
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(ctx, runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return state, diags
@@ -836,7 +836,7 @@ func (runner *TestFileRunner) plan(ctx context.Context, config *configs.Config, 
 		ExternalReferences: references,
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(ctx, runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, nil, diags
@@ -891,7 +891,7 @@ func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state
 		created = append(created, change)
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(ctx, runner.Suite.Opts)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, state, diags

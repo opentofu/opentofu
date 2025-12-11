@@ -144,15 +144,15 @@ func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProvide
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}
-	provider := evalCtx.Provider(ctx, addr, providerKey)
+	provider := evalCtx.Providers().ConfiguredProvider(addr.InstanceCorrect(providerKey))
 	if provider == nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
-	schema, err := evalCtx.ProviderSchema(ctx, addr)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", addr, err)
+	schema := evalCtx.Providers().GetProviderSchema(ctx, addr.Provider)
+	if schema.Diagnostics.HasErrors() {
+		return nil, providers.ProviderSchema{}, schema.Diagnostics.Err()
 	}
 	return provider, schema, nil
 }

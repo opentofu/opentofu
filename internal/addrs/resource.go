@@ -579,3 +579,16 @@ func ResourceModeBlockName(rm ResourceMode) string {
 		return "unknown"
 	}
 }
+
+func (r ResourceMode) HumanString() string {
+	switch r {
+	case ManagedResourceMode:
+		return "resource"
+	case DataResourceMode:
+		return "data source"
+	case EphemeralResourceMode:
+		return "ephemeral resource"
+	default:
+		return "unknown"
+	}
+}
