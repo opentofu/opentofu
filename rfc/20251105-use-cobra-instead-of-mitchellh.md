@@ -249,9 +249,15 @@ a lot to be done around details of this:
 * cleanup provider clients
 * Suggestions for misspelled commands. Something like [this](https://github.com/spf13/cobra/commit/046a67325286b5e4d7c95b1d501ea1cd5ba43600)
 
-We might consider to include [opentofu#3050](https://github.com/opentofu/opentofu/issues/3050) under these
+We might consider including [opentofu#3050](https://github.com/opentofu/opentofu/issues/3050) under these
 changes too.
-``
+
+When implementing this, we might want to consider having this under an experimental
+flag that will allow users to opt-in the new CLI integration for one minor version,
+and in the next minor version, we can change the meaning of the experimental flag from
+enabling the new CLI to enable the old CLI, making the new implementation the default
+one.
+
 ## Potential Alternatives
 * Do not migrate to a new library and try to do the most we can by forking the existing ones
   and just add the missing features
