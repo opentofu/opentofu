@@ -20,6 +20,15 @@ type ResultRef[T any] interface {
 	AnyResultRef
 }
 
+// ResourceInstanceResultRef is an alias for the [ResultRef] type used when
+// reporting the final result of applying changes to a resource instance
+// object.
+//
+// We give this its own name just because this particular result type tends
+// to be named in function signatures elsewhere in the system and the
+// simple name is (subjectively) easier to read than the generic name.
+type ResourceInstanceResultRef = ResultRef[*states.ResourceInstanceObjectFull]
+
 // AnyResultRef is a type-erased [ResultRef], for data
 // structures that only need to represent the relationships between results
 // and not the types of those results.
