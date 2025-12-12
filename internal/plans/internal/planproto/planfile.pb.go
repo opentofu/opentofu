@@ -422,6 +422,23 @@ type Plan struct {
 	// EphemeralVariables records the ephemeral variables later used
 	// be able to validate the values for these during the apply command.
 	EphemeralVariables []string `protobuf:"bytes,22,rep,name=ephemeral_variables,json=ephemeralVariables,proto3" json:"ephemeral_variables,omitempty"`
+	// TempExecutionGraph is a temporary addition for the "walking skeleton"
+	// phase of implementing the new language runtime, and in particular
+	// the internal/engine packages. It's always unset when using the
+	// traditional OpenTofu runtime, because in that case the equivalent
+	// of the execution graph is recalculated from all of the other fields
+	// above during the apply phase.
+	//
+	// It has an ridiculous high field number because we're expecting to
+	// remove it later once we have a final design for how to implement
+	// saved plans for the new runtime, and this field number is unlikely
+	// to get reused later even if we don't explicitly "reserve" it. We
+	// don't technically need to worry about that anyway since we don't
+	// allow sharing plan files between different OpenTofu versions, but
+	// this'll make absolutely sure we don't accidentally overload this
+	// number in any version that's close to the one where this eventually
+	// gets removed.
+	TempExecutionGraph []byte `protobuf:"bytes,500000000,opt,name=temp_execution_graph,json=tempExecutionGraph,proto3" json:"temp_execution_graph,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -564,6 +581,13 @@ func (x *Plan) GetTimestamp() string {
 func (x *Plan) GetEphemeralVariables() []string {
 	if x != nil {
 		return x.EphemeralVariables
+	}
+	return nil
+}
+
+func (x *Plan) GetTempExecutionGraph() []byte {
+	if x != nil {
+		return x.TempExecutionGraph
 	}
 	return nil
 }
@@ -1353,7 +1377,7 @@ var File_planfile_proto protoreflect.FileDescriptor
 
 const file_planfile_proto_rawDesc = "" +
 	"\n" +
-	"\x0eplanfile.proto\x12\x06tfplan\"\xb5\a\n" +
+	"\x0eplanfile.proto\x12\x06tfplan\"\xeb\a\n" +
 	"\x04Plan\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12%\n" +
 	"\aui_mode\x18\x11 \x01(\x0e2\f.tfplan.ModeR\x06uiMode\x12\x18\n" +
@@ -1370,7 +1394,8 @@ const file_planfile_proto_rawDesc = "" +
 	"\abackend\x18\r \x01(\v2\x0f.tfplan.BackendR\abackend\x12K\n" +
 	"\x13relevant_attributes\x18\x0f \x03(\v2\x1a.tfplan.Plan.resource_attrR\x12relevantAttributes\x12\x1c\n" +
 	"\ttimestamp\x18\x15 \x01(\tR\ttimestamp\x12/\n" +
-	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x1aR\n" +
+	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x124\n" +
+	"\x14temp_execution_graph\x18\x80ʵ\xee\x01 \x01(\fR\x12tempExecutionGraph\x1aR\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x05value:\x028\x01\x1aM\n" +
