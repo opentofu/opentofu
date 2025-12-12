@@ -5,9 +5,7 @@
 
 package tofu
 
-import (
-	"context"
-)
+import "context"
 
 // TransitiveReductionTransformer is a GraphTransformer that
 // finds the transitive reduction of the graph. For a definition of
