@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -54,6 +55,19 @@ type ResourceInstance struct {
 	// that arise dynamically during evaluation but whose results vary based
 	// on concerns that our outside this package's scope.
 	Glue ResourceInstanceGlue
+
+	// value memoizes the result from [ResourceInstance.Value] so that we'll
+	// definitely return a consistent value to every call without re-running
+	// whatever logic is behind the [ResourceInstance.Glue] implementation,
+	// which might involve side-effects that could produce different results
+	// on each call.
+	//
+	// Anything accessing value must hold valueLock.
+	value struct {
+		v     cty.Value
+		diags tfdiags.Diagnostics
+	}
+	valueLock sync.Mutex
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)
@@ -71,7 +85,25 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 }
 
 // Value implements exprs.Valuer.
-func (ri *ResourceInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
+	ri.valueLock.Lock()
+	if ri.value.v != cty.NilVal {
+		ri.valueLock.Unlock()
+		// once ri.value.v is non-nil ri.value is never written again, so we can
+		// safely access it without holding the lock here.
+		return ri.value.v, ri.value.diags
+	}
+	defer func() {
+		ri.value = struct {
+			v     cty.Value
+			diags tfdiags.Diagnostics
+		}{
+			v:     v,
+			diags: diags,
+		}
+		ri.valueLock.Unlock()
+	}()
+
 	// TODO: Preconditions? Or should that be handled in the parent [Resource]
 	// before we even attempt instance expansion? (Need to check the current
 	// behavior in the existing system, to see whether preconditions guard
