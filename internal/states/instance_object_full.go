@@ -84,6 +84,9 @@ func (s *SyncState) ResourceInstanceObjectFull(addr addrs.AbsResourceInstance, d
 	defer s.lock.RUnlock()
 
 	rsrc := s.state.Resource(addr.ContainingResource())
+	if rsrc == nil {
+		return nil
+	}
 	inst := rsrc.Instances[addr.Resource.Key]
 	if inst == nil {
 		return nil
