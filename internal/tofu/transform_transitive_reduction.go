@@ -7,7 +7,6 @@ package tofu
 
 import (
 	"context"
-	"fmt"
 )
 
 // TransitiveReductionTransformer is a GraphTransformer that
@@ -19,7 +18,6 @@ func (t *TransitiveReductionTransformer) Transform(_ context.Context, g *Graph) 
 	// If the graph isn't valid, skip the transitive reduction.
 	// We don't error here because OpenTofu itself handles graph
 	// validation in a better way, or we assume it does.
-	fmt.Println("We are in TransitiveReduction")
 	if err := g.Validate(); err != nil {
 		return nil
 	}
