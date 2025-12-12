@@ -312,7 +312,7 @@ func (b *Builder) ManagedResourceObjectFinalPlan(
 func (b *Builder) ApplyManagedResourceObjectChanges(
 	finalPlan ResultRef[*ManagedResourceObjectFinalPlan],
 	providerClient ResultRef[providers.Configured],
-) ResultRef[*states.ResourceInstanceObjectFull] {
+) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -326,7 +326,7 @@ func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	providerClient ResultRef[providers.Configured],
 	waitFor AnyResultRef,
-) ResultRef[*states.ResourceInstanceObjectFull] {
+) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -345,7 +345,7 @@ func (b *Builder) DataRead(
 // Only one call is allowed per distinct [addrs.AbsResourceInstance] value. If
 // two callers try to register for the same address then the second call will
 // panic.
-func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result ResultRef[*states.ResourceInstanceObjectFull]) {
+func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result ResourceInstanceResultRef) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
