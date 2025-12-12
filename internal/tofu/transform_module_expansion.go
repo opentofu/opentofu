@@ -67,6 +67,18 @@ func (t *ModuleExpansionTransformer) Transform(_ context.Context, g *Graph) erro
 		case *nodeCloseModule:
 			// a module closer cannot connect to itself
 			continue
+		case *nodeExpandCheck, *nodeReportCheck, *nodeCheckAssert:
+			// Check nodes are observational and should not block module
+			// completion for depends_on purposes. This prevents cycles when
+			// a module with checks is referenced via depends_on by another
+			// module. Checks don't produce values that other modules could
+			// depend on, so it's safe to exclude them from module ordering.
+			continue
+		}
+
+		// Also skip data sources nested inside check blocks for the same reason.
+		if t.isNestedCheckDataSource(v) {
+			continue
 		}
 
 		// any node that executes within the scope of a module should be a
@@ -234,4 +246,32 @@ func (t *pathTree) find(addr []string) dag.Set {
 	}
 
 	return child.find(addr)
+}
+
+// isNestedCheckDataSource returns true if the vertex represents a data source
+// that is nested inside a check block. Such data sources are observational
+// and should not participate in module dependency ordering.
+func (t *ModuleExpansionTransformer) isNestedCheckDataSource(v dag.Vertex) bool {
+	// Try to get the Config from various node types that embed NodeAbstractResource
+	var config *configs.Resource
+
+	switch n := v.(type) {
+	case *NodeValidatableResource:
+		config = n.Config
+	case *nodeExpandPlannableResource:
+		config = n.Config
+	case *nodeExpandApplyableResource:
+		config = n.Config
+	case *NodePlannableResourceInstance:
+		config = n.Config
+	case *NodeApplyableResourceInstance:
+		config = n.Config
+	}
+
+	if config != nil && config.Container != nil {
+		_, isCheck := config.Container.(*configs.Check)
+		return isCheck
+	}
+
+	return false
 }

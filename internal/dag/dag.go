@@ -126,7 +126,6 @@ func (g *AcyclicGraph) Validate() error {
 
 	// Look for cycles of more than 1 component
 	var err error
-	fmt.Println("Checking cycles")
 	cycles := g.Cycles()
 	if len(cycles) > 0 {
 		for _, cycle := range cycles {

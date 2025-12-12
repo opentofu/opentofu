@@ -7,7 +7,6 @@ package tofu
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -65,7 +64,6 @@ func (b *BasicGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance
 		}
 	}
 
-	fmt.Println("We are in graph_builder.go, calling Validte")
 	if err := g.Validate(); err != nil {
 		log.Printf("[ERROR] Graph validation failed. Graph:\n\n%s", g.String())
 		diags = diags.Append(err)

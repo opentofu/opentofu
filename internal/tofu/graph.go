@@ -101,7 +101,6 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 			if g != nil {
 				// The subgraph should always be valid, per our normal acyclic
 				// graph validation rules.
-				fmt.Println("we are in walk fxn, calling Validate")
 				if err := g.Validate(); err != nil {
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
