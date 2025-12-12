@@ -9,9 +9,11 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/lifecycle"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -21,8 +23,15 @@ import (
 // implementation [planGlue], through which the evaluator calls us to ask for
 // planning results.
 type planContext struct {
-	evalCtx        *eval.EvalContext
-	plannedChanges *plans.ChangesSync
+	evalCtx *eval.EvalContext
+
+	// Currently we have an odd blend of old and new here as we start to
+	// introduce the new "execgraph" concept. So far we're still _mainly_
+	// using the plannedChanges field but we're also experimentally populating
+	// an execution graph just to learn what's missing in that API in order
+	// for us to transition over to it properly.
+	plannedChanges   *plans.ChangesSync
+	execgraphBuilder *execgraph.Builder
 
 	// TODO: The following should probably track a reason why each resource
 	// instance was deferred, but since deferral is not the focus of this
@@ -57,9 +66,12 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 
 	completion := lifecycle.NewCompletionTracker[completionEvent]()
 
+	execgraphBuilder := execgraph.NewBuilder()
+
 	return &planContext{
 		evalCtx:           evalCtx,
 		plannedChanges:    changes.SyncWrapper(),
+		execgraphBuilder:  execgraphBuilder,
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),
 		completion:        completion,
@@ -84,8 +96,17 @@ func (p *planContext) Close() *plans.Plan {
 		p.completion.ReportCompletion(event)
 	}
 
+	// We'll freeze the execution graph into a serialized form here, so that
+	// we can recover an equivalent execution graph again during the apply
+	// phase.
+	execGraph := p.execgraphBuilder.Finish()
+	if logging.IsDebugOrHigher() {
+		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
+	}
+	execGraphOpaque := execGraph.Marshal()
+
 	return &plans.Plan{
-		UIMode:       plans.NormalMode, // TODO: This PlanChanges function needs something analogous to [tofu.PlanOpts] for planning mode/options
+		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
 		Changes:      p.plannedChanges.Close(),
 		PrevRunState: p.prevRoundState,
 		PriorState:   p.refreshedState.Close(),
@@ -93,5 +114,11 @@ func (p *planContext) Close() *plans.Plan {
 		// of this plan result. But this is intentionally just a partial
 		// result for now because it's not clear that we'd even be using
 		// plans.Plan in a final version of this new approach.
+
+		// This is a special extra field used only by this new runtime,
+		// as a probably-temporary place to keep the serialized execution
+		// graph so we can round-trip it through saved plan files while
+		// the CLI layer is still working in terms of [plans.Plan].
+		ExecutionGraph: execGraphOpaque,
 	}
 }

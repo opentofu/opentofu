@@ -12,13 +12,14 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
@@ -26,13 +27,13 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
-		return cty.DynamicVal, diags
+		return cty.DynamicVal, nil, diags
 	}
 
 	if inst.ProviderInstance == nil {
 		// TODO: Record that this was deferred because we don't yet know which
 		// provider instance it belongs to.
-		return deferredVal(cty.DynamicVal), diags
+		return deferredVal(cty.DynamicVal), nil, diags
 	}
 
 	// TODO: There are various other reasons why we might need to defer planning
@@ -65,7 +66,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return cty.DynamicVal, diags
+		return cty.DynamicVal, nil, diags
 	}
 
 	resp := providerClient.ReadDataSource(ctx, providers.ReadDataSourceRequest{
@@ -76,14 +77,14 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if resp.Diagnostics.HasErrors() {
-		return cty.DynamicVal, diags
+		return cty.DynamicVal, nil, diags
 	}
 
 	// TODO: Implement
 	panic("unimplemented")
 }
 
-func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 	var diags tfdiags.Diagnostics

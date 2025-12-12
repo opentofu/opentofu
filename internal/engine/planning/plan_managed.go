@@ -12,6 +12,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -20,7 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (plannedVal cty.Value, diags tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (plannedVal cty.Value, applyResultRef execgraph.ResourceInstanceResultRef, diags tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 
@@ -63,13 +64,13 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 			),
 			nil, // this error belongs to the whole resource config
 		))
-		return cty.DynamicVal, diags
+		return cty.DynamicVal, nil, diags
 	}
 
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
-		return cty.DynamicVal, diags
+		return cty.DynamicVal, nil, diags
 	}
 
 	var prevRoundVal cty.Value
@@ -87,7 +88,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 				),
 				nil, // this error belongs to the whole resource config
 			))
-			return cty.DynamicVal, diags
+			return cty.DynamicVal, nil, diags
 		}
 		prevRoundVal = obj.Value
 		prevRoundPrivate = obj.Private
@@ -116,7 +117,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we'll just return a placeholder value, because
 		// we don't have any way to generate a speculative plan.
-		return proposedNewVal, diags
+		return proposedNewVal, nil, diags
 	}
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
@@ -130,7 +131,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return proposedNewVal, diags
+		return proposedNewVal, nil, diags
 	}
 
 	// TODO: If inst.IgnoreChangesPaths has any entries then we need to
@@ -171,7 +172,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	}
 	diags = diags.Append(planResp.Diagnostics)
 	if planResp.Diagnostics.HasErrors() {
-		return proposedNewVal, diags
+		return proposedNewVal, nil, diags
 	}
 
 	// TODO: Check for resp.Deferred once we've updated package providers to
@@ -215,15 +216,39 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		// TODO: Make a proper error diagnostic for this, like the original
 		// runtime does.
 		diags = diags.Append(err)
-		return planResp.PlannedState, diags
+		return planResp.PlannedState, nil, diags
 	}
 	p.planCtx.plannedChanges.AppendResourceInstanceChange(plannedChangeSrc)
 
+	// The following is a placeholder for execgraph construction, which isn't
+	// fully wired in yet but is here just to help us understand whether we
+	// have enough graph builder and execgraph functionality for this to switch
+	// to using execution graphs more completely in later work.
+	//
+	// FIXME: If this is one of the "replace" actions then we need to generate
+	// a more complex graph that has two pairs of "final plan" and "apply".
+	providerClientRef, closeProviderAfter := egb.ProviderInstance(*inst.ProviderInstance, egb.Waiter())
+	priorStateRef := egb.ResourceInstancePriorState(inst.Addr)
+	plannedValRef := egb.ConstantValue(planResp.PlannedState)
+	desiredInstRef := egb.DesiredResourceInstance(inst.Addr)
+	finalPlanRef := egb.ManagedResourceObjectFinalPlan(
+		desiredInstRef,
+		priorStateRef,
+		plannedValRef,
+		providerClientRef,
+		egb.Waiter( /* TODO: The final result refs for all of the other resource instances we depend on. */ ),
+	)
+	finalResultRef := egb.ApplyManagedResourceObjectChanges(
+		finalPlanRef,
+		providerClientRef,
+	)
+	closeProviderAfter(finalResultRef)
+
 	// Our result value for ongoing downstream planning is the planned new state.
-	return planResp.PlannedState, diags
+	return planResp.PlannedState, finalResultRef, diags
 }
 
-func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 
@@ -231,7 +256,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr a
 	panic("unimplemented")
 }
 
-func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
+func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
 
