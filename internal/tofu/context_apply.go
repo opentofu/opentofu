@@ -242,7 +242,7 @@ func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *conf
 // use by the "tofu graph" command when asked to render an apply-time
 // graph.
 //
-// The result of this is intended only for rendering ot the user as a dot
+// The result of this is intended only for rendering to the user as a dot
 // graph, and so may change in future in order to make the result more useful
 // in that context, even if drifts away from the physical graph that OpenTofu
 // Core currently uses as an implementation detail of planning.
