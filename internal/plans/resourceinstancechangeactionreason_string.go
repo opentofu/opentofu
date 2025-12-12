@@ -23,8 +23,8 @@ func _() {
 	_ = x[ResourceInstanceReadBecauseConfigUnknown-63]
 	_ = x[ResourceInstanceReadBecauseDependencyPending-33]
 	_ = x[ResourceInstanceReadBecauseCheckNested-35]
-	_ = x[ResourceInstanceForgotBecauseOfLifecycleDestroyInState-88]
-	_ = x[ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig-89]
+	_ = x[ResourceInstanceForgotBecauseLifecycleDestroyInState-88]
+	_ = x[ResourceInstanceForgotBecauseLifecycleDestroyInConfig-89]
 }
 
 const (
@@ -37,13 +37,13 @@ const (
 	_ResourceInstanceChangeActionReason_name_6 = "ResourceInstanceDeleteBecauseEnabledFalseResourceInstanceDeleteBecauseNoModuleResourceInstanceDeleteBecauseNoResourceConfig"
 	_ResourceInstanceChangeActionReason_name_7 = "ResourceInstanceReplaceByRequest"
 	_ResourceInstanceChangeActionReason_name_8 = "ResourceInstanceReplaceBecauseTainted"
-	_ResourceInstanceChangeActionReason_name_9 = "ResourceInstanceDeleteBecauseWrongRepetitionResourceInstanceForgotBecauseOfLifecycleDestroyInStateResourceInstanceForgotBecauseOfLifecycleDestroyInConfig"
+	_ResourceInstanceChangeActionReason_name_9 = "ResourceInstanceDeleteBecauseWrongRepetitionResourceInstanceForgotBecauseLifecycleDestroyInStateResourceInstanceForgotBecauseLifecycleDestroyInConfig"
 )
 
 var (
 	_ResourceInstanceChangeActionReason_index_5 = [...]uint8{0, 39, 72, 108, 150}
 	_ResourceInstanceChangeActionReason_index_6 = [...]uint8{0, 41, 78, 123}
-	_ResourceInstanceChangeActionReason_index_9 = [...]uint8{0, 44, 98, 153}
+	_ResourceInstanceChangeActionReason_index_9 = [...]uint8{0, 44, 96, 149}
 )
 
 func (i ResourceInstanceChangeActionReason) String() string {

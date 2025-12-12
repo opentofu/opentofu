@@ -222,9 +222,9 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy", addr)
 		change = n.planForget(ctx, evalCtx, oldState, "")
 		if skipDestroy {
-			change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInConfig
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
 		} else if oldState.SkipDestroy {
-			change.ActionReason = plans.ResourceInstanceForgotBecauseOfLifecycleDestroyInState
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
 		}
 	}
 
@@ -233,10 +233,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		return diags
 	}
 
-	// We might be able to offer an approximate reason for why we are
-	// planning to delete this object. (This is best-effort; we might
+	// In case we haven't already set a reason for the action,
+	// we might be able to offer an approximate reason for why we are
+	// planning a certain action for this object. (This is best-effort; we might
 	// sometimes not have a reason.)
-	change.ActionReason = n.deleteActionReason(evalCtx)
+	if change.ActionReason == plans.ResourceInstanceChangeNoReason {
+		change.ActionReason = n.deleteActionReason(evalCtx)
+	}
 
 	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {

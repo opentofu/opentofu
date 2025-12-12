@@ -110,16 +110,18 @@ const (
 	ReasonCannotUpdate       ChangeReason = "cannot_update"
 	ReasonUnknown            ChangeReason = "unknown"
 
-	ReasonDeleteBecauseNoResourceConfig ChangeReason = "delete_because_no_resource_config"
-	ReasonDeleteBecauseWrongRepetition  ChangeReason = "delete_because_wrong_repetition"
-	ReasonDeleteBecauseCountIndex       ChangeReason = "delete_because_count_index"
-	ReasonDeleteBecauseEnabledFalse     ChangeReason = "delete_because_enabled_false"
-	ReasonDeleteBecauseEachKey          ChangeReason = "delete_because_each_key"
-	ReasonDeleteBecauseNoModule         ChangeReason = "delete_because_no_module"
-	ReasonDeleteBecauseNoMoveTarget     ChangeReason = "delete_because_no_move_target"
-	ReasonReadBecauseConfigUnknown      ChangeReason = "read_because_config_unknown"
-	ReasonReadBecauseDependencyPending  ChangeReason = "read_because_dependency_pending"
-	ReasonReadBecauseCheckNested        ChangeReason = "read_because_check_nested"
+	ReasonDeleteBecauseNoResourceConfig         ChangeReason = "delete_because_no_resource_config"
+	ReasonDeleteBecauseWrongRepetition          ChangeReason = "delete_because_wrong_repetition"
+	ReasonDeleteBecauseCountIndex               ChangeReason = "delete_because_count_index"
+	ReasonDeleteBecauseEnabledFalse             ChangeReason = "delete_because_enabled_false"
+	ReasonDeleteBecauseEachKey                  ChangeReason = "delete_because_each_key"
+	ReasonDeleteBecauseNoModule                 ChangeReason = "delete_because_no_module"
+	ReasonDeleteBecauseNoMoveTarget             ChangeReason = "delete_because_no_move_target"
+	ReasonReadBecauseConfigUnknown              ChangeReason = "read_because_config_unknown"
+	ReasonReadBecauseDependencyPending          ChangeReason = "read_because_dependency_pending"
+	ReasonReadBecauseCheckNested                ChangeReason = "read_because_check_nested"
+	ReasonForgotBecauseLifecycleDestroyInConfig ChangeReason = "forgot_because_lifecycle_destroy_in_config"
+	ReasonForgotBecauseLifecycleDestroyInState  ChangeReason = "forgot_because_lifecycle_destroy_in_state"
 )
 
 func changeReason(reason plans.ResourceInstanceChangeActionReason) ChangeReason {
@@ -154,6 +156,10 @@ func changeReason(reason plans.ResourceInstanceChangeActionReason) ChangeReason 
 		return ReasonReadBecauseDependencyPending
 	case plans.ResourceInstanceReadBecauseCheckNested:
 		return ReasonReadBecauseCheckNested
+	case plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig:
+		return ReasonForgotBecauseLifecycleDestroyInConfig
+	case plans.ResourceInstanceForgotBecauseLifecycleDestroyInState:
+		return ReasonForgotBecauseLifecycleDestroyInState
 	default:
 		// This should never happen, but there's no good way to guarantee
 		// exhaustive handling of the enum, so a generic fall back is better
