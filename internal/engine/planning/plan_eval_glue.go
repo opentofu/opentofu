@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -50,13 +51,17 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	// The details of how we plan vary considerably depending on the resource
 	// mode, so we'll dispatch each one to a separate function before we do
 	// anything else.
+	var plannedVal cty.Value
+	var resultRef execgraph.ResourceInstanceResultRef
+	var diags tfdiags.Diagnostics
+	egb := p.planCtx.execgraphBuilder
 	switch mode := inst.Addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		return p.planDesiredManagedResourceInstance(ctx, inst)
+		plannedVal, resultRef, diags = p.planDesiredManagedResourceInstance(ctx, inst, egb)
 	case addrs.DataResourceMode:
-		return p.planDesiredDataResourceInstance(ctx, inst)
+		plannedVal, resultRef, diags = p.planDesiredDataResourceInstance(ctx, inst, egb)
 	case addrs.EphemeralResourceMode:
-		return p.planDesiredEphemeralResourceInstance(ctx, inst)
+		plannedVal, resultRef, diags = p.planDesiredEphemeralResourceInstance(ctx, inst, egb)
 	default:
 		// We should not get here because the cases above should always be
 		// exhaustive for all of the valid resource modes.
@@ -65,15 +70,21 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		return cty.DynamicVal, diags
 	}
 
+	if diags.HasErrors() {
+		return cty.DynamicVal, diags
+	}
+	log.Printf("[TRACE] planContext: final result for %s comes from %#v", inst.Addr, resultRef)
+	p.planCtx.execgraphBuilder.SetResourceInstanceFinalStateResult(inst.Addr, resultRef)
+	return plannedVal, diags
 }
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		return p.planOrphanManagedResourceInstance(ctx, addr, state)
+		return p.planOrphanManagedResourceInstance(ctx, addr, state, p.planCtx.execgraphBuilder)
 	case addrs.DataResourceMode:
-		return p.planOrphanDataResourceInstance(ctx, addr, state)
+		return p.planOrphanDataResourceInstance(ctx, addr, state, p.planCtx.execgraphBuilder)
 	case addrs.EphemeralResourceMode:
 		// It should not be possible for an ephemeral resource to be an
 		// orphan because ephemeral resources should never be persisted
@@ -99,7 +110,7 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state)
+	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, p.planCtx.execgraphBuilder)
 }
 
 // PlanModuleCallInstanceOrphans implements eval.PlanGlue.
