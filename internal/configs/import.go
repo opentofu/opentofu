@@ -47,6 +47,10 @@ type Import struct {
 
 	ForEach hcl.Expression
 
+	// Enabled is the expression for the lifecycle.enabled meta-argument.
+	// If nil, the import is enabled by default.
+	Enabled hcl.Expression
+
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
 
@@ -118,6 +122,62 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		imp.ForEach = attr.Expr
 	}
 
+	// Handle lifecycle block
+	var seenLifecycle *hcl.Block
+	for _, block := range content.Blocks {
+		if block.Type == "lifecycle" {
+			if seenLifecycle != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate lifecycle block",
+					Detail:   "Only one lifecycle block is allowed per import block.",
+					Subject:  &block.DefRange,
+				})
+				continue
+			}
+			seenLifecycle = block
+
+			lcContent, lcDiags := block.Body.Content(importLifecycleBlockSchema)
+			diags = append(diags, lcDiags...)
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				imp.Enabled = attr.Expr
+			}
+
+			// Check for other lifecycle attributes that are not valid for import blocks
+			for name, attr := range lcContent.Attributes {
+				if name != "enabled" {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid import lifecycle argument",
+						Detail:   "The lifecycle argument \"" + name + "\" is not valid for import blocks. Only \"enabled\" is supported.",
+						Subject:  attr.NameRange.Ptr(),
+					})
+				}
+			}
+
+			// Import blocks don't support lifecycle preconditions/postconditions
+			for _, block := range lcContent.Blocks {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid lifecycle block",
+					Detail:   "Import blocks do not support \"" + block.Type + "\" blocks within lifecycle.",
+					Subject:  block.DefRange.Ptr(),
+				})
+			}
+		}
+	}
+
+	// Validate that enabled and for_each are not both specified
+	if imp.Enabled != nil && imp.ForEach != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid combination of lifecycle.enabled and for_each",
+			Detail:   "The lifecycle.enabled and for_each meta-arguments cannot be used together in the same import block. Use lifecycle.enabled for single-instance imports or for_each for multiple instances.",
+			Subject:  &block.DefRange,
+		})
+	}
+
 	return imp, diags
 }
 
@@ -136,6 +196,19 @@ var importBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "for_each",
+		},
+	},
+	Blocks: []hcl.BlockHeaderSchema{
+		{Type: "lifecycle"},
+	},
+}
+
+var importLifecycleBlockSchema = &hcl.BodySchema{
+	// We tell HCL that these elements are valid but we'll validate
+	// after decoding to return more specific error messages.
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "enabled",
 		},
 	},
 }
