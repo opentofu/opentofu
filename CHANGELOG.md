@@ -2,7 +2,7 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.2 (Unreleased)
 
-* Fix crash in plan -generate-config-out with optional nested attributes https://github.com/opentofu/opentofu/pull/3553
+* Fix crash in plan -generate-config-out with read-only nested attributes ([#3553](https://github.com/opentofu/opentofu/pull/3553))
 
 ## 1.11.1
 
