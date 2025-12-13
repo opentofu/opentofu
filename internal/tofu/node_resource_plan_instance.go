@@ -136,7 +136,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	var change *plans.ResourceInstanceChange
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -191,7 +191,7 @@ func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Con
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -251,7 +251,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

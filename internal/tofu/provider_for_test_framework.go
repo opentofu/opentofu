@@ -11,7 +11,6 @@ import (
 	"hash/fnv"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -20,43 +19,28 @@ import (
 
 var _ providers.Interface = &providerForTest{}
 
-// providerForTest is a wrapper around a real provider to allow certain resources to be overridden
-// (by address) or mocked (by provider and resource type) for testing framework.
+// providerForTest is a wrapper around a real provider to allow a specific resource to be overridden
+// for the testing framework.  It is used by [NodeResourceAbstractInstance.getProvider] to fulfil the mocks
+// and overrides for that one specific resource instance, any other usage is a bug in OpenTofu and should
+// be corrected.
 type providerForTest struct {
 	// providers.Interface is not embedded to make it safer to extend
 	// the interface without silently breaking providerForTest functionality.
 	internal providers.Interface
 	schema   providers.ProviderSchema
 
-	mockResources     mockResourcesForTest
-	overrideResources overrideResourcesForTest
-
-	currentResourceAddress string
+	overrideValues map[string]cty.Value
 }
 
-func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) (providerForTest, error) {
-	if p, ok := internal.(providerForTest); ok {
-		// We can create a proper deep copy here, however currently
-		// it is only relevant for override resources, since we extend
-		// the override resource map in NodeAbstractResourceInstance.
-		return p.withCopiedOverrideResources(), nil
-	}
-
+func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema, overrideValues map[string]cty.Value) (providerForTest, error) {
 	if schema.Diagnostics.HasErrors() {
 		return providerForTest{}, fmt.Errorf("invalid provider schema for test wrapper: %w", schema.Diagnostics.Err())
 	}
 
 	return providerForTest{
-		internal: internal,
-		schema:   schema,
-		mockResources: mockResourcesForTest{
-			managed: make(map[string]resourceForTest),
-			data:    make(map[string]resourceForTest),
-		},
-		overrideResources: overrideResourcesForTest{
-			managed: make(map[string]resourceForTest),
-			data:    make(map[string]resourceForTest),
-		},
+		internal:       internal,
+		schema:         schema,
+		overrideValues: overrideValues,
 	}, nil
 }
 
@@ -84,12 +68,10 @@ func (p providerForTest) PlanResourceChange(_ context.Context, r providers.PlanR
 
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
-	mockValues := p.getMockValuesForManagedResource(r.TypeName)
-
 	var resp providers.PlanResourceChangeResponse
 
 	resp.PlannedState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.Config, mockValues)
+		ComposeBySchema(resSchema, r.Config, p.overrideValues)
 
 	return resp
 }
@@ -105,10 +87,8 @@ func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataS
 
 	var resp providers.ReadDataSourceResponse
 
-	mockValues := p.getMockValuesForDataResource(r.TypeName)
-
 	resp.State, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.Config, mockValues)
+		ComposeBySchema(resSchema, r.Config, p.overrideValues)
 
 	return resp
 }
@@ -193,125 +173,6 @@ func (p providerForTest) CallFunction(ctx context.Context, r providers.CallFunct
 
 func (p providerForTest) Close(ctx context.Context) error {
 	return p.internal.Close(ctx)
-}
-
-func (p providerForTest) withMockResources(mockResources []*configs.MockResource) providerForTest {
-	for _, res := range mockResources {
-		var resources map[mockResourceType]resourceForTest
-
-		switch res.Mode {
-		case addrs.ManagedResourceMode:
-			resources = p.mockResources.managed
-		case addrs.DataResourceMode:
-			resources = p.mockResources.data
-		case addrs.InvalidResourceMode:
-			panic("BUG: invalid mock resource mode")
-		default:
-			panic("BUG: unsupported mock resource mode: " + res.Mode.String())
-		}
-
-		resources[res.Type] = resourceForTest{
-			values: res.Defaults,
-		}
-	}
-
-	return p
-}
-
-func (p providerForTest) withCopiedOverrideResources() providerForTest {
-	p.overrideResources = p.overrideResources.copy()
-	return p
-}
-
-func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
-	for _, res := range overrideResources {
-		p = p.withOverrideResource(*res.TargetParsed, res.Values)
-	}
-
-	return p
-}
-
-func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrides map[string]cty.Value) providerForTest {
-	var resources map[string]resourceForTest
-
-	switch addr.Resource.Mode {
-	case addrs.ManagedResourceMode:
-		resources = p.overrideResources.managed
-	case addrs.DataResourceMode:
-		resources = p.overrideResources.data
-	case addrs.InvalidResourceMode:
-		panic("BUG: invalid override resource mode")
-	default:
-		panic("BUG: unsupported override resource mode: " + addr.Resource.Mode.String())
-	}
-
-	resources[addr.String()] = resourceForTest{
-		values: overrides,
-	}
-
-	return p
-}
-
-func (p providerForTest) linkWithCurrentResource(addr addrs.ConfigResource) providerForTest {
-	p.currentResourceAddress = addr.String()
-	return p
-}
-
-type resourceForTest struct {
-	values map[string]cty.Value
-}
-
-type mockResourceType = string
-
-type mockResourcesForTest struct {
-	managed map[mockResourceType]resourceForTest
-	data    map[mockResourceType]resourceForTest
-}
-
-type overrideResourceAddress = string
-
-type overrideResourcesForTest struct {
-	managed map[overrideResourceAddress]resourceForTest
-	data    map[overrideResourceAddress]resourceForTest
-}
-
-func (res overrideResourcesForTest) copy() overrideResourcesForTest {
-	resCopy := overrideResourcesForTest{
-		managed: make(map[overrideResourceAddress]resourceForTest, len(res.managed)),
-		data:    make(map[overrideResourceAddress]resourceForTest, len(res.data)),
-	}
-
-	for k, v := range res.managed {
-		resCopy.managed[k] = v
-	}
-
-	for k, v := range res.data {
-		resCopy.data[k] = v
-	}
-
-	return resCopy
-}
-
-func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.managed[p.currentResourceAddress]
-		if ok {
-			return res.values
-		}
-	}
-
-	return p.mockResources.managed[typeName].values
-}
-
-func (p providerForTest) getMockValuesForDataResource(typeName string) map[string]cty.Value {
-	if p.currentResourceAddress != "" {
-		res, ok := p.overrideResources.data[p.currentResourceAddress]
-		if ok {
-			return res.values
-		}
-	}
-
-	return p.mockResources.data[typeName].values
 }
 
 func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {

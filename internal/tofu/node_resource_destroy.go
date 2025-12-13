@@ -203,7 +203,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

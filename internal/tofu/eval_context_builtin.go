@@ -148,22 +148,6 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 		return nil, err
 	}
 
-	if c.Evaluator != nil && c.Evaluator.Config != nil && c.Evaluator.Config.Module != nil {
-		// If an aliased provider is mocked, we use providerForTest wrapper.
-		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := c.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
-		if ok && pc.IsMocked {
-			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema(ctx))
-			if err != nil {
-				return nil, err
-			}
-
-			p = testP.
-				withMockResources(pc.MockResources).
-				withOverrideResources(pc.OverrideResources)
-		}
-	}
-
 	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerInstanceKey, addr)
 	c.ProviderCache[providerAddrKey][providerInstanceKey] = p
 

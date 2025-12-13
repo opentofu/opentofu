@@ -584,7 +584,7 @@ func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) 
 // the state.
 func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -639,7 +639,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 // instance in the state.
 func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

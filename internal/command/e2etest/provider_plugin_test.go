@@ -129,12 +129,12 @@ func TestProviderGlobalCache(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			tf := e2e.NewBinary(t, tofuBin, "testdata/provider-global-cache")
 			tf.AddEnv(fmt.Sprintf("TF_CLI_CONFIG_FILE=%s", rcLoc))
 
 			stdout, stderr, err := tf.Run("init")
 			tofuResult{t, stdout, stderr, err}.Success()
-			wg.Done()
 		}()
 	}
 
