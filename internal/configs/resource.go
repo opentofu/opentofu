@@ -57,8 +57,9 @@ type Resource struct {
 	IsOverridden bool
 	// OverrideValues are only valid if IsOverridden is set to true. The values
 	// should be used to compose mock provider response. It is possible to have
-	// zero-length OverrideValues even if IsOverridden is set to true.
-	OverrideValues map[string]cty.Value
+	// zero-length OverrideValues even if IsOverridden is set to true. This map
+	// is keyed for particular instances, with addrs.NoKey being the default.
+	OverrideValues map[addrs.InstanceKey]map[string]cty.Value
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range
