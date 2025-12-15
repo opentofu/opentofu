@@ -2054,7 +2054,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 	return metaConfigVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, providers.DeferralReason, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var newVal cty.Value
 
@@ -2063,13 +2063,13 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	// Unmark before sending to provider, will re-mark before returning
@@ -2086,7 +2086,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	// If we get down here then our configuration is complete and we're ready
@@ -2097,7 +2097,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PreOpen(n.Addr)
 	}))
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	req := providers.OpenEphemeralResourceRequest{
@@ -2107,12 +2107,9 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	resp := provider.OpenEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
-	if resp.Deferred != nil {
-		return newVal, resp.Deferred.DeferralReason, diags
-	}
 	newVal = resp.Result
 
 	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
@@ -2126,7 +2123,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		))
 	}
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	if newVal.IsNull() {
@@ -2138,7 +2135,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
 			),
 		))
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
@@ -2150,7 +2147,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
 			),
 		))
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
 	if len(pvm) > 0 {
@@ -2175,7 +2172,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	// when calling provider.CloseEphemeralResource.
 	go n.startEphemeralRenew(ctx, evalCtx, provider, resp.RenewAt, resp.Private)
 
-	return newVal, providers.DeferredReasonUnknown, diags
+	return newVal, diags
 }
 
 // planDataSource deals with the main part of the data resource lifecycle:
@@ -3257,63 +3254,6 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	return underlyingProvider, schema, err
 }
 
-func maybeImproveResourceInstanceDiagnostics(diags tfdiags.Diagnostics, excludeAddr addrs.Targetable) tfdiags.Diagnostics {
-	// We defer allocating a new diagnostics array until we know we need to
-	// change something, because most of the time we'll just be returning
-	// the given diagnostics verbatim.
-	var ret tfdiags.Diagnostics
-	for i, diag := range diags {
-		if excludeAddr != nil && providers.IsDeferralDiagnostic(diag) {
-			// We've found a diagnostic we want to change, so we'll allocate
-			// a new diagnostics array if we didn't already.
-			if ret == nil {
-				ret = make(tfdiags.Diagnostics, len(diags))
-				copy(ret, diags)
-			}
-			// FIXME: The following is a hack to slightly modify the diagnostic
-			// with an extra paragraph of detail content. If this becomes a
-			// more common need elsewhere then we should find a less clunky way
-			// to do this, probably with a new feature in tfdiags.
-			desc := diag.Description()
-			src := diag.Source()
-			extraDetail := fmt.Sprintf(
-				// FIXME: This should use a technique similar to evalchecks.commandLineArgumentsSuggestion
-				// to generate appropriate quoting/escaping of the address for the current platform.
-				"\n\nTo work around this, use the planning option -exclude=%q to first apply without this object, and then apply normally to converge.",
-				excludeAddr.String(),
-			)
-			newDiag := &hcl.Diagnostic{
-				Severity: diag.Severity().ToHCL(),
-				Summary:  desc.Summary,
-				Detail:   desc.Detail + extraDetail,
-			}
-			if src.Subject != nil {
-				newDiag.Subject = src.Subject.ToHCL().Ptr()
-			}
-			if src.Context != nil {
-				newDiag.Context = src.Context.ToHCL().Ptr()
-			}
-			// The following is a little awkward because of how tfdiags is
-			// designed: we need to "append" a new diagnostic over the
-			// one we're trying to replace so that tfdiags has an opportunity
-			// to transform it, so we'll make a zero-length slice whose
-			// capacity covers the one element we're trying to replace.
-			appendTo := ret[i : i : i+1]
-			appendTo = appendTo.Append(newDiag)
-			// appendTo.Append isn't _actually_ required to use the
-			// capacity we gave it (that's an implementation detail)
-			// so just to make sure we'll copy from what was returned
-			// into the final slot. This is likely to be a no-op in most
-			// cases.
-			ret[i] = appendTo[0]
-		}
-	}
-	if ret == nil { // We didn't change anything
-		return diags
-	}
-	return ret
-}
-
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var keyData instances.RepetitionData
@@ -3358,17 +3298,7 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can open the ephemeral resource and store its value in the state.
-	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
-	if deferralReason != providers.DeferredReasonUnknown {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Ephemeral resource deferred during apply",
-			Detail:   fmt.Sprintf("Ephemeral resource %q asked for being deferred. This is a provider error.", n.Addr.String()),
-			Subject:  n.Config.TypeRange.Ptr(),
-			Context:  n.Config.DeclRange.Ptr(),
-		})
-		return nil, instances.RepetitionData{}, diags
-	}
+	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return nil, keyData, diags
@@ -3462,14 +3392,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can open the ephemeral resource and store its value in the state.
-	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
-	if deferralReason != providers.DeferredReasonUnknown {
-		reason := providers.DeferralReasonSummary(deferralReason)
-
-		plannedChange, plannedNewState, deferDiags := n.deferEphemeralResource(evalCtx, schema, priorVal, configVal, reason)
-		diags = diags.Append(deferDiags)
-		return plannedChange, plannedNewState, keyData, diags
-	}
+	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return nil, nil, instances.RepetitionData{}, diags

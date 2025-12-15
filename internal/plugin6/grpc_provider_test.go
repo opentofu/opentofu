@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty/cty"
@@ -833,52 +832,6 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 	}
 }
 
-func TestGRPCProvider_PlanResourceChange_deferred(t *testing.T) {
-	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
-
-	client.EXPECT().PlanResourceChange(
-		gomock.Any(),
-		gomock.Any(),
-	).Return(&proto.PlanResourceChange_Response{
-		PlannedState: &proto.DynamicValue{
-			Msgpack: []byte("\x81\xa4attr\xa3bar"),
-		},
-		Deferred: &proto.Deferred{
-			Reason: proto.Deferred_PROVIDER_CONFIG_UNKNOWN,
-		},
-	}, nil)
-
-	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
-		TypeName: "resource",
-		PriorState: cty.ObjectVal(map[string]cty.Value{
-			"attr": cty.StringVal("foo"),
-		}),
-		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
-			"attr": cty.StringVal("bar"),
-		}),
-		Config: cty.ObjectVal(map[string]cty.Value{
-			"attr": cty.StringVal("bar"),
-		}),
-	})
-
-	if len(resp.Diagnostics) != 1 {
-		t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(resp.Diagnostics))
-	}
-	desc := resp.Diagnostics[0].Description()
-	if got, want := desc.Summary, `Provider configuration is incomplete`; got != want {
-		t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
-	}
-	if got, want := desc.Detail, `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.`; got != want {
-		t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
-	}
-	if !providers.IsDeferralDiagnostic(resp.Diagnostics[0]) {
-		t.Errorf("diagnostic is not marked as being a \"deferral diagnostic\"")
-	}
-}
-
 func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{
@@ -1308,9 +1261,6 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 			},
 			Private: []byte("private data"),
 			RenewAt: timestamppb.New(future),
-			Deferred: &proto.Deferred{
-				Reason: proto.Deferred_RESOURCE_CONFIG_UNKNOWN,
-			},
 		}, nil)
 
 		resp := p.OpenEphemeralResource(t.Context(), providers.OpenEphemeralResourceRequest{
@@ -1333,14 +1283,6 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 		}
 		if got, want := resp.Private, []byte("private data"); !slices.Equal(got, want) {
 			t.Fatalf("unexpected private data. got: %q, want %q", got, want)
-		}
-		{
-			if resp.Deferred == nil {
-				t.Fatal("expected to have a deferred object but got none")
-			}
-			if got, want := resp.Deferred.DeferralReason, providers.DeferredBecauseResourceConfigUnknown; got != want {
-				t.Fatalf("unexpected deferred reason. got: %d, want %d", got, want)
-			}
 		}
 	})
 	t.Run("requested type is not in schema", func(t *testing.T) {
