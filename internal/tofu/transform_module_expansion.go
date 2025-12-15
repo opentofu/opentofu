@@ -68,15 +68,13 @@ func (t *ModuleExpansionTransformer) Transform(_ context.Context, g *Graph) erro
 			// a module closer cannot connect to itself
 			continue
 		case *nodeExpandCheck, *nodeReportCheck, *nodeCheckAssert:
-			// Check nodes are observational and should not block module
-			// completion for depends_on purposes. This prevents cycles when
-			// a module with checks is referenced via depends_on by another
-			// module. Checks don't produce values that other modules could
-			// depend on, so it's safe to exclude them from module ordering.
+			// Check nodes should not get edges added to.
+			// This prevents cycles when a module with checks is referenced
+			// via depends_on by another module.
 			continue
 		}
 
-		// Also skip data sources nested inside check blocks for the same reason.
+		// Also skip data sources nested inside check blocks for the same reason as above.
 		if t.isNestedCheckDataSource(v) {
 			continue
 		}
