@@ -608,17 +608,11 @@ type OpenEphemeralResourceResponse struct {
 	Result cty.Value
 	// Private is the provider information that needs to be used later on Renew/Close call.
 	Private []byte
-	// Deferred returns only a reason of why the provider is asking deferring the opening.
-	Deferred *EphemeralResourceDeferred
 	// RenewAt indicates if(!=nil) and when(<=time.Now()) the Renew call needs to be performed.
 	RenewAt *time.Time
 
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
-}
-
-type EphemeralResourceDeferred struct {
-	DeferralReason DeferralReason
 }
 
 type RenewEphemeralResourceRequest struct {

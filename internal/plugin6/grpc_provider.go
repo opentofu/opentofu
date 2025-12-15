@@ -491,11 +491,6 @@ func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourc
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.NewState, resSchema.Block.ImpliedType())
 	if err != nil {
@@ -578,11 +573,6 @@ func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanR
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.PlannedState, resSchema.Block.ImpliedType())
 	if err != nil {
@@ -705,11 +695,6 @@ func (p *GRPCProvider) ImportResourceState(ctx context.Context, r providers.Impo
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	for _, imported := range protoResp.ImportedResources {
 		resource := providers.ImportedResource{
@@ -828,11 +813,6 @@ func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.State, dataSchema.Block.ImpliedType())
 	if err != nil {
@@ -890,9 +870,6 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 	if protoResp.RenewAt != nil {
 		renewAt := protoResp.RenewAt.AsTime()
 		resp.RenewAt = &renewAt
-	}
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		resp.Deferred = &providers.EphemeralResourceDeferred{DeferralReason: convert.DeferralReasonFromProto(protoDeferred.Reason)}
 	}
 
 	return resp
