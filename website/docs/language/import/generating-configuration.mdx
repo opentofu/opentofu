@@ -48,7 +48,7 @@ If you add a new `provider` block to your configuration, you must run `tofu init
 To instruct OpenTofu to generate configuration for the `import` blocks you defined, run `tofu plan` with the `-generate-config-out=` flag and a new file path. OpenTofu displays its plan for importing your resource and the file where OpenTofu generated configuration based on this plan.
 
 ```shell
-$ tofu plan -generate-config-out=generated.tf
+$ tofu plan --generate-config-out=generated.tf
 
 aws_iot_thing.bar: Preparing import... [id=foo]
 aws_iot_thing.bar: Refreshing state... [id=foo]
@@ -132,7 +132,7 @@ OpenTofu generates configuration for importable resources during a plan by reque
 OpenTofu will display an error like the one below if it does not receive values for resource attributes while generating configuration.
 
 ```shell
-$ tofu plan -generate-config-out=generated.tf
+$ tofu plan --generate-config-out=generated.tf
 ╷
 │ Error: Conflicting configuration arguments
 │ 
