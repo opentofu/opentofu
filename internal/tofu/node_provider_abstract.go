@@ -88,6 +88,13 @@ func (n *NodeAbstractProvider) AttachProviderConfigSchema(schema *configschema.B
 	n.Schema = schema
 }
 
+func (n *NodeAbstractProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
+	if n.Config == nil {
+		return false, nil, nil
+	}
+	return n.Config.IsMocked, n.Config.MockResources, n.Config.OverrideResources
+}
+
 // GraphNodeDotter impl.
 func (n *NodeAbstractProvider) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
 	return &dag.DotNode{

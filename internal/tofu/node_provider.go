@@ -134,6 +134,11 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 	)
 	defer span.End()
 
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
+
 	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, n.ProviderConfig())
 
 	// if a provider config is empty (only an alias), return early and don't continue
@@ -199,6 +204,11 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		),
 	)
 	defer span.End()
+
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
 
 	config := n.ProviderConfig()
 
