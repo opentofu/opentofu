@@ -409,9 +409,6 @@ The value of each of these nested properties is
 
 ### `module` blocks
 
-The `source` and `version` meta-arguments must be given as literal strings. The
-values are not interpreted as string templates.
-
 The `providers` meta-argument must be given as a JSON object whose properties
 are the compact provider addresses to expose into the child module and whose
 values are the provider addresses to use from the current module, both
@@ -454,9 +451,10 @@ values are not interpreted as string templates.
 
 ### `terraform` blocks
 
-Since no settings within `terraform` blocks accept named object references or
-function calls, all setting values are taken literally. String values are not
-interpreted as string templates.
+Settings within `terraform` blocks are generally interpreted literally, except
+for the `backend` block, which supports expressions. Other settings do not
+accept named object references or function calls and therefore do not treat
+string values as string templates.
 
 Since only one `backend` block is allowed per `terraform` block, the compact
 block mapping can be used to represent it, with a nested object containing
