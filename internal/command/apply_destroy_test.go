@@ -460,6 +460,76 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 	}
 }
 
+// TestApply_destroySkipWithSuppressFlag tests that the -suppress-forget-errors
+// flag suppresses the error when destroy mode leaves forgotten instances behind.
+func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("skip-destroy"), td)
+	t.Chdir(td)
+
+	// Create some existing state with SkipDestroy set
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON:   []byte(`{"id":"baz"}`),
+				Status:      states.ObjectReady,
+				SkipDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := applyFixtureProvider()
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Destroy: true,
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	// with the suppress flag, the destroy should succeed even with forgotten instances
+	args := []string{
+		"-suppress-forget-errors",
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Log(output.Stdout())
+		t.Fatalf("expected success with -suppress-forget-errors, but got: %d\n\n%s", code, output.Stderr())
+	}
+
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	state := testStateRead(t, statePath)
+	if state == nil {
+		t.Fatal("state should not be nil")
+	}
+
+	// state should be empty after the destroy
+	actualStr := strings.TrimSpace(state.String())
+	expectedStr := strings.TrimSpace(testApplyDestroyStr)
+	if actualStr != expectedStr {
+		t.Fatalf("bad:\n\n%s\n\n%s", actualStr, expectedStr)
+	}
+}
+
 // In this case, the user has removed skip-destroy from config, but it's still set in state.
 // We will plan a new state first, which will remove the skip-destroy attribute from state and then proceed to destroy the resource
 func TestApply_destroySkipInStateNotInConfig(t *testing.T) {

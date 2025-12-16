@@ -112,7 +112,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args, planFile, enc)
 	diags = diags.Append(opDiags)
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
@@ -254,10 +254,8 @@ func (c *ApplyCommand) OperationRequest(
 	ctx context.Context,
 	be backend.Enhanced,
 	view views.Apply,
-	viewType arguments.ViewType,
+	applyArgs *arguments.Apply,
 	planFile *planfile.WrappedPlanFile,
-	args *arguments.Operation,
-	autoApprove bool,
 	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -268,16 +266,17 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, viewType, enc)
-	opReq.AutoApprove = autoApprove
+	opReq := c.Operation(ctx, be, applyArgs.ViewType, enc)
+	opReq.AutoApprove = applyArgs.AutoApprove
+	opReq.SuppressForgetErrorsDuringDestroy = applyArgs.SuppressForgetErrorsDuringDestroy
 	opReq.ConfigDir = "."
-	opReq.PlanMode = args.PlanMode
+	opReq.PlanMode = applyArgs.Operation.PlanMode
 	opReq.Hooks = view.Hooks()
 	opReq.PlanFile = planFile
-	opReq.PlanRefresh = args.Refresh
-	opReq.Targets = args.Targets
-	opReq.Excludes = args.Excludes
-	opReq.ForceReplace = args.ForceReplace
+	opReq.PlanRefresh = applyArgs.Operation.Refresh
+	opReq.Targets = applyArgs.Operation.Targets
+	opReq.Excludes = applyArgs.Operation.Excludes
+	opReq.ForceReplace = applyArgs.Operation.ForceReplace
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
 
@@ -385,6 +384,10 @@ Options:
 
   -show-sensitive              If specified, sensitive values will be displayed.
 
+  -suppress-forget-errors      Suppress the error that occurs when a destroy
+                               operation completes successfully but leaves
+                               forgotten instances behind.
+
   -var 'foo=bar'               Set a variable in the OpenTofu configuration.
                                This flag can be set multiple times.
 
@@ -423,6 +426,12 @@ Usage: tofu [global options] destroy [options]
 
   This command is a convenience alias for:
       tofu apply -destroy
+
+Options:
+
+  -suppress-forget-errors      Suppress the error that occurs when a destroy
+                               operation completes successfully but leaves
+                               forgotten instances behind.
 
   This command also accepts many of the plan-customization options accepted by
   the tofu plan command. For more information on those options, run:

@@ -37,6 +37,10 @@ type ApplyOpts struct {
 	// in Context#mergePlanAndApplyVariables, the merging of this with the plan variable values
 	// follows the same logic and rules of the validation mentioned above.
 	SetVariables InputValues
+
+	// SuppressForgetErrorsDuringDestroy suppresses the error that would otherwise
+	// be raised when a destroy operation completes with forgotten instances remaining.
+	SuppressForgetErrorsDuringDestroy bool
 }
 
 // Apply performs the actions described by the given Plan object and returns
@@ -150,11 +154,15 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		// Even though this was the intended outcome, some automations may depend on the success of destroy operation
 		// to indicate the complete removal of resources
 		if forgetCount > 0 {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Destroy was successful but left behind forgotten instances",
-				"As requested, OpenTofu has not deleted some remote objects that are no longer managed by this configuration. Those objects continue to exist in their remote system and so may continue to incur charges. Refer to the original plan for more information.",
-			))
+			suppressError := opts != nil && opts.SuppressForgetErrorsDuringDestroy
+			if !suppressError {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Destroy was successful but left behind forgotten instances",
+					`As requested, OpenTofu has not deleted some remote objects that are no longer managed by this configuration. Those objects continue to exist in their remote system and so may continue to incur charges. Refer to the original plan for more information.
+To suppress this error for the future 'destroy' runs, you can add the CLI flag "-suppress-forget-errors".`,
+				))
+			}
 		}
 	}
 

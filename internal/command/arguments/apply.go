@@ -34,6 +34,10 @@ type Apply struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
+
+	// SuppressForgetErrorsDuringDestroy suppresses the error that occurs when a
+	// destroy operation completes successfully but leaves forgotten instances behind.
+	SuppressForgetErrorsDuringDestroy bool
 }
 
 // ParseApply processes CLI arguments, returning an Apply value and errors.
@@ -51,6 +55,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
 	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")

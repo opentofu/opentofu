@@ -59,6 +59,8 @@ When resources are forgotten:
 
 This exit code behavior might be important for automation and CI/CD pipelines, as it
 signals that the destroy operation did not complete as a typical destroy would.
+In case you want `tofu destroy` to not emit errors and exit with zero status code when resources are forgotten,
+you can use the `-suppress-forget-errors` flag.
 
 :::warning
 The `destroy` attribute is persisted in the state file, even when resources are removed from the configuration.

@@ -39,6 +39,7 @@ type skipDestroyTestCase struct {
 	runApply         bool
 	expectApplyError bool
 	expectEmptyState bool
+	applyOpts        *ApplyOpts
 }
 
 func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.State {
@@ -128,7 +129,7 @@ func runSkipDestroyTestCase(t *testing.T, tc skipDestroyTestCase) {
 	verifySkipPlanChanges(t, plan, tc.expectedChanges)
 
 	if tc.runApply {
-		appliedState, applyDiags := ctx.Apply(t.Context(), plan, m, nil)
+		appliedState, applyDiags := ctx.Apply(t.Context(), plan, m, tc.applyOpts)
 
 		if tc.expectApplyError {
 			if !applyDiags.HasErrors() {
@@ -366,6 +367,30 @@ func TestSkipDestroy_DestroyMode_ErrorOnForgotten(t *testing.T) {
 			runApply:         true,
 			expectApplyError: false,
 			expectEmptyState: true,
+		},
+		{
+			// Identical to the first test and no error because of the suppress flag below
+			name: "NoErrorOnForgotten_WithSuppressFlag",
+			config: `
+				resource "aws_instance" "foo" {
+					lifecycle {
+						destroy = false
+					}
+				}
+			`,
+			stateInstances: []skipStateInstance{
+				{addr: "aws_instance.foo", skipDestroy: true},
+			},
+			planMode: plans.DestroyMode,
+			expectedChanges: []skipExpectedChange{
+				{addr: "aws_instance.foo", action: plans.Forget},
+			},
+			runApply:         true,
+			expectApplyError: false,
+			expectEmptyState: true,
+			applyOpts: &ApplyOpts{
+				SuppressForgetErrorsDuringDestroy: true,
+			},
 		},
 	}
 
