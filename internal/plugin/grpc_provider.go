@@ -34,14 +34,6 @@ type GRPCProviderPlugin struct {
 }
 
 var clientCapabilities = &proto.ClientCapabilities{
-	// DeferralAllowed tells the provider that it is allowed to respond to
-	// all of the various post-configuration requests (as described by the
-	// [providers.Configured] interface) by reporting that the request
-	// must be "deferred" because there isn't yet enough information to
-	// satisfy the request. Setting this means that we need to be prepared
-	// for there to be a "deferred" object in the response from various
-	// other provider RPC functions.
-	DeferralAllowed: true,
 	// WriteOnlyAttributesAllowed indicates that the current system version
 	// supports write-only attributes.
 	// This enables the SDK to run specific validations and enable the
@@ -502,11 +494,6 @@ func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourc
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.NewState, resSchema.Block.ImpliedType())
 	if err != nil {
@@ -589,11 +576,6 @@ func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanR
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.PlannedState, resSchema.Block.ImpliedType())
 	if err != nil {
@@ -716,11 +698,6 @@ func (p *GRPCProvider) ImportResourceState(ctx context.Context, r providers.Impo
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	for _, imported := range protoResp.ImportedResources {
 		resource := providers.ImportedResource{
@@ -839,11 +816,6 @@ func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 		return resp
 	}
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
-	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
-	}
 
 	state, err := decodeDynamicValue(protoResp.State, dataSchema.Block.ImpliedType())
 	if err != nil {
@@ -881,7 +853,10 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 		Config: &proto.DynamicValue{
 			Msgpack: config,
 		},
-		ClientCapabilities: clientCapabilities,
+		ClientCapabilities: &proto.ClientCapabilities{
+			DeferralAllowed:            true,
+			WriteOnlyAttributesAllowed: clientCapabilities.WriteOnlyAttributesAllowed,
+		},
 	}
 
 	protoResp, err := p.client.OpenEphemeralResource(ctx, protoReq)
