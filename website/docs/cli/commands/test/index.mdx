@@ -31,6 +31,10 @@ import ExpectFailureResourcesMain from '!!raw-loader!./examples/expect_failures_
 import ExpectFailureResourcesTest from '!!raw-loader!./examples/expect_failures_resources/main.tftest.hcl'
 import OverrideResourceMain from '!!raw-loader!./examples/override_resource/main.tf'
 import OverrideResourceTest from '!!raw-loader!./examples/override_resource/main.tftest.hcl'
+import OverrideResourceInstanceMain from '!!raw-loader!./examples/override_resource_instance/main.tf'
+import OverrideResourceInstanceTest from '!!raw-loader!./examples/override_resource_instance/main.tftest.hcl'
+import OverrideResourceProviderMain from '!!raw-loader!./examples/override_resource_provider/main.tf'
+import OverrideResourceProviderTest from '!!raw-loader!./examples/override_resource_provider/main.tftest.hcl'
 import MockProviderMain from '!!raw-loader!./examples/mock_provider/main.tf'
 import MockProviderTest from '!!raw-loader!./examples/mock_provider/main.tftest.hcl'
 import OverrideModuleMain from '!!raw-loader!./examples/override_module/main.tf'
@@ -536,12 +540,27 @@ In the example below, we test if the bucket name is correctly passed to the reso
     </TabItem>
 </Tabs>
 
-:::warning Limitation
+As of OpenTofu 1.12, you can also specify instances of a resource or data source which use a `for_each` or `count`. You can even specify all of them, using a wildcard instance key.
 
-You cannot use `override_resource` or `override_data` with a single instance of a resource or data source.
-Each instance of a resource or data source must be overridden.
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{OverrideResourceInstanceTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{OverrideResourceInstanceMain}</CodeBlock>
+    </TabItem>
+</Tabs>
 
-:::
+As mentioned before, you can specify an override in either the `mock_provider` block or at the root level of a test file. Root-level overrides always take precedence over anything specified in the `mock_provider` regardless of specificity, as you can see in this example.
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{OverrideResourceProviderTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{OverrideResourceProviderMain}</CodeBlock>
+    </TabItem>
+</Tabs>
 
 ### Automatically generated values
 
