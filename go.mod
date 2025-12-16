@@ -31,12 +31,12 @@ require (
 	github.com/apparentlymart/go-versions v1.0.3
 	github.com/apparentlymart/go-workgraph v0.0.0-20250609024419-b3453ef8d3e6
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
-	github.com/aws/aws-sdk-go-v2 v1.39.2
+	github.com/aws/aws-sdk-go-v2 v1.41.0
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.9
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.51.0
 	github.com/aws/aws-sdk-go-v2/service/kms v1.45.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.4
-	github.com/aws/smithy-go v1.23.0
+	github.com/aws/smithy-go v1.24.0
 	github.com/bgentry/speakeasy v0.2.0
 	github.com/bmatcuk/doublestar/v4 v4.9.1
 	github.com/chzyer/readline v1.5.1
