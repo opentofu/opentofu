@@ -3221,9 +3221,11 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
 			// TODO this condition is a mess, and it doesn't work in the case it gets a "no key" instance before the more-specific keyed instance
-			if res.TargetParsed.Resource.Resource.Equal(n.Addr.Resource.Resource) &&
-				(res.TargetParsed.Resource.Key == addrs.NoKey || res.TargetParsed.Resource.Key == n.Addr.Resource.Key) &&
-				res.Mode == n.Addr.Resource.Resource.Mode {
+			if res.TargetParsed.Module.Equal(n.Addr.Module) &&
+				res.TargetParsed.Resource.Resource.Equal(n.Addr.Resource.Resource) {
+				// 	&&
+				// (res.TargetParsed.Resource.Key == addrs.NoKey || res.TargetParsed.Resource.Key == n.Addr.Resource.Key) &&
+				// res.Mode == n.Addr.Resource.Resource.Mode {
 				overrideValues = res.Values
 				break
 			}
@@ -3231,9 +3233,13 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	if n.Config != nil && n.Config.IsOverridden {
+		var ok bool
 		// Overridden in the currently running test (overrides any provider settings)
 		isOverridden = n.Config.IsOverridden
-		overrideValues = n.Config.OverrideValues[n.Addr.Resource.Key]
+		overrideValues, ok = n.Config.OverrideValues[n.Addr.Resource.Key]
+		if !ok {
+			overrideValues = n.Config.OverrideValues[addrs.NoKey]
+		}
 	}
 
 	if isOverridden {
