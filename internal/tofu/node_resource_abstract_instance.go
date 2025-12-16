@@ -3205,7 +3205,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	var isOverridden bool
-	var overrideValues map[string]cty.Value
+	overrideValues := make(map[addrs.InstanceKey]map[string]cty.Value)
 
 	if n.ResolvedProvider.IsMocked {
 		isOverridden = true
@@ -3213,15 +3213,18 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		// Mocked by the provider
 		for _, res := range n.ResolvedProvider.MockResources {
 			if res.Type == n.Addr.Resource.Resource.Type && res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Defaults
+				// TODO not sure if this is right
+				overrideValues[n.Addr.Resource.Key] = res.Defaults
 				break
 			}
 		}
 
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
-			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Values
+			// TODO there's more to set here! Especially involving instance keys!!
+			if res.TargetParsed.Equal(n.Addr) && res.Mode == n.Addr.Resource.Resource.Mode {
+				// TODO not sure if this is right
+				overrideValues[n.Addr.Resource.Key] = res.Values
 				break
 			}
 		}
@@ -3234,7 +3237,8 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	if isOverridden {
-		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues)
+		// TODO unsure if this is correct...
+		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues[n.Addr.Resource.Key])
 		return provider, schema, err
 	}
 
