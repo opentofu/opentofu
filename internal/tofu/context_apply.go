@@ -160,7 +160,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 					tfdiags.Error,
 					"Destroy was successful but left behind forgotten instances",
 					`As requested, OpenTofu has not deleted some remote objects that are no longer managed by this configuration. Those objects continue to exist in their remote system and so may continue to incur charges. Refer to the original plan for more information.
-To suppress this error for the future 'destroy' runs, you can add the CLI flag "-suppress-forget-errors-during-destroy".`,
+To suppress this error for the future 'destroy' runs, you can add the CLI flag "-suppress-forget-errors".`,
 				))
 			}
 		}
