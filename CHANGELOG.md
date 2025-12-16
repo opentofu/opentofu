@@ -2,7 +2,16 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.2 (Unreleased)
 
+UPGRADE NOTES:
+
+* The change from [#2643](https://github.com/opentofu/opentofu/pull/2643), that was announced previously in v1.11.0, has been reverted in this release. OpenTofu will no longer directly recommend using the `-exclude=` option to work around problems caused by unknown values in provider configurations.
+
+    Unfortunately there are existing providers that spuriously report that they cannot plan due to unknown values even when planning would have been successful, and so we cannot rely on providers to accurately signal when unknown values are the cause of an error. Using `-exclude` still a valid workaround for these problems even though OpenTofu cannot accurately detect when it's useful to make that suggestion.
+
+BUG FIXES:
+
 * Fix crash in plan -generate-config-out with read-only nested attributes ([#3553](https://github.com/opentofu/opentofu/pull/3553))
+* It's now possible again to plan changes with the `hashicorp/helm` and `hashicorp/kubernetes` providers when the provider configuration contains unknown values, as long as the configuration is carefully written to avoid the plan phase actually depending on those values. ([#3592](https://github.com/opentofu/opentofu/pull/3592))
 
 ## 1.11.1
 
