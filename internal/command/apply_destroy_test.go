@@ -460,7 +460,7 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 	}
 }
 
-// TestApply_destroySkipWithSuppressFlag tests that the -suppress-forget-errors-during-destroy
+// TestApply_destroySkipWithSuppressFlag tests that the -suppress-forget-errors
 // flag suppresses the error when destroy mode leaves forgotten instances behind.
 func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 	// Create a temporary working directory that is empty
@@ -503,14 +503,14 @@ func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 
 	// with the suppress flag, the destroy should succeed even with forgotten instances
 	args := []string{
-		"-suppress-forget-errors-during-destroy",
+		"-suppress-forget-errors",
 		"-state", statePath,
 	}
 	code := c.Run(args)
 	output := done(t)
 	if code != 0 {
 		t.Log(output.Stdout())
-		t.Fatalf("expected success with -suppress-forget-errors-during-destroy, but got: %d\n\n%s", code, output.Stderr())
+		t.Fatalf("expected success with -suppress-forget-errors, but got: %d\n\n%s", code, output.Stderr())
 	}
 
 	if _, err := os.Stat(statePath); err != nil {
