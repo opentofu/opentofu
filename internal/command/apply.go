@@ -384,9 +384,9 @@ Options:
 
   -show-sensitive              If specified, sensitive values will be displayed.
 
-  -suppress-forget-errors      Suppress the error that occurs when a
-                               destroy operation completes successfully but
-                               leaves forgotten instances behind.
+  -suppress-forget-errors      Suppress the error that occurs when a destroy
+                               operation completes successfully but leaves
+                               forgotten instances behind.
 
   -var 'foo=bar'               Set a variable in the OpenTofu configuration.
                                This flag can be set multiple times.
@@ -429,9 +429,9 @@ Usage: tofu [global options] destroy [options]
 
 Options:
 
-  -suppress-forget-errors      Suppress the error that occurs when a
-                               destroy operation completes successfully
-                               but leaves forgotten instances behind.
+  -suppress-forget-errors      Suppress the error that occurs when a destroy
+                               operation completes successfully but leaves
+                               forgotten instances behind.
 
   This command also accepts many of the plan-customization options accepted by
   the tofu plan command. For more information on those options, run:
