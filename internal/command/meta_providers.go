@@ -365,6 +365,8 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
 func providerFactory(meta *providercache.CachedProvider) providers.Factory {
+	schemaCache := providers.NewSchemaCache()
+
 	return func() (providers.Interface, error) {
 		execFile, err := meta.ExecutableFile()
 		if err != nil {
@@ -395,7 +397,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		p, err := initializeProviderInstance(raw, protoVer, client, schemaCache)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -406,18 +408,18 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache providers.SchemaCache) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
+		p.SchemaCache = schemaCache
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
+		p.SchemaCache = schemaCache
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
@@ -441,6 +443,8 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
 func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
+	schemaCache := providers.NewSchemaCache()
+
 	return func() (providers.Interface, error) {
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
@@ -490,7 +494,7 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			protoVer = 5
 		}
 
-		return initializeProviderInstance(raw, protoVer, client, provider)
+		return initializeProviderInstance(raw, protoVer, client, schemaCache)
 	}
 }
 
