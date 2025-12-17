@@ -125,8 +125,10 @@ func realMain() int {
 	}
 
 	log.Printf("[INFO] OpenTofu version: %s %s", Version, VersionPrerelease)
-	for _, depMod := range version.InterestingDependencies() {
-		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
+	if logging.IsDebugOrHigher() {
+		for _, depMod := range version.InterestingDependencies() {
+			log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
+		}
 	}
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	if dynamicGodebug := os.Getenv("GODEBUG"); dynamicGodebug != "" {
