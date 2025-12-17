@@ -762,12 +762,12 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	}
 
 	if m.outputJSONInto != "" {
-		out, err := os.OpenFile(m.outputJSONInto, os.O_RDWR|os.O_CREATE, 0600)
-		if err != nil {
-			panic(err)
+		// This is a weird workaround for init and get using the legacy view wrappers mixed with the new view system
+		wrapped, ok := m.Ui.(*WrappedUi)
+		if wrapped == nil || !ok {
+			panic("BUG: incorrect initialization of meta command structure")
 		}
-		jsonView := views.NewJSONView(m.View, out)
-		jsonView.Diagnostics(diags)
+		wrapped.jsonView.Diagnostics(diags)
 		return
 	}
 	if m.outputInJSON {
