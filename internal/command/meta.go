@@ -299,7 +299,8 @@ type Meta struct {
 	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
 
-	outputInJSON bool
+	outputInJSON   bool
+	outputJSONInto string
 
 	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.
@@ -760,8 +761,17 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		return
 	}
 
+	if m.outputJSONInto != "" {
+		out, err := os.OpenFile(m.outputJSONInto, os.O_RDWR|os.O_CREATE, 0600)
+		if err != nil {
+			panic(err)
+		}
+		jsonView := views.NewJSONView(m.View, out)
+		jsonView.Diagnostics(diags)
+		return
+	}
 	if m.outputInJSON {
-		jsonView := views.NewJSONView(m.View)
+		jsonView := views.NewJSONView(m.View, nil)
 		jsonView.Diagnostics(diags)
 		return
 	}

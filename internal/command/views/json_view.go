@@ -8,6 +8,7 @@ package views
 import (
 	encJson "encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/hashicorp/go-hclog"
 
@@ -22,10 +23,13 @@ import (
 // command/views/json package.
 const JSON_UI_VERSION = "1.2"
 
-func NewJSONView(view *View) *JSONView {
+func NewJSONView(view *View, out *os.File) *JSONView {
+	if out == nil {
+		out = view.streams.Stdout.File
+	}
 	log := hclog.New(&hclog.LoggerOptions{
 		Name:               "tofu.ui",
-		Output:             view.streams.Stdout.File,
+		Output:             out,
 		JSONFormat:         true,
 		JSONEscapeDisabled: true,
 	})

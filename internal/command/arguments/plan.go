@@ -35,6 +35,8 @@ type Plan struct {
 	// ViewType specifies which output format to use
 	ViewType ViewType
 
+	JsonInto string
+
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
 }
@@ -59,6 +61,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")
+	cmdFlags.StringVar(&plan.JsonInto, "json-into", "", "json-into")
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -86,7 +89,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	}
 
 	switch {
-	case json:
+	case json || plan.JsonInto != "":
 		plan.ViewType = ViewJSON
 	default:
 		plan.ViewType = ViewHuman

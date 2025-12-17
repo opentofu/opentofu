@@ -7,6 +7,7 @@ package views
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -46,6 +47,66 @@ func NewOperation(vt arguments.ViewType, inAutomation bool, view *View) Operatio
 		return &OperationHuman{view: view, inAutomation: inAutomation}
 	default:
 		panic(fmt.Sprintf("unknown view type %v", vt))
+	}
+}
+
+type OperationMulti []Operation
+
+var _ Operation = (OperationMulti)(nil)
+
+func (o OperationMulti) Interrupted() {
+	for _, operation := range o {
+		operation.Interrupted()
+	}
+}
+
+func (o OperationMulti) FatalInterrupt() {
+	for _, operation := range o {
+		operation.FatalInterrupt()
+	}
+}
+
+func (o OperationMulti) Stopping() {
+	for _, operation := range o {
+		operation.Stopping()
+	}
+}
+
+func (o OperationMulti) Cancelled(planMode plans.Mode) {
+	for _, operation := range o {
+		operation.Cancelled(planMode)
+	}
+}
+
+func (o OperationMulti) EmergencyDumpState(stateFile *statefile.File, enc encryption.StateEncryption) error {
+	var errs []error
+	for _, operation := range o {
+		errs = append(errs, operation.EmergencyDumpState(stateFile, enc))
+	}
+	return errors.Join(errs...)
+}
+
+func (o OperationMulti) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
+	for _, operation := range o {
+		operation.PlannedChange(change)
+	}
+}
+
+func (o OperationMulti) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
+	for _, operation := range o {
+		operation.Plan(plan, schemas)
+	}
+}
+
+func (o OperationMulti) PlanNextStep(planPath string, genConfigPath string) {
+	for _, operation := range o {
+		operation.PlanNextStep(planPath, genConfigPath)
+	}
+}
+
+func (o OperationMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, operation := range o {
+		operation.Diagnostics(diags)
 	}
 }
 
