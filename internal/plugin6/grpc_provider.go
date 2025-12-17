@@ -25,16 +25,6 @@ import (
 
 var logger = logging.HCLogger()
 
-// Some providers may generate quite large schemas, and the internal default
-// grpc response size limit is 4MB. 64MB should cover most any use case, and
-// if we get providers nearing that we may want to consider a finer-grained
-// API to fetch individual resource schemas.
-// Note: this option is marked as EXPERIMENTAL in the grpc API. We keep
-// this for compatibility, but recent providers all set the max message
-// size much higher on the server side, which is the supported method for
-// determining payload size.
-const maxRecvSize = 64 << 20
-
 // GRPCProviderPlugin implements plugin.GRPCPlugin for the go-plugin package.
 type GRPCProviderPlugin struct {
 	plugin.Plugin
@@ -100,7 +90,10 @@ type GRPCProvider struct {
 	// SchemaCache stores the schema for this provider. This is used to properly
 	// serialize the requests for schemas.  This is shared between instances
 	// of the provider.
-	SchemaCache      providers.SchemaCache
+	SchemaCache providers.SchemaCache
+
+	// Keep track of if the proto schema fetch call has happend for GetProviderSchemaOptional
+	// This allows caching to still function efficiently, without violating legacy provider's requirements
 	hasFetchedSchema bool
 }
 
@@ -115,8 +108,7 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 
 	if !p.hasFetchedSchema && !schema.ServerCapabilities.GetProviderSchemaOptional {
 		// Force call, we only care that we are satisfying the legacy provider's schema call request
-		_, _ = p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
-		p.hasFetchedSchema = true
+		_, _ = p.getProtoProviderSchema(ctx)
 	}
 
 	return schema
@@ -128,9 +120,7 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	resp.EphemeralResources = make(map[string]providers.Schema)
 	resp.Functions = make(map[string]providers.FunctionSpec)
 
-	protoResp, err := p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
-	p.hasFetchedSchema = true
-
+	protoResp, err := p.getProtoProviderSchema(ctx)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -179,6 +169,26 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	}
 
 	return resp
+}
+
+// Common code to fetch the raw schema data from the provider. This is called from
+// multiple locations due to GetProviderSchemaOptional
+func (p *GRPCProvider) getProtoProviderSchema(ctx context.Context) (*proto6.GetProviderSchema_Response, error) {
+	// Some providers may generate quite large schemas, and the internal default
+	// grpc response size limit is 4MB. 64MB should cover most any use case, and
+	// if we get providers nearing that we may want to consider a finer-grained
+	// API to fetch individual resource schemas.
+	// Note: this option is marked as EXPERIMENTAL in the grpc API. We keep
+	// this for compatibility, but recent providers all set the max message
+	// size much higher on the server side, which is the supported method for
+	// determining payload size.
+	const maxRecvSize = 64 << 20
+	resp, err := p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
+
+	// Mark that we have handled the internal requirement for legacy providers (!GetProviderSchemaOptional)
+	p.hasFetchedSchema = true
+
+	return resp, err
 }
 
 func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
