@@ -33,7 +33,7 @@ func NewApply(vt arguments.ViewType, destroy bool, view *View) Apply {
 	switch vt {
 	case arguments.ViewJSON:
 		return &ApplyJSON{
-			view:      NewJSONView(view),
+			view:      NewJSONView(view, nil),
 			destroy:   destroy,
 			countHook: &countHook{},
 		}

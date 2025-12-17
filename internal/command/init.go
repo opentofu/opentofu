@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -73,6 +74,7 @@ func (c *InitCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&c.Meta.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
+	cmdFlags.StringVar(&c.outputJSONInto, "json-into", "", "json-into")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
@@ -83,9 +85,22 @@ func (c *InitCommand) Run(args []string) int {
 		c.Meta.Color = false
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
-			cliUi:        c.oldUi,
-			jsonView:     views.NewJSONView(c.View),
-			outputInJSON: true,
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, nil),
+			onlyOutputInJSON: true,
+		}
+	}
+
+	if c.outputJSONInto != "" {
+		out, err := os.OpenFile(c.outputJSONInto, os.O_RDWR|os.O_CREATE, 0600)
+		if err != nil {
+			panic(err)
+		}
+		c.oldUi = c.Ui
+		c.Ui = &WrappedUi{
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, out),
+			onlyOutputInJSON: false,
 		}
 	}
 

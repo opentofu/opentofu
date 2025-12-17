@@ -31,7 +31,7 @@ func NewRefresh(vt arguments.ViewType, view *View) Refresh {
 	switch vt {
 	case arguments.ViewJSON:
 		return &RefreshJSON{
-			view: NewJSONView(view),
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
 		return &RefreshHuman{

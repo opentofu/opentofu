@@ -78,7 +78,7 @@ func NewTest(vt arguments.ViewType, view *View) Test {
 	switch vt {
 	case arguments.ViewJSON:
 		return &TestJSON{
-			view: NewJSONView(view),
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
 		return &TestHuman{

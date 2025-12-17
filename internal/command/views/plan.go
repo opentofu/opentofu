@@ -7,6 +7,7 @@ package views
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -23,19 +24,62 @@ type Plan interface {
 }
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
-func NewPlan(vt arguments.ViewType, view *View) Plan {
-	switch vt {
+func NewPlan(args *arguments.Plan, view *View) Plan {
+	human := &PlanHuman{
+		view:         view,
+		inAutomation: view.RunningInAutomation(),
+	}
+
+	switch args.ViewType {
 	case arguments.ViewJSON:
+		if args.JsonInto != "" {
+			out, err := os.OpenFile(args.JsonInto, os.O_RDWR|os.O_CREATE, 0600)
+			if err != nil {
+				panic(err)
+			}
+			return PlanMulti{human, &PlanJSON{
+				view: NewJSONView(view, out),
+			}}
+		}
 		return &PlanJSON{
-			view: NewJSONView(view),
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
-		return &PlanHuman{
-			view:         view,
-			inAutomation: view.RunningInAutomation(),
-		}
+		return human
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+}
+
+type PlanMulti []Plan
+
+var _ Plan = (PlanMulti)(nil)
+
+func (p PlanMulti) Operation() Operation {
+	var operation OperationMulti
+	for _, plan := range p {
+		operation = append(operation, plan.Operation())
+	}
+	return operation
+}
+
+func (p PlanMulti) Hooks() []tofu.Hook {
+	var hooks []tofu.Hook
+	for _, plan := range p {
+		hooks = append(hooks, plan.Hooks()...)
+	}
+	return hooks
+}
+
+func (p PlanMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, plan := range p {
+		plan.Diagnostics(diags)
+	}
+}
+
+func (p PlanMulti) HelpPrompt() {
+	for _, plan := range p {
+		plan.HelpPrompt()
 	}
 }
 
