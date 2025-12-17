@@ -27,11 +27,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			nil,
 			&Plan{
 				DetailedExitCode: false,
-				InputEnabled:     true,
-				OutPath:          "",
-				ViewType:         ViewHuman,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -43,11 +45,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			[]string{"-destroy", "-detailed-exitcode", "-input=false", "-out=saved.tfplan"},
 			&Plan{
 				DetailedExitCode: true,
-				InputEnabled:     false,
-				OutPath:          "saved.tfplan",
-				ViewType:         ViewHuman,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
+				OutPath: "saved.tfplan",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -59,11 +63,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			[]string{"-json"},
 			&Plan{
 				DetailedExitCode: false,
-				InputEnabled:     false,
-				OutPath:          "",
-				ViewType:         ViewJSON,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewJSON,
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -73,7 +79,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{}, ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -96,8 +102,8 @@ func TestParsePlan_invalid(t *testing.T) {
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -109,8 +115,8 @@ func TestParsePlan_tooManyArguments(t *testing.T) {
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 

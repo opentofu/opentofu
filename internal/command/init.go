@@ -92,9 +92,16 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	if c.outputJSONInto != "" {
-		out, err := os.OpenFile(c.outputJSONInto, os.O_RDWR|os.O_CREATE, 0600)
+		if c.outputInJSON {
+			// Not a valid combination
+			c.Ui.Error("The -json and -json-into options are mutually-exclusive in their use")
+			return 1
+		}
+
+		out, err := os.OpenFile(c.outputJSONInto, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			panic(err)
+			c.Ui.Error(fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", c.outputJSONInto, err.Error()))
+			return 1
 		}
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
