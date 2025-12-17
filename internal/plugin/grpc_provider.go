@@ -101,11 +101,6 @@ var _ providers.Interface = new(GRPCProvider)
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider: GetProviderSchema")
 
-	// For testing only
-	if p.SchemaCache == nil {
-		return p.getProviderSchema(ctx)
-	}
-
 	schema := p.SchemaCache(func() providers.GetProviderSchemaResponse {
 		return p.getProviderSchema(ctx)
 	})
