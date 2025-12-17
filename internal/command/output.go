@@ -39,7 +39,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	c.View.SetShowSensitive(args.ShowSensitive)
 
-	view := views.NewOutput(args.ViewType, c.View)
+	view := views.NewOutput(args.ViewOptions, c.View)
 
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)

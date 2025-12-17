@@ -23,22 +23,28 @@ func TestParseRefresh_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Refresh{
-				InputEnabled: true,
-				ViewType:     ViewHuman,
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
 			},
 		},
 		"input=false": {
 			[]string{"-input=false"},
 			&Refresh{
-				InputEnabled: false,
-				ViewType:     ViewHuman,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
 			},
 		},
 		"JSON view disables input": {
 			[]string{"-json"},
 			&Refresh{
-				InputEnabled: false,
-				ViewType:     ViewJSON,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewJSON,
+				},
 			},
 		},
 	}
@@ -53,6 +59,7 @@ func TestParseRefresh_basicValid(t *testing.T) {
 			got.State = nil
 			got.Operation = nil
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}
@@ -68,8 +75,8 @@ func TestParseRefresh_invalid(t *testing.T) {
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -81,8 +88,8 @@ func TestParseRefresh_tooManyArguments(t *testing.T) {
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 

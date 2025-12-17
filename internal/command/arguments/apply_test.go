@@ -26,12 +26,14 @@ func TestParseApply_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				PlanPath:     "",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: false,
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
+				PlanPath: "",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -42,12 +44,14 @@ func TestParseApply_basicValid(t *testing.T) {
 		"auto-approve, disabled input, and plan path": {
 			[]string{"-auto-approve", "-input=false", "saved.tfplan"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				PlanPath:     "saved.tfplan",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: true,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
+				PlanPath: "saved.tfplan",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -58,12 +62,14 @@ func TestParseApply_basicValid(t *testing.T) {
 		"destroy mode": {
 			[]string{"-destroy"},
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				PlanPath:     "",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: false,
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
+				PlanPath: "",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -74,12 +80,14 @@ func TestParseApply_basicValid(t *testing.T) {
 		"JSON view disables input": {
 			[]string{"-json", "-auto-approve"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				PlanPath:     "",
-				ViewType:     ViewJSON,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: true,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewJSON,
+				},
+				PlanPath: "",
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -89,7 +97,7 @@ func TestParseApply_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{}, ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -137,8 +145,8 @@ func TestParseApply_json(t *testing.T) {
 				}
 			}
 
-			if got.ViewType != ViewJSON {
-				t.Errorf("unexpected view type. got: %#v, want: %#v", got.ViewType, ViewJSON)
+			if got.ViewOptions.ViewType != ViewJSON {
+				t.Errorf("unexpected view type. got: %#v, want: %#v", got.ViewOptions.ViewType, ViewJSON)
 			}
 		})
 	}
@@ -152,8 +160,8 @@ func TestParseApply_invalid(t *testing.T) {
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -165,8 +173,8 @@ func TestParseApply_tooManyArguments(t *testing.T) {
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -760,11 +768,13 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: false,
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
+				State: &State{Lock: true},
+				Vars:  &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -775,11 +785,13 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		"auto-approve and disabled input": {
 			[]string{"-auto-approve", "-input=false"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove: true,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
+				State: &State{Lock: true},
+				Vars:  &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -789,7 +801,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{}, ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -813,8 +825,8 @@ func TestParseApplyDestroy_invalid(t *testing.T) {
 		if got, want := diags.Err().Error(), "Invalid mode option:"; !strings.Contains(got, want) {
 			t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 		}
-		if got.ViewType != ViewHuman {
-			t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+		if got.ViewOptions.ViewType != ViewHuman {
+			t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 		}
 	})
 }

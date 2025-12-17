@@ -43,7 +43,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewPlan(args, c.View)
+	view := views.NewPlan(args.ViewOptions, c.View)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)

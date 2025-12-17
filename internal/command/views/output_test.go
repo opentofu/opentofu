@@ -54,7 +54,7 @@ func TestOutputHuman_single(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(arguments.ViewHuman, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			outputs := map[string]*states.OutputValue{
 				"foo": {Value: tc.value},
@@ -87,7 +87,7 @@ func TestOutput_sensitive(t *testing.T) {
 	for name, vt := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(vt, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: vt}, NewView(streams))
 
 			outputs := map[string]*states.OutputValue{
 				"foo": {
@@ -200,7 +200,7 @@ foobar = "abcde"
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(tc.vt, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: tc.vt}, NewView(streams))
 			diags := v.Output("", outputs)
 
 			if diags.HasErrors() {
@@ -218,7 +218,7 @@ foobar = "abcde"
 // without diagnostics.
 func TestOutputJSON_empty(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewOutput(arguments.ViewJSON, NewView(streams))
+	v := NewOutput(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 	diags := v.Output("", map[string]*states.OutputValue{})
 
@@ -241,7 +241,7 @@ func TestOutput_emptyWarning(t *testing.T) {
 	for name, vt := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(vt, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: vt}, NewView(streams))
 
 			diags := v.Output("", map[string]*states.OutputValue{})
 
@@ -294,7 +294,7 @@ func TestOutputRaw(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(arguments.ViewRaw, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: arguments.ViewRaw}, NewView(streams))
 
 			value := values[name]
 			outputs := map[string]*states.OutputValue{
@@ -320,7 +320,7 @@ func TestOutputRaw(t *testing.T) {
 // Raw cannot render all outputs.
 func TestOutputRaw_all(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewOutput(arguments.ViewRaw, NewView(streams))
+	v := NewOutput(arguments.ViewOptions{ViewType: arguments.ViewRaw}, NewView(streams))
 
 	outputs := map[string]*states.OutputValue{
 		"foo": {Value: cty.StringVal("secret")},
@@ -353,7 +353,7 @@ func TestOutput_missing(t *testing.T) {
 	for name, vt := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewOutput(vt, NewView(streams))
+			v := NewOutput(arguments.ViewOptions{ViewType: vt}, NewView(streams))
 
 			diags := v.Output("foo", map[string]*states.OutputValue{
 				"bar": {Value: cty.StringVal("boop")},

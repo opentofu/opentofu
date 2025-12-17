@@ -89,7 +89,7 @@ func (v *ViewOptions) Parse() tfdiags.Diagnostics {
 		if v.jsonIntoFlag != "" {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Conflicting command output options",
+				"Invalid output format",
 				"The -json and -json-into arguments are mutually exclusive",
 			))
 		}

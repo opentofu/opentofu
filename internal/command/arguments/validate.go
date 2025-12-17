@@ -24,8 +24,8 @@ type Validate struct {
 	// included with the module.
 	NoTests bool
 
-	// ViewType specifies which output format to use: human, JSON, or "raw".
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	Vars *Vars
 }
@@ -40,11 +40,11 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	var jsonOutput bool
 	cmdFlags := extendedFlagSet("validate", nil, nil, validate.Vars)
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")
+
+	validate.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -67,12 +67,7 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 		validate.Path = args[0]
 	}
 
-	switch {
-	case jsonOutput:
-		validate.ViewType = ViewJSON
-	default:
-		validate.ViewType = ViewHuman
-	}
+	diags = diags.Append(validate.ViewOptions.Parse())
 
 	return validate, diags
 }

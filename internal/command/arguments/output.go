@@ -19,8 +19,8 @@ type Output struct {
 	// be loaded.
 	StatePath string
 
-	// ViewType specifies which output format to use: human, JSON, or "raw".
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	Vars *Vars
 
@@ -37,13 +37,14 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	var jsonOutput, rawOutput bool
+	var rawOutput bool
 	var statePath string
 	cmdFlags := extendedFlagSet("output", nil, nil, output.Vars)
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
 	cmdFlags.StringVar(&statePath, "state", "", "path")
 	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
+
+	output.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -62,16 +63,20 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 		))
 	}
 
-	if jsonOutput && rawOutput {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid output format",
-			"The -raw and -json options are mutually-exclusive.",
-		))
+	diags = diags.Append(output.ViewOptions.Parse())
+	if rawOutput {
+		output.ViewOptions.ViewType = ViewRaw
+		if output.ViewOptions.jsonFlag {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid output format",
+				"The -raw and -json options are mutually-exclusive.",
+			))
 
-		// Since the desired output format is unknowable, fall back to default
-		jsonOutput = false
-		rawOutput = false
+			// Since the desired output format is unknowable, fall back to default
+			output.ViewOptions.ViewType = ViewHuman
+			rawOutput = false
+		}
 	}
 
 	output.StatePath = statePath
@@ -86,15 +91,6 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 			"Output name required",
 			"You must give the name of a single output value when using the -raw option.",
 		))
-	}
-
-	switch {
-	case jsonOutput:
-		output.ViewType = ViewJSON
-	case rawOutput:
-		output.ViewType = ViewRaw
-	default:
-		output.ViewType = ViewHuman
 	}
 
 	return output, diags

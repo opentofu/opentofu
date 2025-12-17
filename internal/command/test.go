@@ -131,7 +131,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	view := views.NewTest(args.ViewType, c.View)
+	view := views.NewTest(args.ViewOptions, c.View)
 
 	// Users can also specify variables via the command line, so we'll parse
 	// all that here.

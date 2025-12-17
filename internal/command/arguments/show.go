@@ -19,8 +19,8 @@ type Show struct {
 	TargetType ShowTargetType
 	TargetArg  string
 
-	// ViewType specifies which output format to use: human, JSON, or "raw".
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	Vars *Vars
 
@@ -72,18 +72,18 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		Vars: &Vars{},
 	}
 
-	var jsonOutput bool
 	var stateTarget bool
 	var planTarget string
 	var configTarget bool
 	var moduleTarget string
 	cmdFlags := extendedFlagSet("show", nil, nil, show.Vars)
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
 	cmdFlags.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
 	cmdFlags.BoolVar(&configTarget, "config", false, "show the current configuration")
 	cmdFlags.StringVar(&moduleTarget, "module", "", "show metadata about one module")
+
+	show.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -93,8 +93,10 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		))
 	}
 
+	diags = diags.Append(show.ViewOptions.Parse())
+
 	// If -config or -module=... is selected, -json is required
-	if configTarget && !jsonOutput {
+	if configTarget && !show.ViewOptions.jsonFlag {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"JSON output required for configuration",
@@ -102,20 +104,13 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		))
 		return show, diags
 	}
-	if moduleTarget != "" && !jsonOutput {
+	if moduleTarget != "" && !show.ViewOptions.jsonFlag {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"JSON output required for module",
 			"The -module=DIR option requires -json to be specified.",
 		))
 		return show, diags
-	}
-
-	switch {
-	case jsonOutput:
-		show.ViewType = ViewJSON
-	default:
-		show.ViewType = ViewHuman
 	}
 
 	if planTarget == "" && moduleTarget == "" && !stateTarget && !configTarget {
