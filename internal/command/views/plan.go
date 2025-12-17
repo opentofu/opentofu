@@ -23,56 +23,57 @@ type Plan interface {
 }
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
-func NewPlan(args *arguments.Plan, view *View) Plan {
-	switch args.ViewOptions.ViewType {
+func NewPlan(args arguments.ViewOptions, view *View) Plan {
+	var plan Plan
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &PlanJSON{
+		plan = &PlanJSON{
 			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
-		human := &PlanHuman{
+		plan = &PlanHuman{
 			view:         view,
 			inAutomation: view.RunningInAutomation(),
 		}
-
-		if args.ViewOptions.JSONInto != nil {
-			return PlanMulti{human, &PlanJSON{view: NewJSONView(view, args.ViewOptions.JSONInto)}}
-		}
-
-		return human
 	default:
-		panic(fmt.Sprintf("unknown view type %v", args.ViewOptions.ViewType))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
 	}
+
+	if args.JSONInto != nil {
+		plan = PlanMulti{plan, &PlanJSON{view: NewJSONView(view, args.JSONInto)}}
+	}
+
+	return plan
 }
 
 type PlanMulti []Plan
 
 var _ Plan = (PlanMulti)(nil)
 
-func (p PlanMulti) Operation() Operation {
+func (m PlanMulti) Operation() Operation {
 	var operation OperationMulti
-	for _, plan := range p {
+	for _, plan := range m {
 		operation = append(operation, plan.Operation())
 	}
 	return operation
 }
 
-func (p PlanMulti) Hooks() []tofu.Hook {
+func (m PlanMulti) Hooks() []tofu.Hook {
 	var hooks []tofu.Hook
-	for _, plan := range p {
+	for _, plan := range m {
 		hooks = append(hooks, plan.Hooks()...)
 	}
 	return hooks
 }
 
-func (p PlanMulti) Diagnostics(diags tfdiags.Diagnostics) {
-	for _, plan := range p {
+func (m PlanMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, plan := range m {
 		plan.Diagnostics(diags)
 	}
 }
 
-func (p PlanMulti) HelpPrompt() {
-	for _, plan := range p {
+func (m PlanMulti) HelpPrompt() {
+	for _, plan := range m {
 		plan.HelpPrompt()
 	}
 }

@@ -55,7 +55,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewApply(args.ViewType, c.Destroy, c.View)
+	view := views.NewApply(args.ViewOptions, c.Destroy, c.View)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -92,7 +92,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.InputEnabled
+	c.Meta.input = args.ViewOptions.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
@@ -104,7 +104,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewType, enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewOptions.ViewType, enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -266,7 +266,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, applyArgs.ViewType, enc)
+	opReq := c.Operation(ctx, be, applyArgs.ViewOptions.ViewType, enc)
 	opReq.AutoApprove = applyArgs.AutoApprove
 	opReq.SuppressForgetErrorsDuringDestroy = applyArgs.SuppressForgetErrorsDuringDestroy
 	opReq.ConfigDir = "."

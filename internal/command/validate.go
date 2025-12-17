@@ -39,7 +39,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	view := views.NewValidate(args.ViewType, c.View)
+	view := views.NewValidate(args.ViewOptions, c.View)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll

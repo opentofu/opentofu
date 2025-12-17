@@ -22,15 +22,11 @@ type Apply struct {
 	// AutoApprove skips the manual verification step for the apply operation.
 	AutoApprove bool
 
-	// InputEnabled is used to disable interactive input for unspecified
-	// variable and backend config values. Default is true.
-	InputEnabled bool
-
 	// PlanPath contains an optional path to a stored plan file
 	PlanPath string
 
-	// ViewType specifies which output format to use
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
@@ -53,12 +49,10 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("apply", apply.State, apply.Operation, apply.Vars)
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
-	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
 
-	var json bool
-	cmdFlags.BoolVar(&json, "json", false, "json")
+	apply.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -82,15 +76,10 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 		))
 	}
 
-	// JSON view currently does not support input, so we disable it here.
-	if json {
-		apply.InputEnabled = false
-	}
-
 	// JSON view cannot confirm apply, so we require either a plan file or
 	// auto-approve to be specified. We intentionally fail here rather than
 	// override auto-approve, which would be dangerous.
-	if json && apply.PlanPath == "" && !apply.AutoApprove {
+	if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Plan file or auto-approve required",
@@ -99,13 +88,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(apply.Operation.Parse())
-
-	switch {
-	case json:
-		apply.ViewType = ViewJSON
-	default:
-		apply.ViewType = ViewHuman
-	}
+	diags = diags.Append(apply.ViewOptions.Parse())
 
 	return apply, diags
 }
