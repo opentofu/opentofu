@@ -97,7 +97,10 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 		})
 		cp.providerSchemas[addr] = entry
 	}
-	// We don't defer unlock as the majority of the work of this function happens in calling the sync.OnceValues function defined above and called below
+	// This lock is only for access to the map. We don't need to hold the lock when calling
+	// "entry" because [sync.OnceValues] handles synchronization itself.
+	// We don't defer unlock as the majority of the work of this function happens in calling "entry"
+	// and we want to release as soon as possible for multiple concurrent callers of different providers
 	cp.providerSchemasLock.Unlock()
 
 	return entry()
@@ -164,7 +167,10 @@ func (cp *contextPlugins) ProvisionerSchema(addr string) (*configschema.Block, e
 		})
 		cp.provisionerSchemas[addr] = entry
 	}
-	// We don't defer unlock as the majority of the work of this function happens in calling the sync.OnceValues function defined above and called below
+	// This lock is only for access to the map. We don't need to hold the lock when calling
+	// "entry" because [sync.OnceValues] handles synchronization itself.
+	// We don't defer unlock as the majority of the work of this function happens in calling "entry"
+	// and we want to release as soon as possible for multiple concurrent callers of different provisioners
 	cp.provisionerSchemasLock.Unlock()
 
 	return entry()
