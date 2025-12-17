@@ -7,7 +7,6 @@ package views
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -25,29 +24,24 @@ type Plan interface {
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
 func NewPlan(args *arguments.Plan, view *View) Plan {
-	human := &PlanHuman{
-		view:         view,
-		inAutomation: view.RunningInAutomation(),
-	}
-
-	switch args.ViewType {
+	switch args.ViewOptions.ViewType {
 	case arguments.ViewJSON:
-		if args.JsonInto != "" {
-			out, err := os.OpenFile(args.JsonInto, os.O_RDWR|os.O_CREATE, 0600)
-			if err != nil {
-				panic(err)
-			}
-			return PlanMulti{human, &PlanJSON{
-				view: NewJSONView(view, out),
-			}}
-		}
 		return &PlanJSON{
 			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
+		human := &PlanHuman{
+			view:         view,
+			inAutomation: view.RunningInAutomation(),
+		}
+
+		if args.ViewOptions.JSONInto != nil {
+			return PlanMulti{human, &PlanJSON{view: NewJSONView(view, args.ViewOptions.JSONInto)}}
+		}
+
 		return human
 	default:
-		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewOptions.ViewType))
 	}
 }
 
