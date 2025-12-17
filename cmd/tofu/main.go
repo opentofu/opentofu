@@ -378,6 +378,12 @@ func realMain() int {
 		return 1
 	}
 
+	// We might generate some additional log lines if OpenTofu relied on any
+	// non-default Go runtime behaviors enabled by GODEBUG settings, because
+	// they might be relevant when trying to reproduce certain problems for
+	// debugging or bug reporting purposes.
+	logGodebugUsage()
+
 	// if we are exiting with a non-zero code, check if it was caused by any
 	// plugins crashing
 	if exitCode != 0 {
