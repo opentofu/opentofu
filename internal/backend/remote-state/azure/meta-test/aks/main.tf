@@ -66,7 +66,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   default_node_pool {
     name       = "agentpool"
-    vm_size    = "Standard_D2_v2"
+    vm_size    = "standard_d8_v3" // if it doesn't work, try "Standard_D2_v2". This is dependent on the availability in the Azure account.
     node_count = 1
     upgrade_settings {
       max_surge = "10%"
