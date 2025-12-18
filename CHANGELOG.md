@@ -12,6 +12,7 @@ BUG FIXES:
 
 * Fix crash in plan -generate-config-out with read-only nested attributes ([#3553](https://github.com/opentofu/opentofu/pull/3553))
 * It's now possible again to plan changes with the `hashicorp/helm` and `hashicorp/kubernetes` providers when the provider configuration contains unknown values, as long as the configuration is carefully written to avoid the plan phase actually depending on those values. ([#3592](https://github.com/opentofu/opentofu/pull/3592))
+* When running `tofu init` on Windows with an azurerm backend, the subscription_id is quoted correctly allowing successful authentication. ([#3602](https://github.com/opentofu/opentofu/pull/3602))
 
 ## 1.11.1
 
