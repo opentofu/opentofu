@@ -237,7 +237,7 @@ func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, sc
 		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
 		return 1
 	}
-	v.output.Write(jsonState)
+	_, _ = v.output.Write(jsonState)
 	return 0
 }
 
@@ -249,7 +249,7 @@ func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cl
 			v.view.streams.Eprintf("Didn't get external JSON plan format")
 			return 1
 		}
-		v.output.Write(planJSON.JSONBytes)
+		_, _ = v.output.Write(planJSON.JSONBytes)
 	} else if plan != nil {
 		planJSON, err := jsonplan.Marshal(config, plan, priorStateFile, schemas)
 
@@ -257,12 +257,12 @@ func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cl
 			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
 			return 1
 		}
-		v.output.Write(planJSON)
+		_, _ = v.output.Write(planJSON)
 	} else {
 		// Should not get here because at least one of the two plan arguments
 		// should be present, but we'll tolerate this by just returning an
 		// empty JSON object.
-		v.output.Write([]byte("{}"))
+		_, _ = v.output.Write([]byte("{}"))
 	}
 	return 0
 }
@@ -273,7 +273,7 @@ func (v *ShowJSON) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) 
 		v.view.streams.Eprintf("Failed to marshal configuration to JSON: %s", err)
 		return 1
 	}
-	v.output.Write(configJSON)
+	_, _ = v.output.Write(configJSON)
 	return 0
 }
 
@@ -283,7 +283,7 @@ func (v *ShowJSON) DisplaySingleModule(module *configs.Module) int {
 		v.view.streams.Eprintf("Failed to marshal module contents to JSON: %s", err)
 		return 1
 	}
-	v.output.Write(moduleJSON)
+	_, _ = v.output.Write(moduleJSON)
 	return 0
 }
 
