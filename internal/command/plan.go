@@ -86,7 +86,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewOptions.ViewType, enc)
+	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewOptions, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -94,7 +94,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewOptions.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewOptions, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -124,7 +124,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewOptions arguments.ViewOptions, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -138,8 +138,8 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 
 	// Load the backend
 	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:   backendConfig,
-		ViewType: viewType,
+		Config:      backendConfig,
+		ViewOptions: viewOptions,
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {
@@ -153,7 +153,7 @@ func (c *PlanCommand) OperationRequest(
 	ctx context.Context,
 	be backend.Enhanced,
 	view views.Plan,
-	viewType arguments.ViewType,
+	viewOptions arguments.ViewOptions,
 	args *arguments.Operation,
 	planOutPath string,
 	generateConfigOut string,
@@ -162,7 +162,7 @@ func (c *PlanCommand) OperationRequest(
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewOptions, enc)
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()

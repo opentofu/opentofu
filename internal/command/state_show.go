@@ -98,7 +98,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewHuman}, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics

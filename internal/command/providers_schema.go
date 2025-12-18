@@ -94,7 +94,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, arguments.ViewJSON, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewJSON}, enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	var callDiags tfdiags.Diagnostics
