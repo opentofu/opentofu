@@ -19,7 +19,7 @@ func TestUnlock(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
 
-	l := NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	l := NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 	l.Lock(statemgr.NewUnlockErrorFull(nil, nil), "test-lock")
 
 	diags := l.Unlock()
