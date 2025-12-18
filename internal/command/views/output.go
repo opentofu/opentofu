@@ -234,8 +234,8 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 			return diags
 		}
 
-		v.output.Write(jsonOutput)
-		v.output.Write([]byte("\n"))
+		_, _ = v.output.Write(jsonOutput)
+		_, _ = v.output.Write([]byte("\n"))
 
 		return nil
 	}
@@ -279,8 +279,8 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 		return diags
 	}
 
-	v.output.Write(jsonOutputs)
-	v.output.Write([]byte("\n"))
+	_, _ = v.output.Write(jsonOutputs)
+	_, _ = v.output.Write([]byte("\n"))
 
 	return nil
 }

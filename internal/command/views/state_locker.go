@@ -92,7 +92,7 @@ func (v *StateLockerJSON) Locking() {
 
 	lock_info_message, _ := json.Marshal(json_data)
 	lock_info_message = append(lock_info_message, '\n')
-	v.output.Write(lock_info_message)
+	_, _ = v.output.Write(lock_info_message)
 }
 
 func (v *StateLockerJSON) Unlocking() {
@@ -107,5 +107,5 @@ func (v *StateLockerJSON) Unlocking() {
 
 	lock_info_message, _ := json.Marshal(json_data)
 	lock_info_message = append(lock_info_message, '\n')
-	v.output.Write(lock_info_message)
+	_, _ = v.output.Write(lock_info_message)
 }
