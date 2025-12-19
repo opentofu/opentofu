@@ -49,11 +49,19 @@ const traceAttrProviderInstanceAddr = "opentofu.provider_instance.address"
 // NodeApplyableProvider represents a configured provider.
 type NodeApplyableProvider struct {
 	*NodeAbstractProvider
+
+	instances map[addrs.InstanceKey]providers.Configured
 }
 
 var (
 	_ GraphNodeExecutable = (*NodeApplyableProvider)(nil)
+	_ GraphNodeProvider   = (*NodeApplyableProvider)(nil)
 )
+
+// GraphNodeProvider
+func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) providers.Configured {
+	return n.instances[key]
+}
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
@@ -88,8 +96,13 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 		}
 	}
 
+	if n.instances == nil {
+		n.instances = map[addrs.InstanceKey]providers.Configured{}
+	}
+
 	for _, key := range initKeys {
-		_, err := evalCtx.InitProvider(ctx, n.Addr, key)
+		instance, err := evalCtx.InitProvider(ctx, n.Addr, key)
+		n.instances[key] = instance
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -98,9 +111,7 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
 	for configKey, initKey := range instanceKeys {
-		provider, _, err := getProvider(ctx, evalCtx, n.Addr, initKey)
-		diags = diags.Append(err)
-		instances[configKey] = provider
+		instances[configKey] = evalCtx.Provider(ctx, n.Addr, initKey)
 	}
 	if diags.HasErrors() {
 		return nil, diags

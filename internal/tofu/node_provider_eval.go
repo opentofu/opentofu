@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -18,12 +19,21 @@ import (
 // with it.
 type NodeEvalableProvider struct {
 	*NodeAbstractProvider
+
+	instance providers.Configured
 }
 
 var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
+var _ GraphNodeProvider = (*NodeEvalableProvider)(nil)
+
+// GraphNodeProvider
+func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) providers.Configured {
+	return n.instance
+}
 
 // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	_, err := evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
+	var err error
+	n.instance, err = evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
 	return diags.Append(err)
 }

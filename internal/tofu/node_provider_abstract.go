@@ -33,7 +33,6 @@ type NodeAbstractProvider struct {
 var (
 	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
-	_ GraphNodeProvider                   = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
 	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)
@@ -88,6 +87,7 @@ func (n *NodeAbstractProvider) AttachProviderConfigSchema(schema *configschema.B
 	n.Schema = schema
 }
 
+// GraphNodeProvider
 func (n *NodeAbstractProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
 	if n.Config == nil {
 		return false, nil, nil

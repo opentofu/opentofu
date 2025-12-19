@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -173,7 +174,12 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{
+				ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Instance: func(key addrs.InstanceKey) providers.Configured {
+					return mockProvider
+				},
+			},
 		},
 	}
 	evalCtx.ProviderProvider = mockProvider

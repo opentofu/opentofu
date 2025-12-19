@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -53,6 +54,7 @@ type GraphNodeProvider interface {
 	GraphNodeModulePath
 	ProviderAddr() addrs.AbsProviderConfig
 	Name() string
+	Instance(addrs.InstanceKey) providers.Configured
 	// For test framework
 	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)
 }
@@ -79,6 +81,8 @@ type ResolvedProvider struct {
 	KeyModule      addrs.Module
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
+
+	Instance func(addrs.InstanceKey) providers.Configured
 
 	// Test overrides
 	IsMocked          bool
@@ -179,6 +183,7 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 
 			resolved := ResolvedProvider{
 				ProviderConfig: target.ProviderAddr(),
+				Instance:       target.Instance,
 				// Pass through key data
 				KeyExpression: req.KeyExpression,
 				KeyModule:     req.KeyModule,
@@ -254,6 +259,7 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 				}
 			}
 			resolved.ProviderConfig = target.ProviderAddr()
+			resolved.Instance = target.Instance
 
 			// Include test mocking and override extensions
 			resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = target.MocksAndOverrides()
@@ -324,7 +330,7 @@ func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph)
 		pAddr := applyableProvider.ProviderAddr()
 		log.Printf("[TRACE] ProviderFunctionTransformer: replacing NodeApplyableProvider with NodeEvalableProvider for %s since it's missing configuration and there are no consumers of it", pAddr)
 		unconfiguredProvider := &NodeEvalableProvider{
-			&NodeAbstractProvider{
+			NodeAbstractProvider: &NodeAbstractProvider{
 				Addr: pAddr,
 			},
 		}
@@ -433,7 +439,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
 
 							provider = &NodeEvalableProvider{
-								&NodeAbstractProvider{
+								NodeAbstractProvider: &NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
@@ -542,7 +548,7 @@ func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) erro
 	// Initialize factory
 	if t.Concrete == nil {
 		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
-			return a
+			return &NodeEvalableProvider{NodeAbstractProvider: a}
 		}
 	}
 
@@ -711,6 +717,10 @@ func (n *graphNodeProxyProvider) MocksAndOverrides() (IsMocked bool, MockResourc
 	return n.Target().MocksAndOverrides()
 }
 
+func (n *graphNodeProxyProvider) Instance(key addrs.InstanceKey) providers.Configured {
+	return n.Target().Instance(key)
+}
+
 // Find the *single* keyExpression that is used in the provider
 // chain.  This is not ideal, but it works with current constraints on this feature
 func (n *graphNodeProxyProvider) TargetExpr() (hcl.Expression, addrs.Module) {
@@ -868,7 +878,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 		if t.Concrete != nil {
 			v = t.Concrete(abstract)
 		} else {
-			v = abstract
+			v = &NodeEvalableProvider{NodeAbstractProvider: abstract}
 		}
 
 		// Add it to the graph

@@ -234,7 +234,9 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 						ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 							Provider: addrs.NewDefaultProvider("test"),
 							Module:   addrs.RootModule,
-						}},
+						},
+							Instance: func(key addrs.InstanceKey) providers.Configured { return p },
+						},
 					},
 					Addr: absResource,
 				},
@@ -309,7 +311,9 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
-				}},
+				},
+					Instance: func(key addrs.InstanceKey) providers.Configured { return p },
+				},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
@@ -392,7 +396,9 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
-				}},
+				},
+					Instance: func(key addrs.InstanceKey) providers.Configured { return p },
+				},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},

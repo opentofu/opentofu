@@ -202,7 +202,10 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 					Addr: absResource,
 					NodeAbstractResource: NodeAbstractResource{
-						ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+						ResolvedProvider: ResolvedProvider{
+							ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+							Instance:       func(key addrs.InstanceKey) providers.Configured { return p },
+						},
 					},
 				},
 				DeposedKey:       deposedKey,
@@ -231,14 +234,17 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
+	evalCtx, p := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: absResource,
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: ResolvedProvider{
+					ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+					Instance:       func(key addrs.InstanceKey) providers.Configured { return p },
+				},
 			},
 		},
 		DeposedKey: deposedKey,
@@ -279,7 +285,10 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 	node := &NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				ResolvedProvider: ResolvedProvider{
+					ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+					Instance:       func(key addrs.InstanceKey) providers.Configured { return mockProvider },
+				},
 			},
 			Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		},
@@ -311,7 +320,10 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: ResolvedProvider{
+					ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+					Instance:       func(key addrs.InstanceKey) providers.Configured { return p },
+				},
 			},
 		},
 		DeposedKey: states.NewDeposedKey(),
@@ -327,14 +339,17 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
+	evalCtx, p := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeForgetDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: absResource,
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: ResolvedProvider{
+					ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+					Instance:       func(key addrs.InstanceKey) providers.Configured { return p },
+				},
 			},
 		},
 		DeposedKey: deposedKey,

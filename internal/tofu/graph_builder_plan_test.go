@@ -304,6 +304,9 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 	evalCtx := &MockEvalContext{
 		ProviderProvider: testProvider("aws"),
 	}
+	found.ResolvedProvider.Instance = func(addrs.InstanceKey) providers.Configured {
+		return evalCtx.ProviderProvider
+	}
 	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
 	got := diags.Err().Error()
 	want := `An ephemeral resource planned for destroy: A destroy operation has been planned for the ephemeral resource "ephemeral.aws_secretmanager_secret.test". This is an OpenTofu error. Please report this.`
