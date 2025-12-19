@@ -302,10 +302,10 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 
 	// Let's see how NodePlanDestroyableResourceInstance.Execute is behaving when it's for an ephemeral resource
 	evalCtx := &MockEvalContext{
-		ProviderProvider: testProvider("aws"),
+		InitProviderProvider: testProvider("aws"),
 	}
 	found.ResolvedProvider.Instance = func(addrs.InstanceKey) providers.Configured {
-		return evalCtx.ProviderProvider
+		return evalCtx.InitProviderProvider
 	}
 	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
 	got := diags.Err().Error()

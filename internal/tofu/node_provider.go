@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/opentofu/version"
 )
 
 // traceAttrProviderAddress is a standardized trace span attribute name that we
@@ -66,6 +67,9 @@ func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) providers.Config
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	instances, diags := n.initInstances(ctx, evalCtx, op)
+	if diags.HasErrors() {
+		return diags
+	}
 
 	for key, provider := range instances {
 		diags = diags.Append(n.executeInstance(ctx, evalCtx, op, key, provider))
@@ -111,7 +115,7 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
 	for configKey, initKey := range instanceKeys {
-		instances[configKey] = evalCtx.Provider(ctx, n.Addr, initKey)
+		instances[configKey] = n.instances[initKey]
 	}
 	if diags.HasErrors() {
 		return nil, diags
@@ -293,8 +297,11 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", n.Addr)
 	}
 
-	configDiags := evalCtx.ConfigureProvider(ctx, n.Addr, providerKey, unmarkedConfigVal)
-	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
+	configResp := provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
+		TerraformVersion: version.String(),
+		Config:           unmarkedConfigVal,
+	})
+	diags = diags.Append(configResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
 		// this error message won't be very clear. Add some detail to the error

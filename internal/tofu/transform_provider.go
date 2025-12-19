@@ -288,6 +288,8 @@ type FunctionProvidedBy struct {
 	Provider      addrs.AbsProviderConfig
 	KeyModule     addrs.Module
 	KeyExpression hcl.Expression
+
+	Instance func(addrs.InstanceKey) providers.Configured
 }
 
 // ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
@@ -464,6 +466,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					providerReferences[key] = provider
 					t.ProviderFunctionTracker[key] = FunctionProvidedBy{
 						Provider:      provider.ProviderAddr(),
+						Instance:      provider.Instance,
 						KeyModule:     targetPath,
 						KeyExpression: targetExpr,
 					}

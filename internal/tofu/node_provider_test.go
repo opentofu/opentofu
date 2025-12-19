@@ -51,7 +51,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		Config: config,
 	}}
 
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	evalCtx.ProviderInputValues = map[string]cty.Value{
 		"pw": cty.StringVal("so secret"),
@@ -61,11 +61,11 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	if !evalCtx.ConfigureProviderCalled {
+	if !provider.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := evalCtx.ConfigureProviderConfig
+	gotObj := provider.ConfigureProviderRequest.Config
 	if !gotObj.Type().HasAttribute("user") {
 		t.Fatal("configuration object does not have \"user\" attribute")
 	}
@@ -98,7 +98,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		Config: config,
 	}}
 
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 
 	diags := n.Execute(t.Context(), evalCtx, walkImport)
@@ -111,7 +111,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		t.Errorf("wrong diagnostic detail\n got: %q\nwant: %q", got, want)
 	}
 
-	if evalCtx.ConfigureProviderCalled {
+	if provider.ConfigureProviderCalled {
 		t.Fatal("should not be called")
 	}
 }
@@ -132,18 +132,18 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		Addr:   providerAddr,
 		Config: config,
 	}}
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 
 	if err := n.Execute(t.Context(), evalCtx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !evalCtx.ConfigureProviderCalled {
+	if !provider.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := evalCtx.ConfigureProviderConfig
+	gotObj := provider.ConfigureProviderRequest.Config
 	if !gotObj.Type().HasAttribute("test_string") {
 		t.Fatal("configuration object does not have \"test_string\" attribute")
 	}
@@ -170,17 +170,17 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		Config: config,
 	}}
 
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	if err := n.Execute(t.Context(), evalCtx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !evalCtx.ConfigureProviderCalled {
+	if !provider.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := evalCtx.ConfigureProviderConfig
+	gotObj := provider.ConfigureProviderRequest.Config
 	if !gotObj.Type().HasAttribute("test_string") {
 		t.Fatal("configuration object does not have \"test_string\" attribute")
 	}
@@ -207,7 +207,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	if err := n.Execute(t.Context(), evalCtx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
@@ -249,13 +249,13 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	if err := n.Execute(t.Context(), evalCtx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if evalCtx.ConfigureProviderCalled {
+	if provider.ConfigureProviderCalled {
 		t.Fatal("should not be called")
 	}
 }
@@ -269,7 +269,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		},
 	})
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
@@ -351,7 +351,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		return
 	}
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
@@ -424,14 +424,17 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		},
 	})
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	// For this test, provider.PrepareConfigFn will succeed every time but the
 	// ctx.ConfigureProviderFn will return an error if a value is not found.
 	//
 	// This is an unlikely but real situation that occurs:
 	// https://github.com/hashicorp/terraform/issues/23087
-	evalCtx.ConfigureProviderFn = func(addr addrs.AbsProviderConfig, cfg cty.Value) (diags tfdiags.Diagnostics) {
+	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+		var diags tfdiags.Diagnostics
+		cfg := req.Config
+
 		if cfg.IsNull() {
 			diags = diags.Append(fmt.Errorf("no config provided"))
 		} else {
@@ -440,6 +443,9 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 				diags = diags.Append(fmt.Errorf("value is not found"))
 			}
 		}
+
+		resp.Diagnostics = diags
+
 		return
 	}
 
@@ -510,7 +516,7 @@ func TestGetSchemaError(t *testing.T) {
 	}
 
 	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
-	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx := &MockEvalContext{InitProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	node := NodeApplyableProvider{
 		NodeAbstractProvider: &NodeAbstractProvider{

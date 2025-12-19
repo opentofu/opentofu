@@ -27,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/version"
 )
 
 // BuiltinEvalContext is an EvalContext implementation that is used by
@@ -154,20 +153,6 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 	return p, nil
 }
 
-func (c *BuiltinEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	providerAddrKey := addr.String()
-
-	pm, ok := c.ProviderCache[providerAddrKey]
-	if !ok {
-		return nil
-	}
-
-	return pm[key]
-}
-
 func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
 	return c.Plugins.ProviderSchema(ctx, addr.Provider)
 }
@@ -194,29 +179,6 @@ func (c *BuiltinEvalContext) CloseProvider(ctx context.Context, addr addrs.AbsPr
 	}
 
 	return nil
-}
-
-func (c *BuiltinEvalContext) ConfigureProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	if !c.Path().IsForModule(addr.Module) {
-		// This indicates incorrect use of ConfigureProvider: it should be used
-		// only from the module that the provider configuration belongs to.
-		panic(fmt.Sprintf("%s configured by wrong module %s", addr, c.Path()))
-	}
-
-	p := c.Provider(ctx, addr, providerKey)
-	if p == nil {
-		diags = diags.Append(fmt.Errorf("%s not initialized", addr.InstanceString(providerKey)))
-		return diags
-	}
-
-	req := providers.ConfigureProviderRequest{
-		TerraformVersion: version.String(),
-		Config:           cfg,
-	}
-
-	resp := p.ConfigureProvider(ctx, req)
-	return resp.Diagnostics
 }
 
 func (c *BuiltinEvalContext) ProviderInput(_ context.Context, pc addrs.AbsProviderConfig) map[string]cty.Value {
@@ -467,7 +429,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 		}
 
-		provider := c.Provider(ctx, providedBy.Provider, providerKey)
+		provider := providedBy.Instance(providerKey)
 
 		if provider == nil {
 			// This should not be possible if references are tracked correctly

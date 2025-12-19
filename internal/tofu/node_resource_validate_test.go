@@ -200,7 +200,7 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	err := node.validateResource(t.Context(), ctx)
 	if err != nil {
@@ -230,7 +230,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	tests := []struct {
 		name  string
@@ -302,7 +302,7 @@ func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	t.Run("no errors", func(t *testing.T) {
 		mp.ValidateEphemeralConfigCalled = false
@@ -392,7 +392,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -428,7 +428,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -465,7 +465,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
@@ -528,7 +528,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -612,7 +612,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -695,7 +695,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -823,7 +823,7 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 			ctx.installSimpleEval()
 
 			ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-			ctx.ProviderProvider = p
+			ctx.InitProviderProvider = p
 
 			diags := node.validateResource(t.Context(), ctx)
 			if got, want := len(diags), 1; got != want {

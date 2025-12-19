@@ -273,7 +273,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 			},
 		},
 	})
-	evalCtx.ProviderProvider = mockProvider
+	evalCtx.InitProviderProvider = mockProvider
 	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
 	obj := &states.ResourceInstanceObject{
@@ -311,7 +311,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 	p := simpleMockProvider()
 	evalCtx := &MockEvalContext{
 		StateState:           states.NewState().SyncWrapper(),
-		ProviderProvider:     simpleMockProvider(),
+		InitProviderProvider: simpleMockProvider(),
 		ProviderSchemaSchema: p.GetProviderSchema(t.Context()),
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}
@@ -412,7 +412,7 @@ func initMockEvalContext(ctx context.Context, resourceAddrs string, deposedKey s
 		PrevRunStateState:    state.DeepCopy().SyncWrapper(),
 		RefreshStateState:    state.DeepCopy().SyncWrapper(),
 		StateState:           state.SyncWrapper(),
-		ProviderProvider:     p,
+		InitProviderProvider: p,
 		ProviderSchemaSchema: schema,
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}, p
