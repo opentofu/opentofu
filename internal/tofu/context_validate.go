@@ -68,13 +68,6 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	}
 
 	importTargets := c.findImportTargets(config)
-	// We need to validate that import targets exist in the configuration before starting to build the graph, since
-	// in the ConfigTransformer#transformSingle, we rely on having configs for the targeted resources.
-	importTargetDiags := c.validateImportTargets(config, importTargets, "", walkValidate)
-	diags = diags.Append(importTargetDiags)
-	if diags.HasErrors() {
-		return diags
-	}
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 

@@ -346,7 +346,7 @@ func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState
 	}
 
 	opts.ImportTargets = c.findImportTargets(config)
-	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath, walkPlan)
+	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath)
 	diags = diags.Append(importTargetDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -680,7 +680,7 @@ func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 //  2. Config generation is not attempted for resources inside sub-modules
 //  3. Config generation is not attempted for resources with indexes (for_each/count) - This will always include
 //     resources for which we could not yet resolve the address
-func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget, generateConfigPath string, op walkOperation) (diags tfdiags.Diagnostics) {
+func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget, generateConfigPath string) (diags tfdiags.Diagnostics) {
 	configGeneration := len(generateConfigPath) > 0
 	for _, imp := range importTargets {
 		staticAddress := imp.StaticAddr()
@@ -692,7 +692,7 @@ func (c *Context) validateImportTargets(config *configs.Config, importTargets []
 				// Attempted config generation for resource in non-existing module. So error because resource generation
 				// is not allowed in a sub-module
 				diags = diags.Append(importConfigGenerationInModuleDiags(staticAddress.String(), imp.Config))
-			} else if op != walkValidate {
+			} else {
 				diags = diags.Append(importResourceWithoutConfigDiags(staticAddress.String(), imp.Config))
 			}
 			continue
@@ -711,7 +711,7 @@ func (c *Context) validateImportTargets(config *configs.Config, importTargets []
 					diags = diags.Append(importConfigGenerationWithIndexDiags(imp.ResolvedAddr().String(), imp.Config))
 					continue
 				}
-			} else if op != walkValidate {
+			} else {
 				diags = diags.Append(importResourceWithoutConfigDiags(staticAddress.String(), imp.Config))
 				continue
 			}
