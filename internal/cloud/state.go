@@ -222,17 +222,17 @@ func (s *State) PersistState(ctx context.Context, schemas *tofu.Schemas) error {
 		return err
 	}
 
-	var jsonState []byte
-	if schemas != nil {
-		jsonState, err = jsonstate.Marshal(f, schemas)
-		if err != nil {
-			return err
-		}
-	}
-
 	stateFile, err := statefile.Read(bytes.NewReader(buf.Bytes()), s.encryption)
 	if err != nil {
 		return fmt.Errorf("failed to read state: %w", err)
+	}
+
+	var jsonState []byte
+	if schemas != nil {
+		jsonState, err = jsonstate.Marshal(stateFile, schemas)
+		if err != nil {
+			return err
+		}
 	}
 
 	ov, err := jsonstate.MarshalOutputs(stateFile.State.RootModule().OutputValues)

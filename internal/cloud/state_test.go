@@ -8,11 +8,16 @@ package cloud
 import (
 	"bytes"
 	"context"
+	"maps"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -428,5 +433,105 @@ func TestState_ShouldPersistIntermediateState(t *testing.T) {
 		if actual != testCase.Expected {
 			t.Errorf("%s: expected %v but got %v", testCase.Description, testCase.Expected, actual)
 		}
+	}
+}
+
+func TestState_PersistStateCorrectlyWithoutEphemeral(t *testing.T) {
+	// This test is meant to test that a state containing ephemeral resources can be marshalled correctly
+	// by filtering out the ephemeral ones from the content.
+	remoteClientMock := &MockStateVersions{
+		states:        map[string][]byte{},
+		outputStates:  map[string][]byte{},
+		stateVersions: map[string]*tfe.StateVersion{},
+		workspaces:    map[string][]string{},
+	}
+	cloudState := &State{
+		state:     states.NewState(),
+		readState: states.NewState(),
+		workspace: &tfe.Workspace{
+			ID: "test",
+		},
+		tfeClient: &tfe.Client{
+			StateVersions: remoteClientMock,
+		},
+		encryption: encryption.Disabled().State(),
+	}
+	// prepare addresses
+	provAddr := addrs.MustParseProviderSourceString("test")
+	ephAddr, diags := addrs.ParseAbsResourceInstanceStr("ephemeral.test_resource.test")
+	if diags != nil {
+		t.Fatalf("could not parse ephemeral resource address: %s", diags)
+	}
+	resAddr, diags := addrs.ParseAbsResourceInstanceStr("test_resource.test")
+	if diags != nil {
+		t.Fatalf("could not parse ephemeral resource address: %s", diags)
+	}
+
+	resSchema := configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+	}
+	schemas := &tofu.Schemas{
+		Providers: map[addrs.Provider]providers.ProviderSchema{
+			provAddr: {
+				EphemeralResources: map[string]providers.Schema{
+					"test_resource": {
+						Block: &resSchema,
+					},
+				},
+				ResourceTypes: map[string]providers.Schema{
+					"test_resource": {
+						Block: &resSchema,
+					},
+				},
+			},
+		},
+	}
+	// prepare new state
+	cloudState.state.SyncWrapper().SetResourceInstanceCurrent(ephAddr, &states.ResourceInstanceObjectSrc{
+		AttrsJSON: []byte(`{"id":"test"}`),
+		Status:    states.ObjectReady,
+	}, addrs.AbsProviderConfig{
+		Provider: provAddr,
+	}, addrs.NoKey)
+
+	cloudState.state.SyncWrapper().SetResourceInstanceCurrent(resAddr, &states.ResourceInstanceObjectSrc{
+		AttrsJSON: []byte(`{"id":"test"}`),
+		Status:    states.ObjectReady,
+	}, addrs.AbsProviderConfig{
+		Provider: provAddr,
+	}, addrs.NoKey)
+
+	if err := cloudState.PersistState(t.Context(), schemas); err != nil {
+		t.Fatalf("expected no error, got %q", err)
+	}
+
+	var expectedSerial uint64 = 1
+	if cloudState.readSerial != expectedSerial {
+		t.Fatalf("expected initial state readSerial to be %d, got %d", expectedSerial, cloudState.readSerial)
+	}
+	if got, want := len(remoteClientMock.states), 1; got != want {
+		t.Fatalf("expected to have %d state objects but got %d", want, got)
+	}
+	// since the key is an url with randomly generated keys, we just get the values to work with
+	dat := slices.Collect(maps.Values(remoteClientMock.states))[0]
+	unmarshalledState, err := statefile.Read(bytes.NewReader(dat), encryption.Disabled().State())
+	if err != nil {
+		t.Fatalf("failed to unmarshal the generated state: %s", err)
+	}
+	moduleState := unmarshalledState.State.Modules[addrs.RootModule.String()]
+	if got, want := len(moduleState.Resources), 1; got != want {
+		t.Fatalf("expected to have %d resources in the module state but got %d: %#v", want, got, moduleState.Resources)
+	}
+	resState, ok := moduleState.Resources[resAddr.String()]
+	if !ok {
+		t.Fatalf("expected to have in the state a resource for %s but is not there: %#v", resAddr.String(), moduleState.Resources)
+	}
+	if got, want := resState.Addr.Resource.Mode, addrs.ManagedResourceMode; got != want {
+		t.Fatalf("expected the resource to be %s but it's %s", want, got)
 	}
 }
