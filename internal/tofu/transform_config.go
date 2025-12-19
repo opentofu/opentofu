@@ -50,6 +50,14 @@ type ConfigTransformer struct {
 	// try to delete the imported resource unless the config is updated
 	// manually.
 	generateConfigPathForImportTargets string
+
+	// operation represents the walkOperation for which this transformer is executed from.
+	//
+	// At the moment of adding this, the walkValidate needs to be able to create the import
+	// related nodes for validation.
+	// This is needed because if the plan is executed with config generation option, the
+	// validation needs to allow missing configuration for the import targets.
+	operation walkOperation
 }
 
 func (t *ConfigTransformer) Transform(_ context.Context, g *Graph) error {
@@ -168,8 +176,11 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// If any import targets were not claimed by resources, then let's add them
 	// into the graph now.
 	//
-	// We should only reach this point if config generation is enabled, since we validate that all import targets have
-	// a resource in validateImportTargets when config generation is disabled
+	// The only cases this can be reached are:
+	// * if config generation is enabled, since we validate that all import targets have
+	//   a resource in validateImportTargets when config generation is disabled.
+	// * when operation on which this transformer is executed is walkValidate, in cases when plan is executed
+	//   to generate configurations.
 	//
 	// We'll add the nodes that we know will fail, and catch them again later
 	// in the processing when we are in a position to raise a much more helpful
@@ -180,7 +191,8 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 	// Therefore, this is having no impact on the actual behavior of the destroy planning process,
 	// so we decided not to add additional logic to skip this part.
 	for _, i := range importTargets {
-		if len(generateConfigPath) > 0 {
+		switch {
+		case len(generateConfigPath) > 0:
 			// Create a node with the resource and import target. This node will take care of the config generation
 			abstract := &NodeAbstractResource{
 				// We've already validated in validateImportTargets that the address is fully resolvable
@@ -188,14 +200,27 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 				importTargets:      []*ImportTarget{i},
 				generateConfigPath: generateConfigPath,
 			}
-
 			var node dag.Vertex = abstract
 			if f := t.Concrete; f != nil {
 				node = f(abstract)
 			}
 
 			g.Add(node)
-		} else {
+		case t.operation == walkValidate:
+			// Create a node with the resource and import target. This node will take care of the config generation
+			abstract := &NodeAbstractResource{
+				// We've already validated in validateImportTargets that the address is fully resolvable
+				Addr:          i.StaticAddr(),
+				importTargets: []*ImportTarget{i},
+			}
+			var node dag.Vertex = abstract
+			if f := t.Concrete; f != nil {
+				node = f(abstract)
+			}
+
+			g.Add(node)
+
+		default:
 			// Technically we shouldn't reach this point, as we've already validated that a resource exists
 			// in validateImportTargets
 			return importResourceWithoutConfigDiags(i.StaticAddr().String(), i.Config)
