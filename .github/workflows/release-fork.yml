@@ -70,13 +70,20 @@ jobs:
         run: |
           go mod download
           go mod verify
+
+      - name: Set embedded version
+        run: |
+          # The version package reads from version/VERSION at build time.
+          # Our tags are like v1.11.2-oci, but VERSION must be SemVer without the leading 'v'.
+          echo "${GITHUB_REF_NAME#v}" > version/VERSION
+          echo "Embedded VERSION: $(cat version/VERSION)"
       
       - name: Build binary
         run: |
           cd cmd/tofu
           GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o tofu_${{ matrix.goos }}_${{ matrix.goarch }} \
-            -ldflags "-X github.com/opentofu/opentofu/version.Version=${{ github.ref_name }}"
+            -ldflags "-X github.com/opentofu/opentofu/version.dev=no"
           
           # Create directory structure
           mkdir -p ../dist
