@@ -79,16 +79,12 @@ jobs:
             -ldflags "-X github.com/opentofu/opentofu/version.Version=${{ github.ref_name }}"
           
           # Create directory structure
-          mkdir -p dist
+          mkdir -p ../dist
           
           # Move binary to dist
-          if [ "${{ matrix.goos }}" = "windows" ]; then
-            mv tofu_${{ matrix.goos }}_${{ matrix.goarch }} ../dist/${{ matrix.artifact_name }}
-          else
-            mv tofu_${{ matrix.goos }}_${{ matrix.goarch }} ../dist/${{ matrix.artifact_name }}
-          fi
+          mv tofu_${{ matrix.goos }}_${{ matrix.goarch }} ../dist/${{ matrix.artifact_name }}
           
-          ls -lh dist/
+          ls -lh ../dist/
       
       - name: Create checksum
         run: |
