@@ -1,0 +1,1434 @@
+{
+    "schemas": [
+        "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+    ],
+    "totalResults": 260,
+    "itemsPerPage": 30,
+    "startIndex": 1,
+    "Resources": [
+        {
+            "emails": [
+                {
+                    "value": "mpelaz@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "0e338b8c-cc7f-498a-928d-ea3470d7e7e3",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Billing Manager"
+                }
+            ],
+            "active": true,
+            "displayName": "Miguel Pelaz Iglesias",
+            "externalId": "cefcbc1d-f9c0-44e7-834f-7a7b3e192518",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Miguel Pelaz Iglesias",
+                "givenName": "Miguel"
+            },
+            "userName": "mpelaz@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3e8c2d9c-7aca-11ed-916a-adea4f934e58",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T10:40:56.000+01:00",
+                "lastModified": "2025-12-04T11:04:29.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3e8c2d9c-7aca-11ed-916a-adea4f934e58"
+            },
+            "groups": [
+                {
+                    "value": "6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "display": "gs-app-gitHub-manager"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "jmmartinez@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "0e338b8c-cc7f-498a-928d-ea3470d7e7e3",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Billing Manager"
+                },
+                {
+                    "value": "1ebc4a02-e56c-43a6-92a5-02ee09b90824",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Guest Collaborator"
+                },
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "José María Martínez Cebrián",
+            "externalId": "2a8171e9-f146-451e-a3f5-18262f976c29",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "José María Martínez Cebrián",
+                "givenName": "José María"
+            },
+            "userName": "jmmartinez@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "6c35eb7a-7aca-11ed-8521-d7e07b25afa5",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T10:42:13.000+01:00",
+                "lastModified": "2024-01-15T09:45:53.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/6c35eb7a-7aca-11ed-8521-d7e07b25afa5"
+            },
+            "groups": [
+                {
+                    "value": "6e4bfbca-7aca-11ed-87ec-944979ad10df",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6e4bfbca-7aca-11ed-87ec-944979ad10df",
+                    "display": "gs-app-gitHub-RestrictedUser"
+                },
+                {
+                    "value": "6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "display": "gs-app-gitHub-manager"
+                },
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "display": "gs-app-gitHub-owner"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "mpelaz.s00@GRUPOPRISA.onmicrosoft.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "Miguel Pelaz Iglesias (S00)",
+            "externalId": "76ba421e-f7d2-475e-80af-3277b92ac5d6",
+            "name": {
+                "familyName": "PRISA Media, S.L.U.",
+                "formatted": "Miguel Pelaz Iglesias (S00)",
+                "givenName": "Miguel"
+            },
+            "userName": "mpelaz.s00@GRUPOPRISA.onmicrosoft.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "6cfe06e6-7aca-11ed-90bf-09a98efb8f7e",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T10:42:14.000+01:00",
+                "lastModified": "2024-02-21T19:37:52.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/6cfe06e6-7aca-11ed-90bf-09a98efb8f7e"
+            },
+            "groups": []
+        },
+        {
+            "emails": [
+                {
+                    "value": "defrancis@clb.prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Daniel Eduardo Francis Zambrano",
+            "externalId": "9b9a5575-4bfc-4666-84d7-e2b6c52f2540",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Daniel Eduardo Francis Zambrano",
+                "givenName": "Daniel Eduardo"
+            },
+            "userName": "defrancis.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "8760d48c-7b01-11ed-9901-7135fa507799",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T17:16:41.000+01:00",
+                "lastModified": "2022-12-13T17:16:41.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/8760d48c-7b01-11ed-9901-7135fa507799"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "apereira@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Agustin Pereira De Lucena",
+            "externalId": "6cdd6e13-1fc8-4679-b3cf-d59569516c7d",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Agustin Pereira De Lucena",
+                "givenName": "Agustin"
+            },
+            "userName": "apereira@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "89b3dcca-7b01-11ed-8f99-f8df40444497",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T17:16:45.000+01:00",
+                "lastModified": "2024-04-01T16:08:48.000+02:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/89b3dcca-7b01-11ed-8f99-f8df40444497"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "VPrietoB@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Víctor Prieto Bote",
+            "externalId": "bd8ba0d4-cf4a-47d4-a3aa-2a3d774ba4b8",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Víctor Prieto Bote",
+                "givenName": "Víctor"
+            },
+            "userName": "vprietob.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "8a6816ea-7b01-11ed-9677-bddd6f4caf04",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T17:16:46.000+01:00",
+                "lastModified": "2022-12-13T17:16:46.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/8a6816ea-7b01-11ed-9677-bddd6f4caf04"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "cgarciaga@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "Carlos Garcia Garcia",
+            "externalId": "dd037807-6bec-4ec9-97a8-1f288d4296e7",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Carlos Garcia Garcia",
+                "givenName": "Carlos"
+            },
+            "userName": "cgarciaga@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "8c901c24-7b01-11ed-99ec-46c825db6c2e",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T17:16:50.000+01:00",
+                "lastModified": "2024-01-15T09:45:53.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/8c901c24-7b01-11ed-99ec-46c825db6c2e"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "display": "gs-app-gitHub-owner"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "dgarcia@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "0e338b8c-cc7f-498a-928d-ea3470d7e7e3",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Billing Manager"
+                },
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "David Garcia Rafols",
+            "externalId": "47193889-2035-494f-9a29-21fefda3de20",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "David Garcia Rafols",
+                "givenName": "David"
+            },
+            "userName": "dgarcia@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "8d557fa0-7b01-11ed-9e1d-34dc49c5efaf",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T17:16:51.000+01:00",
+                "lastModified": "2022-12-13T17:16:51.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/8d557fa0-7b01-11ed-9e1d-34dc49c5efaf"
+            },
+            "groups": [
+                {
+                    "value": "6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6e810f04-7aca-11ed-94ba-5d3455f58203",
+                    "display": "gs-app-gitHub-manager"
+                },
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "display": "gs-app-gitHub-owner"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "jalvarez@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Javier Alvarez Martinez",
+            "externalId": "edf72571-8037-49c4-ab87-6e862b31a262",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Javier Alvarez Martinez",
+                "givenName": "Javier"
+            },
+            "userName": "jalvarez@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "e4bf7e32-7b09-11ed-9a2d-0b9e275f4b1f",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-13T18:16:34.000+01:00",
+                "lastModified": "2022-12-13T18:16:34.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/e4bf7e32-7b09-11ed-9a2d-0b9e275f4b1f"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "bpeiro@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": false,
+            "displayName": "Borja Peiró Villanueva",
+            "externalId": "0d418b76-a60d-4407-a803-82fc7e0033e4",
+            "name": {
+                "familyName": "Peiró Villanueva",
+                "formatted": "Borja Peiró Villanueva",
+                "givenName": "Borja"
+            },
+            "userName": "bpeiro@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "b955883c-7b94-11ed-864c-c4831af06b10",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-14T10:50:21.000+01:00",
+                "lastModified": "2025-11-28T00:13:23.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/b955883c-7b94-11ed-864c-c4831af06b10"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "jlalvarez.prisa@GRUPOPRISA.onmicrosoft.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Jose Luis Alvarez de Toledo Martin",
+            "externalId": "18c326c6-d5c9-440b-901b-65caf4ebdd05",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Jose Luis Alvarez de Toledo Martin",
+                "givenName": "Jose Luis"
+            },
+            "userName": "jlalvarez.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3db223ec-7ba9-11ed-8e28-f760682263ec",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-14T13:17:13.000+01:00",
+                "lastModified": "2022-12-14T13:17:13.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3db223ec-7ba9-11ed-8e28-f760682263ec"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "ebarberan@hiberus.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "Enrique Barberán Alcober",
+            "externalId": "7cbd505f-d907-423d-9f0a-1653a61feda6",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Enrique Barberán Alcober",
+                "givenName": "Enrique"
+            },
+            "userName": "ebarberan.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3e6fe940-7ba9-11ed-9688-e5b646d02f9a",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-14T13:17:14.000+01:00",
+                "lastModified": "2022-12-14T13:17:14.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3e6fe940-7ba9-11ed-9688-e5b646d02f9a"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "display": "gs-app-gitHub-owner"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "vmvarela@hiberus.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": true,
+            "displayName": "Victor Manuel Varela Rodríguez",
+            "externalId": "5e6fde7c-5d10-4b36-9bab-dc77766efa55",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Victor Manuel Varela Rodríguez",
+                "givenName": "Victor Manuel"
+            },
+            "userName": "vmvarela.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3f272114-7ba9-11ed-9fe2-2064f02e2925",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-14T13:17:15.000+01:00",
+                "lastModified": "2022-12-14T13:17:15.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3f272114-7ba9-11ed-9fe2-2064f02e2925"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eef62ba-7aca-11ed-855d-a14d50acf211",
+                    "display": "gs-app-gitHub-owner"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "cvelardec@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "1ebc4a02-e56c-43a6-92a5-02ee09b90824",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Restricted User"
+                },
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": false,
+            "displayName": "Carlos Velarde Correia",
+            "externalId": "5d548149-7678-45f5-be2c-87c7748f7b0f",
+            "name": {
+                "familyName": "Velarde Correia",
+                "formatted": "Carlos Velarde Correia",
+                "givenName": "Carlos"
+            },
+            "userName": "cvelardec@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "1933626e-7d44-11ed-8d66-2b8d42f51ca9",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T14:18:15.000+01:00",
+                "lastModified": "2023-12-14T17:44:36.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/1933626e-7d44-11ed-8d66-2b8d42f51ca9"
+            },
+            "groups": []
+        },
+        {
+            "emails": [
+                {
+                    "value": "emartinez@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Esther Martinez Gomez",
+            "externalId": "f43023a3-2423-49da-8068-9a4ce0117a18",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Esther Martinez Gomez",
+                "givenName": "Esther"
+            },
+            "userName": "emartinez@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "7fc851cc-7d55-11ed-841d-18331c707887",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:22:48.000+01:00",
+                "lastModified": "2022-12-16T16:22:48.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/7fc851cc-7d55-11ed-841d-18331c707887"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "mmromero@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Mauricio Martínez",
+            "externalId": "9f297b67-910a-4733-9171-d0c95c6b369a",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Mauricio Martínez",
+                "givenName": "Mauricio"
+            },
+            "userName": "mmromero.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "80810384-7d55-11ed-96db-a9ef5696b48f",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:22:49.000+01:00",
+                "lastModified": "2022-12-16T16:22:49.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/80810384-7d55-11ed-96db-a9ef5696b48f"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "jdinicola@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Julio Di Nicola",
+            "externalId": "4ff1d4b3-c4bf-41ab-96ea-eeeeca9aadde",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Julio Di Nicola",
+                "givenName": "Julio"
+            },
+            "userName": "jdinicola@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "8127e8c0-7d55-11ed-87b0-49673fbae29f",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:22:51.000+01:00",
+                "lastModified": "2022-12-16T16:22:51.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/8127e8c0-7d55-11ed-87b0-49673fbae29f"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "dcastrog@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "David Castro Gonzalez",
+            "externalId": "8f511018-a78a-4ffe-8c67-a3413bc30464",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "David Castro Gonzalez",
+                "givenName": "David"
+            },
+            "userName": "dcastrog.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "81d1aacc-7d55-11ed-801c-bab1f2cb1cb1",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:22:52.000+01:00",
+                "lastModified": "2022-12-16T16:22:52.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/81d1aacc-7d55-11ed-801c-bab1f2cb1cb1"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "agarciamo@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Andrea Garcia Moreno",
+            "externalId": "c5f332fd-d192-40c1-ba18-41f8502956ef",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Andrea Garcia Moreno",
+                "givenName": "Andrea"
+            },
+            "userName": "agarciamo.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "82836802-7d55-11ed-8ccb-c5f4d982f617",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:22:53.000+01:00",
+                "lastModified": "2022-12-16T16:22:53.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/82836802-7d55-11ed-8ccb-c5f4d982f617"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "jdiazb@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "1ebc4a02-e56c-43a6-92a5-02ee09b90824",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Guest Collaborator"
+                },
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Juan Díaz-Bustamante Berasategui",
+            "externalId": "7df1b903-ffb9-455b-9ab3-cd0478a2d134",
+            "name": {
+                "familyName": "Díaz-Bustamante Berasategui",
+                "formatted": "Juan Díaz-Bustamante Berasategui",
+                "givenName": "Juan"
+            },
+            "userName": "jdiazb.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "bc0f9e40-7d57-11ed-8555-0c684b380faf",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-16T16:38:48.000+01:00",
+                "lastModified": "2023-03-08T13:05:00.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/bc0f9e40-7d57-11ed-8555-0c684b380faf"
+            },
+            "groups": [
+                {
+                    "value": "6e4bfbca-7aca-11ed-87ec-944979ad10df",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6e4bfbca-7aca-11ed-87ec-944979ad10df",
+                    "display": "gs-app-gitHub-RestrictedUser"
+                },
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "90e574c0-7d33-11ed-98ad-f292de4c1eed",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/90e574c0-7d33-11ed-98ad-f292de4c1eed",
+                    "display": "gs-app-gitHub-productodigital"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "DPerezP@prisaradio.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Daniel Pérez Pérez",
+            "externalId": "337a839e-54e3-47cd-8509-c75a1c3bc855",
+            "name": {
+                "familyName": "Sociedad Española de Radiodifusión S.L.U.",
+                "formatted": "Daniel Pérez Pérez",
+                "givenName": "Daniel"
+            },
+            "userName": "dperezp@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "6403edfc-8066-11ed-85e7-85a57e38fa1a",
+            "meta": {
+                "resourceType": "User",
+                "created": "2022-12-20T14:01:17.000+01:00",
+                "lastModified": "2022-12-20T14:01:17.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/6403edfc-8066-11ed-85e7-85a57e38fa1a"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                },
+                {
+                    "value": "cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/cb2bc104-7d3b-11ed-92eb-cab84905fbc0",
+                    "display": "gs-app-gitHub-frontalesradio"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "ccmachuca@clb.prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Cristian Camilo Machuca Cardenas",
+            "externalId": "3f9c2bbd-fc4f-42fc-9ff2-980698df7596",
+            "name": {
+                "familyName": "VAS",
+                "formatted": "Cristian Camilo Machuca Cardenas",
+                "givenName": "Cristian Camilo"
+            },
+            "userName": "ccmachuca.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3a2f37e8-926d-11ed-9794-af283c005d7b",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-12T12:35:34.000+01:00",
+                "lastModified": "2023-01-12T12:35:34.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3a2f37e8-926d-11ed-9794-af283c005d7b"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "acosta@clb.prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Anthony Costa",
+            "externalId": "e0ba73a9-3960-409e-88f9-b28279738d5c",
+            "name": {
+                "familyName": "VAS",
+                "formatted": "Anthony Costa",
+                "givenName": "Anthony"
+            },
+            "userName": "acosta.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3aea0df2-926d-11ed-9b06-9b696b337e80",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-12T12:35:35.000+01:00",
+                "lastModified": "2023-01-12T12:35:35.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3aea0df2-926d-11ed-9b06-9b696b337e80"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "mjferron@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Maria Jose Ferron Feijoo",
+            "externalId": "ee2059df-3499-456d-9b45-c995ae1275a7",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Maria Jose Ferron Feijoo",
+                "givenName": "Maria Jose"
+            },
+            "userName": "mjferron@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "3bbf836a-926d-11ed-84f3-f60a051db83f",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-12T12:35:36.000+01:00",
+                "lastModified": "2023-01-12T12:35:36.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/3bbf836a-926d-11ed-84f3-f60a051db83f"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "fmartinez@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                },
+                {
+                    "value": "981df190-8801-4618-a08a-d91f6206c954",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "Enterprise Owner"
+                }
+            ],
+            "active": false,
+            "displayName": "Fernando Martínez Altolaguirre",
+            "externalId": "4f32f96f-b76b-467a-9bf2-d4054c5b08d8",
+            "name": {
+                "familyName": "Martínez Altolaguirre",
+                "formatted": "Fernando Martínez Altolaguirre",
+                "givenName": "Fernando"
+            },
+            "userName": "fmartinez@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "292deba4-9b43-11ed-942b-caa77f6477be",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-23T18:27:07.000+01:00",
+                "lastModified": "2025-11-11T11:44:06.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/292deba4-9b43-11ed-942b-caa77f6477be"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "YAstray@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Yvette Astray Iglesias",
+            "externalId": "1b2aad5b-610b-4fb9-b2cb-605f1d48d437",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Yvette Astray Iglesias",
+                "givenName": "Yvette"
+            },
+            "userName": "yastray.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "86195180-9d61-11ed-939a-2e0404bd8843",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-26T11:09:30.000+01:00",
+                "lastModified": "2023-01-26T11:09:30.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/86195180-9d61-11ed-939a-2e0404bd8843"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "GLemmo@clb.t-prisa.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Gianfranco Lemmo Da Silva",
+            "externalId": "edd56847-cf92-4eaa-93bd-c0deef7e977d",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "Gianfranco Lemmo Da Silva",
+                "givenName": "Gianfranco"
+            },
+            "userName": "glemmo.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "861e9c12-9d61-11ed-90d0-d54784ab0b95",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-26T11:09:30.000+01:00",
+                "lastModified": "2023-01-26T11:09:30.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/861e9c12-9d61-11ed-90d0-d54784ab0b95"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "dnagore@clb.prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "David Nagore Zabaleta",
+            "externalId": "94fc0fca-b61b-4263-83b9-64d8d9d3c6ea",
+            "name": {
+                "familyName": "Hiberus",
+                "formatted": "David Nagore Zabaleta",
+                "givenName": "David"
+            },
+            "userName": "dnagore.clb@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "862a0426-9d61-11ed-9e13-3dc1a0c2a184",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-26T11:09:30.000+01:00",
+                "lastModified": "2023-01-26T11:09:30.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/862a0426-9d61-11ed-9e13-3dc1a0c2a184"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "rgil@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Ruben Gil Blanco",
+            "externalId": "601ba2b4-90a3-4c61-84e7-0caf956b74ce",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Ruben Gil Blanco",
+                "givenName": "Ruben"
+            },
+            "userName": "rgil@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "862a8806-9d61-11ed-86fd-5a8002446c98",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-26T11:09:30.000+01:00",
+                "lastModified": "2023-01-26T11:09:30.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/862a8806-9d61-11ed-86fd-5a8002446c98"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        },
+        {
+            "emails": [
+                {
+                    "value": "acarmona@prisamedia.com",
+                    "primary": true,
+                    "type": "work"
+                }
+            ],
+            "roles": [
+                {
+                    "value": "27d9891d-2c17-4f45-a262-781a0e55c80a",
+                    "primary": false,
+                    "type": "WindowsAzureActiveDirectoryRole",
+                    "display": "User"
+                }
+            ],
+            "active": true,
+            "displayName": "Angel Carmona Maroto",
+            "externalId": "4c01104d-6a18-4d62-bd40-e010d07975f6",
+            "name": {
+                "familyName": "PRISA Media, S.A",
+                "formatted": "Angel Carmona Maroto",
+                "givenName": "Angel"
+            },
+            "userName": "acarmona@grupoprisa.com",
+            "schemas": [
+                "urn:ietf:params:scim:schemas:core:2.0:User"
+            ],
+            "id": "862d86dc-9d61-11ed-966b-e31ddf04a4ab",
+            "meta": {
+                "resourceType": "User",
+                "created": "2023-01-26T11:09:30.000+01:00",
+                "lastModified": "2023-01-26T11:09:30.000+01:00",
+                "location": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Users/862d86dc-9d61-11ed-966b-e31ddf04a4ab"
+            },
+            "groups": [
+                {
+                    "value": "6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "$ref": "https://api.github.com/scim/v2/enterprises/prisa-media-emu/Groups/6eb96f52-7aca-11ed-953d-87b7ebb3cc5a",
+                    "display": "gs-app-gitHub-user"
+                }
+            ]
+        }
+    ]
+}

@@ -90,22 +90,20 @@ const (
 	Action_CREATE_THEN_DELETE Action = 7
 	Action_FORGET             Action = 8
 	Action_OPEN               Action = 9
-	Action_FORGET_THEN_CREATE Action = 10
 )
 
 // Enum value maps for Action.
 var (
 	Action_name = map[int32]string{
-		0:  "NOOP",
-		1:  "CREATE",
-		2:  "READ",
-		3:  "UPDATE",
-		5:  "DELETE",
-		6:  "DELETE_THEN_CREATE",
-		7:  "CREATE_THEN_DELETE",
-		8:  "FORGET",
-		9:  "OPEN",
-		10: "FORGET_THEN_CREATE",
+		0: "NOOP",
+		1: "CREATE",
+		2: "READ",
+		3: "UPDATE",
+		5: "DELETE",
+		6: "DELETE_THEN_CREATE",
+		7: "CREATE_THEN_DELETE",
+		8: "FORGET",
+		9: "OPEN",
 	}
 	Action_value = map[string]int32{
 		"NOOP":               0,
@@ -117,7 +115,6 @@ var (
 		"CREATE_THEN_DELETE": 7,
 		"FORGET":             8,
 		"OPEN":               9,
-		"FORGET_THEN_CREATE": 10,
 	}
 )
 
@@ -155,23 +152,21 @@ func (Action) EnumDescriptor() ([]byte, []int) {
 type ResourceInstanceActionReason int32
 
 const (
-	ResourceInstanceActionReason_NONE                                       ResourceInstanceActionReason = 0
-	ResourceInstanceActionReason_REPLACE_BECAUSE_TAINTED                    ResourceInstanceActionReason = 1
-	ResourceInstanceActionReason_REPLACE_BY_REQUEST                         ResourceInstanceActionReason = 2
-	ResourceInstanceActionReason_REPLACE_BECAUSE_CANNOT_UPDATE              ResourceInstanceActionReason = 3
-	ResourceInstanceActionReason_DELETE_BECAUSE_NO_RESOURCE_CONFIG          ResourceInstanceActionReason = 4
-	ResourceInstanceActionReason_DELETE_BECAUSE_WRONG_REPETITION            ResourceInstanceActionReason = 5
-	ResourceInstanceActionReason_DELETE_BECAUSE_COUNT_INDEX                 ResourceInstanceActionReason = 6
-	ResourceInstanceActionReason_DELETE_BECAUSE_EACH_KEY                    ResourceInstanceActionReason = 7
-	ResourceInstanceActionReason_DELETE_BECAUSE_NO_MODULE                   ResourceInstanceActionReason = 8
-	ResourceInstanceActionReason_REPLACE_BY_TRIGGERS                        ResourceInstanceActionReason = 9
-	ResourceInstanceActionReason_READ_BECAUSE_CONFIG_UNKNOWN                ResourceInstanceActionReason = 10
-	ResourceInstanceActionReason_READ_BECAUSE_DEPENDENCY_PENDING            ResourceInstanceActionReason = 11
-	ResourceInstanceActionReason_READ_BECAUSE_CHECK_NESTED                  ResourceInstanceActionReason = 13
-	ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET              ResourceInstanceActionReason = 12
-	ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE               ResourceInstanceActionReason = 14
-	ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE  ResourceInstanceActionReason = 15
-	ResourceInstanceActionReason_FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG ResourceInstanceActionReason = 16
+	ResourceInstanceActionReason_NONE                              ResourceInstanceActionReason = 0
+	ResourceInstanceActionReason_REPLACE_BECAUSE_TAINTED           ResourceInstanceActionReason = 1
+	ResourceInstanceActionReason_REPLACE_BY_REQUEST                ResourceInstanceActionReason = 2
+	ResourceInstanceActionReason_REPLACE_BECAUSE_CANNOT_UPDATE     ResourceInstanceActionReason = 3
+	ResourceInstanceActionReason_DELETE_BECAUSE_NO_RESOURCE_CONFIG ResourceInstanceActionReason = 4
+	ResourceInstanceActionReason_DELETE_BECAUSE_WRONG_REPETITION   ResourceInstanceActionReason = 5
+	ResourceInstanceActionReason_DELETE_BECAUSE_COUNT_INDEX        ResourceInstanceActionReason = 6
+	ResourceInstanceActionReason_DELETE_BECAUSE_EACH_KEY           ResourceInstanceActionReason = 7
+	ResourceInstanceActionReason_DELETE_BECAUSE_NO_MODULE          ResourceInstanceActionReason = 8
+	ResourceInstanceActionReason_REPLACE_BY_TRIGGERS               ResourceInstanceActionReason = 9
+	ResourceInstanceActionReason_READ_BECAUSE_CONFIG_UNKNOWN       ResourceInstanceActionReason = 10
+	ResourceInstanceActionReason_READ_BECAUSE_DEPENDENCY_PENDING   ResourceInstanceActionReason = 11
+	ResourceInstanceActionReason_READ_BECAUSE_CHECK_NESTED         ResourceInstanceActionReason = 13
+	ResourceInstanceActionReason_DELETE_BECAUSE_NO_MOVE_TARGET     ResourceInstanceActionReason = 12
+	ResourceInstanceActionReason_DELETE_BECAUSE_ENABLED_FALSE      ResourceInstanceActionReason = 14
 )
 
 // Enum value maps for ResourceInstanceActionReason.
@@ -192,27 +187,23 @@ var (
 		13: "READ_BECAUSE_CHECK_NESTED",
 		12: "DELETE_BECAUSE_NO_MOVE_TARGET",
 		14: "DELETE_BECAUSE_ENABLED_FALSE",
-		15: "FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE",
-		16: "FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG",
 	}
 	ResourceInstanceActionReason_value = map[string]int32{
-		"NONE":                                       0,
-		"REPLACE_BECAUSE_TAINTED":                    1,
-		"REPLACE_BY_REQUEST":                         2,
-		"REPLACE_BECAUSE_CANNOT_UPDATE":              3,
-		"DELETE_BECAUSE_NO_RESOURCE_CONFIG":          4,
-		"DELETE_BECAUSE_WRONG_REPETITION":            5,
-		"DELETE_BECAUSE_COUNT_INDEX":                 6,
-		"DELETE_BECAUSE_EACH_KEY":                    7,
-		"DELETE_BECAUSE_NO_MODULE":                   8,
-		"REPLACE_BY_TRIGGERS":                        9,
-		"READ_BECAUSE_CONFIG_UNKNOWN":                10,
-		"READ_BECAUSE_DEPENDENCY_PENDING":            11,
-		"READ_BECAUSE_CHECK_NESTED":                  13,
-		"DELETE_BECAUSE_NO_MOVE_TARGET":              12,
-		"DELETE_BECAUSE_ENABLED_FALSE":               14,
-		"FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE":  15,
-		"FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG": 16,
+		"NONE":                              0,
+		"REPLACE_BECAUSE_TAINTED":           1,
+		"REPLACE_BY_REQUEST":                2,
+		"REPLACE_BECAUSE_CANNOT_UPDATE":     3,
+		"DELETE_BECAUSE_NO_RESOURCE_CONFIG": 4,
+		"DELETE_BECAUSE_WRONG_REPETITION":   5,
+		"DELETE_BECAUSE_COUNT_INDEX":        6,
+		"DELETE_BECAUSE_EACH_KEY":           7,
+		"DELETE_BECAUSE_NO_MODULE":          8,
+		"REPLACE_BY_TRIGGERS":               9,
+		"READ_BECAUSE_CONFIG_UNKNOWN":       10,
+		"READ_BECAUSE_DEPENDENCY_PENDING":   11,
+		"READ_BECAUSE_CHECK_NESTED":         13,
+		"DELETE_BECAUSE_NO_MOVE_TARGET":     12,
+		"DELETE_BECAUSE_ENABLED_FALSE":      14,
 	}
 )
 
@@ -422,23 +413,6 @@ type Plan struct {
 	// EphemeralVariables records the ephemeral variables later used
 	// be able to validate the values for these during the apply command.
 	EphemeralVariables []string `protobuf:"bytes,22,rep,name=ephemeral_variables,json=ephemeralVariables,proto3" json:"ephemeral_variables,omitempty"`
-	// TempExecutionGraph is a temporary addition for the "walking skeleton"
-	// phase of implementing the new language runtime, and in particular
-	// the internal/engine packages. It's always unset when using the
-	// traditional OpenTofu runtime, because in that case the equivalent
-	// of the execution graph is recalculated from all of the other fields
-	// above during the apply phase.
-	//
-	// It has an ridiculous high field number because we're expecting to
-	// remove it later once we have a final design for how to implement
-	// saved plans for the new runtime, and this field number is unlikely
-	// to get reused later even if we don't explicitly "reserve" it. We
-	// don't technically need to worry about that anyway since we don't
-	// allow sharing plan files between different OpenTofu versions, but
-	// this'll make absolutely sure we don't accidentally overload this
-	// number in any version that's close to the one where this eventually
-	// gets removed.
-	TempExecutionGraph []byte `protobuf:"bytes,500000000,opt,name=temp_execution_graph,json=tempExecutionGraph,proto3" json:"temp_execution_graph,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -581,13 +555,6 @@ func (x *Plan) GetTimestamp() string {
 func (x *Plan) GetEphemeralVariables() []string {
 	if x != nil {
 		return x.EphemeralVariables
-	}
-	return nil
-}
-
-func (x *Plan) GetTempExecutionGraph() []byte {
-	if x != nil {
-		return x.TempExecutionGraph
 	}
 	return nil
 }
@@ -1377,7 +1344,7 @@ var File_planfile_proto protoreflect.FileDescriptor
 
 const file_planfile_proto_rawDesc = "" +
 	"\n" +
-	"\x0eplanfile.proto\x12\x06tfplan\"\xeb\a\n" +
+	"\x0eplanfile.proto\x12\x06tfplan\"\xb5\a\n" +
 	"\x04Plan\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x04R\aversion\x12%\n" +
 	"\aui_mode\x18\x11 \x01(\x0e2\f.tfplan.ModeR\x06uiMode\x12\x18\n" +
@@ -1394,8 +1361,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\abackend\x18\r \x01(\v2\x0f.tfplan.BackendR\abackend\x12K\n" +
 	"\x13relevant_attributes\x18\x0f \x03(\v2\x1a.tfplan.Plan.resource_attrR\x12relevantAttributes\x12\x1c\n" +
 	"\ttimestamp\x18\x15 \x01(\tR\ttimestamp\x12/\n" +
-	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x124\n" +
-	"\x14temp_execution_graph\x18\x80ʵ\xee\x01 \x01(\fR\x12tempExecutionGraph\x1aR\n" +
+	"\x13ephemeral_variables\x18\x16 \x03(\tR\x12ephemeralVariables\x1aR\n" +
 	"\x0eVariablesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x05value:\x028\x01\x1aM\n" +
@@ -1467,7 +1433,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\n" +
 	"\x06NORMAL\x10\x00\x12\v\n" +
 	"\aDESTROY\x10\x01\x12\x10\n" +
-	"\fREFRESH_ONLY\x10\x02*\x9e\x01\n" +
+	"\fREFRESH_ONLY\x10\x02*\x86\x01\n" +
 	"\x06Action\x12\b\n" +
 	"\x04NOOP\x10\x00\x12\n" +
 	"\n" +
@@ -1481,9 +1447,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\x12CREATE_THEN_DELETE\x10\a\x12\n" +
 	"\n" +
 	"\x06FORGET\x10\b\x12\b\n" +
-	"\x04OPEN\x10\t\x12\x16\n" +
-	"\x12FORGET_THEN_CREATE\x10\n" +
-	"*\xc9\x04\n" +
+	"\x04OPEN\x10\t*\xea\x03\n" +
 	"\x1cResourceInstanceActionReason\x12\b\n" +
 	"\x04NONE\x10\x00\x12\x1b\n" +
 	"\x17REPLACE_BECAUSE_TAINTED\x10\x01\x12\x16\n" +
@@ -1500,9 +1464,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\x1fREAD_BECAUSE_DEPENDENCY_PENDING\x10\v\x12\x1d\n" +
 	"\x19READ_BECAUSE_CHECK_NESTED\x10\r\x12!\n" +
 	"\x1dDELETE_BECAUSE_NO_MOVE_TARGET\x10\f\x12 \n" +
-	"\x1cDELETE_BECAUSE_ENABLED_FALSE\x10\x0e\x12-\n" +
-	")FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE\x10\x0f\x12.\n" +
-	"*FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG\x10\x10B@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
+	"\x1cDELETE_BECAUSE_ENABLED_FALSE\x10\x0eB@Z>github.com/opentofu/opentofu/internal/plans/internal/planprotob\x06proto3"
 
 var (
 	file_planfile_proto_rawDescOnce sync.Once

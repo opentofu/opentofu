@@ -99,24 +99,6 @@ message Plan {
     // EphemeralVariables records the ephemeral variables later used
     // be able to validate the values for these during the apply command.
     repeated string ephemeral_variables = 22;
-
-    // TempExecutionGraph is a temporary addition for the "walking skeleton"
-    // phase of implementing the new language runtime, and in particular
-    // the internal/engine packages. It's always unset when using the
-    // traditional OpenTofu runtime, because in that case the equivalent
-    // of the execution graph is recalculated from all of the other fields
-    // above during the apply phase.
-    //
-    // It has an ridiculous high field number because we're expecting to
-    // remove it later once we have a final design for how to implement
-    // saved plans for the new runtime, and this field number is unlikely
-    // to get reused later even if we don't explicitly "reserve" it. We
-    // don't technically need to worry about that anyway since we don't
-    // allow sharing plan files between different OpenTofu versions, but
-    // this'll make absolutely sure we don't accidentally overload this
-    // number in any version that's close to the one where this eventually
-    // gets removed.
-    bytes temp_execution_graph = 500000000;
 }
 
 // Mode describes the planning mode that created the plan.
@@ -145,7 +127,6 @@ enum Action {
     CREATE_THEN_DELETE = 7;
     FORGET = 8;
     OPEN = 9;
-    FORGET_THEN_CREATE = 10;
 }
 
 // Change represents a change made to some object, transforming it from an old
@@ -205,8 +186,6 @@ enum ResourceInstanceActionReason {
     READ_BECAUSE_CHECK_NESTED = 13;
     DELETE_BECAUSE_NO_MOVE_TARGET = 12;
     DELETE_BECAUSE_ENABLED_FALSE = 14;
-    FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_STATE = 15;
-    FORGOT_BECAUSE_LIFECYCLE_DESTROY_IN_CONFIG = 16;
 }
 
 message ResourceInstanceChange {
