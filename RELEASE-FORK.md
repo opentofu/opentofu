@@ -20,7 +20,7 @@ This document describes the release infrastructure for the OpenTofu OCI fork.
 └── oci-releases (permanent release branch)
     ├─ Base: backend/oci + latest upstream version
     ├─ Contains: release-fork.yml workflow
-    ├─ Source of: version tags (v*.*.* +oci)
+   ├─ Source of: version tags (v*.*.*-oci)
     └─ Generates: GitHub releases with assets
 ```
 
@@ -28,13 +28,16 @@ This document describes the release infrastructure for the OpenTofu OCI fork.
 
 ### Automated Process
 
-When you push a tag `v*.*.*.+oci` to `oci-releases`, GitHub Actions:
+When you push a tag `v*.*.*-oci` to `oci-releases`, GitHub Actions:
 
 1. **Disk space preparation** - Frees up 15+ GB on runner
-2. **Parallel builds** - Builds 8 platform variants simultaneously
+2. **Parallel builds** - Builds multiple platform variants in a matrix
    - Linux: amd64, arm64, arm, 386
    - macOS: amd64, arm64
-   - Windows: amd64, arm64
+   - Windows: amd64, 386
+   - FreeBSD: amd64, arm, 386
+   - OpenBSD: amd64, 386
+   - Solaris: amd64
 3. **Artifact collection** - Downloads all binaries
 4. **Release creation** - Creates GitHub release with:
    - All platform binaries
@@ -54,7 +57,7 @@ The script will:
 - ✓ Sync main with upstream
 - ✓ Update oci-releases branch
 - ✓ Merge upstream version
-- ✓ Create tag v1.12.0+oci
+- ✓ Create tag v1.12.0-oci
 - ✓ Push to GitHub
 - ✓ Trigger GitHub Actions build
 
@@ -71,10 +74,10 @@ git checkout oci-releases
 git merge v1.12.0 --no-ff -m "Merge upstream v1.12.0"
 
 # Create release tag
-git tag -a v1.12.0+oci -m "Release v1.12.0 with OCI backend"
+git tag -a v1.12.0-oci -m "Release v1.12.0 with OCI backend"
 
 # Push (triggers GitHub Actions)
-git push origin oci-releases v1.12.0+oci
+git push origin oci-releases v1.12.0-oci
 ```
 
 ## Script Options
@@ -99,15 +102,14 @@ git push origin oci-releases v1.12.0+oci
 
 ### release-fork.yml
 
-**Triggers:** Push of tag matching `v*+oci`
+**Triggers:** Push of tag matching `v*-oci`
 
 **Jobs:**
 
-1. **prepare** - Free disk space
-2. **build** - 8 parallel matrix jobs
+1. **build** - Parallel matrix jobs
    - Each builds one platform variant
    - Uploads artifacts with 1-day retention
-3. **create-release** - Create GitHub release
+2. **create-release** - Create GitHub release
    - Downloads all artifacts
    - Generates SHA256SUMS
    - Creates release with full notes
@@ -132,8 +134,8 @@ git merge v1.12.0
 # Resolve conflicts in your editor
 git add .
 git commit -m "Merge upstream v1.12.0"
-git tag -a v1.12.0+oci -m "Release v1.12.0 with OCI backend"
-git push origin oci-releases v1.12.0+oci
+git tag -a v1.12.0-oci -m "Release v1.12.0 with OCI backend"
+git push origin oci-releases v1.12.0-oci
 ```
 
 ### Build Failures
@@ -177,8 +179,20 @@ tofu_darwin_arm64            # macOS ARM binary
 tofu_darwin_arm64.sha256     # Checksum
 tofu_windows_amd64.exe       # Windows AMD64 binary
 tofu_windows_amd64.exe.sha256 # Checksum
-tofu_windows_arm64.exe       # Windows ARM64 binary
-tofu_windows_arm64.exe.sha256 # Checksum
+tofu_windows_386.exe         # Windows 386 binary
+tofu_windows_386.exe.sha256  # Checksum
+tofu_freebsd_amd64           # FreeBSD AMD64 binary
+tofu_freebsd_amd64.sha256    # Checksum
+tofu_freebsd_arm             # FreeBSD ARM binary
+tofu_freebsd_arm.sha256      # Checksum
+tofu_freebsd_386             # FreeBSD 386 binary
+tofu_freebsd_386.sha256      # Checksum
+tofu_openbsd_amd64           # OpenBSD AMD64 binary
+tofu_openbsd_amd64.sha256    # Checksum
+tofu_openbsd_386             # OpenBSD 386 binary
+tofu_openbsd_386.sha256      # Checksum
+tofu_solaris_amd64           # Solaris AMD64 binary
+tofu_solaris_amd64.sha256    # Checksum
 SHA256SUMS                    # All checksums
 ```
 
@@ -186,8 +200,8 @@ SHA256SUMS                    # All checksums
 
 ```bash
 # Download release and checksums
-wget https://github.com/vmvarela/opentofu/releases/download/v1.12.0+oci/tofu_linux_amd64
-wget https://github.com/vmvarela/opentofu/releases/download/v1.12.0+oci/SHA256SUMS
+wget https://github.com/vmvarela/opentofu/releases/download/v1.12.0-oci/tofu_linux_amd64
+wget https://github.com/vmvarela/opentofu/releases/download/v1.12.0-oci/SHA256SUMS
 
 # Verify
 sha256sum -c SHA256SUMS
@@ -208,10 +222,10 @@ If you need to delete a release:
 
 ```bash
 # Delete local tag
-git tag -d v1.12.0+oci
+git tag -d v1.12.0-oci
 
 # Delete remote tag
-git push origin --delete v1.12.0+oci
+git push origin --delete v1.12.0-oci
 
 # Delete GitHub release (via web UI)
 ```

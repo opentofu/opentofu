@@ -12,40 +12,92 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runson }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Linux builds
-          - goos: linux
+          # freebsd builds
+          - goos: freebsd
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_386
+          - goos: freebsd
             goarch: amd64
-            artifact_name: tofu_linux_amd64
-          - goos: linux
-            goarch: arm64
-            artifact_name: tofu_linux_arm64
-          - goos: linux
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_amd64
+          - goos: freebsd
             goarch: arm
-            artifact_name: tofu_linux_arm
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_arm
+
+          # linux builds
           - goos: linux
             goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
             artifact_name: tofu_linux_386
-          
-          # Darwin (macOS) builds
+          - goos: linux
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_amd64
+          - goos: linux
+            goarch: arm
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_arm
+          - goos: linux
+            goarch: arm64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_arm64
+
+          # openbsd builds
+          - goos: openbsd
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_openbsd_386
+          - goos: openbsd
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_openbsd_amd64
+
+          # solaris builds
+          - goos: solaris
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_solaris_amd64
+
+          # windows builds
+          - goos: windows
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_windows_386.exe
+          - goos: windows
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_windows_amd64.exe
+
+          # darwin (macOS) builds
           - goos: darwin
             goarch: amd64
+            runson: macos-latest
+            cgo_enabled: "1"
             artifact_name: tofu_darwin_amd64
           - goos: darwin
             goarch: arm64
+            runson: macos-latest
+            cgo_enabled: "1"
             artifact_name: tofu_darwin_arm64
-          
-          # Windows builds
-          - goos: windows
-            goarch: amd64
-            artifact_name: tofu_windows_amd64.exe
-          - goos: windows
-            goarch: arm64
-            artifact_name: tofu_windows_arm64.exe
     
     steps:
       - name: Checkout code
@@ -60,6 +112,7 @@ jobs:
           cache: true
       
       - name: Free disk space before build
+        if: runner.os == 'Linux'
         run: |
           # Remove docker images to free up more space
           sudo docker image ls
@@ -81,7 +134,7 @@ jobs:
       - name: Build binary
         run: |
           cd cmd/tofu
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          CGO_ENABLED=${{ matrix.cgo_enabled }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -o tofu_${{ matrix.goos }}_${{ matrix.goarch }} \
             -ldflags "-X github.com/opentofu/opentofu/version.dev=no"
           
@@ -96,7 +149,11 @@ jobs:
       - name: Create checksum
         run: |
           cd cmd/dist
-          sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          fi
           cat ${{ matrix.artifact_name }}.sha256
       
       - name: Upload artifact
@@ -145,7 +202,7 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           
           # Get base version (without -oci)
-          BASE_VERSION=${VERSION%+oci}
+          BASE_VERSION=${VERSION%-oci}
           echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
       
       - name: Create GitHub Release
