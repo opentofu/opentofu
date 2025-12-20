@@ -20,7 +20,7 @@ This document describes the release infrastructure for the OpenTofu OCI fork.
 └── oci-releases (permanent release branch)
     ├─ Base: backend/oci + latest upstream version
     ├─ Contains: release-fork.yml workflow
-   ├─ Source of: version tags (v*.*.*-oci)
+    ├─ Source of: version tags (v*.*.*-oci)
     └─ Generates: GitHub releases with assets
 ```
 
