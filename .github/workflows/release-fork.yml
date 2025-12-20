@@ -10,36 +10,8 @@ permissions:
   packages: write
 
 jobs:
-  prepare:
-    name: Prepare Build Environment
-    runs-on: ubuntu-latest
-    steps:
-      - name: Free disk space
-        run: |
-          echo "Disk space before cleanup:"
-          df -h
-          
-          # Remove large unnecessary packages
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /var/lib/apt/lists/*
-          
-          # Clean docker
-          sudo docker image prune --all --force
-          sudo docker builder prune --all --force
-          
-          # Clean apt cache
-          sudo apt-get clean
-          sudo apt-get autoclean
-          
-          echo "Disk space after cleanup:"
-          df -h
-
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
-    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
