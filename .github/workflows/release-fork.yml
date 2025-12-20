@@ -3,7 +3,7 @@ name: Release OCI Fork
 on:
   push:
     tags:
-      - 'v*oci'
+      - 'v*+oci'
 
 permissions:
   contents: write
