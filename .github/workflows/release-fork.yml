@@ -3,7 +3,7 @@ name: Release OCI Fork
 on:
   push:
     tags:
-      - 'v*+oci'
+      - 'v*-oci'
 
 permissions:
   contents: write
@@ -164,7 +164,7 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/}
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           
-          # Get base version (without +oci)
+          # Get base version (without -oci)
           BASE_VERSION=${VERSION%+oci}
           echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
       
