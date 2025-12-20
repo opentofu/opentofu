@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -23,6 +24,8 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -398,28 +401,160 @@ func (n *NodeAbstractResourceInstance) readDiff(evalCtx EvalContext, providerSch
 	return change, nil
 }
 
-func (n *NodeAbstractResourceInstance) checkPreventDestroy(change *plans.ResourceInstanceChange) error {
-	if change == nil || n.Config == nil || n.Config.Managed == nil {
+func (n *NodeAbstractResourceInstance) checkPreventDestroy(ctx context.Context, evalCtx EvalContext, change *plans.ResourceInstanceChange) tfdiags.Diagnostics {
+	if change == nil || n.Config == nil || n.Config.Managed == nil || n.Config.Managed.PreventDestroy == nil {
 		return nil
 	}
 
-	preventDestroy := n.Config.Managed.PreventDestroy
+	var diags tfdiags.Diagnostics
 
-	if (change.Action == plans.Delete || change.Action.IsReplace()) && preventDestroy {
-		var diags tfdiags.Diagnostics
+	preventDestroyExpr := n.Config.Managed.PreventDestroy
+	preventDestroyRefs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, preventDestroyExpr)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return diags
+	}
+
+	for _, ref := range preventDestroyRefs {
+		switch addr := ref.Subject.(type) {
+		case addrs.ForEachAttr, addrs.CountAttr:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid reference in prevent_destroy",
+				Detail: fmt.Sprintf(
+					"A prevent_destroy argument cannot refer to %s, because OpenTofu needs to evaluate this argument for instances that have already been removed from the configuration and so whose per-instance data is no longer available.",
+					addr.String(),
+				),
+				Subject: ref.SourceRange.ToHCL().Ptr(),
+			})
+		}
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
+	hclCtx, moreDiags := scope.EvalContext(ctx, preventDestroyRefs)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return diags
+	}
+	preventDestroyVal, hclDiags := preventDestroyExpr.Value(hclCtx)
+	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		return diags
+	}
+
+	const errSummary = "Invalid value for prevent_destroy"
+	preventDestroyVal, err := convert.Convert(preventDestroyVal, cty.Bool)
+	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Instance cannot be destroyed",
+			Summary:  errSummary,
 			Detail: fmt.Sprintf(
-				"Resource %s has lifecycle.prevent_destroy set, but the plan calls for this resource to be destroyed. To avoid this error and continue with the plan, either disable lifecycle.prevent_destroy or reduce the scope of the plan using the -target flag.",
+				"Resource instance %s has an invalid value for its prevent_destroy argument: %s.",
+				n.Addr.String(), tfdiags.FormatError(err),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+		})
+	}
+	preventDestroyVal, moreDiags = marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
+	diags = diags.Append(moreDiags)
+	preventDestroyVal, pdMarks := preventDestroyVal.Unmark()
+	for mark := range pdMarks {
+		switch mark {
+		case marks.Sensitive:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has a sensitive value for its prevent_destroy argument, which is invalid because it would cause OpenTofu to disclose the sensitive value by whether deletion is blocked.\n\nIf you know this value is not sensitive in practice, consider using the nonsensitive function to declare that.",
+					n.Addr.String(),
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+				Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
+			})
+		case marks.Ephemeral:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has an ephemeral value for its prevent_destroy argument, which is invalid because the decision for whether it's okay to destroy instances of this resource instance must stay consistent between plan and apply.",
+					n.Addr.String(),
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+			})
+		default:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has a prevent_destroy value derived from something that isn't allowed for deciding whether a resource instance may be destroyed (has internal mark %#v). The fact that OpenTofu cannot give more details about this is a bug, so please report it!",
+					n.Addr.String(), mark,
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+			})
+		}
+	}
+
+	if diags.HasErrors() {
+		return diags
+	}
+	if change.Action != plans.Delete && !change.Action.IsReplace() {
+		return nil
+	}
+
+	if !preventDestroyVal.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"Resource instance %s has a prevent_destroy argument but its value will not be known until the apply step, so OpenTofu can't predict whether destroying this is acceptable.\n\nTo proceed, exclude instances of this resource from this round using:\n    -exclude=%q",
+				n.Addr.String(), n.Addr.ContainingResource().String(),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+	if preventDestroyVal.IsNull() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set to null. When making a dynamic decision to allow destroy, use false instead.",
 				n.Addr.String(),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+		})
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	if preventDestroyVal.True() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Resource instance cannot be destroyed",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set, but the plan calls for it to be destroyed.\n\nTo proceed, either disable prevent_destroy for this resource or exclude instances of this resource from this round using:\n    -exclude=%q",
+				n.Addr.String(), n.Addr.ContainingResource().String(),
 			),
 			Subject: &n.Config.DeclRange,
 		})
-		return diags.Err()
 	}
-
-	return nil
+	return diags
 }
 
 // preApplyHook calls the pre-Apply hook
@@ -3000,24 +3135,38 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, err
 	}
 
-	if n.Config == nil || !n.Config.IsOverridden {
-		if p, ok := underlyingProvider.(providerForTest); ok {
-			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())
+	var isOverridden bool
+	var overrideValues map[string]cty.Value
+
+	if n.ResolvedProvider.IsMocked {
+		isOverridden = true
+
+		for _, res := range n.ResolvedProvider.MockResources {
+			if res.Type == n.Addr.Resource.Resource.Type && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Defaults
+				break
+			}
 		}
 
-		return underlyingProvider, schema, nil
+		for _, res := range n.ResolvedProvider.OverrideResources {
+			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Values
+				break
+			}
+		}
 	}
 
-	provider, err := newProviderForTestWithSchema(underlyingProvider, schema)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, err
+	if n.Config != nil && n.Config.IsOverridden {
+		isOverridden = n.Config.IsOverridden
+		overrideValues = n.Config.OverrideValues
 	}
 
-	provider = provider.
-		withOverrideResource(n.Addr.ConfigResource(), n.Config.OverrideValues).
-		linkWithCurrentResource(n.Addr.ConfigResource())
+	if isOverridden {
+		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues)
+		return provider, schema, err
+	}
 
-	return provider, schema, nil
+	return underlyingProvider, schema, err
 }
 
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
