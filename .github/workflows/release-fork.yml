@@ -94,6 +94,11 @@ jobs:
           sudo docker image prune --all --force
           df -h
       
+      - name: Download Go modules
+        run: |
+          go mod download
+          go mod verify
+      
       - name: Build binary
         run: |
           cd cmd/tofu

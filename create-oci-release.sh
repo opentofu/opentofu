@@ -136,6 +136,9 @@ fi
 log_info "Merging upstream ${UPSTREAM_VERSION}..."
 if git merge ${UPSTREAM_VERSION} --no-ff -m "Merge upstream ${UPSTREAM_VERSION}" --quiet; then
     log_success "Merge successful"
+    log_info "Downloading Go modules..."
+    go mod download
+    log_success "Go modules downloaded"
 else
     log_warn "Merge conflicts detected"
     echo ""
