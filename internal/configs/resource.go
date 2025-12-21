@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
@@ -54,15 +55,69 @@ type Resource struct {
 	// IsOverridden indicates if the resource is being overridden. It's used in
 	// testing framework to not call the underlying provider.
 	IsOverridden bool
-	// OverrideResources are only valid if IsOverridden is set to true. The resources
+	// Overrides are only valid if IsOverridden is set to true. The resources
 	// should be used to compose mock provider response. It is possible to have
-	// zero-length OverrideResources even if IsOverridden is set to true. This map
+	// an empty Overrides even if IsOverridden is set to true. This map
 	// is keyed for particular instances, with addrs.NoKey being the default, and all
-	// associated modules being added to the list
-	OverrideResources []*OverrideResource
+	// associated modules being added to the list. TODO figure out splat vs addrs.NoKey
+	Overrides *OverrideTrie
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range
+}
+
+type OverrideTrie struct {
+	trie  map[addrs.InstanceKey]*OverrideTrie
+	value map[string]cty.Value
+}
+
+func NewOverrideTrie() *OverrideTrie {
+	return &OverrideTrie{
+		trie:  make(map[addrs.InstanceKey]*OverrideTrie),
+		value: make(map[string]cty.Value),
+	}
+}
+
+func (ot *OverrideTrie) Set(addr *addrs.AbsResourceInstance, val map[string]cty.Value) {
+	current := ot
+	for _, mod := range addr.Module {
+		next, ok := current.trie[mod.InstanceKey]
+		if !ok {
+			current.trie[mod.InstanceKey] = NewOverrideTrie()
+			next = current.trie[mod.InstanceKey]
+		}
+		current = next
+	}
+	last, ok := current.trie[addr.Resource.Key]
+	if !ok {
+		current.trie[addr.Resource.Key] = NewOverrideTrie()
+		last = current.trie[addr.Resource.Key]
+	}
+	last.value = val
+}
+
+func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) map[string]cty.Value {
+	current := ot
+	for _, mod := range addr.Module {
+		next, ok := current.trie[mod.InstanceKey]
+		if !ok {
+			// TODO splat vs no key
+			next, ok = current.trie[addrs.NoKey]
+			if !ok {
+				return make(map[string]cty.Value)
+			}
+		}
+		current = next
+	}
+	last, ok := current.trie[addr.Resource.Key]
+	if !ok {
+		// TODO splat vs nokey
+		last, ok = current.trie[addrs.NoKey]
+		if !ok {
+			return make(map[string]cty.Value)
+		}
+	}
+	return last.value
 }
 
 // ManagedResource represents a "resource" block in a module or file.

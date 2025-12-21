@@ -1112,10 +1112,10 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 		}
 
 		res.IsOverridden = true
-		if res.OverrideResources == nil {
-			res.OverrideResources = make([]*OverrideResource, 0)
+		if res.Overrides == nil {
+			res.Overrides = NewOverrideTrie()
 		}
-		res.OverrideResources = append(res.OverrideResources, overrideRes)
+		res.Overrides.Set(overrideRes.TargetParsed, overrideRes.Values)
 	}
 
 	return func() {
@@ -1132,7 +1132,7 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 			}
 
 			res.IsOverridden = false
-			res.OverrideResources = make([]*OverrideResource, 0)
+			res.Overrides = NewOverrideTrie()
 		}
 	}, diags
 }
