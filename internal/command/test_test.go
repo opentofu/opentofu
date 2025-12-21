@@ -1725,15 +1725,15 @@ func TestTest_InstanceOverride(t *testing.T) {
 			output := done(t)
 
 			if code != tc.code {
-				t.Errorf("expected status code %d but got %d: %s\n", tc.code, code, output.All())
+				t.Errorf("expected status code %d but got %d\n", tc.code, code)
 			}
 
 			if !strings.Contains(output.Stdout(), tc.expected) {
-				t.Errorf("output didn't contain expected string \"%s\":\n\n%s", tc.expected, output.All())
+				t.Errorf("output didn't contain expected string \"%s\":\n\n%s\n", tc.expected, output.All())
 			}
 
 			if provider.ResourceCount() > 0 {
-				t.Errorf("should have deleted all resources on completion but left %v", provider.ResourceString())
+				t.Errorf("should have deleted all resources on completion but left %v\n", provider.ResourceString())
 			}
 		})
 	}
