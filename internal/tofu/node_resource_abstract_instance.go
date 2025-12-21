@@ -3218,22 +3218,26 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
-		haystack := make([]*configs.OverrideResource, 0)
+		trie := configs.NewOverrideTrie()
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
 			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) {
-				haystack = append(haystack, res)
+				trie.Set(res.TargetParsed, res.Values)
 			}
 		}
-		if len(haystack) > 0 {
-			overrideValues = mostSpecificKey(n.Addr, haystack)
-		}
+		// TODO how do we make sure defaults get set, in case there are no overrides?
+		overrideValues = trie.Get(&n.Addr)
 	}
 
-	if n.Config != nil && n.Config.IsOverridden && len(n.Config.OverrideResources) > 0 {
+	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
 		isOverridden = n.Config.IsOverridden
-		overrideValues = mostSpecificKey(n.Addr, n.Config.OverrideResources)
+		// TODO how do we square away between provider mocks and root override mocks, especially if a provider mock has a more specific keyed value than the root override?
+		// for example:
+		// provider{override_resource{resource.cat["with_a_key"]}}
+		// override_resource{resource.cat}
+		// provider should be preferred, since it's more specific, but current code has root-level preferred!
+		overrideValues = n.Config.Overrides.Get(&n.Addr)
 	}
 
 	if isOverridden {
