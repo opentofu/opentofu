@@ -3196,28 +3196,22 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
+		haystack := make([]*configs.OverrideResource, 0)
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
-			// TODO this condition is a mess, and it doesn't work in the case it gets a "no key" instance before the more-specific keyed instance
-			if res.TargetParsed.Module.Equal(n.Addr.Module) &&
-				res.TargetParsed.Resource.Resource.Equal(n.Addr.Resource.Resource) {
-				// 	&&
-				// (res.TargetParsed.Resource.Key == addrs.NoKey || res.TargetParsed.Resource.Key == n.Addr.Resource.Key) &&
-				// res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Values
-				break
+			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) {
+				haystack = append(haystack, res)
 			}
+		}
+		if len(haystack) > 0 {
+			overrideValues = mostSpecificKey(n.Addr, haystack)
 		}
 	}
 
-	if n.Config != nil && n.Config.IsOverridden {
-		var ok bool
+	if n.Config != nil && n.Config.IsOverridden && len(n.Config.OverrideResources) > 0 {
 		// Overridden in the currently running test (overrides any provider settings)
 		isOverridden = n.Config.IsOverridden
-		overrideValues, ok = n.Config.OverrideValues[n.Addr.Resource.Key]
-		if !ok {
-			overrideValues = n.Config.OverrideValues[addrs.NoKey]
-		}
+		overrideValues = mostSpecificKey(n.Addr, n.Config.OverrideResources)
 	}
 
 	if isOverridden {
@@ -3226,6 +3220,15 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	return underlyingProvider, schema, nil
+}
+
+func mostSpecificKey(needle addrs.AbsResourceInstance, haystack []*configs.OverrideResource) map[string]cty.Value {
+	// TODO figure out the actual logic for this
+	// overrideValues, ok = n.Config.OverrideResources[n.Addr.Resource.Key]
+	// if !ok {
+	// 	overrideValues = n.Config.OverrideResources[addrs.NoKey]
+	// }
+	return haystack[0].Values
 }
 
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
