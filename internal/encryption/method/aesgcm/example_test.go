@@ -67,7 +67,7 @@ func Example_config_hcl() {
 		panic(diags)
 	}
 
-	methodCtx := method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+	methodCtx := method.EvalContext{ValueForExpression: func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
 		return expr.Value(nil)
 	}}
 	config, diags := descriptor.DecodeConfig(methodCtx, file.Body)

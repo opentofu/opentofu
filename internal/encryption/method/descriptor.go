@@ -15,7 +15,7 @@ type Descriptor interface {
 	// ID returns the unique identifier used when parsing HCL or JSON configs.
 	ID() ID
 
-	// ConfigStruct creates a new configuration struct annotated with hcl tags. The Build() receiver on
+	// DecodeConfig creates a new configuration struct. The Build() receiver on
 	// this struct must be able to build a Method from the configuration.
 	//
 	// Common errors:

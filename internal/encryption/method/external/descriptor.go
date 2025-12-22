@@ -21,7 +21,7 @@ func New() method.Descriptor {
 type descriptor struct {
 }
 
-func (f *descriptor) ID() method.ID {
+func (d *descriptor) ID() method.ID {
 	return "external"
 }
 
@@ -49,10 +49,10 @@ func (d *descriptor) DecodeConfig(methodCtx method.EvalContext, body hcl.Body) (
 		if diags.HasErrors() {
 			return nil, diags
 		}
-		keys, err := keyprovider.DecodeOutput(keyVal, keyExpr.Range())
-		if err != nil {
-			// TODO diags
-			panic(err)
+		keys, decodeDiags := keyprovider.DecodeOutput(keyVal, keyExpr.Range())
+		diags = diags.Extend(decodeDiags)
+		if diags.HasErrors() {
+			return nil, diags
 		}
 		methodCfg.Keys = &keys
 	}
@@ -64,8 +64,11 @@ func (d *descriptor) DecodeConfig(methodCtx method.EvalContext, body hcl.Body) (
 		return nil, diags
 	}
 
-	decodeDiags := gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: encryptVal, SrcRange: encryptAttr.Expr.Range()}, nil, &methodCfg.EncryptCommand)
-	diags = diags.Extend(decodeDiags)
+	decodeEncryptCmdDiags := gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: encryptVal, SrcRange: encryptAttr.Expr.Range()}, nil, &methodCfg.EncryptCommand)
+	diags = diags.Extend(decodeEncryptCmdDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 
 	decryptAttr := content.Attributes["decrypt_command"]
 	decryptVal, valueDiags := methodCtx.ValueForExpression(decryptAttr.Expr)
@@ -74,8 +77,8 @@ func (d *descriptor) DecodeConfig(methodCtx method.EvalContext, body hcl.Body) (
 		return nil, diags
 	}
 
-	decodeDiags = gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: decryptVal, SrcRange: decryptAttr.Expr.Range()}, nil, &methodCfg.DecryptCommand)
-	diags = diags.Extend(decodeDiags)
+	decodeDecryptCmdDiags := gohcl.DecodeExpression(&hclsyntax.LiteralValueExpr{Val: decryptVal, SrcRange: decryptAttr.Expr.Range()}, nil, &methodCfg.DecryptCommand)
+	diags = diags.Extend(decodeDecryptCmdDiags)
 
 	return methodCfg, diags
 }

@@ -124,7 +124,7 @@ func (h *HCLParseTestCase[TDescriptor, TConfig, TMethod]) execute(t *testing.T, 
 		}
 	}
 
-	methodCtx := method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+	methodCtx := method.EvalContext{ValueForExpression: func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
 		return expr.Value(nil)
 	}}
 	configStruct, diags := descriptor.DecodeConfig(methodCtx, parsedConfig.MethodConfigs[0].Body)

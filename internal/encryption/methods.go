@@ -46,7 +46,7 @@ func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.M
 	}
 
 	var methodCtx method.EvalContext
-	methodCtx = method.EvalContext{func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+	methodCtx = method.EvalContext{ValueForExpression: func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		deps := expr.Variables()
