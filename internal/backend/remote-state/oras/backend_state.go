@@ -1,4 +1,4 @@
-package oci
+package oras
 
 import (
 	"context"

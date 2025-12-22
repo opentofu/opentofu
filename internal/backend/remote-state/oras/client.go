@@ -1,4 +1,4 @@
-package oci
+package oras
 
 import (
 	"context"
@@ -33,10 +33,10 @@ const (
 
 // Tag naming scheme:
 //
-// - State is stored at "state-<workspaceTag>".
-// - Lock is stored at "locked-<workspaceTag>".
-// - On registries that don't support manifest deletion (GHCR returns 405),
-//   unlock retags to "unlocked-<workspaceTag>" instead.
+//   - State is stored at "state-<workspaceTag>".
+//   - Lock is stored at "locked-<workspaceTag>".
+//   - On registries that don't support manifest deletion (GHCR returns 405),
+//     unlock retags to "unlocked-<workspaceTag>" instead.
 //
 // workspaceTag equals the workspace name if it's a valid OCI tag,
 // otherwise we use "ws-<hash>" and store the name in annotations.
@@ -47,7 +47,7 @@ const (
 )
 
 type RemoteClient struct {
-	repo          *ociRepositoryClient
+	repo          *orasRepositoryClient
 	workspaceName string
 	stateTag      string
 	lockTag       string
@@ -57,7 +57,7 @@ type RemoteClient struct {
 var _ remote.Client = (*RemoteClient)(nil)
 var _ remote.ClientLocker = (*RemoteClient)(nil)
 
-func newRemoteClient(repo *ociRepositoryClient, workspaceName string) *RemoteClient {
+func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteClient {
 	wsTag := workspaceTagFor(workspaceName)
 	return &RemoteClient{
 		repo:          repo,
@@ -279,7 +279,7 @@ func workspaceTagFor(workspace string) string {
 	return "ws-" + hex.EncodeToString(h[:8])
 }
 
-func listWorkspacesFromTags(ctx context.Context, repo *ociRepositoryClient) ([]string, error) {
+func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]string, error) {
 	var tags []string
 	if err := repo.inner.Tags(ctx, "", func(page []string) error {
 		tags = append(tags, page...)
@@ -307,7 +307,7 @@ func listWorkspacesFromTags(ctx context.Context, repo *ociRepositoryClient) ([]s
 	return out, nil
 }
 
-func workspaceNameFromTag(ctx context.Context, repo *ociRepositoryClient, stateTag string) (string, error) {
+func workspaceNameFromTag(ctx context.Context, repo *orasRepositoryClient, stateTag string) (string, error) {
 	wsTag := strings.TrimPrefix(stateTag, stateTagPrefix)
 	if !strings.HasPrefix(wsTag, "ws-") {
 		return wsTag, nil

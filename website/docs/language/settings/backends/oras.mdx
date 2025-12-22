@@ -1,10 +1,10 @@
 ---
-sidebar_label: oci
+sidebar_label: oras
 description: >-
   OpenTofu can store state remotely in any OCI registry and lock that state.
 ---
 
-# Backend Type: oci
+# Backend Type: oras
 
 Stores state snapshots as OCI artifacts in a configurable OCI repository.
 
@@ -14,7 +14,7 @@ This backend supports [state locking](../../../language/state/locking.mdx).
 
 ```hcl
 terraform {
-  backend "oci" {
+  backend "oras" {
     repository = "registry.example.com/my-org/tofu-state"
   }
 }
@@ -24,7 +24,7 @@ terraform {
 
 ```hcl
 data "terraform_remote_state" "example" {
-  backend = "oci"
+  backend = "oras"
 
   config = {
     repository = "registry.example.com/my-org/tofu-state"
@@ -84,7 +84,7 @@ We recommend using environment variables to supply credentials and other sensiti
 
 The following configuration options are supported:
 
-- `repository` / `TF_BACKEND_OCI_REPOSITORY` - (Required) OCI repository reference where OpenTofu will store state, for example: `registry.example.com/org/repo`.
+- `repository` / `TF_BACKEND_ORAS_REPOSITORY` - (Required) OCI repository reference where OpenTofu will store state, for example: `registry.example.com/org/repo`.
 - `insecure` - (Optional) Whether to skip TLS certificate verification when communicating with the registry. Defaults to `false`.
 - `ca_file` - (Optional) Path to a PEM-encoded CA bundle to trust when communicating with the registry.
 

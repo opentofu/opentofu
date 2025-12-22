@@ -1,4 +1,4 @@
-package oci
+package oras
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
 )
 
-const envVarRepository = "TF_BACKEND_OCI_REPOSITORY"
+const envVarRepository = "TF_BACKEND_ORAS_REPOSITORY"
 
 type Backend struct {
 	*schema.Backend
@@ -39,8 +39,8 @@ type Backend struct {
 	insecure   bool
 	caFile     string
 
-	ociCredsPolicy cliconfigOCICredentialsPolicy
-	repoClient     *ociRepositoryClient
+	orasCredsPolicy cliconfigORASCredentialsPolicy
+	repoClient      *orasRepositoryClient
 }
 
 func New(enc encryption.StateEncryption) backend.Backend {
@@ -49,7 +49,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 			"repository": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "OCI repository in the form <registry>/<repository>, without tag or digest. Can also be set via TF_BACKEND_OCI_REPOSITORY env var.",
+				Description: "OCI repository in the form <registry>/<repository>, without tag or digest. Can also be set via TF_BACKEND_ORAS_REPOSITORY env var.",
 				DefaultFunc: schema.EnvDefaultFunc(envVarRepository, ""),
 			},
 			"insecure": {
@@ -99,32 +99,32 @@ func (b *Backend) configure(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b.ociCredsPolicy = realOCICredentialsPolicy{policy: policy}
+	b.orasCredsPolicy = realORASCredentialsPolicy{policy: policy}
 
-	b.repoClient, err = newOCIRepositoryClient(ctx, b.repository, b.insecure, b.caFile, b.ociCredsPolicy)
+	b.repoClient, err = newORASRepositoryClient(ctx, b.repository, b.insecure, b.caFile, b.orasCredsPolicy)
 	return err
 }
 
-func (b *Backend) getRepository() (*ociRepositoryClient, error) {
+func (b *Backend) getRepository() (*orasRepositoryClient, error) {
 	if b.repoClient == nil {
 		return nil, fmt.Errorf("backend is not configured")
 	}
 	return b.repoClient, nil
 }
 
-// OCI repository client
+// ORAS repository client
 
-type cliconfigOCICredentialsPolicy interface {
+type cliconfigORASCredentialsPolicy interface {
 	CredentialFunc(ctx context.Context, repository string) (credentialFunc, error)
 }
 
 type credentialFunc func(ctx context.Context, hostport string) (orasAuth.Credential, error)
 
-type ociRepositoryClient struct {
-	inner ociRepository
+type orasRepositoryClient struct {
+	inner orasRepository
 }
 
-type ociRepository interface {
+type orasRepository interface {
 	Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error
 	Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error)
 	Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error)
@@ -134,13 +134,13 @@ type ociRepository interface {
 	Tags(ctx context.Context, last string, fn func(tags []string) error) error
 }
 
-func newOCIRepositoryClient(ctx context.Context, repository string, insecure bool, caFile string, policy cliconfigOCICredentialsPolicy) (*ociRepositoryClient, error) {
+func newORASRepositoryClient(ctx context.Context, repository string, insecure bool, caFile string, policy cliconfigORASCredentialsPolicy) (*orasRepositoryClient, error) {
 	repo, err := orasRemote.NewRepository(repository)
 	if err != nil {
 		return nil, fmt.Errorf("invalid OCI repository %q: %w", repository, err)
 	}
 
-	httpClient, err := newOCIHTTPClient(ctx, insecure, caFile)
+	httpClient, err := newORASHTTPClient(ctx, insecure, caFile)
 	if err != nil {
 		return nil, err
 	}
@@ -157,10 +157,10 @@ func newOCIRepositoryClient(ctx context.Context, repository string, insecure boo
 		},
 	}
 
-	return &ociRepositoryClient{inner: repo}, nil
+	return &orasRepositoryClient{inner: repo}, nil
 }
 
-func newOCIHTTPClient(ctx context.Context, insecure bool, caFile string) (*http.Client, error) {
+func newORASHTTPClient(ctx context.Context, insecure bool, caFile string) (*http.Client, error) {
 	client := cleanhttp.DefaultPooledClient()
 
 	if t, ok := client.Transport.(*http.Transport); ok {
@@ -209,11 +209,11 @@ func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, e
 
 // Credentials
 
-type realOCICredentialsPolicy struct {
+type realORASCredentialsPolicy struct {
 	policy ociauthconfig.CredentialsConfigs
 }
 
-func (p realOCICredentialsPolicy) CredentialFunc(ctx context.Context, repository string) (credentialFunc, error) {
+func (p realORASCredentialsPolicy) CredentialFunc(ctx context.Context, repository string) (credentialFunc, error) {
 	repo, err := orasRemote.NewRepository(repository)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package oci
+package oras
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 
 func TestRemoteClient_LockContentionAndUnlockMismatch(t *testing.T) {
 	ctx := context.Background()
-	fake := newFakeOCIRepo()
-	repo := &ociRepositoryClient{inner: fake}
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
 
 	client1 := newRemoteClient(repo, "default")
 	client2 := newRemoteClient(repo, "default")
@@ -58,8 +58,8 @@ func TestRemoteClient_LockContentionAndUnlockMismatch(t *testing.T) {
 
 func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 	ctx := context.Background()
-	fake := newFakeOCIRepo()
-	repo := &ociRepositoryClient{inner: fake}
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
 
 	// Tag-safe workspace
 	c1 := newRemoteClient(repo, "dev")
@@ -104,7 +104,7 @@ func TestWorkspaceTagFor_HashesInvalidWorkspaceNames(t *testing.T) {
 }
 
 type deleteUnsupportedRepo struct {
-	inner *fakeOCIRepo
+	inner *fakeORASRepo
 }
 
 func (r deleteUnsupportedRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
@@ -133,8 +133,8 @@ func (r deleteUnsupportedRepo) Tags(ctx context.Context, last string, fn func(ta
 
 func TestRemoteClient_UnlockFallbackWhenDeleteUnsupported(t *testing.T) {
 	ctx := context.Background()
-	fake := newFakeOCIRepo()
-	repo := &ociRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
 
 	client := newRemoteClient(repo, "default")
 

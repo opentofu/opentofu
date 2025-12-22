@@ -1,4 +1,4 @@
-package oci
+package oras
 
 import (
 	"bytes"
@@ -13,25 +13,25 @@ import (
 	"oras.land/oras-go/v2/errdef"
 )
 
-// fakeOCIRepo is an in-memory OCI repository used by unit tests.
+// fakeORASRepo is an in-memory OCI repository used by unit tests.
 //
 // It implements the minimal subset of the ORAS repository interface we use in
-// this package (see ociRepository).
-type fakeOCIRepo struct {
+// this package (see orasRepository).
+type fakeORASRepo struct {
 	mu sync.Mutex
 
 	blobs map[digest.Digest][]byte
 	tags  map[string]ocispec.Descriptor
 }
 
-func newFakeOCIRepo() *fakeOCIRepo {
-	return &fakeOCIRepo{
+func newFakeORASRepo() *fakeORASRepo {
+	return &fakeORASRepo{
 		blobs: make(map[digest.Digest][]byte),
 		tags:  make(map[string]ocispec.Descriptor),
 	}
 }
 
-func (r *fakeOCIRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
+func (r *fakeORASRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
 	_ = ctx
 
 	b, err := io.ReadAll(content)
@@ -55,7 +55,7 @@ func (r *fakeOCIRepo) Push(ctx context.Context, expected ocispec.Descriptor, con
 	return nil
 }
 
-func (r *fakeOCIRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+func (r *fakeORASRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
 	_ = ctx
 
 	r.mu.Lock()
@@ -68,7 +68,7 @@ func (r *fakeOCIRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.
 	return io.NopCloser(bytes.NewReader(b)), nil
 }
 
-func (r *fakeOCIRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+func (r *fakeORASRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
 	_ = ctx
 
 	r.mu.Lock()
@@ -92,7 +92,7 @@ func (r *fakeOCIRepo) Resolve(ctx context.Context, reference string) (ocispec.De
 	return ocispec.Descriptor{}, errdef.ErrNotFound
 }
 
-func (r *fakeOCIRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
+func (r *fakeORASRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
 	_ = ctx
 	if reference == "" {
 		return fmt.Errorf("tag must not be empty")
@@ -104,7 +104,7 @@ func (r *fakeOCIRepo) Tag(ctx context.Context, desc ocispec.Descriptor, referenc
 	return nil
 }
 
-func (r *fakeOCIRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+func (r *fakeORASRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
 	_ = ctx
 
 	r.mu.Lock()
@@ -119,7 +119,7 @@ func (r *fakeOCIRepo) Delete(ctx context.Context, target ocispec.Descriptor) err
 	return nil
 }
 
-func (r *fakeOCIRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+func (r *fakeORASRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
 	_ = ctx
 
 	r.mu.Lock()
@@ -128,7 +128,7 @@ func (r *fakeOCIRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bo
 	return ok, nil
 }
 
-func (r *fakeOCIRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
+func (r *fakeORASRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
 	_ = ctx
 
 	r.mu.Lock()

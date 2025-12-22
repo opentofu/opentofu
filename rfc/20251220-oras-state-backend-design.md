@@ -1,4 +1,4 @@
-# OCI State Backend: Design and Implementation
+# ORAS State Backend: Design and Implementation
 
 **Date:** December 20, 2025  
 **Status:** Implemented  
@@ -8,7 +8,7 @@
 
 ## Abstract
 
-This document specifies the design and implementation of the OCI registry backend for OpenTofu state storage. The implementation enables users to store their infrastructure state in any OCI-compliant registry, leveraging existing organizational infrastructure rather than requiring dedicated storage systems.
+This document specifies the design and implementation of the ORAS backend for OpenTofu state storage. The implementation enables users to store their infrastructure state in any OCI-compliant registry, leveraging existing organizational infrastructure rather than requiring dedicated storage systems.
 
 ---
 
@@ -53,9 +53,9 @@ Many organizations already operate OCI-compliant registries:
 | GCS | GCP account + bucket | Maybe |
 | Consul | Consul cluster | Rarely |
 | PostgreSQL | Database server | Sometimes |
-| **OCI** | Any container registry | **Almost certainly** |
+| **ORAS** | Any container registry | **Almost certainly** |
 
-The OCI backend meets users where they are.
+The ORAS backend meets users where they are.
 
 ---
 
@@ -70,7 +70,7 @@ The OCI backend meets users where they are.
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│              OCI State Backend                          │
+│              ORAS State Backend                         │
 │  ┌─────────────────┐  ┌─────────────────┐               │
 │  │   backend.go    │  │    client.go    │               │
 │  │  Configuration  │  │  State & Lock   │               │
@@ -103,9 +103,9 @@ The OCI backend meets users where they are.
 
 ```hcl
 terraform {
-  backend "oci" {
+  backend "oras" {
     # Required: OCI repository path (without tag or digest)
-    # Can also be set via TF_BACKEND_OCI_REPOSITORY environment variable
+    # Can also be set via TF_BACKEND_ORAS_REPOSITORY environment variable
     repository = "registry.example.com/infrastructure/tofu-state"
     
     # Optional: for self-signed certificates
@@ -121,7 +121,7 @@ terraform {
 
 | Variable | Description |
 |----------|-------------|
-| `TF_BACKEND_OCI_REPOSITORY` | Alternative to `repository` attribute. Useful for CI/CD pipelines. |
+| `TF_BACKEND_ORAS_REPOSITORY` | Alternative to `repository` attribute. Useful for CI/CD pipelines. |
 
 ---
 
@@ -570,7 +570,7 @@ state-production-v3        # Version 3 (current)
 
 Configuration:
 ```hcl
-backend "oci" {
+backend "oras" {
   repository = "registry.example.com/infrastructure/tofu-state"
   
   versioning {
@@ -585,7 +585,7 @@ backend "oci" {
 Client-side encryption before pushing to registry:
 
 ```hcl
-backend "oci" {
+backend "oras" {
   repository = "registry.example.com/infrastructure/tofu-state"
   
   encryption {
@@ -600,7 +600,7 @@ backend "oci" {
 Disaster recovery with automatic replication:
 
 ```hcl
-backend "oci" {
+backend "oras" {
   primary_repository = "primary.registry.com/tofu-state"
   
   replicas = [
@@ -615,7 +615,7 @@ backend "oci" {
 Enhanced debugging with structured logs:
 
 ```go
-slog.Debug("OCI operation",
+slog.Debug("ORAS operation",
     "operation", "push_state",
     "registry", registryDomain,
     "repository", repoPath,
@@ -686,7 +686,7 @@ slog.Debug("OCI operation",
 
 ```hcl
 terraform {
-  backend "oci" {
+  backend "oras" {
     repository = "ghcr.io/myorg/tofu-state"
   }
 }
@@ -694,12 +694,12 @@ terraform {
 
 Or using environment variable:
 ```bash
-export TF_BACKEND_OCI_REPOSITORY="ghcr.io/myorg/tofu-state"
+export TF_BACKEND_ORAS_REPOSITORY="ghcr.io/myorg/tofu-state"
 ```
 
 ```hcl
 terraform {
-  backend "oci" {}
+  backend "oras" {}
 }
 ```
 
@@ -707,7 +707,7 @@ terraform {
 
 ```hcl
 terraform {
-  backend "oci" {
+  backend "oras" {
     repository = "harbor.internal.example.com/infrastructure/state"
     ca_file    = "/etc/ssl/certs/internal-ca.crt"
   }
@@ -784,5 +784,5 @@ tofu force-unlock <lock-id>
 ---
 
 **Document Version:** 1.0  
-**Implementation:** `internal/backend/remote-state/oci/`  
+**Implementation:** `internal/backend/remote-state/oras/`  
 **Last Updated:** December 20, 2025

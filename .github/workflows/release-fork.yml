@@ -1,0 +1,293 @@
+name: Release Fork
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.runson }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # freebsd builds
+          - goos: freebsd
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_386
+          - goos: freebsd
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_amd64
+          - goos: freebsd
+            goarch: arm
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_freebsd_arm
+
+          # linux builds
+          - goos: linux
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_386
+          - goos: linux
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_amd64
+          - goos: linux
+            goarch: arm
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_arm
+          - goos: linux
+            goarch: arm64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_linux_arm64
+
+          # openbsd builds
+          - goos: openbsd
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_openbsd_386
+          - goos: openbsd
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_openbsd_amd64
+
+          # solaris builds
+          - goos: solaris
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_solaris_amd64
+
+          # windows builds
+          - goos: windows
+            goarch: 386
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_windows_386.exe
+          - goos: windows
+            goarch: amd64
+            runson: ubuntu-latest
+            cgo_enabled: "0"
+            artifact_name: tofu_windows_amd64.exe
+
+          # darwin (macOS) builds
+          - goos: darwin
+            goarch: amd64
+            runson: macos-latest
+            cgo_enabled: "1"
+            artifact_name: tofu_darwin_amd64
+          - goos: darwin
+            goarch: arm64
+            runson: macos-latest
+            cgo_enabled: "1"
+            artifact_name: tofu_darwin_arm64
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      
+      - name: Free disk space before build
+        if: runner.os == 'Linux'
+        run: |
+          # Remove docker images to free up more space
+          sudo docker image ls
+          sudo docker image prune --all --force
+          df -h
+      
+      - name: Download Go modules
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Set embedded version
+        run: |
+          # The version package reads from version/VERSION at build time.
+          # Our tags are like v1.11.2-oci, but VERSION must be SemVer without the leading 'v'.
+          echo "${GITHUB_REF_NAME#v}" > version/VERSION
+          echo "Embedded VERSION: $(cat version/VERSION)"
+      
+      - name: Build binary
+        run: |
+          cd cmd/tofu
+          CGO_ENABLED=${{ matrix.cgo_enabled }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -o tofu_${{ matrix.goos }}_${{ matrix.goarch }} \
+            -ldflags "-X github.com/opentofu/opentofu/version.dev=no"
+          
+          # Create directory structure
+          mkdir -p ../dist
+          
+          # Move binary to dist
+          mv tofu_${{ matrix.goos }}_${{ matrix.goarch }} ../dist/${{ matrix.artifact_name }}
+          
+          ls -lh ../dist/
+      
+      - name: Create checksum
+        run: |
+          cd cmd/dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          fi
+          cat ${{ matrix.artifact_name }}.sha256
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tofu-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: cmd/dist/${{ matrix.artifact_name }}*
+          retention-days: 1
+
+  create-release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      
+      - name: Prepare release files
+        run: |
+          # Flatten artifact directories
+          mkdir -p final-release
+          find release-assets -type f -exec cp {} final-release/ \;
+          
+          # Create comprehensive checksums file
+          cd final-release
+          sha256sum * > SHA256SUMS
+          
+          echo "Release files:"
+          ls -lh
+          
+          echo ""
+          echo "SHA256 Checksums:"
+          cat SHA256SUMS
+      
+      - name: Extract version info
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          
+          # Get base version (without -oci)
+          BASE_VERSION=${VERSION%-oci}
+          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          files: final-release/*
+          draft: false
+          prerelease: false
+          body: |
+            # OpenTofu ${{ steps.version.outputs.base_version }} with ORAS Backend
+            
+            This is an OpenTofu fork release based on **upstream main** with the **ORAS state backend** implementation.
+            
+            ## What's Included
+            
+            - ✅ Full OpenTofu ${{ steps.version.outputs.base_version }} functionality
+            - ✅ ORAS backend for state storage (OCI registries)
+            - ✅ Support for all OCI-compliant registries (Harbor, GHCR, ECR, ACR, GCR, etc.)
+            - ✅ State locking and workspace management
+            - ✅ Multi-credential source support
+            
+            ## Installation
+            
+            Download the appropriate binary for your platform:
+            
+            ```bash
+            # Linux AMD64
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_linux_amd64
+            
+            # macOS ARM64
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_darwin_arm64
+            
+            # Windows AMD64
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_windows_amd64.exe
+            ```
+            
+            ## Using the ORAS Backend
+            
+            ```hcl
+            terraform {
+              backend "oras" {
+                repository = "registry.example.com/infrastructure/tofu-state"
+              }
+            }
+            ```
+            
+            See [ORAS State Backend Design](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/rfc/20251220-oras-state-backend-design.md) for full documentation.
+            
+            ## Verification
+            
+            Verify the binary integrity using the SHA256SUMS file:
+            
+            ```bash
+            sha256sum -c SHA256SUMS
+            ```
+            
+            ## Building from Source
+            
+            To build from this fork:
+            
+            ```bash
+            git clone -b ${{ steps.version.outputs.version }} https://github.com/${{ github.repository }}.git
+            cd opentofu
+            make build
+            ```
+            
+            ## Changelog
+            
+            For changes from upstream ${{ steps.version.outputs.base_version }}, see:
+            https://github.com/opentofu/opentofu/releases
+            
+            ### ORAS Backend Additions
+            
+            This release includes:
+            - New `backend "oras"` block for state storage
+            - Support for multiple OCI registries
+            - Workspace-based state organization
+            - State locking with lock info metadata
+            - Credential helper integration
+            - TLS/CA bundle support
+            
+            ---
+            
+            **Build Information:**
+            - Release Tag: ${{ steps.version.outputs.version }}
+            - Build Time: ${{ github.event.head_commit.timestamp }}
+            - Repository: ${{ github.repository }}
