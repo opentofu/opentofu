@@ -23,7 +23,7 @@ import (
 	backendHTTP "github.com/opentofu/opentofu/internal/backend/remote-state/http"
 	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
-	backendOCI "github.com/opentofu/opentofu/internal/backend/remote-state/oci"
+	backendORAS "github.com/opentofu/opentofu/internal/backend/remote-state/oras"
 	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
@@ -84,7 +84,7 @@ func Init(services *disco.Disco) {
 		"http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
 		"inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
 		"kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
-		"oci":        func(enc encryption.StateEncryption) backend.Backend { return backendOCI.New(enc) },
+		"oras":       func(enc encryption.StateEncryption) backend.Backend { return backendORAS.New(enc) },
 		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
 		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
 		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
