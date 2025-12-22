@@ -2751,3 +2751,60 @@ func TestContext2Validate_importIntoModuleResource(t *testing.T) {
 		})
 	}
 }
+
+func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
+	// This checks that validate walk adds an import node into the graph even if the targeted
+	// configuration block does not exist.
+	// This is useful for the situations where the config generation flag is turned on.
+	// In those cases, the execution should run as intended without the configuration block,
+	// one of the purpose being to generate the missing block.
+	// Related to: https://github.com/opentofu/opentofu/issues/3615
+	p := simpleMockProvider()
+	hook := new(MockHook)
+	ctx := testContext2(t, &ContextOpts{
+		Hooks: []Hook{hook},
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
+		return providers.ReadResourceResponse{
+			NewState: cty.ObjectVal(map[string]cty.Value{
+				"test_string": cty.StringVal("foo"),
+				"test_number": cty.NullVal(cty.Number),
+				"test_bool":   cty.NullVal(cty.Bool),
+				"test_list":   cty.NullVal(cty.List(cty.String)),
+				"test_map":    cty.NullVal(cty.Map(cty.String)),
+			}),
+		}
+	}
+	p.ImportResourceStateFn = func(request providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+		return providers.ImportResourceStateResponse{
+			ImportedResources: []providers.ImportedResource{
+				{
+					TypeName: "test_object",
+					State: cty.ObjectVal(map[string]cty.Value{
+						"test_string": cty.StringVal("foo"),
+						"test_number": cty.NullVal(cty.Number),
+						"test_bool":   cty.NullVal(cty.Bool),
+						"test_list":   cty.NullVal(cty.List(cty.String)),
+						"test_map":    cty.NullVal(cty.Map(cty.String)),
+					}),
+				},
+			},
+		}
+	}
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			import {
+			  to = test_object.a
+			  id = "test_id"
+			}
+		`,
+	})
+	diags := ctx.Validate(context.Background(), m)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+}
