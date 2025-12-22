@@ -1,9 +1,9 @@
-name: Release OCI Fork
+name: Release Fork
 
 on:
   push:
     tags:
-      - 'v*-oci'
+      - 'v*'
 
 permissions:
   contents: write
