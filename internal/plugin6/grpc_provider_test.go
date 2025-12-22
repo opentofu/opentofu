@@ -22,7 +22,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -67,6 +66,13 @@ func mockProviderClientWithSchema(t *testing.T, schema *proto.GetProviderSchema_
 	).Return(schema, nil)
 
 	return client
+}
+
+func newGRPCProvider(client proto.ProviderClient) *GRPCProvider {
+	return &GRPCProvider{
+		client:      client,
+		SchemaCache: providers.NewSchemaCache(),
+	}
 }
 
 func checkDiags(t *testing.T, d tfdiags.Diagnostics) {
@@ -163,9 +169,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 }
 
 func TestGRPCProvider_GetSchema(t *testing.T) {
-	p := &GRPCProvider{
-		client: mockProviderClient(t),
-	}
+	p := newGRPCProvider(mockProviderClient(t))
 
 	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
@@ -199,9 +203,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.GetProviderSchema_Response{}, fmt.Errorf("test error"))
 
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	resp := p.GetProviderSchema(t.Context())
 
@@ -230,9 +232,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		Provider: &proto.Schema{},
 	}, nil)
 
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	resp := p.GetProviderSchema(t.Context())
 
@@ -242,13 +242,8 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
-	// The SchemaCache is global and is saved between test runs
-	providers.SchemaCache = providers.NewMockSchemaCache()
 
-	providerAddr := addrs.Provider{
-		Namespace: "namespace",
-		Type:      "type",
-	}
+	cache := providers.NewSchemaCache()
 
 	mockedProviderResponse := &proto.Schema{Version: 2, Block: &proto.Schema_Block{}}
 
@@ -263,10 +258,8 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 
 	// Run GetProviderTwice, expect GetSchema to be called once
 	// Re-initialize the provider before each run to avoid usage of the local cache
-	p := &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
+	p := newGRPCProvider(client)
+	p.SchemaCache = cache
 	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
@@ -274,10 +267,8 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
 	}
 
-	p = &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
+	p = newGRPCProvider(client)
+	p.SchemaCache = cache
 	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
@@ -289,13 +280,6 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
-	// The SchemaCache is global and is saved between test runs
-	providers.SchemaCache = providers.NewMockSchemaCache()
-
-	providerAddr := addrs.Provider{
-		Namespace: "namespace",
-		Type:      "type",
-	}
 
 	mockedProviderResponse := &proto.Schema{Version: 2, Block: &proto.Schema_Block{}}
 
@@ -310,10 +294,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 
 	// Run GetProviderTwice, expect GetSchema to be called once
 	// Re-initialize the provider before each run to avoid usage of the local cache
-	p := &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
+	p := newGRPCProvider(client)
 	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
@@ -321,10 +302,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
 	}
 
-	p = &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
+	p = newGRPCProvider(client)
 	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
@@ -335,9 +313,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 
 func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ValidateProviderConfig(
 		gomock.Any(),
@@ -351,9 +327,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 
 func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ValidateResourceConfig(
 		gomock.Any(),
@@ -370,9 +344,7 @@ func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 
 func TestGRPCProvider_ValidateDataResourceConfig(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ValidateDataResourceConfig(
 		gomock.Any(),
@@ -389,9 +361,7 @@ func TestGRPCProvider_ValidateDataResourceConfig(t *testing.T) {
 
 func TestGRPCProvider_ValidateEphemeralResourceConfig(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ValidateEphemeralResourceConfig(
 		gomock.Any(),
@@ -408,9 +378,7 @@ func TestGRPCProvider_ValidateEphemeralResourceConfig(t *testing.T) {
 
 func TestGRPCProvider_UpgradeResourceState(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().UpgradeResourceState(
 		gomock.Any(),
@@ -439,9 +407,7 @@ func TestGRPCProvider_UpgradeResourceState(t *testing.T) {
 
 func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().UpgradeResourceState(
 		gomock.Any(),
@@ -475,9 +441,7 @@ func TestGRPCProvider_UpgradeResourceStateWithWriteOnlyReturned(t *testing.T) {
 		Optional:  true,
 		WriteOnly: true,
 	})))
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().UpgradeResourceState(
 		gomock.Any(),
@@ -512,9 +476,7 @@ func TestGRPCProvider_UpgradeResourceStateWithWriteOnlyReturned(t *testing.T) {
 
 func TestGRPCProvider_MoveResourceState(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().MoveResourceState(
 		gomock.Any(),
@@ -553,9 +515,7 @@ func TestGRPCProvider_MoveResourceStateReturnsWriteOnlyValue(t *testing.T) {
 		Optional:  true,
 		WriteOnly: true,
 	})))
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().MoveResourceState(
 		gomock.Any(),
@@ -591,9 +551,7 @@ func TestGRPCProvider_MoveResourceStateReturnsWriteOnlyValue(t *testing.T) {
 
 func TestGRPCProvider_Configure(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ConfigureProvider(
 		gomock.Any(),
@@ -611,9 +569,7 @@ func TestGRPCProvider_Configure(t *testing.T) {
 func TestGRPCProvider_Stop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().StopProvider(
 		gomock.Any(),
@@ -628,9 +584,7 @@ func TestGRPCProvider_Stop(t *testing.T) {
 
 func TestGRPCProvider_ReadResource(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadResource(
 		gomock.Any(),
@@ -661,9 +615,7 @@ func TestGRPCProvider_ReadResource(t *testing.T) {
 
 func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadResource(
 		gomock.Any(),
@@ -699,9 +651,7 @@ func TestGRPCProvider_ReadResourceReturnsWriteOnlyValue(t *testing.T) {
 		Optional:  true,
 		WriteOnly: true,
 	})))
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadResource(
 		gomock.Any(),
@@ -739,9 +689,7 @@ func TestGRPCProvider_ReadResourceReturnsWriteOnlyValue(t *testing.T) {
 
 func TestGRPCProvider_ReadEmptyJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadResource(
 		gomock.Any(),
@@ -771,9 +719,7 @@ func TestGRPCProvider_ReadEmptyJSON(t *testing.T) {
 
 func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -834,9 +780,7 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 
 func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -902,9 +846,7 @@ func TestGRPCProvider_PlanResourceChangeReturnsWriteOnlyValue(t *testing.T) {
 		Optional:  true,
 		WriteOnly: true,
 	})))
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().PlanResourceChange(
 		gomock.Any(),
@@ -947,9 +889,7 @@ func TestGRPCProvider_PlanResourceChangeReturnsWriteOnlyValue(t *testing.T) {
 
 func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -994,9 +934,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 
 func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -1046,9 +984,7 @@ func TestGRPCProvider_ApplyResourceChangeReturnsWriteOnlyValue(t *testing.T) {
 		Optional:  true,
 		WriteOnly: true,
 	})))
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ApplyResourceChange(
 		gomock.Any(),
@@ -1093,9 +1029,7 @@ func TestGRPCProvider_ApplyResourceChangeReturnsWriteOnlyValue(t *testing.T) {
 
 func TestGRPCProvider_ImportResourceState(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -1136,9 +1070,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 }
 func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	expectedPrivate := []byte(`{"meta": "data"}`)
 
@@ -1180,9 +1112,7 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 
 func TestGRPCProvider_ReadDataSource(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadDataSource(
 		gomock.Any(),
@@ -1213,9 +1143,7 @@ func TestGRPCProvider_ReadDataSource(t *testing.T) {
 
 func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().ReadDataSource(
 		gomock.Any(),
@@ -1247,9 +1175,7 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		client := mockProviderClient(t)
-		p := &GRPCProvider{
-			client: client,
-		}
+		p := newGRPCProvider(client)
 
 		future := time.Now().Add(time.Minute)
 		client.EXPECT().OpenEphemeralResource(
@@ -1287,9 +1213,7 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 	})
 	t.Run("requested type is not in schema", func(t *testing.T) {
 		client := mockProviderClient(t)
-		p := &GRPCProvider{
-			client: client,
-		}
+		p := newGRPCProvider(client)
 
 		resp := p.OpenEphemeralResource(t.Context(), providers.OpenEphemeralResourceRequest{
 			TypeName: "non_existing",
@@ -1307,9 +1231,7 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 func TestGRPCProvider_RenewEphemeralResource(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	future := time.Now().Add(time.Minute)
 	client.EXPECT().RenewEphemeralResource(
@@ -1338,9 +1260,7 @@ func TestGRPCProvider_RenewEphemeralResource(t *testing.T) {
 func TestGRPCProvider_CloseEphemeralResource(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := mockproto.NewMockProviderClient(ctrl)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().CloseEphemeralResource(
 		gomock.Any(),
@@ -1356,9 +1276,7 @@ func TestGRPCProvider_CloseEphemeralResource(t *testing.T) {
 
 func TestGRPCProvider_CallFunction(t *testing.T) {
 	client := mockProviderClient(t)
-	p := &GRPCProvider{
-		client: client,
-	}
+	p := newGRPCProvider(client)
 
 	client.EXPECT().CallFunction(
 		gomock.Any(),

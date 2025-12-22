@@ -15,7 +15,7 @@ resource "azuread_service_principal" "tf_principal" {
 # Role assignment, so that this can do anything in our tests.
 resource "azurerm_role_assignment" "account_admin" {
   scope                = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
-  role_definition_name = "Storage Account Contributor"
+  role_definition_name = "Contributor"
   principal_id         = azuread_service_principal.tf_principal.object_id
 }
 

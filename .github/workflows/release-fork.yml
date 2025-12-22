@@ -200,10 +200,6 @@ jobs:
         run: |
           VERSION=${GITHUB_REF#refs/tags/}
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          
-          # Get base version (without -oci)
-          BASE_VERSION=${VERSION%-oci}
-          echo "base_version=${BASE_VERSION}" >> $GITHUB_OUTPUT
       
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -213,14 +209,14 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            # OpenTofu ${{ steps.version.outputs.base_version }} with OCI Backend
+            # OpenTofu ${{ steps.version.outputs.version }} with ORAS Backend
             
-            This is an OpenTofu fork release based on **upstream main** with the **OCI state backend** implementation.
+            This is an OpenTofu fork release based on **upstream main** with the **ORAS state backend** implementation.
             
             ## What's Included
             
-            - ✅ Full OpenTofu ${{ steps.version.outputs.base_version }} functionality
-            - ✅ OCI Registry backend for state storage
+            - ✅ Full OpenTofu main functionality
+            - ✅ ORAS backend for state storage (OCI registries)
             - ✅ Support for all OCI-compliant registries (Harbor, GHCR, ECR, ACR, GCR, etc.)
             - ✅ State locking and workspace management
             - ✅ Multi-credential source support
@@ -240,17 +236,17 @@ jobs:
             wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_windows_amd64.exe
             ```
             
-            ## Using the OCI Backend
+            ## Using the ORAS Backend
             
             ```hcl
             terraform {
-              backend "oci" {
+              backend "oras" {
                 repository = "registry.example.com/infrastructure/tofu-state"
               }
             }
             ```
             
-            See [OCI State Backend Design](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/rfc/20251220-oci-state-backend-design.md) for full documentation.
+            See [ORAS State Backend Design](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/rfc/20251220-oras-state-backend-design.md) for full documentation.
             
             ## Verification
             
@@ -272,13 +268,13 @@ jobs:
             
             ## Changelog
             
-            For changes from upstream ${{ steps.version.outputs.base_version }}, see:
+            For changes from upstream main, see:
             https://github.com/opentofu/opentofu/releases
             
-            ### OCI Backend Additions
+            ### ORAS Backend Additions
             
             This release includes:
-            - New `backend "oci"` block for state storage
+            - New `backend "oras"` block for state storage
             - Support for multiple OCI registries
             - Workspace-based state organization
             - State locking with lock info metadata

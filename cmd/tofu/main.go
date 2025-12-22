@@ -125,8 +125,10 @@ func realMain() int {
 	}
 
 	log.Printf("[INFO] OpenTofu version: %s %s", Version, VersionPrerelease)
-	for _, depMod := range version.InterestingDependencies() {
-		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
+	if logging.IsDebugOrHigher() {
+		for _, depMod := range version.InterestingDependencies() {
+			log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
+		}
 	}
 	log.Printf("[INFO] Go runtime version: %s", runtime.Version())
 	if fips140.Enabled() {
@@ -374,6 +376,12 @@ func realMain() int {
 		Ui.Error(fmt.Sprintf("Error executing CLI: %s", err.Error()))
 		return 1
 	}
+
+	// We might generate some additional log lines if OpenTofu relied on any
+	// non-default Go runtime behaviors enabled by GODEBUG settings, because
+	// they might be relevant when trying to reproduce certain problems for
+	// debugging or bug reporting purposes.
+	logGodebugUsage()
 
 	// if we are exiting with a non-zero code, check if it was caused by any
 	// plugins crashing

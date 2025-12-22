@@ -86,7 +86,7 @@ $ GOOS=linux GOARCH=amd64 go test -c .
 This will generate an `azure.test` file. Send this to your VM:
 
 ```bash
-$ scp azure.test azureadmin@xxx.xxx.xxx.xxx:
+$ scp azure.test azureadmin@xxx.xxx.xxx.xxx:/home/azureadmin
 ```
 
 Now, SSH into your VM:

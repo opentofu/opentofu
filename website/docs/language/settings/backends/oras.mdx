@@ -1,0 +1,94 @@
+---
+sidebar_label: oras
+description: >-
+  OpenTofu can store state remotely in any OCI registry and lock that state.
+---
+
+# Backend Type: oras
+
+Stores state snapshots as OCI artifacts in a configurable OCI repository.
+
+This backend supports [state locking](../../../language/state/locking.mdx).
+
+## Example Configuration
+
+```hcl
+terraform {
+  backend "oras" {
+    repository = "registry.example.com/my-org/tofu-state"
+  }
+}
+```
+
+## Data Source Configuration
+
+```hcl
+data "terraform_remote_state" "example" {
+  backend = "oras"
+
+  config = {
+    repository = "registry.example.com/my-org/tofu-state"
+  }
+}
+```
+
+## Authentication
+
+This backend uses OpenTofu's standard OCI registry credentials mechanism.
+
+By default, OpenTofu can obtain credentials from:
+
+- Explicit `oci_credentials` blocks in the [OpenTofu CLI configuration](../../../cli/config/config-file.mdx).
+- Docker-style configuration files written by tools like `docker login` (for example `~/.docker/config.json`).
+
+To configure and understand the precedence rules, see [OCI Registry Credentials](../../../cli/oci_registries/credentials.mdx).
+
+### Example: GitHub Container Registry (GHCR)
+
+If you authenticate with Docker, OpenTofu can typically reuse those credentials:
+
+```shell
+docker login ghcr.io
+```
+
+If you want to disable all ambient credentials discovery and require explicit `oci_credentials` only, configure:
+
+```hcl
+oci_default_credentials {
+  discover_ambient_credentials = false
+}
+```
+
+## Workspaces
+
+This backend supports [multiple workspaces](../../../language/state/workspaces.mdx) by storing each workspace's
+state under a different OCI tag within the same repository.
+
+## State Locking
+
+When locking is enabled, OpenTofu creates a lock marker in the OCI repository before writing state.
+Lock information is stored as OCI artifact metadata so other clients can detect an existing lock and
+report who is holding it.
+
+:::note
+Some OCI registries do not support deleting manifests via the OCI Distribution API. In that case,
+OpenTofu will still unlock successfully, but the repository might retain additional historical lock
+artifacts.
+:::
+
+## Configuration Variables
+
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+:::
+
+The following configuration options are supported:
+
+- `repository` / `TF_BACKEND_ORAS_REPOSITORY` - (Required) OCI repository reference where OpenTofu will store state, for example: `registry.example.com/org/repo`.
+- `insecure` - (Optional) Whether to skip TLS certificate verification when communicating with the registry. Defaults to `false`.
+- `ca_file` - (Optional) Path to a PEM-encoded CA bundle to trust when communicating with the registry.
+
+## State Encryption
+
+If you enable [state encryption](../../../language/state/encryption.mdx), OpenTofu encrypts state data on the client
+before uploading it to the OCI registry. This backend stores the resulting bytes and does not perform encryption itself.

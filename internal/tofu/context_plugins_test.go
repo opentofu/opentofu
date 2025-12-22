@@ -31,18 +31,15 @@ func simpleMockPluginLibrary() *contextPlugins {
 	// factory into real code under test.
 	provider := simpleMockProvider()
 	provisioner := simpleMockProvisioner()
-	ret := &contextPlugins{
-		providerFactories: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): func() (providers.Interface, error) {
-				return provider, nil
-			},
+	ret := newContextPlugins(map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): func() (providers.Interface, error) {
+			return provider, nil
 		},
-		provisionerFactories: map[string]provisioners.Factory{
-			"test": func() (provisioners.Interface, error) {
-				return provisioner, nil
-			},
+	}, map[string]provisioners.Factory{
+		"test": func() (provisioners.Interface, error) {
+			return provisioner, nil
 		},
-	}
+	})
 	return ret
 }
 
