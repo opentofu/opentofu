@@ -40,7 +40,7 @@ A casual contributor should, at a glance, be able to understand all expectations
 
 Note that none of those guidelines are specific to any development. We may have some development guidelines which are in a supervised repository's `CONTRIBUTING.md`. However, if those were moved to their own document, then `CONTRIBUTING.md` could be standardized and mostly identical across all supervised repositories.
 
-This also means that [any fixes](https://github.com/opentofu/org/issues/26) done to `CONTRIBUTING.md` and `MAINTAINERS.md` could propagate across all relevant repositories.
+This also means that [any fixes](https://github.com/opentofu/org/issues/26) done to some central `CONTRIBUTING.md` and `MAINTAINERS.md` documents in `org` could be referred to across all relevant repositories.
 
 We may also want to list different ways to contribute that [may not include code](https://opensource.guide/how-to-contribute/#what-it-means-to-contribute), or code contributions ancillary to the main repository (like CI/CD).
 
