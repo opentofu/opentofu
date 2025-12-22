@@ -215,7 +215,7 @@ jobs:
           body: |
             # OpenTofu ${{ steps.version.outputs.base_version }} with OCI Backend
             
-            This is an OpenTofu fork release based on **upstream ${{ steps.version.outputs.base_version }}** with the **OCI state backend** implementation.
+            This is an OpenTofu fork release based on **upstream main** with the **OCI state backend** implementation.
             
             ## What's Included
             
@@ -273,7 +273,7 @@ jobs:
             ## Changelog
             
             For changes from upstream ${{ steps.version.outputs.base_version }}, see:
-            https://github.com/opentofu/opentofu/releases/tag/${{ steps.version.outputs.base_version }}
+            https://github.com/opentofu/opentofu/releases
             
             ### OCI Backend Additions
             
