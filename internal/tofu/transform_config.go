@@ -51,13 +51,12 @@ type ConfigTransformer struct {
 	// manually.
 	generateConfigPathForImportTargets string
 
-	// operation represents the walkOperation for which this transformer is executed from.
+	// forceAddImportTargets is meant to indicate that the import targets
+	// need to be added even when the configuration is missing.
 	//
-	// At the moment of adding this, the walkValidate needs to be able to create the import
-	// related nodes for validation.
-	// This is needed because if the plan is executed with config generation option, the
-	// validation needs to allow missing configuration for the import targets.
-	operation walkOperation
+	// This is related to the execution of the plan command with the config generation option.
+	// In this case the step validation needs to allow missing configuration for the import targets.
+	forceAddImportTargets bool
 }
 
 func (t *ConfigTransformer) Transform(_ context.Context, g *Graph) error {
@@ -206,7 +205,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 			}
 
 			g.Add(node)
-		case t.operation == walkValidate:
+		case t.forceAddImportTargets:
 			// Create a node with the resource and import target. This node will take care of the config generation
 			abstract := &NodeAbstractResource{
 				// We've already validated in validateImportTargets that the address is fully resolvable

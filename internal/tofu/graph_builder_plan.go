@@ -149,7 +149,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 			// We only want to generate config during a plan operation.
 			generateConfigPathForImportTargets: b.GenerateConfigPath,
-			operation:                          b.Operation,
+			forceAddImportTargets:              b.Operation == walkValidate,
 		},
 
 		// Add dynamic values
