@@ -20,7 +20,7 @@ type descriptor struct{}
 func (f *descriptor) ID() method.ID {
 	return "unencrypted"
 }
-func (d *descriptor) DecodeConfig(methodCtx method.EvalContext, body hcl.Body) (method.Config, hcl.Diagnostics) {
+func (f *descriptor) DecodeConfig(_ method.EvalContext, _ hcl.Body) (method.Config, hcl.Diagnostics) {
 	return new(methodConfig), nil
 }
 
