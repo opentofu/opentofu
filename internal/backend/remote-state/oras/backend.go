@@ -37,17 +37,19 @@ const (
 	envVarRetryMax     = "TF_BACKEND_ORAS_RETRY_MAX"
 	envVarRetryWaitMin = "TF_BACKEND_ORAS_RETRY_WAIT_MIN"
 	envVarRetryWaitMax = "TF_BACKEND_ORAS_RETRY_WAIT_MAX"
+	envVarLockTTL      = "TF_BACKEND_ORAS_LOCK_TTL"
 )
 
 type Backend struct {
 	*schema.Backend
 	encryption encryption.StateEncryption
 
-	repository string
-	insecure   bool
-	caFile     string
+	repository  string
+	insecure    bool
+	caFile      string
 	compression string
-	retryCfg   RetryConfig
+	lockTTL     time.Duration
+	retryCfg    RetryConfig
 
 	versioningEnabled     bool
 	versioningMaxVersions int
@@ -99,6 +101,12 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Default:     "none",
 				Description: "State compression. Supported values: none, gzip.",
+			},
+			"lock_ttl": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarLockTTL, 0),
+				Description: "Lock TTL in seconds. If set, stale locks older than this will be automatically cleared. 0 disables.",
 			},
 			"versioning": {
 				Type:     schema.TypeList,
@@ -159,6 +167,12 @@ func (b *Backend) configure(ctx context.Context) error {
 	default:
 		return fmt.Errorf("unsupported compression %q (supported: none, gzip)", b.compression)
 	}
+
+	lockTTLSeconds := data.Get("lock_ttl").(int)
+	if lockTTLSeconds < 0 {
+		return fmt.Errorf("lock_ttl must be non-negative")
+	}
+	b.lockTTL = time.Duration(lockTTLSeconds) * time.Second
 
 	// Retry behavior (match HTTP backend semantics: retry_max is number of retries).
 	retryMax := data.Get("retry_max").(int)

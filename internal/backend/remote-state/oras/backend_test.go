@@ -96,6 +96,18 @@ func TestORASCompressionConfigFromConfig(t *testing.T) {
 	}
 }
 
+func TestORASLockTTLConfigFromConfig(t *testing.T) {
+	conf := map[string]cty.Value{
+		"repository": cty.StringVal("example.com/myorg/tofu-state"),
+		"lock_ttl":   cty.StringVal("60"),
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
+	if b.lockTTL != 60*time.Second {
+		t.Fatalf("expected lockTTL %s, got %s", 60*time.Second, b.lockTTL)
+	}
+}
+
 type countingLookupEnv struct {
 	mu    sync.Mutex
 	calls int

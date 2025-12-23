@@ -2,8 +2,8 @@ package oras
 
 import (
 	"bytes"
-	"context"
 	"compress/gzip"
+	"context"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,6 +13,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -26,8 +27,8 @@ import (
 const (
 	mediaTypeStateLayer     = "application/vnd.opentofu.statefile.v1"
 	mediaTypeStateLayerGzip = "application/vnd.opentofu.statefile.v1+gzip"
-	artifactTypeState   = "application/vnd.opentofu.state.v1"
-	artifactTypeLock    = "application/vnd.opentofu.lock.v1"
+	artifactTypeState       = "application/vnd.opentofu.state.v1"
+	artifactTypeLock        = "application/vnd.opentofu.lock.v1"
 
 	annotationWorkspace = "org.opentofu.workspace"
 	annotationLockID    = "org.opentofu.lock.id"
@@ -51,13 +52,15 @@ const (
 )
 
 type RemoteClient struct {
-	repo          *orasRepositoryClient
-	workspaceName string
-	stateTag      string
-	lockTag       string
-	unlockedTag   string
-	retryConfig   RetryConfig
+	repo             *orasRepositoryClient
+	workspaceName    string
+	stateTag         string
+	lockTag          string
+	unlockedTag      string
+	retryConfig      RetryConfig
 	stateCompression string
+	lockTTL          time.Duration
+	now              func() time.Time
 
 	versioningEnabled     bool
 	versioningMaxVersions int
@@ -76,6 +79,8 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 		unlockedTag:           unlockedTagPrefix + wsTag,
 		retryConfig:           DefaultRetryConfig(),
 		stateCompression:      "none",
+		lockTTL:               0,
+		now:                   time.Now,
 		versioningEnabled:     false,
 		versioningMaxVersions: 0,
 	}
@@ -286,7 +291,7 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	}
 
 	// Check for existing lock (with retry for transient network errors)
-	_, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
+	existingDesc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
 		return c.repo.inner.Resolve(ctx, c.lockTag)
 	})
 	if err == nil {
@@ -295,7 +300,13 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 			return "", &statemgr.LockError{InconsistentRead: true, Err: err}
 		}
 		if existing != nil && existing.ID != "" {
-			return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
+			if c.isLockStale(existing) {
+				if err := c.clearLock(ctx, existingDesc); err != nil {
+					return "", err
+				}
+			} else {
+				return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
+			}
 		}
 	} else if !isNotFound(err) {
 		return "", err
@@ -331,6 +342,37 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	}
 
 	return info.ID, nil
+}
+
+func (c *RemoteClient) isLockStale(info *statemgr.LockInfo) bool {
+	if c.lockTTL <= 0 || info == nil || info.Created.IsZero() {
+		return false
+	}
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	age := now().UTC().Sub(info.Created)
+	if age < 0 {
+		return false
+	}
+	return age > c.lockTTL
+}
+
+func (c *RemoteClient) clearLock(ctx context.Context, desc ocispec.Descriptor) error {
+	// Delete with retry for transient network errors
+	err := withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.repo.inner.Delete(ctx, desc)
+	})
+	if err == nil || isNotFound(err) {
+		return nil
+	}
+	if !isDeleteUnsupported(err) {
+		return err
+	}
+
+	// GHCR fallback: retag to unlocked manifest
+	return c.retagToUnlocked(ctx)
 }
 
 func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
