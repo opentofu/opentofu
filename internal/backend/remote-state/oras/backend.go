@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"golang.org/x/time/rate"
 	orasRegistry "oras.land/oras-go/v2/registry"
 	orasRemote "oras.land/oras-go/v2/registry/remote"
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
@@ -38,6 +39,8 @@ const (
 	envVarRetryWaitMin = "TF_BACKEND_ORAS_RETRY_WAIT_MIN"
 	envVarRetryWaitMax = "TF_BACKEND_ORAS_RETRY_WAIT_MAX"
 	envVarLockTTL      = "TF_BACKEND_ORAS_LOCK_TTL"
+	envVarRateLimit    = "TF_BACKEND_ORAS_RATE_LIMIT"
+	envVarRateBurst    = "TF_BACKEND_ORAS_RATE_LIMIT_BURST"
 )
 
 type Backend struct {
@@ -49,6 +52,8 @@ type Backend struct {
 	caFile      string
 	compression string
 	lockTTL     time.Duration
+	rateLimit   int
+	rateBurst   int
 	retryCfg    RetryConfig
 
 	versioningEnabled     bool
@@ -107,6 +112,18 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc(envVarLockTTL, 0),
 				Description: "Lock TTL in seconds. If set, stale locks older than this will be automatically cleared. 0 disables.",
+			},
+			"rate_limit": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarRateLimit, 0),
+				Description: "Maximum registry requests per second. 0 disables rate limiting.",
+			},
+			"rate_limit_burst": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarRateBurst, 0),
+				Description: "Maximum burst size for registry requests when rate limiting is enabled. 0 defaults to 1.",
 			},
 			"versioning": {
 				Type:     schema.TypeList,
@@ -174,6 +191,17 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	b.lockTTL = time.Duration(lockTTLSeconds) * time.Second
 
+	rateLimit := data.Get("rate_limit").(int)
+	rateBurst := data.Get("rate_limit_burst").(int)
+	if rateLimit < 0 {
+		return fmt.Errorf("rate_limit must be non-negative")
+	}
+	if rateBurst < 0 {
+		return fmt.Errorf("rate_limit_burst must be non-negative")
+	}
+	b.rateLimit = rateLimit
+	b.rateBurst = rateBurst
+
 	// Retry behavior (match HTTP backend semantics: retry_max is number of retries).
 	retryMax := data.Get("retry_max").(int)
 	retryWaitMin := time.Duration(data.Get("retry_wait_min").(int)) * time.Second
@@ -218,7 +246,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	b.orasCredsPolicy = realORASCredentialsPolicy{policy: policy}
 
-	b.repoClient, err = newORASRepositoryClient(ctx, b.repository, b.insecure, b.caFile, b.orasCredsPolicy)
+	b.repoClient, err = newORASRepositoryClient(ctx, b.repository, b.insecure, b.caFile, b.orasCredsPolicy, b.rateLimit, b.rateBurst)
 	return err
 }
 
@@ -251,13 +279,13 @@ type orasRepository interface {
 	Tags(ctx context.Context, last string, fn func(tags []string) error) error
 }
 
-func newORASRepositoryClient(ctx context.Context, repository string, insecure bool, caFile string, policy cliconfigORASCredentialsPolicy) (*orasRepositoryClient, error) {
+func newORASRepositoryClient(ctx context.Context, repository string, insecure bool, caFile string, policy cliconfigORASCredentialsPolicy, rateLimit int, rateBurst int) (*orasRepositoryClient, error) {
 	repo, err := orasRemote.NewRepository(repository)
 	if err != nil {
 		return nil, fmt.Errorf("invalid OCI repository %q: %w", repository, err)
 	}
 
-	httpClient, err := newORASHTTPClient(ctx, insecure, caFile)
+	httpClient, err := newORASHTTPClient(ctx, insecure, caFile, rateLimit, rateBurst)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +305,7 @@ func newORASRepositoryClient(ctx context.Context, repository string, insecure bo
 	return &orasRepositoryClient{inner: repo}, nil
 }
 
-func newORASHTTPClient(ctx context.Context, insecure bool, caFile string) (*http.Client, error) {
+func newORASHTTPClient(ctx context.Context, insecure bool, caFile string, rateLimit int, rateBurst int) (*http.Client, error) {
 	client := cleanhttp.DefaultPooledClient()
 
 	if t, ok := client.Transport.(*http.Transport); ok {
@@ -300,9 +328,20 @@ func newORASHTTPClient(ctx context.Context, insecure bool, caFile string) (*http
 		client.Transport = t
 	}
 
+	var limiter requestLimiter
+	if rateLimit > 0 {
+		if rateBurst <= 0 {
+			rateBurst = 1
+		}
+		limiter = rate.NewLimiter(rate.Limit(rateLimit), rateBurst)
+	}
+
 	var rt http.RoundTripper = &userAgentRoundTripper{
 		userAgent: httpclient.OpenTofuUserAgent(version.Version),
 		inner:     client.Transport,
+	}
+	if limiter != nil {
+		rt = &rateLimitedRoundTripper{limiter: limiter, inner: rt}
 	}
 	if span := tracing.SpanFromContext(ctx); span != nil && span.IsRecording() {
 		rt = otelhttp.NewTransport(rt)
@@ -320,6 +359,24 @@ type userAgentRoundTripper struct {
 func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", rt.userAgent)
+	}
+	return rt.inner.RoundTrip(req)
+}
+
+type requestLimiter interface {
+	Wait(ctx context.Context) error
+}
+
+type rateLimitedRoundTripper struct {
+	limiter requestLimiter
+	inner   http.RoundTripper
+}
+
+func (rt *rateLimitedRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if rt.limiter != nil {
+		if err := rt.limiter.Wait(req.Context()); err != nil {
+			return nil, err
+		}
 	}
 	return rt.inner.RoundTrip(req)
 }
