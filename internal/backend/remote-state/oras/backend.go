@@ -46,6 +46,7 @@ type Backend struct {
 	repository string
 	insecure   bool
 	caFile     string
+	compression string
 	retryCfg   RetryConfig
 
 	versioningEnabled     bool
@@ -92,6 +93,12 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc(envVarRetryWaitMax, 30),
 				Description: "The maximum time in seconds to wait between transient registry request attempts.",
+			},
+			"compression": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Default:     "none",
+				Description: "State compression. Supported values: none, gzip.",
 			},
 			"versioning": {
 				Type:     schema.TypeList,
@@ -141,6 +148,17 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.repository = repository
 	b.insecure = data.Get("insecure").(bool)
 	b.caFile = data.Get("ca_file").(string)
+
+	b.compression = strings.ToLower(strings.TrimSpace(data.Get("compression").(string)))
+	if b.compression == "" {
+		b.compression = "none"
+	}
+	switch b.compression {
+	case "none", "gzip":
+		// ok
+	default:
+		return fmt.Errorf("unsupported compression %q (supported: none, gzip)", b.compression)
+	}
 
 	// Retry behavior (match HTTP backend semantics: retry_max is number of retries).
 	retryMax := data.Get("retry_max").(int)
