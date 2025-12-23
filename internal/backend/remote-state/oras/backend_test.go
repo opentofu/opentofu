@@ -1,10 +1,13 @@
 package oras
 
 import (
+	"context"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/zclconf/go-cty/cty"
@@ -51,5 +54,105 @@ func TestORASRetryConfigFromEnv(t *testing.T) {
 	}
 	if b.retryCfg.MaxBackoff != 150*time.Second {
 		t.Fatalf("expected MaxBackoff %s, got %s", 150*time.Second, b.retryCfg.MaxBackoff)
+	}
+}
+
+type countingLookupEnv struct {
+	mu    sync.Mutex
+	calls int
+
+	result ociauthconfig.DockerCredentialHelperGetResult
+	err    error
+}
+
+func (e *countingLookupEnv) QueryDockerCredentialHelper(ctx context.Context, helperName string, serverURL string) (ociauthconfig.DockerCredentialHelperGetResult, error) {
+	e.mu.Lock()
+	e.calls++
+	e.mu.Unlock()
+	return e.result, e.err
+}
+
+func (e *countingLookupEnv) Calls() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.calls
+}
+
+func TestCachedDockerCredentialHelperEnv_CachesSuccessWithinTTL(t *testing.T) {
+	inner := &countingLookupEnv{
+		result: ociauthconfig.DockerCredentialHelperGetResult{
+			ServerURL: "https://example.com",
+			Username:  "u",
+			Secret:    "s",
+		},
+	}
+	env := newCachedDockerCredentialHelperEnv(inner, time.Minute)
+	base := time.Unix(100, 0)
+	env.now = func() time.Time { return base }
+
+	ctx := context.Background()
+	_, err := env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err = env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got, want := inner.Calls(), 1; got != want {
+		t.Fatalf("inner calls = %d, want %d", got, want)
+	}
+}
+
+func TestCachedDockerCredentialHelperEnv_ExpiresAfterTTL(t *testing.T) {
+	inner := &countingLookupEnv{
+		result: ociauthconfig.DockerCredentialHelperGetResult{
+			ServerURL: "https://example.com",
+			Username:  "u",
+			Secret:    "s",
+		},
+	}
+	env := newCachedDockerCredentialHelperEnv(inner, 10*time.Second)
+	base := time.Unix(100, 0)
+	now := base
+	env.now = func() time.Time { return now }
+
+	ctx := context.Background()
+	_, err := env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	now = base.Add(11 * time.Second)
+	_, err = env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got, want := inner.Calls(), 2; got != want {
+		t.Fatalf("inner calls = %d, want %d", got, want)
+	}
+}
+
+func TestCachedDockerCredentialHelperEnv_CachesNotFoundErrorWithinTTL(t *testing.T) {
+	notFoundErr := ociauthconfig.NewCredentialsNotFoundError(context.Canceled) // any wrapped error is fine
+	inner := &countingLookupEnv{err: notFoundErr}
+	env := newCachedDockerCredentialHelperEnv(inner, time.Minute)
+	base := time.Unix(100, 0)
+	env.now = func() time.Time { return base }
+
+	ctx := context.Background()
+	_, err := env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err == nil || !ociauthconfig.IsCredentialsNotFoundError(err) {
+		t.Fatalf("expected not-found error, got %v", err)
+	}
+	_, err = env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err == nil || !ociauthconfig.IsCredentialsNotFoundError(err) {
+		t.Fatalf("expected not-found error, got %v", err)
+	}
+
+	if got, want := inner.Calls(), 1; got != want {
+		t.Fatalf("inner calls = %d, want %d", got, want)
 	}
 }
