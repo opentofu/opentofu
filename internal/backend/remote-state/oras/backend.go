@@ -48,6 +48,9 @@ type Backend struct {
 	caFile     string
 	retryCfg   RetryConfig
 
+	versioningEnabled     bool
+	versioningMaxVersions int
+
 	orasCredsPolicy cliconfigORASCredentialsPolicy
 	repoClient      *orasRepositoryClient
 }
@@ -89,6 +92,27 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc(envVarRetryWaitMax, 30),
 				Description: "The maximum time in seconds to wait between transient registry request attempts.",
+			},
+			"versioning": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"enabled": {
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Default:     false,
+							Description: "Whether to keep historical state versions using versioned tags.",
+						},
+						"max_versions": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Default:     10,
+							Description: "Maximum number of historical state versions to retain.",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -138,6 +162,19 @@ func (b *Backend) configure(ctx context.Context) error {
 		retryCfg.MaxBackoff = retryCfg.InitialBackoff
 	}
 	b.retryCfg = retryCfg
+
+	// State versioning (optional)
+	if v, ok := data.GetOk("versioning"); ok {
+		if spec, ok := v.([]interface{})[0].(map[string]interface{}); ok {
+			b.versioningEnabled = spec["enabled"].(bool)
+			b.versioningMaxVersions = spec["max_versions"].(int)
+		} else {
+			return fmt.Errorf("failed to parse versioning")
+		}
+	}
+	if b.versioningEnabled && b.versioningMaxVersions < 0 {
+		b.versioningMaxVersions = 0
+	}
 
 	cfg, diags := cliconfig.LoadConfig(ctx)
 	if diags.HasErrors() {

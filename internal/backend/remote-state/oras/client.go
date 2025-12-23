@@ -41,9 +41,10 @@ const (
 // workspaceTag equals the workspace name if it's a valid OCI tag,
 // otherwise we use "ws-<hash>" and store the name in annotations.
 const (
-	stateTagPrefix    = "state-"
-	lockTagPrefix     = "locked-"
-	unlockedTagPrefix = "unlocked-"
+	stateTagPrefix           = "state-"
+	lockTagPrefix            = "locked-"
+	unlockedTagPrefix        = "unlocked-"
+	stateVersionTagSeparator = "-v"
 )
 
 type RemoteClient struct {
@@ -53,6 +54,9 @@ type RemoteClient struct {
 	lockTag       string
 	unlockedTag   string
 	retryConfig   RetryConfig
+
+	versioningEnabled     bool
+	versioningMaxVersions int
 }
 
 var _ remote.Client = (*RemoteClient)(nil)
@@ -61,12 +65,14 @@ var _ remote.ClientLocker = (*RemoteClient)(nil)
 func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteClient {
 	wsTag := workspaceTagFor(workspaceName)
 	return &RemoteClient{
-		repo:          repo,
-		workspaceName: workspaceName,
-		stateTag:      stateTagPrefix + wsTag,
-		lockTag:       lockTagPrefix + wsTag,
-		unlockedTag:   unlockedTagPrefix + wsTag,
-		retryConfig:   DefaultRetryConfig(),
+		repo:                  repo,
+		workspaceName:         workspaceName,
+		stateTag:              stateTagPrefix + wsTag,
+		lockTag:               lockTagPrefix + wsTag,
+		unlockedTag:           unlockedTagPrefix + wsTag,
+		retryConfig:           DefaultRetryConfig(),
+		versioningEnabled:     false,
+		versioningMaxVersions: 0,
 	}
 }
 
@@ -125,7 +131,94 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		return err
 	}
 
-	return c.repo.inner.Tag(ctx, manifestDesc, c.stateTag)
+	if err := c.repo.inner.Tag(ctx, manifestDesc, c.stateTag); err != nil {
+		return err
+	}
+
+	if !c.versioningEnabled {
+		return nil
+	}
+
+	nextVersion, existing, err := c.nextStateVersion(ctx)
+	if err != nil {
+		return err
+	}
+
+	newVersionTag := c.versionTagFor(nextVersion)
+	if err := c.repo.inner.Tag(ctx, manifestDesc, newVersionTag); err != nil {
+		return err
+	}
+
+	if c.versioningMaxVersions > 0 {
+		existing = append(existing, nextVersion)
+		if err := c.enforceVersionRetention(ctx, manifestDesc, existing); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *RemoteClient) versionTagFor(version int) string {
+	return fmt.Sprintf("%s%s%d", c.stateTag, stateVersionTagSeparator, version)
+}
+
+func (c *RemoteClient) nextStateVersion(ctx context.Context) (next int, existing []int, err error) {
+	var tags []string
+	if err := c.repo.inner.Tags(ctx, "", func(page []string) error {
+		tags = append(tags, page...)
+		return nil
+	}); err != nil {
+		return 0, nil, err
+	}
+
+	max := 0
+	for _, t := range tags {
+		v, ok := parseStateVersionTag(t, c.stateTag)
+		if !ok {
+			continue
+		}
+		existing = append(existing, v)
+		if v > max {
+			max = v
+		}
+	}
+
+	return max + 1, existing, nil
+}
+
+func (c *RemoteClient) enforceVersionRetention(ctx context.Context, current ocispec.Descriptor, versions []int) error {
+	if c.versioningMaxVersions <= 0 {
+		return nil
+	}
+
+	sort.Ints(versions)
+	toDeleteCount := len(versions) - c.versioningMaxVersions
+	if toDeleteCount <= 0 {
+		return nil
+	}
+
+	for _, v := range versions[:toDeleteCount] {
+		tag := c.versionTagFor(v)
+		desc, err := c.repo.inner.Resolve(ctx, tag)
+		if err != nil {
+			if isNotFound(err) {
+				continue
+			}
+			return err
+		}
+		if desc.Digest == current.Digest {
+			continue
+		}
+		if err := c.repo.inner.Delete(ctx, desc); err != nil {
+			if isNotFound(err) || isDeleteUnsupported(err) {
+				continue
+			}
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *RemoteClient) Delete(ctx context.Context) error {
@@ -350,11 +443,21 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 		return nil, err
 	}
 
+	tagSet := make(map[string]struct{}, len(tags))
+	for _, t := range tags {
+		tagSet[t] = struct{}{}
+	}
+
 	seen := map[string]bool{}
 	var out []string
 	for _, tag := range tags {
 		if !strings.HasPrefix(tag, stateTagPrefix) {
 			continue
+		}
+		if base, _, ok := splitStateVersionTag(tag); ok {
+			if _, ok := tagSet[base]; ok {
+				continue
+			}
 		}
 		name, err := workspaceNameFromTag(ctx, repo, tag)
 		if err != nil {
@@ -367,6 +470,58 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+func parseStateVersionTag(tag string, stateTag string) (int, bool) {
+	prefix := stateTag + stateVersionTagSeparator
+	if !strings.HasPrefix(tag, prefix) {
+		return 0, false
+	}
+	s := strings.TrimPrefix(tag, prefix)
+	if s == "" {
+		return 0, false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+	}
+	v := 0
+	for i := 0; i < len(s); i++ {
+		v = v*10 + int(s[i]-'0')
+	}
+	if v <= 0 {
+		return 0, false
+	}
+	return v, true
+}
+
+func splitStateVersionTag(tag string) (base string, version int, ok bool) {
+	idx := strings.LastIndex(tag, stateVersionTagSeparator)
+	if idx < 0 {
+		return "", 0, false
+	}
+	base = tag[:idx]
+	if base == "" {
+		return "", 0, false
+	}
+	s := tag[idx+len(stateVersionTagSeparator):]
+	if s == "" {
+		return "", 0, false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return "", 0, false
+		}
+	}
+	v := 0
+	for i := 0; i < len(s); i++ {
+		v = v*10 + int(s[i]-'0')
+	}
+	if v <= 0 {
+		return "", 0, false
+	}
+	return base, v, true
 }
 
 func workspaceNameFromTag(ctx context.Context, repo *orasRepositoryClient, stateTag string) (string, error) {

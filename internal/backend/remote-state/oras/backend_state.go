@@ -3,6 +3,7 @@ package oras
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -16,6 +17,8 @@ func (b *Backend) StateMgr(ctx context.Context, workspace string) (statemgr.Full
 	}
 	client := newRemoteClient(repo, workspace)
 	client.retryConfig = b.retryCfg
+	client.versioningEnabled = b.versioningEnabled
+	client.versioningMaxVersions = b.versioningMaxVersions
 	return remote.NewState(client, b.encryption), nil
 }
 
@@ -50,10 +53,22 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	wsTag := workspaceTagFor(name)
 	stateRef := stateTagPrefix + wsTag
 	lockRef := lockTagPrefix + wsTag
+	stateVersionPrefix := stateRef + stateVersionTagSeparator
 
 	if desc, err := repo.inner.Resolve(ctx, stateRef); err == nil {
 		_ = repo.inner.Delete(ctx, desc)
 	}
+	_ = repo.inner.Tags(ctx, "", func(page []string) error {
+		for _, tag := range page {
+			if !strings.HasPrefix(tag, stateVersionPrefix) {
+				continue
+			}
+			if desc, err := repo.inner.Resolve(ctx, tag); err == nil {
+				_ = repo.inner.Delete(ctx, desc)
+			}
+		}
+		return nil
+	})
 	if desc, err := repo.inner.Resolve(ctx, lockRef); err == nil {
 		_ = repo.inner.Delete(ctx, desc)
 	}

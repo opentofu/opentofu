@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -54,6 +56,31 @@ func TestORASRetryConfigFromEnv(t *testing.T) {
 	}
 	if b.retryCfg.MaxBackoff != 150*time.Second {
 		t.Fatalf("expected MaxBackoff %s, got %s", 150*time.Second, b.retryCfg.MaxBackoff)
+	}
+}
+
+func TestORASVersioningConfigFromConfig(t *testing.T) {
+	src := []byte(`
+repository = "example.com/myorg/tofu-state"
+
+versioning {
+  enabled      = true
+  max_versions = 42
+}
+`)
+
+	f, diags := hclsyntax.ParseConfig(src, "synth.hcl", hcl.Pos{Line: 1, Column: 1})
+	if diags.HasErrors() {
+		t.Fatalf("parse config: %s", diags.Error())
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), f.Body).(*Backend)
+
+	if !b.versioningEnabled {
+		t.Fatalf("expected versioningEnabled to be true")
+	}
+	if b.versioningMaxVersions != 42 {
+		t.Fatalf("expected versioningMaxVersions %d, got %d", 42, b.versioningMaxVersions)
 	}
 }
 
