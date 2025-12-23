@@ -84,6 +84,18 @@ versioning {
 	}
 }
 
+func TestORASCompressionConfigFromConfig(t *testing.T) {
+	conf := map[string]cty.Value{
+		"repository":  cty.StringVal("example.com/myorg/tofu-state"),
+		"compression": cty.StringVal("gzip"),
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
+	if b.compression != "gzip" {
+		t.Fatalf("expected compression %q, got %q", "gzip", b.compression)
+	}
+}
+
 type countingLookupEnv struct {
 	mu    sync.Mutex
 	calls int

@@ -19,6 +19,7 @@ func (b *Backend) StateMgr(ctx context.Context, workspace string) (statemgr.Full
 	client.retryConfig = b.retryCfg
 	client.versioningEnabled = b.versioningEnabled
 	client.versioningMaxVersions = b.versioningMaxVersions
+	client.stateCompression = b.compression
 	return remote.NewState(client, b.encryption), nil
 }
 
