@@ -15,6 +15,7 @@ func (b *Backend) StateMgr(ctx context.Context, workspace string) (statemgr.Full
 		return nil, err
 	}
 	client := newRemoteClient(repo, workspace)
+	client.retryConfig = b.retryCfg
 	return remote.NewState(client, b.encryption), nil
 }
 
