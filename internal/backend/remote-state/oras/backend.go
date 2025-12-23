@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -31,6 +32,12 @@ import (
 
 const envVarRepository = "TF_BACKEND_ORAS_REPOSITORY"
 
+const (
+	envVarRetryMax     = "TF_BACKEND_ORAS_RETRY_MAX"
+	envVarRetryWaitMin = "TF_BACKEND_ORAS_RETRY_WAIT_MIN"
+	envVarRetryWaitMax = "TF_BACKEND_ORAS_RETRY_WAIT_MAX"
+)
+
 type Backend struct {
 	*schema.Backend
 	encryption encryption.StateEncryption
@@ -38,6 +45,7 @@ type Backend struct {
 	repository string
 	insecure   bool
 	caFile     string
+	retryCfg   RetryConfig
 
 	orasCredsPolicy cliconfigORASCredentialsPolicy
 	repoClient      *orasRepositoryClient
@@ -62,6 +70,24 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Path to a PEM-encoded CA certificate bundle to trust when communicating with the OCI registry",
+			},
+			"retry_max": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarRetryMax, 2),
+				Description: "The number of retries for transient registry requests.",
+			},
+			"retry_wait_min": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarRetryWaitMin, 1),
+				Description: "The minimum time in seconds to wait between transient registry request attempts.",
+			},
+			"retry_wait_max": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(envVarRetryWaitMax, 30),
+				Description: "The maximum time in seconds to wait between transient registry request attempts.",
 			},
 		},
 	}
@@ -90,6 +116,27 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.repository = repository
 	b.insecure = data.Get("insecure").(bool)
 	b.caFile = data.Get("ca_file").(string)
+
+	// Retry behavior (match HTTP backend semantics: retry_max is number of retries).
+	retryMax := data.Get("retry_max").(int)
+	retryWaitMin := time.Duration(data.Get("retry_wait_min").(int)) * time.Second
+	retryWaitMax := time.Duration(data.Get("retry_wait_max").(int)) * time.Second
+
+	retryCfg := DefaultRetryConfig()
+	retryCfg.MaxAttempts = retryMax + 1
+	retryCfg.InitialBackoff = retryWaitMin
+	retryCfg.MaxBackoff = retryWaitMax
+	// Keep BackoffMultiplier from DefaultRetryConfig.
+	if retryCfg.MaxAttempts < 1 {
+		retryCfg.MaxAttempts = 1
+	}
+	if retryCfg.InitialBackoff <= 0 {
+		retryCfg.InitialBackoff = time.Second
+	}
+	if retryCfg.MaxBackoff > 0 && retryCfg.MaxBackoff < retryCfg.InitialBackoff {
+		retryCfg.MaxBackoff = retryCfg.InitialBackoff
+	}
+	b.retryCfg = retryCfg
 
 	cfg, diags := cliconfig.LoadConfig(ctx)
 	if diags.HasErrors() {

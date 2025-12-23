@@ -258,4 +258,3 @@ func TestWithRetryNoResult(t *testing.T) {
 		t.Errorf("expected 2 attempts, got %d", attempts)
 	}
 }
-
