@@ -35,33 +35,32 @@ func (cred *oidcAuth) Name() string {
 }
 
 func (cred *oidcAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
-	client := httpclient.New(ctx)
-
 	clientId, err := consolidateClientId(config)
 	if err != nil {
-		// This should never happen; this is checked in the Validate function
 		return nil, err
 	}
-	var token string
-	if config.OIDCToken == "" && config.OIDCTokenFilePath == "" {
-		token, err = getTokenFromRemote(client, config.OIDCAuthConfig)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		token, err = consolidateToken(config)
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	return azidentity.NewClientAssertionCredential(
 		config.TenantID,
 		clientId,
-		func(_ context.Context) (string, error) {
-			return token, nil
+		// The azure sdk calls this callback whenever it needs client assertion
+		//
+		// Previously, the OIDC token was fetched once and returned statically,
+		// which caused failures when using short-lived tokens in azure devops
+		// pipelines during long-running operations.
+		//
+		// By resolving the token dynamically here, we allow the sdk to obtain
+		// a fresh OIDC token as needed, enabling proper token refresh behavior.
+		func(ctx context.Context) (string, error) {
+			client := httpclient.New(ctx)
+			
+			if config.OIDCToken == "" && config.OIDCTokenFilePath == "" {
+				return getTokenFromRemote(client, config.OIDCAuthConfig)
+			}
+			return consolidateToken(config)
 		},
 		&azidentity.ClientAssertionCredentialOptions{
-			ClientOptions: clientOptions(client, config.CloudConfig),
+			ClientOptions: clientOptions(httpclient.New(ctx), config.CloudConfig),
 		},
 	)
 }
