@@ -2,6 +2,9 @@ package oras
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -105,6 +108,90 @@ func TestORASLockTTLConfigFromConfig(t *testing.T) {
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 	if b.lockTTL != 60*time.Second {
 		t.Fatalf("expected lockTTL %s, got %s", 60*time.Second, b.lockTTL)
+	}
+}
+
+func TestORASRateLimitConfigFromConfig(t *testing.T) {
+	conf := map[string]cty.Value{
+		"repository":       cty.StringVal("example.com/myorg/tofu-state"),
+		"rate_limit":       cty.StringVal("10"),
+		"rate_limit_burst": cty.StringVal("3"),
+		"retry_max":        cty.StringVal("0"),
+		"retry_wait_min":   cty.StringVal("1"),
+		"retry_wait_max":   cty.StringVal("1"),
+		"compression":      cty.StringVal("none"),
+	}
+
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
+	if b.rateLimit != 10 {
+		t.Fatalf("expected rateLimit %d, got %d", 10, b.rateLimit)
+	}
+	if b.rateBurst != 3 {
+		t.Fatalf("expected rateBurst %d, got %d", 3, b.rateBurst)
+	}
+}
+
+type blockingLimiter struct {
+	ch <-chan struct{}
+}
+
+func (l blockingLimiter) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-l.ch:
+		return nil
+	}
+}
+
+type countingRoundTripper struct {
+	mu    sync.Mutex
+	calls int
+}
+
+func (rt *countingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.mu.Lock()
+	rt.calls++
+	rt.mu.Unlock()
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader("ok")),
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
+func (rt *countingRoundTripper) Calls() int {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	return rt.calls
+}
+
+func TestRateLimitedRoundTripper_WaitsBeforeRequest(t *testing.T) {
+	gate := make(chan struct{})
+	inner := &countingRoundTripper{}
+	rt := &rateLimitedRoundTripper{limiter: blockingLimiter{ch: gate}, inner: inner}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = rt.RoundTrip(req)
+		close(done)
+	}()
+
+	if inner.Calls() != 0 {
+		t.Fatalf("expected no calls before limiter release")
+	}
+
+	close(gate)
+	<-done
+
+	if inner.Calls() != 1 {
+		t.Fatalf("expected exactly 1 call after limiter release, got %d", inner.Calls())
 	}
 }
 
