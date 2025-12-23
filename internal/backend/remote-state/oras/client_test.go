@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -207,6 +208,50 @@ func TestRemoteClient_UnlockFallbackWhenDeleteUnsupported(t *testing.T) {
 	_, err = client.Lock(ctx, &statemgr.LockInfo{ID: "lock-2", Operation: "test"})
 	if err != nil {
 		t.Fatalf("expected lock after fallback unlock to succeed, got: %v", err)
+	}
+}
+
+func TestRemoteClient_LockTTL_ClearsStaleLock(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	client1 := newRemoteClient(repo, "default")
+	client2 := newRemoteClient(repo, "default")
+	client2.lockTTL = time.Hour
+	client2.now = func() time.Time { return time.Unix(10_000, 0).UTC() }
+
+	staleCreated := time.Unix(1_000, 0).UTC()
+	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test", Created: staleCreated})
+	if err != nil {
+		t.Fatalf("expected first lock to succeed, got: %v", err)
+	}
+
+	_, err = client2.Lock(ctx, &statemgr.LockInfo{ID: "lock-new", Operation: "test"})
+	if err != nil {
+		t.Fatalf("expected lock to succeed after clearing stale lock, got: %v", err)
+	}
+}
+
+func TestRemoteClient_LockTTL_ClearsStaleLock_DeleteUnsupportedFallback(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
+
+	client1 := newRemoteClient(repo, "default")
+	client2 := newRemoteClient(repo, "default")
+	client2.lockTTL = time.Hour
+	client2.now = func() time.Time { return time.Unix(10_000, 0).UTC() }
+
+	staleCreated := time.Unix(1_000, 0).UTC()
+	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test", Created: staleCreated})
+	if err != nil {
+		t.Fatalf("expected first lock to succeed, got: %v", err)
+	}
+
+	_, err = client2.Lock(ctx, &statemgr.LockInfo{ID: "lock-new", Operation: "test"})
+	if err != nil {
+		t.Fatalf("expected lock to succeed after clearing stale lock via fallback, got: %v", err)
 	}
 }
 
