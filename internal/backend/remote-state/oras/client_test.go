@@ -63,14 +63,24 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 
 	// Tag-safe workspace
 	c1 := newRemoteClient(repo, "dev")
+	c1.versioningEnabled = true
+	c1.versioningMaxVersions = 10
 	if err := c1.Put(ctx, []byte("state-dev")); err != nil {
 		t.Fatalf("put dev: %v", err)
+	}
+	if err := c1.Put(ctx, []byte("state-dev-2")); err != nil {
+		t.Fatalf("put dev second: %v", err)
 	}
 
 	// Tag-unsafe workspace (space)
 	c2 := newRemoteClient(repo, "my workspace")
+	c2.versioningEnabled = true
+	c2.versioningMaxVersions = 10
 	if err := c2.Put(ctx, []byte("state-unsafe")); err != nil {
 		t.Fatalf("put unsafe: %v", err)
+	}
+	if err := c2.Put(ctx, []byte("state-unsafe-2")); err != nil {
+		t.Fatalf("put unsafe second: %v", err)
 	}
 
 	got, err := listWorkspacesFromTags(ctx, repo)
@@ -84,6 +94,48 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatalf("missing workspaces: %v; got %v", want, got)
+	}
+}
+
+func TestRemoteClient_Put_VersioningTagsAndRetention(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	c := newRemoteClient(repo, "default")
+	c.versioningEnabled = true
+	c.versioningMaxVersions = 2
+
+	if err := c.Put(ctx, []byte("s1")); err != nil {
+		t.Fatalf("put s1: %v", err)
+	}
+	if err := c.Put(ctx, []byte("s2")); err != nil {
+		t.Fatalf("put s2: %v", err)
+	}
+	if err := c.Put(ctx, []byte("s3")); err != nil {
+		t.Fatalf("put s3: %v", err)
+	}
+
+	p, err := c.Get(ctx)
+	if err != nil {
+		t.Fatalf("get latest: %v", err)
+	}
+	if p == nil || string(p.Data) != "s3" {
+		got := "<nil>"
+		if p != nil {
+			got = string(p.Data)
+		}
+		t.Fatalf("expected latest state %q, got %q", "s3", got)
+	}
+
+	if _, err := fake.Resolve(ctx, c.versionTagFor(1)); err == nil {
+		t.Fatalf("expected v1 to be deleted due to retention")
+	}
+	if _, err := fake.Resolve(ctx, c.versionTagFor(2)); err != nil {
+		t.Fatalf("expected v2 to exist, got: %v", err)
+	}
+	if _, err := fake.Resolve(ctx, c.versionTagFor(3)); err != nil {
+		t.Fatalf("expected v3 to exist, got: %v", err)
 	}
 }
 
