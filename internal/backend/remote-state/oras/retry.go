@@ -114,11 +114,11 @@ func isTransientError(err error) bool {
 	var errResp *orasErrcode.ErrorResponse
 	if errors.As(err, &errResp) {
 		switch errResp.StatusCode {
-		case http.StatusTooManyRequests,       // 429 - Rate limited
-			http.StatusRequestTimeout,          // 408 - Request timeout
-			http.StatusBadGateway,              // 502 - Bad gateway
-			http.StatusServiceUnavailable,      // 503 - Service unavailable
-			http.StatusGatewayTimeout:          // 504 - Gateway timeout
+		case http.StatusTooManyRequests, // 429 - Rate limited
+			http.StatusRequestTimeout,     // 408 - Request timeout
+			http.StatusBadGateway,         // 502 - Bad gateway
+			http.StatusServiceUnavailable, // 503 - Service unavailable
+			http.StatusGatewayTimeout:     // 504 - Gateway timeout
 			return true
 		}
 		return false
