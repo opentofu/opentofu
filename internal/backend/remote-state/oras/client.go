@@ -52,6 +52,7 @@ type RemoteClient struct {
 	stateTag      string
 	lockTag       string
 	unlockedTag   string
+	retryConfig   RetryConfig
 }
 
 var _ remote.Client = (*RemoteClient)(nil)
@@ -65,10 +66,17 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 		stateTag:      stateTagPrefix + wsTag,
 		lockTag:       lockTagPrefix + wsTag,
 		unlockedTag:   unlockedTagPrefix + wsTag,
+		retryConfig:   DefaultRetryConfig(),
 	}
 }
 
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
+	return withRetry(ctx, c.retryConfig, func(ctx context.Context) (*remote.Payload, error) {
+		return c.get(ctx)
+	})
+}
+
+func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	m, err := c.fetchManifest(ctx, c.stateTag)
 	if err != nil {
 		if isNotFound(err) {
@@ -96,6 +104,12 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) Put(ctx context.Context, state []byte) error {
+	return withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.put(ctx, state)
+	})
+}
+
+func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 	layerDesc, err := oras.PushBytes(ctx, c.repo.inner, mediaTypeStateLayer, state)
 	if err != nil {
 		return err
@@ -115,6 +129,12 @@ func (c *RemoteClient) Put(ctx context.Context, state []byte) error {
 }
 
 func (c *RemoteClient) Delete(ctx context.Context) error {
+	return withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.delete(ctx)
+	})
+}
+
+func (c *RemoteClient) delete(ctx context.Context) error {
 	desc, err := c.repo.inner.Resolve(ctx, c.stateTag)
 	if err != nil {
 		if isNotFound(err) {
@@ -126,12 +146,21 @@ func (c *RemoteClient) Delete(ctx context.Context) error {
 }
 
 func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
+	// Lock operations use retry internally for network calls,
+	// but lock contention errors are not retried (they're not transient)
+	return c.lock(ctx, info)
+}
+
+func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	if info == nil {
 		return "", fmt.Errorf("lock info is required")
 	}
 
-	// Check for existing lock
-	if _, err := c.repo.inner.Resolve(ctx, c.lockTag); err == nil {
+	// Check for existing lock (with retry for transient network errors)
+	_, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
+		return c.repo.inner.Resolve(ctx, c.lockTag)
+	})
+	if err == nil {
 		existing, err := c.getLockInfo(ctx)
 		if err != nil {
 			return "", &statemgr.LockError{InconsistentRead: true, Err: err}
@@ -160,7 +189,11 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", err
 	}
 
-	if err := c.repo.inner.Tag(ctx, manifestDesc, c.lockTag); err != nil {
+	// Tag with retry for transient network errors
+	err = withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.repo.inner.Tag(ctx, manifestDesc, c.lockTag)
+	})
+	if err != nil {
 		if _, resolveErr := c.repo.inner.Resolve(ctx, c.lockTag); resolveErr == nil {
 			existing, _ := c.getLockInfo(ctx)
 			return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
@@ -172,7 +205,16 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 }
 
 func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
-	desc, err := c.repo.inner.Resolve(ctx, c.lockTag)
+	// Unlock operations use retry internally for network calls,
+	// but lock ID mismatch errors are not retried (they're not transient)
+	return c.unlock(ctx, id)
+}
+
+func (c *RemoteClient) unlock(ctx context.Context, id string) error {
+	// Resolve with retry for transient network errors
+	desc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
+		return c.repo.inner.Resolve(ctx, c.lockTag)
+	})
 	if err != nil {
 		if isNotFound(err) {
 			return nil
@@ -191,9 +233,14 @@ func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 		return fmt.Errorf("lock ID mismatch: held by %q", existing.ID)
 	}
 
-	if err := c.repo.inner.Delete(ctx, desc); err == nil {
+	// Delete with retry for transient network errors
+	err = withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.repo.inner.Delete(ctx, desc)
+	})
+	if err == nil {
 		return nil
-	} else if !isDeleteUnsupported(err) {
+	}
+	if !isDeleteUnsupported(err) {
 		return err
 	}
 
@@ -202,19 +249,28 @@ func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 }
 
 func (c *RemoteClient) retagToUnlocked(ctx context.Context) error {
-	desc, err := c.repo.inner.Resolve(ctx, c.unlockedTag)
+	// Resolve with retry
+	desc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
+		return c.repo.inner.Resolve(ctx, c.unlockedTag)
+	})
 	if isNotFound(err) {
 		desc, err = oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{})
 		if err != nil {
 			return err
 		}
-		if err := c.repo.inner.Tag(ctx, desc, c.unlockedTag); err != nil {
+		// Tag with retry
+		if err := withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+			return c.repo.inner.Tag(ctx, desc, c.unlockedTag)
+		}); err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
-	return c.repo.inner.Tag(ctx, desc, c.lockTag)
+	// Final tag with retry
+	return withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
+		return c.repo.inner.Tag(ctx, desc, c.lockTag)
+	})
 }
 
 func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
@@ -243,6 +299,12 @@ type manifest struct {
 }
 
 func (c *RemoteClient) fetchManifest(ctx context.Context, reference string) (*manifest, error) {
+	return withRetry(ctx, c.retryConfig, func(ctx context.Context) (*manifest, error) {
+		return c.fetchManifestInternal(ctx, reference)
+	})
+}
+
+func (c *RemoteClient) fetchManifestInternal(ctx context.Context, reference string) (*manifest, error) {
 	desc, err := c.repo.inner.Resolve(ctx, reference)
 	if err != nil {
 		return nil, err
