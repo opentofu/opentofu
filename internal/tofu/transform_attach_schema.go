@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -27,7 +28,7 @@ type GraphNodeAttachResourceSchema interface {
 // GraphNodeAttachProviderConfigSchema is an interface implemented by node types
 // that need a provider configuration schema attached.
 type GraphNodeAttachProviderConfigSchema interface {
-	GraphNodeProvider
+	ProviderAddr() addrs.AbsProviderConfig
 
 	AttachProviderConfigSchema(*configschema.Block)
 }
