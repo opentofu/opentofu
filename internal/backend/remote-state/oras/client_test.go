@@ -1,8 +1,10 @@
 package oras
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -205,5 +207,67 @@ func TestRemoteClient_UnlockFallbackWhenDeleteUnsupported(t *testing.T) {
 	_, err = client.Lock(ctx, &statemgr.LockInfo{ID: "lock-2", Operation: "test"})
 	if err != nil {
 		t.Fatalf("expected lock after fallback unlock to succeed, got: %v", err)
+	}
+}
+
+func TestRemoteClient_StateCompression_GzipRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	c := newRemoteClient(repo, "default")
+	c.stateCompression = "gzip"
+
+	original := []byte(strings.Repeat("hello-", 2000))
+
+	if err := c.Put(ctx, original); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	p, err := c.Get(ctx)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if p == nil {
+		t.Fatalf("expected payload")
+	}
+	if !bytes.Equal(p.Data, original) {
+		t.Fatalf("expected roundtrip to match")
+	}
+
+	m, err := c.fetchManifest(ctx, c.stateTag)
+	if err != nil {
+		t.Fatalf("fetch manifest: %v", err)
+	}
+	if len(m.Layers) != 1 {
+		t.Fatalf("expected 1 layer, got %d", len(m.Layers))
+	}
+	if m.Layers[0].MediaType != mediaTypeStateLayerGzip {
+		t.Fatalf("expected gzip mediaType, got %q", m.Layers[0].MediaType)
+	}
+}
+
+func TestRemoteClient_StateCompression_AutoDetectOnRead(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	writer := newRemoteClient(repo, "default")
+	writer.stateCompression = "gzip"
+
+	original := []byte(strings.Repeat("abc", 4096))
+	if err := writer.Put(ctx, original); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	reader := newRemoteClient(repo, "default")
+	// reader.stateCompression defaults to "none", but it should still read
+	// the compressed state via mediaType autodetection.
+	if got, err := reader.Get(ctx); err != nil {
+		t.Fatalf("get: %v", err)
+	} else if got == nil {
+		t.Fatalf("expected payload")
+	} else if !bytes.Equal(got.Data, original) {
+		t.Fatalf("expected payload to match original, got len=%d want len=%d", len(got.Data), len(original))
 	}
 }

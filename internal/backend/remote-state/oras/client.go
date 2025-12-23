@@ -1,7 +1,9 @@
 package oras
 
 import (
+	"bytes"
 	"context"
+	"compress/gzip"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
@@ -22,7 +24,8 @@ import (
 )
 
 const (
-	mediaTypeStateLayer = "application/vnd.opentofu.statefile.v1"
+	mediaTypeStateLayer     = "application/vnd.opentofu.statefile.v1"
+	mediaTypeStateLayerGzip = "application/vnd.opentofu.statefile.v1+gzip"
 	artifactTypeState   = "application/vnd.opentofu.state.v1"
 	artifactTypeLock    = "application/vnd.opentofu.lock.v1"
 
@@ -54,6 +57,7 @@ type RemoteClient struct {
 	lockTag       string
 	unlockedTag   string
 	retryConfig   RetryConfig
+	stateCompression string
 
 	versioningEnabled     bool
 	versioningMaxVersions int
@@ -71,6 +75,7 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 		lockTag:               lockTagPrefix + wsTag,
 		unlockedTag:           unlockedTagPrefix + wsTag,
 		retryConfig:           DefaultRetryConfig(),
+		stateCompression:      "none",
 		versioningEnabled:     false,
 		versioningMaxVersions: 0,
 	}
@@ -94,13 +99,24 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		return nil, nil
 	}
 
-	rc, err := c.repo.inner.Fetch(ctx, m.Layers[0])
+	layer := m.Layers[0]
+	rc, err := c.repo.inner.Fetch(ctx, layer)
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
 
-	data, err := io.ReadAll(rc)
+	var r io.Reader = rc
+	if layer.MediaType == mediaTypeStateLayerGzip {
+		gz, err := gzip.NewReader(rc)
+		if err != nil {
+			return nil, err
+		}
+		defer gz.Close()
+		r = gz
+	}
+
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +132,27 @@ func (c *RemoteClient) Put(ctx context.Context, state []byte) error {
 }
 
 func (c *RemoteClient) put(ctx context.Context, state []byte) error {
-	layerDesc, err := oras.PushBytes(ctx, c.repo.inner, mediaTypeStateLayer, state)
+	stateToPush := state
+	layerMediaType := mediaTypeStateLayer
+
+	if c.stateCompression == "gzip" {
+		var buf bytes.Buffer
+		gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+		if err != nil {
+			return err
+		}
+		if _, err := gz.Write(state); err != nil {
+			_ = gz.Close()
+			return err
+		}
+		if err := gz.Close(); err != nil {
+			return err
+		}
+		stateToPush = buf.Bytes()
+		layerMediaType = mediaTypeStateLayerGzip
+	}
+
+	layerDesc, err := oras.PushBytes(ctx, c.repo.inner, layerMediaType, stateToPush)
 	if err != nil {
 		return err
 	}
