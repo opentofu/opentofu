@@ -494,136 +494,46 @@ func (f *fakeOCIRepo) Resolve(ctx context.Context, reference string) (ocispec.De
 
 ---
 
-## 10. Future Improvements
+## 10. Post-Implementation Notes
 
-### 10.1 Resilience Enhancements
+This RFC is marked as **Implemented**. The following items that were originally discussed as improvements are now part of the backend behavior and configuration:
 
-**Retry Logic for Transient Failures**
+- **Retry logic for transient registry requests** via `retry_max`, `retry_wait_min`, and `retry_wait_max`.
+- **Credential caching** to avoid invoking credential helpers on every request.
+- **State versioning** via the `versioning { enabled, max_versions }` block.
+- **State compression** via `compression` (supports `none` and `gzip`).
+- **Lock TTL (stale lock cleanup)** via `lock_ttl`.
+- **Client-side request pacing (rate limiting)** via `rate_limit` and `rate_limit_burst`.
 
-Currently, network errors are not retried. Proposed enhancement:
+For end-user configuration and examples, refer to the ORAS backend documentation in `website/docs/language/settings/backends/oras.mdx`.
 
-```go
-type RetryPolicy struct {
-    MaxAttempts    int
-    InitialBackoff time.Duration
-    MaxBackoff     time.Duration
-}
+### 10.1 Remaining Future Work
 
-func WithRetry(policy RetryPolicy, operation func() error) error {
-    for attempt := 0; attempt < policy.MaxAttempts; attempt++ {
-        err := operation()
-        if err == nil || !isTransientError(err) {
-            return err
-        }
-        
-        backoff := min(
-            policy.InitialBackoff * (1 << attempt),
-            policy.MaxBackoff,
-        )
-        time.Sleep(backoff)
-    }
-    return err
-}
-```
+The following ideas are still future-looking and not required for the baseline backend:
 
-### 10.2 Performance Improvements
+#### 10.1.1 Hash Collision Mitigation
 
-**Credential Caching**
-
-Currently, credential helpers are invoked on every request. Proposed enhancement:
+Current workspace hash uses 8 bytes (64 bits). For extremely large workspace counts, consider increasing to 128 bits:
 
 ```go
-type CachedCredentials struct {
-    credentials map[string]cachedCred
-    mu          sync.RWMutex
-    ttl         time.Duration
-}
-
-type cachedCred struct {
-    cred      auth.Credential
-    expiresAt time.Time
-}
-```
-
-### 10.3 Hash Collision Mitigation
-
-Current workspace hash uses 8 bytes (64 bits). For large-scale deployments:
-
-```go
-// Current: potential collision with many workspaces
+// Current
 return "ws-" + hex.EncodeToString(h[:8])   // 64-bit
 
-// Proposed: safer for enterprise scale
+// Possible future
 return "ws-" + hex.EncodeToString(h[:16])  // 128-bit
 ```
 
-### 10.4 State Versioning
+#### 10.1.2 State Encryption
 
-Keep historical versions for audit and recovery:
+Client-side encryption is handled by OpenTofu's state encryption feature; the backend stores opaque bytes. Future work here is primarily documentation and interoperability testing.
 
-```
-state-production           # Current state
-state-production-v1        # Version 1
-state-production-v2        # Version 2
-state-production-v3        # Version 3 (current)
-```
+#### 10.1.3 Multi-Registry Replication
 
-Configuration:
-```hcl
-backend "oras" {
-  repository = "registry.example.com/infrastructure/tofu-state"
-  
-  versioning {
-    enabled      = true
-    max_versions = 10
-  }
-}
-```
+Disaster recovery via replication remains a future design topic and is out of scope for the current backend.
 
-### 10.5 State Encryption
+#### 10.1.4 Structured Logging
 
-Client-side encryption before pushing to registry:
-
-```hcl
-backend "oras" {
-  repository = "registry.example.com/infrastructure/tofu-state"
-  
-  encryption {
-    type   = "aes-gcm"
-    key_id = "alias/opentofu-state-key"  # KMS key
-  }
-}
-```
-
-### 10.6 Multi-Registry Replication
-
-Disaster recovery with automatic replication:
-
-```hcl
-backend "oras" {
-  primary_repository = "primary.registry.com/tofu-state"
-  
-  replicas = [
-    "dr-region.registry.com/tofu-state",
-    "backup.registry.com/tofu-state"
-  ]
-}
-```
-
-### 10.7 Structured Logging
-
-Enhanced debugging with structured logs:
-
-```go
-slog.Debug("ORAS operation",
-    "operation", "push_state",
-    "registry", registryDomain,
-    "repository", repoPath,
-    "workspace", workspace,
-    "size_bytes", len(data),
-    "duration_ms", elapsed.Milliseconds(),
-)
-```
+Additional structured logging for debugging and operability can be added incrementally where it provides value.
 
 ---
 

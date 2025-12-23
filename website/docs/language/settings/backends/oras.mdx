@@ -87,6 +87,67 @@ The following configuration options are supported:
 - `repository` / `TF_BACKEND_ORAS_REPOSITORY` - (Required) OCI repository reference where OpenTofu will store state, for example: `registry.example.com/org/repo`.
 - `insecure` - (Optional) Whether to skip TLS certificate verification when communicating with the registry. Defaults to `false`.
 - `ca_file` - (Optional) Path to a PEM-encoded CA bundle to trust when communicating with the registry.
+- `retry_max` / `TF_BACKEND_ORAS_RETRY_MAX` - (Optional) Number of retries for transient registry requests. Defaults to `2`.
+- `retry_wait_min` / `TF_BACKEND_ORAS_RETRY_WAIT_MIN` - (Optional) Minimum wait (seconds) between retry attempts. Defaults to `1`.
+- `retry_wait_max` / `TF_BACKEND_ORAS_RETRY_WAIT_MAX` - (Optional) Maximum wait (seconds) between retry attempts. Defaults to `30`.
+- `compression` - (Optional) State compression. Supported values: `none` (default) and `gzip`.
+- `lock_ttl` / `TF_BACKEND_ORAS_LOCK_TTL` - (Optional) Lock TTL in seconds. If set, stale locks older than this are automatically cleared. `0` (default) disables.
+- `rate_limit` / `TF_BACKEND_ORAS_RATE_LIMIT` - (Optional) Maximum registry requests per second. `0` (default) disables rate limiting.
+- `rate_limit_burst` / `TF_BACKEND_ORAS_RATE_LIMIT_BURST` - (Optional) Maximum burst size for registry requests when rate limiting is enabled. `0` (default) means `1`.
+
+### State Versioning
+
+You can keep a limited number of historical state versions for audit and recovery.
+
+```hcl
+terraform {
+  backend "oras" {
+    repository = "registry.example.com/my-org/tofu-state"
+    versioning {
+      enabled      = true
+      max_versions = 10
+    }
+  }
+}
+```
+
+### State Compression
+
+```hcl
+terraform {
+  backend "oras" {
+    repository  = "registry.example.com/my-org/tofu-state"
+    compression = "gzip"
+  }
+}
+```
+
+### Lock TTL (Stale Lock Cleanup)
+
+If you occasionally hit "zombie" locks (for example after a crash), configure `lock_ttl` to automatically clear locks older than the TTL.
+
+```hcl
+terraform {
+  backend "oras" {
+    repository = "registry.example.com/my-org/tofu-state"
+    lock_ttl   = 300
+  }
+}
+```
+
+### Rate Limiting
+
+Some registries (for example Docker Hub or GHCR) may throttle bursty clients. You can apply client-side pacing:
+
+```hcl
+terraform {
+  backend "oras" {
+    repository       = "registry.example.com/my-org/tofu-state"
+    rate_limit       = 5
+    rate_limit_burst = 2
+  }
+}
+```
 
 ## State Encryption
 
