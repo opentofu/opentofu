@@ -24,7 +24,7 @@ import (
 func TestPlanHuman_operation(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewPlan(arguments.ViewHuman, NewView(streams).SetRunningInAutomation(true)).Operation()
+	v := NewPlan(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation(true)).Operation()
 	if hv, ok := v.(*OperationHuman); !ok {
 		t.Fatalf("unexpected return type %t", v)
 	} else if hv.inAutomation != true {
@@ -36,7 +36,7 @@ func TestPlanHuman_operation(t *testing.T) {
 func TestPlanHuman_hooks(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewPlan(arguments.ViewHuman, NewView(streams).SetRunningInAutomation((true)))
+	v := NewPlan(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams).SetRunningInAutomation((true)))
 	hooks := v.Hooks()
 
 	var uiHook *UiHook

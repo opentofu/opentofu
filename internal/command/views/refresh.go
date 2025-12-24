@@ -27,20 +27,66 @@ type Refresh interface {
 }
 
 // NewRefresh returns an initialized Refresh implementation for the given ViewType.
-func NewRefresh(vt arguments.ViewType, view *View) Refresh {
-	switch vt {
+func NewRefresh(args arguments.ViewOptions, view *View) Refresh {
+	var refresh Refresh
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &RefreshJSON{
-			view: NewJSONView(view),
+		refresh = &RefreshJSON{
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
-		return &RefreshHuman{
+		refresh = &RefreshHuman{
 			view:         view,
 			inAutomation: view.RunningInAutomation(),
 			countHook:    &countHook{},
 		}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		refresh = RefreshMulti{refresh, &RefreshJSON{
+			view: NewJSONView(view, args.JSONInto),
+		}}
+	}
+	return refresh
+}
+
+type RefreshMulti []Refresh
+
+var _ Refresh = (RefreshMulti)(nil)
+
+func (m RefreshMulti) Outputs(outputValues map[string]*states.OutputValue) {
+	for _, r := range m {
+		r.Outputs(outputValues)
+	}
+}
+
+func (m RefreshMulti) Operation() Operation {
+	var operation OperationMulti
+	for _, r := range m {
+		operation = append(operation, r.Operation())
+	}
+	return operation
+}
+
+func (m RefreshMulti) Hooks() []tofu.Hook {
+	var hooks []tofu.Hook
+	for _, r := range m {
+		hooks = append(hooks, r.Hooks()...)
+	}
+	return hooks
+}
+
+func (m RefreshMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, r := range m {
+		r.Diagnostics(diags)
+	}
+}
+
+func (m RefreshMulti) HelpPrompt() {
+	for _, r := range m {
+		r.HelpPrompt()
 	}
 }
 
@@ -59,7 +105,7 @@ var _ Refresh = (*RefreshHuman)(nil)
 func (v *RefreshHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
 		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
-		NewOutput(arguments.ViewHuman, v.view).Output("", outputValues)
+		NewOutput(arguments.ViewOptions{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
 	}
 }
 

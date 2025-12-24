@@ -8,6 +8,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -30,6 +31,7 @@ func (c *GetCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
+	cmdFlags.StringVar(&c.outputJSONInto, "json-into", "", "json-into")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -40,9 +42,29 @@ func (c *GetCommand) Run(args []string) int {
 		c.Meta.Color = false
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
-			cliUi:        c.oldUi,
-			jsonView:     views.NewJSONView(c.View),
-			outputInJSON: true,
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, nil),
+			onlyOutputInJSON: true,
+		}
+	}
+
+	if c.outputJSONInto != "" {
+		if c.outputInJSON {
+			// Not a valid combination
+			c.Ui.Error("The -json and -json-into options are mutually-exclusive in their use")
+			return 1
+		}
+
+		out, err := os.OpenFile(c.outputJSONInto, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", c.outputJSONInto, err.Error()))
+			return 1
+		}
+		c.oldUi = c.Ui
+		c.Ui = &WrappedUi{
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, out),
+			onlyOutputInJSON: false,
 		}
 	}
 

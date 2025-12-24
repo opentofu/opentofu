@@ -31,7 +31,7 @@ import (
 type backendMigrateOpts struct {
 	SourceType, DestinationType string
 	Source, Destination         backend.Backend
-	ViewType                    arguments.ViewType
+	ViewOptions                 arguments.ViewOptions
 
 	// Fields below are set internally when migrate is called
 
@@ -347,13 +347,16 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 
 	if m.stateLock {
 		lockCtx := context.Background()
-		vt := arguments.ViewJSON
 		// Set default viewtype if none was set as the StateLocker needs to know exactly
 		// what viewType we want to have.
-		if opts == nil || opts.ViewType != vt {
-			vt = arguments.ViewHuman
+		viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
+		if opts != nil {
+			viewOptions = opts.ViewOptions
+			if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+				viewOptions.ViewType = arguments.ViewHuman
+			}
 		}
-		view := views.NewStateLocker(vt, m.View)
+		view := views.NewStateLocker(viewOptions, m.View)
 		locker := clistate.NewLocker(m.stateLockTimeout, view)
 
 		lockerSource := locker.WithContext(lockCtx)
