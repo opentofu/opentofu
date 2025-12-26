@@ -523,6 +523,8 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 				if err := c.clearLock(ctx, existingDesc); err != nil {
 					return "", err
 				}
+				// After clearing a stale lock, another process might have acquired it.
+				// Continue to attempt lock acquisition with post-write verification below.
 			} else {
 				return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
 			}
@@ -552,6 +554,23 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 			return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
 		}
 		return "", err
+	}
+
+	// Post-write verification: Re-read the lock to ensure we actually hold it.
+	// This guards against a race condition where two processes both pass the
+	// initial check and write their locks concurrently. The last writer wins
+	// the Tag operation, so we must verify our lock ID is actually stored.
+	verified, verifyErr := c.getLockInfo(ctx)
+	if verifyErr != nil {
+		// Could not verify - attempt to clean up our lock attempt
+		if cleanupDesc, cleanupErr := c.repo.inner.Resolve(ctx, c.lockTag); cleanupErr == nil {
+			_ = c.repo.inner.Delete(ctx, cleanupDesc)
+		}
+		return "", &statemgr.LockError{InconsistentRead: true, Err: fmt.Errorf("failed to verify lock acquisition: %w", verifyErr)}
+	}
+	if verified == nil || verified.ID != info.ID {
+		// Another process won the race - they now hold the lock
+		return "", &statemgr.LockError{Info: verified, Err: fmt.Errorf("state is locked (lost race)")}
 	}
 
 	return info.ID, nil
