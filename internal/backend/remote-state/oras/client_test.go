@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	orasErrcode "oras.land/oras-go/v2/registry/remote/errcode"
@@ -466,5 +468,107 @@ func TestRemoteClient_StateCompression_AutoDetectOnRead(t *testing.T) {
 		t.Fatalf("expected payload")
 	} else if !bytes.Equal(got.Data, original) {
 		t.Fatalf("expected payload to match original, got len=%d want len=%d", len(got.Data), len(original))
+	}
+}
+
+// raceSimulatingRepo wraps fakeORASRepo to simulate a race condition where
+// another process writes a lock between our Tag call and our verification read.
+// It intercepts the second Resolve call (the verification) and swaps in a winner's lock.
+type raceSimulatingRepo struct {
+	inner          *fakeORASRepo
+	interceptTag   string
+	winnerLockID   string
+	tagCount       int
+	winnerDesc     ocispec.Descriptor
+	winnerManifest []byte
+}
+
+func newRaceSimulatingRepo(inner *fakeORASRepo, interceptTag, winnerLockID string) *raceSimulatingRepo {
+	winnerManifest := []byte(fmt.Sprintf(
+		`{"artifactType":"application/vnd.terraform.lock.v1","mediaType":"application/vnd.oci.image.manifest.v1+json","annotations":{"org.terraform.lock.id":"%s","org.terraform.lock.info":"{\"ID\":\"%s\"}"}}`,
+		winnerLockID, winnerLockID))
+	dgst := digest.FromBytes(winnerManifest)
+	return &raceSimulatingRepo{
+		inner:          inner,
+		interceptTag:   interceptTag,
+		winnerLockID:   winnerLockID,
+		winnerManifest: winnerManifest,
+		winnerDesc: ocispec.Descriptor{
+			MediaType: "application/vnd.oci.image.manifest.v1+json",
+			Digest:    dgst,
+			Size:      int64(len(winnerManifest)),
+		},
+	}
+}
+
+func (r *raceSimulatingRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
+	return r.inner.Push(ctx, expected, content)
+}
+func (r *raceSimulatingRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	// If fetching the winner's manifest, return it
+	if target.Digest == r.winnerDesc.Digest {
+		return io.NopCloser(bytes.NewReader(r.winnerManifest)), nil
+	}
+	return r.inner.Fetch(ctx, target)
+}
+func (r *raceSimulatingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	return r.inner.Resolve(ctx, reference)
+}
+func (r *raceSimulatingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
+	err := r.inner.Tag(ctx, desc, reference)
+	if err != nil {
+		return err
+	}
+	// After the first Tag on the lock tag, simulate the winner overwriting it
+	if reference == r.interceptTag {
+		r.tagCount++
+		if r.tagCount == 1 {
+			// Store the winner's manifest so Fetch can return it
+			_ = r.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerManifest))
+			// Winner overwrites the tag
+			_ = r.inner.Tag(ctx, r.winnerDesc, reference)
+		}
+	}
+	return nil
+}
+func (r *raceSimulatingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+	return r.inner.Delete(ctx, target)
+}
+func (r *raceSimulatingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+	return r.inner.Exists(ctx, target)
+}
+func (r *raceSimulatingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
+	return r.inner.Tags(ctx, last, fn)
+}
+
+func TestRemoteClient_Lock_RaceConditionDetection(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+
+	// Create a repo that simulates another process winning the lock race
+	racingRepo := newRaceSimulatingRepo(fake, "locked-default", "winner-lock")
+	repo := &orasRepositoryClient{inner: racingRepo}
+
+	client := newRemoteClient(repo, "default")
+
+	// Attempt to acquire lock - should fail because the race simulator
+	// will overwrite our lock with the "winner" lock after we Tag
+	_, err := client.Lock(ctx, &statemgr.LockInfo{ID: "loser-lock", Operation: "test"})
+	if err == nil {
+		t.Fatalf("expected lock to fail due to race condition, but it succeeded")
+	}
+
+	lockErr, ok := err.(*statemgr.LockError)
+	if !ok {
+		t.Fatalf("expected LockError, got %T: %v", err, err)
+	}
+
+	// The error should indicate we lost the race to the winner
+	if lockErr.Info == nil || lockErr.Info.ID != "winner-lock" {
+		t.Fatalf("expected lock error to reference winner-lock, got: %+v", lockErr.Info)
+	}
+
+	if !strings.Contains(err.Error(), "lost race") {
+		t.Fatalf("expected error message to mention 'lost race', got: %v", err)
 	}
 }
