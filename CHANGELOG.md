@@ -6,7 +6,12 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 UPGRADE NOTES:
 
+<<<<<<< HEAD
 * The change from [#2643](https://github.com/opentofu/opentofu/pull/2643), that was announced previously in v1.11.0, has been reverted in this release. OpenTofu will no longer directly recommend using the `-exclude=` option to work around problems caused by unknown values in provider configurations.
+=======
+- This is the last OpenTofu release series that will support macOS 12 Monterey. We expect that OpenTofu v1.13 will require macOS 13 Ventura or later.
+- On Unix systems OpenTofu now considers the `BROWSER` environment variable as a possible override for the default behavior for launching a web browser.
+>>>>>>> main
 
     Unfortunately there are existing providers that spuriously report that they cannot plan due to unknown values even when planning would have been successful, and so we cannot rely on providers to accurately signal when unknown values are the cause of an error. Using `-exclude` still a valid workaround for these problems even though OpenTofu cannot accurately detect when it's useful to make that suggestion.
 
