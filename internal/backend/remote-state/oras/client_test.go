@@ -3,7 +3,9 @@ package oras
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -208,6 +210,156 @@ func TestRemoteClient_UnlockFallbackWhenDeleteUnsupported(t *testing.T) {
 	_, err = client.Lock(ctx, &statemgr.LockInfo{ID: "lock-2", Operation: "test"})
 	if err != nil {
 		t.Fatalf("expected lock after fallback unlock to succeed, got: %v", err)
+	}
+}
+
+func TestIsTransientError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{name: "nil error", err: nil, expected: false},
+		{name: "regular error", err: errors.New("something went wrong"), expected: false},
+		{name: "429 Too Many Requests", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusTooManyRequests}, expected: true},
+		{name: "502 Bad Gateway", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusBadGateway}, expected: true},
+		{name: "503 Service Unavailable", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusServiceUnavailable}, expected: true},
+		{name: "504 Gateway Timeout", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusGatewayTimeout}, expected: true},
+		{name: "408 Request Timeout", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusRequestTimeout}, expected: true},
+		{name: "404 Not Found", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusNotFound}, expected: false},
+		{name: "401 Unauthorized", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusUnauthorized}, expected: false},
+		{name: "connection reset", err: errors.New("read tcp: connection reset by peer"), expected: true},
+		{name: "connection refused", err: errors.New("dial tcp: connection refused"), expected: true},
+		{name: "timeout", err: errors.New("connection timeout occurred"), expected: true},
+		{name: "EOF", err: errors.New("unexpected EOF"), expected: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isTransientError(tt.err); got != tt.expected {
+				t.Fatalf("isTransientError(%v) = %v, want %v", tt.err, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWithRetry_Success(t *testing.T) {
+	ctx := context.Background()
+	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, BackoffMultiplier: 2.0}
+
+	attempts := 0
+	result, err := withRetry(ctx, cfg, func(ctx context.Context) (string, error) {
+		attempts++
+		return "success", nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "success" {
+		t.Fatalf("expected 'success', got %q", result)
+	}
+	if attempts != 1 {
+		t.Fatalf("expected 1 attempt, got %d", attempts)
+	}
+}
+
+func TestWithRetry_TransientFailureThenSuccess(t *testing.T) {
+	ctx := context.Background()
+	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, BackoffMultiplier: 2.0}
+
+	attempts := 0
+	result, err := withRetry(ctx, cfg, func(ctx context.Context) (string, error) {
+		attempts++
+		if attempts < 3 {
+			return "", &orasErrcode.ErrorResponse{StatusCode: http.StatusServiceUnavailable}
+		}
+		return "success", nil
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result != "success" {
+		t.Fatalf("expected 'success', got %q", result)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+func TestWithRetry_NonTransientFailure(t *testing.T) {
+	ctx := context.Background()
+	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, BackoffMultiplier: 2.0}
+
+	attempts := 0
+	if _, err := withRetry(ctx, cfg, func(ctx context.Context) (string, error) {
+		attempts++
+		return "", &orasErrcode.ErrorResponse{StatusCode: http.StatusUnauthorized}
+	}); err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected 1 attempt, got %d", attempts)
+	}
+}
+
+func TestWithRetry_MaxAttemptsExhausted(t *testing.T) {
+	ctx := context.Background()
+	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, BackoffMultiplier: 2.0}
+
+	attempts := 0
+	if _, err := withRetry(ctx, cfg, func(ctx context.Context) (string, error) {
+		attempts++
+		return "", &orasErrcode.ErrorResponse{StatusCode: http.StatusServiceUnavailable}
+	}); err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts, got %d", attempts)
+	}
+}
+
+func TestWithRetry_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	cfg := RetryConfig{MaxAttempts: 5, InitialBackoff: 100 * time.Millisecond, MaxBackoff: time.Second, BackoffMultiplier: 2.0}
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+		close(done)
+	}()
+
+	_, err := withRetry(ctx, cfg, func(ctx context.Context) (string, error) {
+		return "", &orasErrcode.ErrorResponse{StatusCode: http.StatusServiceUnavailable}
+	})
+
+	<-done
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}
+
+func TestWithRetryNoResult(t *testing.T) {
+	ctx := context.Background()
+	cfg := RetryConfig{MaxAttempts: 3, InitialBackoff: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, BackoffMultiplier: 2.0}
+
+	attempts := 0
+	if err := withRetryNoResult(ctx, cfg, func(ctx context.Context) error {
+		attempts++
+		if attempts < 2 {
+			return &orasErrcode.ErrorResponse{StatusCode: http.StatusServiceUnavailable}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("expected 2 attempts, got %d", attempts)
 	}
 }
 
