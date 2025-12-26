@@ -11,11 +11,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	oras "oras.land/oras-go/v2"
@@ -25,18 +29,18 @@ import (
 )
 
 const (
-	mediaTypeStateLayer     = "application/vnd.opentofu.statefile.v1"
-	mediaTypeStateLayerGzip = "application/vnd.opentofu.statefile.v1+gzip"
-	artifactTypeState       = "application/vnd.opentofu.state.v1"
-	artifactTypeLock        = "application/vnd.opentofu.lock.v1"
+	mediaTypeStateLayer     = "application/vnd.terraform.statefile.v1"
+	mediaTypeStateLayerGzip = "application/vnd.terraform.statefile.v1+gzip"
+	artifactTypeState       = "application/vnd.terraform.state.v1"
+	artifactTypeLock        = "application/vnd.terraform.lock.v1"
 
-	annotationWorkspace = "org.opentofu.workspace"
-	annotationLockID    = "org.opentofu.lock.id"
-	annotationLockInfo  = "org.opentofu.lock.info"
+	annotationWorkspace = "org.terraform.workspace"
+	annotationUpdatedAt = "org.terraform.state.updated_at"
+	annotationLockID    = "org.terraform.lock.id"
+	annotationLockInfo  = "org.terraform.lock.info"
 )
 
 // Tag naming scheme:
-//
 //   - State is stored at "state-<workspaceTag>".
 //   - Lock is stored at "locked-<workspaceTag>".
 //   - On registries that don't support manifest deletion (GHCR returns 405),
@@ -51,6 +55,119 @@ const (
 	stateVersionTagSeparator = "-v"
 )
 
+// RetryConfig defines retry behavior for operations against the registry.
+type RetryConfig struct {
+	MaxAttempts       int
+	InitialBackoff    time.Duration
+	MaxBackoff        time.Duration
+	BackoffMultiplier float64
+}
+
+func DefaultRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxAttempts:       3,
+		InitialBackoff:    time.Second,
+		MaxBackoff:        30 * time.Second,
+		BackoffMultiplier: 2.0,
+	}
+}
+
+func withRetry[T any](ctx context.Context, cfg RetryConfig, operation func(ctx context.Context) (T, error)) (T, error) {
+	var zero T
+	var lastErr error
+
+	if cfg.MaxAttempts <= 0 {
+		cfg.MaxAttempts = 1
+	}
+
+	backoff := cfg.InitialBackoff
+	if backoff <= 0 {
+		backoff = time.Second
+	}
+
+	for attempt := 1; attempt <= cfg.MaxAttempts; attempt++ {
+		result, err := operation(ctx)
+		if err == nil {
+			return result, nil
+		}
+
+		lastErr = err
+
+		if ctx.Err() != nil {
+			return zero, ctx.Err()
+		}
+		if !isTransientError(err) {
+			return zero, err
+		}
+		if attempt == cfg.MaxAttempts {
+			break
+		}
+
+		select {
+		case <-ctx.Done():
+			return zero, ctx.Err()
+		case <-time.After(backoff):
+		}
+
+		backoff = time.Duration(float64(backoff) * cfg.BackoffMultiplier)
+		if cfg.MaxBackoff > 0 && backoff > cfg.MaxBackoff {
+			backoff = cfg.MaxBackoff
+		}
+	}
+
+	return zero, lastErr
+}
+
+func withRetryNoResult(ctx context.Context, cfg RetryConfig, operation func(ctx context.Context) error) error {
+	_, err := withRetry(ctx, cfg, func(ctx context.Context) (struct{}, error) {
+		return struct{}{}, operation(ctx)
+	})
+	return err
+}
+
+func isTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var errResp *orasErrcode.ErrorResponse
+	if errors.As(err, &errResp) {
+		switch errResp.StatusCode {
+		case http.StatusTooManyRequests,
+			http.StatusRequestTimeout,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			return true
+		}
+		return false
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout()
+	}
+
+	// Fallback to string matching to catch transient errors after wrapping.
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "connection reset"):
+		return true
+	case strings.Contains(msg, "connection refused"):
+		return true
+	case strings.Contains(msg, "timeout"):
+		return true
+	case strings.Contains(msg, "temporary failure"):
+		return true
+	case strings.Contains(msg, "no such host"):
+		return true
+	case strings.Contains(msg, "eof"):
+		return true
+	default:
+		return false
+	}
+}
+
 type RemoteClient struct {
 	repo             *orasRepositoryClient
 	workspaceName    string
@@ -64,6 +181,11 @@ type RemoteClient struct {
 
 	versioningEnabled     bool
 	versioningMaxVersions int
+}
+
+type digestGroup struct {
+	desc ocispec.Descriptor
+	tags []string
 }
 
 var _ remote.Client = (*RemoteClient)(nil)
@@ -86,6 +208,26 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 	}
 }
 
+func (c *RemoteClient) packStateManifest(ctx context.Context, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
+	return oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeState, oras.PackManifestOptions{
+		Layers: layers,
+		ManifestAnnotations: map[string]string{
+			annotationWorkspace: c.workspaceName,
+			annotationUpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		},
+	})
+}
+
+func (c *RemoteClient) packLockManifest(ctx context.Context, id, infoJSON string) (ocispec.Descriptor, error) {
+	return oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{
+		ManifestAnnotations: map[string]string{
+			annotationWorkspace: c.workspaceName,
+			annotationLockID:    id,
+			annotationLockInfo:  infoJSON,
+		},
+	})
+}
+
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	return withRetry(ctx, c.retryConfig, func(ctx context.Context) (*remote.Payload, error) {
 		return c.get(ctx)
@@ -100,6 +242,9 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		}
 		return nil, err
 	}
+	if m.ArtifactType != "" && m.ArtifactType != artifactTypeState {
+		return nil, fmt.Errorf("unexpected state manifest artifactType %q for %q", m.ArtifactType, c.stateTag)
+	}
 	if len(m.Layers) == 0 {
 		return nil, nil
 	}
@@ -112,13 +257,18 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	defer rc.Close()
 
 	var r io.Reader = rc
-	if layer.MediaType == mediaTypeStateLayerGzip {
+	switch layer.MediaType {
+	case mediaTypeStateLayer:
+		// no-op
+	case mediaTypeStateLayerGzip:
 		gz, err := gzip.NewReader(rc)
 		if err != nil {
 			return nil, err
 		}
 		defer gz.Close()
 		r = gz
+	default:
+		return nil, fmt.Errorf("unsupported state layer media type %q", layer.MediaType)
 	}
 
 	data, err := io.ReadAll(r)
@@ -141,19 +291,11 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 	layerMediaType := mediaTypeStateLayer
 
 	if c.stateCompression == "gzip" {
-		var buf bytes.Buffer
-		gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+		compressed, err := compressGzip(state)
 		if err != nil {
-			return err
+			return fmt.Errorf("compressing state: %w", err)
 		}
-		if _, err := gz.Write(state); err != nil {
-			_ = gz.Close()
-			return err
-		}
-		if err := gz.Close(); err != nil {
-			return err
-		}
-		stateToPush = buf.Bytes()
+		stateToPush = compressed
 		layerMediaType = mediaTypeStateLayerGzip
 	}
 
@@ -162,12 +304,7 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		return err
 	}
 
-	manifestDesc, err := oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeState, oras.PackManifestOptions{
-		Layers: []ocispec.Descriptor{layerDesc},
-		ManifestAnnotations: map[string]string{
-			annotationWorkspace: c.workspaceName,
-		},
-	})
+	manifestDesc, err := c.packStateManifest(ctx, []ocispec.Descriptor{layerDesc})
 	if err != nil {
 		return err
 	}
@@ -215,8 +352,8 @@ func (c *RemoteClient) nextStateVersion(ctx context.Context) (next int, existing
 
 	max := 0
 	for _, t := range tags {
-		v, ok := parseStateVersionTag(t, c.stateTag)
-		if !ok {
+		base, v, ok := splitStateVersionTag(t)
+		if !ok || base != c.stateTag {
 			continue
 		}
 		existing = append(existing, v)
@@ -229,36 +366,118 @@ func (c *RemoteClient) nextStateVersion(ctx context.Context) (next int, existing
 }
 
 func (c *RemoteClient) enforceVersionRetention(ctx context.Context, current ocispec.Descriptor, versions []int) error {
-	if c.versioningMaxVersions <= 0 {
+	if c.versioningMaxVersions <= 0 || len(versions) <= c.versioningMaxVersions {
 		return nil
 	}
 
 	sort.Ints(versions)
 	toDeleteCount := len(versions) - c.versioningMaxVersions
-	if toDeleteCount <= 0 {
+	deleteVersions := versions[:toDeleteCount]
+	keepVersions := versions[toDeleteCount:]
+
+	deleteTagSet := make(map[string]struct{}, len(deleteVersions))
+	keepTagSet := make(map[string]struct{}, len(keepVersions))
+	for _, v := range deleteVersions {
+		deleteTagSet[c.versionTagFor(v)] = struct{}{}
+	}
+	for _, v := range keepVersions {
+		keepTagSet[c.versionTagFor(v)] = struct{}{}
+	}
+
+	groups := c.groupVersionsByDigest(ctx, versions, current.Digest)
+	if len(groups) == 0 {
 		return nil
 	}
 
-	for _, v := range versions[:toDeleteCount] {
-		tag := c.versionTagFor(v)
-		desc, err := c.repo.inner.Resolve(ctx, tag)
-		if err != nil {
-			if isNotFound(err) {
-				continue
-			}
-			return err
-		}
-		if desc.Digest == current.Digest {
+	logger := logging.HCLogger().Named("backend.oras")
+
+	for _, g := range groups {
+		tagsToDelete, tagsToKeep := classifyTags(g.tags, deleteTagSet, keepTagSet)
+		if len(tagsToDelete) == 0 {
 			continue
 		}
-		if err := c.repo.inner.Delete(ctx, desc); err != nil {
-			if isNotFound(err) || isDeleteUnsupported(err) {
-				continue
+
+		if len(tagsToKeep) > 0 {
+			if err := c.retagToNewManifest(ctx, tagsToKeep, logger); err != nil {
+				return err
 			}
+		}
+
+		if err := c.deleteDigestWithFallback(ctx, g.desc, tagsToDelete[0]); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (c *RemoteClient) groupVersionsByDigest(ctx context.Context, versions []int, currentDigest digest.Digest) map[string]*digestGroup {
+	groups := make(map[string]*digestGroup)
+	for _, v := range versions {
+		tag := c.versionTagFor(v)
+		desc, err := c.repo.inner.Resolve(ctx, tag)
+		if err != nil || desc.Digest == currentDigest {
+			continue
+		}
+		key := desc.Digest.String()
+		if g, ok := groups[key]; ok {
+			g.tags = append(g.tags, tag)
+		} else {
+			groups[key] = &digestGroup{desc: desc, tags: []string{tag}}
+		}
+	}
+	return groups
+}
+
+func classifyTags(tags []string, deleteSet, keepSet map[string]struct{}) (toDelete, toKeep []string) {
+	for _, tag := range tags {
+		if _, ok := deleteSet[tag]; ok {
+			toDelete = append(toDelete, tag)
+		} else if _, ok := keepSet[tag]; ok {
+			toKeep = append(toKeep, tag)
+		}
+	}
+	return
+}
+
+func (c *RemoteClient) retagToNewManifest(ctx context.Context, tags []string, logger interface{ Debug(string, ...interface{}) }) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	logger.Debug("retention: detaching keep tags from digest", "tags", tags)
+
+	m, err := c.fetchManifest(ctx, tags[0])
+	if err != nil {
+		return err
+	}
+	if len(m.Layers) == 0 {
+		return nil
+	}
+
+	newDesc, err := c.packStateManifest(ctx, m.Layers)
+	if err != nil {
+		return err
+	}
+	for _, tag := range tags {
+		if err := c.repo.inner.Tag(ctx, newDesc, tag); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *RemoteClient) deleteDigestWithFallback(ctx context.Context, desc ocispec.Descriptor, fallbackTag string) error {
+	err := c.repo.inner.Delete(ctx, desc)
+	if err == nil || isNotFound(err) {
+		return nil
+	}
+	if !isDeleteUnsupported(err) {
+		return err
+	}
+
+	if ghErr := tryDeleteGHCRTag(ctx, c.repo, fallbackTag); ghErr != nil {
+		return fmt.Errorf("oras backend retention: registry does not support OCI manifest deletion and GHCR API deletion failed for %q: %w", fallbackTag, ghErr)
+	}
 	return nil
 }
 
@@ -318,13 +537,7 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", err
 	}
 
-	manifestDesc, err := oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{
-		ManifestAnnotations: map[string]string{
-			annotationWorkspace: c.workspaceName,
-			annotationLockID:    info.ID,
-			annotationLockInfo:  string(infoBytes),
-		},
-	})
+	manifestDesc, err := c.packLockManifest(ctx, info.ID, string(infoBytes))
 	if err != nil {
 		return "", err
 	}
@@ -425,7 +638,7 @@ func (c *RemoteClient) retagToUnlocked(ctx context.Context) error {
 		return c.repo.inner.Resolve(ctx, c.unlockedTag)
 	})
 	if isNotFound(err) {
-		desc, err = oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{})
+		desc, err = c.packLockManifest(ctx, "", "")
 		if err != nil {
 			return err
 		}
@@ -449,12 +662,22 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	if err != nil {
 		return nil, err
 	}
+	if m.ArtifactType != "" && m.ArtifactType != artifactTypeLock {
+		return nil, fmt.Errorf("unexpected lock manifest artifactType %q for %q", m.ArtifactType, c.lockTag)
+	}
 
 	if raw, ok := m.Annotations[annotationLockInfo]; ok && raw != "" {
 		var info statemgr.LockInfo
-		if err := json.Unmarshal([]byte(raw), &info); err == nil {
-			return &info, nil
+		if err := json.Unmarshal([]byte(raw), &info); err != nil {
+			return nil, fmt.Errorf("decoding lock info: %w", err)
 		}
+		if info.ID == "" {
+			info.ID = m.Annotations[annotationLockID]
+		}
+		if info.Path == "" {
+			info.Path = c.stateTag
+		}
+		return &info, nil
 	}
 
 	id := m.Annotations[annotationLockID]
@@ -465,8 +688,10 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 }
 
 type manifest struct {
-	Annotations map[string]string    `json:"annotations"`
-	Layers      []ocispec.Descriptor `json:"layers"`
+	ArtifactType string               `json:"artifactType"`
+	MediaType    string               `json:"mediaType"`
+	Annotations  map[string]string    `json:"annotations"`
+	Layers       []ocispec.Descriptor `json:"layers"`
 }
 
 func (c *RemoteClient) fetchManifest(ctx context.Context, reference string) (*manifest, error) {
@@ -550,30 +775,6 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 	return out, nil
 }
 
-func parseStateVersionTag(tag string, stateTag string) (int, bool) {
-	prefix := stateTag + stateVersionTagSeparator
-	if !strings.HasPrefix(tag, prefix) {
-		return 0, false
-	}
-	s := strings.TrimPrefix(tag, prefix)
-	if s == "" {
-		return 0, false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-	}
-	v := 0
-	for i := 0; i < len(s); i++ {
-		v = v*10 + int(s[i]-'0')
-	}
-	if v <= 0 {
-		return 0, false
-	}
-	return v, true
-}
-
 func splitStateVersionTag(tag string) (base string, version int, ok bool) {
 	idx := strings.LastIndex(tag, stateVersionTagSeparator)
 	if idx < 0 {
@@ -584,7 +785,7 @@ func splitStateVersionTag(tag string) (base string, version int, ok bool) {
 		return "", 0, false
 	}
 	s := tag[idx+len(stateVersionTagSeparator):]
-	if s == "" {
+	if s == "" || len(s) > 10 {
 		return "", 0, false
 	}
 	for _, r := range s {
@@ -595,6 +796,9 @@ func splitStateVersionTag(tag string) (base string, version int, ok bool) {
 	v := 0
 	for i := 0; i < len(s); i++ {
 		v = v*10 + int(s[i]-'0')
+		if v > 1<<30 {
+			return "", 0, false
+		}
 	}
 	if v <= 0 {
 		return "", 0, false
@@ -631,6 +835,22 @@ func workspaceNameFromTag(ctx context.Context, repo *orasRepositoryClient, state
 		return name, nil
 	}
 	return wsTag, nil
+}
+
+func compressGzip(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	gz, err := gzip.NewWriterLevel(&buf, gzip.BestSpeed)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := gz.Write(data); err != nil {
+		gz.Close()
+		return nil, err
+	}
+	if err := gz.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // Error helpers
