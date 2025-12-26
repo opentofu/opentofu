@@ -1,9 +1,8 @@
 name: Release Fork
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -163,8 +162,8 @@ jobs:
           path: cmd/dist/${{ matrix.artifact_name }}*
           retention-days: 1
 
-  create-release:
-    name: Create Release
+  upload-assets:
+    name: Upload Release Assets
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -195,95 +194,9 @@ jobs:
           echo "SHA256 Checksums:"
           cat SHA256SUMS
       
-      - name: Extract version info
-        id: version
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-      
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload assets to existing release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
           files: final-release/*
-          draft: false
-          prerelease: false
-          body: |
-            # OpenTofu ${{ steps.version.outputs.version }} with ORAS Backend
-            
-            This is an OpenTofu fork release based on **upstream main** with the **ORAS state backend** implementation.
-            
-            ## What's Included
-            
-            - ✅ Full OpenTofu main functionality
-            - ✅ ORAS backend for state storage (OCI registries)
-            - ✅ Support for all OCI-compliant registries (Harbor, GHCR, ECR, ACR, GCR, etc.)
-            - ✅ State locking and workspace management
-            - ✅ Multi-credential source support
-            
-            ## Installation
-            
-            Download the appropriate binary for your platform:
-            
-            ```bash
-            # Linux AMD64
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_linux_amd64
-            
-            # macOS ARM64
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_darwin_arm64
-            
-            # Windows AMD64
-            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/tofu_windows_amd64.exe
-            ```
-            
-            ## Using the ORAS Backend
-            
-            ```hcl
-            terraform {
-              backend "oras" {
-                repository = "registry.example.com/infrastructure/tofu-state"
-              }
-            }
-            ```
-            
-            See [ORAS State Backend Design](https://github.com/${{ github.repository }}/blob/${{ steps.version.outputs.version }}/rfc/20251220-oras-state-backend-design.md) for full documentation.
-            
-            ## Verification
-            
-            Verify the binary integrity using the SHA256SUMS file:
-            
-            ```bash
-            sha256sum -c SHA256SUMS
-            ```
-            
-            ## Building from Source
-            
-            To build from this fork:
-            
-            ```bash
-            git clone -b ${{ steps.version.outputs.version }} https://github.com/${{ github.repository }}.git
-            cd opentofu
-            make build
-            ```
-            
-            ## Changelog
-            
-            For changes from upstream main, see:
-            https://github.com/opentofu/opentofu/releases
-            
-            ### ORAS Backend Additions
-            
-            This release includes:
-            - New `backend "oras"` block for state storage
-            - Support for multiple OCI registries
-            - Workspace-based state organization
-            - State locking with lock info metadata
-            - Credential helper integration
-            - TLS/CA bundle support
-            
-            ---
-            
-            **Build Information:**
-            - Release Tag: ${{ steps.version.outputs.version }}
-            - Build Time: ${{ github.event.head_commit.timestamp }}
-            - Repository: ${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

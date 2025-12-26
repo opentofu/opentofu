@@ -1,0 +1,63 @@
+# Configuration for auto-generated release notes
+# This file configures how GitHub generates release notes when creating releases from the UI
+
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - skip-changelog
+      - dependencies
+    authors:
+      - dependabot
+      - dependabot[bot]
+      - github-actions
+      - github-actions[bot]
+
+  categories:
+    - title: "🚀 Features"
+      labels:
+        - enhancement
+        - feature
+        - new-feature
+
+    - title: "🐛 Bug Fixes"
+      labels:
+        - bug
+        - bugfix
+        - fix
+
+    - title: "📦 ORAS Backend"
+      labels:
+        - oras
+        - oci
+        - backend
+
+    - title: "🔒 Security"
+      labels:
+        - security
+
+    - title: "📚 Documentation"
+      labels:
+        - documentation
+        - docs
+
+    - title: "🧪 Tests"
+      labels:
+        - test
+        - testing
+
+    - title: "🔧 Maintenance"
+      labels:
+        - maintenance
+        - chore
+        - refactor
+        - cleanup
+
+    - title: "⬆️ Dependencies"
+      labels:
+        - dependencies
+        - deps
+
+    - title: "🔄 Other Changes"
+      labels:
+        - "*"
