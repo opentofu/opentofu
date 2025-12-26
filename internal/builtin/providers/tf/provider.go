@@ -61,9 +61,7 @@ func (p *Provider) ValidateProviderConfig(_ context.Context, req providers.Valid
 
 // ValidateDataResourceConfig is used to validate the data source configuration values.
 func (p *Provider) ValidateDataResourceConfig(_ context.Context, req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
-	// FIXME: move the backend configuration validate call that's currently
-	// inside the read method  into here so that we can catch provider configuration
-	// errors in tofu validate as well as during tofu plan.
+
 	var res providers.ValidateDataResourceConfigResponse
 
 	// This should not happen
