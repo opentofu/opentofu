@@ -23,6 +23,8 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -257,6 +259,73 @@ func (b *Backend) getRepository() (*orasRepositoryClient, error) {
 	return b.repoClient, nil
 }
 
+func (b *Backend) StateMgr(ctx context.Context, workspace string) (statemgr.Full, error) {
+	repo, err := b.getRepository()
+	if err != nil {
+		return nil, err
+	}
+	client := newRemoteClient(repo, workspace)
+	client.retryConfig = b.retryCfg
+	client.versioningEnabled = b.versioningEnabled
+	client.versioningMaxVersions = b.versioningMaxVersions
+	client.stateCompression = b.compression
+	client.lockTTL = b.lockTTL
+	return remote.NewState(client, b.encryption), nil
+}
+
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+	repo, err := b.getRepository()
+	if err != nil {
+		return nil, err
+	}
+	wss, err := listWorkspacesFromTags(ctx, repo)
+	if err != nil {
+		if isNotFound(err) {
+			return []string{backend.DefaultStateName}, nil
+		}
+		return nil, err
+	}
+	if len(wss) == 0 {
+		return []string{backend.DefaultStateName}, nil
+	}
+	return wss, nil
+}
+
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
+	if name == backend.DefaultStateName || name == "" {
+		return fmt.Errorf("can't delete default state")
+	}
+
+	repo, err := b.getRepository()
+	if err != nil {
+		return err
+	}
+
+	wsTag := workspaceTagFor(name)
+	stateRef := stateTagPrefix + wsTag
+	lockRef := lockTagPrefix + wsTag
+	stateVersionPrefix := stateRef + stateVersionTagSeparator
+
+	if desc, err := repo.inner.Resolve(ctx, stateRef); err == nil {
+		_ = repo.inner.Delete(ctx, desc)
+	}
+	_ = repo.inner.Tags(ctx, "", func(page []string) error {
+		for _, tag := range page {
+			if !strings.HasPrefix(tag, stateVersionPrefix) {
+				continue
+			}
+			if desc, err := repo.inner.Resolve(ctx, tag); err == nil {
+				_ = repo.inner.Delete(ctx, desc)
+			}
+		}
+		return nil
+	})
+	if desc, err := repo.inner.Resolve(ctx, lockRef); err == nil {
+		_ = repo.inner.Delete(ctx, desc)
+	}
+	return nil
+}
+
 // ORAS repository client
 
 type cliconfigORASCredentialsPolicy interface {
@@ -266,7 +335,26 @@ type cliconfigORASCredentialsPolicy interface {
 type credentialFunc func(ctx context.Context, hostport string) (orasAuth.Credential, error)
 
 type orasRepositoryClient struct {
-	inner orasRepository
+	repository string
+	inner      orasRepository
+	authFn     credentialFunc
+}
+
+func (r *orasRepositoryClient) accessTokenForHost(ctx context.Context, host string) (string, error) {
+	if r == nil || r.authFn == nil {
+		return "", nil
+	}
+	cred, err := r.authFn(ctx, host)
+	if err != nil {
+		return "", err
+	}
+	if cred.AccessToken != "" {
+		return cred.AccessToken, nil
+	}
+	if cred.Password != "" {
+		return cred.Password, nil
+	}
+	return "", nil
 }
 
 type orasRepository interface {
@@ -295,14 +383,20 @@ func newORASRepositoryClient(ctx context.Context, repository string, insecure bo
 		return nil, err
 	}
 
+	repoClient := &orasRepositoryClient{
+		repository: repository,
+		inner:      repo,
+		authFn:     credFunc,
+	}
+
 	repo.Client = &orasAuth.Client{
 		Client: httpClient,
-		Credential: func(ctx context.Context, _ string) (orasAuth.Credential, error) {
-			return credFunc(ctx, repo.Reference.Registry)
+		Credential: func(ctx context.Context, host string) (orasAuth.Credential, error) {
+			return credFunc(ctx, host)
 		},
 	}
 
-	return &orasRepositoryClient{inner: repo}, nil
+	return repoClient, nil
 }
 
 func newORASHTTPClient(ctx context.Context, insecure bool, caFile string, rateLimit int, rateBurst int) (*http.Client, error) {
