@@ -18,6 +18,7 @@ Each workspace's state is written as an OCI manifest plus layer inside a registr
 
 State snapshots frequently contain sensitive data (provider credentials, resource attributes, and sometimes plaintext secrets). Treat the OCI repository with the same care as any other credentials store:
 
+- **Enable client-side encryption**: OpenTofu supports [state encryption](https://opentofu.org/docs/language/state/encryption/) which encrypts state before it leaves your machine. This is the recommended approach when storing state in any remote backend, including OCI registries.
 - Keep the repository private and issue least-privilege tokens.
 - Prefer registries that provide encryption at rest and audit trails.
 - Be deliberate about retention/versioning; a long history increases exposure.
@@ -129,7 +130,7 @@ terraform {
 }
 ```
 
-Example (gzip + versioning):
+Example (gzip + versioning + encryption):
 
 ```hcl
 terraform {
@@ -142,8 +143,34 @@ terraform {
       max_versions = 10
     }
   }
+
+  # Client-side state encryption (OpenTofu feature)
+  encryption {
+    key_provider "pbkdf2" "main" {
+      passphrase = var.state_passphrase  # or use TF_ENCRYPTION env var
+    }
+
+    method "aes_gcm" "main" {
+      key_provider = key_provider.pbkdf2.main
+    }
+
+    state {
+      method = method.aes_gcm.main
+    }
+
+    plan {
+      method = method.aes_gcm.main
+    }
+  }
+}
+
+variable "state_passphrase" {
+  type      = string
+  sensitive = true
 }
 ```
+
+> **Note**: For production, consider using a KMS-backed key provider (AWS KMS, GCP KMS, etc.) instead of PBKDF2 with a passphrase.
 
 Example (GitHub Actions CI):
 
@@ -152,7 +179,7 @@ Example (GitHub Actions CI):
   env:
     TF_BACKEND_ORAS_REPOSITORY: ghcr.io/${{ github.repository_owner }}/tf-state
   run: |
-    echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+    echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     tofu init
 ```
 
@@ -168,10 +195,10 @@ The token used for `docker login` must be able to read/write the repository. If 
 - Set `lock_ttl = 300` to auto-expire locks after five minutes.
 - Or manually delete the `locked-<workspace>` tag from the registry UI.
 
-**Version deletion fails on GHCR (405 error)**
-- GHCR does not support OCI `DELETE`; the backend invokes the GitHub Packages API instead.
-- Ensure the token is allowed to delete package versions (`delete:packages`).
-- If deletion still fails, old versions accumulate (clutter but not blocking).
+**Version deletion on GHCR**
+- GHCR does not support OCI `DELETE`; the backend automatically falls back to the GitHub Packages API.
+- Ensure the token has `delete:packages` permission for this fallback to work.
+- If the API call also fails (e.g., insufficient permissions), old versions accumulate but writes still succeed.
 
 **Debug mode**
 
@@ -191,7 +218,7 @@ go test ./internal/backend/remote-state/oras
 
 Limitations:
 - Only GHCR is exercised in automated tests; other registries may exhibit different quirks.
-- Registries that refuse OCI `DELETE` degrade lock/unlock and retention behavior.
+- Registries that refuse OCI `DELETE` degrade lock/unlock behavior (GHCR has a dedicated fallback via GitHub Packages API).
 - Retention is enforced inline; there is no background compaction.
 - `lock_ttl` is evaluated during lock attempts, not proactively.
 - `insecure = true` disables TLS verification—use only in controlled environments.
