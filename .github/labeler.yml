@@ -1,0 +1,163 @@
+# Configuration for Pull Request Labeler
+# This file defines rules for automatically labeling PRs based on changed files
+# Used by: .github/workflows/labeler.yml
+
+# Core functionality
+core:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/tofu/**'
+          - 'internal/states/**'
+          - 'internal/plans/**'
+
+# Backend related changes
+backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/backend/**'
+
+# ORAS/OCI Backend
+oras:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/backend/**/oras/**'
+          - '**/oras*.go'
+
+# Commands
+commands:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/command/**'
+          - 'cmd/**'
+
+# Configuration parsing
+configs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/configs/**'
+
+# Provider related
+providers:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/providers/**'
+          - 'internal/getproviders/**'
+          - 'internal/providercache/**'
+
+# Module related
+modules:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/getmodules/**'
+          - 'internal/initwd/**'
+          - 'internal/modsdir/**'
+
+# Registry
+registry:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/registry/**'
+
+# Encryption
+encryption:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/encryption/**'
+
+# Cloud/Remote backend
+cloud:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/cloud/**'
+
+# Documentation changes
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'website/**'
+          - '**/*.md'
+          - '!CHANGELOG.md'
+
+# Testing related
+testing:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/moduletest/**'
+          - 'testing/**'
+          - '**/*_test.go'
+
+# End-to-end tests
+e2e:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/e2e/**'
+
+# CI/CD and GitHub Actions
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'Makefile'
+          - 'Dockerfile*'
+          - 'codecov.yml'
+
+# Build and release
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'scripts/**'
+          - 'Makefile'
+          - 'go.mod'
+          - 'go.sum'
+
+# Language/HCL functions
+lang:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/lang/**'
+
+# Diagnostics
+diagnostics:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/tfdiags/**'
+          - 'internal/terminal/**'
+
+# Plugin system
+plugin:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/plugin/**'
+          - 'internal/plugin6/**'
+          - 'internal/tfplugin5/**'
+          - 'internal/tfplugin6/**'
+          - 'internal/grpcwrap/**'
+
+# Refactoring tools
+refactoring:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'internal/refactoring/**'
+
+# RFCs
+rfc:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'rfc/**'
+
+# Version changes
+version:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'version/**'
+
+# Dependencies (for Dependabot PRs)
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'go.mod'
+          - 'go.sum'
+
+# Size labels based on lines changed (requires separate action)
+# These are informational labels to help reviewers gauge PR complexity
