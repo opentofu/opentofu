@@ -1,0 +1,121 @@
+name: Auto Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create release on merge
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.title, '🚀 Release v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: develop
+
+      - name: Extract version from PR title
+        id: version
+        run: |
+          # Extract version from PR title "🚀 Release v1.2.3"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION}-oci" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## OpenTofu ${{ steps.version.outputs.version }} + ORAS Backend
+
+            This release is based on [OpenTofu ${{ steps.version.outputs.version }}](https://github.com/opentofu/opentofu/releases/tag/${{ steps.version.outputs.version }}) with the ORAS backend for OCI registry state storage.
+
+            ### ORAS Backend Features
+
+            - 📦 Store state in any OCI-compatible registry (GHCR, ECR, ACR, Docker Hub, etc.)
+            - 🔒 Distributed locking support
+            - 📜 State versioning with configurable retention
+            - 🗜️ Optional gzip compression
+            - 🔐 Compatible with OpenTofu state encryption
+
+            ### Quick Start
+
+            ```hcl
+            terraform {
+              backend "oras" {
+                repository = "ghcr.io/your-org/tf-state"
+              }
+            }
+            ```
+
+            See [ORAS Backend Documentation](https://github.com/${{ github.repository }}/blob/develop/internal/backend/remote-state/oras/README.md) for full configuration options.
+
+            ---
+
+            **Full Changelog**: See auto-generated release notes below.
+
+  notify-conflict:
+    name: Create issue on conflict
+    if: github.event.pull_request.merged == false && startsWith(github.event.pull_request.title, '🚀 Release v')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Extract version from PR title
+        id: version
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          VERSION=$(echo "$PR_TITLE" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create conflict issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const prNumber = ${{ github.event.pull_request.number }};
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ Release ${version} requires manual intervention`,
+              body: `The release PR #${prNumber} was closed without merging.
+
+            This may indicate:
+            - Merge conflicts that need manual resolution
+            - The PR was intentionally closed
+
+            ### Action Required
+
+            1. Check PR #${prNumber} for details
+            2. If conflicts exist, resolve them manually
+            3. Re-run the sync workflow or create a new release PR
+
+            /cc @${context.repo.owner}`,
+              labels: ['release', 'needs-attention']
+            });

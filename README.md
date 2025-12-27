@@ -1,4 +1,159 @@
-# OpenTofu
+# OpenTofu + ORAS Backend
+
+> 🍴 **This is a fork of [opentofu/opentofu](https://github.com/opentofu/opentofu)** that adds an **ORAS backend** for storing OpenTofu state in OCI registries.
+
+[![Release](https://img.shields.io/github/v/release/vmvarela/opentofu?label=Latest%20Release&style=flat-square)](https://github.com/vmvarela/opentofu/releases/latest)
+[![OpenTofu Base](https://img.shields.io/badge/Based%20on-OpenTofu-blue?style=flat-square)](https://github.com/opentofu/opentofu)
+
+---
+
+## 🤖 Why This Fork Exists
+
+This fork is maintained **independently** because:
+
+1. **AI-Generated Code**: The ORAS backend implementation was developed with AI assistance (GitHub Copilot). The upstream OpenTofu project has a [strict policy against AI-generated code](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md) due to licensing concerns with Terraform's BSL license.
+
+2. **Experimental Backend**: OpenTofu historically avoids adding new remote state backends to the core project. This fork serves as a reference implementation and a usable solution for those who want OCI registry state storage.
+
+This fork stays synchronized with upstream releases, allowing you to benefit from all OpenTofu improvements while having access to the ORAS backend.
+
+---
+
+## 📦 What This Fork Adds
+
+This fork includes an **ORAS backend** that allows you to store OpenTofu state in any OCI-compatible container registry (GitHub Container Registry, Amazon ECR, Azure ACR, Google GCR, Docker Hub, Harbor, etc.).
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **OCI Registry Storage** | Store state as OCI artifacts in your existing container registry |
+| **Reuse Existing Auth** | Uses Docker credentials and `tofu login` tokens |
+| **Distributed Locking** | Lock state to prevent concurrent modifications |
+| **State Versioning** | Keep history of state versions with configurable retention |
+| **Compression** | Optional gzip compression for state files |
+| **Encryption Compatible** | Works with OpenTofu's client-side state encryption |
+
+### Quick Start
+
+```hcl
+terraform {
+  backend "oras" {
+    repository = "ghcr.io/your-org/tf-state"
+  }
+}
+```
+
+### Full Example (with versioning + encryption)
+
+```hcl
+terraform {
+  backend "oras" {
+    repository  = "ghcr.io/your-org/tf-state"
+    compression = "gzip"
+
+    versioning {
+      enabled      = true
+      max_versions = 10
+    }
+  }
+
+  encryption {
+    key_provider "pbkdf2" "main" {
+      passphrase = var.state_passphrase
+    }
+    method "aes_gcm" "main" {
+      key_provider = key_provider.pbkdf2.main
+    }
+    state {
+      method = method.aes_gcm.main
+    }
+  }
+}
+```
+
+### 📚 Full Documentation
+
+See the [ORAS Backend README](internal/backend/remote-state/oras/README.md) for complete documentation including:
+- All configuration parameters
+- Authentication setup
+- Locking behavior
+- Versioning and retention
+- Troubleshooting
+
+---
+
+## 🔄 Release Versioning
+
+This fork follows OpenTofu releases with an `-oci` suffix:
+
+| OpenTofu Release | This Fork |
+|------------------|-----------|
+| `v1.12.0` | `v1.12.0-oci` |
+| `v1.11.1` | `v1.11.1-oci` |
+
+This allows you to choose which OpenTofu version you want with ORAS support.
+
+---
+
+## 📥 Installation
+
+### Quick Install (Linux/macOS)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.sh | sh
+```
+
+### Quick Install (Windows PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.ps1 | iex
+```
+
+This installs the binary as `tofu-oras` to avoid conflicts with the official `tofu` installation.
+
+#### Installation Options
+
+**Linux/macOS:**
+```bash
+# Install specific version
+TOFU_ORAS_VERSION=v1.12.0-oci curl -sSL https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.sh | sh
+
+# Install to custom directory
+TOFU_ORAS_INSTALL_DIR=~/.local/bin curl -sSL https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.sh | sh
+
+# Install with custom binary name
+TOFU_ORAS_BINARY_NAME=tofu curl -sSL https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.sh | sh
+```
+
+**Windows PowerShell:**
+```powershell
+# Install specific version
+$env:TOFU_ORAS_VERSION = "v1.12.0-oci"
+irm https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.ps1 | iex
+
+# Install to custom directory
+$env:TOFU_ORAS_INSTALL_DIR = "$env:USERPROFILE\.local\bin"
+irm https://raw.githubusercontent.com/vmvarela/opentofu/develop/install.ps1 | iex
+```
+
+### Manual Download
+
+Download the binary for your platform from the [Releases](https://github.com/vmvarela/opentofu/releases) page.
+
+### Build from Source
+
+```bash
+git clone https://github.com/vmvarela/opentofu.git
+cd opentofu
+go build -o tofu-oras ./cmd/tofu
+```
+
+---
+
+# OpenTofu (Original Project)
+
+> The following is the original OpenTofu README.
 
 - [HomePage](https://opentofu.org/)
 - [How to install](https://opentofu.org/docs/intro/install)

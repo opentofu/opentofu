@@ -1,0 +1,135 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # Run daily at 6:00 UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Force sync even without new tags'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM_REPO: opentofu/opentofu
+  UPSTREAM_BRANCH: main
+
+jobs:
+  check-upstream:
+    name: Check for upstream updates
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_tag: ${{ steps.check.outputs.has_new_tag }}
+      latest_tag: ${{ steps.check.outputs.latest_tag }}
+      has_new_commits: ${{ steps.check.outputs.has_new_commits }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git || true
+          git fetch upstream --tags
+
+      - name: Check for updates
+        id: check
+        run: |
+          # Get latest upstream tag (stable releases only, no alpha/beta/rc)
+          LATEST_UPSTREAM_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -E '(alpha|beta|rc)' | head -n1)
+          echo "Latest upstream tag: $LATEST_UPSTREAM_TAG"
+          echo "latest_tag=$LATEST_UPSTREAM_TAG" >> $GITHUB_OUTPUT
+
+          # Check if we already have this tag with -oci suffix
+          if git tag -l "${LATEST_UPSTREAM_TAG}-oci" | grep -q .; then
+            echo "Tag ${LATEST_UPSTREAM_TAG}-oci already exists"
+            echo "has_new_tag=false" >> $GITHUB_OUTPUT
+          else
+            echo "New tag available: $LATEST_UPSTREAM_TAG"
+            echo "has_new_tag=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Check for new commits on upstream main
+          git fetch upstream ${{ env.UPSTREAM_BRANCH }}
+          LOCAL_MAIN=$(git rev-parse origin/main 2>/dev/null || echo "none")
+          UPSTREAM_MAIN=$(git rev-parse upstream/${{ env.UPSTREAM_BRANCH }})
+
+          if [ "$LOCAL_MAIN" != "$UPSTREAM_MAIN" ]; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+          fi
+
+  sync-main:
+    name: Sync main branch
+    needs: check-upstream
+    if: needs.check-upstream.outputs.has_new_commits == 'true' || github.event.inputs.force_sync == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync main with upstream
+        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git || true
+          git fetch upstream ${{ env.UPSTREAM_BRANCH }} --tags
+
+          git checkout main
+          git reset --hard upstream/${{ env.UPSTREAM_BRANCH }}
+          git push origin main --force
+
+  create-release-pr:
+    name: Create release PR
+    needs: [check-upstream, sync-main]
+    if: needs.check-upstream.outputs.has_new_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/${{ needs.check-upstream.outputs.latest_tag }}
+          base: develop
+          title: "🚀 Release ${{ needs.check-upstream.outputs.latest_tag }}"
+          body: |
+            ## Upstream Release
+
+            This PR syncs with upstream OpenTofu release **${{ needs.check-upstream.outputs.latest_tag }}**.
+
+            ### Upstream Release Notes
+            See: https://github.com/${{ env.UPSTREAM_REPO }}/releases/tag/${{ needs.check-upstream.outputs.latest_tag }}
+
+            ### After Merging
+
+            When this PR is merged, a new release `${{ needs.check-upstream.outputs.latest_tag }}-oci` will be created automatically.
+
+            ### Checklist
+
+            - [ ] Review changes for conflicts with ORAS backend
+            - [ ] Ensure tests pass
+            - [ ] Resolve any merge conflicts
+          labels: |
+            release
+            upstream-sync
+          draft: false
