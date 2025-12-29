@@ -147,6 +147,10 @@ func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Tra
 						Subject:  idx.SourceRange().Ptr(),
 					})
 				}
+			} else if _, ok := remain[0].(hcl.TraverseSplat); ok {
+				remain = remain[1:]
+				// TODO should we attempt to figure out the key type here?
+				step.InstanceKey = WildcardKey{UnknownKeyType}
 			}
 		}
 

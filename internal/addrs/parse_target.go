@@ -106,6 +106,11 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 			}
 
 			return moduleAddr.ResourceInstance(mode, typeName, name, key), diags
+
+			// TODO this might break other AbsResourceInstances which aren't expecting Splat to be valid!!
+		} else if _, ok := remain[0].(hcl.TraverseSplat); ok {
+			// TODO should we attempt to figure out the key type here?
+			return moduleAddr.ResourceInstance(mode, typeName, name, WildcardKey{UnknownKeyType}), diags
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
