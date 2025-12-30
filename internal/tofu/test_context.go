@@ -59,16 +59,16 @@ func (c *Context) TestContext(config *configs.Config, state *states.State, plan 
 // The provided plan is import as it is needed to evaluate the `plantimestamp`
 // function, but no data or changes from the embedded plan is referenced in
 // this function.
-func (ctx *TestContext) EvaluateAgainstState(run *moduletest.Run) {
-	defer ctx.acquireRun("evaluate")()
-	ctx.evaluate(ctx.State.SyncWrapper(), plans.NewChanges().SyncWrapper(), run, walkApply)
+func (tc *TestContext) EvaluateAgainstState(run *moduletest.Run) {
+	defer tc.acquireRun("evaluate")()
+	tc.evaluate(tc.State.SyncWrapper(), plans.NewChanges().SyncWrapper(), run, walkApply)
 }
 
 // EvaluateAgainstPlan processes the assertions inside the provided
 // configs.TestRun against the embedded plan and state.
-func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
-	defer ctx.acquireRun("evaluate")()
-	ctx.evaluate(ctx.State.SyncWrapper(), ctx.Plan.Changes.SyncWrapper(), run, walkPlan)
+func (tc *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
+	defer tc.acquireRun("evaluate")()
+	tc.evaluate(tc.State.SyncWrapper(), tc.Plan.Changes.SyncWrapper(), run, walkPlan)
 }
 
 func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
@@ -100,7 +100,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			PlanTimestamp:      tc.Plan.Timestamp,
 			// InstanceExpander is intentionally nil for test contexts
 			// The GetModule function will fall back to using state/changes when it's nil
-			InstanceExpander:   nil,
+			InstanceExpander: nil,
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,

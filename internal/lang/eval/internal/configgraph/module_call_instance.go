@@ -145,9 +145,9 @@ func (m *ModuleCallInstance) ValueSourceRange() *tfdiags.SourceRange {
 }
 
 // CheckAll implements allChecker.
-func (c *ModuleCallInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
+func (m *ModuleCallInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 	var cg CheckGroup
-	cg.CheckValuer(ctx, c)
+	cg.CheckValuer(ctx, m)
 	return cg.Complete(ctx)
 }
 

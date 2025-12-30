@@ -713,13 +713,13 @@ func (r AbsResourceInstance) MoveDestination(fromMatch, toMatch *MoveEndpointInM
 // IsModuleReIndex takes the From and To endpoints from a single move
 // statement, and returns true if the only changes are to module indexes, and
 // all non-absolute paths remain the same.
-func (from *MoveEndpointInModule) IsModuleReIndex(to *MoveEndpointInModule) bool {
+func (e *MoveEndpointInModule) IsModuleReIndex(to *MoveEndpointInModule) bool {
 	// The statements must originate from the same module.
-	if !from.module.Equal(to.module) {
+	if !e.module.Equal(to.module) {
 		panic("cannot compare move expressions from different modules")
 	}
 
-	switch f := from.relSubject.(type) {
+	switch f := e.relSubject.(type) {
 	case AbsModuleCall:
 		switch t := to.relSubject.(type) {
 		case ModuleInstance:
