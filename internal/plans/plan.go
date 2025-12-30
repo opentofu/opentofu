@@ -222,12 +222,12 @@ func (p *Plan) ProviderAddrs() []addrs.AbsProviderConfig {
 }
 
 // VariableMapper checks that all the provided variables match what has been provided while building the plan.
-func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
+func (p *Plan) VariableMapper() configs.StaticModuleVariables {
 	return func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
 		name := variable.Name
-		v, ok := plan.VariableValues[name]
+		v, ok := p.VariableValues[name]
 		if !ok {
 			if variable.Required() {
 				// This should not happen...

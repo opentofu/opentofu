@@ -490,12 +490,12 @@ type sshAgent struct {
 	id    string
 }
 
-func (a *sshAgent) Close() error {
-	if a.conn == nil {
+func (s *sshAgent) Close() error {
+	if s.conn == nil {
 		return nil
 	}
 
-	return a.conn.Close()
+	return s.conn.Close()
 }
 
 // make an attempt to either read the identity file or find a corresponding
@@ -610,10 +610,10 @@ func (s *sshAgent) Signers() ([]ssh.Signer, error) {
 	return signers, nil
 }
 
-func (a *sshAgent) Auth() ssh.AuthMethod {
-	return ssh.PublicKeysCallback(a.Signers)
+func (s *sshAgent) Auth() ssh.AuthMethod {
+	return ssh.PublicKeysCallback(s.Signers)
 }
 
-func (a *sshAgent) ForwardToAgent(client *ssh.Client) error {
-	return agent.ForwardToAgent(client, a.agent)
+func (s *sshAgent) ForwardToAgent(client *ssh.Client) error {
+	return agent.ForwardToAgent(client, s.agent)
 }

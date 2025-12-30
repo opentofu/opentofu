@@ -44,7 +44,7 @@ func (sfs *standardFileSystem) ReadDir(name string) ([]os.DirEntry, error) {
 	return os.ReadDir(name)
 }
 
-func (tfs *standardFileSystem) Open(name string) (fs.File, error) {
+func (sfs *standardFileSystem) Open(name string) (fs.File, error) {
 	return os.Open(name)
 }
 
