@@ -27,15 +27,15 @@ type UntaintCommand struct {
 
 func (c *UntaintCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	var allowMissing bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("untaint")
+	cmdFlags := c.ignoreRemoteVersionFlagSet("untaint")
 	cmdFlags.BoolVar(&allowMissing, "allow-missing", false, "allow missing")
-	cmdFlags.StringVar(&c.Meta.backupPath, "backup", "", "path")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
-	cmdFlags.StringVar(&c.Meta.stateOutPath, "state-out", "", "path")
+	cmdFlags.StringVar(&c.backupPath, "backup", "", "path")
+	cmdFlags.BoolVar(&c.stateLock, "lock", true, "lock state")
+	cmdFlags.DurationVar(&c.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.StringVar(&c.statePath, "state", "", "path")
+	cmdFlags.StringVar(&c.stateOutPath, "state-out", "", "path")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))

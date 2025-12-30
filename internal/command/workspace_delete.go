@@ -28,14 +28,14 @@ type WorkspaceDeleteCommand struct {
 
 func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
 	var force bool
 	var stateLock bool
 	var stateLockTimeout time.Duration
-	cmdFlags := c.Meta.defaultFlagSet("workspace delete")
-	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags := c.defaultFlagSet("workspace delete")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&force, "force", false, "force removal of a non-empty workspace")
 	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
 	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")

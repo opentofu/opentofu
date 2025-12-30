@@ -29,17 +29,17 @@ type StateMvCommand struct {
 
 func (c *StateMvCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	// We create two metas to track the two states
 	var backupPathOut, statePathOut string
 
 	var dryRun bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state mv")
+	cmdFlags := c.ignoreRemoteVersionFlagSet("state mv")
 	cmdFlags.BoolVar(&dryRun, "dry-run", false, "dry run")
 	cmdFlags.StringVar(&c.backupPath, "backup", "-", "backup")
 	cmdFlags.StringVar(&backupPathOut, "backup-out", "-", "backup")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock states")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.BoolVar(&c.stateLock, "lock", true, "lock states")
+	cmdFlags.DurationVar(&c.stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	cmdFlags.StringVar(&c.statePath, "state", "", "path")
 	cmdFlags.StringVar(&statePathOut, "state-out", "", "path")
 	if err := cmdFlags.Parse(args); err != nil {
@@ -52,7 +52,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
+	if diags := c.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}

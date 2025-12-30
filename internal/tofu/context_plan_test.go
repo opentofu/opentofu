@@ -6520,14 +6520,14 @@ func TestContext2Plan_variableSensitivity(t *testing.T) {
 			checkVals(t, objectVal(t, schema, map[string]cty.Value{
 				"foo": cty.StringVal("foo").Mark(marks.Sensitive),
 			}), ric.After)
-			if len(res.ChangeSrc.BeforeValMarks) != 0 {
-				t.Errorf("unexpected BeforeValMarks: %#v", res.ChangeSrc.BeforeValMarks)
+			if len(res.BeforeValMarks) != 0 {
+				t.Errorf("unexpected BeforeValMarks: %#v", res.BeforeValMarks)
 			}
-			if len(res.ChangeSrc.AfterValMarks) != 1 {
-				t.Errorf("unexpected AfterValMarks: %#v", res.ChangeSrc.AfterValMarks)
+			if len(res.AfterValMarks) != 1 {
+				t.Errorf("unexpected AfterValMarks: %#v", res.AfterValMarks)
 				continue
 			}
-			pvm := res.ChangeSrc.AfterValMarks[0]
+			pvm := res.AfterValMarks[0]
 			if got, want := pvm.Path, cty.GetAttrPath("foo"); !got.Equals(want) {
 				t.Errorf("unexpected path for mark\n got: %#v\nwant: %#v", got, want)
 			}
@@ -6590,11 +6590,11 @@ func TestContext2Plan_variableSensitivityModule(t *testing.T) {
 				"foo":   cty.StringVal("foo").Mark(marks.Sensitive),
 				"value": cty.StringVal("boop").Mark(marks.Sensitive),
 			}), ric.After)
-			if len(res.ChangeSrc.BeforeValMarks) != 0 {
-				t.Errorf("unexpected BeforeValMarks: %#v", res.ChangeSrc.BeforeValMarks)
+			if len(res.BeforeValMarks) != 0 {
+				t.Errorf("unexpected BeforeValMarks: %#v", res.BeforeValMarks)
 			}
-			if len(res.ChangeSrc.AfterValMarks) != 2 {
-				t.Errorf("expected AfterValMarks to contain two elements: %#v", res.ChangeSrc.AfterValMarks)
+			if len(res.AfterValMarks) != 2 {
+				t.Errorf("expected AfterValMarks to contain two elements: %#v", res.AfterValMarks)
 				continue
 			}
 			// validate that the after marks have "foo" and "value"
@@ -6608,10 +6608,10 @@ func TestContext2Plan_variableSensitivityModule(t *testing.T) {
 				}
 				return false
 			}
-			if !contains(res.ChangeSrc.AfterValMarks, "foo") {
+			if !contains(res.AfterValMarks, "foo") {
 				t.Error("unexpected AfterValMarks to contain \"foo\" with sensitive mark")
 			}
-			if !contains(res.ChangeSrc.AfterValMarks, "value") {
+			if !contains(res.AfterValMarks, "value") {
 				t.Error("unexpected AfterValMarks to contain \"value\" with sensitive mark")
 			}
 		default:

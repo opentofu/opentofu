@@ -295,7 +295,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 		return 0, nil, endpointURL, err
 	}
 	req = req.WithContext(ctx)
-	req.Request.Header.Set(terraformVersionHeader, version.String())
+	req.Header.Set(terraformVersionHeader, version.String())
 	creds, err := s.mirrorHostCredentials(ctx)
 	if err != nil {
 		return 0, nil, endpointURL, fmt.Errorf("failed to determine request credentials: %w", err)

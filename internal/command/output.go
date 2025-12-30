@@ -77,7 +77,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 
 	// Allow state path override
 	if statePath != "" {
-		c.Meta.statePath = statePath
+		c.statePath = statePath
 	}
 
 	// Load the backend
@@ -125,7 +125,7 @@ func (c *OutputCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.variableArgs = rawFlags{items: &items}
 }
 
 func (c *OutputCommand) Help() string {

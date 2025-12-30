@@ -22,12 +22,12 @@ type WorkspaceSelectCommand struct {
 
 func (c *WorkspaceSelectCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
 	var orCreate bool
-	cmdFlags := c.Meta.defaultFlagSet("workspace select")
-	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags := c.defaultFlagSet("workspace select")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&orCreate, "or-create", false, "create workspace if it does not exist")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {

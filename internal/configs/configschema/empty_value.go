@@ -39,23 +39,23 @@ func (a *Attribute) EmptyValue() cty.Value {
 func (b *NestedBlock) EmptyValue() cty.Value {
 	switch b.Nesting {
 	case NestingSingle:
-		return cty.NullVal(b.Block.ImpliedType())
+		return cty.NullVal(b.ImpliedType())
 	case NestingGroup:
 		return b.Block.EmptyValue()
 	case NestingList:
-		if ty := b.Block.ImpliedType(); ty.HasDynamicTypes() {
+		if ty := b.ImpliedType(); ty.HasDynamicTypes() {
 			return cty.EmptyTupleVal
 		} else {
 			return cty.ListValEmpty(ty)
 		}
 	case NestingMap:
-		if ty := b.Block.ImpliedType(); ty.HasDynamicTypes() {
+		if ty := b.ImpliedType(); ty.HasDynamicTypes() {
 			return cty.EmptyObjectVal
 		} else {
 			return cty.MapValEmpty(ty)
 		}
 	case NestingSet:
-		return cty.SetValEmpty(b.Block.ImpliedType())
+		return cty.SetValEmpty(b.ImpliedType())
 	default:
 		// Should never get here because the above is intended to be exhaustive,
 		// but we'll be robust and return a result nonetheless.

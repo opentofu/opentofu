@@ -49,9 +49,9 @@ Options:
 
 func (c *VersionCommand) Run(args []string) int {
 	var versionString bytes.Buffer
-	args = c.Meta.process(args)
+	args = c.process(args)
 	var jsonOutput bool
-	cmdFlags := c.Meta.defaultFlagSet("version")
+	cmdFlags := c.defaultFlagSet("version")
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	// Enable but ignore the global version flags. In main.go, if any of the
 	// arguments are -v, -version, or --version, this command will be called

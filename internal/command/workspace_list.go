@@ -22,11 +22,11 @@ type WorkspaceListCommand struct {
 
 func (c *WorkspaceListCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
-	cmdFlags := c.Meta.defaultFlagSet("workspace list")
-	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags := c.defaultFlagSet("workspace list")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))

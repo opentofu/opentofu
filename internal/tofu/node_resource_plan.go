@@ -205,8 +205,8 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	// wants to know the addresses of the checkable objects so that it can
 	// treat them as unknown status if we encounter an error before actually
 	// visiting the checks.
-	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
-		checkState.ReportCheckableObjects(n.NodeAbstractResource.Addr, instAddrs)
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.Addr) {
+		checkState.ReportCheckableObjects(n.Addr, instAddrs)
 	}
 
 	addRootNodeToGraph(&g)
@@ -326,7 +326,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Contex
 		diags = diags.Append(err)
 		return diags.ErrWithWarnings()
 	}
-	g.Subsume(&instG.AcyclicGraph.Graph)
+	g.Subsume(&instG.Graph)
 
 	return diags.ErrWithWarnings()
 }

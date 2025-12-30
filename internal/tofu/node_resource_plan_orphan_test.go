@@ -245,7 +245,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			assertDiags(t, gotDiags, test.wantDiags)
 
 			change := evalCtx.Changes().GetResourceInstanceChange(absResource, states.NotDeposed)
-			if got, want := change.ChangeSrc.Action, test.wantAction; got != want {
+			if got, want := change.Action, test.wantAction; got != want {
 				t.Fatalf("wrong planned action\ngot:  %s\nwant: %s", got, want)
 			}
 

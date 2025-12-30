@@ -45,9 +45,9 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
 	defer span.End()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("providers lock")
-	c.Meta.varFlagSet(cmdFlags)
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("providers lock")
+	c.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	var fsMirrorDir string
 	var netMirrorURL string

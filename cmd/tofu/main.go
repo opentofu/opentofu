@@ -54,7 +54,7 @@ type ui struct {
 }
 
 func (u *ui) Warn(msg string) {
-	u.Ui.Output(msg)
+	u.Output(msg)
 }
 
 func init() {

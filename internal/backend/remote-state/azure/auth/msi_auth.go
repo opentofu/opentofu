@@ -80,7 +80,7 @@ func reconcileMSIEndpoint(msiEndpointFromConfig string) string {
 
 func (cred *managedIdentityAuth) Validate(_ context.Context, config *Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if !config.MSIAuthConfig.UseMsi {
+	if !config.UseMsi {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure Managed Service Identity Auth",

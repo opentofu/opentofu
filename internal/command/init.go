@@ -55,22 +55,22 @@ func (c *InitCommand) Run(args []string) int {
 	var flagPluginPath FlagStringSlice
 	flagConfigExtra := newRawFlags("-backend-config")
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("init")
+	args = c.process(args)
+	cmdFlags := c.extendedFlagSet("init")
 	cmdFlags.BoolVar(&flagBackend, "backend", true, "")
 	cmdFlags.BoolVar(&flagCloud, "cloud", true, "")
 	cmdFlags.Var(flagConfigExtra, "backend-config", "")
 	cmdFlags.StringVar(&flagFromModule, "from-module", "", "copy the source of the given module into the directory before init")
 	cmdFlags.BoolVar(&flagGet, "get", true, "")
 	cmdFlags.BoolVar(&c.forceInitCopy, "force-copy", false, "suppress prompts about copying state data")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.BoolVar(&c.stateLock, "lock", true, "lock state")
+	cmdFlags.DurationVar(&c.stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	cmdFlags.BoolVar(&c.reconfigure, "reconfigure", false, "reconfigure")
 	cmdFlags.BoolVar(&c.migrateState, "migrate-state", false, "migrate state")
 	cmdFlags.BoolVar(&flagUpgrade, "upgrade", false, "")
 	cmdFlags.Var(&flagPluginPath, "plugin-dir", "plugin directory")
 	cmdFlags.StringVar(&flagLockfile, "lockfile", "", "Set a dependency lockfile mode")
-	cmdFlags.BoolVar(&c.Meta.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
+	cmdFlags.BoolVar(&c.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -79,8 +79,8 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	if c.outputInJSON {
-		c.Meta.color = false
-		c.Meta.Color = false
+		c.color = false
+		c.Color = false
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
 			cliUi:        c.oldUi,
@@ -237,7 +237,7 @@ func (c *InitCommand) Run(args []string) int {
 		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra, enc)
 	default:
 		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
+		back, backDiags = c.backendFromState(ctx, enc.State())
 	}
 	if backendOutput {
 		header = true

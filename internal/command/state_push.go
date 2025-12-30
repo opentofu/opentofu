@@ -32,12 +32,12 @@ type StatePushCommand struct {
 
 func (c *StatePushCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	var flagForce bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state push")
+	cmdFlags := c.ignoreRemoteVersionFlagSet("state push")
 	cmdFlags.BoolVar(&flagForce, "force", false, "")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.BoolVar(&c.stateLock, "lock", true, "lock state")
+	cmdFlags.DurationVar(&c.stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
 		return 1
@@ -49,7 +49,7 @@ func (c *StatePushCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
+	if diags := c.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}

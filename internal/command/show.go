@@ -175,7 +175,7 @@ func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.variableArgs = rawFlags{items: &items}
 }
 
 type showRenderFunc func(view views.Show) int

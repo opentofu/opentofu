@@ -329,7 +329,7 @@ func TestWorkspace_delete(t *testing.T) {
 
 	// try the delete again
 	ui = new(cli.MockUi)
-	delCmd.Meta.Ui = ui
+	delCmd.Ui = ui
 	if code := delCmd.Run(args); code != 0 {
 		t.Fatalf("error deleting workspace: %s", ui.ErrorWriter)
 	}
@@ -424,7 +424,7 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	}
 
 	ui = new(cli.MockUi)
-	delCmd.Meta.Ui = ui
+	delCmd.Ui = ui
 
 	args = []string{"-force", "test"}
 	if code := delCmd.Run(args); code != 0 {

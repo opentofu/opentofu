@@ -407,8 +407,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			// executable resource instance graph nodes, so we are adding the ephemeral resources too.
 			// Even though we are writing these, the actual values of the ephemeral *must not*
 			// be written to the plan so nullify these.
-			rc.ChangeSrc.Before = nil
-			rc.ChangeSrc.After = nil
+			rc.Before = nil
+			rc.After = nil
 		}
 		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up

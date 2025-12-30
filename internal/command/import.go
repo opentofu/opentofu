@@ -41,17 +41,17 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	var configPath string
-	args = c.Meta.process(args)
+	args = c.process(args)
 
-	cmdFlags := c.Meta.extendedFlagSet("import")
+	cmdFlags := c.extendedFlagSet("import")
 	cmdFlags.BoolVar(&c.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
-	cmdFlags.IntVar(&c.Meta.parallelism, "parallelism", DefaultParallelism, "parallelism")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
-	cmdFlags.StringVar(&c.Meta.stateOutPath, "state-out", "", "path")
-	cmdFlags.StringVar(&c.Meta.backupPath, "backup", "", "path")
+	cmdFlags.IntVar(&c.parallelism, "parallelism", DefaultParallelism, "parallelism")
+	cmdFlags.StringVar(&c.statePath, "state", "", "path")
+	cmdFlags.StringVar(&c.stateOutPath, "state-out", "", "path")
+	cmdFlags.StringVar(&c.backupPath, "backup", "", "path")
 	cmdFlags.StringVar(&configPath, "config", pwd, "path")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
+	cmdFlags.BoolVar(&c.stateLock, "lock", true, "lock state")
+	cmdFlags.DurationVar(&c.stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1
@@ -285,7 +285,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Persist the final state
-	log.Printf("[INFO] Writing state output to: %s", c.Meta.StateOutPath())
+	log.Printf("[INFO] Writing state output to: %s", c.StateOutPath())
 	if err := state.WriteState(newState); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
 		return 1

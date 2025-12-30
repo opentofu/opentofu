@@ -18,8 +18,8 @@ type WorkspaceShowCommand struct {
 
 func (c *WorkspaceShowCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("workspace show")
+	args = c.process(args)
+	cmdFlags := c.extendedFlagSet("workspace show")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
