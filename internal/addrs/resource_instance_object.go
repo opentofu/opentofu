@@ -31,8 +31,8 @@ type AbsResourceInstanceObject struct {
 
 // CurrentObject returns an [AbsResourceInstanceObject] representing the current
 // object belonging to this resource instance.
-func (ri AbsResourceInstance) CurrentObject() AbsResourceInstanceObject {
-	return ri.Object(NotDeposed)
+func (r AbsResourceInstance) CurrentObject() AbsResourceInstanceObject {
+	return r.Object(NotDeposed)
 }
 
 // CurrentObject returns an [AbsResourceInstanceObject] for this resource
@@ -41,9 +41,9 @@ func (ri AbsResourceInstance) CurrentObject() AbsResourceInstanceObject {
 // It's okay to pass [NotDeposed], but if you'd be passing that as a constant
 // rather than as a calculated value then [AbsResourceInstance.CurrentObject]
 // is a clearer way to communicate that idea.
-func (ri AbsResourceInstance) Object(key DeposedKey) AbsResourceInstanceObject {
+func (r AbsResourceInstance) Object(key DeposedKey) AbsResourceInstanceObject {
 	return AbsResourceInstanceObject{
-		InstanceAddr: ri,
+		InstanceAddr: r,
 		DeposedKey:   key,
 	}
 }

@@ -531,7 +531,7 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (m *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -541,7 +541,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 	}
 
 	if config == nil {
-		config, diags = c.loadConfig(ctx, path)
+		config, diags = m.loadConfig(ctx, path)
 		if diags.HasErrors() {
 			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
 			return nil, diags
@@ -549,7 +549,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 	}
 
 	if config != nil || state != nil {
-		opts, err := c.contextOpts(ctx)
+		opts, err := m.contextOpts(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
