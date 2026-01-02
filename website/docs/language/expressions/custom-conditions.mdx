@@ -30,6 +30,10 @@ Add one or more `validation` blocks within the `variable` block to specify custo
 
 If the condition evaluates to `false`, OpenTofu produces an [error message](#error-messages) that includes the result of the `error_message` expression. If you declare multiple validations, OpenTofu returns error messages for all failed conditions.
 
+:::note
+The [logical operators](operators.mdx#logical-operators) used in condition expressions are short-circuiting. This allows you to safely check for optional values without causing errors. For example, `var.foo == null || var.foo.bar` will not error if `var.foo` is `null`.
+:::
+
 The following example checks whether the AMI ID has valid syntax.
 
 ```hcl
