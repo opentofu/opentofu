@@ -127,7 +127,6 @@ func (l *locker) Lock(s statemgr.Locker, reason string) tfdiags.Diagnostics {
 		l.lockID = id
 		return err
 	}, l.view.Locking)
-
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -150,9 +149,12 @@ func (l *locker) Unlock() tfdiags.Diagnostics {
 	}
 
 	err := slowmessage.Do(LockThreshold, func() error {
-		return l.state.Unlock(l.ctx, l.lockID)
+		// Whilst we want to propagate context here for tracing, we do NOT want to propagate
+		// cancellation, as that would risk the unlock never being attempted. (Ie, on SIGINT).
+		// For this reason, we specifically will use a non-cancelling context here to unlock the state.
+		nonCancellingContext := context.WithoutCancel(l.ctx)
+		return l.state.Unlock(nonCancellingContext, l.lockID)
 	}, l.view.Unlocking)
-
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -162,7 +164,6 @@ func (l *locker) Unlock() tfdiags.Diagnostics {
 	}
 
 	return diags
-
 }
 
 func (l *locker) Timeout() time.Duration {
