@@ -44,7 +44,7 @@ func (cred *clientSecretCredentialAuth) Construct(ctx context.Context, config *C
 	}
 
 	return azidentity.NewClientSecretCredential(
-		config.StorageAddresses.TenantID,
+		config.TenantID,
 		clientId,
 		clientSecret,
 		&azidentity.ClientSecretCredentialOptions{
@@ -55,7 +55,7 @@ func (cred *clientSecretCredentialAuth) Construct(ctx context.Context, config *C
 
 func (cred *clientSecretCredentialAuth) Validate(_ context.Context, config *Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if config.StorageAddresses.TenantID == "" {
+	if config.TenantID == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure Client Secret Auth",

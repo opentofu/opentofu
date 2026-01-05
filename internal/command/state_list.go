@@ -27,10 +27,10 @@ type StateListCommand struct {
 func (c *StateListCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
+	args = c.process(args)
 	var statePath string
-	cmdFlags := c.Meta.defaultFlagSet("state list")
-	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags := c.defaultFlagSet("state list")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&statePath, "state", "", "path")
 	lookupId := cmdFlags.String("id", "", "Restrict output to paths with a resource having the specified ID.")
 	if err := cmdFlags.Parse(args); err != nil {
@@ -40,7 +40,7 @@ func (c *StateListCommand) Run(args []string) int {
 	args = cmdFlags.Args()
 
 	if statePath != "" {
-		c.Meta.statePath = statePath
+		c.statePath = statePath
 	}
 
 	// Load the encryption configuration

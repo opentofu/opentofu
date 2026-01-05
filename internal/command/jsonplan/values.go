@@ -58,7 +58,7 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 	ret := make(map[string]Output)
 
 	for _, oc := range changes.Outputs {
-		if oc.ChangeSrc.Action == plans.Delete {
+		if oc.Action == plans.Delete {
 			continue
 		}
 

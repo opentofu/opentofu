@@ -60,7 +60,7 @@ func (b *Block) WriteOnlyPaths(val cty.Value, path cty.Path) []cty.Path {
 	// Extract paths from nested blocks
 	for name, blockS := range b.BlockTypes {
 		// If our block doesn't contain any write-only attributes, skip inspecting it
-		if !blockS.Block.ContainsWriteOnly() {
+		if !blockS.ContainsWriteOnly() {
 			continue
 		}
 
@@ -74,14 +74,14 @@ func (b *Block) WriteOnlyPaths(val cty.Value, path cty.Path) []cty.Path {
 
 		switch blockS.Nesting {
 		case NestingSingle, NestingGroup:
-			res = append(res, blockS.Block.WriteOnlyPaths(blockV, blockPath)...)
+			res = append(res, blockS.WriteOnlyPaths(blockV, blockPath)...)
 		case NestingList, NestingMap, NestingSet:
 			for it := blockV.ElementIterator(); it.Next(); {
 				idx, blockEV := it.Element()
 				// Create a copy of the path, with this block instance's index
 				// step added, to add to our paths slice
 				blockInstancePath := copyAndExtendPath(blockPath, cty.IndexStep{Key: idx})
-				morePaths := blockS.Block.WriteOnlyPaths(blockEV, blockInstancePath)
+				morePaths := blockS.WriteOnlyPaths(blockEV, blockInstancePath)
 				res = append(res, morePaths...)
 			}
 		default:

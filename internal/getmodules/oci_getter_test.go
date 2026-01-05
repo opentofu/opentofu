@@ -341,7 +341,7 @@ func (s digestResolvingInMemoryOCIStore) Push(ctx context.Context, expected ociv
 	// the "Resolve" method into handling the lookup the same way a real
 	// OCI Registry client would handle it.
 	if expected.MediaType == ociv1.MediaTypeImageManifest {
-		err = s.Store.Tag(ctx, expected, expected.Digest.String())
+		err = s.Tag(ctx, expected, expected.Digest.String())
 		if err != nil {
 			return fmt.Errorf("while creating a weird tag to fake looking up by digest: %w", err)
 		}

@@ -73,7 +73,7 @@ func (b *Block) internalValidate(prefix string) error {
 				multiErr = multierror.Append(multiErr, fmt.Errorf("%s%s: MinItems must be less than or equal to MaxItems in %s mode", prefix, name, blockS.Nesting))
 			}
 			if blockS.Nesting == NestingSet {
-				ety := blockS.Block.ImpliedType()
+				ety := blockS.ImpliedType()
 				if ety.HasDynamicTypes() {
 					// This is not permitted because the HCL (cty) set implementation
 					// needs to know the exact type of set elements in order to
@@ -90,7 +90,7 @@ func (b *Block) internalValidate(prefix string) error {
 		}
 
 		subPrefix := prefix + name + "."
-		multiErr = multierror.Append(multiErr, blockS.Block.internalValidate(subPrefix))
+		multiErr = multierror.Append(multiErr, blockS.internalValidate(subPrefix))
 	}
 
 	return multiErr.ErrorOrNil()

@@ -26,10 +26,10 @@ type UnlockCommand struct {
 
 func (c *UnlockCommand) Run(args []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
+	args = c.process(args)
 	var force bool
-	cmdFlags := c.Meta.defaultFlagSet("force-unlock")
-	c.Meta.varFlagSet(cmdFlags)
+	cmdFlags := c.defaultFlagSet("force-unlock")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&force, "force", false, "force")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {

@@ -30,9 +30,9 @@ type ConsoleCommand struct {
 func (c *ConsoleCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("console")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
+	args = c.process(args)
+	cmdFlags := c.extendedFlagSet("console")
+	cmdFlags.StringVar(&c.statePath, "state", DefaultStateFilename, "path")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -44,7 +44,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	configPath = c.Meta.normalizePath(configPath)
+	configPath = c.normalizePath(configPath)
 
 	// Check for user-supplied plugin path
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {

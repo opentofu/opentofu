@@ -124,8 +124,8 @@ func (rcs *ResourceInstanceChangeSrc) DeepCopy() *ResourceInstanceChangeSrc {
 		ret.Private = private
 	}
 
-	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
-	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.Before = ret.Before.Copy()
+	ret.After = ret.After.Copy()
 
 	return &ret
 }
@@ -181,8 +181,8 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 	}
 	ret := *ocs
 
-	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
-	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.Before = ret.Before.Copy()
+	ret.After = ret.After.Copy()
 
 	return &ret
 }

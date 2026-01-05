@@ -32,8 +32,8 @@ func (cred *azureCLICredentialAuth) Name() string {
 func (cred *azureCLICredentialAuth) Construct(_ context.Context, config *Config) (azcore.TokenCredential, error) {
 	// The SubscriptionID and TenantID can be empty, and the logic of this will still be okay
 	return azidentity.NewAzureCLICredential(&azidentity.AzureCLICredentialOptions{
-		Subscription: config.StorageAddresses.SubscriptionID,
-		TenantID:     config.StorageAddresses.TenantID,
+		Subscription: config.SubscriptionID,
+		TenantID:     config.TenantID,
 	})
 }
 
@@ -69,8 +69,8 @@ func (cred *azureCLICredentialAuth) Validate(ctx context.Context, config *Config
 }
 
 func (cred *azureCLICredentialAuth) AugmentConfig(ctx context.Context, config *Config) (err error) {
-	if config.StorageAddresses.SubscriptionID == "" {
-		config.StorageAddresses.SubscriptionID, err = getCliAzureSubscriptionID(ctx)
+	if config.SubscriptionID == "" {
+		config.SubscriptionID, err = getCliAzureSubscriptionID(ctx)
 		if err != nil {
 			return err
 		}

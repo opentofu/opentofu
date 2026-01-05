@@ -24,9 +24,9 @@ func (c *GetCommand) Run(args []string) int {
 	var update bool
 	var testsDirectory string
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("get")
-	c.Meta.varFlagSet(cmdFlags)
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("get")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
@@ -36,8 +36,8 @@ func (c *GetCommand) Run(args []string) int {
 		return 1
 	}
 	if c.outputInJSON {
-		c.Meta.color = false
-		c.Meta.Color = false
+		c.color = false
+		c.Color = false
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
 			cliUi:        c.oldUi,

@@ -29,7 +29,7 @@ func (b *Block) NoneRequired() *Block {
 
 func (b *NestedBlock) noneRequired() *NestedBlock {
 	ret := *b
-	ret.Block = *(ret.Block.NoneRequired())
+	ret.Block = *(ret.NoneRequired())
 	ret.MinItems = 0
 	ret.MaxItems = 0
 	return &ret

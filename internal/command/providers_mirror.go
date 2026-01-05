@@ -33,9 +33,9 @@ func (c *ProvidersMirrorCommand) Synopsis() string {
 }
 
 func (c *ProvidersMirrorCommand) Run(args []string) int {
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
-	c.Meta.varFlagSet(cmdFlags)
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("providers mirror")
+	c.varFlagSet(cmdFlags)
 	var optPlatforms FlagStringSlice
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -87,7 +87,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	diags = diags.Append(moreDiags)
 
 	// Read lock file
-	lockedDeps, lockedDepsDiags := c.Meta.lockedDependenciesWithPredecessorRegistryShimmed()
+	lockedDeps, lockedDepsDiags := c.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(lockedDepsDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.

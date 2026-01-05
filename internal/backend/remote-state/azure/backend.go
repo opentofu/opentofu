@@ -246,7 +246,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 	}
 
 	result := &Backend{Backend: s, encryption: enc}
-	result.Backend.ConfigureFunc = result.configure
+	result.ConfigureFunc = result.configure
 	return result
 }
 

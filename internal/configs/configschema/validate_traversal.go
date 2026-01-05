@@ -142,7 +142,7 @@ func (b *Block) StaticValidateTraversal(traversal hcl.Traversal) tfdiags.Diagnos
 func (b *NestedBlock) staticValidateTraversal(typeName string, traversal hcl.Traversal) tfdiags.Diagnostics {
 	if b.Nesting == NestingSingle || b.Nesting == NestingGroup {
 		// Single blocks are easy: just pass right through.
-		return b.Block.StaticValidateTraversal(traversal)
+		return b.StaticValidateTraversal(traversal)
 	}
 
 	if len(traversal) == 0 {
@@ -169,7 +169,7 @@ func (b *NestedBlock) staticValidateTraversal(typeName string, traversal hcl.Tra
 
 	case NestingList:
 		if _, ok := next.(hcl.TraverseIndex); ok {
-			moreDiags := b.Block.StaticValidateTraversal(after)
+			moreDiags := b.StaticValidateTraversal(after)
 			diags = diags.Append(moreDiags)
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -185,7 +185,7 @@ func (b *NestedBlock) staticValidateTraversal(typeName string, traversal hcl.Tra
 		// Both attribute and index steps are valid for maps, so we'll just
 		// pass through here and let normal evaluation catch an
 		// incorrectly-typed index key later, if present.
-		moreDiags := b.Block.StaticValidateTraversal(after)
+		moreDiags := b.StaticValidateTraversal(after)
 		diags = diags.Append(moreDiags)
 		return diags
 

@@ -9,9 +9,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 	"os"
 	"strconv"
+
+	"github.com/lib/pq"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -84,7 +85,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 	}
 
 	result := &Backend{Backend: s, encryption: enc}
-	result.Backend.ConfigureFunc = result.configure
+	result.ConfigureFunc = result.configure
 	return result
 }
 

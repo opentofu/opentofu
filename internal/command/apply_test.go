@@ -2208,10 +2208,10 @@ func TestApply_pluginPath(t *testing.T) {
 
 	pluginPath := []string{"a", "b", "c"}
 
-	if err := c.Meta.storePluginPath(pluginPath); err != nil {
+	if err := c.storePluginPath(pluginPath); err != nil {
 		t.Fatal(err)
 	}
-	c.Meta.pluginPath = nil
+	c.pluginPath = nil
 
 	args := []string{
 		"-state", statePath,
@@ -2223,8 +2223,8 @@ func TestApply_pluginPath(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	if !reflect.DeepEqual(pluginPath, c.Meta.pluginPath) {
-		t.Fatalf("expected plugin path %#v, got %#v", pluginPath, c.Meta.pluginPath)
+	if !reflect.DeepEqual(pluginPath, c.pluginPath) {
+		t.Fatalf("expected plugin path %#v, got %#v", pluginPath, c.pluginPath)
 	}
 }
 

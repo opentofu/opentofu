@@ -88,7 +88,7 @@ func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.variableArgs = rawFlags{items: &items}
 }
 
 func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {

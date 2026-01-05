@@ -53,8 +53,8 @@ type LoginCommand struct {
 func (c *LoginCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("login")
+	args = c.process(args)
+	cmdFlags := c.extendedFlagSet("login")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1

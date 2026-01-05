@@ -243,7 +243,7 @@ func (c *remoteClient) putObject(ctx context.Context, cosFile string, data []byt
 	}
 
 	if c.encrypt {
-		opt.ObjectPutHeaderOptions.XCosServerSideEncryption = "AES256"
+		opt.XCosServerSideEncryption = "AES256"
 	}
 
 	r := bytes.NewReader(data)

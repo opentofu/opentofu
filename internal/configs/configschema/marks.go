@@ -71,7 +71,7 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
 	// Extract marks for nested blocks
 	for name, blockS := range b.BlockTypes {
 		// If our block doesn't contain any sensitive attributes, skip inspecting it
-		if !blockS.Block.ContainsSensitive() {
+		if !blockS.ContainsSensitive() {
 			continue
 		}
 
@@ -85,14 +85,14 @@ func (b *Block) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
 
 		switch blockS.Nesting {
 		case NestingSingle, NestingGroup:
-			pvm = append(pvm, blockS.Block.ValueMarks(blockV, blockPath)...)
+			pvm = append(pvm, blockS.ValueMarks(blockV, blockPath)...)
 		case NestingList, NestingMap, NestingSet:
 			for it := blockV.ElementIterator(); it.Next(); {
 				idx, blockEV := it.Element()
 				// Create a copy of the path, with this block instance's index
 				// step added, to add to our PathValueMarks slice
 				blockInstancePath := copyAndExtendPath(blockPath, cty.IndexStep{Key: idx})
-				morePaths := blockS.Block.ValueMarks(blockEV, blockInstancePath)
+				morePaths := blockS.ValueMarks(blockEV, blockInstancePath)
 				pvm = append(pvm, morePaths...)
 			}
 		default:

@@ -325,7 +325,7 @@ func (s *State) uploadState(ctx context.Context, lineage string, serial uint64, 
 	// so the state will be properly associated with the run.
 	runID := os.Getenv("TFE_RUN_ID")
 	if runID != "" {
-		options.StateVersionCreateOptions.Run = &tfe.Run{ID: runID}
+		options.Run = &tfe.Run{ID: runID}
 	}
 
 	// The server is allowed to dynamically request a different time interval

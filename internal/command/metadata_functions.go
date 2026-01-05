@@ -37,8 +37,8 @@ func (c *MetadataFunctionsCommand) Synopsis() string {
 }
 
 func (c *MetadataFunctionsCommand) Run(args []string) int {
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("metadata functions")
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("metadata functions")
 	var jsonOutput bool
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "produce JSON output")
 

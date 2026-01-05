@@ -354,7 +354,7 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	// for any change.
 	if len(ref.Remaining) == 0 {
 		for _, c := range changes {
-			switch c.ChangeSrc.Action {
+			switch c.Action {
 			// Only immediate changes to the resource will trigger replacement.
 			case plans.Update, plans.DeleteThenCreate, plans.CreateThenDelete:
 				return ref, true, diags
@@ -371,7 +371,7 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 
 	// Make sure the change is actionable. A create or delete action will have
 	// a change in value, but are not valid for our purposes here.
-	switch change.ChangeSrc.Action {
+	switch change.Action {
 	case plans.Update, plans.DeleteThenCreate, plans.CreateThenDelete:
 		// OK
 	default:
@@ -391,13 +391,13 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	resSchema, _ := schema.SchemaForResourceType(resAddr.Mode, resAddr.Type)
 	ty := resSchema.ImpliedType()
 
-	before, err := change.ChangeSrc.Before.Decode(ty)
+	before, err := change.Before.Decode(ty)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, false, diags
 	}
 
-	after, err := change.ChangeSrc.After.Decode(ty)
+	after, err := change.After.Decode(ty)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, false, diags

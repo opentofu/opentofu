@@ -26,8 +26,8 @@ type LogoutCommand struct {
 func (c *LogoutCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("logout")
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("logout")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		return 1

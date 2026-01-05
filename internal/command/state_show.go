@@ -34,10 +34,10 @@ type StateShowCommand struct {
 func (c *StateShowCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("state show")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("state show")
+	c.varFlagSet(cmdFlags)
+	cmdFlags.StringVar(&c.statePath, "state", "", "path")
 
 	showSensitive := false
 	cmdFlags.BoolVar(&showSensitive, "show-sensitive", false, "displays sensitive values")

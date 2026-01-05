@@ -74,7 +74,7 @@ func (i *ImportTarget) IsFromImportCommandLine() bool {
 // This is useful so that we could have information on the ImportTarget early on, such as the Module and Resource of it
 func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 	if i.IsFromImportCommandLine() {
-		return i.CommandLineImportTarget.Addr.ConfigResource()
+		return i.Addr.ConfigResource()
 	}
 
 	return i.Config.StaticTo
@@ -87,7 +87,7 @@ func (i *ImportTarget) StaticAddr() addrs.ConfigResource {
 // and could only be evaluated down the line.
 func (i *ImportTarget) ResolvedAddr() *addrs.AbsResourceInstance {
 	if i.IsFromImportCommandLine() {
-		return &i.CommandLineImportTarget.Addr
+		return &i.Addr
 	} else {
 		return i.Config.ResolvedTo
 	}
@@ -285,14 +285,14 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 func (ri *ImportResolver) addCLIImportTarget(importTarget *ImportTarget) {
 	ri.mu.Lock()
 	defer ri.mu.Unlock()
-	importAddress := importTarget.CommandLineImportTarget.Addr
+	importAddress := importTarget.Addr
 	ri.imports[importAddress.String()] = EvaluatedConfigImportTarget{
 		// Since this import target originates from the CLI, and we have no config block for it
 		// setting nil value to Config here to reuse Context.postExpansionImportValidation,
 		// and there should be no possible paths to dereference this with a nil value during the import command
 		Config: nil,
 		Addr:   importAddress,
-		ID:     importTarget.CommandLineImportTarget.ID,
+		ID:     importTarget.ID,
 	}
 }
 

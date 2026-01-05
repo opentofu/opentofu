@@ -56,8 +56,8 @@ func (c *FmtCommand) Run(args []string) int {
 		c.input = os.Stdin
 	}
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("fmt")
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("fmt")
 	cmdFlags.BoolVar(&c.list, "list", true, "list")
 	cmdFlags.BoolVar(&c.write, "write", true, "write")
 	cmdFlags.BoolVar(&c.diff, "diff", false, "diff")

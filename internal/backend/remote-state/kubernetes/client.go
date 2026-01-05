@@ -387,7 +387,7 @@ func getSecretData(secret *unstructured.Unstructured) map[string]interface{} {
 }
 
 func getLockInfo(lease *coordinationv1.Lease) ([]byte, bool) {
-	info, ok := lease.ObjectMeta.GetAnnotations()[tfstateLockInfoAnnotation]
+	info, ok := lease.GetAnnotations()[tfstateLockInfoAnnotation]
 	if !ok {
 		return nil, false
 	}
@@ -395,7 +395,7 @@ func getLockInfo(lease *coordinationv1.Lease) ([]byte, bool) {
 }
 
 func setLockInfo(lease *coordinationv1.Lease, l []byte) {
-	annotations := lease.ObjectMeta.GetAnnotations()
+	annotations := lease.GetAnnotations()
 	if annotations != nil {
 		annotations[tfstateLockInfoAnnotation] = string(l)
 	} else {
@@ -403,13 +403,13 @@ func setLockInfo(lease *coordinationv1.Lease, l []byte) {
 			tfstateLockInfoAnnotation: string(l),
 		}
 	}
-	lease.ObjectMeta.SetAnnotations(annotations)
+	lease.SetAnnotations(annotations)
 }
 
 func removeLockInfo(lease *coordinationv1.Lease) {
-	annotations := lease.ObjectMeta.GetAnnotations()
+	annotations := lease.GetAnnotations()
 	delete(annotations, tfstateLockInfoAnnotation)
-	lease.ObjectMeta.SetAnnotations(annotations)
+	lease.SetAnnotations(annotations)
 }
 
 func setState(secret *unstructured.Unstructured, t []byte) {

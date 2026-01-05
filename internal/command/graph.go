@@ -35,9 +35,9 @@ func (c *GraphCommand) Run(args []string) int {
 
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("graph")
-	c.Meta.varFlagSet(cmdFlags)
+	args = c.process(args)
+	cmdFlags := c.defaultFlagSet("graph")
+	c.varFlagSet(cmdFlags)
 	cmdFlags.BoolVar(&drawCycles, "draw-cycles", false, "draw-cycles")
 	cmdFlags.StringVar(&graphTypeStr, "type", "", "type")
 	cmdFlags.IntVar(&moduleDepth, "module-depth", -1, "module-depth")

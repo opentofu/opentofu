@@ -33,8 +33,8 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Propagate -no-color for legacy use of Ui.  The remote backend and
 	// cloud package use this; it should be removed when/if they are
 	// migrated to views.
-	c.Meta.color = !common.NoColor
-	c.Meta.Color = c.Meta.color
+	c.color = !common.NoColor
+	c.Color = c.color
 
 	// Parse and validate flags
 	args, diags := arguments.ParsePlan(rawArgs)
@@ -62,7 +62,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.InputEnabled
+	c.input = args.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
@@ -70,7 +70,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// set a largely unused field on the Operation request. Again, there is no
 	// clear path to pass this value down, so we continue to mutate the Meta
 	// object state for now.
-	c.Meta.parallelism = args.Operation.Parallelism
+	c.parallelism = args.Operation.Parallelism
 
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
@@ -129,7 +129,7 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
 	// difficult but would make their use easier to understand.
-	c.Meta.applyStateArguments(args)
+	c.applyStateArguments(args)
 
 	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {
@@ -199,7 +199,7 @@ func (c *PlanCommand) GatherVariables(args *arguments.Vars) {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.variableArgs = rawFlags{items: &items}
 }
 
 func (c *PlanCommand) Help() string {
