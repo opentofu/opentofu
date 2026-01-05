@@ -69,6 +69,30 @@ createdb tofu_backend
 
 This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
 
+### Using `nonsensitive()` with Sensitive Variables (Not Recommended)
+
+:::danger Warning
+This approach will save your credentials in **cleartext** to the `.terraform/terraform.tfstate` file on disk. Only use this if you understand the security implications and have no other option.
+:::
+
+If you must use a sensitive variable in the backend configuration, you can use the `nonsensitive()` function to explicitly acknowledge that the value will be written to disk:
+
+```hcl
+variable "tofu_backend_connection_string" {
+  sensitive = true
+}
+
+terraform {
+  backend "pg" {
+    # WARNING: This will write the sensitive value to disk in cleartext
+    # in the .terraform directory. Environment variables are strongly preferred.
+    conn_str = nonsensitive(var.tofu_backend_connection_string)
+  }
+}
+```
+
+**We strongly recommend using environment variables instead** as shown in the examples above. The `nonsensitive()` function should only be used when you have a specific requirement that cannot be met with environment variables, and you accept the security trade-off of storing credentials on disk.
+
 ## Data Source Configuration
 
 To make use of the pg remote state in another configuration, use the [`terraform_remote_state` data source](../../../language/state/remote-state-data.mdx).
