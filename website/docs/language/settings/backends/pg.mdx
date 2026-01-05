@@ -17,27 +17,12 @@ are sharing the same underlying database.
 
 ## Example Configuration
 
-```hcl
-terraform {
-  backend "pg" {
-    conn_str = "postgres://user:pass@db.example.com/tofu_backend"
-  }
-}
-```
-
-Before initializing the backend with `tofu init`, the database must already exist:
-
-```
-createdb tofu_backend
-```
-
-This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
-
-
-### Using environment variables
+:::danger Important
+OpenTofu prevents using sensitive values (including variables marked as `sensitive = true`) directly in backend configuration. You must use environment variables to supply credentials. Hardcoding credentials or using sensitive variables in the backend block will result in an error.
+:::
 
 We recommend using environment variables to configure the `pg` backend in order
-not to have sensitive credentials written to  disk and committed to source
+not to have sensitive credentials written to disk and committed to source
 control.
 
 The `pg` backend supports the standard [`libpq` environment variables](https://www.postgresql.org/docs/current/libpq-envars.html).
@@ -56,22 +41,33 @@ $ export PG_CONN_STR=postgres://user:pass@db.example.com/tofu_backend
 $ tofu init
 ```
 
-or just the sensitive parameters:
+or by using individual `libpq` environment variables for sensitive parameters:
 
 ```hcl
 terraform {
   backend "pg" {
-    conn_str = "postgres://db.example.com/tofu_backend"
+    schema_name = "terraform_remote_state"
+    table_name  = "states"
   }
 }
 ```
 
 ```shellsession
+$ export PGHOST=db.example.com
+$ export PGDATABASE=tofu_backend
 $ export PGUSER=user
 $ read -s PGPASSWORD
 $ export PGPASSWORD
 $ tofu init
 ```
+
+Before initializing the backend with `tofu init`, the database must already exist:
+
+```
+createdb tofu_backend
+```
+
+This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
 
 ## Data Source Configuration
 
@@ -89,12 +85,12 @@ data "terraform_remote_state" "network" {
 ## Configuration Variables
 
 :::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Additionally, OpenTofu will error if you attempt to use sensitive variables (marked with `sensitive = true`) in backend configuration. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
 
-- `conn_str` - Postgres connection string; a `postgres://` URL. The `PG_CONN_STR` and [standard `libpq`](https://www.postgresql.org/docs/current/libpq-envars.html) environment variables can also be used to indicate how to connect to the PostgreSQL database.
+- `conn_str` - Postgres connection string; a `postgres://` URL. The `PG_CONN_STR` and [standard `libpq`](https://www.postgresql.org/docs/current/libpq-envars.html) environment variables can also be used to indicate how to connect to the PostgreSQL database. **Note:** Do not hardcode credentials in this value or use sensitive variables. Use environment variables instead.
 - `schema_name` - Name of the automatically-managed Postgres schema, default to `terraform_remote_state`. Can also be set using the `PG_SCHEMA_NAME` environment variable.
 - `skip_schema_creation` - If set to `true`, the Postgres schema must already exist. Can also be set using the `PG_SKIP_SCHEMA_CREATION` environment variable. OpenTofu won't try to create the schema, this is useful when it has already been created by a database administrator.
 - `table_name` - Name of the automatically-managed Postgres table, default to `states`. Can also be set using the `PG_TABLE_NAME` environment variable.
