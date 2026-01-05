@@ -332,20 +332,20 @@ type MockProvider struct {
 }
 
 // moduleUniqueKey is copied from Provider.moduleUniqueKey
-func (p *MockProvider) moduleUniqueKey() string {
-	if p.Alias != "" {
-		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
+func (mp *MockProvider) moduleUniqueKey() string {
+	if mp.Alias != "" {
+		return fmt.Sprintf("%s.%s", mp.Name, mp.Alias)
 	}
-	return p.Name
+	return mp.Name
 }
 
-func (p *MockProvider) validateMockResources() hcl.Diagnostics {
+func (mp *MockProvider) validateMockResources() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	managedResources := make(map[string]struct{})
 	dataResources := make(map[string]struct{})
 
-	for _, res := range p.MockResources {
+	for _, res := range mp.MockResources {
 		resources := managedResources
 		if res.Mode == addrs.DataResourceMode {
 			resources = dataResources
@@ -356,7 +356,7 @@ func (p *MockProvider) validateMockResources() hcl.Diagnostics {
 				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
 				Detail:   fmt.Sprintf("`%v.%v` is already defined in `mock_provider` block.", res.getBlockName(), res.Type),
-				Subject:  p.DeclRange.Ptr(),
+				Subject:  mp.DeclRange.Ptr(),
 			})
 			continue
 		}
@@ -367,12 +367,12 @@ func (p *MockProvider) validateMockResources() hcl.Diagnostics {
 	return diags
 }
 
-func (p *MockProvider) validateOverrideResources() hcl.Diagnostics {
+func (mp *MockProvider) validateOverrideResources() hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	resources := make(map[string]struct{})
 
-	for _, res := range p.OverrideResources {
+	for _, res := range mp.OverrideResources {
 		k := res.TargetParsed.String()
 
 		if _, ok := resources[k]; ok {
@@ -380,7 +380,7 @@ func (p *MockProvider) validateOverrideResources() hcl.Diagnostics {
 				Severity: hcl.DiagError,
 				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
 				Detail:   fmt.Sprintf("`%v` with target `%v` is already defined in `mock_provider` block.", res.getBlockName(), k),
-				Subject:  p.DeclRange.Ptr(),
+				Subject:  mp.DeclRange.Ptr(),
 			})
 			continue
 		}

@@ -378,7 +378,7 @@ func (r AbsResourceInstance) CheckRule(t CheckRuleType, i int) CheckRule {
 	}
 }
 
-func (v AbsResourceInstance) CheckableKind() CheckableKind {
+func (r AbsResourceInstance) CheckableKind() CheckableKind {
 	return CheckableResource
 }
 
@@ -514,7 +514,7 @@ func (r ConfigResource) configCheckableSigil() {
 	// ConfigResource represents a configuration object that declares checkable objects
 }
 
-func (v ConfigResource) CheckableKind() CheckableKind {
+func (r ConfigResource) CheckableKind() CheckableKind {
 	return CheckableResource
 }
 

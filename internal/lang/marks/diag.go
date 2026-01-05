@@ -23,8 +23,8 @@ type diagnosticExtraDeprecationCause interface {
 }
 
 // diagnosticDeprecationCause implements diagnosticExtraDeprecationCause
-func (c DeprecationCause) diagnosticDeprecationCause() DeprecationCause {
-	return c
+func (dc DeprecationCause) diagnosticDeprecationCause() DeprecationCause {
+	return dc
 }
 
 // deprecatedOutputDiagnosticExtra is a container for the DeprecationCause used to decide later if the diagnostic

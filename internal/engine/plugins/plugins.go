@@ -245,23 +245,23 @@ func (n *newRuntimePlugins) ValidateResourceConfig(ctx context.Context, provider
 	return diags
 }
 
-func (m *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provider addrs.Provider) (providers.Unconfigured, tfdiags.Diagnostics) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (n *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provider addrs.Provider) (providers.Unconfigured, tfdiags.Diagnostics) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 
-	if running, ok := m.unconfiguredInsts[provider]; ok {
+	if running, ok := n.unconfiguredInsts[provider]; ok {
 		return running, nil
 	}
 
-	inst, diags := m.newProviderInst(ctx, provider)
+	inst, diags := n.newProviderInst(ctx, provider)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	if m.unconfiguredInsts == nil {
-		m.unconfiguredInsts = make(map[addrs.Provider]providers.Unconfigured)
+	if n.unconfiguredInsts == nil {
+		n.unconfiguredInsts = make(map[addrs.Provider]providers.Unconfigured)
 	}
-	m.unconfiguredInsts[provider] = inst
+	n.unconfiguredInsts[provider] = inst
 	return inst, diags
 }
 
@@ -277,9 +277,9 @@ func (m *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provid
 // operations like fetching schema, use
 // [newRuntimePlugins.unconfiguredProviderInst] instead to potentially reuse
 // an already-active instance of the same provider.
-func (m *newRuntimePlugins) newProviderInst(_ context.Context, provider addrs.Provider) (providers.Interface, tfdiags.Diagnostics) {
+func (n *newRuntimePlugins) newProviderInst(_ context.Context, provider addrs.Provider) (providers.Interface, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	factory, ok := m.providers[provider]
+	factory, ok := n.providers[provider]
 	if !ok {
 		// FIXME: If this error remains reachable in the final version of this
 		// code (i.e. if some caller isn't already guaranteeing that all
