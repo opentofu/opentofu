@@ -15,10 +15,10 @@ use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if tho
 are sharing the same underlying database.
 :::
 
-## Example Configuration
+## Using Environment Variables (Recommended)
 
-:::danger Important
-OpenTofu prevents using sensitive values (including variables marked as `sensitive = true`) directly in backend configuration. You must use environment variables to supply credentials. Hardcoding credentials or using sensitive variables in the backend block will result in an error.
+:::danger
+**Important:** OpenTofu prevents using sensitive values (including variables marked as `sensitive = true`) directly in backend configuration. You must use environment variables to supply credentials. Hardcoding credentials or using sensitive variables in the backend block will result in an error.
 :::
 
 We recommend using environment variables to configure the `pg` backend in order
@@ -27,21 +27,9 @@ control.
 
 The `pg` backend supports the standard [`libpq` environment variables](https://www.postgresql.org/docs/current/libpq-envars.html).
 
-The backend can be configured either by giving the whole configuration as an
-environment variable:
+### Using individual `libpq` environment variables
 
-```hcl
-terraform {
-  backend "pg" {}
-}
-```
-
-```shellsession
-$ export PG_CONN_STR=postgres://user:pass@db.example.com/tofu_backend
-$ tofu init
-```
-
-or by using individual `libpq` environment variables for sensitive parameters:
+In this approach, connection details (host, database, user, password) come from `libpq` environment variables, while the backend block only sets non-secret options like schema and table names:
 
 ```hcl
 terraform {
@@ -61,6 +49,26 @@ $ export PGPASSWORD
 $ tofu init
 ```
 
+### Using `PG_CONN_STR` environment variable
+
+Alternatively, you can provide the entire connection string (without password) as an environment variable:
+
+```hcl
+terraform {
+  backend "pg" {}
+}
+```
+
+```shellsession
+$ export PG_CONN_STR=postgres://db.example.com/tofu_backend
+$ export PGUSER=user
+$ read -s PGPASSWORD
+$ export PGPASSWORD
+$ tofu init
+```
+
+## Example Configuration
+
 Before initializing the backend with `tofu init`, the database must already exist:
 
 ```
@@ -69,16 +77,27 @@ createdb tofu_backend
 
 This `createdb` command is found in [Postgres client applications](https://www.postgresql.org/docs/10/reference-client.html) which are installed along with the database server.
 
-### Using `nonsensitive()` with Sensitive Variables (Not Recommended)
+A minimal backend configuration:
 
-:::danger Warning
-This approach will save your credentials in **cleartext** to the `.terraform/terraform.tfstate` file on disk. Only use this if you understand the security implications and have no other option.
+```hcl
+terraform {
+  backend "pg" {}
+}
+```
+
+Then supply credentials via environment variables as shown above.
+
+## Using Input Variables with `nonsensitive()` (Not Recommended)
+
+:::danger
+**Warning:** This approach will write your credentials in cleartext under the `.terraform/` directory and may also be included in plan files. Only use this if you understand the security implications and have no other option.
 :::
 
 If you must use a sensitive variable in the backend configuration, you can use the `nonsensitive()` function to explicitly acknowledge that the value will be written to disk:
 
 ```hcl
 variable "tofu_backend_connection_string" {
+  type      = string
   sensitive = true
 }
 
@@ -108,8 +127,8 @@ data "terraform_remote_state" "network" {
 
 ## Configuration Variables
 
-:::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Additionally, OpenTofu will error if you attempt to use sensitive variables (marked with `sensitive = true`) in backend configuration. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+:::danger
+**Warning:** We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Additionally, OpenTofu will error if you attempt to use sensitive variables (marked with `sensitive = true`) in backend configuration. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
 :::
 
 The following configuration options or environment variables are supported:
