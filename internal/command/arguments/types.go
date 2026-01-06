@@ -65,8 +65,9 @@ func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
 	cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "", "json-into")
 }
 
-func (v *ViewOptions) Parse() tfdiags.Diagnostics {
+func (v *ViewOptions) Parse() (func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+	closer := func() error { return nil }
 
 	if v.jsonIntoFlag != "" {
 		var err error
@@ -77,6 +78,8 @@ func (v *ViewOptions) Parse() tfdiags.Diagnostics {
 				"Invalid argument",
 				fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", v.jsonIntoFlag, err.Error()),
 			))
+		} else {
+			closer = v.JSONInto.Close
 		}
 	}
 
@@ -94,5 +97,5 @@ func (v *ViewOptions) Parse() tfdiags.Diagnostics {
 			))
 		}
 	}
-	return diags
+	return closer, diags
 }

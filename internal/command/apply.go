@@ -44,12 +44,14 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Parse and validate flags
 	var args *arguments.Apply
+	var closer func() error
 	switch {
 	case c.Destroy:
-		args, diags = arguments.ParseApplyDestroy(rawArgs)
+		args, closer, diags = arguments.ParseApplyDestroy(rawArgs)
 	default:
-		args, diags = arguments.ParseApply(rawArgs)
+		args, closer, diags = arguments.ParseApply(rawArgs)
 	}
+	defer closer()
 
 	c.View.SetShowSensitive(args.ShowSensitive)
 

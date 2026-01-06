@@ -34,7 +34,7 @@ type Test struct {
 	Verbose bool
 }
 
-func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
+func ParseTest(args []string) (*Test, func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	test := Test{
@@ -55,7 +55,8 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 			err.Error()))
 	}
 
-	diags = diags.Append(test.ViewOptions.Parse())
+	closer, moreDiags := test.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	return &test, diags
+	return &test, closer, diags
 }

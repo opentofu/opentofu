@@ -101,7 +101,7 @@ func TestParseApply_basicValid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -133,7 +133,7 @@ func TestParseApply_json(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 
 			if tc.wantSuccess {
 				if len(diags) > 0 {
@@ -153,7 +153,7 @@ func TestParseApply_json(t *testing.T) {
 }
 
 func TestParseApply_invalid(t *testing.T) {
-	got, diags := ParseApply([]string{"-frob"})
+	got, _, diags := ParseApply([]string{"-frob"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
@@ -166,7 +166,7 @@ func TestParseApply_invalid(t *testing.T) {
 }
 
 func TestParseApply_tooManyArguments(t *testing.T) {
-	got, diags := ParseApply([]string{"saved.tfplan", "please"})
+	got, _, diags := ParseApply([]string{"saved.tfplan", "please"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
@@ -212,7 +212,7 @@ func TestParseApply_targets(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -424,7 +424,7 @@ func TestParseApply_targetFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParseApply(targetFileArguments)
+			got, _, gotDiags := ParseApply(targetFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -480,7 +480,7 @@ func TestParseApply_excludes(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -602,7 +602,7 @@ func TestParseApply_excludeFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParseApply(excludeFileArguments)
+			got, _, gotDiags := ParseApply(excludeFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -625,7 +625,7 @@ func TestParseApply_excludeFile(t *testing.T) {
 }
 
 func TestParseApply_excludeAndTarget(t *testing.T) {
-	got, gotDiags := ParseApply([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
+	got, _, gotDiags := ParseApply([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
 	if len(gotDiags) == 0 {
 		t.Fatalf("expected error, but there was none")
 	}
@@ -692,7 +692,7 @@ func TestParseApply_replace(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -746,7 +746,7 @@ func TestParseApply_vars(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApply(tc.args)
+			got, _, diags := ParseApply(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -805,7 +805,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseApplyDestroy(tc.args)
+			got, _, diags := ParseApplyDestroy(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -818,7 +818,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 
 func TestParseApplyDestroy_invalid(t *testing.T) {
 	t.Run("explicit destroy mode", func(t *testing.T) {
-		got, diags := ParseApplyDestroy([]string{"-destroy"})
+		got, _, diags := ParseApplyDestroy([]string{"-destroy"})
 		if len(diags) == 0 {
 			t.Fatal("expected diags but got none")
 		}

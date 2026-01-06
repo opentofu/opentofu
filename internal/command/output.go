@@ -30,7 +30,8 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	// Parse and validate flags
-	args, diags := arguments.ParseOutput(rawArgs)
+	args, closer, diags := arguments.ParseOutput(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("output")

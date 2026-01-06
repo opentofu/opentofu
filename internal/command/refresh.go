@@ -38,7 +38,8 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	c.Meta.Color = c.Meta.color
 
 	// Parse and validate flags
-	args, diags := arguments.ParseRefresh(rawArgs)
+	args, closer, diags := arguments.ParseRefresh(rawArgs)
+	defer closer()
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view

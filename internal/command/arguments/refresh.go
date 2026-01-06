@@ -23,7 +23,7 @@ type Refresh struct {
 // ParseRefresh processes CLI arguments, returning a Refresh value and errors.
 // If errors are encountered, a Refresh value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
+func ParseRefresh(args []string) (*Refresh, func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	refresh := &Refresh{
 		State:     &State{},
@@ -52,7 +52,8 @@ func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(refresh.Operation.Parse())
-	diags = diags.Append(refresh.ViewOptions.Parse())
+	closer, moreDiags := refresh.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	return refresh, diags
+	return refresh, closer, diags
 }

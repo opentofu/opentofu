@@ -37,7 +37,8 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	c.Meta.Color = c.Meta.color
 
 	// Parse and validate flags
-	args, diags := arguments.ParsePlan(rawArgs)
+	args, closer, diags := arguments.ParsePlan(rawArgs)
+	defer closer()
 
 	c.View.SetShowSensitive(args.ShowSensitive)
 

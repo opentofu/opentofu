@@ -51,7 +51,7 @@ func TestParseRefresh_basicValid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -68,7 +68,7 @@ func TestParseRefresh_basicValid(t *testing.T) {
 }
 
 func TestParseRefresh_invalid(t *testing.T) {
-	got, diags := ParseRefresh([]string{"-frob"})
+	got, _, diags := ParseRefresh([]string{"-frob"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
@@ -81,7 +81,7 @@ func TestParseRefresh_invalid(t *testing.T) {
 }
 
 func TestParseRefresh_tooManyArguments(t *testing.T) {
-	got, diags := ParseRefresh([]string{"saved.tfplan"})
+	got, _, diags := ParseRefresh([]string{"saved.tfplan"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
@@ -127,7 +127,7 @@ func TestParseRefresh_targets(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -340,7 +340,7 @@ func TestParseRefresh_targetFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParseRefresh(targetFileArguments)
+			got, _, gotDiags := ParseRefresh(targetFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -396,7 +396,7 @@ func TestParseRefresh_excludes(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -414,7 +414,7 @@ func TestParseRefresh_excludes(t *testing.T) {
 }
 
 func TestParseRefresh_excludeAndTarget(t *testing.T) {
-	got, gotDiags := ParseRefresh([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
+	got, _, gotDiags := ParseRefresh([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
 	if len(gotDiags) == 0 {
 		t.Fatalf("expected error, but there was none")
 	}
@@ -474,7 +474,7 @@ func TestParseRefresh_vars(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}

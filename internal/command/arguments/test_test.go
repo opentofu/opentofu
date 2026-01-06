@@ -53,7 +53,7 @@ func TestParseTest_Vars(t *testing.T) {
 
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseTest(tc.args)
+			got, _, diags := ParseTest(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -145,7 +145,7 @@ func TestParseTest(t *testing.T) {
 
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseTest(tc.args)
+			got, _, diags := ParseTest(tc.args)
 
 			if diff := cmp.Diff(tc.want, got, cmpOpts); len(diff) > 0 {
 				t.Errorf("diff:\n%s", diff)

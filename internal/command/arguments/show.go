@@ -66,7 +66,7 @@ const (
 // ParseShow processes CLI arguments, returning a Show value and errors.
 // If errors are encountered, a Show value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
+func ParseShow(args []string) (*Show, func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	show := &Show{
 		Vars: &Vars{},
@@ -93,7 +93,8 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		))
 	}
 
-	diags = diags.Append(show.ViewOptions.Parse())
+	closer, moreDiags := show.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
 	// If -config or -module=... is selected, -json is required
 	if configTarget && !show.ViewOptions.jsonFlag {
@@ -102,7 +103,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 			"JSON output required for configuration",
 			"The -config option requires -json to be specified.",
 		))
-		return show, diags
+		return show, closer, diags
 	}
 	if moduleTarget != "" && !show.ViewOptions.jsonFlag {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -110,7 +111,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 			"JSON output required for module",
 			"The -module=DIR option requires -json to be specified.",
 		))
-		return show, diags
+		return show, closer, diags
 	}
 
 	if planTarget == "" && moduleTarget == "" && !stateTarget && !configTarget {
@@ -136,7 +137,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 				"Expected at most one positional argument for the legacy positional argument mode.",
 			))
 		}
-		return show, diags
+		return show, closer, diags
 	}
 
 	// The following handles the modern mode where the target type is
@@ -147,7 +148,7 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 			"Unexpected command line arguments",
 			"This command does not expect any positional arguments when using a target-selection option.",
 		))
-		return show, diags
+		return show, closer, diags
 	}
 	targetTypes := 0
 	if stateTarget {
@@ -177,5 +178,5 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 			"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
 		))
 	}
-	return show, diags
+	return show, closer, diags
 }

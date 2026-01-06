@@ -33,8 +33,9 @@ type Validate struct {
 // ParseValidate processes CLI arguments, returning a Validate value and errors.
 // If errors are encountered, a Validate value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
+func ParseValidate(args []string) (*Validate, func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
 	validate := &Validate{
 		Path: ".",
 		Vars: &Vars{},
@@ -67,7 +68,8 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 		validate.Path = args[0]
 	}
 
-	diags = diags.Append(validate.ViewOptions.Parse())
+	closer, moreDiags := validate.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	return validate, diags
+	return validate, closer, diags
 }

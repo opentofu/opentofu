@@ -31,7 +31,7 @@ type Output struct {
 // ParseOutput processes CLI arguments, returning an Output value and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
+func ParseOutput(args []string) (*Output, func() error, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	output := &Output{
 		Vars: &Vars{},
@@ -63,7 +63,8 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 		))
 	}
 
-	diags = diags.Append(output.ViewOptions.Parse())
+	closer, moreDiags := output.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 	if rawOutput {
 		output.ViewOptions.ViewType = ViewRaw
 		if output.ViewOptions.jsonFlag {
@@ -93,5 +94,5 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 		))
 	}
 
-	return output, diags
+	return output, closer, diags
 }

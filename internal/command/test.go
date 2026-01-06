@@ -124,7 +124,8 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
 
-	args, diags := arguments.ParseTest(rawArgs)
+	args, closer, diags := arguments.ParseTest(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("test")

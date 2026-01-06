@@ -32,7 +32,8 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	// Parse and validate flags
-	args, diags := arguments.ParseValidate(rawArgs)
+	args, closer, diags := arguments.ParseValidate(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("validate")

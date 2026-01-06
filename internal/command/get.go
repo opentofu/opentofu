@@ -60,6 +60,8 @@ func (c *GetCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", c.outputJSONInto, err.Error()))
 			return 1
 		}
+		defer out.Close()
+
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
 			cliUi:            c.oldUi,

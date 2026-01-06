@@ -64,7 +64,7 @@ func TestParseValidate_valid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseValidate(tc.args)
+			got, _, diags := ParseValidate(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -117,7 +117,7 @@ func TestParseValidate_invalid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, gotDiags := ParseValidate(tc.args)
+			got, _, gotDiags := ParseValidate(tc.args)
 			got.Vars = nil
 			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {

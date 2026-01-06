@@ -102,7 +102,7 @@ func TestParseShow_valid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseShow(tc.args)
+			got, _, diags := ParseShow(tc.args)
 			got.Vars = nil
 			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if len(diags) > 0 {
@@ -307,7 +307,7 @@ func TestParseShow_invalid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, gotDiags := ParseShow(tc.args)
+			got, _, gotDiags := ParseShow(tc.args)
 			got.Vars = nil
 			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
