@@ -56,12 +56,6 @@ type EvalContext interface {
 	// resources in one module are able to use providers from other modules.
 	ProviderSchema(context.Context, addrs.AbsProviderConfig) (providers.ProviderSchema, error)
 
-	// CloseProvider closes provider connections that aren't needed anymore.
-	//
-	// This method will panic if the module instance address of the given
-	// provider configuration does not match the Path() of the EvalContext.
-	CloseProvider(context.Context, addrs.AbsProviderConfig) error
-
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
 	//

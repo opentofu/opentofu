@@ -31,6 +31,11 @@ func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) providers.Configu
 	return n.instance
 }
 
+// GraphNodeProvider
+func (n *NodeEvalableProvider) Close(ctx context.Context) error {
+	return n.instance.Close(ctx)
+}
+
 // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	var err error

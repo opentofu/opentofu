@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -62,6 +63,15 @@ var (
 // GraphNodeProvider
 func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) providers.Configured {
 	return n.instances[key]
+}
+
+// GraphNodeProvider
+func (n *NodeApplyableProvider) Close(ctx context.Context) error {
+	var errs []error
+	for _, instance := range n.instances {
+		errs = append(errs, instance.Close(ctx))
+	}
+	return errors.Join(errs...)
 }
 
 // GraphNodeExecutable

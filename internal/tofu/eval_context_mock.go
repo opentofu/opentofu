@@ -51,10 +51,6 @@ type MockEvalContext struct {
 	ProviderSchemaSchema providers.ProviderSchema
 	ProviderSchemaError  error
 
-	CloseProviderCalled   bool
-	CloseProviderAddr     addrs.AbsProviderConfig
-	CloseProviderProvider providers.Interface
-
 	ProviderInputCalled bool
 	ProviderInputAddr   addrs.AbsProviderConfig
 	ProviderInputValues map[string]cty.Value
@@ -185,12 +181,6 @@ func (c *MockEvalContext) ProviderSchema(_ context.Context, addr addrs.AbsProvid
 	c.ProviderSchemaCalled = true
 	c.ProviderSchemaAddr = addr
 	return c.ProviderSchemaSchema, c.ProviderSchemaError
-}
-
-func (c *MockEvalContext) CloseProvider(_ context.Context, addr addrs.AbsProviderConfig) error {
-	c.CloseProviderCalled = true
-	c.CloseProviderAddr = addr
-	return nil
 }
 
 func (c *MockEvalContext) ProviderInput(_ context.Context, addr addrs.AbsProviderConfig) map[string]cty.Value {

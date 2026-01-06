@@ -157,30 +157,6 @@ func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsP
 	return c.Plugins.ProviderSchema(ctx, addr.Provider)
 }
 
-func (c *BuiltinEvalContext) CloseProvider(ctx context.Context, addr addrs.AbsProviderConfig) error {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	var diags tfdiags.Diagnostics
-
-	providerAddrKey := addr.String()
-	providerMap := c.ProviderCache[providerAddrKey]
-	if providerMap != nil {
-		for _, provider := range providerMap {
-			err := provider.Close(ctx)
-			if err != nil {
-				diags = diags.Append(err)
-			}
-		}
-		delete(c.ProviderCache, providerAddrKey)
-	}
-	if diags.HasErrors() {
-		return diags.Err()
-	}
-
-	return nil
-}
-
 func (c *BuiltinEvalContext) ProviderInput(_ context.Context, pc addrs.AbsProviderConfig) map[string]cty.Value {
 	c.ProviderLock.Lock()
 	defer c.ProviderLock.Unlock()

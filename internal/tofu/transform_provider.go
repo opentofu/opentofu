@@ -55,6 +55,7 @@ type GraphNodeProvider interface {
 	ProviderAddr() addrs.AbsProviderConfig
 	Name() string
 	Instance(addrs.InstanceKey) providers.Configured
+	Close(ctx context.Context) error
 	// For test framework
 	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)
 }
@@ -497,7 +498,7 @@ func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error 
 
 		if closer == nil {
 			// create a closer for this provider type
-			closer = &graphNodeCloseProvider{Addr: p.ProviderAddr()}
+			closer = &graphNodeCloseProvider{Provider: p}
 			g.Add(closer)
 			cpm[key] = closer
 		}
@@ -638,7 +639,7 @@ func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
 }
 
 type graphNodeCloseProvider struct {
-	Addr addrs.AbsProviderConfig
+	Provider GraphNodeProvider
 }
 
 var (
@@ -647,21 +648,21 @@ var (
 )
 
 func (n *graphNodeCloseProvider) Name() string {
-	return n.Addr.String() + " (close)"
+	return n.Provider.ProviderAddr().String() + " (close)"
 }
 
 // GraphNodeModulePath
 func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
-	return n.Addr.Module
+	return n.Provider.ProviderAddr().Module
 }
 
 // GraphNodeExecutable impl.
 func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
+	return diags.Append(n.Provider.Close(ctx))
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
-	return n.Addr
+	return n.Provider.ProviderAddr()
 }
 
 // GraphNodeDotter impl.
@@ -722,6 +723,11 @@ func (n *graphNodeProxyProvider) MocksAndOverrides() (IsMocked bool, MockResourc
 
 func (n *graphNodeProxyProvider) Instance(key addrs.InstanceKey) providers.Configured {
 	return n.Target().Instance(key)
+}
+
+func (n *graphNodeProxyProvider) Close(ctx context.Context) error {
+	// NOP, close handled by the proxied instance
+	return nil
 }
 
 // Find the *single* keyExpression that is used in the provider
