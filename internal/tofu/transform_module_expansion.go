@@ -250,24 +250,24 @@ func (t *pathTree) find(addr []string) dag.Set {
 // that is nested inside a check block. Such data sources are observational
 // and should not participate in module dependency ordering.
 func (t *ModuleExpansionTransformer) isNestedCheckDataSource(v dag.Vertex) bool {
-	// Try to get the Config from various node types that embed NodeAbstractResource
-	var config *configs.Resource
-
-	switch n := v.(type) {
-	case *NodeValidatableResource:
-		config = n.Config
-	case *nodeExpandPlannableResource:
-		config = n.Config
-	case *nodeExpandApplyableResource:
-		config = n.Config
-	case *NodePlannableResourceInstance:
-		config = n.Config
-	case *NodeApplyableResourceInstance:
-		config = n.Config
+	cfgNode, ok := v.(GraphNodeConfigResource)
+	if !ok {
+		return false
 	}
 
-	if config != nil && config.Container != nil {
-		_, isCheck := config.Container.(*configs.Check)
+	addr := cfgNode.ResourceAddr()
+	if addr.Resource.Mode != addrs.DataResourceMode {
+		return false
+	}
+
+	config := t.Config.Descendent(addr.Module)
+	if config == nil {
+		return false
+	}
+
+	resource := config.Module.DataResources[addr.Resource.String()]
+	if resource != nil && resource.Container != nil {
+		_, isCheck := resource.Container.(*configs.Check)
 		return isCheck
 	}
 
