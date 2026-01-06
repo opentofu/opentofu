@@ -44,7 +44,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Parse and validate flags
 	var args *arguments.Apply
-	var closer func() error
+	var closer func()
 	switch {
 	case c.Destroy:
 		args, closer, diags = arguments.ParseApplyDestroy(rawArgs)

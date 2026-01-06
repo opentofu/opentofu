@@ -38,7 +38,7 @@ type Plan struct {
 // ParsePlan processes CLI arguments, returning a Plan value and errors.
 // If errors are encountered, a Plan value is still returned representing
 // the best effort interpretation of the arguments.
-func ParsePlan(args []string) (*Plan, func() error, tfdiags.Diagnostics) {
+func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	plan := &Plan{
 		State:     &State{},

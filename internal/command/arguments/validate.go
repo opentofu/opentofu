@@ -33,7 +33,7 @@ type Validate struct {
 // ParseValidate processes CLI arguments, returning a Validate value and errors.
 // If errors are encountered, a Validate value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseValidate(args []string) (*Validate, func() error, tfdiags.Diagnostics) {
+func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	validate := &Validate{

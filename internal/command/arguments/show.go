@@ -66,7 +66,7 @@ const (
 // ParseShow processes CLI arguments, returning a Show value and errors.
 // If errors are encountered, a Show value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseShow(args []string) (*Show, func() error, tfdiags.Diagnostics) {
+func ParseShow(args []string) (*Show, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	show := &Show{
 		Vars: &Vars{},

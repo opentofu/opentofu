@@ -39,7 +39,7 @@ type Apply struct {
 // ParseApply processes CLI arguments, returning an Apply value and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseApply(args []string) (*Apply, func() error, tfdiags.Diagnostics) {
+func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	apply := &Apply{
 		State:     &State{},
@@ -97,7 +97,7 @@ func ParseApply(args []string) (*Apply, func() error, tfdiags.Diagnostics) {
 // ParseApplyDestroy is a special case of ParseApply that deals with the
 // "tofu destroy" command, which is effectively an alias for
 // "tofu apply -destroy".
-func ParseApplyDestroy(args []string) (*Apply, func() error, tfdiags.Diagnostics) {
+func ParseApplyDestroy(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	apply, closer, diags := ParseApply(args)
 
 	// So far ParseApply was using the command line options like -destroy

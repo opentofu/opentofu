@@ -31,7 +31,7 @@ type Output struct {
 // ParseOutput processes CLI arguments, returning an Output value and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseOutput(args []string) (*Output, func() error, tfdiags.Diagnostics) {
+func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	output := &Output{
 		Vars: &Vars{},

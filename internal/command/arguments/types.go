@@ -8,6 +8,7 @@ package arguments
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -65,9 +66,9 @@ func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
 	cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "", "json-into")
 }
 
-func (v *ViewOptions) Parse() (func() error, tfdiags.Diagnostics) {
+func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	closer := func() error { return nil }
+	closer := func() {}
 
 	if v.jsonIntoFlag != "" {
 		var err error
@@ -79,7 +80,12 @@ func (v *ViewOptions) Parse() (func() error, tfdiags.Diagnostics) {
 				fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", v.jsonIntoFlag, err.Error()),
 			))
 		} else {
-			closer = v.JSONInto.Close
+			closer = func() {
+				err := v.JSONInto.Close()
+				if err != nil {
+					log.Printf("[ERROR] Unable to close json output: %s", err.Error())
+				}
+			}
 		}
 	}
 
