@@ -143,6 +143,11 @@ Other options:
 
   -json               Show the information in a machine-readable form.
 
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
+
   -show-sensitive     If specified, sensitive values will be displayed.
 
   -var 'foo=bar'      Set a value for one of the input variables in the root

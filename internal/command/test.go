@@ -83,6 +83,11 @@ Options:
   -json                 If specified, machine readable output will be printed in
                         JSON format
 
+  -json-into=out.json   Produce the same output as -json, but sent directly
+                        to the given file. This allows automation to preserve
+                        the original human-readable output streams, while
+                        capturing more detailed logs for machine analysis.
+
   -no-color             If specified, output won't contain any color.
 
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the

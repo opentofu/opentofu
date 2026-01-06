@@ -216,6 +216,11 @@ Options:
                         suitable for use in text editor integrations and other 
                         automated systems. Always disables color.
 
+  -json-into=out.json   Produce the same output as -json, but sent directly
+                        to the given file. This allows automation to preserve
+                        the original human-readable output streams, while
+                        capturing more detailed logs for machine analysis.
+
   -no-color             If specified, output won't contain any color.
 
   -no-tests             If specified, OpenTofu will not validate test files.

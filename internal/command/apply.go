@@ -403,6 +403,11 @@ Options:
                                suitable for use in text editor integrations and
                                other automated systems. Always disables color.
 
+  -json-into=out.json          Produce the same output as -json, but sent directly
+                               to the given file. This allows automation to preserve
+                               the original human-readable output streams, while
+                               capturing more detailed logs for machine analysis.
+
   -deprecation=module:m        Specify what type of warnings are shown. Accepted
                                values for "m": all, local, none. Default: all.
                                When "all" is selected, OpenTofu will show the
