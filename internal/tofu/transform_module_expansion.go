@@ -68,9 +68,11 @@ func (t *ModuleExpansionTransformer) Transform(_ context.Context, g *Graph) erro
 			// a module closer cannot connect to itself
 			continue
 		case *nodeExpandCheck, *nodeReportCheck, *nodeCheckAssert:
-			// Check nodes should not get edges added to.
-			// This prevents cycles when a module with checks is referenced
-			// via depends_on by another module.
+			// Check-related nodes are not module-close dependencies because
+			// they don't produce any values that could potentially contribute
+			// to a module's output values, and skipping these edges avoids
+			// dependency cycles when a module containing checks is used
+			// in a depends_on in the parent module.
 			continue
 		}
 
