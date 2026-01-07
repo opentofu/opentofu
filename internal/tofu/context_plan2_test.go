@@ -8809,3 +8809,58 @@ func featuresBlockTestSchema() *configschema.Block {
 		},
 	}
 }
+
+// TestContext2Plan_moduleDependsOnWithCheck is a regression test for
+// https://github.com/opentofu/opentofu/issues/3060
+// "Depending on a module with a check in it causes a dependency cycle"
+//
+// When module.dependent has depends_on = [module.base], and both modules
+// use a shared submodule containing a check block with a nested data source,
+// this should not cause a dependency cycle.
+func TestContext2Plan_moduleDependsOnWithCheck(t *testing.T) {
+	m := testModule(t, "plan-module-depends-on-check")
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {Block: &configschema.Block{}},
+			},
+			DataSources: map[string]providers.Schema{
+				"test_data_source": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {Type: cty.String, Computed: true},
+						},
+					},
+				},
+			},
+		},
+	}
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		return providers.ReadDataSourceResponse{
+			State: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("data-id"),
+			}),
+		}
+	}
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.EmptyObjectVal,
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	// The key assertion: planning should succeed without a cycle error.
+	// Before the fix, this would fail with:
+	// "Cycle: module.base.module.checker (close), module.dependent.module.checker (close), ..."
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+}
