@@ -5,6 +5,7 @@ The v1.11.x release series is supported until **August 1 2026**.
 BUG FIXES:
 
 * Fix crash when the executed configuration contains an import block that points to unexisting configuration block ([3616](https://github.com/opentofu/opentofu/pull/3616))
+* Fixed `tofu test` with `mock_provider` failing during cleanup when `lifecycle { ignore_changes }` references a block. ([#3644](https://github.com/opentofu/opentofu/issues/3644))
 
 ## 1.11.2
 
