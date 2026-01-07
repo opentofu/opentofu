@@ -103,4 +103,8 @@ OpenTofu does not have an operator for the "exclusive OR" operation. If you
 know that both operators are boolean values then exclusive OR is equivalent
 to the `!=` ("not equal") operator.
 
-The logical operators in OpenTofu are short-circuiting, meaning `var.foo == null || var.foo.bar == 1` will not produce an error message if `var.foo` is `null` because `var.foo.bar` is not evaluated.
+In OpenTofu v1.10 and later the logical operators in OpenTofu are
+short-circuiting, meaning `var.foo == null || var.foo.bar == 1` will not produce
+an error message if `var.foo` is `null` because `var.foo.bar` is not evaluated.
+Any skipped expression is still subject to static validation, such as checking
+whether there's a `variable "foo"` block that `var.foo` refers to.
