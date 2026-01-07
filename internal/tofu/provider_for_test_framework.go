@@ -83,8 +83,9 @@ func (p providerForTest) PlanResourceChange(_ context.Context, r providers.PlanR
 // filterComputedOnlyAttributes returns a copy of value where all computed-only attributes
 // (i.e. computed and not optional) defined in resSchema are replaced with null values.
 func filterComputedOnlyAttributes(resSchema *configschema.Block, value cty.Value) cty.Value {
-	if value.IsNull() || !value.IsKnown() {
-		// Nothing to filter here, move on
+	if resSchema == nil || value.IsNull() || !value.IsKnown() {
+		// Nothing to filter here, or we dont know how to filter
+		// so we should move on
 		return value
 	}
 
