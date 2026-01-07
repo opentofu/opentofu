@@ -17,6 +17,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
+	"github.com/zclconf/go-cty/cty/function/stdlib"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -524,8 +526,15 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		})
 	}
 
+	hclCtx := &hcl.EvalContext{
+		Functions: map[string]function.Function{
+			"format": stdlib.FormatFunc,
+			"upper":  stdlib.UpperFunc,
+		},
+	}
+
 	if attr, exists := content.Attributes["description"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Description)
+		valDiags := gohcl.DecodeExpression(attr.Expr, hclCtx, &o.Description)
 		diags = append(diags, valDiags...)
 		o.DescriptionSet = true
 	}
