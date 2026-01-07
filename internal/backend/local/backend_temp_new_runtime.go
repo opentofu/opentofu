@@ -9,9 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
-	"sync/atomic"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/davecgh/go-spew/spew"
@@ -49,35 +47,6 @@ import (
 // "tofu plan" instead, which should implement a superset of the validation
 // behavior.
 /////////////////////////
-
-// SetExperimentalRuntimeAllowed must be called with the argument set to true
-// at some point before calling [New] or [NewWithBackend] in order for the
-// experimental opt-in to be effective.
-//
-// In practice this is called by code in the "command" package early in the
-// backend initialization codepath and enables the experimental runtime only
-// in an experiments-enabled OpenTofu build, to make sure that it's not
-// possible to accidentally enable this experimental functionality in normal
-// release builds.
-//
-// Refer to "cmd/tofu/experiments.go" for information on how to produce an
-// experiments-enabled build.
-func SetExperimentalRuntimeAllowed(allowed bool) {
-	experimentalRuntimeAllowed.Store(allowed)
-}
-
-var experimentalRuntimeAllowed atomic.Bool
-
-func experimentalRuntimeEnabled() bool {
-	if !experimentalRuntimeAllowed.Load() {
-		// The experimental runtime is never enabled when it hasn't been
-		// explicitly allowed.
-		return false
-	}
-
-	optIn := os.Getenv("TOFU_X_EXPERIMENTAL_RUNTIME")
-	return optIn != ""
-}
 
 func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
 	var diags tfdiags.Diagnostics
