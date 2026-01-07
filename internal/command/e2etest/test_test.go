@@ -80,3 +80,43 @@ func TestMocksAndOverrides(t *testing.T) {
 		t.Errorf("output doesn't have expected success string:\n%s", stdout)
 	}
 }
+
+// TestMockProviderComputedBlockCleanup ensures we don't regress
+// a fix for this issue https://github.com/opentofu/opentofu/issues/3644
+//
+// The bug occurs when:
+// 1. A resource has lifecycle { ignore_changes = [block] } on a BLOCK (not a simple attribute)
+// 2. mock_provider is used
+// 3. Cleanup/destroy runs after apply
+// The cleanup fails with "Config value can not be specified for computed field"
+func TestMockProviderComputedBlockCleanup(t *testing.T) {
+	// This test fetches providers from registry.
+	skipIfCannotAccessNetwork(t)
+
+	tf := e2e.NewBinary(t, tofuBin, filepath.Join("testdata", "mock-computed-block-cleanup"))
+
+	stdout, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Errorf("unexpected error on 'init': %v", err)
+	}
+	if stderr != "" {
+		t.Errorf("unexpected stderr output on 'init':\n%s", stderr)
+	}
+	if stdout == "" {
+		t.Errorf("expected some output on 'init', got nothing")
+	}
+
+	stdout, stderr, err = tf.Run("test")
+	if err != nil {
+		if strings.Contains(stdout, "Config value can not be specified for computed field") {
+			t.Errorf("Bug reproduced: mock provider fails with computed field error.\n"+
+				"This is the bug from https://github.com/opentofu/opentofu/issues/3644\n"+
+				"stdout:\n%s", stdout)
+			return
+		}
+		t.Errorf("unexpected error on 'test': %v\nstderr:\n%s\nstdout:\n%s", err, stderr, stdout)
+	}
+	if !strings.Contains(stdout, "1 passed, 0 failed") {
+		t.Errorf("output doesn't have expected success string:\n%s", stdout)
+	}
+}
