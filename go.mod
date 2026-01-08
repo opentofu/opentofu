@@ -324,6 +324,10 @@ replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.20.
 tool (
 	github.com/hashicorp/copywrite
 	github.com/mitchellh/gox
+	github.com/opentofu/opentofu/cmd/tofu
+	github.com/opentofu/opentofu/tools/find-dep-upgrades
+	github.com/opentofu/opentofu/tools/loggraphdiff
+	github.com/opentofu/opentofu/tools/protobuf-compile
 	go.uber.org/mock/mockgen
 	golang.org/x/tools/cmd/stringer
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc
