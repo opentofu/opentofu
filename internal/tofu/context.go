@@ -18,8 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugins"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -290,44 +288,16 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 		// If we're here, we're stopped, trigger the call.
 		log.Printf("[TRACE] Context: requesting providers and provisioners to gracefully stop")
 
-		{
-			// Copy the providers so that a misbehaved blocking Stop doesn't
-			// completely hang OpenTofu.
-			walker.providerLock.Lock()
-			toStop := make([]providers.Interface, 0, len(walker.providerCache))
-			for _, providerMap := range walker.providerCache {
-				for _, provider := range providerMap {
-					toStop = append(toStop, provider)
-				}
-			}
-			defer walker.providerLock.Unlock()
-
-			for _, p := range toStop {
-				// We ignore the error for now since there isn't any reasonable
-				// action to take if there is an error here, since the stop is still
-				// advisory: OpenTofu will exit once the graph node completes.
-				// The providers.Interface API contract requires that the
-				// context passed to Stop is never canceled and has no deadline.
-				_ = p.Stop(context.WithoutCancel(context.TODO()))
-			}
-		}
-
-		{
-			// Call stop on all the provisioners
-			walker.provisionerLock.Lock()
-			ps := make([]provisioners.Interface, 0, len(walker.provisionerCache))
-			for _, p := range walker.provisionerCache {
-				ps = append(ps, p)
-			}
-			defer walker.provisionerLock.Unlock()
-
-			for _, p := range ps {
-				// We ignore the error for now since there isn't any reasonable
-				// action to take if there is an error here, since the stop is still
-				// advisory: OpenTofu will exit once the graph node completes.
-				_ = p.Stop()
-			}
-		}
+		// We ignore the error for now since there isn't any reasonable
+		// action to take if there is an error here, since the stop is still
+		// advisory: OpenTofu will exit once the graph node completes.
+		// The providers.Interface API contract requires that the
+		// context passed to Stop is never canceled and has no deadline.
+		_ = walker.Context.plugins.providers.StopAll(context.WithoutCancel(context.TODO()))
+		// We ignore the error for now since there isn't any reasonable
+		// action to take if there is an error here, since the stop is still
+		// advisory: OpenTofu will exit once the graph node completes.
+		_ = walker.Context.plugins.provisioners.StopAll()
 	}()
 
 	return stop, wait

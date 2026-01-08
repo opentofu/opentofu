@@ -86,7 +86,7 @@ func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inp
 
 	tempLoader, _ := configload.NewLoader(&configload.Config{})
 
-	plugins := plugins.NewRuntimePlugins(c.plugins)
+	plugins := plugins.NewRuntimePluginsTemp(c.plugins.providers, c.plugins.provisioners)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      config.Module.SourceDir,
 		OriginalWorkingDir: c.meta.OriginalWorkingDir,

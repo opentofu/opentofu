@@ -1015,8 +1015,8 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
 	// TODO: Plumb a useful context.Context through to here.
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
-	if err != nil {
+	schema, _, diags := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
+	if diags.HasErrors() {
 		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
 		// treat a failure here the same as having no schema.

@@ -62,3 +62,12 @@ func String() string {
 	}
 	return Version
 }
+
+// This ONLY represents what features OpenTofu currently intends to support from
+// providers which may change their behavior given a particular TerraformVersion.
+// It explicitly does NOT represent any sort of compatibility promise or guarantee.
+// This value should ONLY ever be used by the provider.ConfigureProvider call, any
+// other usage is WRONG and a PROGRAMMING ERROR.
+// This value should be carefully updated as we add OpenTofu support for new protocol
+// features.
+const VersionToImpersonateForProviders = "1.13.0"

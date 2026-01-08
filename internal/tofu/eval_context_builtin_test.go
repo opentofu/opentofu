@@ -11,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/plugins"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -23,12 +21,12 @@ func TestBuiltinEvalContextProviderInput(t *testing.T) {
 	ctx1 := testBuiltinEvalContext(t)
 	ctx1 = ctx1.WithPath(addrs.RootModuleInstance).(*BuiltinEvalContext)
 	ctx1.ProviderInputConfig = cache
-	ctx1.ProviderLock = &lock
+	ctx1.ProviderInputConfigLock = &lock
 
 	ctx2 := testBuiltinEvalContext(t)
 	ctx2 = ctx2.WithPath(addrs.RootModuleInstance.Child("child", addrs.NoKey)).(*BuiltinEvalContext)
 	ctx2.ProviderInputConfig = cache
-	ctx2.ProviderLock = &lock
+	ctx2.ProviderInputConfigLock = &lock
 
 	providerAddr1 := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
@@ -53,39 +51,6 @@ func TestBuiltinEvalContextProviderInput(t *testing.T) {
 	}
 	if actual2 != nil {
 		t.Errorf("wrong result 2\ngot:  %#v\nwant: %#v", actual2, nil)
-	}
-}
-
-func TestBuildingEvalContextInitProvider(t *testing.T) {
-	var lock sync.Mutex
-
-	testP := &MockProvider{}
-
-	ctx := testBuiltinEvalContext(t)
-	ctx = ctx.WithPath(addrs.RootModuleInstance).(*BuiltinEvalContext)
-	ctx.ProviderLock = &lock
-	ctx.ProviderCache = make(map[string]map[addrs.InstanceKey]providers.Interface)
-	ctx.Plugins = newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-		addrs.NewDefaultProvider("test"): providers.FactoryFixed(testP),
-	}, nil))
-
-	providerAddrDefault := addrs.AbsProviderConfig{
-		Module:   addrs.RootModule,
-		Provider: addrs.NewDefaultProvider("test"),
-	}
-	providerAddrAlias := addrs.AbsProviderConfig{
-		Module:   addrs.RootModule,
-		Provider: addrs.NewDefaultProvider("test"),
-		Alias:    "foo",
-	}
-
-	_, err := ctx.InitProvider(t.Context(), providerAddrDefault, addrs.NoKey)
-	if err != nil {
-		t.Fatalf("error initializing provider test: %s", err)
-	}
-	_, err = ctx.InitProvider(t.Context(), providerAddrAlias, addrs.NoKey)
-	if err != nil {
-		t.Fatalf("error initializing provider test.foo: %s", err)
 	}
 }
 

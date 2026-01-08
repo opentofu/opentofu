@@ -8,7 +8,6 @@ package tofu
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -22,7 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -107,56 +105,14 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 		Operation:       operation,
 	}
 
-	var providerInstanceLock sync.Mutex
-	providerInstances := make(map[addrs.Provider]providers.Interface)
-	defer func() {
-		for addr, inst := range providerInstances {
-			log.Printf("[INFO] Shutting down test provider %s", addr)
-			inst.Close(context.TODO())
-		}
-	}()
-
-	providerSupplier := func(addr addrs.Provider) providers.Interface {
-		providerInstanceLock.Lock()
-		defer providerInstanceLock.Unlock()
-
-		if inst, ok := providerInstances[addr]; ok {
-			return inst
-		}
-
-		inst, err := tc.plugins.NewProviderInstance(addr)
-		if err != nil {
-			log.Printf("[WARN] Unable to start provider %s in test context", addr)
-			providerInstances[addr] = nil
-			return nil
-		} else {
-			log.Printf("[INFO] Shutting down test provider %s", addr)
-			providerInstances[addr] = inst
-			return inst
-		}
-	}
-
 	scope := &lang.Scope{
 		Data:          data,
 		BaseDir:       ".",
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: tc.Plan.Timestamp,
 		ProviderFunctions: func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-			// This is a simpler flow than what is allowed during normal exection.
-			// We only support non-configured functions here.
-			pr, ok := tc.Config.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
-			if !ok {
-				return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unknown function provider",
-					Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
-					Subject:  rng.ToHCL().Ptr(),
-				})
-			}
-
-			provider := providerSupplier(pr.Type)
-
-			return evalContextProviderFunction(ctx, provider, walkPlan, pf, rng)
+			// TODO pass in tc.plugins
+			return evalContextProviderFunction(ctx, nil, walkPlan, pf, rng)
 		},
 	}
 
