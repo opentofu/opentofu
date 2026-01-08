@@ -44,7 +44,7 @@ generate:
 # versions of protoc and the protoc Go plugins.
 .PHONY: protobuf
 protobuf:
-	go run ./tools/protobuf-compile .
+	go tool protobuf-compile .
 
 # Golangci-lint is installed first and then run twice to cover all platforms.
 .PHONY: golangci-lint

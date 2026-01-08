@@ -69,7 +69,7 @@ var protocSteps = []protocStep{
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("Usage: go run github.com/opentofu/opentofu/tools/protobuf-compile <basedir>")
+		log.Fatal("Usage: go tool protobuf-compile <basedir>")
 	}
 	baseDir := os.Args[1]
 	workDir := filepath.Join(baseDir, "tools/protobuf-compile/.workdir")
