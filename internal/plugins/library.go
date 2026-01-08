@@ -6,14 +6,17 @@
 package plugins
 
 import (
+	"sync"
+
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type Library interface {
-	NewProviderInstance(addrs.Provider) (providers.Interface, error)
-	NewProvisionerInstance(string) (provisioners.Interface, error)
+	NewProviderManager() ProviderManager
+	NewProvisionerManager() ProvisionerManager
 
 	HasProvider(addr addrs.Provider) bool
 	HasProvisioner(typ string) bool
@@ -21,26 +24,34 @@ type Library interface {
 
 func NewLibrary(providerFactories ProviderFactories, provisionerFactories ProvisionerFactories) Library {
 	return &library{
-		providerFactories:    providerFactories,
+		providerFactories: providerFactories,
+		providerSchemas:   map[addrs.Provider]providerSchemaEntry{},
+
 		provisionerFactories: provisionerFactories,
+		provisionerSchemas:   map[string]provisionerSchemaEntry{},
 	}
 }
 
+type providerSchemaResult struct {
+	schema providers.ProviderSchema
+	diags  tfdiags.Diagnostics
+}
+type providerSchemaEntry func() providerSchemaResult
+type provisionerSchemaEntry func() (*configschema.Block, error)
+
 type library struct {
-	providerFactories    ProviderFactories
-	provisionerFactories ProvisionerFactories
-	// This is where we will eventually cache provider schemas
+	providerSchemasLock sync.Mutex
+	providerSchemas     map[addrs.Provider]providerSchemaEntry
+	providerFactories   ProviderFactories
+
+	provisionerSchemasLock sync.Mutex
+	provisionerSchemas     map[string]provisionerSchemaEntry
+	provisionerFactories   ProvisionerFactories
 }
 
 func (l *library) HasProvider(addr addrs.Provider) bool {
 	return l.providerFactories.HasProvider(addr)
 }
-func (l library) NewProviderInstance(addr addrs.Provider) (providers.Interface, error) {
-	return l.providerFactories.NewInstance(addr)
-}
 func (l *library) HasProvisioner(typ string) bool {
 	return l.provisionerFactories.HasProvisioner(typ)
-}
-func (l library) NewProvisionerInstance(typ string) (provisioners.Interface, error) {
-	return l.provisionerFactories.NewInstance(typ)
 }

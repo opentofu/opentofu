@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -80,228 +79,108 @@ type Provisioners interface {
 }
 
 type newRuntimePlugins struct {
-	library plugins.Library
-
-	// unconfiguredInsts is all of the provider instances we've created for
-	// unconfigured uses such as schema fetching and validation, which we
-	// currently just leave running for the remainder of the life of this
-	// object though perhaps we'll do something more clever eventually.
-	//
-	// Must hold a lock on mu throughout any access to this map.
-	unconfiguredInsts map[addrs.Provider]providers.Unconfigured
-	mu                sync.Mutex
+	providers    plugins.ProviderManager
+	provisioners plugins.ProvisionerManager
 }
 
 var _ Providers = (*newRuntimePlugins)(nil)
 var _ Provisioners = (*newRuntimePlugins)(nil)
 
-func NewRuntimePlugins(library plugins.Library) Plugins {
+func NewRuntimePlugins(plugins plugins.Library) Plugins {
 	return &newRuntimePlugins{
-		library: library,
+		providers:    plugins.NewProviderManager(),
+		provisioners: plugins.NewProvisionerManager(),
 	}
 }
 
 // NewConfiguredProvider implements evalglue.Providers.
 func (n *newRuntimePlugins) NewConfiguredProvider(ctx context.Context, provider addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
-	inst, diags := n.newProviderInst(ctx, provider)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	resp := inst.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
-		Config: configVal,
-
-		// We aren't actually Terraform, so we'll just pretend to be a
-		// Terraform version that has roughly the same functionality that
-		// OpenTofu currently has, since providers are permitted to use this to
-		// adapt their behavior for older versions of Terraform.
-		TerraformVersion: "1.13.0",
-	})
-	diags = diags.Append(resp.Diagnostics)
-	if resp.Diagnostics.HasErrors() {
-		return nil, diags
-	}
-
-	return inst, diags
+	// TODO addr
+	return n.providers.NewConfiguredProvider(ctx, addrs.AbsProviderInstanceCorrect{
+		Config: addrs.AbsProviderConfigCorrect{
+			Config: addrs.ProviderConfigCorrect{
+				Provider: provider,
+			},
+		},
+	}, configVal)
 }
 
 // ProviderConfigSchema implements evalglue.Providers.
 func (n *newRuntimePlugins) ProviderConfigSchema(ctx context.Context, provider addrs.Provider) (*providers.Schema, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	inst, moreDiags := n.unconfiguredProviderInst(ctx, provider)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	schema, diags := n.providers.GetProviderSchema(ctx, provider)
+	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	resp := inst.GetProviderSchema(ctx)
-	diags = diags.Append(resp.Diagnostics)
-	if resp.Diagnostics.HasErrors() {
-		return nil, diags
-	}
-
-	return &resp.Provider, diags
+	return &schema.Provider, diags
 }
 
 // ResourceTypeSchema implements evalglue.Providers.
 func (n *newRuntimePlugins) ResourceTypeSchema(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string) (*providers.Schema, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	inst, moreDiags := n.unconfiguredProviderInst(ctx, provider)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	schema, diags := n.providers.GetProviderSchema(ctx, provider)
+	if diags.HasErrors() {
 		return nil, diags
 	}
-
-	resp := inst.GetProviderSchema(ctx)
-	diags = diags.Append(resp.Diagnostics)
-	if resp.Diagnostics.HasErrors() {
-		return nil, diags
-	}
-
-	// NOTE: Callers expect us to return nil if we successfully fetch the
-	// provider schema and then find there is no matching resource type, because
-	// the caller is typically in a better position to return a useful error
-	// message than we are.
 
 	var types map[string]providers.Schema
 	switch mode {
 	case addrs.ManagedResourceMode:
-		types = resp.ResourceTypes
+		types = schema.ResourceTypes
 	case addrs.DataResourceMode:
-		types = resp.DataSources
+		types = schema.DataSources
 	case addrs.EphemeralResourceMode:
-		types = resp.EphemeralResources
+		types = schema.EphemeralResources
 	default:
 		// We don't support any other modes, so we'll just treat these as
 		// a request for a resource type that doesn't exist at all.
-		return nil, nil
+		return nil, diags
 	}
 	ret, ok := types[typeName]
 	if !ok {
 		return nil, diags
 	}
+
 	return &ret, diags
 }
 
 // ValidateProviderConfig implements evalglue.Providers.
 func (n *newRuntimePlugins) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+	return n.providers.Unconfigured(provider, func(inst providers.Unconfigured) tfdiags.Diagnostics {
+		configVal, _ = configVal.UnmarkDeep()
 
-	inst, moreDiags := n.unconfiguredProviderInst(ctx, provider)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return diags
-	}
-
-	resp := inst.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
-		Config: configVal,
+		// NOTE: we ignore resp.PreparedConfig in this codepath, but not below in ConfigureProvider
+		// This is to handle some oddities in tfplugin5, documented in providers.ValidateProviderConfigResponse
+		return inst.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{Config: configVal}).Diagnostics
 	})
-	diags = diags.Append(resp.Diagnostics)
-	return diags
 }
 
 // ValidateResourceConfig implements evalglue.Providers.
 func (n *newRuntimePlugins) ValidateResourceConfig(ctx context.Context, provider addrs.Provider, mode addrs.ResourceMode, typeName string, configVal cty.Value) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
+	return n.providers.Unconfigured(provider, func(inst providers.Unconfigured) tfdiags.Diagnostics {
+		configVal, _ = configVal.UnmarkDeep()
 
-	inst, moreDiags := n.unconfiguredProviderInst(ctx, provider)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return diags
-	}
-
-	switch mode {
-	case addrs.ManagedResourceMode:
-		resp := inst.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
-			TypeName: typeName,
-			Config:   configVal,
-		})
-		diags = diags.Append(resp.Diagnostics)
-	case addrs.DataResourceMode:
-		resp := inst.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
-			TypeName: typeName,
-			Config:   configVal,
-		})
-		diags = diags.Append(resp.Diagnostics)
-	case addrs.EphemeralResourceMode:
-		resp := inst.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
-			TypeName: typeName,
-			Config:   configVal,
-		})
-		diags = diags.Append(resp.Diagnostics)
-	default:
-		// If we get here then it's a bug because the cases above should
-		// cover all valid values of [addrs.ResourceMode].
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Unsupported resource mode",
-			fmt.Sprintf("Attempted to validate resource of unsupported mode %s; this is a bug in OpenTofu.", mode),
-		))
-	}
-	return diags
-}
-
-func (m *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provider addrs.Provider) (providers.Unconfigured, tfdiags.Diagnostics) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if running, ok := m.unconfiguredInsts[provider]; ok {
-		return running, nil
-	}
-
-	inst, diags := m.newProviderInst(ctx, provider)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	if m.unconfiguredInsts == nil {
-		m.unconfiguredInsts = make(map[addrs.Provider]providers.Unconfigured)
-	}
-	m.unconfiguredInsts[provider] = inst
-	return inst, diags
-}
-
-// newProviderInst creates a new instance of the given provider.
-//
-// The result is not retained anywhere inside the receiver. Each call to this
-// function returns a new object. A successful result is always an unconfigured
-// provider, but we return [providers.Interface] in case the caller would like
-// to subsequently configure the result before returning it as
-// [providers.Configured].
-//
-// If you intend to use the resulting instance only for "unconfigured"
-// operations like fetching schema, use
-// [newRuntimePlugins.unconfiguredProviderInst] instead to potentially reuse
-// an already-active instance of the same provider.
-func (m *newRuntimePlugins) newProviderInst(_ context.Context, provider addrs.Provider) (providers.Interface, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	ok := m.library.HasProvider(provider)
-	if !ok {
-		// FIXME: If this error remains reachable in the final version of this
-		// code (i.e. if some caller isn't already guaranteeing that all
-		// providers from the configuration and state are included here) then
-		// we should make this error message more actionable.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider unavailable",
-			fmt.Sprintf("This configuration requires provider %q, but it isn't installed.", provider),
-		))
-		return nil, diags
-	}
-
-	inst, err := m.library.NewProviderInstance(provider)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider failed to start",
-			fmt.Sprintf("Failed to launch provider %q: %s.", provider, tfdiags.FormatError(err)),
-		))
-		return nil, diags
-	}
-
-	return inst, diags
+		switch mode {
+		case addrs.ManagedResourceMode:
+			return inst.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
+				TypeName: typeName,
+				Config:   configVal,
+			}).Diagnostics
+		case addrs.DataResourceMode:
+			return inst.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
+				TypeName: typeName,
+				Config:   configVal,
+			}).Diagnostics
+		case addrs.EphemeralResourceMode:
+			return inst.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
+				TypeName: typeName,
+				Config:   configVal,
+			}).Diagnostics
+		default:
+			// We don't support any other modes, so we'll just treat these as
+			// a request for a resource type that doesn't exist at all.
+			return nil
+		}
+	})
 }
 
 // ProvisionerConfigSchema implements evalglue.Provisioners.
@@ -321,16 +200,5 @@ func (n *newRuntimePlugins) ProvisionerConfigSchema(ctx context.Context, typeNam
 // Close terminates any plugins that are managed by this object and are still
 // running.
 func (n *newRuntimePlugins) Close(ctx context.Context) error {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-
-	var errs error
-	for addr, p := range n.unconfiguredInsts {
-		err := p.Close(ctx)
-		if err != nil {
-			errs = errors.Join(errs, fmt.Errorf("closing provider %q: %w", addr, err))
-		}
-	}
-	n.unconfiguredInsts = nil // discard all of the memoized instances
-	return errs
+	return errors.Join(n.providers.Close(ctx), n.provisioners.Close())
 }

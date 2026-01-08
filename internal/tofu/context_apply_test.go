@@ -81,6 +81,9 @@ func TestContext2Apply_stop(t *testing.T) {
 	stopCalled := uint32(0)
 	applyStopped := uint32(0)
 
+	// This provider is started multiple times. Ideally this test would be setup to track each instance
+	var stopOnce sync.Once
+
 	p := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
@@ -128,12 +131,14 @@ func TestContext2Apply_stop(t *testing.T) {
 			// Closing this channel will unblock the channel read in
 			// ApplyResourceChangeFn above.
 			log.Printf("[TRACE] TestContext2Apply_stop: Stop called")
-			atomic.AddUint32(&stopCalled, 1)
-			close(stopCh)
-			// This will block until ApplyResourceChange has reacted to
-			// being stopped.
-			log.Printf("[TRACE] TestContext2Apply_stop: Waiting for ApplyResourceChange to react to being stopped")
-			<-stoppedCh
+			stopOnce.Do(func() {
+				atomic.AddUint32(&stopCalled, 1)
+				close(stopCh)
+				// This will block until ApplyResourceChange has reacted to
+				// being stopped.
+				log.Printf("[TRACE] TestContext2Apply_stop: Waiting for ApplyResourceChange to react to being stopped")
+				<-stoppedCh
+			})
 			log.Printf("[TRACE] TestContext2Apply_stop: Stop is completing")
 			return nil
 		},
