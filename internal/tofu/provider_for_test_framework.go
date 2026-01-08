@@ -11,6 +11,7 @@ import (
 	"hash/fnv"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -68,12 +69,34 @@ func (p providerForTest) PlanResourceChange(_ context.Context, r providers.PlanR
 
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
-	var resp providers.PlanResourceChangeResponse
+	// Filter out computed-only attributes from the schema to avoid them being used incorrectly
+	// later on. This resolves https://github.com/opentofu/opentofu/issues/3644
+	filteredConfig := filterComputedOnlyAttributes(resSchema, r.Config)
 
+	var resp providers.PlanResourceChangeResponse
 	resp.PlannedState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.Config, p.overrideValues)
+		ComposeBySchema(resSchema, filteredConfig, p.overrideValues)
 
 	return resp
+}
+
+// filterComputedOnlyAttributes returns a copy of value where all computed-only attributes
+// (i.e. computed and not optional) defined in resSchema are replaced with null values.
+func filterComputedOnlyAttributes(resSchema *configschema.Block, value cty.Value) cty.Value {
+	if resSchema == nil || value.IsNull() || !value.IsKnown() {
+		// Nothing to filter here, or we dont know how to filter
+		// so we should move on
+		return value
+	}
+
+	ret, _ := cty.Transform(value, func(path cty.Path, v cty.Value) (cty.Value, error) {
+		attr := resSchema.AttributeByPath(path)
+		if attr != nil && attr.Computed && !attr.Optional {
+			return cty.NullVal(v.Type()), nil
+		}
+		return v, nil
+	})
+	return ret
 }
 
 func (p providerForTest) ApplyResourceChange(_ context.Context, r providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
