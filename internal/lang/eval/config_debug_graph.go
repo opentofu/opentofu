@@ -7,11 +7,12 @@ package eval
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/dag/graphviz"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -36,34 +37,7 @@ func (c *ConfigInstance) WriteGraphvizGraphForDebugging(ctx context.Context, w i
 		return diags
 	}
 
-	defer func() {
-		// To make the subsequent code easier to scan, within this function
-		// we use panics to handle errors from the writer and then turn
-		// them back into normal error returns here. This is a local tradeoff
-		// just to avoid the printing code in this function being interspersed
-		// with repeated identical error-handling branches, but only the
-		// printf function below should actually rely on it.
-		p := recover()
-		if err, ok := p.(error); ok {
-			// FIXME: If this survives beyond the experimental phase of the
-			// new language runtime then this should return a full error
-			// diagnostic, not just the naive automatic transformation of
-			// an error into one.
-			diags = diags.Append(err)
-		} else if p != nil {
-			// We're not expecting any other panic here but we'll re-raise
-			// it anyway just so wen don't accidentally bury it.
-			panic(p)
-		}
-	}()
-	printf := func(format string, args ...any) {
-		_, err := fmt.Fprintf(w, format, args...)
-		if err != nil {
-			panic(err) // recovered and returned by the deferred function above
-		}
-	}
-
-	// The "resource instance graph" is a simplified graph covering only the
+	// The "resource instance graph" is a reduced graph covering only the
 	// relationships between resource instances and their provider instances.
 	//
 	// The following code therefore emits a node for each provider instance,
@@ -72,72 +46,128 @@ func (c *ConfigInstance) WriteGraphvizGraphForDebugging(ctx context.Context, w i
 	// this graph are "backwards" compared to a dependency graph: if data flows
 	// from A to B then B must depend on A.
 	//
-	// FIXME: This is a naive implementation that renders all of the edges
-	// in the graph, which is overwhelming because e.g. there's an edge from
-	// a provider instance to every resource instance that uses it. We should
-	// at perform a transitive reduction of the graph to reduce it to as few
-	// edges as possible for readability, but that'll require actually
-	// capturing all of the edges into a graph data structure first and then
-	// rendering that, rather than working directly from the evaluator's
-	// results.
+	// We use the graph representation from our "dag" package here, and its
+	// helpers for Graphviz graphs in particular, just because it contains some
+	// algorithms that are helpful in making the internal graph easier for
+	// humans to consume, by removing edges that are not strictly necessary.
 
-	printf("strict digraph {\n")
-	printf("  rankdir=TB;\n")
-	printf("  node [shape=\"rect\",fontname=\"Helvetica\",color=\"#000000\",bgcolor = \"#ffffff\",align=\"left\"];\n")
+	g := &dag.AcyclicGraph{}
 
-	// Nodes for provider instances.
-	for n := range evalglue.ProviderInstancesDeep(ctx, rootModuleInstance) {
-		addr := n.Addr
+	// First we'll insert all of the nodes, so that we'll be able to retrieve
+	// them from these maps when we're inserting the edges below.
+	piNodes := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, graphviz.Node]()
+	riNodes := addrs.MakeMap[addrs.AbsResourceInstance, graphviz.Node]()
+	for pi := range evalglue.ProviderInstancesDeep(ctx, rootModuleInstance) {
+		addr := pi.Addr
 		style := "solid"
 		if addr.Config.Module.IsPlaceholder() {
 			style = "dashed"
 		}
-		printf("  %s [label=%s,style=%s];\n", quoteStringForGraphviz(addr.String()), providerInstanceGraphvizString(addr), quoteStringForGraphviz(style))
+		n := graphviz.Node{
+			ID: addr.String(),
+			Attrs: map[string]graphviz.Value{
+				"label": graphviz.Val(providerInstanceGraphvizString(addr)),
+				"style": graphviz.Val(style),
+			},
+		}
+		g.Add(n)
+		piNodes.Put(addr, n)
 	}
-	// Nodes for resource instances.
 	for n := range evalglue.ResourceInstancesDeep(ctx, rootModuleInstance) {
 		addr := n.Addr
 		style := "solid"
 		if addr.IsPlaceholder() {
 			style = "dashed"
 		}
-		printf("  %s [label=%s,style=%s];\n", quoteStringForGraphviz(addr.String()), resourceInstanceGraphvizString(addr), quoteStringForGraphviz(style))
+		n := graphviz.Node{
+			ID: addr.String(),
+			Attrs: map[string]graphviz.Value{
+				"label": graphviz.Val(resourceInstanceGraphvizString(addr)),
+				"style": graphviz.Val(style),
+			},
+		}
+		g.Add(n)
+		riNodes.Put(addr, n)
 	}
-	// Edges into provider instances.
+
+	// Now we've generated a [graphviz.Node] for each of our nodes we can
+	// generate the edges between them.
 	for n := range evalglue.ProviderInstancesDeep(ctx, rootModuleInstance) {
 		dstAddr := n.Addr
 		for n := range n.ResourceInstanceDependencies(ctx) {
 			srcAddr := n.Addr
-			printf("  %s:s -> %s:n;\n", quoteStringForGraphviz(srcAddr.String()), quoteStringForGraphviz(dstAddr.String()))
+			src := riNodes.Get(srcAddr)
+			dst := piNodes.Get(dstAddr)
+			g.Connect(dag.BasicEdge(src, dst))
 		}
 	}
-	// Edges into resource instances (both from other resource instances, and from each instance's provider instance)
 	for n := range evalglue.ResourceInstancesDeep(ctx, rootModuleInstance) {
 		dstAddr := n.Addr
+		dst := riNodes.Get(dstAddr)
 		if maybeProviderInst, _, diags := n.ProviderInstance(ctx); !diags.HasErrors() {
 			if providerInst, ok := configgraph.GetKnown(maybeProviderInst); ok {
 				srcAddr := providerInst.Addr
-				printf("  %s:s -> %s:n;\n", quoteStringForGraphviz(srcAddr.String()), quoteStringForGraphviz(dstAddr.String()))
+				src := piNodes.Get(srcAddr)
+				g.Connect(dag.BasicEdge(src, dst))
 			} else {
 				// If we don't know which provider instance would be used then
 				// we'll insert a placeholder node to communicate that.
-				placeholderName := dstAddr.String() + " ?provider"
-				printf("  %s [label=\"unknown instance of\\n%s\",style=\"dashed\"];\n", quoteStringForGraphviz(placeholderName), escapeInGraphvizString(n.Provider.String()))
-				printf("  %s:s -> %s:n;\n", quoteStringForGraphviz(placeholderName), quoteStringForGraphviz(dstAddr.String()))
+				placeholder := graphviz.Node{
+					ID: dstAddr.String() + " ?provider",
+					Attrs: map[string]graphviz.Value{
+						"label": graphviz.Val("unknown instance of\n" + n.Provider.String()),
+						"style": graphviz.Val("dashed"),
+					},
+				}
+				g.Add(placeholder)
+				g.Connect(dag.BasicEdge(placeholder, dst))
 			}
 		}
 		for n := range n.ResourceInstanceDependencies(ctx) {
 			srcAddr := n.Addr
-			printf("  %s:s -> %s:n;\n", quoteStringForGraphviz(srcAddr.String()), quoteStringForGraphviz(dstAddr.String()))
+			src := riNodes.Get(srcAddr)
+			g.Connect(dag.BasicEdge(src, dst))
 		}
 	}
 
-	printf("}\n")
+	// The resource instance graph produce by the evaluator is comprehensive
+	// in that e.g. all resource instances refer to their corresponding provider
+	// instance even when they depend on another resource instance that refers
+	// to the same provider, and so a direct rendering would typically be
+	// overwhelming.
+	//
+	// We therefore compute a transitive reduction of the graph so that we're
+	// only displaying the minimum edges required to represent the
+	// reachability of the resource instance graph.
+	g.TransitiveReduction()
 
-	return nil
+	gg := &graphviz.Graph{
+		Content: &g.Graph,
+		Attrs: map[string]graphviz.Value{
+			"rankdir": graphviz.Val("TB"),
+		},
+		DefaultNodeAttrs: map[string]graphviz.Value{
+			"shape":    graphviz.Val("rect"),
+			"fontname": graphviz.Val("Helvetica"),
+			"color":    graphviz.Val("#000000"),
+			"bgcolor":  graphviz.Val("#ffffff"),
+			"align":    graphviz.Val("left"),
+		},
+		DefaultEdgeDirectionOut: graphviz.EdgeAttachmentSouth,
+		DefaultEdgeDirectionIn:  graphviz.EdgeAttachmentNorth,
+	}
+
+	err := graphviz.WriteDirectedGraph(gg, w)
+	if err != nil {
+		// FIXME: If this codepath survives into a released version then we
+		// should make this generate a more user-appropriate diagnostic message,
+		// rather than just directly reporting whatever the writer produced.
+		diags = diags.Append(err)
+	}
+	return diags
 }
 
-func providerInstanceGraphvizString(addr addrs.AbsProviderInstanceCorrect) string {
+func providerInstanceGraphvizString(addr addrs.AbsProviderInstanceCorrect) graphviz.PrequotedValue {
 	var buf strings.Builder
 	buf.WriteByte('"')
 	moduleInstanceWriteGraphvizStringPrefix(addr.Config.Module, &buf)
@@ -146,16 +176,16 @@ func providerInstanceGraphvizString(addr addrs.AbsProviderInstanceCorrect) strin
 		buf.WriteString(escapeInGraphvizString(addr.Key.String()))
 	}
 	buf.WriteByte('"')
-	return buf.String()
+	return graphviz.PrequotedValue(buf.String())
 }
 
-func resourceInstanceGraphvizString(addr addrs.AbsResourceInstance) string {
+func resourceInstanceGraphvizString(addr addrs.AbsResourceInstance) graphviz.PrequotedValue {
 	var buf strings.Builder
 	buf.WriteByte('"')
 	moduleInstanceWriteGraphvizStringPrefix(addr.Module, &buf)
 	buf.WriteString(escapeInGraphvizString(addr.Resource.String()))
 	buf.WriteByte('"')
-	return buf.String()
+	return graphviz.PrequotedValue(buf.String())
 }
 
 func moduleInstanceWriteGraphvizStringPrefix(addr addrs.ModuleInstance, buf *strings.Builder) {
