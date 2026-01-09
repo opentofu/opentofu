@@ -5,6 +5,7 @@
 
 # This docker-compose file tests the installation instructions with all operating systems. See #
 # test-install-instructions.sh for details.
+version: '3.2'
 services:
   alpine-convenience:
     image: alpine
