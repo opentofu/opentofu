@@ -98,6 +98,10 @@ func MustParseModuleInstanceStr(str string) ModuleInstance {
 // traversal.
 // This function supports module addresses with and without instance keys.
 func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Traversal, tfdiags.Diagnostics) {
+	return parseModuleInstancePrefixWithOptionalRanges(traversal, false)
+}
+
+func parseModuleInstancePrefixWithOptionalRanges(traversal hcl.Traversal, allowRanges bool) (ModuleInstance, hcl.Traversal, tfdiags.Diagnostics) {
 	remain := traversal
 	var mi ModuleInstance
 	var diags tfdiags.Diagnostics
@@ -147,7 +151,7 @@ func parseModuleInstancePrefix(traversal hcl.Traversal) (ModuleInstance, hcl.Tra
 						Subject:  idx.SourceRange().Ptr(),
 					})
 				}
-			} else if _, ok := remain[0].(hcl.TraverseSplat); ok {
+			} else if _, ok := remain[0].(hcl.TraverseSplat); allowRanges && ok {
 				remain = remain[1:]
 				// TODO should we attempt to figure out the key type here?
 				step.InstanceKey = WildcardKey{UnknownKeyType}
