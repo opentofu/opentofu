@@ -143,7 +143,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	if stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
 		if diags := stateLocker.Lock(stateMgr, "workspace-new"); diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1

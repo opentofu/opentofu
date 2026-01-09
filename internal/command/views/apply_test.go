@@ -22,7 +22,7 @@ import (
 func TestApply_new(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewApply(arguments.ViewHuman, false, NewView(streams).SetRunningInAutomation(true))
+	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams).SetRunningInAutomation(true))
 	hv, ok := v.(*ApplyHuman)
 	if !ok {
 		t.Fatalf("unexpected return type %t", v)
@@ -41,7 +41,7 @@ func TestApply_new(t *testing.T) {
 // elsewhere.
 func TestApplyHuman_outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewApply(arguments.ViewHuman, false, NewView(streams))
+	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{
 		"foo": {Value: cty.StringVal("secret")},
@@ -58,7 +58,7 @@ func TestApplyHuman_outputs(t *testing.T) {
 // Outputs should do nothing if there are no outputs to render.
 func TestApplyHuman_outputsEmpty(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewApply(arguments.ViewHuman, false, NewView(streams))
+	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{})
 
@@ -73,7 +73,7 @@ func TestApplyHuman_outputsEmpty(t *testing.T) {
 func TestApplyHuman_operation(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	defer done(t)
-	v := NewApply(arguments.ViewHuman, false, NewView(streams).SetRunningInAutomation(true)).Operation()
+	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams).SetRunningInAutomation(true)).Operation()
 	if hv, ok := v.(*OperationHuman); !ok {
 		t.Fatalf("unexpected return type %t", v)
 	} else if hv.inAutomation != true {
@@ -92,7 +92,7 @@ func TestApplyHuman_help(t *testing.T) {
 	for name, destroy := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewApply(arguments.ViewHuman, destroy, NewView(streams))
+			v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, destroy, NewView(streams))
 			v.HelpPrompt()
 			got := done(t).Stderr()
 			if !strings.Contains(got, name) {
@@ -144,7 +144,7 @@ func TestApply_resourceCount(t *testing.T) {
 		for _, viewType := range views {
 			t.Run(fmt.Sprintf("%s (%s view)", name, viewType), func(t *testing.T) {
 				streams, done := terminal.StreamsForTesting(t)
-				v := NewApply(viewType, tc.destroy, NewView(streams))
+				v := NewApply(arguments.ViewOptions{ViewType: viewType}, tc.destroy, NewView(streams))
 				hooks := v.Hooks()
 
 				var count *countHook
@@ -221,7 +221,7 @@ func TestApplyHuman_resourceCountStatePath(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			v := NewApply(arguments.ViewHuman, false, NewView(streams))
+			v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewHuman}, false, NewView(streams))
 			hooks := v.Hooks()
 
 			var count *countHook
@@ -256,7 +256,7 @@ func TestApplyHuman_resourceCountStatePath(t *testing.T) {
 // elsewhere.
 func TestApplyJSON_outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := NewApply(arguments.ViewJSON, false, NewView(streams))
+	v := NewApply(arguments.ViewOptions{ViewType: arguments.ViewJSON}, false, NewView(streams))
 
 	v.Outputs(map[string]*states.OutputValue{
 		"boop_count": {Value: cty.NumberIntVal(92)},

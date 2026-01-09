@@ -24,7 +24,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewType:      ViewHuman,
+				ViewOptions:   ViewOptions{ViewType: ViewHuman},
 			},
 		},
 		"json": {
@@ -32,7 +32,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				ViewOptions:   ViewOptions{ViewType: ViewJSON},
 			},
 		},
 		"path": {
@@ -40,7 +40,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          "foo",
 				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				ViewOptions:   ViewOptions{ViewType: ViewJSON},
 			},
 		},
 		"test-directory": {
@@ -48,7 +48,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "other",
-				ViewType:      ViewHuman,
+				ViewOptions:   ViewOptions{ViewType: ViewHuman},
 			},
 		},
 		"no-tests": {
@@ -56,7 +56,7 @@ func TestParseValidate_valid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewType:      ViewHuman,
+				ViewOptions:   ViewOptions{ViewType: ViewHuman},
 				NoTests:       true,
 			},
 		},
@@ -64,11 +64,12 @@ func TestParseValidate_valid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseValidate(tc.args)
+			got, _, diags := ParseValidate(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}
@@ -87,7 +88,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          ".",
 				TestDirectory: "tests",
-				ViewType:      ViewHuman,
+				ViewOptions:   ViewOptions{ViewType: ViewHuman},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -102,7 +103,7 @@ func TestParseValidate_invalid(t *testing.T) {
 			&Validate{
 				Path:          "bar",
 				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				ViewOptions:   ViewOptions{ViewType: ViewJSON},
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -116,8 +117,9 @@ func TestParseValidate_invalid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, gotDiags := ParseValidate(tc.args)
+			got, _, gotDiags := ParseValidate(tc.args)
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}

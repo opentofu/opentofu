@@ -19,9 +19,9 @@ import (
 // implement cli.Ui interface, so that we can make all command support json
 // output in a short time.
 type WrappedUi struct {
-	cliUi        cli.Ui
-	jsonView     *views.JSONView
-	outputInJSON bool
+	cliUi            cli.Ui
+	jsonView         *views.JSONView
+	onlyOutputInJSON bool
 }
 
 func (m *WrappedUi) Ask(s string) (string, error) {
@@ -33,32 +33,32 @@ func (m *WrappedUi) AskSecret(s string) (string, error) {
 }
 
 func (m *WrappedUi) Output(s string) {
-	if m.outputInJSON {
-		m.jsonView.Output(s)
+	m.jsonView.Output(s)
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Output(s)
 }
 
 func (m *WrappedUi) Info(s string) {
-	if m.outputInJSON {
-		m.jsonView.Info(s)
+	m.jsonView.Info(s)
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Info(s)
 }
 
 func (m *WrappedUi) Error(s string) {
-	if m.outputInJSON {
-		m.jsonView.Error(s)
+	m.jsonView.Error(s)
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Error(s)
 }
 
 func (m *WrappedUi) Warn(s string) {
-	if m.outputInJSON {
-		m.jsonView.Warn(s)
+	m.jsonView.Warn(s)
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Warn(s)

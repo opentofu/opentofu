@@ -31,6 +31,9 @@ The `get` command supports the following option:
 * `-json` Produce output in a machine-readable JSON format, suitable for use
   in text editor integrations and other automated systems. Always disables color.
 
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
+
 * `-var 'NAME=VALUE'` - Sets a value for a single
   [input variable](../../language/values/variables.mdx) declared in the
   root module of the configuration. Use this option multiple times to set

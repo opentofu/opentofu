@@ -30,6 +30,9 @@ The command-line flags are all optional. The following flags are available:
   a key per output. If `NAME` is specified, only the output specified will be
   returned. This can be piped into tools such as `jq` for further processing.
 
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
+
 * `-raw` - If specified, OpenTofu will convert the specified output value to a
   string and print that string directly to the output, without any special
   formatting. This can be convenient when working with shell scripts, but
