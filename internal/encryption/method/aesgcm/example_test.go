@@ -6,62 +6,19 @@
 package aesgcm_test
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
+	"github.com/zclconf/go-cty/cty"
 )
 
-func Example() {
-	descriptor := aesgcm.New()
-
-	// Get the config struct. You can fill it manually by type-asserting it to aesgcm.Config, but you could also use
-	// it as JSON.
-	config := descriptor.ConfigStruct()
-
-	if err := json.Unmarshal(
-		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
-		[]byte(`{
-    "keys": {
-		"encryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ=",
-		"decryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
-	}
-}`), &config); err != nil {
-		panic(err)
-	}
-
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
-	}
-
-	// Encrypt some data:
-	encrypted, err := method.Encrypt([]byte("Hello world!"))
-	if err != nil {
-		panic(err)
-	}
-
-	// Now decrypt it:
-	decrypted, err := method.Decrypt(encrypted)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%s", decrypted)
-	// Output: Hello world!
-}
-
 func Example_config() {
-	// First, get the descriptor to make sure we always have the default values.
-	descriptor := aesgcm.New()
-
-	// Obtain a modifiable, buildable config. Alternatively, you can also use ConfigStruct() method to obtain a
-	// struct you can fill with HCL or JSON tags.
-	config := descriptor.TypedConfig()
+	// Obtain a modifiable, buildable config.
+	config := aesgcm.Config{}
 
 	// Set up an encryption key:
 	config.Keys = keyprovider.Output{
@@ -91,53 +48,9 @@ func Example_config() {
 	// Output: Hello world!
 }
 
-func Example_config_json() {
-	// First, get the descriptor to make sure we always have the default values.
-	descriptor := aesgcm.New()
-
-	// Get an untyped config struct you can use for JSON unmarshalling:
-	config := descriptor.ConfigStruct()
-
-	// Unmarshal JSON into the config struct:
-	if err := json.Unmarshal(
-		// Set up a randomly generated 32-byte key. In JSON, you can base64-encode the value.
-		[]byte(`{
-    "keys": {
-		"encryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ=",
-		"decryption_key": "Y29veTRhaXZ1NWFpeW9vMWlhMG9vR29vVGFlM1BhaTQ="
-	}
-}`), &config); err != nil {
-		panic(err)
-	}
-
-	// Now you can build a method:
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
-	}
-
-	// Encrypt something:
-	encrypted, err := method.Encrypt([]byte("Hello world!"))
-	if err != nil {
-		panic(err)
-	}
-
-	// Decrypt it:
-	decrypted, err := method.Decrypt(encrypted)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%s", decrypted)
-	// Output: Hello world!
-}
-
 func Example_config_hcl() {
 	// First, get the descriptor to make sure we always have the default values.
 	descriptor := aesgcm.New()
-
-	// Get an untyped config struct you can use for HCL unmarshalling:
-	config := descriptor.ConfigStruct()
 
 	// Unmarshal HCL code into the config struct. The input must be a list of bytes, so in a real world scenario
 	// you may want to put in a hex-decoding function:
@@ -153,7 +66,12 @@ func Example_config_hcl() {
 	if diags.HasErrors() {
 		panic(diags)
 	}
-	if diags := gohcl.DecodeBody(file.Body, nil, config); diags.HasErrors() {
+
+	methodCtx := method.EvalContext{ValueForExpression: func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+		return expr.Value(nil)
+	}}
+	config, diags := descriptor.DecodeConfig(methodCtx, file.Body)
+	if diags.HasErrors() {
 		panic(diags)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
@@ -124,8 +125,8 @@ func (t testMethodDescriptor) ID() method.ID {
 	return t.id
 }
 
-func (t testMethodDescriptor) ConfigStruct() method.Config {
-	return &testMethodConfig{}
+func (t testMethodDescriptor) DecodeConfig(method.EvalContext, hcl.Body) (method.Config, hcl.Diagnostics) {
+	return &testMethodConfig{}, nil
 }
 
 type testMethodConfig struct {

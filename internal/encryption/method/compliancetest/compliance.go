@@ -11,10 +11,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/compliancetest"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ComplianceTest tests the functionality of a method to make sure it conforms to the expectations of the method
@@ -32,9 +33,6 @@ type TestConfiguration[TDescriptor method.Descriptor, TConfig method.Config, TMe
 	// function.
 	HCLParseTestCases map[string]HCLParseTestCase[TDescriptor, TConfig, TMethod]
 
-	// ConfigStructT validates that a certain config results or does not result in a valid Build() call.
-	ConfigStructTestCases map[string]ConfigStructTestCase[TConfig, TMethod]
-
 	// ProvideTestCase exercises the entire chain and generates two keys.
 	EncryptDecryptTestCase EncryptDecryptTestCase[TConfig, TMethod]
 }
@@ -45,9 +43,6 @@ func (cfg *TestConfiguration[TDescriptor, TConfig, TMethod]) execute(t *testing.
 	})
 	t.Run("hcl", func(t *testing.T) {
 		cfg.testHCL(t)
-	})
-	t.Run("config-struct", func(t *testing.T) {
-		cfg.testConfigStruct(t)
 	})
 	t.Run("encrypt-decrypt", func(t *testing.T) {
 		cfg.EncryptDecryptTestCase.execute(t)
@@ -100,20 +95,6 @@ func (cfg *TestConfiguration[TDescriptor, TConfig, TMethod]) testHCL(t *testing.
 	})
 }
 
-func (cfg *TestConfiguration[TDescriptor, TConfig, TMethod]) testConfigStruct(t *testing.T) {
-	compliancetest.ConfigStruct[TConfig](t, cfg.Descriptor.ConfigStruct())
-
-	if cfg.ConfigStructTestCases == nil {
-		compliancetest.Fail(t, "Please provide a map to ConfigStructTestCases.")
-	}
-
-	for name, tc := range cfg.ConfigStructTestCases {
-		t.Run(name, func(t *testing.T) {
-			tc.execute(t)
-		})
-	}
-}
-
 // HCLParseTestCase contains a test case that parses HCL into a configuration.
 type HCLParseTestCase[TDescriptor method.Descriptor, TConfig method.Config, TMethod method.Method] struct {
 	// HCL contains the code that should be parsed into the configuration structure.
@@ -143,12 +124,11 @@ func (h *HCLParseTestCase[TDescriptor, TConfig, TMethod]) execute(t *testing.T, 
 		}
 	}
 
-	configStruct := descriptor.ConfigStruct()
-	diags = gohcl.DecodeBody(
-		parsedConfig.MethodConfigs[0].Body,
-		nil,
-		configStruct,
-	)
+	methodCtx := method.EvalContext{ValueForExpression: func(expr hcl.Expression) (cty.Value, hcl.Diagnostics) {
+		return expr.Value(nil)
+	}}
+	configStruct, diags := descriptor.DecodeConfig(methodCtx, parsedConfig.MethodConfigs[0].Body)
+
 	var m TMethod
 	if h.ValidHCL {
 		if diags.HasErrors() {
@@ -174,22 +154,6 @@ func (h *HCLParseTestCase[TDescriptor, TConfig, TMethod]) execute(t *testing.T, 
 		}
 	} else {
 		compliancetest.Log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
-	}
-}
-
-// ConfigStructTestCase validates that the config struct is behaving correctly when Build() is called.
-type ConfigStructTestCase[TConfig method.Config, TMethod method.Method] struct {
-	Config     TConfig
-	ValidBuild bool
-	Validate   func(method TMethod) error
-}
-
-func (m ConfigStructTestCase[TConfig, TMethod]) execute(t *testing.T) {
-	newMethod := buildConfigAndValidate[TMethod, TConfig](t, m.Config, m.ValidBuild)
-	if m.Validate != nil {
-		if err := m.Validate(newMethod); err != nil {
-			compliancetest.Fail(t, "method validation failed (%v)", err)
-		}
 	}
 }
 

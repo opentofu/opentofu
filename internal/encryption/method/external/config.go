@@ -12,9 +12,9 @@ import (
 
 // Config is the configuration for the AES-GCM method.
 type Config struct {
-	Keys           *keyprovider.Output `hcl:"keys,optional" json:"keys,omitempty" yaml:"keys"`
-	EncryptCommand []string            `hcl:"encrypt_command" json:"encrypt_command" yaml:"encrypt_command"`
-	DecryptCommand []string            `hcl:"decrypt_command" json:"decrypt_command" yaml:"decrypt_command"`
+	Keys           *keyprovider.Output
+	EncryptCommand []string
+	DecryptCommand []string
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
