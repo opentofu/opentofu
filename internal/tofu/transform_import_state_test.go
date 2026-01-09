@@ -32,8 +32,8 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 
 	evalCtx := &MockEvalContext{
-		StateState:       state.SyncWrapper(),
-		ProviderProvider: provider,
+		StateState:           state.SyncWrapper(),
+		InitProviderProvider: provider,
 	}
 
 	// Import a new aws_instance.foo, this time with ID=bar. The original
@@ -49,7 +49,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}},
+		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
 	}
 
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
@@ -72,8 +72,8 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	provider := testProvider("aws")
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	evalCtx := &MockEvalContext{
-		StateState:       state.SyncWrapper(),
-		ProviderProvider: provider,
+		StateState:           state.SyncWrapper(),
+		InitProviderProvider: provider,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"aws_instance": {
@@ -105,7 +105,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}},
+		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if diags.HasErrors() {
@@ -134,8 +134,8 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 	}
 
 	evalCtx := &MockEvalContext{
-		StateState:       state.SyncWrapper(),
-		ProviderProvider: provider,
+		StateState:           state.SyncWrapper(),
+		InitProviderProvider: provider,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"aws_instance": {
@@ -167,7 +167,7 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}},
+		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if !diags.HasErrors() {

@@ -239,7 +239,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State:    states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProvider }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -259,7 +259,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProvider }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -279,7 +279,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProviderWithStateChange }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -300,7 +300,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProviderWithMoveUnsupported }},
 				},
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
@@ -336,7 +336,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx.PathPath = addrs.RootModuleInstance
 			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			evalCtx.MoveResultsResults = test.MoveResults
-			evalCtx.ProviderProvider = providers.Interface(test.Provider)
+			evalCtx.InitProviderProvider = providers.Interface(test.Provider)
 
 			got, readDiags := test.Node.readResourceInstanceState(t.Context(), evalCtx, test.Node.Addr)
 			if test.WantErrorStr != "" {
@@ -383,7 +383,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx.PathPath = addrs.RootModuleInstance
 			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			evalCtx.MoveResultsResults = test.MoveResults
-			evalCtx.ProviderProvider = providers.Interface(test.Provider)
+			evalCtx.InitProviderProvider = providers.Interface(test.Provider)
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 			got, readDiags := test.Node.readResourceInstanceStateDeposed(t.Context(), evalCtx, test.Node.Addr, key)
