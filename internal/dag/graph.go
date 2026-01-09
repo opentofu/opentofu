@@ -8,6 +8,7 @@ package dag
 import (
 	"bytes"
 	"fmt"
+	"iter"
 	"sort"
 )
 
@@ -46,30 +47,62 @@ func (g *Graph) DirectedGraph() Grapher {
 }
 
 // Vertices returns the list of all the vertices in the graph.
+//
+// Consider using [Graph.VerticesSeq] instead if you need something other than
+// a slice of [Vertex].
 func (g *Graph) Vertices() []Vertex {
+	// We don't use slices.Collect here because we know how much capacity
+	// we need to allocate.
 	result := make([]Vertex, 0, len(g.vertices))
-	for _, v := range g.vertices {
-		result = append(result, v.(Vertex))
+	for v := range g.VerticesSeq() {
+		result = append(result, v)
 	}
-
 	return result
 }
 
-// Edges returns the list of all the edges in the graph.
-func (g *Graph) Edges() []Edge {
-	result := make([]Edge, 0, len(g.edges))
-	for _, v := range g.edges {
-		result = append(result, v.(Edge))
+// VerticesSeq returns a sequence of of all the vertices in the graph.
+func (g *Graph) VerticesSeq() iter.Seq[Vertex] {
+	return func(yield func(Vertex) bool) {
+		for _, v := range g.vertices {
+			keepGoing := yield(v)
+			if !keepGoing {
+				return
+			}
+		}
 	}
+}
 
+// Edges returns the list of all the edges in the graph.
+//
+// Consider using [Graph.EdgesSeq] instead of you need something other than
+// a slice of [Edge].
+func (g *Graph) Edges() []Edge {
+	// We don't use slices.Collect here because we know how much capacity
+	// we need to allocate.
+	result := make([]Edge, 0, len(g.edges))
+	for e := range g.EdgesSeq() {
+		result = append(result, e)
+	}
 	return result
+}
+
+// EdgesSeq returns a sequence of all of the edges in the graph.
+func (g *Graph) EdgesSeq() iter.Seq[Edge] {
+	return func(yield func(Edge) bool) {
+		for _, e := range g.edges {
+			keepGoing := yield(e.(Edge))
+			if !keepGoing {
+				return
+			}
+		}
+	}
 }
 
 // EdgesFrom returns the list of edges from the given source.
 func (g *Graph) EdgesFrom(v Vertex) []Edge {
 	var result []Edge
 	from := hashcode(v)
-	for _, e := range g.Edges() {
+	for e := range g.EdgesSeq() {
 		if hashcode(e.Source()) == from {
 			result = append(result, e)
 		}
@@ -82,7 +115,7 @@ func (g *Graph) EdgesFrom(v Vertex) []Edge {
 func (g *Graph) EdgesTo(v Vertex) []Edge {
 	var result []Edge
 	search := hashcode(v)
-	for _, e := range g.Edges() {
+	for e := range g.EdgesSeq() {
 		if hashcode(e.Target()) == search {
 			result = append(result, e)
 		}
