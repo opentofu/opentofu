@@ -43,7 +43,7 @@ type PlanGraphBuilder struct {
 
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.
-	Plugins *contextPlugins
+	Plugins *pluginsManager
 
 	// Targets are resources to target
 	Targets []addrs.Targetable
@@ -97,8 +97,6 @@ type PlanGraphBuilder struct {
 	//
 	// If empty, then config will not be generated.
 	GenerateConfigPath string
-
-	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
@@ -223,7 +221,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.Plugins.providerFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},

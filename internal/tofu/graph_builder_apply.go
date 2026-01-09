@@ -40,7 +40,7 @@ type ApplyGraphBuilder struct {
 
 	// Plugins is a library of the plug-in components (providers and
 	// provisioners) available for use.
-	Plugins *contextPlugins
+	Plugins *pluginsManager
 
 	// Targets are resources to target. This is only required to make sure
 	// unnecessary outputs aren't included in the apply graph. The plan
@@ -67,8 +67,6 @@ type ApplyGraphBuilder struct {
 	// nodes that should not be pruned even if they are not referenced within
 	// the actual graph.
 	ExternalReferences []*addrs.Reference
-
-	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
@@ -162,7 +160,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.Plugins.providerFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},

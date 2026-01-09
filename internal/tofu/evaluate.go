@@ -58,7 +58,7 @@ type Evaluator struct {
 	//
 	// From this we only access the schemas of the plugins, and don't otherwise
 	// interact with plugin instances.
-	Plugins *contextPlugins
+	Plugins *pluginsManager
 
 	// State is the current state, embedded in a wrapper that ensures that
 	// it can be safely accessed and modified concurrently.
@@ -1015,14 +1015,14 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 
 func (d *evaluationStateData) getResourceSchema(ctx context.Context, addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
 	// TODO: Plumb a useful context.Context through to here.
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
-	if err != nil {
+	schema, diags := d.Evaluator.Plugins.providers.ResourceTypeSchema(ctx, providerAddr, addr.Mode, addr.Type)
+	if diags.HasErrors() {
 		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
 		// treat a failure here the same as having no schema.
 		return nil
 	}
-	return schema
+	return schema.Block
 }
 
 func (d *evaluationStateData) GetTerraformAttr(_ context.Context, addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {

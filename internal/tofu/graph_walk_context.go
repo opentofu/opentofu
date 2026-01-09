@@ -18,8 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -31,22 +29,22 @@ type ContextGraphWalker struct {
 	NullGraphWalker
 
 	// Configurable values
-	Context                 *Context
-	State                   *states.SyncState       // Used for safe concurrent access to state
-	RefreshState            *states.SyncState       // Used for safe concurrent access to state
-	PrevRunState            *states.SyncState       // Used for safe concurrent access to state
-	Changes                 *plans.ChangesSync      // Used for safe concurrent writes to changes
-	Checks                  *checks.State           // Used for safe concurrent writes of checkable objects and their check results
-	InstanceExpander        *instances.Expander     // Tracks our gradual expansion of module and resource instances
-	ImportResolver          *ImportResolver         // Tracks import targets as they are being resolved
-	MoveResults             refactoring.MoveResults // Read-only record of earlier processing of move statements
-	Operation               walkOperation
-	StopContext             context.Context
-	RootVariableValues      InputValues
-	Config                  *configs.Config
-	PlanTimestamp           time.Time
-	Encryption              encryption.Encryption
-	ProviderFunctionTracker ProviderFunctionMapping
+	Context            *Context
+	State              *states.SyncState       // Used for safe concurrent access to state
+	RefreshState       *states.SyncState       // Used for safe concurrent access to state
+	PrevRunState       *states.SyncState       // Used for safe concurrent access to state
+	Changes            *plans.ChangesSync      // Used for safe concurrent writes to changes
+	Checks             *checks.State           // Used for safe concurrent writes of checkable objects and their check results
+	InstanceExpander   *instances.Expander     // Tracks our gradual expansion of module and resource instances
+	ImportResolver     *ImportResolver         // Tracks import targets as they are being resolved
+	MoveResults        refactoring.MoveResults // Read-only record of earlier processing of move statements
+	Operation          walkOperation
+	StopContext        context.Context
+	RootVariableValues InputValues
+	Config             *configs.Config
+	PlanTimestamp      time.Time
+	Encryption         encryption.Encryption
+	Plugins            *pluginsManager
 
 	// This is an output. Do not set this, nor read it while a graph walk
 	// is in progress.
@@ -59,11 +57,9 @@ type ContextGraphWalker struct {
 	variableValuesLock sync.Mutex
 	variableValues     map[string]map[string]cty.Value
 
-	providerLock  sync.Mutex
-	providerCache map[string]map[addrs.InstanceKey]providers.Interface
+	providerLock sync.Mutex
 
-	provisionerLock  sync.Mutex
-	provisionerCache map[string]provisioners.Interface
+	provisionerLock sync.Mutex
 }
 
 var _ GraphWalker = (*ContextGraphWalker)(nil)
@@ -95,7 +91,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		Operation:          w.Operation,
 		State:              w.State,
 		Changes:            w.Changes,
-		Plugins:            w.Context.plugins,
+		Plugins:            w.Plugins,
 		VariableValues:     w.variableValues,
 		VariableValuesLock: &w.variableValuesLock,
 		InstanceExpander:   w.InstanceExpander,
@@ -103,28 +99,24 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 	}
 
 	ctx := &BuiltinEvalContext{
-		StopContext:             w.StopContext,
-		Hooks:                   w.Context.hooks,
-		InputValue:              w.Context.uiInput,
-		InstanceExpanderValue:   w.InstanceExpander,
-		Plugins:                 w.Context.plugins,
-		MoveResultsValue:        w.MoveResults,
-		ImportResolverValue:     w.ImportResolver,
-		ProviderCache:           w.providerCache,
-		ProviderInputConfig:     w.Context.providerInputConfig,
-		ProviderLock:            &w.providerLock,
-		ProvisionerCache:        w.provisionerCache,
-		ProvisionerLock:         &w.provisionerLock,
-		ChangesValue:            w.Changes,
-		ChecksValue:             w.Checks,
-		StateValue:              w.State,
-		RefreshStateValue:       w.RefreshState,
-		PrevRunStateValue:       w.PrevRunState,
-		Evaluator:               evaluator,
-		VariableValues:          w.variableValues,
-		VariableValuesLock:      &w.variableValuesLock,
-		Encryption:              w.Encryption,
-		ProviderFunctionTracker: w.ProviderFunctionTracker,
+		StopContext:           w.StopContext,
+		Hooks:                 w.Context.hooks,
+		InputValue:            w.Context.uiInput,
+		InstanceExpanderValue: w.InstanceExpander,
+		Plugins:               w.Plugins,
+		MoveResultsValue:      w.MoveResults,
+		ImportResolverValue:   w.ImportResolver,
+		ProviderInputConfig:   w.Context.providerInputConfig,
+		ProviderLock:          &w.providerLock,
+		ChangesValue:          w.Changes,
+		ChecksValue:           w.Checks,
+		StateValue:            w.State,
+		RefreshStateValue:     w.RefreshState,
+		PrevRunStateValue:     w.PrevRunState,
+		Evaluator:             evaluator,
+		VariableValues:        w.variableValues,
+		VariableValuesLock:    &w.variableValuesLock,
+		Encryption:            w.Encryption,
 	}
 
 	return ctx
@@ -132,8 +124,6 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 
 func (w *ContextGraphWalker) init() {
 	w.contexts = make(map[string]*BuiltinEvalContext)
-	w.providerCache = make(map[string]map[addrs.InstanceKey]providers.Interface)
-	w.provisionerCache = make(map[string]provisioners.Interface)
 	w.variableValues = make(map[string]map[string]cty.Value)
 
 	// Populate root module variable values. Other modules will be populated

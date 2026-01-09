@@ -319,17 +319,16 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 
 	variables := opts.SetVariables
 
-	providerFunctionTracker := make(ProviderFunctionMapping)
+	plugins := newPluginsManager(c.plugins)
 
 	// Initialize our graph builder
 	builder := &PlanGraphBuilder{
-		ImportTargets:           opts.Targets,
-		Config:                  config,
-		State:                   state,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		Operation:               walkImport,
-		ProviderFunctionTracker: providerFunctionTracker,
+		ImportTargets:      opts.Targets,
+		Config:             config,
+		State:              state,
+		RootVariableValues: variables,
+		Plugins:            plugins,
+		Operation:          walkImport,
 	}
 
 	// Build the graph
@@ -341,9 +340,9 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 
 	// Walk it
 	walker, walkDiags := c.walk(ctx, graph, walkImport, &graphWalkOpts{
-		Config:                  config,
-		InputState:              state,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:     config,
+		InputState: state,
+		Plugins:    plugins,
 	})
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {

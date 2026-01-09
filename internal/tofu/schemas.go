@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -71,7 +72,7 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // either misbehavior on the part of one of the providers or of the provider
 // protocol itself. When returned with errors, the returned schemas object is
 // still valid but may be incomplete.
-func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (*Schemas, error) {
+func loadSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins plugins.Library) (*Schemas, error) {
 	var diags tfdiags.Diagnostics
 
 	provisioners, provisionerDiags := loadProvisionerSchemas(ctx, config, plugins)
@@ -86,9 +87,11 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 	}, diags.Err()
 }
 
-func loadProviderSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins *contextPlugins) (map[addrs.Provider]providers.ProviderSchema, tfdiags.Diagnostics) {
+func loadProviderSchemas(ctx context.Context, config *configs.Config, state *states.State, plugins plugins.Library) (map[addrs.Provider]providers.ProviderSchema, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	schemas := map[addrs.Provider]providers.ProviderSchema{}
+
+	manager := plugins.NewProviderManager()
 
 	if config != nil {
 		for _, fqn := range config.ProviderTypes() {
@@ -109,14 +112,14 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 	for fqn := range schemas {
 		wg.Go(func() {
 			log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", fqn.String())
-			schema, err := plugins.ProviderSchema(ctx, fqn)
+			schema := manager.GetProviderSchema(ctx, fqn)
 
 			// Ensure that we don't race on diags or schemas now that the hard work is done
 			lock.Lock()
 			defer lock.Unlock()
 
-			if err != nil {
-				diags = diags.Append(err)
+			if schema.Diagnostics.HasErrors() {
+				diags = diags.Append(schema.Diagnostics)
 				return
 			}
 
@@ -130,12 +133,19 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 	// Wait for all of the scheduled routines to complete
 	wg.Wait()
 
+	err := manager.Close(ctx)
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
 	return schemas, diags
 }
 
-func loadProvisionerSchemas(ctx context.Context, config *configs.Config, plugins *contextPlugins) (map[string]*configschema.Block, tfdiags.Diagnostics) {
+func loadProvisionerSchemas(ctx context.Context, config *configs.Config, plugins plugins.Library) (map[string]*configschema.Block, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	schemas := map[string]*configschema.Block{}
+
+	manager := plugins.NewProvisionerManager()
 
 	// Determine the full list of provisioners recursively
 	var addProvisionersToSchema func(config *configs.Config)
@@ -159,7 +169,7 @@ func loadProvisionerSchemas(ctx context.Context, config *configs.Config, plugins
 	// Populate the schema entries
 	for name := range schemas {
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provisioner %q", name)
-		schema, err := plugins.ProvisionerSchema(name)
+		schema, err := manager.ProvisionerSchema(name)
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls, which would then repeat the same error message
@@ -176,6 +186,11 @@ func loadProvisionerSchemas(ctx context.Context, config *configs.Config, plugins
 		}
 
 		schemas[name] = schema
+	}
+
+	err := manager.Close()
+	if err != nil {
+		diags = diags.Append(err)
 	}
 
 	return schemas, diags

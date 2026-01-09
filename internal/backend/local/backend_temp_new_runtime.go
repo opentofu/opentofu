@@ -146,7 +146,7 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 		prevRoundState = states.NewState() // this is the first round, starting with an empty state
 	}
 
-	plugins := plugins.NewRuntimePlugins(b.ContextOpts.Providers, b.ContextOpts.Provisioners)
+	plugins := plugins.NewRuntimePlugins(b.ContextOpts.Plugins)
 	evalCtx := &eval.EvalContext{
 		RootModuleDir:      op.ConfigDir,
 		OriginalWorkingDir: b.ContextOpts.Meta.OriginalWorkingDir,

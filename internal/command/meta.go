@@ -38,6 +38,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -590,13 +591,17 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	// and just work with what we've been given, thus allowing the tests
 	// to provide mock providers and provisioners.
 	if m.testingOverrides != nil {
-		opts.Providers = m.testingOverrides.Providers
-		opts.Provisioners = m.testingOverrides.Provisioners
+		opts.Plugins = plugins.NewLibrary(
+			m.testingOverrides.Providers,
+			m.testingOverrides.Provisioners,
+		)
 	} else {
 		var providerFactories map[addrs.Provider]providers.Factory
 		providerFactories, err = m.providerFactories()
-		opts.Providers = providerFactories
-		opts.Provisioners = m.provisionerFactories()
+		opts.Plugins = plugins.NewLibrary(
+			providerFactories,
+			m.provisionerFactories(),
+		)
 	}
 
 	opts.Meta = &tofu.ContextMeta{

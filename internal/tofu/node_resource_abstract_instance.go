@@ -30,7 +30,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -2681,13 +2680,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 	for _, prov := range provs {
 		log.Printf("[TRACE] applyProvisioners: provisioning %s with %q", n.Addr, prov.Type)
 
-		// Get the provisioner
-		provisioner, err := evalCtx.Provisioner(prov.Type)
-		if err != nil {
-			return diags.Append(err)
-		}
-
-		schema, err := evalCtx.ProvisionerSchema(prov.Type)
+		schema, err := evalCtx.Provisioners().ProvisionerSchema(prov.Type)
 		if err != nil {
 			// This error probably won't be a great diagnostic, but in practice
 			// we typically catch this problem long before we get here, so
@@ -2787,12 +2780,15 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		}
 
 		output := CallbackUIOutput{OutputFn: outputFn}
-		resp := provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
-			Config:     unmarkedConfig,
-			Connection: unmarkedConnInfo,
-			UIOutput:   &output,
-		})
-		applyDiags := resp.Diagnostics.InConfigBody(prov.Config, n.Addr.String())
+
+		resp := evalCtx.Provisioners().ProvisionResource(
+			ctx,
+			prov.Type,
+			unmarkedConfig,
+			unmarkedConnInfo,
+			&output,
+		)
+		applyDiags := resp.InConfigBody(prov.Config, n.Addr.String())
 
 		// Call post hook
 		hookErr := evalCtx.Hook(func(h Hook) (HookAction, error) {
@@ -3216,9 +3212,9 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
-	schema, err := evalCtx.ProviderSchema(ctx, n.ResolvedProvider.ProviderConfig)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, err)
+	schema := evalCtx.Providers().GetProviderSchema(ctx, n.ResolvedProvider.ProviderConfig.Provider)
+	if schema.Diagnostics.HasErrors() {
+		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, schema.Diagnostics.Err())
 	}
 
 	var isOverridden bool
@@ -3255,7 +3251,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return provider, schema, err
 	}
 
-	return underlyingProvider, schema, err
+	return underlyingProvider, schema, nil
 }
 
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {

@@ -311,7 +311,7 @@ func (c *Context) checkApplyGraph(ctx context.Context, plan *plans.Plan, config 
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(ctx, plan, config, make(ProviderFunctionMapping), nil)
+	_, _, diags := c.applyGraph(ctx, plan, config, newPluginsManager(c.plugins), nil)
 	return diags
 }
 
@@ -778,9 +778,10 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// strange problems that may lead to confusing error messages.
 		return nil, diags
 	}
-	providerFunctionTracker := make(ProviderFunctionMapping)
+	plugins := newPluginsManager(c.plugins)
+	// defer closing providers and provisioners
 
-	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, providerFunctionTracker)
+	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, plugins)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -792,12 +793,12 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	// we can now walk.
 	changes := plans.NewChanges()
 	walker, walkDiags := c.walk(ctx, graph, walkOp, &graphWalkOpts{
-		Config:                  config,
-		InputState:              prevRunState,
-		Changes:                 changes,
-		MoveResults:             moveResults,
-		PlanTimeTimestamp:       timestamp,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:            config,
+		InputState:        prevRunState,
+		Changes:           changes,
+		MoveResults:       moveResults,
+		PlanTimeTimestamp: timestamp,
+		Plugins:           plugins,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -861,53 +862,50 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	return plan, diags
 }
 
-func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts, plugins *pluginsManager) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	switch mode := opts.Mode; mode {
 	case plans.NormalMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			ForceReplace:            opts.ForceReplace,
-			skipRefresh:             opts.SkipRefresh,
-			preDestroyRefresh:       opts.PreDestroyRefresh,
-			Operation:               walkPlan,
-			ExternalReferences:      opts.ExternalReferences,
-			ImportTargets:           opts.ImportTargets,
-			GenerateConfigPath:      opts.GenerateConfigPath,
-			RemoveStatements:        opts.RemoveStatements,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:             config,
+			State:              prevRunState,
+			RootVariableValues: opts.SetVariables,
+			Plugins:            plugins,
+			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
+			ForceReplace:       opts.ForceReplace,
+			skipRefresh:        opts.SkipRefresh,
+			preDestroyRefresh:  opts.PreDestroyRefresh,
+			Operation:          walkPlan,
+			ExternalReferences: opts.ExternalReferences,
+			ImportTargets:      opts.ImportTargets,
+			GenerateConfigPath: opts.GenerateConfigPath,
+			RemoveStatements:   opts.RemoveStatements,
 		}).Build(ctx, addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
-			skipPlanChanges:         true, // this activates "refresh only" mode.
-			Operation:               walkPlan,
-			ExternalReferences:      opts.ExternalReferences,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:             config,
+			State:              prevRunState,
+			RootVariableValues: opts.SetVariables,
+			Plugins:            plugins,
+			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
+			skipRefresh:        opts.SkipRefresh,
+			skipPlanChanges:    true, // this activates "refresh only" mode.
+			Operation:          walkPlan,
+			ExternalReferences: opts.ExternalReferences,
 		}).Build(ctx, addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.DestroyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
-			Operation:               walkPlanDestroy,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:             config,
+			State:              prevRunState,
+			RootVariableValues: opts.SetVariables,
+			Plugins:            plugins,
+			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
+			skipRefresh:        opts.SkipRefresh,
+			Operation:          walkPlanDestroy,
 		}).Build(ctx, addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags
 	default:
@@ -1079,7 +1077,7 @@ func (c *Context) PlanGraphForUI(config *configs.Config, prevRunState *states.St
 
 	opts := &PlanOpts{Mode: mode}
 
-	graph, _, moreDiags := c.planGraph(context.TODO(), config, prevRunState, opts, make(ProviderFunctionMapping))
+	graph, _, moreDiags := c.planGraph(context.TODO(), config, prevRunState, opts, newPluginsManager(c.plugins))
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

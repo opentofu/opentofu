@@ -111,9 +111,10 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		}
 	}
 
-	providerFunctionTracker := make(ProviderFunctionMapping)
+	plugins := newPluginsManager(c.plugins)
+	// defer closing providers and provisioners
 
-	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker, opts)
+	graph, operation, diags := c.applyGraph(ctx, plan, config, plugins, opts)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -130,8 +131,9 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		PlanTimeCheckResults: plan.Checks,
 
 		// We also want to propagate the timestamp from the plan file.
-		PlanTimeTimestamp:       plan.Timestamp,
-		ProviderFunctionTracker: providerFunctionTracker,
+		PlanTimeTimestamp: plan.Timestamp,
+
+		Plugins: plugins,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -195,7 +197,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping, applyOpts *ApplyOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, plugins *pluginsManager, applyOpts *ApplyOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables, vDiags := c.mergePlanAndApplyVariables(config, plan, applyOpts)
@@ -217,17 +219,16 @@ func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *conf
 	}
 
 	graph, moreDiags := (&ApplyGraphBuilder{
-		Config:                  config,
-		Changes:                 plan.Changes,
-		State:                   plan.PriorState,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		Targets:                 plan.TargetAddrs,
-		Excludes:                plan.ExcludeAddrs,
-		ForceReplace:            plan.ForceReplaceAddrs,
-		Operation:               operation,
-		ExternalReferences:      plan.ExternalReferences,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:             config,
+		Changes:            plan.Changes,
+		State:              plan.PriorState,
+		RootVariableValues: variables,
+		Plugins:            plugins,
+		Targets:            plan.TargetAddrs,
+		Excludes:           plan.ExcludeAddrs,
+		ForceReplace:       plan.ForceReplaceAddrs,
+		Operation:          operation,
+		ExternalReferences: plan.ExternalReferences,
 	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -252,7 +253,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, make(ProviderFunctionMapping), nil)
+	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, newPluginsManager(c.plugins), nil)
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

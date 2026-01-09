@@ -50,8 +50,9 @@ type GraphNodeAttachProvisionerSchema interface {
 // GraphNodeAttachProvisionerSchema, looks up the needed schemas for each
 // and then passes them to a method implemented by the node.
 type AttachSchemaTransformer struct {
-	Plugins *contextPlugins
-	Config  *configs.Config
+	Plugins *pluginsManager
+
+	Config *configs.Config
 }
 
 func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error {
@@ -70,37 +71,37 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			providerFqn := tv.Provider()
 
 			// TODO: Plumb a useful context.Context through to here.
-			schema, version, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
-			if err != nil {
-				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
+			schema, diags := t.Plugins.providers.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
+			if diags.HasErrors() {
+				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, diags.Err())
 			}
-			if schema == nil {
+			if schema == nil || schema.Block == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No resource schema available for %s", addr)
 				continue
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
-			tv.AttachResourceSchema(schema, version)
+			tv.AttachResourceSchema(schema.Block, uint64(schema.Version))
 		}
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
 			providerAddr := tv.ProviderAddr()
 			// TODO: Plumb a useful context.Context through to here.
-			schema, err := t.Plugins.ProviderConfigSchema(ctx, providerAddr.Provider)
-			if err != nil {
-				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
+			schema, diags := t.Plugins.providers.ProviderConfigSchema(ctx, providerAddr.Provider)
+			if diags.HasErrors() {
+				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, diags.Err())
 			}
-			if schema == nil {
+			if schema.Block == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No provider config schema available for %s", providerAddr)
 				continue
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching provider config schema to %s", dag.VertexName(v))
-			tv.AttachProviderConfigSchema(schema)
+			tv.AttachProviderConfigSchema(schema.Block)
 		}
 
 		if tv, ok := v.(GraphNodeAttachProvisionerSchema); ok {
 			names := tv.ProvisionedBy()
 			for _, name := range names {
-				schema, err := t.Plugins.ProvisionerSchema(name)
+				schema, err := t.Plugins.provisioners.ProvisionerSchema(name)
 				if err != nil {
 					return fmt.Errorf("failed to read provisioner configuration schema for %q: %w", name, err)
 				}

@@ -12,15 +12,14 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
-	"github.com/opentofu/opentofu/version"
 )
 
 // traceAttrProviderAddress is a standardized trace span attribute name that we
@@ -76,79 +75,43 @@ func (n *NodeApplyableProvider) Close(ctx context.Context) error {
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	instances, diags := n.initInstances(ctx, evalCtx, op)
-	if diags.HasErrors() {
-		return diags
+	var diags tfdiags.Diagnostics
+
+	n.instances = map[addrs.InstanceKey]providers.Configured{}
+
+	var instanceData map[addrs.InstanceKey]instances.RepetitionData
+	if n.Config == nil || n.Config.Instances == nil {
+		// Stub out uninstanced
+		instanceData = map[addrs.InstanceKey]instances.RepetitionData{addrs.NoKey: EvalDataForNoInstanceKey}
+	} else {
+		instanceData = n.Config.Instances
 	}
 
-	for key, provider := range instances {
-		diags = diags.Append(n.executeInstance(ctx, evalCtx, op, key, provider))
+	if op == walkValidate {
+		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
+		for key, data := range instanceData {
+			diags = diags.Append(n.ValidateProvider(ctx, evalCtx, key, data))
+		}
+		instance, newDiags := evalCtx.Providers().NewProvider(ctx, n.Addr.Provider)
+		n.instances[addrs.NoKey] = instance
+		return diags.Append(newDiags)
+	}
+
+	verifyConfigIsKnown := op == walkImport
+	if verifyConfigIsKnown {
+		log.Printf("[TRACE] NodeApplyableProvider: configuring %s (requiring that configuration is wholly known)", n.Addr)
+	} else {
+		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
+	}
+
+	for key, data := range instanceData {
+		diags = diags.Append(n.ConfigureProvider(ctx, evalCtx, key, data, verifyConfigIsKnown))
 	}
 
 	return diags
 }
-func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
 
-	var initKeys []addrs.InstanceKey
-	// config -> init (different due to validate skipping most for_each logic)
-	instanceKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
-	if n.Config == nil || n.Config.Instances == nil {
-		initKeys = append(initKeys, addrs.NoKey)
-		instanceKeys[addrs.NoKey] = addrs.NoKey
-	} else if op == walkValidate {
-		// Instances are set AND we are validating
-		initKeys = append(initKeys, addrs.NoKey)
-		for key := range n.Config.Instances {
-			instanceKeys[key] = addrs.NoKey
-		}
-	} else {
-		// Instances are set AND we are not validating
-		for key := range n.Config.Instances {
-			initKeys = append(initKeys, key)
-			instanceKeys[key] = key
-		}
-	}
-
-	if n.instances == nil {
-		n.instances = map[addrs.InstanceKey]providers.Configured{}
-	}
-
-	for _, key := range initKeys {
-		instance, err := evalCtx.InitProvider(ctx, n.Addr, key)
-		n.instances[key] = instance
-		diags = diags.Append(err)
-	}
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	instances := make(map[addrs.InstanceKey]providers.Interface)
-	for configKey, initKey := range instanceKeys {
-		instances[configKey] = n.instances[initKey]
-	}
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	return instances, diags
-}
-func (n *NodeApplyableProvider) executeInstance(ctx context.Context, evalCtx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
-	switch op {
-	case walkValidate:
-		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		return n.ValidateProvider(ctx, evalCtx, providerKey, provider)
-	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
-		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
-		return n.ConfigureProvider(ctx, evalCtx, providerKey, provider, false)
-	case walkImport:
-		log.Printf("[TRACE] NodeApplyableProvider: configuring %s (requiring that configuration is wholly known)", n.Addr)
-		return n.ConfigureProvider(ctx, evalCtx, providerKey, provider, true)
-	}
-	return nil
-}
-
-func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
+func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, data InstanceKeyEvalData) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Validate provider configuration",
 		tracing.SpanAttributes(
@@ -174,7 +137,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		return nil
 	}
 
-	schemaResp := provider.GetProviderSchema(ctx)
+	schemaResp := evalCtx.Providers().GetProviderSchema(ctx, n.Addr.Provider)
 	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -189,11 +152,6 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		configSchema = &configschema.Block{}
 	}
 
-	data := EvalDataForNoInstanceKey
-	if n.Config != nil && n.Config.Instances != nil {
-		data = n.Config.Instances[providerKey]
-	}
-
 	configVal, _, evalDiags := evalCtx.EvaluateBlock(ctx, configBody, configSchema, nil, data)
 	if evalDiags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -205,12 +163,8 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 	// stripped out before sending this to the provider
 	unmarkedConfigVal, _ := configVal.UnmarkDeep()
 
-	req := providers.ValidateProviderConfigRequest{
-		Config: unmarkedConfigVal,
-	}
-
-	validateResp := provider.ValidateProviderConfig(ctx, req)
-	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
+	validateDiags := evalCtx.Providers().ValidateProviderConfig(ctx, n.Addr.Provider, unmarkedConfigVal)
+	diags = diags.Append(validateDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 
 	tracing.SetSpanError(span, diags)
 	return diags
@@ -219,7 +173,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 // ConfigureProvider configures a provider that is already initialized and retrieved.
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
-func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
+func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, data InstanceKeyEvalData, verifyConfigIsKnown bool) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Configure provider",
 		tracing.SpanAttributes(
@@ -239,7 +193,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 
 	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, config)
 
-	resp := provider.GetProviderSchema(ctx)
+	resp := evalCtx.Providers().GetProviderSchema(ctx, n.Addr.Provider)
 	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -247,10 +201,6 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 	}
 
 	configSchema := resp.Provider.Block
-	data := EvalDataForNoInstanceKey
-	if n.Config != nil && n.Config.Instances != nil {
-		data = n.Config.Instances[providerKey]
-	}
 
 	configVal, configBody, evalDiags := evalCtx.EvaluateBlock(ctx, configBody, configSchema, nil, data)
 	diags = diags.Append(evalDiags)
@@ -270,20 +220,11 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		return diags
 	}
 
-	// If our config value contains any marked values, ensure those are
-	// stripped out before sending this to the provider
-	unmarkedConfigVal, _ := configVal.UnmarkDeep()
+	provider, newDiags := evalCtx.Providers().NewConfiguredProvider(ctx, n.Addr.Correct().Instance(providerKey), configVal)
+	diags = diags.Append(newDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 
-	// Allow the provider to validate and insert any defaults into the full
-	// configuration.
-	req := providers.ValidateProviderConfigRequest{
-		Config: unmarkedConfigVal,
-	}
+	n.instances[providerKey] = provider
 
-	// ValidateProviderConfig is only used for validation. We are intentionally
-	// ignoring the PreparedConfig field to maintain existing behavior.
-	validateResp := provider.ValidateProviderConfig(ctx, req)
-	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
 		// this error message won't be very clear. Add some detail to the error
@@ -300,29 +241,6 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		return diags
 	}
 
-	// If the provider returns something different, log a warning to help
-	// indicate to provider developers that the value is not used.
-	preparedCfg := validateResp.PreparedConfig
-	if preparedCfg != cty.NilVal && !preparedCfg.IsNull() && !preparedCfg.RawEquals(unmarkedConfigVal) {
-		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", n.Addr)
-	}
-
-	configResp := provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
-		TerraformVersion: version.String(),
-		Config:           unmarkedConfigVal,
-	})
-	diags = diags.Append(configResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
-	if diags.HasErrors() && config == nil {
-		// If there isn't an explicit "provider" block in the configuration,
-		// this error message won't be very clear. Add some detail to the error
-		// message in this case.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid provider configuration",
-			fmt.Sprintf(providerConfigErr, n.Addr.Provider),
-		))
-	}
-	tracing.SetSpanError(span, diags)
 	return diags
 }
 

@@ -46,7 +46,7 @@ type graphWalkOpts struct {
 
 	MoveResults refactoring.MoveResults
 
-	ProviderFunctionTracker ProviderFunctionMapping
+	Plugins *pluginsManager
 }
 
 func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
@@ -143,20 +143,20 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 	}
 
 	return &ContextGraphWalker{
-		Context:                 c,
-		State:                   state,
-		Config:                  opts.Config,
-		RefreshState:            refreshState,
-		PrevRunState:            prevRunState,
-		Changes:                 changes.SyncWrapper(),
-		Checks:                  checkState,
-		InstanceExpander:        instances.NewExpander(),
-		MoveResults:             opts.MoveResults,
-		ImportResolver:          NewImportResolver(),
-		Operation:               operation,
-		StopContext:             c.runContext,
-		PlanTimestamp:           opts.PlanTimeTimestamp,
-		Encryption:              c.encryption,
-		ProviderFunctionTracker: opts.ProviderFunctionTracker,
+		Context:          c,
+		State:            state,
+		Config:           opts.Config,
+		RefreshState:     refreshState,
+		PrevRunState:     prevRunState,
+		Changes:          changes.SyncWrapper(),
+		Checks:           checkState,
+		InstanceExpander: instances.NewExpander(),
+		MoveResults:      opts.MoveResults,
+		ImportResolver:   NewImportResolver(),
+		Operation:        operation,
+		StopContext:      c.runContext,
+		PlanTimestamp:    opts.PlanTimeTimestamp,
+		Encryption:       c.encryption,
+		Plugins:          opts.Plugins,
 	}
 }

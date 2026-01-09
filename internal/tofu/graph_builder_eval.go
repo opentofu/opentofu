@@ -44,7 +44,7 @@ type EvalGraphBuilder struct {
 
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.
-	Plugins *contextPlugins
+	Plugins *pluginsManager
 
 	ProviderFunctionTracker ProviderFunctionMapping
 }
@@ -99,7 +99,7 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		&ProviderUnconfiguredTransformer{},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.Plugins.providerFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
