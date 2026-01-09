@@ -67,7 +67,7 @@ func min(a, b int) int {
 	return b
 }
 
-// sccAcct is used ot pass around accounting information for
+// sccAcct is used to pass around accounting information for
 // the StronglyConnectedComponents algorithm
 type sccAcct struct {
 	NextIndex   int
