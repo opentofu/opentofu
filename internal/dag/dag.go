@@ -286,7 +286,7 @@ func (g *AcyclicGraph) ReverseBreadthFirstWalk(start Set, f DepthWalkFunc) error
 // Setting test to true will walk sets of vertices in sorted order for
 // deterministic testing.
 func (g *AcyclicGraph) walk(order walkType, test bool, start Set, f DepthWalkFunc) error {
-	seen := make(map[Vertex]struct{})
+	seen := make(map[any]struct{})
 	frontier := make([]vertexAtDepth, 0, len(start))
 	for _, v := range start {
 		frontier = append(frontier, vertexAtDepth{
@@ -317,11 +317,12 @@ func (g *AcyclicGraph) walk(order walkType, test bool, start Set, f DepthWalkFun
 			panic(fmt.Sprint("invalid visit order", order))
 		}
 
+		k := hashcode(current.Vertex)
 		// Check if we've seen this already and return...
-		if _, ok := seen[current.Vertex]; ok {
+		if _, ok := seen[k]; ok {
 			continue
 		}
-		seen[current.Vertex] = struct{}{}
+		seen[k] = struct{}{}
 
 		// Visit the current node
 		if err := f(current.Vertex, current.Depth); err != nil {
