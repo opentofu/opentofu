@@ -800,13 +800,13 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 
 func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagnostics) {
 	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.AbsResourceInstance, hcl.Diagnostics) {
-		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
+		traversal, traversalDiags := splatTraversalForInstanceExpr(attr.Expr)
 		diags := traversalDiags
 		if traversalDiags.HasErrors() {
 			return nil, nil, diags
 		}
 
-		configRes, configResDiags := addrs.ParseAbsResourceInstance(traversal)
+		configRes, configResDiags := addrs.ParseAbsResourceRange(traversal)
 		diags = append(diags, configResDiags.ToHCL()...)
 		if configResDiags.HasErrors() {
 			return nil, nil, diags
@@ -840,6 +840,30 @@ func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagn
 	}
 
 	return res, diags
+}
+
+// splatTraversalForInstanceExpr is based off of hcl.AbsTraversalForExpr
+// It includes the missing "AsTraversal" function for SplatExpr.
+func splatTraversalForInstanceExpr(expr hcl.Expression) (hcl.Traversal, hcl.Diagnostics) {
+	switch expr := expr.(type) {
+	case *hclsyntax.LiteralValueExpr:
+		return expr.AsTraversal(), nil
+	case *hclsyntax.ScopeTraversalExpr:
+		return expr.Traversal, nil
+	case *hclsyntax.RelativeTraversalExpr:
+		return expr.Traversal, nil
+	case *hclsyntax.ObjectConsKeyExpr:
+		return expr.AsTraversal(), nil
+	case *hclsyntax.SplatExpr:
+		sourceTraversal, _ := splatTraversalForInstanceExpr(expr.Source)
+		eachTraversal, _ := splatTraversalForInstanceExpr(expr.Each)
+		traversal := make(hcl.Traversal, len(sourceTraversal)+1+len(eachTraversal))
+		copy(traversal, sourceTraversal)
+		copy(traversal[len(sourceTraversal):], []hcl.Traverser{hcl.TraverseSplat{}})
+		copy(traversal[len(sourceTraversal)+1:], eachTraversal)
+		return traversal, nil
+	}
+	return nil, nil
 }
 
 func decodeOverrideModuleBlock(block *hcl.Block) (*OverrideModule, hcl.Diagnostics) {
