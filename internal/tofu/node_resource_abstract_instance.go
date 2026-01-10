@@ -3196,7 +3196,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
-		trie := configs.NewOverrideTrie()
+		trie := configs.NewOverrideTrie(overrideValues)
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
 			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) {
@@ -3224,28 +3224,6 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 	}
 
 	return underlyingProvider, schema, nil
-}
-
-// mostSpecificKey finds the appropriate override resource among a set of candidates, accounting for instance keys in the modules.
-// This function must only be called when haystack's length is greater than 0.
-func mostSpecificKey(needle addrs.AbsResourceInstance, haystack []*configs.OverrideResource) map[string]cty.Value {
-	// Pass one: check for specific resource instance key in haystack, only if the overridden instance is non-nil
-	if needle.Resource.Key != nil {
-		for _, res := range haystack {
-			if res.TargetParsed.Resource.Key == nil || needle.Resource.Key.Value().Equals(res.TargetParsed.Resource.Key.Value()).False() {
-				continue
-			}
-			return res.Values
-		}
-	}
-	// Pass two: find NoKey key, fall back to this as a default value
-	for _, res := range haystack {
-		if res.TargetParsed.Resource.Key == addrs.NoKey {
-			return res.Values
-		}
-	}
-	// This one isn't overridden; return empty map
-	return make(map[string]cty.Value)
 }
 
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {

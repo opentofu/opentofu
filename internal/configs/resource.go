@@ -67,14 +67,16 @@ type Resource struct {
 }
 
 type OverrideTrie struct {
-	trie  map[addrs.InstanceKey]*OverrideTrie
-	value map[string]cty.Value
+	trie     map[addrs.InstanceKey]*OverrideTrie
+	value    map[string]cty.Value
+	defaults map[string]cty.Value
 }
 
-func NewOverrideTrie() *OverrideTrie {
+func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
 	return &OverrideTrie{
-		trie:  make(map[addrs.InstanceKey]*OverrideTrie),
-		value: make(map[string]cty.Value),
+		trie:     make(map[addrs.InstanceKey]*OverrideTrie),
+		value:    make(map[string]cty.Value),
+		defaults: defaults,
 	}
 }
 
@@ -83,14 +85,14 @@ func (ot *OverrideTrie) Set(addr *addrs.AbsResourceInstance, val map[string]cty.
 	for _, mod := range addr.Module {
 		next, ok := current.trie[mod.InstanceKey]
 		if !ok {
-			current.trie[mod.InstanceKey] = NewOverrideTrie()
+			current.trie[mod.InstanceKey] = NewOverrideTrie(ot.defaults)
 			next = current.trie[mod.InstanceKey]
 		}
 		current = next
 	}
 	last, ok := current.trie[addr.Resource.Key]
 	if !ok {
-		current.trie[addr.Resource.Key] = NewOverrideTrie()
+		current.trie[addr.Resource.Key] = NewOverrideTrie(ot.defaults)
 		last = current.trie[addr.Resource.Key]
 	}
 	last.value = val
@@ -104,7 +106,7 @@ func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) map[string]cty.Valu
 			// TODO splat vs no key
 			next, ok = current.trie[addrs.NoKey]
 			if !ok {
-				return make(map[string]cty.Value)
+				return ot.defaults
 			}
 		}
 		current = next
@@ -114,7 +116,7 @@ func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) map[string]cty.Valu
 		// TODO splat vs nokey
 		last, ok = current.trie[addrs.NoKey]
 		if !ok {
-			return make(map[string]cty.Value)
+			return ot.defaults
 		}
 	}
 	return last.value
