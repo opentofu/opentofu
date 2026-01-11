@@ -20,6 +20,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 - Fixed state lock not being released when `tofu apply` is interrupted with Ctrl+C while using the HTTP backend. ([#3624](https://github.com/opentofu/opentofu/issues/3624))
+- Fixed dependency cycle error when a module with check blocks is referenced via `depends_on` by another module. ([#3060](https://github.com/opentofu/opentofu/issues/3060))
 - `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
 - In the unlikely event that text included in a diagnostic message includes C0 control characters (e.g. terminal escape sequences), OpenTofu will now replace them with printable characters to avoid the risk of inadvertently changing terminal state when stdout or stderr is a terminal. ([#3479](https://github.com/opentofu/opentofu/issues/3479))
 - Fixed `length(module.foo)` returning 0 for module instances without outputs, even when `count` or `for_each` is set. ([#3067](https://github.com/opentofu/opentofu/issues/3067))
