@@ -36,7 +36,7 @@ type Apply struct {
 	SuppressForgetErrorsDuringDestroy bool
 }
 
-// ParseApply processes CLI arguments, returning an Apply value and errors.
+// ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
