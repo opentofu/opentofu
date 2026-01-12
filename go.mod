@@ -102,13 +102,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.39.0
 	go.uber.org/mock v0.6.0
 	golang.org/x/crypto v0.46.0
-	golang.org/x/mod v0.31.0
+	golang.org/x/mod v0.32.0
 	golang.org/x/net v0.48.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.39.0
-	golang.org/x/term v0.38.0
-	golang.org/x/text v0.32.0
+	golang.org/x/sys v0.40.0
+	golang.org/x/term v0.39.0
+	golang.org/x/text v0.33.0
 	google.golang.org/api v0.252.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
@@ -301,7 +301,7 @@ require (
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
 	golang.org/x/time v0.13.0 // indirect
-	golang.org/x/tools v0.39.0 // indirect
+	golang.org/x/tools v0.40.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251002232023-7c0ddcbb5797 // indirect
