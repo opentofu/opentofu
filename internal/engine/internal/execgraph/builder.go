@@ -219,6 +219,11 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 		opCode:   opCloseProvider,
 		operands: []AnyResultRef{openResult, closeWait},
 	})
+	b.openProviderRefs.Put(addr, resultWithCloseBlockers[providers.Configured]{
+		Result:             openResult,
+		CloseBlockerResult: closeWait,
+		CloseBlockerFunc:   registerCloseBlocker,
+	})
 	return openResult, registerCloseBlocker
 }
 
