@@ -155,7 +155,14 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		ProposedNewState: proposedNewVal,
 		Config:           effectiveConfigVal,
 		PriorPrivate:     prevRoundPrivate,
-		// TODO: ProviderMeta
+
+		// TODO: ProviderMeta is a rarely-used feature that only really makes
+		// sense when the module and provider are both written by the same
+		// party and the module author is using the provider as a way to
+		// transport module usage telemetry. We should decide whether we want
+		// to keep supporting that, and if so design a way for the relevant
+		// meta value to get from the evaluator into here.
+		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	for _, err := range objchange.AssertPlanValid(schema.Block, refreshedVal, effectiveConfigVal, planResp.PlannedState) {
 		// TODO: If resp.LegacyTypeSystem is set then we should generate
