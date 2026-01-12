@@ -13,8 +13,8 @@ func TestJsonIntoStream(t *testing.T) {
 	fixturePath := filepath.Join("testdata", "json_dual")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 	tfInto := e2e.NewBinary(t, tofuBin, fixturePath)
-	logTimestampRe := regexp.MustCompile(",\"@timestamp\":\"[^\"]*\"")
-	resourceIdRe := regexp.MustCompile("[a-z0-9\\-]{36}")
+	logTimestampRe := regexp.MustCompile(`,"@timestamp":"[^"]*"`)
+	resourceIdRe := regexp.MustCompile(`[a-z0-9\-]{36}`)
 
 	sanitize := func(s string) string {
 		s = logTimestampRe.ReplaceAllString(s, "")
