@@ -214,9 +214,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
 	plannedChange := &plans.ResourceInstanceChange{
-		Addr:            inst.Addr,
-		PrevRunAddr:     inst.Addr,                 // TODO: If we add "moved" support above then this must record the original address
-		ProviderAddr:    addrs.AbsProviderConfig{}, // FIXME: Old models are using the not-quite-correct provider address types, so we can't populate this properly
+		Addr:        inst.Addr,
+		PrevRunAddr: inst.Addr, // TODO: If we add "moved" support above then this must record the original address
+		ProviderAddr: addrs.AbsProviderConfig{
+			// FIXME: This is a lossy shim to the old-style provider instance
+			// address representation, since our old models aren't yet updated
+			// to support the modern one. It cannot handle a provider config
+			// inside a module call that uses count or for_each.
+			Module:   (*inst.ProviderInstance).Config.Module.Module(),
+			Provider: (*inst.ProviderInstance).Config.Config.Provider,
+			Alias:    (*inst.ProviderInstance).Config.Config.Alias,
+		},
 		RequiredReplace: cty.NewPathSet(planResp.RequiresReplace...),
 		Private:         planResp.PlannedPrivate,
 		Change: plans.Change{
