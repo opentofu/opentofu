@@ -24,7 +24,9 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -217,13 +219,60 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 
 	wroteConfig := false
 	if path := op.PlanOutPath; path != "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Saved plan files not supported",
-			"The experimental language runtime cannot yet support -out=PLANFILE.",
-		))
-		op.ReportResult(runningOp, diags)
-		return
+		if op.PlanOutBackend == nil {
+			// This is always a bug in the operation caller; it's not valid
+			// to set PlanOutPath without also setting PlanOutBackend.
+			diags = diags.Append(fmt.Errorf(
+				"PlanOutPath set without also setting PlanOutBackend (this is a bug in OpenTofu)"),
+			)
+			op.ReportResult(runningOp, diags)
+			return
+		}
+		plan.Backend = *op.PlanOutBackend
+
+		// We may have updated the state in the refresh step above, but we
+		// will freeze that updated state in the plan file for now and
+		// only write it if this plan is subsequently applied.
+		plannedStateFile := statemgr.PlannedStateUpdate(stateMgr, plan.PriorState)
+
+		// We also include a file containing the state as it existed before
+		// we took any action at all, but this one isn't intended to ever
+		// be saved to the backend (an equivalent snapshot should already be
+		// there) and so we just use a stub state file header in this case.
+		// NOTE: This won't be exactly identical to the latest state snapshot
+		// in the backend because it's still been subject to state upgrading
+		// to make it consumable by the current OpenTofu version, and
+		// intentionally doesn't preserve the header info.
+		prevStateFile := &statefile.File{
+			State: plan.PrevRunState,
+		}
+
+		// TEMP: FIXME: The planfile structure currently includes a "config
+		// snapshot" which only our traditional config loading codepath
+		// knows how to construct. For our "walking skeleton" milestone we'll
+		// just leave that snapshot empty and rely on the main configuration
+		// directory directly during the apply phase, since we're not sure
+		// yet whether we're going to bring our traditional plan file format
+		// with us into the new implementation.
+		configSnap := configload.NewEmptySnapshot()
+
+		log.Printf("[INFO] backend/local: writing plan output to: %s", path)
+		err := planfile.Create(path, planfile.CreateArgs{
+			ConfigSnapshot:       configSnap,
+			PreviousRunStateFile: prevStateFile,
+			StateFile:            plannedStateFile,
+			Plan:                 plan,
+			DependencyLocks:      op.DependencyLocks,
+		}, op.Encryption.Plan())
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to write plan file",
+				fmt.Sprintf("The plan file could not be written: %s.", err),
+			))
+			op.ReportResult(runningOp, diags)
+			return
+		}
 	}
 
 	// TODO: Actually render the plan. But to do that we need provider schemas
