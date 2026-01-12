@@ -98,6 +98,8 @@ func (c *InitCommand) Run(args []string) int {
 			return 1
 		}
 
+		// NOTE: see meta_ui.go for color stripping in this legacy situation
+
 		out, err := os.OpenFile(c.outputJSONInto, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", c.outputJSONInto, err.Error()))
