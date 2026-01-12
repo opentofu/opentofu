@@ -4,9 +4,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 BUG FIXES:
 
-* Fix crash when the executed configuration contains an import block that points to unexisting configuration block ([3616](https://github.com/opentofu/opentofu/pull/3616))
+* Fix crash when the executed configuration contains an import block that points to unexisting configuration block ([#3616](https://github.com/opentofu/opentofu/pull/3616))
 * Fixed `tofu test` with `mock_provider` failing during cleanup when `lifecycle { ignore_changes }` references a block. ([#3644](https://github.com/opentofu/opentofu/issues/3644))
 * Fixed state lock not being released when `tofu apply` is interrupted with Ctrl+C while using the HTTP backend. ([#3624](https://github.com/opentofu/opentofu/issues/3624))
+* azure backend: resolve OIDC token dynamically to support ADO refresh. ([#3594](https://github.com/opentofu/opentofu/pull/3594))
 
 ## 1.11.2
 
