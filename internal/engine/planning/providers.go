@@ -116,14 +116,18 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 					// diags repository inside the providerInstances object,
 					// as discussed above for failing NewConfiguredProvider,
 					// and then we could write this failure into there.)
-					_ = ret.Close(withoutCancelCtx)
+					if ret != nil {
+						_ = ret.Close(withoutCancelCtx)
+					}
 					return
 				case <-cancelCtx.Done():
 					// If the context we were given is cancelled then we'll
 					// ask the provider to perform a graceful stop so that
 					// active requests to the provider are more likely to
 					// terminate soon.
-					_ = ret.Stop(withoutCancelCtx)
+					if ret != nil {
+						_ = ret.Stop(withoutCancelCtx)
+					}
 					// We'll now replace cancelCtx with the one guaranteed
 					// to never be cancelled so that we'll block until waitCh
 					// is closed.
