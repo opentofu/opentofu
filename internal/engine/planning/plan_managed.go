@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -165,9 +166,20 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	for _, err := range objchange.AssertPlanValid(schema.Block, refreshedVal, effectiveConfigVal, planResp.PlannedState) {
-		// TODO: If resp.LegacyTypeSystem is set then we should generate
-		// warnings in the log but continue anyway, like the original
-		// runtime does.
+		if planResp.LegacyTypeSystem {
+			// This provider seems to be using the legacy Terraform plugin SDK
+			// that cannot implement the modern protocol correctly, so we'll
+			// treat these errors as internal log warnings instead of reporting
+			// them. This compromise means that things can work for providers
+			// that are only incorrect _because_ they are using the legacy SDK,
+			// while still providing some information about the problem in case
+			// it's useful for debugging a real issue with a provider.
+			//
+			// TODO: Bring over the full version of this log message from
+			// the original runtime.
+			log.Printf("[WARN] Provider produced invalid plan: %s", tfdiags.FormatError(err))
+			continue
+		}
 		planResp.Diagnostics = planResp.Diagnostics.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider produced invalid plan",
