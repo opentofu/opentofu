@@ -224,11 +224,12 @@ func (p *planningEvalGlue) ValidateProviderConfig(ctx context.Context, provider 
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
-func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance]) (cty.Value, tfdiags.Diagnostics) {
+func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, configVal cty.Value, providerInst configgraph.Maybe[*configgraph.ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
 	desired := &DesiredResourceInstance{
-		Addr:      ri.Addr,
-		ConfigVal: configgraph.PrepareOutgoingValue(configVal),
-		Provider:  ri.Provider,
+		Addr:                      ri.Addr,
+		ConfigVal:                 configgraph.PrepareOutgoingValue(configVal),
+		Provider:                  ri.Provider,
+		RequiredResourceInstances: riDeps,
 	}
 	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
 		desired.ProviderInstance = &providerInst.Addr

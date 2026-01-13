@@ -184,6 +184,7 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 					},
 				},
 			},
+			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
 	if diff := cmp.Diff(wantReqs, gotReqs, ctydebug.CmpOptions); diff != "" {
@@ -309,6 +310,7 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 					},
 				},
 			},
+			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
 	if diff := cmp.Diff(wantReqs, gotReqs, ctydebug.CmpOptions); diff != "" {
