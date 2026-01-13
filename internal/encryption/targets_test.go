@@ -387,7 +387,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 			  "method": {
 				"aes_gcm": {
 				  "example": {
-					"keys": "key_provider.static.basic"
+					"keys": "${key_provider.static.basic}"
 				  }
 				}
 			  },

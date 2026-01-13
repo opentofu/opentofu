@@ -42,7 +42,7 @@ func DecodeOutput(val cty.Value, subject hcl.Range) (Output, hcl.Diagnostics) {
 		return out, hcl.Diagnostics{{
 			Severity: hcl.DiagError,
 			Summary:  "Missing encryption_key value",
-			Detail:   "A encryption_key value is required in the key_provider compatible object at this location",
+			Detail:   "An encryption_key value is required in the key_provider compatible object at this location",
 			Subject:  &subject,
 		}}
 	}
