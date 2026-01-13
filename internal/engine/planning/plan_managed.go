@@ -247,6 +247,18 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	}
 	p.planCtx.plannedChanges.AppendResourceInstanceChange(plannedChangeSrc)
 
+	// We need to explicitly model our dependency on any upstream resource
+	// instances in the resource instance graph. These don't naturally emerge
+	// from the data flow because these results are intermediated through the
+	// evaluator, which indirectly incorporates the results into the
+	// desiredInstRef result we'll build below.
+	dependencyResults := make([]execgraph.AnyResultRef, 0, len(inst.RequiredResourceInstances))
+	for _, depInstAddr := range inst.RequiredResourceInstances {
+		depInstResult := egb.ResourceInstanceFinalStateResult(depInstAddr)
+		dependencyResults = append(dependencyResults, depInstResult)
+	}
+	dependencyWaiter := egb.Waiter(dependencyResults...)
+
 	// The following is a placeholder for execgraph construction, which isn't
 	// fully wired in yet but is here just to help us understand whether we
 	// have enough graph builder and execgraph functionality for this to switch
@@ -263,7 +275,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		priorStateRef,
 		plannedValRef,
 		providerClientRef,
-		egb.Waiter( /* TODO: The final result refs for all of the other resource instances we depend on. */ ),
+		dependencyWaiter,
 	)
 	finalResultRef := egb.ApplyManagedResourceObjectChanges(
 		finalPlanRef,
