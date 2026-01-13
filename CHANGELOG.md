@@ -24,6 +24,7 @@ BUG FIXES:
 - In the unlikely event that text included in a diagnostic message includes C0 control characters (e.g. terminal escape sequences), OpenTofu will now replace them with printable characters to avoid the risk of inadvertently changing terminal state when stdout or stderr is a terminal. ([#3479](https://github.com/opentofu/opentofu/issues/3479))
 - Fixed `length(module.foo)` returning 0 for module instances without outputs, even when `count` or `for_each` is set. ([#3067](https://github.com/opentofu/opentofu/issues/3067))
 - Fixed `tofu test` with `mock_provider` failing during cleanup when `lifecycle { ignore_changes }` references a block. ([#3644](https://github.com/opentofu/opentofu/issues/3644))
+- Fix the way `key_provider` is decoded from the state encryption to allow the same functionality for json configuration files ([#3654](https://github.com/opentofu/opentofu/issues/3654))
 
 ## Previous Releases
 
