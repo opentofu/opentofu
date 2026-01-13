@@ -10,6 +10,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -37,5 +38,5 @@ type ResourceInstanceGlue interface {
 	// placeholder unknown value to use when evaluating downstream expressions.
 	// If there's not enough information to return anything more precise
 	// then returning [cty.DynamicVal] is an acceptable last resort.
-	ResultValue(ctx context.Context, configVal cty.Value, providerInst Maybe[*ProviderInstance]) (cty.Value, tfdiags.Diagnostics)
+	ResultValue(ctx context.Context, configVal cty.Value, providerInst Maybe[*ProviderInstance], riDeps addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics)
 }
