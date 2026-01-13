@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/engine/applying"
 	"github.com/opentofu/opentofu/internal/engine/planning"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -302,13 +303,128 @@ func (b *Local) opPlanWithExperimentalRuntime(stopCtx context.Context, cancelCtx
 }
 
 func (b *Local) opApplyWithExperimentalRuntime(stopCtx context.Context, cancelCtx context.Context, op *backend.Operation, runningOp *backend.RunningOperation) {
-	log.Println("[WARN] Using apply implementation from the experimental language runtime")
 	var diags tfdiags.Diagnostics
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Operation unsupported in experimental language runtime",
-		"The command \"tofu apply\" is not yet supported under the experimental language runtime.",
-	))
+	log.Println("[WARN] Using apply implementation from the experimental language runtime")
+
+	// Currently we're using the caller's "stopCtx" as the main context, using
+	// it both for its values and as a signal for graceful shutdown. This is
+	// just to get the closest fit with how current callers of the backend
+	// API populate these contexts with what the new runtime is expecting. We
+	// should revisit this and make sure this still makes sense before we
+	// finalize any implementation here.
+	ctx := stopCtx
+
+	if op.PlanFile == nil {
+		// TODO: Implement inline planning for the one-shot "tofu apply" command.
+		// (For now we only support applying a plan file created by an earlier
+		// run of "tofu plan -out=FILENAME".)
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Operation unsupported in experimental language runtime",
+			"The command \"tofu apply\" currently requires a saved plan file when using the experimental language runtime.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	lr, _, opState, contextDiags := b.localRun(ctx, op)
+	diags = diags.Append(contextDiags)
+	if contextDiags.HasErrors() {
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	// the state was locked during successful context creation; unlock the state
+	// when the operation completes
+	defer func() {
+		diags := op.StateLocker.Unlock()
+		if diags.HasErrors() {
+			op.View.Diagnostics(diags)
+			runningOp.Result = backend.OperationFailure
+		}
+	}()
+
+	// We'll start off with our result being the input state, and replace it
+	// with the result state only if we eventually complete the apply
+	// operation.
+	runningOp.State = lr.InputState
+
+	plan := lr.Plan
+	if plan.Errored {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Cannot apply incomplete plan",
+			"OpenTofu encountered an error when generating this plan, so it cannot be applied.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	if len(plan.ExecutionGraph) == 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Saved plan contains no execution graph",
+			"The experimental new apply engine can only apply plans created by the experimental new planning engine.",
+		))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	plugins := plugins.NewRuntimePlugins(b.ContextOpts.Providers, b.ContextOpts.Provisioners)
+	evalCtx := &eval.EvalContext{
+		RootModuleDir:      op.ConfigDir,
+		OriginalWorkingDir: b.ContextOpts.Meta.OriginalWorkingDir,
+		Modules: &newRuntimeModules{
+			loader: op.ConfigLoader,
+		},
+		Providers:    plugins,
+		Provisioners: plugins,
+	}
+	defer func() {
+		// We'll call close with a cancel-free context because we do still
+		// want to shut the providers down even if we're dealing with
+		// graceful shutdown after cancellation.
+		err := plugins.Close(context.WithoutCancel(ctx))
+		// If a provider fails to close there isn't really much we can do
+		// about that... this shouldn't really be possible unless the
+		// plugin process already exited for some other reason anyway.
+		log.Printf("[ERROR] plugin shutdown failed: %s", err)
+	}()
+
+	// FIXME: The configuration during apply is supposed to come from the
+	// saved plan file rather than the real filesystem, but our codepaths for
+	// that are all tangled up with the old-style config loader and so we
+	// can't use them here. For now we just load the config directly from the
+	// working directory just like the plan phase does, but we should eventually
+	// implement this properly.
+	configDir := op.ConfigDir
+	if !filepath.IsAbs(configDir) {
+		configDir = "." + string(filepath.Separator) + configDir
+	}
+	rootModuleSource, err := addrs.ParseModuleSource(configDir)
+	if err != nil {
+		diags = diags.Append(fmt.Errorf("invalid root module source address: %w", err))
+		op.ReportResult(runningOp, diags)
+		return
+	}
+	configCall := &eval.ConfigCall{
+		RootModuleSource: rootModuleSource,
+		// TODO: InputValues
+		AllowImpureFunctions: false,
+		EvalContext:          evalCtx,
+	}
+	configInst, moreDiags := eval.NewConfigInstance(ctx, configCall)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		op.ReportResult(runningOp, diags)
+		return
+	}
+
+	newState, moreDiags := applying.ApplyPlannedChanges(ctx, plan, configInst, plugins)
+	diags = diags.Append(moreDiags)
+
+	// TODO: Actually save the new state. For now we just print it out.
+	_ = opState
+	spew.Dump(newState)
+
 	op.ReportResult(runningOp, diags)
 }
 
