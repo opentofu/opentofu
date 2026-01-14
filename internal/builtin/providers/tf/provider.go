@@ -50,6 +50,15 @@ func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSch
 	}
 }
 
+// GetResourceIdentitySchemas fetches the identity schemas for terraform_data
+func (p *Provider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	return providers.GetResourceIdentitySchemasResponse{
+		IdentitySchemas: map[string]providers.ResourceIdentitySchema{
+			"terraform_data": dataStoreResourceIdentitySchema(),
+		},
+	}
+}
+
 // ValidateProviderConfig is used to validate the configuration values.
 func (p *Provider) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	// At this moment there is nothing to configure for the tofu provider,
@@ -160,6 +169,10 @@ func (p *Provider) Stop(_ context.Context) error {
 // result is used for any further processing.
 func (p *Provider) UpgradeResourceState(_ context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return upgradeDataStoreResourceState(req)
+}
+
+func (p *Provider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return providers.UpgradeResourceIdentityResponse{}
 }
 
 // ReadResource refreshes a resource and returns its current state.

@@ -515,7 +515,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(evalCtx EvalContext, 
 		}
 	}
 
-	errs := objchange.AssertObjectCompatible(schema, plannedChange.After, actualChange.After)
+	errs := objchange.AssertObjectCompatible(schema.Block, plannedChange.After, actualChange.After)
 	for _, err := range errs {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

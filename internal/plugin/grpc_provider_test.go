@@ -58,6 +58,15 @@ func mockProviderClientWithSchema(t *testing.T, schema *proto.GetProviderSchema_
 		gomock.Any(),
 	).Return(schema, nil)
 
+	// We also always need a resource identity schema method
+	client.EXPECT().GetResourceIdentitySchemas(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{},
+	}, nil).AnyTimes()
+
 	return client
 }
 
@@ -98,7 +107,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		ResourceSchemas: map[string]*proto.Schema{
-			"resource": &proto.Schema{
+			"resource": {
 				Version: 1,
 				Block: &proto.Schema_Block{
 					Attributes: []*proto.Schema_Attribute{
@@ -112,7 +121,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		DataSourceSchemas: map[string]*proto.Schema{
-			"data": &proto.Schema{
+			"data": {
 				Version: 1,
 				Block: &proto.Schema_Block{
 					Attributes: []*proto.Schema_Attribute{
@@ -140,7 +149,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		Functions: map[string]*proto.Function{
-			"fn": &proto.Function{
+			"fn": {
 				Parameters: []*proto.Function_Parameter{{
 					Name:               "par_a",
 					Type:               []byte(`"string"`),
@@ -184,6 +193,86 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_GetSchema_WithResourceIdentitySchemas(t *testing.T) {
+	// This test ensures that the provider client correctly attaches the resource identities to the resource schemas
+	// when you call GetProviderSchema.
+
+	ctrl := gomock.NewController(t)
+	client := mockproto.NewMockProviderClient(ctrl)
+
+	resourceName := "test_resource"
+	resourceSchema := &proto.Schema{
+		Version: 1,
+		Block: &proto.Schema_Block{
+			Attributes: []*proto.Schema_Attribute{
+				{
+					Name:     "id",
+					Type:     []byte(`"string"`),
+					Required: true,
+				},
+				{
+					Name:     "name",
+					Type:     []byte(`"string"`),
+					Optional: true,
+				},
+			},
+		},
+	}
+
+	identitySchema := &proto.ResourceIdentitySchema{
+		Version: 1,
+		IdentityAttributes: []*proto.ResourceIdentitySchema_IdentityAttribute{
+			{
+				Name:              "id",
+				Type:              []byte(`"string"`),
+				RequiredForImport: true,
+			},
+		},
+	}
+
+	client.EXPECT().GetSchema(gomock.Any(), gomock.Any(), gomock.Any()).Return(&proto.GetProviderSchema_Response{
+		Provider: &proto.Schema{
+			Block: &proto.Schema_Block{},
+		},
+		ResourceSchemas: map[string]*proto.Schema{
+			resourceName: resourceSchema,
+		},
+	}, nil)
+
+	client.EXPECT().GetResourceIdentitySchemas(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{
+			resourceName: identitySchema,
+		},
+	}, nil)
+
+	p := newGRPCProvider(client)
+	resp := p.GetProviderSchema(t.Context())
+
+	checkDiags(t, resp.Diagnostics)
+
+	resource, ok := resp.ResourceTypes[resourceName]
+	if !ok {
+		t.Fatalf("expected resource %q to be in response", resourceName)
+	}
+
+	// Main part of the test: Ensure that the resource identity schema was attached correctly
+	if resource.IdentitySchema == nil {
+		t.Fatal("expected IdentitySchema to be populated, got nil")
+	}
+
+	if resource.IdentitySchemaVersion != 1 {
+		t.Errorf("expected IdentitySchemaVersion to be %d, got %d", 1, resource.IdentitySchemaVersion)
+	}
+
+	if !resource.IdentitySchema.ImpliedType().HasAttribute("id") {
+		t.Errorf("expected IdentitySchema to have attribute 'id'")
+	}
+}
+
 // Ensure that gRPC errors are returned early.
 // Reference: https://github.com/hashicorp/terraform/issues/31047
 func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
@@ -218,6 +307,14 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 	).Times(1).Return(&proto.GetProviderSchema_Response{
 		Provider:           mockedProviderResponse,
 		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: true},
+	}, nil)
+
+	client.EXPECT().GetResourceIdentitySchemas(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).Times(1).Return(&proto.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{},
 	}, nil)
 
 	// Run GetProviderTwice, expect GetSchema to be called once
@@ -256,7 +353,15 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: false},
 	}, nil)
 
-	// Run GetProviderTwice, expect GetSchema to be called once
+	client.EXPECT().GetResourceIdentitySchemas(
+		gomock.Any(),
+		gomock.Any(),
+		gomock.Any(),
+	).Times(2).Return(&proto.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{},
+	}, nil)
+
+	// Run GetProviderTwice, expect GetSchema to be called twice
 	// Re-initialize the provider before each run to avoid usage of the local cache
 	p := newGRPCProvider(client)
 	resp := p.GetProviderSchema(t.Context())
@@ -302,6 +407,89 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
+}
+
+func TestGRPCProvider_UpgradeResourceIdentity(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := mockproto.NewMockProviderClient(ctrl)
+
+	// initial identity
+	client.EXPECT().GetResourceIdentitySchemas(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: map[string]*proto.ResourceIdentitySchema{
+			"test_resource": {
+				Version: 1,
+				IdentityAttributes: []*proto.ResourceIdentitySchema_IdentityAttribute{
+					{
+						Name:              "id",
+						Type:              []byte(`"string"`),
+						RequiredForImport: true,
+					},
+					{
+						Name:              "region",
+						Type:              []byte(`"string"`),
+						RequiredForImport: true,
+					},
+				},
+			},
+		},
+	}, nil)
+
+	// upgraded entity from the provider
+	upgradedIdentity := cty.ObjectVal(map[string]cty.Value{
+		"id":     cty.StringVal("resource-123"),
+		"region": cty.StringVal("eu-west-1"),
+	})
+
+	upgradedBytes, err := msgpack.Marshal(upgradedIdentity, upgradedIdentity.Type())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client.EXPECT().UpgradeResourceIdentity(gomock.Any(), gomock.Any()).Return(&proto.UpgradeResourceIdentity_Response{
+		UpgradedIdentity: &proto.ResourceIdentityData{
+			IdentityData: &proto.DynamicValue{
+				Msgpack: upgradedBytes,
+			},
+		},
+	}, nil)
+
+	// Ensure that our UpgradeResourceIdentity logic does what it should
+	p := newGRPCProvider(client)
+	resp := p.UpgradeResourceIdentity(t.Context(), providers.UpgradeResourceIdentityRequest{
+		TypeName:        "test_resource",
+		Version:         1,
+		RawIdentityJSON: []byte(`{"id":"resource-123"}`),
+	})
+
+	checkDiags(t, resp.Diagnostics)
+
+	if !resp.UpgradedIdentity.RawEquals(upgradedIdentity) {
+		t.Errorf("unexpected upgraded identity:\ngot:  %#v\nwant: %#v",
+			resp.UpgradedIdentity, upgradedIdentity)
+	}
+}
+
+func TestGRPCProvider_UpgradeResourceIdentity_ProviderError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := mockproto.NewMockProviderClient(ctrl)
+
+	client.EXPECT().UpgradeResourceIdentity(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("mock error"))
+
+	p := newGRPCProvider(client)
+	resp := p.UpgradeResourceIdentity(t.Context(), providers.UpgradeResourceIdentityRequest{
+		TypeName:        "test_resource",
+		Version:         1,
+		RawIdentityJSON: []byte(`{"id":"123"}`),
+	})
+
+	checkDiagsHasError(t, resp.Diagnostics)
+
+	if !strings.Contains(resp.Diagnostics.Err().Error(), "mock error") {
+		t.Errorf("Expected mock error")
+	}
 }
 
 func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
@@ -1043,7 +1231,9 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 
 	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
-		ID:       "foo",
+		Target: providers.ImportTarget{
+			ID: "foo",
+		},
 	})
 
 	checkDiags(t, resp.Diagnostics)
@@ -1061,6 +1251,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 		t.Fatal(cmp.Diff(expectedResource, imported, typeComparer, valueComparer, equateEmpty))
 	}
 }
+
 func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := newGRPCProvider(client)
@@ -1084,7 +1275,6 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 
 	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
-		ID:       "foo",
 	})
 
 	checkDiags(t, resp.Diagnostics)

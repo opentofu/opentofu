@@ -251,7 +251,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
 	}
-	plannedChangeSrc, err := plannedChange.Encode(schema.Block.ImpliedType())
+	plannedChangeSrc, err := plannedChange.Encode(schema)
 	if err != nil {
 		// TODO: Make a proper error diagnostic for this, like the original
 		// runtime does.

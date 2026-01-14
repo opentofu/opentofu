@@ -92,7 +92,6 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 	}
 
 	return ret, nil
-
 }
 
 func marshalPlannedValues(changes *plans.Changes, schemas *tofu.Schemas) (Module, error) {
@@ -223,7 +222,7 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 			return nil, fmt.Errorf("no schema found for %s", r.Addr.String())
 		}
 		resource.SchemaVersion = schemaVer
-		changeV, err := r.Decode(schema.ImpliedType())
+		changeV, err := r.Decode(schema)
 		if err != nil {
 			return nil, err
 		}
@@ -239,10 +238,10 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 
 		if changeV.After != cty.NilVal {
 			if changeV.After.IsWhollyKnown() {
-				resource.AttributeValues = marshalAttributeValues(changeV.After, schema)
+				resource.AttributeValues = marshalAttributeValues(changeV.After, schema.Block)
 			} else {
 				knowns := omitUnknowns(changeV.After)
-				resource.AttributeValues = marshalAttributeValues(knowns, schema)
+				resource.AttributeValues = marshalAttributeValues(knowns, schema.Block)
 			}
 		}
 
@@ -272,7 +271,6 @@ func marshalPlanModules(
 	moduleMap map[string][]addrs.ModuleInstance,
 	moduleResourceMap map[string][]addrs.AbsResourceInstance,
 ) ([]Module, error) {
-
 	var ret []Module
 
 	for _, child := range childModules {

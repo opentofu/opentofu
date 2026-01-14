@@ -16,11 +16,13 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type graphNodeImportState struct {
 	Addr                addrs.AbsResourceInstance // Addr is the resource address to import into
 	ID                  string                    // ID is the ID to import as
+	Identity            cty.Value                 // Identity is an alternative to ID for providers to use for importing
 	ResolvedProvider    ResolvedProvider          // provider node address after resolution
 	ResolvedProviderKey addrs.InstanceKey         // resolved from ResolvedProviderKeyExpr+ResolvedProviderKeyPath in method Execute
 
@@ -119,7 +121,10 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 
 	resp := provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: n.Addr.Resource.Resource.Type,
-		ID:       n.ID,
+		Target: providers.ImportTarget{
+			ID:       n.ID,
+			Identity: n.Identity,
+		},
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if diags.HasErrors() {

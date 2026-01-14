@@ -9,6 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -84,7 +85,6 @@ func (c *Changes) ResourceInstance(addr addrs.AbsResourceInstance) *ResourceInst
 	}
 
 	return nil
-
 }
 
 // InstancesForAbsResource returns the planned change for the current objects
@@ -201,6 +201,9 @@ func (c *Changes) SyncWrapper() *ChangesSync {
 
 // ResourceInstanceChange describes a change to a particular resource instance
 // object.
+// Note for developers: If you are adding new properties for this, ensure that the
+// Simplify() method is updated to copy those properties when it creates new simplified changes.
+// otherwise there could be data loss
 type ResourceInstanceChange struct {
 	// Addr is the absolute address of the resource instance that the change
 	// will apply to.
@@ -270,8 +273,8 @@ type ResourceInstanceChange struct {
 // Encode produces a variant of the receiver that has its change values
 // serialized so it can be written to a plan file. Pass the implied type of the
 // corresponding resource type schema for correct operation.
-func (rc *ResourceInstanceChange) Encode(ty cty.Type) (*ResourceInstanceChangeSrc, error) {
-	cs, err := rc.Change.Encode(ty)
+func (rc *ResourceInstanceChange) Encode(schema *providers.Schema) (*ResourceInstanceChangeSrc, error) {
+	cs, err := rc.Change.Encode(schema)
 	if err != nil {
 		return nil, err
 	}
@@ -331,6 +334,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           cty.NullVal(rc.Before.Type()),
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					PlannedIdentity: rc.PlannedIdentity,
 				},
 			}
 		default:
@@ -345,6 +349,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					PlannedIdentity: rc.PlannedIdentity,
 				},
 			}
 		}
@@ -362,6 +367,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					PlannedIdentity: rc.PlannedIdentity,
 				},
 			}
 		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
@@ -376,6 +382,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.After,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
+					PlannedIdentity: rc.PlannedIdentity,
 				},
 			}
 		}
@@ -523,7 +530,7 @@ type OutputChange struct {
 // Encode produces a variant of the receiver that has its change values
 // serialized so it can be written to a plan file.
 func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
-	cs, err := oc.Change.Encode(cty.DynamicPseudoType)
+	cs, err := oc.Change.Encode(nil) // we don't have schemas here, so just pass through nil
 	if err != nil {
 		return nil, err
 	}
@@ -542,6 +549,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 type Importing struct {
 	// ID is the original ID of the imported resource.
 	ID string
+
+	// Identity is an alterate identity value for the imported resource.
+	// Mutually exclusive with ID.
+	Identity cty.Value
 }
 
 // Change describes a single change with a given action.
@@ -577,6 +588,11 @@ type Change struct {
 	// should be true. However, not all Importing changes contain generated
 	// config.
 	GeneratedConfig string
+
+	// PlannedIdentity is the identity value returned by the provider during
+	// planning. This is used to pass identity data through to the apply phase.
+	// Only relevant for managed resources, not outputs.
+	PlannedIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -587,7 +603,16 @@ type Change struct {
 // Where a Change is embedded in some other struct, it's generally better
 // to call the corresponding Encode method of that struct rather than working
 // directly with its embedded Change.
-func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
+func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
+	var ty cty.Type
+
+	if schema == nil {
+		// we've been passed a nil set of schema, we should use a dynamic type here
+		ty = cty.DynamicPseudoType
+	} else {
+		ty = schema.Block.ImpliedType()
+	}
+
 	// Storing unmarked values so that we can encode unmarked values
 	// and save the PathValueMarks for re-marking the values later
 	var beforeVM, afterVM []cty.PathValueMarks
@@ -612,7 +637,34 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 
 	var importing *ImportingSrc
 	if c.Importing != nil {
-		importing = &ImportingSrc{ID: c.Importing.ID}
+		var idVal DynamicValue
+
+		// Only encode identity if it's present and schema has IdentitySchema
+		if c.Importing.Identity != cty.NilVal && !c.Importing.Identity.IsNull() && schema != nil && schema.IdentitySchema != nil {
+			identityType := schema.IdentitySchema.ImpliedType()
+			id, dvErr := NewDynamicValue(c.Importing.Identity, identityType)
+			if dvErr != nil {
+				return nil, dvErr
+			}
+			idVal = id
+		}
+
+		importing = &ImportingSrc{
+			ID:       c.Importing.ID,
+			Identity: idVal,
+		}
+	}
+
+	var plannedIdentityDV DynamicValue
+	if c.PlannedIdentity != cty.NilVal && !c.PlannedIdentity.IsNull() {
+		identityTy := c.PlannedIdentity.Type()
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		}
+		plannedIdentityDV, err = NewDynamicValue(c.PlannedIdentity, identityTy)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ChangeSrc{
@@ -623,5 +675,6 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 		AfterValMarks:   afterVM,
 		Importing:       importing,
 		GeneratedConfig: c.GeneratedConfig,
+		PlannedIdentity: plannedIdentityDV,
 	}, nil
 }
