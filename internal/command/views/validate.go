@@ -157,7 +157,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		// Should never happen because we fully-control the input here
 		panic(err)
 	}
-	_, _ = v.output.Write(j)
+	fmt.Fprintln(v.output, string(j))
 
 	if diags.HasErrors() {
 		return 1
