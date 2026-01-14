@@ -7,7 +7,7 @@ description: |-
 
 # Migrating Interdependent Terraform Configurations
 
-This guide addresses the specific challenges of migrating systems built from multiple Intedependent Terraform configurations that share data using the `terraform_remote_state` data source.
+This guide addresses the specific challenges of migrating systems built from multiple interdependent Terraform configurations that share data using the `terraform_remote_state` data source.
 
 If you're migrating a single, standalone Terraform configuration, refer to the [Migration Guide](../migration-guide) instead.
 
@@ -122,6 +122,7 @@ To create your dependency graph:
 OpenTofu maintains state file compatibility with Terraform 1.x, which means:
 
 **OpenTofu can read Terraform state files**  
+
 **Terraform may not reliably read OpenTofu state files** (especially if OpenTofu-specific features are used)
 
 This compatibility pattern makes **bottom-up migration safe**:
@@ -179,7 +180,7 @@ Create a visual representation of your configuration dependencies using `terrafo
 **Tools to help:**
 - Search your codebase for `terraform_remote_state`
 - Document which configurations read from which backends/state files
-- Draw the dependency graph (use arrows pointing from dependent → dependency)
+- Draw the dependency graph
 
 ### Step 2: Identify leaf nodes
 
@@ -257,8 +258,6 @@ Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8
 - **Migrate each configuration** according to its current Terraform version
 - **Follow version-specific guidance** as needed
 - **The bottom-up order remains the same** regardless of version differences
-
-Each configuration can be migrated independently using its version-specific migration guide, as long as you maintain the bottom-up dependency order.
 
 ## Getting Help
 If you encounter issues during migration:
