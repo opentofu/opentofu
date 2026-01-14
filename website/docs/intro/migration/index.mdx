@@ -19,4 +19,13 @@ The migration process is designed to be safe and reversible:
 3. **Initialize and verify your configuration**
 4. **Test with a small change**
 
+:::note
+Do you have multiple Terraform configurations to migrate?
+
+Some systems are built from multiple Terraform configurations that propagate data using the `terraform_remote_state` data source, which typically requires some additional care during migration.
+
+For more information, refer to [Migrating interdependent Terraform configurations](multiple-configurations).
+:::
+
+
 [→ Read the complete migration guide](migration-guide)
