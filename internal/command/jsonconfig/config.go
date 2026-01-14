@@ -184,19 +184,16 @@ func marshalProviderConfigs(
 	// Add an entry for each provider configuration block in the module.
 	for k, pc := range c.Module.ProviderConfigs {
 		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: pc.Name})
+		schema := mapSchema(schemas, func(schemas *tofu.Schemas) *configschema.Block {
+			return schemas.ProviderConfig(providerFqn)
+		})
 
 		p := providerConfig{
 			Name:          pc.Name,
 			FullName:      providerFqn.String(),
 			Alias:         pc.Alias,
 			ModuleAddress: c.Path.String(),
-		}
-
-		if schemas != nil {
-			schema := mapSchema(schemas, func(schemas *tofu.Schemas) *configschema.Block {
-				return schemas.ProviderConfig(providerFqn)
-			})
-			p.Expressions = marshalExpressions(pc.Config, schema)
+			Expressions:   marshalExpressions(pc.Config, schema),
 		}
 
 		// Store the fully resolved provider version constraint, rather than
@@ -435,7 +432,6 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 					return module, err
 				}
 			}
-
 			vars[k] = &variable{
 				Type:        typeJSON,
 				Default:     defaultValJSON,
@@ -555,7 +551,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 
 		if !inSingleModuleMode(schemas) {
 			// We don't populate the expression and schema-related properties
-			// when we are in single-module mode
+			// when we are in single-module mode.
 			cExp := marshalExpression(v.Count)
 			if !cExp.Empty() {
 				r.CountExpression = &cExp
@@ -577,6 +573,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			r.SchemaVersion = &schemaVer
 			r.Expressions = marshalExpressions(v.Config, schema)
 		}
+
 		// Managed is populated only for Mode = addrs.ManagedResourceMode
 		if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
 			var provisioners []provisioner
