@@ -33,7 +33,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 		}
 	}
 
-	input, err := json.Marshal(inMeta)
+	input, err := inMeta.Encode()
 	if err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
 			Message: fmt.Sprintf("bug: cannot JSON-marshal metadata (%v)", err),
