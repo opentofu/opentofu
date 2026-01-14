@@ -24,14 +24,16 @@ type Metadata struct {
 // data needs to be decrypted.
 type Input *Metadata
 
+type Keys struct {
+	// EncryptionKey must always be provided.
+	EncryptionKey []byte `json:"encryption_key,omitempty"`
+	// DecryptionKey must be provided when the input metadata is present.
+	DecryptionKey []byte `json:"decryption_key,omitempty"`
+}
+
 // Output describes the output data written to stdout.
 type Output struct {
-	Key struct {
-		// EncryptionKey must always be provided.
-		EncryptionKey []byte `json:"encryption_key,omitempty"`
-		// DecryptionKey must be provided when the input metadata is present.
-		DecryptionKey []byte `json:"decryption_key,omitempty"`
-	} `json:"key"`
+	Keys Keys `json:"keys"`
 	// Meta contains the metadata to store alongside the encrypted data. You can
 	// store data here you need to reconstruct the decryption key later.
 	Meta Metadata `json:"meta"`
@@ -62,13 +64,17 @@ func main() {
 		log.Fatalf("Failed to parse stdin: %v", err)
 	}
 
-	// TODO produce the encryption key
+	var keys Keys
+	keys.EncryptionKey = []byte("AQIDBAUGBwgJCgsMDQ4PEA==") // TODO produce the encryption key
 	if inMeta != nil {
-		// TODO produce decryption key
+		keys.DecryptionKey = []byte("AQIDBAUGBwgJCgsMDQ4PEA==") // TODO produce the decryption key
 	}
 
 	output := Output{
-		// TODO: produce output
+		Keys: keys,
+		Meta: Metadata{
+			// TODO: customize your metadata
+		},
 	}
 	outputData, err := json.Marshal(output)
 	if err != nil {
