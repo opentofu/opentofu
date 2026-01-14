@@ -32,6 +32,7 @@ func (c *MetadataDumpCommand) Synopsis() string {
 }
 
 func (c *MetadataDumpCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("metadata dump")
 	var jsonOutput bool
@@ -58,7 +59,7 @@ func (c *MetadataDumpCommand) Run(args []string) int {
 		return 1
 	}
 
-	call, vDiags := c.rootModuleCall(".")
+	call, vDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(vDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
