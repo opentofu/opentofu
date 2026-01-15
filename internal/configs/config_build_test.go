@@ -430,3 +430,60 @@ func TestBuildConfig_WithTestModule(t *testing.T) {
 		t.Errorf("config under test path should be the root module")
 	}
 }
+
+// TestBuildConfig_UninitModuleAndProviderValidation is testing for a very
+// specific interaction between the config loader and the provider reference
+// validation behavior: we need to not attempt any provider reference validation
+// if any module in the configuration failed to load, because provider reference
+// validation is a cross-module concern that only makes sense to run when all
+// of the requested modules are available to load.
+func TestBuildConfig_UninitModuleAndProviderValidation(t *testing.T) {
+	fixtureDir := "testdata/uninit-module-and-provider-refs"
+
+	parser := NewParser(nil)
+	mod, diags := parser.LoadConfigDir(fixtureDir, RootModuleCallForTesting())
+	assertNoDiagnostics(t, diags)
+	if mod == nil {
+		t.Fatal("got nil root module; want non-nil")
+	}
+
+	const diagSummary = "Not available in TestBuildConfig_UninitModuleAndProviderValidation"
+	_, diags = BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+			switch req.Name {
+			case "child":
+				// For the sake of this test we're going to just treat our
+				// SourceAddr as a path relative to our fixture directory.
+				// A "real" implementation of ModuleWalker should accept the
+				// various different source address syntaxes OpenTofu supports.
+				sourcePath := filepath.Join(fixtureDir, req.SourceAddr.String())
+				mod, diags := parser.LoadConfigDir(sourcePath, req.Call)
+				return mod, nil, diags
+			default:
+				// No other modules (including the one declared as "uninit"
+				// in the test fixture) are available to use.
+				var diags hcl.Diagnostics
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  diagSummary,
+				})
+				return nil, nil, diags
+			}
+		},
+	))
+
+	// If the system behaved correctly then the only diagnostic returned
+	// should be the one generated directly by the ModuleWalkerFunc above.
+	//
+	// Before the fix this test was written for, there would've been an
+	// additiional spurious error about inter-module provider references being
+	// invalid because the validation was run against a partial module tree
+	// that therefore appeared invalid. We fixed that by running the provider
+	// reference validation only when we successfully load all modules in the
+	// config tree.
+	for _, diag := range diags {
+		if diag.Severity != hcl.DiagError || diag.Summary != diagSummary {
+			t.Errorf("unexpected diagnostic with summary %q; expecting only error %q", diag.Summary, diagSummary)
+		}
+	}
+}

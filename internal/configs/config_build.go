@@ -41,10 +41,9 @@ func BuildConfig(ctx context.Context, root *Module, walker ModuleWalker) (*Confi
 		// the known types for validation.
 		providers := cfg.resolveProviderTypes()
 		cfg.resolveProviderTypesForTests(providers)
+		diags = append(diags, validateProviderConfigs(nil, cfg, nil)...)
+		diags = append(diags, validateProviderConfigsForTests(cfg)...)
 	}
-
-	diags = append(diags, validateProviderConfigs(nil, cfg, nil)...)
-	diags = append(diags, validateProviderConfigsForTests(cfg)...)
 
 	return cfg, diags
 }
