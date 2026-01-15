@@ -94,6 +94,7 @@ The following configuration options are supported:
 - `lock_ttl` / `TF_BACKEND_ORAS_LOCK_TTL` - (Optional) Lock TTL in seconds. If set, stale locks older than this are automatically cleared. `0` (default) disables.
 - `rate_limit` / `TF_BACKEND_ORAS_RATE_LIMIT` - (Optional) Maximum registry requests per second. `0` (default) disables rate limiting.
 - `rate_limit_burst` / `TF_BACKEND_ORAS_RATE_LIMIT_BURST` - (Optional) Maximum burst size for registry requests when rate limiting is enabled. `0` (default) means `1`.
+- `max_versions` - (Optional) Maximum number of historical state versions to retain. `0` (default) disables versioning, `>0` enables versioning with that retention limit. Cleanup always runs asynchronously.
 
 ### State Versioning
 
@@ -102,11 +103,8 @@ You can keep a limited number of historical state versions for audit and recover
 ```hcl
 terraform {
   backend "oras" {
-    repository = "registry.example.com/my-org/tofu-state"
-    versioning {
-      enabled      = true
-      max_versions = 10
-    }
+    repository   = "registry.example.com/my-org/tofu-state"
+    max_versions = 10
   }
 }
 ```
