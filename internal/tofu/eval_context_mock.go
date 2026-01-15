@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plugins"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -151,6 +152,12 @@ func (c *MockEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
 func (c *MockEvalContext) Input() UIInput {
 	c.InputCalled = true
 	return c.InputInput
+}
+
+func (c *MockEvalContext) installProvider(addr addrs.Provider, p providers.Interface) {
+	c.ProvidersProviders = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+		addr: func() (providers.Interface, error) { return p, nil },
+	}, nil).NewProviderManager()
 }
 
 func (c *MockEvalContext) Providers() plugins.ProviderManager {

@@ -20,6 +20,10 @@ type contextPlugins struct {
 }
 
 func newContextPlugins(library plugins.Library) *contextPlugins {
+	if library == nil {
+		// *_test.go
+		library = plugins.NewLibrary(nil, nil)
+	}
 	return &contextPlugins{
 		providers:    library.NewProviderManager(),
 		provisioners: library.NewProvisionerManager(),

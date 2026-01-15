@@ -197,12 +197,14 @@ func getMockProviderForReadResourceInstanceState() *MockProvider {
 			ResourceTypes: map[string]providers.Schema{
 				"aws_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
-						Type: cty.String,
+						Type:     cty.String,
+						Computed: true,
 					},
 				}),
 				"aws_instance0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
-						Type: cty.String,
+						Type:     cty.String,
+						Computed: true,
 					},
 				}),
 			},
@@ -334,9 +336,8 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx := new(MockEvalContext)
 			evalCtx.StateState = test.State.SyncWrapper()
 			evalCtx.PathPath = addrs.RootModuleInstance
-			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
+			evalCtx.installProvider(addrs.NewDefaultProvider("aws"), test.Provider)
 			evalCtx.MoveResultsResults = test.MoveResults
-			evalCtx.InitProviderProvider = providers.Interface(test.Provider)
 
 			got, readDiags := test.Node.readResourceInstanceState(t.Context(), evalCtx, test.Node.Addr)
 			if test.WantErrorStr != "" {
@@ -349,7 +350,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 				return
 			}
 			if readDiags.HasErrors() {
-				t.Fatalf("[%s] Got err: %#v", test.Name, readDiags.Err())
+				t.Fatalf("[%s] Got err: %s", test.Name, readDiags.Err())
 			}
 
 			expected := test.ExpectedInstanceId
@@ -381,9 +382,8 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx := new(MockEvalContext)
 			evalCtx.StateState = test.State.SyncWrapper()
 			evalCtx.PathPath = addrs.RootModuleInstance
-			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
+			evalCtx.installProvider(addrs.NewDefaultProvider("aws"), test.Provider)
 			evalCtx.MoveResultsResults = test.MoveResults
-			evalCtx.InitProviderProvider = providers.Interface(test.Provider)
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 			got, readDiags := test.Node.readResourceInstanceStateDeposed(t.Context(), evalCtx, test.Node.Addr, key)
