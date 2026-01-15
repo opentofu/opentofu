@@ -20,8 +20,8 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -40,16 +40,8 @@ type MockEvalContext struct {
 	InputCalled bool
 	InputInput  UIInput
 
-	InitProviderCalled   bool
-	InitProviderType     string
-	InitProviderAddr     addrs.AbsProviderConfig
-	InitProviderProvider providers.Interface
-	InitProviderError    error
-
-	ProviderSchemaCalled bool
-	ProviderSchemaAddr   addrs.AbsProviderConfig
-	ProviderSchemaSchema providers.ProviderSchema
-	ProviderSchemaError  error
+	ProvidersCalled    bool
+	ProvidersProviders plugins.ProviderManager
 
 	ProviderInputCalled bool
 	ProviderInputAddr   addrs.AbsProviderConfig
@@ -59,16 +51,8 @@ type MockEvalContext struct {
 	SetProviderInputAddr   addrs.AbsProviderConfig
 	SetProviderInputValues map[string]cty.Value
 
-	ProvisionerCalled      bool
-	ProvisionerName        string
-	ProvisionerProvisioner provisioners.Interface
-
-	ProvisionerSchemaCalled bool
-	ProvisionerSchemaName   string
-	ProvisionerSchemaSchema *configschema.Block
-	ProvisionerSchemaError  error
-
-	CloseProvisionersCalled bool
+	ProvisionersCalled       bool
+	ProvisionersProvisioners plugins.ProvisionerManager
 
 	EvaluateBlockCalled     bool
 	EvaluateBlockBody       hcl.Body
@@ -170,17 +154,15 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {
-	c.InitProviderCalled = true
-	c.InitProviderType = addr.String()
-	c.InitProviderAddr = addr
-	return c.InitProviderProvider, c.InitProviderError
+func (c *MockEvalContext) installProvider(addr addrs.Provider, p providers.Interface) {
+	c.ProvidersProviders = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+		addr: func() (providers.Interface, error) { return p, nil },
+	}, nil).NewProviderManager()
 }
 
-func (c *MockEvalContext) ProviderSchema(_ context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	c.ProviderSchemaCalled = true
-	c.ProviderSchemaAddr = addr
-	return c.ProviderSchemaSchema, c.ProviderSchemaError
+func (c *MockEvalContext) Providers() plugins.ProviderManager {
+	c.ProvidersCalled = true
+	return c.ProvidersProviders
 }
 
 func (c *MockEvalContext) ProviderInput(_ context.Context, addr addrs.AbsProviderConfig) map[string]cty.Value {
@@ -195,21 +177,9 @@ func (c *MockEvalContext) SetProviderInput(_ context.Context, addr addrs.AbsProv
 	c.SetProviderInputValues = vals
 }
 
-func (c *MockEvalContext) Provisioner(n string) (provisioners.Interface, error) {
-	c.ProvisionerCalled = true
-	c.ProvisionerName = n
-	return c.ProvisionerProvisioner, nil
-}
-
-func (c *MockEvalContext) ProvisionerSchema(n string) (*configschema.Block, error) {
-	c.ProvisionerSchemaCalled = true
-	c.ProvisionerSchemaName = n
-	return c.ProvisionerSchemaSchema, c.ProvisionerSchemaError
-}
-
-func (c *MockEvalContext) CloseProvisioners() error {
-	c.CloseProvisionersCalled = true
-	return nil
+func (c *MockEvalContext) Provisioners() plugins.ProvisionerManager {
+	c.ProvisionersCalled = true
+	return c.ProvisionersProvisioners
 }
 
 func (c *MockEvalContext) EvaluateBlock(_ context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {

@@ -1107,8 +1107,12 @@ func TestApply_shutdown(t *testing.T) {
 		},
 	}
 
+	// Provider is started multiple times, plus it's left running after the schema call
+	var stopOnce sync.Once
 	p.StopFn = func() error {
-		close(cancelled)
+		stopOnce.Do(func() {
+			close(cancelled)
+		})
 		return nil
 	}
 

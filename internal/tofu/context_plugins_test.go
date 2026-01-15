@@ -10,6 +10,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 )
@@ -31,7 +32,7 @@ func simpleMockPluginLibrary() *contextPlugins {
 	// factory into real code under test.
 	provider := simpleMockProvider()
 	provisioner := simpleMockProvisioner()
-	ret := newContextPlugins(map[addrs.Provider]providers.Factory{
+	ret := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): func() (providers.Interface, error) {
 			return provider, nil
 		},
@@ -39,7 +40,7 @@ func simpleMockPluginLibrary() *contextPlugins {
 		"test": func() (provisioners.Interface, error) {
 			return provisioner, nil
 		},
-	})
+	}))
 	return ret
 }
 

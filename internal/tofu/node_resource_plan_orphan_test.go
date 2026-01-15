@@ -223,10 +223,9 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				RefreshStateState:        state.DeepCopy().SyncWrapper(),
 				PrevRunStateState:        state.DeepCopy().SyncWrapper(),
 				InstanceExpanderExpander: instances.NewExpander(),
-				InitProviderProvider:     p,
-				ProviderSchemaSchema:     schema,
 				ChangesChanges:           plans.NewChanges().SyncWrapper(),
 			}
+			evalCtx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 			node := NodePlannableResourceInstanceOrphan{
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
@@ -285,6 +284,13 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
+	p.GetProviderSchemaResponse = &providers.ProviderSchema{
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": {
+				Block: simpleTestSchema(),
+			},
+		},
+	}
 	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
@@ -294,16 +300,9 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		InitProviderProvider:     p,
-		ProviderSchemaSchema: providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"test_object": {
-					Block: simpleTestSchema(),
-				},
-			},
-		},
-		ChangesChanges: changes.SyncWrapper(),
+		ChangesChanges:           changes.SyncWrapper(),
 	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
@@ -370,6 +369,13 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
+	p.GetProviderSchemaResponse = &providers.ProviderSchema{
+		ResourceTypes: map[string]providers.Schema{
+			"test_object": {
+				Block: simpleTestSchema(),
+			},
+		},
+	}
 	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
@@ -379,16 +385,9 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		InitProviderProvider:     p,
-		ProviderSchemaSchema: providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"test_object": {
-					Block: simpleTestSchema(),
-				},
-			},
-		},
-		ChangesChanges: changes.SyncWrapper(),
+		ChangesChanges:           changes.SyncWrapper(),
 	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{

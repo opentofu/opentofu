@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -373,9 +374,9 @@ run "test_case" {
 		t.Run(name, func(t *testing.T) {
 			config := testModuleInline(t, tc.configs)
 			ctx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(tc.provider),
-				},
+				}, nil),
 			})
 
 			run := moduletest.Run{
@@ -569,9 +570,9 @@ run "test_case" {
 		t.Run(name, func(t *testing.T) {
 			config := testModuleInline(t, tc.configs)
 			ctx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(tc.provider),
-				},
+				}, nil),
 			})
 
 			run := moduletest.Run{

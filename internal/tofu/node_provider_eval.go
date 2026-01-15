@@ -38,7 +38,6 @@ func (n *NodeEvalableProvider) Close(ctx context.Context) error {
 
 // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	var err error
-	n.instance, err = evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
-	return diags.Append(err)
+	n.instance, diags = evalCtx.Providers().NewProvider(ctx, n.Addr.Provider)
+	return diags
 }

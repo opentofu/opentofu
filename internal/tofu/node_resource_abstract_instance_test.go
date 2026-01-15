@@ -182,8 +182,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 			},
 		},
 	}
-	evalCtx.InitProviderProvider = mockProvider
-	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
+	evalCtx.installProvider(addrs.NewDefaultProvider("aws"), mockProvider)
 
 	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj, workingState)
 	if err != nil {

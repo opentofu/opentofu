@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -79,11 +80,11 @@ func TestContext2Input_provider(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):        testProviderFuncFixed(awsp),
 			addrs.NewDefaultProvider("cloudflare"): testProviderFuncFixed(cfp),
 			addrs.NewDefaultProvider("azurerm"):    testProviderFuncFixed(azp),
-		},
+		}, nil),
 		UIInput: inp,
 	})
 
@@ -182,11 +183,11 @@ func TestContext2Input_providerMulti(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): func() (providers.Interface, error) {
 				return providerFactory()
 			},
-		},
+		}, nil),
 		UIInput: inp,
 	})
 
@@ -226,9 +227,9 @@ func TestContext2Input_providerOnce(t *testing.T) {
 	m := testModule(t, "input-provider-once")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
@@ -262,9 +263,9 @@ func TestContext2Input_providerOnly(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -322,9 +323,9 @@ func TestContext2Input_providerVars(t *testing.T) {
 	m := testModule(t, "input-provider-with-vars")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -366,9 +367,9 @@ func TestContext2Input_providerVarsModuleInherit(t *testing.T) {
 	m := testModule(t, "input-provider-with-vars-and-module")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -383,9 +384,9 @@ func TestContext2Input_submoduleTriggersInvalidCount(t *testing.T) {
 	m := testModule(t, "input-submodule-count")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -441,9 +442,9 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 

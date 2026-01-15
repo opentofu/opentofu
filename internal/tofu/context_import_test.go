@@ -19,6 +19,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -28,9 +29,9 @@ func TestContextImport_basic(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -81,9 +82,9 @@ resource "aws_instance" "foo" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -243,9 +244,9 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewBuiltInProvider("test"): providerFactory,
-		},
+		}, nil),
 	})
 
 	existingInstanceKey := addrs.StringKey("foo")
@@ -320,9 +321,9 @@ resource "aws_instance" "foo" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -382,9 +383,9 @@ func TestContextImport_collision(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
@@ -460,9 +461,9 @@ func TestContextImport_missingType(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -513,9 +514,9 @@ func TestContextImport_moduleProvider(t *testing.T) {
 
 	m := testModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -550,9 +551,9 @@ func TestContextImport_providerModule(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -617,9 +618,9 @@ func TestContextImport_providerConfig(t *testing.T) {
 			p := testProvider("aws")
 			m := testModule(t, test.module)
 			ctx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-				},
+				}, nil),
 			})
 
 			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -678,10 +679,10 @@ func TestContextImport_providerConfigResources(t *testing.T) {
 	pTest := testProvider("test")
 	m := testModule(t, "import-provider-resources")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(pTest),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -736,9 +737,9 @@ data "aws_data_source" "bar" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -799,9 +800,9 @@ func TestContextImport_refreshNil(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -848,9 +849,9 @@ func TestContextImport_module(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -891,9 +892,9 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -934,9 +935,9 @@ func TestContextImport_moduleDiff(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
@@ -1015,9 +1016,9 @@ func TestContextImport_multiState(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -1091,9 +1092,9 @@ func TestContextImport_multiStateSame(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -1187,9 +1188,9 @@ resource "test_resource" "unused" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -1259,9 +1260,9 @@ resource "test_resource" "test" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
@@ -1295,9 +1296,9 @@ func TestContextImport_33572(t *testing.T) {
 	m := testModule(t, "issue-33572")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{

@@ -29,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -267,7 +268,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 
 	ctx, probe := tracing.NewContextProbe(t, t.Context())
 	tofuCtx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewBuiltInProvider("test"): providers.FactoryFixed(&MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{
@@ -288,7 +289,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 					State: cty.EmptyObjectVal,
 				},
 			}),
-		},
+		}, nil),
 	})
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
