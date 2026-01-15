@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"sync"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/hashicorp/hcl/v2"
@@ -56,18 +55,12 @@ type ResourceInstance struct {
 	// on concerns that our outside this package's scope.
 	Glue ResourceInstanceGlue
 
-	// value memoizes the result from [ResourceInstance.Value] so that we'll
-	// definitely return a consistent value to every call without re-running
-	// whatever logic is behind the [ResourceInstance.Glue] implementation,
-	// which might involve side-effects that could produce different results
-	// on each call.
-	//
-	// Anything accessing value must hold valueLock.
-	value struct {
-		v     cty.Value
-		diags tfdiags.Diagnostics
-	}
-	valueLock sync.Mutex
+	// valueOnce helps us to memoize the result from [ResourceInstance.Value]
+	// so that we'll definitely return a consistent value to every call without
+	// re-running whatever logic is behind the [ResourceInstance.Glue]
+	// implementation, which might involve side-effects that could produce
+	// different results
+	valueOnce grapheval.Once[cty.Value]
 }
 
 var _ exprs.Valuer = (*ResourceInstance)(nil)
@@ -86,69 +79,54 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
-	ri.valueLock.Lock()
-	if ri.value.v != cty.NilVal {
-		ri.valueLock.Unlock()
-		// once ri.value.v is non-nil ri.value is never written again, so we can
-		// safely access it without holding the lock here.
-		return ri.value.v, ri.value.diags
-	}
-	defer func() {
-		ri.value = struct {
-			v     cty.Value
-			diags tfdiags.Diagnostics
-		}{
-			v:     v,
-			diags: diags,
+	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+		// TODO: Preconditions? Or should that be handled in the parent [Resource]
+		// before we even attempt instance expansion? (Need to check the current
+		// behavior in the existing system, to see whether preconditions guard
+		// instance expansion.)
+		// If we take preconditions into account here then we must transfer
+		// [ResourceInstanceMark] marks from the check rule expressions into
+		// configVal because config evaluation indirectly depends on those
+		// references.
+
+		// We use the configuration value here only for its marks, since that
+		// allows us to propagate any
+		configVal, diags := ri.ConfigValuer.Value(ctx)
+		if diags.HasErrors() {
+			// If we don't have a valid config value then we'll stop early
+			// with an unknown value placeholder so that the external process
+			// responsible for providing the result value can assume that it
+			// will only ever recieve validated configuration values.
+			return exprs.AsEvalError(cty.DynamicVal), diags
 		}
-		ri.valueLock.Unlock()
-	}()
 
-	// TODO: Preconditions? Or should that be handled in the parent [Resource]
-	// before we even attempt instance expansion? (Need to check the current
-	// behavior in the existing system, to see whether preconditions guard
-	// instance expansion.)
-	// If we take preconditions into account here then we must transfer
-	// [ResourceInstanceMark] marks from the check rule expressions into
-	// configVal because config evaluation indirectly depends on those
-	// references.
+		providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
+		diags = diags.Append(moreDiags)
+		if diags.HasErrors() {
+			return exprs.AsEvalError(cty.DynamicVal), diags
+		}
 
-	// We use the configuration value here only for its marks, since that
-	// allows us to propagate any
-	configVal, diags := ri.ConfigValuer.Value(ctx)
-	if diags.HasErrors() {
-		// If we don't have a valid config value then we'll stop early
-		// with an unknown value placeholder so that the external process
-		// responsible for providing the result value can assume that it
-		// will only ever recieve validated configuration values.
-		return exprs.AsEvalError(cty.DynamicVal), diags
-	}
+		// We also need help from our caller to prepare the final value to
+		// return here, because it should reflect the outcome of whatever
+		// resource-instance-related side effects we're doing this evaluation in
+		// support of. Refer to the documentation of the ResultValue method
+		// for details on what we're expecting this to do.
+		resultVal, diags := ri.Glue.ResultValue(ctx, configVal, providerInst)
 
-	providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
-	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
-		return exprs.AsEvalError(cty.DynamicVal), diags
-	}
+		// We must pass the marks from the provider instance selection into the
+		// result because the values that were returned may vary depending on
+		// the provider configuration.
+		resultVal = resultVal.WithMarks(providerInstMarks)
 
-	// We also need help from our caller to prepare the final value to
-	// return here, because it should reflect the outcome of whatever
-	// resource-instance-related side effects we're doing this evaluation in
-	// support of. Refer to the documentation of the ResultValue method
-	// for details on what we're expecting this to do.
-	resultVal, diags := ri.Glue.ResultValue(ctx, configVal, providerInst)
+		// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
+		// the check rule expressions onto resultVal because the presence of
+		// a valid result value indirectly depends on those references.
 
-	// We must pass the marks from the provider instance selection into the
-	// result because the values that were returned may vary depending on
-	// the provider configuration.
-	resultVal = resultVal.WithMarks(providerInstMarks)
+		// The result needs some additional preparation to make sure it's
+		// marked correctly for ongoing use in other expressions.
+		return exprs.EvalResult(prepareResourceInstanceResult(resultVal, ri, configVal), diags)
 
-	// TODO: Postconditions, and transfer [ResourceInstanceMark] marks from
-	// the check rule expressions onto resultVal because the presence of
-	// a valid result value indirectly depends on those references.
-
-	// The result needs some additional preparation to make sure it's
-	// marked correctly for ongoing use in other expressions.
-	return exprs.EvalResult(prepareResourceInstanceResult(resultVal, ri, configVal), diags)
+	})
 }
 
 func (ri *ResourceInstance) ProviderInstance(ctx context.Context) (Maybe[*ProviderInstance], cty.ValueMarks, tfdiags.Diagnostics) {
@@ -227,6 +205,10 @@ func (ri *ResourceInstance) CheckAll(ctx context.Context) tfdiags.Diagnostics {
 func (ri *ResourceInstance) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
 	announce(ri.ConfigValuer.RequestID(), grapheval.RequestInfo{
 		Name:        fmt.Sprintf("configuration for %s", ri.Addr),
+		SourceRange: ri.ConfigValuer.ValueSourceRange(),
+	})
+	announce(ri.valueOnce.RequestID(), grapheval.RequestInfo{
+		Name:        fmt.Sprintf("final value for %s", ri.Addr),
 		SourceRange: ri.ConfigValuer.ValueSourceRange(),
 	})
 	announce(ri.ProviderInstanceValuer.RequestID(), grapheval.RequestInfo{
