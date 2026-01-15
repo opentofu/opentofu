@@ -2,6 +2,11 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.4 (Unreleased)
 
+BUG FIXES:
+
+* In JSON syntax, the state encryption method configuration now allows specifying keys using both normal expression syntax and using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3654](https://github.com/opentofu/opentofu/issues/3654))
+
+
 ## 1.11.3
 
 BUG FIXES:
