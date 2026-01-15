@@ -7,11 +7,13 @@ package eval
 
 import (
 	"context"
+	"fmt"
 
-	_ "github.com/apparentlymart/go-workgraph/workgraph" // for documentation links only
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -38,42 +40,74 @@ type ApplyGlue interface {
 	// Diagnostics from apply-time actions must be reported through some other
 	// channel controlled by the apply engine itself.
 	ResourceInstanceFinalState(ctx context.Context, addr addrs.AbsResourceInstance) cty.Value
+
+	// ValidateProviderConfig asks the provider of the given address to validate
+	// the given value as being suitable to use when instantiating a configured
+	// instance of that provider.
+	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
 }
 
-// DriveApplying uses this configuration instance to support an "apply"
-// process being managed by some other part of the system.
+// ApplyOracle creates an [ApplyOracle] object that can be used to support an
+// "apply" operation that's driven by another part of the system.
 //
-// Applying is driven primarily by an execution graph that was built during
-// the planning phase and so during apply the eval engine's only role is to
-// provide information about the final configuration of different configuration
-// objects and propagate the final state returned by the apply engine through
-// dependent expressions. We achieve that by calling the given callback with
-// an [ApplyOracle] object that the apply engine can use to pull the needed
-// information at an appropriate time.
+// While in the planning phase the evaluator is the primary driver and the
+// planning engine just responds to callbacks, the apply phase has an inverted
+// structure where the apply engine drives execution and just calls into the
+// evaluator to obtain supporting information as needed.
 //
-// The given callback is provided a [context.Context] that is associated
-// with a [workgraph.Worker], and is required to use the facilities in
-// [grapheval] and [workgraph] to track its work so that it can collaborate
-// properly with the evaluation system's detection of self-references, to
-// avoid deadlocks, but the apply phase is free to construct its own workers
-// rather than using the one provided to the callback function.
-func (c *ConfigInstance) DriveApplying(ctx context.Context, glue ApplyGlue, run func(ctx context.Context, oracle *ApplyOracle)) tfdiags.Diagnostics {
-	// All of our work will be associated with a workgraph worker that serves
-	// as the initial worker node in the work graph.
+// The object returned by this function is therefore passive until asked a
+// question through one of its methods, but asking a question is likely to
+// cause various other evaluation work to be performed in order to gather the
+// data needed to answer the question. The apply phase only evaluates parts
+// of the configuration needed to perform the planned actions, because we
+// assume that everything else was already evaluated and validated during the
+// planning phase.
+func (c *ConfigInstance) ApplyOracle(ctx context.Context, glue ApplyGlue) (*ApplyOracle, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// Our preparation work will interact with the graph-eval machinery so
+	// we need a suitably-annotated context to allow it to track any promise
+	// dependencies that are relevant during initialization. (The apply engine
+	// will make its own grapheval context to do the main work, though.)
 	ctx = grapheval.ContextWithNewWorker(ctx)
-	_ = ctx // just so we can keep the above as a reminder of the need to have a grapheval worker in future work
 
-	// TODO: This should take an implementation of an interface that integrates
-	// with the main applying engine.
-	panic("unimplemented")
+	evalGlue := &applyingEvalGlue{
+		applyEngineGlue: glue,
+	}
+	rootModuleInstance, moreDiags := c.newRootModuleInstance(ctx, evalGlue)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return nil, diags
+	}
+
+	return &ApplyOracle{
+		root: rootModuleInstance,
+	}, diags
 }
 
-// An ApplyOracle is passed to the callback given to
-// [ConfigInstance.DriveApplying] to give the main apply engine access to
-// various information from the configuration that it will need during
-// the apply process.
+// applyingEvalGlue is an adapter from the [evalglue.Glue] interface to the
+// [ApplyGlue] interface, to bridge between the general-purpose evaluator code
+// and the specialized API implemented by the apply engine in particular.
+type applyingEvalGlue struct {
+	applyEngineGlue ApplyGlue
+}
+
+// ResourceInstanceValue implements [evalglue.Glue].
+func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *configgraph.ResourceInstance, _ cty.Value, _ configgraph.Maybe[*configgraph.ProviderInstance], _ addrs.Set[addrs.AbsResourceInstance]) (cty.Value, tfdiags.Diagnostics) {
+	finalValue := g.applyEngineGlue.ResourceInstanceFinalState(ctx, ri.Addr)
+	return finalValue, nil
+}
+
+// ValidateProviderConfig implements [evalglue.Glue].
+func (g *applyingEvalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+	return g.applyEngineGlue.ValidateProviderConfig(ctx, provider, configVal)
+}
+
+// An ApplyOracle is returned by [ConfigInstance.ApplyOracle] to give the main
+// apply engine access to various information from the configuration that it
+// will need during the apply process.
 //
-// The methods of an [ApplyOracle] must be called with a [context.Context]
+// All methods of an [ApplyOracle] must be called with a [context.Context]
 // derived from one produced by [grapheval.ContextWithWorker].
 //
 // Whereas the planning process is driven primarily by the dependencies
@@ -88,6 +122,7 @@ func (c *ConfigInstance) DriveApplying(ctx context.Context, glue ApplyGlue, run 
 // graph that ensures that the apply phase will request information from
 // the oracle only once it has already been made available by earlier work.
 type ApplyOracle struct {
+	root evalglue.CompiledModuleInstance
 }
 
 // DesiredResourceInstance returns the [DesiredResourceInstance] object
@@ -100,9 +135,35 @@ type ApplyOracle struct {
 // this should never return nil. If this _does_ return nil then that suggests
 // a bug in the planning engine, which caused it to create an incorrect
 // execution graph.
-func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) *DesiredResourceInstance {
-	// TODO: Implement
-	panic("unimplemented")
+func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) (*DesiredResourceInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	inst := evalglue.ResourceInstance(ctx, o.root, addr)
+	if inst == nil {
+		// We should not get here because the apply phase should only ask for
+		// resource instances that were present during the planning phase, and
+		// we should be using exactly the same configuration source code now.
+		diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
+		return nil, diags
+	}
+	// TODO: Factor out the logic for building a [DesiredResourceInstance]
+	// into a place that all phases can share. Currently that logic is within
+	// the planning engine and so not reachable from here. For now this is
+	// just a minimal stub giving just enough for the incomplete apply engine
+	// to do its work.
+	configVal, moreDiags := inst.Value(ctx)
+	diags = diags.Append(moreDiags)
+	providerInst, _, moreDiags := inst.ProviderInstance(ctx)
+	diags = diags.Append(moreDiags)
+	providerInstAddr, _ := configgraph.GetKnown(configgraph.MapMaybe(providerInst, func(pi *configgraph.ProviderInstance) addrs.AbsProviderInstanceCorrect {
+		return pi.Addr
+	}))
+	return &DesiredResourceInstance{
+		Addr:             inst.Addr,
+		ConfigVal:        configVal,
+		Provider:         inst.Provider,
+		ProviderInstance: &providerInstAddr,
+	}, diags
 }
 
 // ProviderInstanceConfig returns the configuration value for the given
@@ -113,7 +174,16 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 // to refer only to provider instances that are present ni the configuration.
 // If this _does_ return cty.NilVal then that suggests a bug in the planning
 // engine, causing it to create an incorrect execution graph.
-func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
-	// TODO: Implement
-	panic("unimplemented")
+func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
+	inst := evalglue.ProviderInstance(ctx, o.root, addr)
+	if inst == nil {
+		// We should not get here because the apply phase should only ask for
+		// provider instances that were present during the planning phase, and
+		// we should be using exactly the same configuration source code now.
+		var diags tfdiags.Diagnostics
+		diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
+		return cty.DynamicVal, diags
+	}
+	v, diags := inst.ConfigValue(ctx)
+	return configgraph.PrepareOutgoingValue(v), diags
 }

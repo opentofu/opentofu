@@ -34,6 +34,7 @@ type executionContext struct {
 	// state, and so we could simplify this to be just an immutable map of
 	// pre-decoded state objects without any mutex.
 	priorState *syncState
+	oracle     *eval.ApplyOracle
 	plugins    plugins.Plugins
 
 	// graph refers back to the execution graph that this object was
@@ -45,7 +46,7 @@ type executionContext struct {
 	graph *execgraph.CompiledGraph
 }
 
-func compileExecutionGraph(ctx context.Context, plan *plans.Plan, plugins plugins.Plugins) (*execgraph.CompiledGraph, *executionContext, tfdiags.Diagnostics) {
+func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.ApplyOracle, plugins plugins.Plugins) (*execgraph.CompiledGraph, *executionContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	execGraph, err := execgraph.UnmarshalGraph(plan.ExecutionGraph)
@@ -89,12 +90,21 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, plugins plugin
 	}
 	execCtx.priorState = priorState
 
+	execCtx.oracle = oracle
+	execCtx.plugins = plugins
+
 	return compiledGraph, nil, diags
 }
 
 // DesiredResourceInstance implements [execgraph.ExecContext].
 func (c *executionContext) DesiredResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance) *eval.DesiredResourceInstance {
-	panic("unimplemented")
+	// FIXME: We're currently just ignoring the diagnostics completely here
+	// because this API was modelled after the apply phase where we proactively
+	// walk the entire configuration collecting diagnostics for everything,
+	// but we don't do that during the apply phase so we should instead model
+	// the "desired resource instance" request as a fallible operation here.
+	ret, _ := c.oracle.DesiredResourceInstance(ctx, addr)
+	return ret
 }
 
 // NewProviderClient implements [execgraph.ExecContext].
@@ -104,7 +114,13 @@ func (c *executionContext) NewProviderClient(ctx context.Context, addr addrs.Pro
 
 // ProviderInstanceConfig implements [execgraph.ExecContext].
 func (c *executionContext) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
-	panic("unimplemented")
+	// FIXME: We're currently just ignoring the diagnostics completely here
+	// because this API was modelled after the apply phase where we proactively
+	// walk the entire configuration collecting diagnostics for everything,
+	// but we don't do that during the apply phase so we should instead model
+	// the "provider instance config" request as a fallible operation here.
+	ret, _ := c.oracle.ProviderInstanceConfig(ctx, addr)
+	return ret
 }
 
 // ResourceInstancePriorState implements [execgraph.ExecContext].
@@ -113,7 +129,14 @@ func (c *executionContext) ResourceInstancePriorState(ctx context.Context, addr 
 }
 
 func (c *executionContext) Finish(ctx context.Context) (*states.State, tfdiags.Diagnostics) {
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+	ret := states.NewState()
+	// TODO: Collect up all of the results from the compiled execution graph,
+	// which should by now have finished executing and so should have
+	// final values for anything it was able to apply. If execution ended early
+	// due to an error then we should also preserve the relevant resource
+	// instance objects from the prior state here.
+	return ret, diags
 }
 
 var _ execgraph.ExecContext = (*executionContext)(nil)
