@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package oras
 
 import (
@@ -9,8 +14,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -63,25 +66,13 @@ func TestORASRetryConfigFromEnv(t *testing.T) {
 }
 
 func TestORASVersioningConfigFromConfig(t *testing.T) {
-	src := []byte(`
-repository = "example.com/myorg/tofu-state"
-
-versioning {
-  enabled      = true
-  max_versions = 42
-}
-`)
-
-	f, diags := hclsyntax.ParseConfig(src, "synth.hcl", hcl.Pos{Line: 1, Column: 1})
-	if diags.HasErrors() {
-		t.Fatalf("parse config: %s", diags.Error())
+	conf := map[string]cty.Value{
+		"repository":   cty.StringVal("example.com/myorg/tofu-state"),
+		"max_versions": cty.StringVal("42"),
 	}
 
-	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), f.Body).(*Backend)
+	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), configs.SynthBody("synth", conf)).(*Backend)
 
-	if !b.versioningEnabled {
-		t.Fatalf("expected versioningEnabled to be true")
-	}
 	if b.versioningMaxVersions != 42 {
 		t.Fatalf("expected versioningMaxVersions %d, got %d", 42, b.versioningMaxVersions)
 	}

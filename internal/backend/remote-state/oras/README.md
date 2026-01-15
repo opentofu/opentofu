@@ -2,9 +2,13 @@
 
 ## Status
 
-This backend is an experiment/reference implementation for storing OpenTofu state in an OCI registry via [ORAS](https://oras.land/).
+This backend is currently in **beta** and implements Phase 1 reliability improvements for OCI registry state storage. It should be evaluated carefully before use in mission‑critical production environments:
 
-Terraform Core historically avoids new remote state backends upstream. If these changes are not accepted, the intent is for this package to remain as documentation and a starting point for downstream forks.
+- ✅ **Lock Generation Semantics**: Atomic lock versioning prevents concurrent holders (lock race eliminated)
+- ✅ **Stale Lock Cleanup**: When `lock_ttl > 0`, stale locks from crashed processes are automatically cleared during lock acquisition
+- ⚠️ **Async State Retention**: Version cleanup runs asynchronously to avoid blocking `terraform apply`
+
+OpenTofu/Terraform Core has not added new remote state backends in years, preferring the generic HTTP backend for custom implementations. This package serves as a reference implementation and starting point for those who want native OCI registry state storage.
 
 ## The Big Idea
 
@@ -43,7 +47,7 @@ Retry/backoff:
   - Env: `TF_BACKEND_ORAS_RETRY_WAIT_MAX`
 
 Locking:
-- `lock_ttl` (optional, default `0`): lock TTL in seconds. If non-zero, stale locks older than this may be cleared while acquiring a lock. `0` disables.
+- `lock_ttl` (optional, default `0`): lock TTL in seconds. When greater than 0, stale locks older than this are automatically cleared during lock acquisition. Set to `0` to disable.
   - Env: `TF_BACKEND_ORAS_LOCK_TTL`
 
 Rate limiting:
@@ -53,9 +57,7 @@ Rate limiting:
   - Env: `TF_BACKEND_ORAS_RATE_LIMIT_BURST`
 
 Versioning:
-- `versioning { ... }` (optional block): turn on version tags for state snapshots.
-  - `enabled` (optional, default `false`)
-  - `max_versions` (optional): maximum historical versions to retain. `0` means unlimited.
+- `max_versions` (optional, default `0`): maximum historical versions to retain. `0` disables versioning, `>0` enables versioning with that retention limit. Cleanup always runs asynchronously.
 
 ## How State Is Stored (Tags)
 
@@ -66,7 +68,7 @@ Tags act as stable references:
 
 `workspaceTag` equals the workspace name if it is a valid OCI tag. Otherwise the backend uses a stable `ws-<hash>` form and persists the real workspace name in OCI annotations.
 
-If versioning is enabled, each successful state write also tags the manifest as:
+If versioning is enabled (`max_versions > 0`), each successful state write also tags the manifest as:
 
 - `state-<workspaceTag>-v<integer>`
 
@@ -97,17 +99,64 @@ Reads are strict: unexpected artifact types or media types raise errors instead 
 
 The lock lives at `locked-*` tags and carries metadata in annotations. Unlocking deletes that manifest when possible. Some registries do not support manifest deletion via OCI `DELETE`. When deletion fails with HTTP 405 the backend retags the lock reference to an `unlocked-*` placeholder instead.
 
-If `lock_ttl` is configured, the backend may clear a stale lock older than the TTL when acquiring a new lock.
+### Phase 1 Lock Improvements (Generation Semantics)
 
-**Note**: There is still a theoretical race where two concurrent runs both believe they acquired the lock. Combine this backend with CI concurrency controls when possible.
+**Problem**: In the original implementation, two concurrent processes could both pass the initial lock check, write their lock manifests, and both believe they held the lock (the last writer wins, but the loser doesn't realize it lost).
+
+**Solution**: Lock manifests now include atomic **generation numbers** stored in the `org.terraform.lock.generation` annotation as JSON:
+
+```json
+{
+  "generation": 42,
+  "lease_expiry": 1234567890,
+  "holder_id": "process-abc"
+}
+```
+
+When acquiring a lock:
+1. Read current generation FIRST (before any modifications)
+2. Check if lock is stale and clear it if needed
+3. Increment generation: `newGen = currentGen + 1`
+4. Write lock manifest with `newGen`
+5. **Post-write verification**: Re-read the lock and verify `generation == newGen`
+   - If mismatch: Another process won the race → return LockError
+   - If match: We hold the lock
+
+**Why this works for stale lock cleanup**: Reading the generation BEFORE clearing a stale lock ensures that if another process races to acquire during the cleanup window, the processes will write different generation numbers. The post-write verification will detect the conflict because only one generation can win.
+
+### Stale Lock Cleanup (TTL & Background)
+
+**Scenario 1: Lock Timeout During Acquisition**
+
+If `lock_ttl` is configured (e.g., `lock_ttl = 300` for 5 minutes), when a process attempts to acquire a lock:
+1. Check if existing lock is stale (created more than `lock_ttl` ago)
+2. If stale: automatically clear it before attempting acquisition
+3. Continue with normal generation-based lock acquisition
+
+This handles the common case where a crashed process left a lock behind. The next `terraform apply` automatically clears it without manual intervention.
+
+**Lease Expiry Metadata**
+
+When `lock_ttl > 0`, each lock includes `lease_expiry` in nanoseconds since Unix epoch. This allows external tools to inspect lock expiry without reading lock creation timestamps.
 
 ## Versioning & Retention
 
-When `versioning.enabled` is true, every successful state write gets an additional `-vN` tag.
+When `max_versions > 0`, versioning is enabled and every successful state write gets an additional `-vN` tag. Older versions beyond the limit are pruned automatically using asynchronous (non-blocking) cleanup:
 
-If `versioning.max_versions > 0`, older versions are pruned during new writes. This is an inline operation, not a background job.
+**Async Retention**
 
-Registries such as `ghcr.io` frequently return HTTP 405 for OCI `DELETE`. In that case the backend falls back to deleting the corresponding package version using the GitHub Packages API. The token used for registry access must therefore include `delete:packages` when retention is enabled. If deletion is impossible, stale versions may remain and the write can fail.
+Cleanup queues to a background goroutine with 30-second timeout:
+- **Pros**: `terraform apply` returns immediately without waiting for cleanup
+- **Cons**: Old versions may persist briefly until cleanup completes (non-fatal)
+- **Behavior**: Always runs in the background, providing optimal performance
+
+```hcl
+max_versions = 10  # 0 = disabled, >0 = enabled with retention
+```
+
+**GHCR Deletion Fallback**
+
+Registries such as `ghcr.io` frequently return HTTP 405 for OCI `DELETE`. In that case the backend falls back to deleting the corresponding package version using the GitHub Packages API. The token used for registry access must therefore include `delete:packages` when retention is enabled. If deletion is impossible, stale versions may remain but cleanup is logged and ignored (non-blocking).
 
 ## Authentication
 
@@ -130,18 +179,19 @@ terraform {
 }
 ```
 
-Example (gzip + versioning + encryption):
+Example (production-ready with Phase 1 improvements):
 
 ```hcl
 terraform {
   backend "oras" {
     repository  = "ghcr.io/myorg/infra-state"
     compression = "gzip"
+    
+    # Lock reliability
+    lock_ttl = 300   # 5 minutes
 
-    versioning {
-      enabled      = true
-      max_versions = 10
-    }
+    # State versioning
+    max_versions = 10  # 0 = disabled, >0 = enabled with retention
   }
 
   # Client-side state encryption (OpenTofu feature)
@@ -191,14 +241,29 @@ The token used for `docker login` must be able to read/write the repository. If 
 - Confirm `docker login <registry>` works with the same credentials.
 - For GHCR ensure the token grants `read:packages` + `write:packages` (and `delete:packages` if retention is on).
 
-**Lock stuck after crashed run**
-- Set `lock_ttl = 300` to auto-expire locks after five minutes.
-- Or manually delete the `locked-<workspace>` tag from the registry UI.
+**Lock stuck after crashed run (Phase 1 solutions)**
+
+Option 1: **Automatic cleanup with TTL** (recommended)
+```hcl
+lock_ttl = 300  # 5 minutes
+```
+When `lock_ttl` is set, stale locks are automatically detected and cleared during lock acquisition. The next `terraform apply` will clear any lock older than the TTL.
+
+Option 2: **Manual cleanup**
+- Delete the `locked-<workspace>` tag from the registry UI or API
+
+**Slow applies due to retention cleanup**
+
+Version cleanup always runs asynchronously in the background:
+```hcl
+max_versions = 10
+```
+Cleanup happens in the background without blocking `terraform apply`.
 
 **Version deletion on GHCR**
 - GHCR does not support OCI `DELETE`; the backend automatically falls back to the GitHub Packages API.
 - Ensure the token has `delete:packages` permission for this fallback to work.
-- If the API call also fails (e.g., insufficient permissions), old versions accumulate but writes still succeed.
+- If the API call also fails (e.g., insufficient permissions), old versions accumulate but writes still succeed (cleanup is logged and ignored).
 
 **Debug mode**
 
@@ -216,14 +281,22 @@ go test ./internal/backend/remote-state/oras
 
 ## Limitations / Future Enhancements
 
-Limitations:
+### Phase 1 Improvements (Completed ✅)
+
+- ✅ **Lock race condition eliminated**: Generation semantics ensure atomic lock acquisition
+- ✅ **Stale lock cleanup**: Both on-demand (during acquisition) and proactive (background) modes
+- ✅ **Non-blocking retention**: Async mode always used, preventing slow applies in CI/CD pipelines
+
+### Remaining Limitations
+
 - Only GHCR is exercised in automated tests; other registries may exhibit different quirks.
 - Registries that refuse OCI `DELETE` degrade lock/unlock behavior (GHCR has a dedicated fallback via GitHub Packages API).
-- Retention is enforced inline; there is no background compaction.
-- `lock_ttl` is evaluated during lock attempts, not proactively.
 - `insecure = true` disables TLS verification—use only in controlled environments.
 
-Future enhancements:
+### Future Enhancements (Phase 2+)
+
 - Better visibility into lock/version tags (list commands, tooling).
+- Multi-registry support with capability detection.
 - Registry-specific retention strategies beyond GHCR.
 - Validation with other registries such as ECR, GCR, ACR, Harbor, etc.
+- Eliminate GitHub API dependency for GHCR deletion.

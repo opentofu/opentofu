@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package oras
 
 import (
@@ -38,6 +43,7 @@ const (
 	annotationUpdatedAt = "org.terraform.state.updated_at"
 	annotationLockID    = "org.terraform.lock.id"
 	annotationLockInfo  = "org.terraform.lock.info"
+	annotationLockGen   = "org.terraform.lock.generation"
 )
 
 // Tag naming scheme:
@@ -168,6 +174,19 @@ func isTransientError(err error) bool {
 	}
 }
 
+// LockManifestData holds metadata about a lock that helps detect stale locks
+// and prevent concurrent lock holder scenarios. It's stored as JSON in the
+// lock manifest's annotations.
+type LockManifestData struct {
+	Generation  int64  `json:"generation"`
+	LeaseExpiry int64  `json:"lease_expiry,omitempty"`
+	HolderID    string `json:"holder_id,omitempty"`
+}
+
+// retentionSem limits concurrent async retention goroutines to prevent
+// goroutine accumulation when Put() is called rapidly.
+var retentionSem = make(chan struct{}, 3)
+
 type RemoteClient struct {
 	repo             *orasRepositoryClient
 	workspaceName    string
@@ -179,7 +198,9 @@ type RemoteClient struct {
 	lockTTL          time.Duration
 	now              func() time.Time
 
-	versioningEnabled     bool
+	// versioningMaxVersions controls state versioning:
+	// - 0: versioning disabled (no version tags created)
+	// - >0: versioning enabled with retention limit
 	versioningMaxVersions int
 }
 
@@ -203,7 +224,6 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 		stateCompression:      "none",
 		lockTTL:               0,
 		now:                   time.Now,
-		versioningEnabled:     false,
 		versioningMaxVersions: 0,
 	}
 }
@@ -224,6 +244,27 @@ func (c *RemoteClient) packLockManifest(ctx context.Context, id, infoJSON string
 			annotationWorkspace: c.workspaceName,
 			annotationLockID:    id,
 			annotationLockInfo:  infoJSON,
+		},
+	})
+}
+
+func (c *RemoteClient) packLockManifestWithGeneration(ctx context.Context, id, infoJSON string, generation int64, leaseExpiry int64, holderID string) (ocispec.Descriptor, error) {
+	lockData := LockManifestData{
+		Generation:  generation,
+		LeaseExpiry: leaseExpiry,
+		HolderID:    holderID,
+	}
+	lockDataJSON, err := json.Marshal(lockData)
+	if err != nil {
+		return ocispec.Descriptor{}, fmt.Errorf("failed to marshal lock metadata: %w", err)
+	}
+
+	return oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{
+		ManifestAnnotations: map[string]string{
+			annotationWorkspace: c.workspaceName,
+			annotationLockID:    id,
+			annotationLockInfo:  infoJSON,
+			annotationLockGen:   string(lockDataJSON),
 		},
 	})
 }
@@ -313,7 +354,8 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		return err
 	}
 
-	if !c.versioningEnabled {
+	// Versioning: max_versions > 0 enables versioning with that retention limit
+	if c.versioningMaxVersions <= 0 {
 		return nil
 	}
 
@@ -327,11 +369,22 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		return err
 	}
 
-	if c.versioningMaxVersions > 0 {
-		existing = append(existing, nextVersion)
-		if err := c.enforceVersionRetention(ctx, manifestDesc, existing); err != nil {
-			return err
-		}
+	existing = append(existing, nextVersion)
+
+	// Async retention with semaphore to limit concurrent goroutines
+	select {
+	case retentionSem <- struct{}{}:
+		go func() {
+			defer func() { <-retentionSem }()
+			asyncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := c.enforceVersionRetention(asyncCtx, manifestDesc, existing); err != nil {
+				logging.HCLogger().Trace("async retention cleanup failed", "error", err.Error())
+			}
+		}()
+	default:
+		// Semaphore full, skip this cleanup (will happen on next Put)
+		logging.HCLogger().Trace("async retention skipped: too many pending cleanups")
 	}
 
 	return nil
@@ -509,6 +562,14 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", fmt.Errorf("lock info is required")
 	}
 
+	// Read current generation FIRST (before any modifications).
+	// This is critical for race detection: even if we clear a stale lock,
+	// we use the generation we read here to compute the next one.
+	currentGen, err := c.getLockManifestData(ctx)
+	if err != nil && !isNotFound(err) {
+		return "", fmt.Errorf("failed to read current lock generation: %w", err)
+	}
+
 	// Check for existing lock (with retry for transient network errors)
 	existingDesc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
 		return c.repo.inner.Resolve(ctx, c.lockTag)
@@ -519,12 +580,14 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 			return "", &statemgr.LockError{InconsistentRead: true, Err: err}
 		}
 		if existing != nil && existing.ID != "" {
-			if c.isLockStale(existing) {
+			// Use LeaseExpiry from manifest data (more reliable than Created + TTL)
+			if c.isLockStale(currentGen) {
 				if err := c.clearLock(ctx, existingDesc); err != nil {
 					return "", err
 				}
-				// After clearing a stale lock, another process might have acquired it.
-				// Continue to attempt lock acquisition with post-write verification below.
+				// After clearing stale lock, continue with generation we read BEFORE clearing.
+				// If another process acquires with gen=1, we'll write gen=N+1 (higher),
+				// and both post-write verifications will detect the conflict correctly.
 			} else {
 				return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
 			}
@@ -533,13 +596,29 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", err
 	}
 
+	// Increment from the generation we read at the start
+	newGeneration := int64(1)
+	if currentGen != nil && currentGen.Generation > 0 {
+		newGeneration = currentGen.Generation + 1
+	}
+
+	leaseExpiry := int64(0)
+	if c.lockTTL > 0 {
+		nowFn := c.now
+		if nowFn == nil {
+			nowFn = time.Now
+		}
+		leaseExpiry = nowFn().UTC().Add(c.lockTTL).UnixNano()
+	}
+
 	info.Path = c.stateTag
 	infoBytes, err := json.Marshal(info)
 	if err != nil {
 		return "", err
 	}
 
-	manifestDesc, err := c.packLockManifest(ctx, info.ID, string(infoBytes))
+	// Use generation-based lock manifest that includes atomic generation verification
+	manifestDesc, err := c.packLockManifestWithGeneration(ctx, info.ID, string(infoBytes), newGeneration, leaseExpiry, info.ID)
 	if err != nil {
 		return "", err
 	}
@@ -556,11 +635,10 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", err
 	}
 
-	// Post-write verification: Re-read the lock to ensure we actually hold it.
-	// This guards against a race condition where two processes both pass the
-	// initial check and write their locks concurrently. The last writer wins
-	// the Tag operation, so we must verify our lock ID is actually stored.
-	verified, verifyErr := c.getLockInfo(ctx)
+	// Post-write verification with generation check: Re-read the lock to ensure we actually hold it.
+	// This guards against a race condition where two processes both try to write their locks
+	// concurrently. We verify that the generation in the manifest matches what we just wrote.
+	verified, verifyErr := c.getLockManifestData(ctx)
 	if verifyErr != nil {
 		// Could not verify - attempt to clean up our lock attempt
 		if cleanupDesc, cleanupErr := c.repo.inner.Resolve(ctx, c.lockTag); cleanupErr == nil {
@@ -568,27 +646,34 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		}
 		return "", &statemgr.LockError{InconsistentRead: true, Err: fmt.Errorf("failed to verify lock acquisition: %w", verifyErr)}
 	}
-	if verified == nil || verified.ID != info.ID {
-		// Another process won the race - they now hold the lock
-		return "", &statemgr.LockError{Info: verified, Err: fmt.Errorf("state is locked (lost race)")}
+	if verified == nil || verified.Generation != newGeneration {
+		// Another process won the race - they now hold the lock with a different generation
+		existing, _ := c.getLockInfo(ctx)
+		return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked (lost race)")}
 	}
 
 	return info.ID, nil
 }
 
-func (c *RemoteClient) isLockStale(info *statemgr.LockInfo) bool {
-	if c.lockTTL <= 0 || info == nil || info.Created.IsZero() {
+// isLockStale checks if a lock has expired based on its LeaseExpiry.
+// This is more reliable than using Created + TTL because:
+// 1. The expiry time is calculated when the lock is created
+// 2. No dependency on clock synchronization between lock creator and verifier
+// 3. Explicit: the manifest contains exactly when the lock expires
+func (c *RemoteClient) isLockStale(data *LockManifestData) bool {
+	// If lock_ttl is not configured, locks never expire automatically
+	if c.lockTTL <= 0 {
 		return false
 	}
-	now := time.Now
-	if c.now != nil {
-		now = c.now
-	}
-	age := now().UTC().Sub(info.Created)
-	if age < 0 {
+	// If no manifest data or no expiry set, not stale (legacy lock or TTL was 0)
+	if data == nil || data.LeaseExpiry <= 0 {
 		return false
 	}
-	return age > c.lockTTL
+	nowFn := c.now
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	return nowFn().UTC().UnixNano() > data.LeaseExpiry
 }
 
 func (c *RemoteClient) clearLock(ctx context.Context, desc ocispec.Descriptor) error {
@@ -704,6 +789,27 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 		return &statemgr.LockInfo{}, nil
 	}
 	return &statemgr.LockInfo{ID: id, Path: c.stateTag}, nil
+}
+
+func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestData, error) {
+	m, err := c.fetchManifest(ctx, c.lockTag)
+	if err != nil {
+		return nil, err
+	}
+	if m.ArtifactType != "" && m.ArtifactType != artifactTypeLock {
+		return nil, fmt.Errorf("unexpected lock manifest artifactType %q for %q", m.ArtifactType, c.lockTag)
+	}
+
+	if raw, ok := m.Annotations[annotationLockGen]; ok && raw != "" {
+		var data LockManifestData
+		if err := json.Unmarshal([]byte(raw), &data); err != nil {
+			return nil, fmt.Errorf("decoding lock generation data: %w", err)
+		}
+		return &data, nil
+	}
+
+	// No generation data (legacy lock or manually created)
+	return &LockManifestData{Generation: 0}, nil
 }
 
 type manifest struct {

@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package oras
 
 import (
@@ -7,11 +12,35 @@ import (
 	"io"
 	"sort"
 	"sync"
+	"time"
 
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/errdef"
 )
+
+// drainRetentionSem waits for all slots in the global retentionSem to become
+// available. This is used in tests to ensure no lingering goroutines from
+// previous tests are holding semaphore slots.
+func drainRetentionSem() {
+	// Wait a bit for any in-flight goroutines to release
+	time.Sleep(100 * time.Millisecond)
+	// Acquire all slots to ensure they're free
+	for i := 0; i < cap(retentionSem); i++ {
+		select {
+		case retentionSem <- struct{}{}:
+		default:
+			// Slot was already empty (filled by us in this loop)
+		}
+	}
+	// Release all slots
+	for i := 0; i < cap(retentionSem); i++ {
+		select {
+		case <-retentionSem:
+		default:
+		}
+	}
+}
 
 // fakeORASRepo is an in-memory OCI repository used by unit tests.
 //

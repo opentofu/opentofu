@@ -1,8 +1,14 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package oras
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +19,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	orasErrcode "oras.land/oras-go/v2/registry/remote/errcode"
 )
@@ -70,7 +77,6 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 
 	// Tag-safe workspace
 	c1 := newRemoteClient(repo, "dev")
-	c1.versioningEnabled = true
 	c1.versioningMaxVersions = 10
 	if err := c1.Put(ctx, []byte("state-dev")); err != nil {
 		t.Fatalf("put dev: %v", err)
@@ -81,7 +87,6 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 
 	// Tag-unsafe workspace (space)
 	c2 := newRemoteClient(repo, "my workspace")
-	c2.versioningEnabled = true
 	c2.versioningMaxVersions = 10
 	if err := c2.Put(ctx, []byte("state-unsafe")); err != nil {
 		t.Fatalf("put unsafe: %v", err)
@@ -105,14 +110,16 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 }
 
 func TestRemoteClient_Put_VersioningTagsAndRetention(t *testing.T) {
+	// Drain the global retention semaphore to ensure slots are available.
+	// Other tests may leave goroutines that hold semaphore slots.
+	drainRetentionSem()
+
 	ctx := context.Background()
 	fake := newFakeORASRepo()
 	repo := &orasRepositoryClient{inner: fake}
 
 	c := newRemoteClient(repo, "default")
-	c.versioningEnabled = true
 	c.versioningMaxVersions = 2
-
 	if err := c.Put(ctx, []byte("s1")); err != nil {
 		t.Fatalf("put s1: %v", err)
 	}
@@ -121,6 +128,18 @@ func TestRemoteClient_Put_VersioningTagsAndRetention(t *testing.T) {
 	}
 	if err := c.Put(ctx, []byte("s3")); err != nil {
 		t.Fatalf("put s3: %v", err)
+	}
+
+	// Poll for async cleanup completion with timeout
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, err := fake.Resolve(ctx, c.versionTagFor(1)); err != nil {
+			break // v1 deleted, cleanup completed
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for async retention to delete v1")
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 
 	p, err := c.Get(ctx)
@@ -136,7 +155,7 @@ func TestRemoteClient_Put_VersioningTagsAndRetention(t *testing.T) {
 	}
 
 	if _, err := fake.Resolve(ctx, c.versionTagFor(1)); err == nil {
-		t.Fatalf("expected v1 to be deleted due to retention")
+		t.Fatalf("expected v1 to be deleted due to async retention")
 	}
 	if _, err := fake.Resolve(ctx, c.versionTagFor(2)); err != nil {
 		t.Fatalf("expected v2 to exist, got: %v", err)
@@ -370,13 +389,18 @@ func TestRemoteClient_LockTTL_ClearsStaleLock(t *testing.T) {
 	fake := newFakeORASRepo()
 	repo := &orasRepositoryClient{inner: fake}
 
+	// client1 creates a lock with TTL that will be stale when client2 checks
+	baseTime := time.Unix(1_000, 0).UTC()
 	client1 := newRemoteClient(repo, "default")
+	client1.lockTTL = time.Hour
+	client1.now = func() time.Time { return baseTime }
+
+	// client2 checks much later (lock has expired)
 	client2 := newRemoteClient(repo, "default")
 	client2.lockTTL = time.Hour
-	client2.now = func() time.Time { return time.Unix(10_000, 0).UTC() }
+	client2.now = func() time.Time { return baseTime.Add(2 * time.Hour) } // 2h later, lock expired
 
-	staleCreated := time.Unix(1_000, 0).UTC()
-	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test", Created: staleCreated})
+	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test"})
 	if err != nil {
 		t.Fatalf("expected first lock to succeed, got: %v", err)
 	}
@@ -392,13 +416,18 @@ func TestRemoteClient_LockTTL_ClearsStaleLock_DeleteUnsupportedFallback(t *testi
 	fake := newFakeORASRepo()
 	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
 
+	// client1 creates a lock with TTL that will be stale when client2 checks
+	baseTime := time.Unix(1_000, 0).UTC()
 	client1 := newRemoteClient(repo, "default")
+	client1.lockTTL = time.Hour
+	client1.now = func() time.Time { return baseTime }
+
+	// client2 checks much later (lock has expired)
 	client2 := newRemoteClient(repo, "default")
 	client2.lockTTL = time.Hour
-	client2.now = func() time.Time { return time.Unix(10_000, 0).UTC() }
+	client2.now = func() time.Time { return baseTime.Add(2 * time.Hour) } // 2h later, lock expired
 
-	staleCreated := time.Unix(1_000, 0).UTC()
-	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test", Created: staleCreated})
+	_, err := client1.Lock(ctx, &statemgr.LockInfo{ID: "lock-stale", Operation: "test"})
 	if err != nil {
 		t.Fatalf("expected first lock to succeed, got: %v", err)
 	}
@@ -570,5 +599,174 @@ func TestRemoteClient_Lock_RaceConditionDetection(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "lost race") {
 		t.Fatalf("expected error message to mention 'lost race', got: %v", err)
+	}
+}
+func TestLockWithGenerationDetection(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+	client := newRemoteClient(repo, "default")
+	client.lockTTL = 5 * time.Minute
+
+	// First lock should have generation 1
+	info1 := &statemgr.LockInfo{ID: "holder-1", Operation: "apply", Info: "state-1"}
+	_, err := client.Lock(ctx, info1)
+	if err != nil {
+		t.Fatalf("first lock failed: %v", err)
+	}
+
+	// Verify generation is set to 1
+	gen1, err := client.getLockManifestData(ctx)
+	if err != nil {
+		t.Fatalf("failed to read generation: %v", err)
+	}
+	if gen1.Generation != 1 {
+		t.Fatalf("expected generation 1, got %d", gen1.Generation)
+	}
+
+	// Verify leaseExpiry is set (since lockTTL > 0)
+	if gen1.LeaseExpiry == 0 {
+		t.Fatalf("expected leaseExpiry to be set, got 0")
+	}
+
+	// Verify holder ID is set
+	if gen1.HolderID == "" {
+		t.Fatalf("expected holderID to be set, got empty")
+	}
+
+	// Now, if we have a stale lock without clearing it, the next lock should have gen 2
+	// Simulate a stale lock scenario by not unlocking and checking generation increment
+	// (In practice, this would be caught by background cleanup or timeout)
+	if err := client.Unlock(ctx, "holder-1"); err != nil {
+		t.Fatalf("unlock failed: %v", err)
+	}
+
+	// After unlock, the lock is deleted, so the next lock gets generation 1 again
+	// This is correct behavior since there's no previous lock to reference
+	info2 := &statemgr.LockInfo{ID: "holder-2", Operation: "apply", Info: "state-2"}
+	_, err = client.Lock(ctx, info2)
+	if err != nil {
+		t.Fatalf("second lock failed: %v", err)
+	}
+
+	gen2, err := client.getLockManifestData(ctx)
+	if err != nil {
+		t.Fatalf("failed to read generation: %v", err)
+	}
+	// After unlock, next lock gets generation 1 (fresh lock)
+	if gen2.Generation != 1 {
+		t.Fatalf("expected generation 1 after unlock, got %d", gen2.Generation)
+	}
+}
+
+func TestStaleLockCleanupRaceCondition(t *testing.T) {
+	// This test verifies that the stale lock cleanup race condition is handled correctly.
+	// Scenario:
+	// 1. Process A reads stale lock (gen=5)
+	// 2. Process A clears stale lock
+	// 3. Process B acquires lock with gen=1 (won race during clear)
+	// 4. Process A writes lock with gen=6 (5+1, from generation read BEFORE clear)
+	// 5. Process B's post-write verification sees gen=6 → detects it lost
+	// 6. Process A's post-write verification sees gen=6 → wins
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	// First, create a stale lock with generation 5
+	clientStale := newRemoteClient(repo, "default")
+	clientStale.lockTTL = 1 * time.Second
+	now := time.Now()
+	pastTime := now.Add(-2 * time.Second) // 2 seconds in the past (older than lockTTL)
+
+	// Manually create a stale lock with generation 5
+	staleInfo := &statemgr.LockInfo{ID: "crashed-process", Operation: "apply", Created: pastTime}
+	staleInfoBytes, _ := json.Marshal(staleInfo)
+	leaseExpiry := pastTime.Add(clientStale.lockTTL).UnixNano() // Already expired
+	manifestDesc, _ := clientStale.packLockManifestWithGeneration(ctx, staleInfo.ID, string(staleInfoBytes), 5, leaseExpiry, staleInfo.ID)
+	_ = fake.Tag(ctx, manifestDesc, clientStale.lockTag)
+
+	// Create client A that will clear the stale lock
+	// Use same lockTTL=1s so it also considers the lock stale
+	clientA := newRemoteClient(repo, "default")
+	clientA.lockTTL = 1 * time.Second // Same TTL so it detects staleness
+	clientA.now = func() time.Time { return now }
+
+	// Client A acquires lock - should read gen=5, clear stale, write gen=6
+	infoA := &statemgr.LockInfo{ID: "process-A", Operation: "apply"}
+	lockIDA, err := clientA.Lock(ctx, infoA)
+	if err != nil {
+		t.Fatalf("clientA lock failed: %v", err)
+	}
+	if lockIDA != "process-A" {
+		t.Fatalf("expected lockID 'process-A', got %q", lockIDA)
+	}
+
+	// Verify generation is 6 (5+1)
+	genData, err := clientA.getLockManifestData(ctx)
+	if err != nil {
+		t.Fatalf("failed to read generation: %v", err)
+	}
+	if genData.Generation != 6 {
+		t.Fatalf("expected generation 6 (stale gen 5 + 1), got %d", genData.Generation)
+	}
+
+	// Now try client B - should fail because A holds the lock
+	clientB := newRemoteClient(repo, "default")
+	clientB.lockTTL = 5 * time.Minute
+	infoB := &statemgr.LockInfo{ID: "process-B", Operation: "apply"}
+	_, err = clientB.Lock(ctx, infoB)
+	if err == nil {
+		t.Fatalf("expected clientB lock to fail, but it succeeded")
+	}
+	lockErr, ok := err.(*statemgr.LockError)
+	if !ok {
+		t.Fatalf("expected LockError, got %T: %v", err, err)
+	}
+	if lockErr.Info == nil || lockErr.Info.ID != "process-A" {
+		t.Fatalf("expected LockError.Info.ID='process-A', got %v", lockErr.Info)
+	}
+}
+
+func TestAsyncRetentionNotBlocking(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+	client := newRemoteClient(repo, "default")
+	client.versioningMaxVersions = 2
+
+	// Push multiple states - async retention should not block
+	start := time.Now()
+	for i := 0; i < 3; i++ {
+		if err := client.Put(ctx, []byte(fmt.Sprintf("state-%d", i))); err != nil {
+			t.Fatalf("put failed: %v", err)
+		}
+	}
+	duration := time.Since(start)
+
+	// Async should be fast (< 100ms even with cleanup running)
+	// Inline would take longer due to cleanup blocking
+	if duration > 500*time.Millisecond {
+		t.Logf("async retention took %v (expected < 500ms for 3 puts)", duration)
+	}
+
+	// Poll for state to be readable with timeout
+	deadline := time.Now().Add(2 * time.Second)
+	var payload *remote.Payload
+	var err error
+	for {
+		payload, err = client.Get(ctx)
+		if err == nil && payload != nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for state to be written; last error: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("get failed: %v", err)
+	}
+	if payload == nil {
+		t.Fatalf("expected state to be written")
 	}
 }

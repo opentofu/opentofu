@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package oras
 
 import (
@@ -58,7 +63,6 @@ type Backend struct {
 	rateBurst   int
 	retryCfg    RetryConfig
 
-	versioningEnabled     bool
 	versioningMaxVersions int
 
 	orasCredsPolicy cliconfigORASCredentialsPolicy
@@ -113,7 +117,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc(envVarLockTTL, 0),
-				Description: "Lock TTL in seconds. If set, stale locks older than this will be automatically cleared. 0 disables.",
+				Description: "Lock TTL in seconds. When greater than 0, stale locks older than this are automatically cleared during lock acquisition. Set to 0 (default) to disable automatic stale lock clearing.",
 			},
 			"rate_limit": {
 				Type:        schema.TypeInt,
@@ -127,26 +131,11 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc(envVarRateBurst, 0),
 				Description: "Maximum burst size for registry requests when rate limiting is enabled. 0 defaults to 1.",
 			},
-			"versioning": {
-				Type:     schema.TypeList,
-				Optional: true,
-				MaxItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"enabled": {
-							Type:        schema.TypeBool,
-							Optional:    true,
-							Default:     false,
-							Description: "Whether to keep historical state versions using versioned tags.",
-						},
-						"max_versions": {
-							Type:        schema.TypeInt,
-							Optional:    true,
-							Default:     10,
-							Description: "Maximum number of historical state versions to retain.",
-						},
-					},
-				},
+			"max_versions": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     0,
+				Description: "Maximum number of historical state versions to retain. 0 disables versioning, >0 enables versioning with that retention limit.",
 			},
 		},
 	}
@@ -225,16 +214,9 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 	b.retryCfg = retryCfg
 
-	// State versioning (optional)
-	if v, ok := data.GetOk("versioning"); ok {
-		if spec, ok := v.([]interface{})[0].(map[string]interface{}); ok {
-			b.versioningEnabled = spec["enabled"].(bool)
-			b.versioningMaxVersions = spec["max_versions"].(int)
-		} else {
-			return fmt.Errorf("failed to parse versioning")
-		}
-	}
-	if b.versioningEnabled && b.versioningMaxVersions < 0 {
+	// State versioning: max_versions > 0 enables versioning
+	b.versioningMaxVersions = data.Get("max_versions").(int)
+	if b.versioningMaxVersions < 0 {
 		b.versioningMaxVersions = 0
 	}
 
@@ -266,10 +248,14 @@ func (b *Backend) StateMgr(ctx context.Context, workspace string) (statemgr.Full
 	}
 	client := newRemoteClient(repo, workspace)
 	client.retryConfig = b.retryCfg
-	client.versioningEnabled = b.versioningEnabled
 	client.versioningMaxVersions = b.versioningMaxVersions
 	client.stateCompression = b.compression
 	client.lockTTL = b.lockTTL
+
+	// NOTE: Background lock cleaner is intentionally not started here to avoid
+	// spawning unmanaged goroutines on each StateMgr() call. Stale lock cleanup
+	// happens on-demand during Lock() when lock_ttl > 0.
+
 	return remote.NewState(client, b.encryption), nil
 }
 
