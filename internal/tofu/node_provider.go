@@ -57,7 +57,7 @@ type NodeApplyableProvider struct {
 
 var (
 	_ GraphNodeExecutable = (*NodeApplyableProvider)(nil)
-	_ GraphNodeProvider   = (*NodeApplyableProvider)(nil)
+	_ GraphNodeProvider   = (*NodeApplyableProvider)(nil) // Partial, see NodeAbstractProvider
 )
 
 // GraphNodeProvider

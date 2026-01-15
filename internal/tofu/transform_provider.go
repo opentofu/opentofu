@@ -54,7 +54,14 @@ type GraphNodeProvider interface {
 	GraphNodeModulePath
 	ProviderAddr() addrs.AbsProviderConfig
 	Name() string
+	// Retrieve the instance specified by the key.
+	// With the limited implementation of provider for_each, we only support
+	// keys after the AbsProviderConfig level and not at any of the modules it may live in
+	// This is a hard requirement that we have determined it is too hard to change,
+	// which is an extension of the "provider configurations may not live in modules with
+	// expansion" that we ensure within the configuration.
 	Instance(addrs.InstanceKey) providers.Configured
+	// Call close for all provider instances within this GraphNodeProvider
 	Close(ctx context.Context) error
 	// For test framework
 	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)

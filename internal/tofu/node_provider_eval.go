@@ -24,7 +24,7 @@ type NodeEvalableProvider struct {
 }
 
 var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
-var _ GraphNodeProvider = (*NodeEvalableProvider)(nil)
+var _ GraphNodeProvider = (*NodeEvalableProvider)(nil) // Partial, see NodeAbstractProvider
 
 // GraphNodeProvider
 func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) providers.Configured {
