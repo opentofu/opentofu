@@ -38,11 +38,12 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	c.Meta.Color = c.Meta.color
 
 	// Parse and validate flags
-	args, diags := arguments.ParseRefresh(rawArgs)
+	args, closer, diags := arguments.ParseRefresh(rawArgs)
+	defer closer()
 
 	// Instantiate the view, even if there are flag errors, so that we render
 	// diagnostics according to the desired view
-	view := views.NewRefresh(args.ViewType, c.View)
+	view := views.NewRefresh(args.ViewOptions, c.View)
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -61,7 +62,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.InputEnabled
+	c.Meta.input = args.ViewOptions.InputEnabled
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
@@ -83,7 +84,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	}
 
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewType, enc)
+	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewOptions, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -91,7 +92,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewOptions, args.Operation, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -118,7 +119,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewOptions arguments.ViewOptions, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -132,8 +133,8 @@ func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.Sta
 
 	// Load the backend
 	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:   backendConfig,
-		ViewType: viewType,
+		Config:      backendConfig,
+		ViewOptions: viewOptions,
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {
@@ -143,12 +144,12 @@ func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.Sta
 	return be, diags
 }
 
-func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanced, view views.Refresh, viewType arguments.ViewType, args *arguments.Operation, enc encryption.Encryption,
+func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanced, view views.Refresh, viewOptions arguments.ViewOptions, args *arguments.Operation, enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(ctx, be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewOptions, enc)
 	opReq.ConfigDir = "."
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets
@@ -242,6 +243,11 @@ Options:
   -json                  Produce output in a machine-readable JSON format,
                          suitable for use in text editor integrations and 
                          other automated systems. Always disables color.
+
+  -json-into=out.json    Produce the same output as -json, but sent directly
+                         to the given file. This allows automation to preserve
+                         the original human-readable output streams, while
+                         capturing more detailed logs for machine analysis.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

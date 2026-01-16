@@ -40,7 +40,7 @@ func TestLocalRun(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -70,7 +70,7 @@ func TestLocalRun_error(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -103,7 +103,7 @@ func TestLocalRun_cloudPlan(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,
@@ -188,7 +188,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	stateLocker := clistate.NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 
 	op := &backend.Operation{
 		ConfigDir:    configDir,

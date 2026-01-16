@@ -8,6 +8,7 @@ package views
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
@@ -26,14 +27,42 @@ type Validate interface {
 }
 
 // NewValidate returns an initialized Validate implementation for the given ViewType.
-func NewValidate(vt arguments.ViewType, view *View) Validate {
-	switch vt {
+func NewValidate(args arguments.ViewOptions, view *View) Validate {
+	var validate Validate
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &ValidateJSON{view: view}
+		validate = &ValidateJSON{view: view, output: view.streams.Stdout.File}
 	case arguments.ViewHuman:
-		return &ValidateHuman{view: view}
+		validate = &ValidateHuman{view: view}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+	if args.JSONInto != nil {
+		validate = ValidateMulti{validate, &ValidateJSON{
+			view: view, output: args.JSONInto,
+		}}
+	}
+	return validate
+}
+
+type ValidateMulti []Validate
+
+var _ Validate = (ValidateMulti)(nil)
+
+// Results renders the diagnostics returned from a validation walk, and
+// returns a CLI exit code: 0 if there are no errors, 1 otherwise
+func (m ValidateMulti) Results(diags tfdiags.Diagnostics) int {
+	var code int
+	for _, v := range m {
+		code = max(code, v.Results(diags))
+	}
+	return code
+}
+
+// Diagnostics renders early diagnostics, resulting from argument parsing.
+func (m ValidateMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, v := range m {
+		v.Diagnostics(diags)
 	}
 }
 
@@ -77,7 +106,8 @@ func (v *ValidateHuman) Diagnostics(diags tfdiags.Diagnostics) {
 // This object includes top-level fields summarizing the result, and an array
 // of JSON diagnostic objects.
 type ValidateJSON struct {
-	view *View
+	view   *View
+	output *os.File
 }
 
 var _ Validate = (*ValidateJSON)(nil)
@@ -127,7 +157,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		// Should never happen because we fully-control the input here
 		panic(err)
 	}
-	v.view.streams.Println(string(j))
+	fmt.Fprintln(v.output, string(j))
 
 	if diags.HasErrors() {
 		return 1

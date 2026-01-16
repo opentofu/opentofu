@@ -401,7 +401,7 @@ func TestTestHuman_Conclusion(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewHuman, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			view.Conclusion(tc.Suite)
 
@@ -448,7 +448,7 @@ func TestTestHuman_File(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewHuman, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			view.File(tc.File)
 
@@ -704,7 +704,7 @@ resource "test_resource" "creating" {
 			}
 
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewHuman, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			view.Run(tc.Run, file)
 
@@ -1008,7 +1008,7 @@ up manually:
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewHuman, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			view.DestroySummary(tc.diags, tc.run, tc.file, tc.state)
 
@@ -1302,7 +1302,7 @@ OpenTofu was in the process of creating the following resources for
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewHuman, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 
 			file := &moduletest.File{
 				Name: "main.tftest.hcl",
@@ -1401,7 +1401,7 @@ func TestTestJSON_Abstract(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			view.Abstract(tc.suite)
 			testJSONViewOutputEquals(t, done(t).All(), tc.want)
@@ -1908,7 +1908,7 @@ func TestTestJSON_Conclusion(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			view.Conclusion(tc.suite)
 			testJSONViewOutputEquals(t, done(t).All(), tc.want)
@@ -2351,7 +2351,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			view.DestroySummary(tc.diags, tc.run, tc.file, tc.state)
 			testJSONViewOutputEquals(t, done(t).All(), tc.want)
@@ -2452,7 +2452,7 @@ func TestTestJSON_File(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			view.File(tc.file)
 			testJSONViewOutputEquals(t, done(t).All(), tc.want)
@@ -2938,7 +2938,7 @@ func TestTestJSON_Run(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			file := &moduletest.File{Name: "main.tftest.hcl"}
 
@@ -3245,7 +3245,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			view := NewTest(arguments.ViewJSON, NewView(streams))
+			view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 
 			file := &moduletest.File{Name: "main.tftest.hcl"}
 			run := &moduletest.Run{Name: "run_block"}
@@ -3528,7 +3528,7 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 
 			switch viewType {
 			case arguments.ViewHuman:
-				view := NewTest(arguments.ViewHuman, NewView(streams))
+				view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewHuman}, NewView(streams))
 				SaveErroredTestStateFile(data.state, data.run, data.file, view)
 				output := done(t)
 
@@ -3537,7 +3537,7 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 					t.Errorf("expected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
 				}
 			case arguments.ViewJSON:
-				view := NewTest(arguments.ViewJSON, NewView(streams))
+				view := NewTest(arguments.ViewOptions{ViewType: arguments.ViewJSON}, NewView(streams))
 				SaveErroredTestStateFile(data.state, data.run, data.file, view)
 				want, ok := data.want.([]map[string]interface{})
 				if !ok {

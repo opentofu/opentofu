@@ -63,19 +63,20 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	// Parse and validate flags
-	args, diags := arguments.ParseShow(rawArgs)
+	args, closer, diags := arguments.ParseShow(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("show")
 		return 1
 	}
-	c.viewType = args.ViewType
+	c.viewType = args.ViewOptions.ViewType
 	c.View.SetShowSensitive(args.ShowSensitive)
 
 	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
 	ctx, span := tracing.Tracer().Start(ctx, "Show",
 		tracing.SpanAttributes(
-			traceattrs.String("opentofu.show.view", args.ViewType.String()),
+			traceattrs.String("opentofu.show.view", args.ViewOptions.ViewType.String()),
 			traceattrs.String("opentofu.show.target", args.TargetType.String()),
 			traceattrs.String("opentofu.show.target_arg", args.TargetArg),
 			traceattrs.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
@@ -84,7 +85,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	defer span.End()
 
 	// Set up view
-	view := views.NewShow(args.ViewType, c.View)
+	view := views.NewShow(args.ViewOptions, c.View)
 
 	// Check for user-supplied plugin path
 	var err error
@@ -141,6 +142,11 @@ Other options:
   -no-color           Disable terminal escape sequences.
 
   -json               Show the information in a machine-readable form.
+
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
 
   -show-sensitive     If specified, sensitive values will be displayed.
 

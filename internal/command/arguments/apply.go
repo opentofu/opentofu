@@ -22,15 +22,11 @@ type Apply struct {
 	// AutoApprove skips the manual verification step for the apply operation.
 	AutoApprove bool
 
-	// InputEnabled is used to disable interactive input for unspecified
-	// variable and backend config values. Default is true.
-	InputEnabled bool
-
 	// PlanPath contains an optional path to a stored plan file
 	PlanPath string
 
-	// ViewType specifies which output format to use
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
@@ -40,10 +36,10 @@ type Apply struct {
 	SuppressForgetErrorsDuringDestroy bool
 }
 
-// ParseApply processes CLI arguments, returning an Apply value and errors.
+// ParseApply processes CLI arguments, returning an Apply value, a closer function, and errors.
 // If errors are encountered, an Apply value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
+func ParseApply(args []string) (*Apply, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	apply := &Apply{
 		State:     &State{},
@@ -53,12 +49,10 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("apply", apply.State, apply.Operation, apply.Vars)
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
-	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&apply.SuppressForgetErrorsDuringDestroy, "suppress-forget-errors", false, "suppress errors in destroy mode due to resources being forgotten")
 
-	var json bool
-	cmdFlags.BoolVar(&json, "json", false, "json")
+	apply.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -82,15 +76,10 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 		))
 	}
 
-	// JSON view currently does not support input, so we disable it here.
-	if json {
-		apply.InputEnabled = false
-	}
-
 	// JSON view cannot confirm apply, so we require either a plan file or
 	// auto-approve to be specified. We intentionally fail here rather than
 	// override auto-approve, which would be dangerous.
-	if json && apply.PlanPath == "" && !apply.AutoApprove {
+	if apply.ViewOptions.jsonFlag && apply.PlanPath == "" && !apply.AutoApprove {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Plan file or auto-approve required",
@@ -99,22 +88,17 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(apply.Operation.Parse())
+	closer, moreDiags := apply.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	switch {
-	case json:
-		apply.ViewType = ViewJSON
-	default:
-		apply.ViewType = ViewHuman
-	}
-
-	return apply, diags
+	return apply, closer, diags
 }
 
 // ParseApplyDestroy is a special case of ParseApply that deals with the
 // "tofu destroy" command, which is effectively an alias for
 // "tofu apply -destroy".
-func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
-	apply, diags := ParseApply(args)
+func ParseApplyDestroy(args []string) (*Apply, func(), tfdiags.Diagnostics) {
+	apply, closer, diags := ParseApply(args)
 
 	// So far ParseApply was using the command line options like -destroy
 	// and -refresh-only to determine the plan mode. For "tofu destroy"
@@ -157,5 +141,5 @@ func ParseApplyDestroy(args []string) (*Apply, tfdiags.Diagnostics) {
 	// plan file or to a configuration directory. The apply command
 	// implementation itself therefore handles this situation.
 
-	return apply, diags
+	return apply, closer, diags
 }

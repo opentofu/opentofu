@@ -74,18 +74,83 @@ type Test interface {
 	FatalInterruptSummary(run *moduletest.Run, file *moduletest.File, states map[*moduletest.Run]*states.State, created []*plans.ResourceInstanceChangeSrc)
 }
 
-func NewTest(vt arguments.ViewType, view *View) Test {
-	switch vt {
+func NewTest(args arguments.ViewOptions, view *View) Test {
+	var test Test
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &TestJSON{
-			view: NewJSONView(view),
+		test = &TestJSON{
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
-		return &TestHuman{
+		test = &TestHuman{
 			view: view,
 		}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		test = &TestMulti{test, &TestJSON{view: NewJSONView(view, args.JSONInto)}}
+	}
+
+	return test
+}
+
+type TestMulti []Test
+
+var _ Test = (TestMulti)(nil)
+
+func (m TestMulti) Abstract(suite *moduletest.Suite) {
+	for _, t := range m {
+		t.Abstract(suite)
+	}
+}
+
+func (m TestMulti) Conclusion(suite *moduletest.Suite) {
+	for _, t := range m {
+		t.Conclusion(suite)
+	}
+}
+
+func (m TestMulti) File(file *moduletest.File) {
+	for _, t := range m {
+		t.File(file)
+	}
+}
+
+func (m TestMulti) Run(run *moduletest.Run, file *moduletest.File) {
+	for _, t := range m {
+		t.Run(run, file)
+	}
+}
+
+func (m TestMulti) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run, file *moduletest.File, state *states.State) {
+	for _, t := range m {
+		t.DestroySummary(diags, run, file, state)
+	}
+}
+
+func (m TestMulti) Diagnostics(run *moduletest.Run, file *moduletest.File, diags tfdiags.Diagnostics) {
+	for _, t := range m {
+		t.Diagnostics(run, file, diags)
+	}
+}
+
+func (m TestMulti) Interrupted() {
+	for _, t := range m {
+		t.Interrupted()
+	}
+}
+
+func (m TestMulti) FatalInterrupt() {
+	for _, t := range m {
+		t.FatalInterrupt()
+	}
+}
+
+func (m TestMulti) FatalInterruptSummary(run *moduletest.Run, file *moduletest.File, states map[*moduletest.Run]*states.State, created []*plans.ResourceInstanceChangeSrc) {
+	for _, t := range m {
+		t.FatalInterruptSummary(run, file, states, created)
 	}
 }
 

@@ -109,7 +109,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
 		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
@@ -147,7 +147,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		}
 
 		if c.stateLock {
-			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
+			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
 			if diags := stateLocker.Lock(stateToMgr, "state-mv"); diags.HasErrors() {
 				c.showDiagnostics(diags)
 				return 1
