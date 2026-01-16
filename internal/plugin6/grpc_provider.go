@@ -32,14 +32,6 @@ type GRPCProviderPlugin struct {
 }
 
 var clientCapabilities = &proto6.ClientCapabilities{
-	// DeferralAllowed tells the provider that it is allowed to respond to
-	// all of the various post-configuration requests (as described by the
-	// [providers.Configured] interface) by reporting that the request
-	// must be "deferred" because there isn't yet enough information to
-	// satisfy the request. Setting this means that we need to be prepared
-	// for there to be a "deferred" object in the response from various
-	// other provider RPC functions.
-	DeferralAllowed: true,
 	// WriteOnlyAttributesAllowed indicates that the current system version
 	// supports write-only attributes.
 	// This enables the SDK to run specific validations and enable the
