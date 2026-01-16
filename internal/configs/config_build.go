@@ -14,6 +14,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -81,7 +82,27 @@ func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hc
 				SourceAddrRange:   run.Module.SourceDeclRange,
 				VersionConstraint: run.Module.Version,
 				Parent:            root,
-				CallRange:         run.Module.DeclRange,
+				Call: NewStaticModuleCall(path, func(v *Variable) (cty.Value, hcl.Diagnostics) {
+					// Handle the case where this is overridden in the test run block
+					expr, isOverridden := run.Variables[v.Name]
+					if isOverridden {
+						identifier := StaticIdentifier{
+							Module:    path,
+							Subject:   fmt.Sprintf("var.%s", v.Name),
+							DeclRange: expr.Range(),
+						}
+						return root.Module.StaticEvaluator.Evaluate(ctx, expr, identifier)
+					}
+
+					// If we haven't had it overridden in a run block, fall back to trying our best
+					// but we do have defaults for some that we can use.
+					if v.Default != cty.NilVal {
+						return v.Default, nil
+					}
+					return cty.DynamicVal, nil
+				}, root.Module.SourceDir, ""), // what should the workspace be here? im so confused...
+
+				CallRange: run.Module.DeclRange,
 			}
 
 			cfg, modDiags := loadModule(ctx, root, &req, walker)
