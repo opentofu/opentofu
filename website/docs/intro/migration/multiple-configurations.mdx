@@ -175,10 +175,8 @@ Bottom-up migration avoids this risk entirely.
 
 ### Step 1: Map your dependencies
 
-Create a visual representation of your configuration dependencies using `terraform_remote_state` data sources.
-
-**Tools to help:**
-- Search your codebase for `terraform_remote_state`
+Create a visual representation of your configuration dependencies using `terraform_remote_state` data sources by:
+- Searching your codebase for `terraform_remote_state`
 - Document which configurations read from which backends/state files
 - Draw the dependency graph
 
