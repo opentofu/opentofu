@@ -127,7 +127,7 @@ OpenTofu maintains state file compatibility with Terraform 1.x, which means:
 
 This compatibility pattern makes **bottom-up migration safe**:
 
-- Configurations migrated to OpenTofu can still read state from configurations remaining on Terraform
+- Configurations migrated to OpenTofu can safely use `terraform_remote_state` on state from configurations that are still on Terraform
 - You can migrate gradually without breaking the dependency chain
 - Mixed Terraform/OpenTofu environments work during the transition
 
