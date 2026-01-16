@@ -2,6 +2,10 @@ The v1.11.x release series is supported until **August 1 2026**.
 
 ## 1.11.4 (Unreleased)
 
+SECURITY ADVISORIES:
+
+* Previous releases in the v1.11 series could potentially take an excessive amount of time processing a maliciously-crafted `.zip` archive during either provider or module installation during `tofu init`. ([#3689](https://github.com/opentofu/opentofu/pull/3689))
+
 BUG FIXES:
 
 * In JSON syntax, the state encryption method configuration now allows specifying keys using both normal expression syntax and using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3654](https://github.com/opentofu/opentofu/issues/3654))
