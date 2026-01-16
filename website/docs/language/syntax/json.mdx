@@ -451,11 +451,12 @@ values are not interpreted as string templates.
 
 ### `terraform` blocks
 
-Settings within `terraform` blocks are generally interpreted literally, except
-for the `backend` block, which supports expressions. Other settings do not
+Settings within `terraform` blocks are _generally_ interpreted literally, except
+for the `backend` and `encryption` blocks, which support expressions. Other settings do not
 accept named object references or function calls and therefore do not treat
 string values as string templates.
 
+#### `backend` block
 Since only one `backend` block is allowed per `terraform` block, the compact
 block mapping can be used to represent it, with a nested object containing
 a single property whose name represents the backend type.
@@ -468,6 +469,148 @@ a single property whose name represents the backend type.
       "s3": {
         "region": "us-west-2",
         "bucket": "acme-tofu-states"
+      }
+    }
+  }
+}
+```
+
+#### `encryption` block
+As visible in the [encryption documentation](../state/encryption.mdx),
+the `encryption` block supports the following children blocks:
+* `key_provider`
+* `method`
+* `state`
+* `plan`
+* `remote_state_data_sources`
+
+The `key_provider` and `method` can refer to other named blocks, like variables, while `state`, `plan` and
+`remote_state_data_sources` can refer only to the other blocks inside the `encryption` block.
+
+A `key_provider` can refer to variables to be able to provide key information dynamically:
+
+```json
+{
+  "variable": {
+    "state_plan_passphrase": {
+      "type": "string",
+      "default": "myultrasecretpassphrase1!"
+    }
+  },
+  "terraform": {
+    "encryption": {
+      "key_provider": {
+        "pbkdf2": {
+          "state_plan": {
+            "passphrase": "${var.state_plan_passphrase}"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+A `method` block can refer to `key_provider` blocks by using static string references or regular terraform
+interpolated expressions:
+```json
+{
+  "terraform": {
+    "encryption": {
+      "key_provider": {
+        "pbkdf2": {
+          "state_plan": {
+            "passphrase": "myultrasecretpassphrase1!"
+          }
+        }
+      },
+      "method": {
+        "aes_gcm": {
+          "my_key_for_state": {
+            "keys": "${key_provider.pbkdf2.state_plan}"
+          },
+          "my_key_for_plan": {
+            "keys": "key_provider.pbkdf2.state_plan"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+The `state`, `plan` and `remote_state_data_sources` can strictly refer to `method` blocks by using string
+references. These are not expressions, are only references to the methods so the evaluation of these are not
+performed in the same way expressions are evaluated in OpenTofu:
+
+```json
+{
+  "variable": {
+    "remote_state_passphrase": {
+      "type": "string",
+      "default": "mysecrettestpassword!"
+    },
+    "state_plan_passphrase": {
+      "type": "string",
+      "default": "mysecrettestpassword2!"
+    }
+  },
+  "terraform": {
+    "encryption": {
+      "key_provider": {
+        "pbkdf2": {
+          "remote_state": {
+            "passphrase": "remotestateultrasecretpassphrase!1"
+          },
+          "state_plan": {
+            "passphrase": "stateplanultrasecretpassphrase!1"
+          }
+        }
+      },
+      "method": {
+        "aes_gcm": {
+          "remote_state": {
+            "keys": "${key_provider.pbkdf2.remote_state_key}"
+          },
+          "state_plan": {
+            "keys": "key_provider.pbkdf2.state_plan"
+          }
+        },
+        "unencrypted": {
+          "unencrypted": {}
+        }
+      },
+      "state": {
+        "method": "method.aes_gcm.state_plan",
+        "fallback": {
+          "method": "method.unencrypted.unencrypted"
+        }
+      },
+      "plan": {
+        "method": "method.aes_gcm.state_plan",
+        "fallback": {
+          "method": "method.unencrypted.unencrypted"
+        }
+      },
+      "remote_state_data_sources": {
+        "default": {
+          "method": "method.aes_gcm.remote_state"
+        },
+        "remote_state_data_source": {
+          "another_state": {
+            "method": "method.aes_gcm.remote_state"
+          }
+        }
+      }
+    }
+  },
+  "data": {
+    "terraform_remote_state": {
+      "another_state": {
+        "backend": "local",
+        "config": {
+          "path": "<path to an encrypted state>"
+        }
       }
     }
   }

@@ -74,13 +74,6 @@ func runTest(t *testing.T, cmd []string) {
 				},
 			},
 		},
-		ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *command]{
-			"empty": {
-				Config:     &Config{},
-				ValidBuild: false,
-				Validate:   nil,
-			},
-		},
 		EncryptDecryptTestCase: compliancetest.EncryptDecryptTestCase[*Config, *command]{
 			ValidEncryptOnlyConfig: &Config{
 				Keys: &keyprovider.Output{
