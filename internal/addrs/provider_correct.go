@@ -31,6 +31,16 @@ func (p ProviderConfigCorrect) Equal(other ProviderConfigCorrect) bool {
 	return p.Provider.Equals(other.Provider) && p.Alias == other.Alias
 }
 
+func (p ProviderConfigCorrect) String() string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "provider[%q]", p.Provider)
+	if p.Alias != "" {
+		buf.WriteByte('.')
+		buf.WriteString(p.Alias)
+	}
+	return buf.String()
+}
+
 // AbsProviderConfigCorrect is an experimental "correct" representation of
 // the absolute address of a provider configuration block, belonging to
 // a module instance.

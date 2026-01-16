@@ -6,12 +6,6 @@
 package execgraph
 
 import (
-	"fmt"
-	"maps"
-	"slices"
-	"strings"
-
-	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -96,92 +90,6 @@ type Graph struct {
 	// the results of any resource instances that were identified as
 	// resource-instance-graph dependencies during the planning process.
 	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
-}
-
-// DebugRepr returns a relatively-concise string representation of the
-// graph which includes all of the registered operations and their operands,
-// along with any constant values they rely on.
-//
-// The result is intended primarily for human consumption when testing or
-// debugging. It's not an executable or parseable representation and details
-// about how it's formatted might change over time.
-func (g *Graph) DebugRepr() string {
-	var buf strings.Builder
-	for idx, val := range g.constantVals {
-		fmt.Fprintf(&buf, "v[%d] = %s;\n", idx, strings.TrimSpace(ctydebug.ValueString(val)))
-	}
-	if len(g.constantVals) != 0 && (len(g.ops) != 0 || g.resourceInstanceResults.Len() != 0) {
-		buf.WriteByte('\n')
-	}
-	for idx, op := range g.ops {
-		fmt.Fprintf(&buf, "r[%d] = %s(", idx, strings.TrimLeft(op.opCode.String(), "op"))
-		for opIdx, result := range op.operands {
-			if opIdx != 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(g.resultDebugRepr(result))
-		}
-		buf.WriteString(");\n")
-	}
-	if g.resourceInstanceResults.Len() != 0 && (len(g.ops) != 0 || len(g.constantVals) != 0) {
-		buf.WriteByte('\n')
-	}
-	// We'll sort the resource instance results by instance address key just
-	// so that the resulting order is consistent for comparison in tests.
-	resourceInstanceResults := make(map[string]string)
-	for _, elem := range g.resourceInstanceResults.Elems {
-		resourceInstanceResults[elem.Key.String()] = g.resultDebugRepr(elem.Value)
-	}
-	resourceInstanceAddrs := slices.Collect(maps.Keys(resourceInstanceResults))
-	slices.Sort(resourceInstanceAddrs)
-	for _, addrStr := range resourceInstanceAddrs {
-		fmt.Fprintf(&buf, "%s = %s;\n", addrStr, resourceInstanceResults[addrStr])
-	}
-	return buf.String()
-}
-
-func (g *Graph) resultDebugRepr(result AnyResultRef) string {
-	switch result := result.(type) {
-	case valueResultRef:
-		return fmt.Sprintf("v[%d]", result.index)
-	case providerAddrResultRef:
-		providerAddr := g.providerAddrs[result.index]
-		return fmt.Sprintf("provider(%q)", providerAddr)
-	case desiredResourceInstanceResultRef:
-		instAddr := g.desiredStateRefs[result.index]
-		return fmt.Sprintf("desired(%s)", instAddr)
-	case resourceInstancePriorStateResultRef:
-		ref := g.priorStateRefs[result.index]
-		if ref.DeposedKey != states.NotDeposed {
-			return fmt.Sprintf("deposedState(%s, %s)", ref.ResourceInstance, ref.DeposedKey)
-		}
-		return fmt.Sprintf("priorState(%s)", ref.ResourceInstance)
-	case providerInstanceConfigResultRef:
-		pInstAddr := g.providerInstConfigRefs[result.index]
-		return fmt.Sprintf("providerInstConfig(%s)", pInstAddr)
-	case anyOperationResultRef:
-		return fmt.Sprintf("r[%d]", result.operationResultIndex())
-	case waiterResultRef:
-		awaiting := g.waiters[result.index]
-		var buf strings.Builder
-		buf.WriteString("await(")
-		for i, r := range awaiting {
-			if i != 0 {
-				buf.WriteString(", ")
-			}
-			buf.WriteString(g.resultDebugRepr(r))
-		}
-		buf.WriteString(")")
-		return buf.String()
-	case nil:
-		return "nil"
-	default:
-		// Should try to keep the above cases comprehensive because
-		// this default is not very readable and might even be
-		// useless if it's a reference into a table we're not otherwise
-		// including the output here.
-		return fmt.Sprintf("%#v", result)
-	}
 }
 
 type resourceInstanceStateRef struct {

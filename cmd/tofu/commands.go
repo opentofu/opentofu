@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
@@ -66,6 +67,17 @@ func initCommands(
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
 ) {
+	experimentsAllowed := experimentsAreAllowed()
+	if experimentsAllowed {
+		// TEMP: While we're in early development of the new language runtime
+		// we have an experimental shim to enable it using an environment
+		// variable, but that's allowed only in builds where experimental
+		// features are enabled. Refer to the file containing the following
+		// function for more information. This should be completely removed
+		// once the experiment is concluded.
+		experiments.SetExperimentalRuntimeAllowed(true)
+	}
+
 	var inAutomation bool
 	if v := os.Getenv(runningInAutomationEnvName); v != "" {
 		inAutomation = true
@@ -120,7 +132,7 @@ func initCommands(
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,
 
-		AllowExperimentalFeatures: experimentsAreAllowed(),
+		AllowExperimentalFeatures: experimentsAllowed,
 
 		// ProviderSourceLocationConfig is used for some commands that do not make
 		// use of the OpenTofu configuration files. Therefore, there is no way to configure
