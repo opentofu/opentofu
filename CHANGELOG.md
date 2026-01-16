@@ -6,6 +6,7 @@ BUG FIXES:
 
 * In JSON syntax, the state encryption method configuration now allows specifying keys using both normal expression syntax and using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3654](https://github.com/opentofu/opentofu/issues/3654))
 * Providers are not configured anymore with `DeferralAllowed` capability of OpenTofu since having that created unwanted behaviour from some providers. ([#3676](https://github.com/opentofu/opentofu/pull/3676))
+* Resources containing write-only attributes now are rendered consistently during planning. ([#3667](https://github.com/opentofu/opentofu/pull/3667)) 
 
 ## 1.11.3
 
