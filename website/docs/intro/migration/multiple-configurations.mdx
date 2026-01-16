@@ -203,7 +203,7 @@ For each leaf configuration:
 1. Follow the standard [Migration Guide](./migration-guide.mdx)
 2. Verify the migration with `tofu plan`
 3. Apply with `tofu apply`
-4. **Test the migration:** Ensure dependent configurations (if any) can still read this configuration's state
+4. **Test the migration:** For any non leaf configuration, ensure that dependent configuration(s) can still read this configuration's state
 
 ### Step 5: Verify dependencies still work
 
