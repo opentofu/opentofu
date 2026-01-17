@@ -1018,7 +1018,7 @@ func TestPlan_resource_variable_inputs(t *testing.T) {
 // Because this potential problem is in the collaboration between three separate
 // subsystems, we test it here so we can exercise all three in a relatively
 // realistic way. This is therefore an integration test of these three
-// components working together, rather than a test of of the plan command
+// components working together, rather than a test of the plan command
 // specifically.
 func TestPlan_withInvalidReferencesInTry(t *testing.T) {
 	td := t.TempDir()
