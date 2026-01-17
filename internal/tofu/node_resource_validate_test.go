@@ -188,16 +188,19 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
-			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			Addr:   mustConfigResourceAddr("test_foo.bar"),
+			Config: rc,
+			ResolvedProvider: ResolvedProvider{
+				ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Instance:       func(key addrs.InstanceKey) providers.Configured { return p },
+			},
 		},
 	}
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	err := node.validateResource(t.Context(), ctx)
 	if err != nil {
@@ -227,7 +230,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	tests := []struct {
 		name  string
@@ -258,7 +261,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 				NodeAbstractResource: &NodeAbstractResource{
 					Addr:             mustConfigResourceAddr("test_foo.bar"),
 					Config:           rc,
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 				},
 			}
 
@@ -292,14 +295,14 @@ func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("ephemeral.test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	t.Run("no errors", func(t *testing.T) {
 		mp.ValidateEphemeralConfigCalled = false
@@ -382,14 +385,14 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -418,14 +421,14 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_object.foo"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -455,14 +458,14 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
@@ -517,7 +520,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
@@ -525,7 +528,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -601,7 +604,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
@@ -609,7 +612,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -684,7 +687,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 		},
 	}
 
@@ -692,7 +695,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 	ctx.installSimpleEval()
 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-	ctx.ProviderProvider = p
+	ctx.InitProviderProvider = p
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -812,7 +815,7 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 				NodeAbstractResource: &NodeAbstractResource{
 					Addr:             mustConfigResourceAddr(fmt.Sprintf("%s%s.bar", prefix, tt.rtype)),
 					Config:           rc,
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return p }},
 				},
 			}
 
@@ -820,7 +823,7 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 			ctx.installSimpleEval()
 
 			ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
-			ctx.ProviderProvider = p
+			ctx.InitProviderProvider = p
 
 			diags := node.validateResource(t.Context(), ctx)
 			if got, want := len(diags), 1; got != want {
