@@ -292,7 +292,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 	for name, child := range cfg.Children {
 		mc := mod.ModuleCalls[name]
 		childNoProviderConfigRange := noProviderConfigRange
-		// if the module call has any of count, for_each or depends_on,
+		// if the module call has any of count, for_each, enabled or depends_on,
 		// providers are prohibited from being configured in this module, or
 		// any module beneath this module.
 		switch {
@@ -300,6 +300,8 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			childNoProviderConfigRange = mc.Count.Range().Ptr()
 		case mc.ForEach != nil:
 			childNoProviderConfigRange = mc.ForEach.Range().Ptr()
+		case mc.Enabled != nil:
+			childNoProviderConfigRange = mc.Enabled.Range().Ptr()
 		case mc.DependsOn != nil:
 			if len(mc.DependsOn) > 0 {
 				childNoProviderConfigRange = mc.DependsOn[0].SourceRange().Ptr()
@@ -595,9 +597,9 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		// updated yet) than of the called module.
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Module is incompatible with count, for_each, and depends_on",
+			Summary:  "Module is incompatible with count, for_each, enabled and depends_on",
 			Detail: fmt.Sprintf(
-				"The module at %s is a legacy module which contains its own local provider configurations, and so calls to it may not use the count, for_each, or depends_on arguments.\n\nIf you also control the module %q, consider updating this module to instead expect provider configurations to be passed by its caller.",
+				"The module at %s is a legacy module which contains its own local provider configurations, and so calls to it may not use the count, for_each, enabled or depends_on arguments.\n\nIf you also control the module %q, consider updating this module to instead expect provider configurations to be passed by its caller.",
 				cfg.Path, cfg.SourceAddr,
 			),
 			Subject: noProviderConfigRange,
