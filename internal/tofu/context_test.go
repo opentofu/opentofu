@@ -1076,7 +1076,7 @@ func assertDiagnosticsMatch(t testing.TB, got, want tfdiags.Diagnostics) {
 	}
 }
 
-// logDiagnostics is a test helper that logs the given diagnostics to to the
+// logDiagnostics is a test helper that logs the given diagnostics to the
 // given testing.T using t.Log, in a way that is hopefully useful in debugging
 // a test. It does not generate any errors or fail the test. See
 // assertNoDiagnostics and assertNoErrors for more specific helpers that can
