@@ -73,6 +73,14 @@ func runTest(t *testing.T, command []string) {
 					Meta:        nil,
 					IsPresent:   false,
 				},
+				"present-but-nil": {
+					ValidConfig: validConfig,
+					Meta: &MetadataV1{
+						ExternalData: nil,
+					},
+					IsPresent: true,
+					IsValid:   true,
+				},
 				"present-valid": {
 					ValidConfig: validConfig,
 					Meta: &MetadataV1{
