@@ -183,6 +183,11 @@ message Change {
     // GeneratedConfig contains any configuration that was generated as part of
     // the change, as an HCL string.
     string generated_config = 6;
+
+    // PlannedIdentity is the identity value returned by the provider during
+    // planning. This is used to pass identity data through to the apply phase.
+    // Only relevant for managed resources, not outputs.
+    DynamicValue planned_identity = 7;
 }
 
 // ResourceInstanceActionReason sometimes provides some additional user-facing

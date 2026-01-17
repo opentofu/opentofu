@@ -7,12 +7,15 @@ package convert
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sort"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	proto "github.com/opentofu/opentofu/internal/tfplugin5"
+
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 // ConfigSchemaToProto takes a *configschema.Block and converts it to a
@@ -55,6 +58,78 @@ func ConfigSchemaToProto(b *configschema.Block) *proto.Schema_Block {
 	}
 
 	return block
+}
+
+func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.ResourceIdentitySchema {
+	// This method is taking a similar approach to ProtoToConfigSchema below, basically
+	// its just a copy ctor with a little bit more defensiveness
+
+	// We cant convert these
+	// TODO: Should we panic instead?
+	if s == nil {
+		return nil
+	}
+
+	attributes := make(map[string]*configschema.Attribute, len(s.IdentityAttributes))
+	for _, a := range s.IdentityAttributes {
+		attribute := &configschema.Attribute{
+			Description: a.Description,
+			Required:    a.RequiredForImport,
+			Optional:    a.OptionalForImport,
+		}
+		unmarshalled, err := ctyjson.UnmarshalType(a.Type)
+		if err != nil {
+			panic(fmt.Errorf("failed to unmarshal attribute type for resource identity: %w", err))
+		}
+
+		attribute.Type = unmarshalled
+		attributes[a.Name] = attribute
+	}
+
+	return &providers.ResourceIdentitySchema{
+		Version: s.Version,
+
+		Body: &configschema.Object{
+			Attributes: attributes,
+			Nesting:    configschema.NestingSingle, // We dont allow nested schema here, hence we're using an Object and not a Block
+		},
+	}
+}
+
+// ResourceIdentitySchemaToProto takes a *configschema.Object and converts it to a
+// proto.ResourceIdentitySchema
+func ResourceIdentitySchemaToProto(schema *providers.ResourceIdentitySchema) *proto.ResourceIdentitySchema {
+	if schema == nil {
+		return nil
+	}
+
+	body := schema.Body
+
+	identityAttributes := make([]*proto.ResourceIdentitySchema_IdentityAttribute, 0, len(body.Attributes))
+	for _, name := range sortedKeys(body.Attributes) {
+		attribute := body.Attributes[name]
+
+		attr := &proto.ResourceIdentitySchema_IdentityAttribute{
+			Name:              name,
+			Description:       attribute.Description,
+			RequiredForImport: attribute.Required,
+			OptionalForImport: attribute.Optional,
+		}
+
+		ty, err := json.Marshal(attribute.Type)
+		if err != nil {
+			// TODO: Similar to above, discuss how panics should be created, should it be the err or some enriched info?
+			panic(err)
+		}
+		attr.Type = ty
+
+		identityAttributes = append(identityAttributes, attr)
+	}
+
+	return &proto.ResourceIdentitySchema{
+		Version:            schema.Version,
+		IdentityAttributes: identityAttributes,
+	}
 }
 
 func protoStringKind(k configschema.StringKind) proto.StringKind {

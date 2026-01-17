@@ -149,6 +149,11 @@ func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetPro
 	return providerSchema
 }
 
+func (p providerForTest) GetResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
+	// TODO: Check if this is the correct way to handle this, im 95% certain it is
+	return p.internal.GetResourceIdentitySchemas(ctx)
+}
+
 // providerForTest doesn't configure its internal provider because it is mocked.
 func (p providerForTest) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
@@ -176,6 +181,10 @@ func (p providerForTest) ValidateDataResourceConfig(ctx context.Context, r provi
 
 func (p providerForTest) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return p.internal.UpgradeResourceState(ctx, r)
+}
+
+func (p providerForTest) UpgradeResourceIdentity(ctx context.Context, r providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return p.internal.UpgradeResourceIdentity(ctx, r)
 }
 
 func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {

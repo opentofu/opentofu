@@ -29,6 +29,19 @@ func dataStoreResourceSchema() providers.Schema {
 	}
 }
 
+func dataStoreResourceIdentitySchema() providers.ResourceIdentitySchema {
+	// Similar to dataStoreResourceSchema above, but we proovide the identity schema
+	return providers.ResourceIdentitySchema{
+		Version: 1,
+		Body: &configschema.Object{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {Type: cty.String, Description: "The ID of the resource.", Required: true},
+			},
+			Nesting: configschema.NestingSingle,
+		},
+	}
+}
+
 func validateDataStoreResourceConfig(req providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
 	if req.Config.IsNull() {
 		return resp
@@ -66,7 +79,6 @@ func nullResourceSchema() providers.Schema {
 			},
 		},
 	}
-
 }
 
 func moveDataStoreResourceState(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
@@ -206,8 +218,9 @@ func applyDataStoreResourceChange(req providers.ApplyResourceChangeRequest) (res
 // once the configuration is available during import.
 func importDataStore(req providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
 	schema := dataStoreResourceSchema()
+
 	v := cty.ObjectVal(map[string]cty.Value{
-		"id": cty.StringVal(req.ID),
+		"id": cty.StringVal(req.Target.ID), // TODO: Support identity based imports
 	})
 	state, err := schema.Block.CoerceValue(v)
 	resp.Diagnostics = resp.Diagnostics.Append(err)

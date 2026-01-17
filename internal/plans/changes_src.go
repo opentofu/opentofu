@@ -74,6 +74,9 @@ type ResourceInstanceChangeSrc struct {
 	// OpenTofu that relates to this change. OpenTofu will save this
 	// byte-for-byte and return it to the provider in the apply call.
 	Private []byte
+
+	// TODO: godoc
+	PlannedIdentity DynamicValue
 }
 
 // Decode unmarshals the raw representation of the instance object being
@@ -126,6 +129,7 @@ func (rcs *ResourceInstanceChangeSrc) DeepCopy() *ResourceInstanceChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
 
 	return &ret
 }
@@ -183,6 +187,7 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
 
 	return &ret
 }
@@ -226,6 +231,10 @@ type ChangeSrc struct {
 	// should be true. However, not all Importing changes contain generated
 	// config.
 	GeneratedConfig string
+
+	// PlannedIdentity is the serialized identity value returned by the provider
+	// during planning. Only relevant for managed resources, not outputs.
+	PlannedIdentity DynamicValue
 }
 
 // Decode unmarshals the raw representations of the before and after values
@@ -258,11 +267,24 @@ func (cs *ChangeSrc) Decode(ty cty.Type) (*Change, error) {
 		importing = &Importing{ID: cs.Importing.ID}
 	}
 
+	plannedIdentity := cty.NullVal(cty.DynamicPseudoType)
+	if len(cs.PlannedIdentity) > 0 {
+		identityTy, err := cs.PlannedIdentity.ImpliedType()
+		if err != nil {
+			return nil, fmt.Errorf("error determining planned identity type: %w", err)
+		}
+		plannedIdentity, err = cs.PlannedIdentity.Decode(identityTy)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding planned identity value: %w", err)
+		}
+	}
+
 	return &Change{
 		Action:          cs.Action,
 		Before:          before.MarkWithPaths(cs.BeforeValMarks),
 		After:           after.MarkWithPaths(cs.AfterValMarks),
 		Importing:       importing,
 		GeneratedConfig: cs.GeneratedConfig,
+		PlannedIdentity: plannedIdentity,
 	}, nil
 }

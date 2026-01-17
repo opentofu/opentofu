@@ -85,7 +85,7 @@ func (m *MockExecContext) NewManagedResourceProviderClient(
 }
 
 func (m *MockExecContext) appendLog(methodName string, args []any, result any) {
-	//log.Printf("[TRACE] execgraph.MockExecContext: %s(%#v) -> %#v", methodName, args, result)
+	// log.Printf("[TRACE] execgraph.MockExecContext: %s(%#v) -> %#v", methodName, args, result)
 	m.mu.Lock()
 	m.Calls = append(m.Calls, MockExecContextCall{
 		MethodName: methodName,
@@ -107,6 +107,11 @@ type managedResourceInstanceMockProvider struct {
 	PlanResourceChangeFunc  func(ctx context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse
 	ApplyResourceChangeFunc func(ctx context.Context, req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse
 	execCtx                 *MockExecContext
+}
+
+// GetResourceIdentitySchemas implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	panic("unimplemented")
 }
 
 var _ providers.Configured = (*managedResourceInstanceMockProvider)(nil)
@@ -192,6 +197,11 @@ func (m *managedResourceInstanceMockProvider) Stop(context.Context) error {
 
 // UpgradeResourceState implements providers.Configured.
 func (m *managedResourceInstanceMockProvider) UpgradeResourceState(context.Context, providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	panic("unimplemented")
+}
+
+// UpgradeResourceIdentity implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
 	panic("unimplemented")
 }
 

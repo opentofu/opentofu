@@ -5884,7 +5884,7 @@ func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
 	configurations := []TestConfiguration{
 		{
 			Description:   "for_each value is null",
-			expectedError: "Invalid import id argument: The import ID cannot be null",
+			expectedError: "Invalid import id argument: The import id cannot be null",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6030,7 +6030,7 @@ import {
 		},
 		{
 			Description:   "for_each value is sensitive",
-			expectedError: "Invalid import id argument: The import ID cannot be sensitive.",
+			expectedError: "Invalid import id argument: The import id cannot be sensitive.",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 locals {
@@ -6661,7 +6661,7 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
-	if got, want := diags.Err().Error(), "The import ID cannot be null"; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), "The import id cannot be null"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
 	}
 }

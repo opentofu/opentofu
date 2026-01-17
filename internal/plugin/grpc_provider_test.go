@@ -98,7 +98,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		ResourceSchemas: map[string]*proto.Schema{
-			"resource": &proto.Schema{
+			"resource": {
 				Version: 1,
 				Block: &proto.Schema_Block{
 					Attributes: []*proto.Schema_Attribute{
@@ -112,7 +112,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		DataSourceSchemas: map[string]*proto.Schema{
-			"data": &proto.Schema{
+			"data": {
 				Version: 1,
 				Block: &proto.Schema_Block{
 					Attributes: []*proto.Schema_Attribute{
@@ -140,7 +140,7 @@ func providerProtoSchema() *proto.GetProviderSchema_Response {
 			},
 		},
 		Functions: map[string]*proto.Function{
-			"fn": &proto.Function{
+			"fn": {
 				Parameters: []*proto.Function_Parameter{{
 					Name:               "par_a",
 					Type:               []byte(`"string"`),
@@ -1043,7 +1043,9 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 
 	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
-		ID:       "foo",
+		Target: providers.ImportTarget{
+			ID: "foo",
+		},
 	})
 
 	checkDiags(t, resp.Diagnostics)
@@ -1061,6 +1063,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 		t.Fatal(cmp.Diff(expectedResource, imported, typeComparer, valueComparer, equateEmpty))
 	}
 }
+
 func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 	client := mockProviderClient(t)
 	p := newGRPCProvider(client)
@@ -1084,7 +1087,6 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 
 	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
-		ID:       "foo",
 	})
 
 	checkDiags(t, resp.Diagnostics)

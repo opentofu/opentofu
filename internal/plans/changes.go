@@ -84,7 +84,6 @@ func (c *Changes) ResourceInstance(addr addrs.AbsResourceInstance) *ResourceInst
 	}
 
 	return nil
-
 }
 
 // InstancesForAbsResource returns the planned change for the current objects
@@ -265,6 +264,9 @@ type ResourceInstanceChange struct {
 	// OpenTofu that relates to this change. OpenTofu will save this
 	// byte-for-byte and return it to the provider in the apply call.
 	Private []byte
+
+	// TODO: godoc
+	PlannedIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -577,6 +579,11 @@ type Change struct {
 	// should be true. However, not all Importing changes contain generated
 	// config.
 	GeneratedConfig string
+
+	// PlannedIdentity is the identity value returned by the provider during
+	// planning. This is used to pass identity data through to the apply phase.
+	// Only relevant for managed resources, not outputs.
+	PlannedIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -615,6 +622,14 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 		importing = &ImportingSrc{ID: c.Importing.ID}
 	}
 
+	var plannedIdentityDV DynamicValue
+	if !c.PlannedIdentity.IsNull() {
+		plannedIdentityDV, err = NewDynamicValue(c.PlannedIdentity, c.PlannedIdentity.Type())
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &ChangeSrc{
 		Action:          c.Action,
 		Before:          beforeDV,
@@ -623,5 +638,6 @@ func (c *Change) Encode(ty cty.Type) (*ChangeSrc, error) {
 		AfterValMarks:   afterVM,
 		Importing:       importing,
 		GeneratedConfig: c.GeneratedConfig,
+		PlannedIdentity: plannedIdentityDV,
 	}, nil
 }

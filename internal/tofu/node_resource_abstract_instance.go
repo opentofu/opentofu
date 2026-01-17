@@ -760,8 +760,10 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx contex
 		return fmt.Errorf("failed to encode %s in state: no resource type schema available", absAddr)
 	}
 
+	identitySchemaVersion := providerSchema.ResourceTypes[n.Addr.ContainingResource().Resource.Type].IdentitySchemaVersion
+
 	obj.Value = schema.RemoveEphemeralFromWriteOnly(obj.Value)
-	src, err := obj.Encode(schema.ImpliedType(), currentVersion)
+	src, err := obj.Encode(schema.ImpliedType(), currentVersion, uint64(identitySchemaVersion))
 	if err != nil {
 		return fmt.Errorf("failed to encode %s in state: %w", absAddr, err)
 	}
@@ -857,6 +859,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 		ProposedNewState: nullVal,
 		PriorPrivate:     currentState.Private,
 		ProviderMeta:     metaConfigVal,
+		PriorIdentity:    currentState.Identity,
 	})
 
 	// We may not have a config for all destroys, but we want to reference it in
@@ -889,9 +892,10 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 		PrevRunAddr: n.prevRunAddr(evalCtx),
 		DeposedKey:  deposedKey,
 		Change: plans.Change{
-			Action: plans.Delete,
-			Before: currentState.Value,
-			After:  nullVal,
+			Action:          plans.Delete,
+			Before:          currentState.Value,
+			After:           nullVal,
+			PlannedIdentity: resp.PlannedIdentity,
 		},
 		Private:      resp.PlannedPrivate,
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
@@ -1015,10 +1019,11 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	}
 
 	providerReq := providers.ReadResourceRequest{
-		TypeName:     n.Addr.Resource.Resource.Type,
-		PriorState:   priorVal,
-		Private:      state.Private,
-		ProviderMeta: metaConfigVal,
+		TypeName:      n.Addr.Resource.Resource.Type,
+		PriorState:    priorVal,
+		Private:       state.Private,
+		ProviderMeta:  metaConfigVal,
+		PriorIdentity: state.Identity,
 	}
 
 	resp := provider.ReadResource(ctx, providerReq)
@@ -1063,6 +1068,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	ret := state.DeepCopy()
 	ret.Value = newState
 	ret.Private = resp.Private
+	ret.Identity = resp.NewIdentity
 
 	// We have no way to exempt provider using the legacy SDK from this check,
 	// so we can only log inconsistencies with the updated state values.
@@ -1189,10 +1195,12 @@ func (n *NodeAbstractResourceInstance) plan(
 	var priorVal cty.Value
 	var priorValTainted cty.Value
 	var priorPrivate []byte
+	var priorIdentity cty.Value
 	if currentState != nil {
 		if currentState.Status != states.ObjectTainted {
 			priorVal = currentState.Value
 			priorPrivate = currentState.Private
+			priorIdentity = currentState.Identity
 		} else {
 			// If the prior state is tainted then we'll proceed below like
 			// we're creating an entirely new object, but then turn it into
@@ -1270,6 +1278,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		ProposedNewState: proposedNewVal,
 		PriorPrivate:     priorPrivate,
 		ProviderMeta:     metaConfigVal,
+		PriorIdentity:    priorIdentity,
 	})
 
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
@@ -1281,6 +1290,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	// Store an unmarked version of our planned new value because the `plan` now marks properties correctly with the config marks
 	unmarkedPlannedNewVal, _ := plannedNewVal.UnmarkDeep()
 	plannedPrivate := resp.PlannedPrivate
+	plannedIdentity := resp.PlannedIdentity
 
 	if plannedNewVal == cty.NilVal {
 		// Should never happen. Since real-world providers return via RPC a nil
@@ -1528,6 +1538,7 @@ func (n *NodeAbstractResourceInstance) plan(
 			ProposedNewState: proposedNewVal,
 			PriorPrivate:     plannedPrivate,
 			ProviderMeta:     metaConfigVal,
+			PriorIdentity:    cty.NullVal(cty.DynamicPseudoType), // null for create portion of replace
 		})
 		// We need to tread carefully here, since if there are any warnings
 		// in here they probably also came out of our previous call to
@@ -1540,6 +1551,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		}
 		plannedNewVal = resp.PlannedState
 		plannedPrivate = resp.PlannedPrivate
+		plannedIdentity = resp.PlannedIdentity
 
 		if len(unmarkedPaths) > 0 {
 			plannedNewVal = plannedNewVal.MarkWithPaths(unmarkedPaths)
@@ -1632,6 +1644,7 @@ func (n *NodeAbstractResourceInstance) plan(
 			// Marks will be removed when encoding.
 			After:           plannedNewVal,
 			GeneratedConfig: n.generatedConfigHCL,
+			PlannedIdentity: plannedIdentity,
 		},
 		ActionReason:    actionReason,
 		RequiredReplace: reqRep,
@@ -1648,6 +1661,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		Status:      states.ObjectPlanned,
 		Value:       plannedNewVal,
 		Private:     plannedPrivate,
+		Identity:    plannedIdentity,
 		SkipDestroy: skipDestroy,
 	}
 
@@ -2867,7 +2881,6 @@ func (n *NodeAbstractResourceInstance) apply(
 	keyData instances.RepetitionData,
 	createBeforeDestroy bool,
 ) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
-
 	var diags tfdiags.Diagnostics
 	if state == nil {
 		state = &states.ResourceInstanceObject{}
@@ -2958,6 +2971,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			SkipDestroy:         state.SkipDestroy,
 			Dependencies:        state.Dependencies,
 			Private:             state.Private,
+			Identity:            state.Identity,
 			Status:              state.Status,
 			Value:               change.After,
 		}
@@ -2965,12 +2979,13 @@ func (n *NodeAbstractResourceInstance) apply(
 	}
 
 	resp := provider.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
-		TypeName:       n.Addr.Resource.Resource.Type,
-		PriorState:     unmarkedBefore,
-		Config:         unmarkedConfigVal,
-		PlannedState:   unmarkedAfter,
-		PlannedPrivate: change.Private,
-		ProviderMeta:   metaConfigVal,
+		TypeName:        n.Addr.Resource.Resource.Type,
+		PriorState:      unmarkedBefore,
+		Config:          unmarkedConfigVal,
+		PlannedState:    unmarkedAfter,
+		PlannedPrivate:  change.Private,
+		PlannedIdentity: change.Change.PlannedIdentity,
+		ProviderMeta:    metaConfigVal,
 	})
 
 	applyDiags := resp.Diagnostics
@@ -3173,6 +3188,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Status:              state.Status,
 			Value:               newVal,
 			Private:             resp.Private,
+			Identity:            resp.NewIdentity,
 			CreateBeforeDestroy: createBeforeDestroy,
 			SkipDestroy:         state.SkipDestroy,
 		}
@@ -3191,6 +3207,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Status:              states.ObjectReady,
 			Value:               newVal,
 			Private:             resp.Private,
+			Identity:            resp.NewIdentity,
 			CreateBeforeDestroy: createBeforeDestroy,
 			SkipDestroy:         skipDestroy,
 		}
@@ -3502,7 +3519,6 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 	plannedNewState *states.ResourceInstanceObject,
 	diags tfdiags.Diagnostics,
 ) {
-
 	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
 	proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
