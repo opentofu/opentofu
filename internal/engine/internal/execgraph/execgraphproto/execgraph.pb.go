@@ -167,46 +167,19 @@ func (x *Element) GetConstantValue() []byte {
 	return nil
 }
 
-func (x *Element) GetConstantProviderAddr() string {
+func (x *Element) GetConstantResourceInstAddr() string {
 	if x != nil {
-		if x, ok := x.xxx_hidden_Request.(*element_ConstantProviderAddr); ok {
-			return x.ConstantProviderAddr
+		if x, ok := x.xxx_hidden_Request.(*element_ConstantResourceInstAddr); ok {
+			return x.ConstantResourceInstAddr
 		}
 	}
 	return ""
 }
 
-func (x *Element) GetDesiredResourceInstance() string {
+func (x *Element) GetConstantProviderInstAddr() string {
 	if x != nil {
-		if x, ok := x.xxx_hidden_Request.(*element_DesiredResourceInstance); ok {
-			return x.DesiredResourceInstance
-		}
-	}
-	return ""
-}
-
-func (x *Element) GetResourceInstancePriorState() string {
-	if x != nil {
-		if x, ok := x.xxx_hidden_Request.(*element_ResourceInstancePriorState); ok {
-			return x.ResourceInstancePriorState
-		}
-	}
-	return ""
-}
-
-func (x *Element) GetResourceInstanceDeposedObjectState() *DeposedResourceInstanceObject {
-	if x != nil {
-		if x, ok := x.xxx_hidden_Request.(*element_ResourceInstanceDeposedObjectState); ok {
-			return x.ResourceInstanceDeposedObjectState
-		}
-	}
-	return nil
-}
-
-func (x *Element) GetProviderInstanceConfig() string {
-	if x != nil {
-		if x, ok := x.xxx_hidden_Request.(*element_ProviderInstanceConfig); ok {
-			return x.ProviderInstanceConfig
+		if x, ok := x.xxx_hidden_Request.(*element_ConstantProviderInstAddr); ok {
+			return x.ConstantProviderInstAddr
 		}
 	}
 	return ""
@@ -237,28 +210,12 @@ func (x *Element) SetConstantValue(v []byte) {
 	x.xxx_hidden_Request = &element_ConstantValue{v}
 }
 
-func (x *Element) SetConstantProviderAddr(v string) {
-	x.xxx_hidden_Request = &element_ConstantProviderAddr{v}
+func (x *Element) SetConstantResourceInstAddr(v string) {
+	x.xxx_hidden_Request = &element_ConstantResourceInstAddr{v}
 }
 
-func (x *Element) SetDesiredResourceInstance(v string) {
-	x.xxx_hidden_Request = &element_DesiredResourceInstance{v}
-}
-
-func (x *Element) SetResourceInstancePriorState(v string) {
-	x.xxx_hidden_Request = &element_ResourceInstancePriorState{v}
-}
-
-func (x *Element) SetResourceInstanceDeposedObjectState(v *DeposedResourceInstanceObject) {
-	if v == nil {
-		x.xxx_hidden_Request = nil
-		return
-	}
-	x.xxx_hidden_Request = &element_ResourceInstanceDeposedObjectState{v}
-}
-
-func (x *Element) SetProviderInstanceConfig(v string) {
-	x.xxx_hidden_Request = &element_ProviderInstanceConfig{v}
+func (x *Element) SetConstantProviderInstAddr(v string) {
+	x.xxx_hidden_Request = &element_ConstantProviderInstAddr{v}
 }
 
 func (x *Element) SetOperation(v *Operation) {
@@ -292,43 +249,19 @@ func (x *Element) HasConstantValue() bool {
 	return ok
 }
 
-func (x *Element) HasConstantProviderAddr() bool {
+func (x *Element) HasConstantResourceInstAddr() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.xxx_hidden_Request.(*element_ConstantProviderAddr)
+	_, ok := x.xxx_hidden_Request.(*element_ConstantResourceInstAddr)
 	return ok
 }
 
-func (x *Element) HasDesiredResourceInstance() bool {
+func (x *Element) HasConstantProviderInstAddr() bool {
 	if x == nil {
 		return false
 	}
-	_, ok := x.xxx_hidden_Request.(*element_DesiredResourceInstance)
-	return ok
-}
-
-func (x *Element) HasResourceInstancePriorState() bool {
-	if x == nil {
-		return false
-	}
-	_, ok := x.xxx_hidden_Request.(*element_ResourceInstancePriorState)
-	return ok
-}
-
-func (x *Element) HasResourceInstanceDeposedObjectState() bool {
-	if x == nil {
-		return false
-	}
-	_, ok := x.xxx_hidden_Request.(*element_ResourceInstanceDeposedObjectState)
-	return ok
-}
-
-func (x *Element) HasProviderInstanceConfig() bool {
-	if x == nil {
-		return false
-	}
-	_, ok := x.xxx_hidden_Request.(*element_ProviderInstanceConfig)
+	_, ok := x.xxx_hidden_Request.(*element_ConstantProviderInstAddr)
 	return ok
 }
 
@@ -358,32 +291,14 @@ func (x *Element) ClearConstantValue() {
 	}
 }
 
-func (x *Element) ClearConstantProviderAddr() {
-	if _, ok := x.xxx_hidden_Request.(*element_ConstantProviderAddr); ok {
+func (x *Element) ClearConstantResourceInstAddr() {
+	if _, ok := x.xxx_hidden_Request.(*element_ConstantResourceInstAddr); ok {
 		x.xxx_hidden_Request = nil
 	}
 }
 
-func (x *Element) ClearDesiredResourceInstance() {
-	if _, ok := x.xxx_hidden_Request.(*element_DesiredResourceInstance); ok {
-		x.xxx_hidden_Request = nil
-	}
-}
-
-func (x *Element) ClearResourceInstancePriorState() {
-	if _, ok := x.xxx_hidden_Request.(*element_ResourceInstancePriorState); ok {
-		x.xxx_hidden_Request = nil
-	}
-}
-
-func (x *Element) ClearResourceInstanceDeposedObjectState() {
-	if _, ok := x.xxx_hidden_Request.(*element_ResourceInstanceDeposedObjectState); ok {
-		x.xxx_hidden_Request = nil
-	}
-}
-
-func (x *Element) ClearProviderInstanceConfig() {
-	if _, ok := x.xxx_hidden_Request.(*element_ProviderInstanceConfig); ok {
+func (x *Element) ClearConstantProviderInstAddr() {
+	if _, ok := x.xxx_hidden_Request.(*element_ConstantProviderInstAddr); ok {
 		x.xxx_hidden_Request = nil
 	}
 }
@@ -402,13 +317,10 @@ func (x *Element) ClearWaiter() {
 
 const Element_Request_not_set_case case_Element_Request = 0
 const Element_ConstantValue_case case_Element_Request = 1
-const Element_ConstantProviderAddr_case case_Element_Request = 2
-const Element_DesiredResourceInstance_case case_Element_Request = 3
-const Element_ResourceInstancePriorState_case case_Element_Request = 4
-const Element_ResourceInstanceDeposedObjectState_case case_Element_Request = 5
-const Element_ProviderInstanceConfig_case case_Element_Request = 6
-const Element_Operation_case case_Element_Request = 7
-const Element_Waiter_case case_Element_Request = 8
+const Element_ConstantResourceInstAddr_case case_Element_Request = 2
+const Element_ConstantProviderInstAddr_case case_Element_Request = 3
+const Element_Operation_case case_Element_Request = 4
+const Element_Waiter_case case_Element_Request = 5
 
 func (x *Element) WhichRequest() case_Element_Request {
 	if x == nil {
@@ -417,16 +329,10 @@ func (x *Element) WhichRequest() case_Element_Request {
 	switch x.xxx_hidden_Request.(type) {
 	case *element_ConstantValue:
 		return Element_ConstantValue_case
-	case *element_ConstantProviderAddr:
-		return Element_ConstantProviderAddr_case
-	case *element_DesiredResourceInstance:
-		return Element_DesiredResourceInstance_case
-	case *element_ResourceInstancePriorState:
-		return Element_ResourceInstancePriorState_case
-	case *element_ResourceInstanceDeposedObjectState:
-		return Element_ResourceInstanceDeposedObjectState_case
-	case *element_ProviderInstanceConfig:
-		return Element_ProviderInstanceConfig_case
+	case *element_ConstantResourceInstAddr:
+		return Element_ConstantResourceInstAddr_case
+	case *element_ConstantProviderInstAddr:
+		return Element_ConstantProviderInstAddr_case
 	case *element_Operation:
 		return Element_Operation_case
 	case *element_Waiter:
@@ -467,32 +373,18 @@ type Element_builder struct {
 	// cty.DynamicPseudoType as the serialization type constraint, and so
 	// this represents both the value and the value's dynamic type.
 	ConstantValue []byte
-	// A constant address for a provider type, corresponding to
-	// execgraph.Builder.ConstantProviderAddr.
-	//
-	// The value is a fully-qualified provider source address in the
-	// usual syntax, such as "registry.opentofu.org/hashicorp/aws".
-	ConstantProviderAddr *string
-	// Request for information about a specific "desired" resource
-	// instance, corresponding to execgraph.Builder.DesiredResourceInstance.
+	// A constant address for a resource instance, corresponding to
+	// execgraph.Builder.ConstantResourceInstAddr.
 	//
 	// The value is a fully-qualified resource instance address in the
-	// syntax that addrs.AbsResourceInstance.String produces.
-	DesiredResourceInstance *string
-	// Request for the prior state data for the current object for a
-	// specific resource instance, corresponding to
-	// execgraph.Builder.ResourceInstancePriorState.
+	// usual syntax.
+	ConstantResourceInstAddr *string
+	// A constant address for a provider instance, corresponding to
+	// execgraph.Builder.ConstantProviderInstAddr.
 	//
-	// The value is a fully-qualified resource instance address in the
-	// syntax that addrs.AbsResourceInstance.String produces.
-	ResourceInstancePriorState *string
-	// Request for the state data for a specific deposed object of a
-	// specific resource instance, corresponding to
-	// execgraph.Builder.ResourceDeposedObjectState.
-	ResourceInstanceDeposedObjectState *DeposedResourceInstanceObject
-	// Request for the configuration value for a provider instance,
-	// corresponding to execgraph.Builder.ProviderInstanceConfig .
-	ProviderInstanceConfig *string
+	// The value is a fully-qualified provider instance address in the
+	// usual syntax.
+	ConstantProviderInstAddr *string
 	// An operation to be performed during execution, corresponding to
 	// various different methods of execgraph.Builder depending on the
 	// opcode.
@@ -520,20 +412,11 @@ func (b0 Element_builder) Build() *Element {
 	if b.ConstantValue != nil {
 		x.xxx_hidden_Request = &element_ConstantValue{b.ConstantValue}
 	}
-	if b.ConstantProviderAddr != nil {
-		x.xxx_hidden_Request = &element_ConstantProviderAddr{*b.ConstantProviderAddr}
+	if b.ConstantResourceInstAddr != nil {
+		x.xxx_hidden_Request = &element_ConstantResourceInstAddr{*b.ConstantResourceInstAddr}
 	}
-	if b.DesiredResourceInstance != nil {
-		x.xxx_hidden_Request = &element_DesiredResourceInstance{*b.DesiredResourceInstance}
-	}
-	if b.ResourceInstancePriorState != nil {
-		x.xxx_hidden_Request = &element_ResourceInstancePriorState{*b.ResourceInstancePriorState}
-	}
-	if b.ResourceInstanceDeposedObjectState != nil {
-		x.xxx_hidden_Request = &element_ResourceInstanceDeposedObjectState{b.ResourceInstanceDeposedObjectState}
-	}
-	if b.ProviderInstanceConfig != nil {
-		x.xxx_hidden_Request = &element_ProviderInstanceConfig{*b.ProviderInstanceConfig}
+	if b.ConstantProviderInstAddr != nil {
+		x.xxx_hidden_Request = &element_ConstantProviderInstAddr{*b.ConstantProviderInstAddr}
 	}
 	if b.Operation != nil {
 		x.xxx_hidden_Request = &element_Operation{b.Operation}
@@ -567,45 +450,22 @@ type element_ConstantValue struct {
 	ConstantValue []byte `protobuf:"bytes,1,opt,name=constant_value,json=constantValue,oneof"`
 }
 
-type element_ConstantProviderAddr struct {
-	// A constant address for a provider type, corresponding to
-	// execgraph.Builder.ConstantProviderAddr.
-	//
-	// The value is a fully-qualified provider source address in the
-	// usual syntax, such as "registry.opentofu.org/hashicorp/aws".
-	ConstantProviderAddr string `protobuf:"bytes,2,opt,name=constant_provider_addr,json=constantProviderAddr,oneof"`
-}
-
-type element_DesiredResourceInstance struct {
-	// Request for information about a specific "desired" resource
-	// instance, corresponding to execgraph.Builder.DesiredResourceInstance.
+type element_ConstantResourceInstAddr struct {
+	// A constant address for a resource instance, corresponding to
+	// execgraph.Builder.ConstantResourceInstAddr.
 	//
 	// The value is a fully-qualified resource instance address in the
-	// syntax that addrs.AbsResourceInstance.String produces.
-	DesiredResourceInstance string `protobuf:"bytes,3,opt,name=desired_resource_instance,json=desiredResourceInstance,oneof"`
+	// usual syntax.
+	ConstantResourceInstAddr string `protobuf:"bytes,2,opt,name=constant_resource_inst_addr,json=constantResourceInstAddr,oneof"`
 }
 
-type element_ResourceInstancePriorState struct {
-	// Request for the prior state data for the current object for a
-	// specific resource instance, corresponding to
-	// execgraph.Builder.ResourceInstancePriorState.
+type element_ConstantProviderInstAddr struct {
+	// A constant address for a provider instance, corresponding to
+	// execgraph.Builder.ConstantProviderInstAddr.
 	//
-	// The value is a fully-qualified resource instance address in the
-	// syntax that addrs.AbsResourceInstance.String produces.
-	ResourceInstancePriorState string `protobuf:"bytes,4,opt,name=resource_instance_prior_state,json=resourceInstancePriorState,oneof"`
-}
-
-type element_ResourceInstanceDeposedObjectState struct {
-	// Request for the state data for a specific deposed object of a
-	// specific resource instance, corresponding to
-	// execgraph.Builder.ResourceDeposedObjectState.
-	ResourceInstanceDeposedObjectState *DeposedResourceInstanceObject `protobuf:"bytes,5,opt,name=resource_instance_deposed_object_state,json=resourceInstanceDeposedObjectState,oneof"`
-}
-
-type element_ProviderInstanceConfig struct {
-	// Request for the configuration value for a provider instance,
-	// corresponding to execgraph.Builder.ProviderInstanceConfig .
-	ProviderInstanceConfig string `protobuf:"bytes,6,opt,name=provider_instance_config,json=providerInstanceConfig,oneof"`
+	// The value is a fully-qualified provider instance address in the
+	// usual syntax.
+	ConstantProviderInstAddr string `protobuf:"bytes,3,opt,name=constant_provider_inst_addr,json=constantProviderInstAddr,oneof"`
 }
 
 type element_Operation struct {
@@ -616,7 +476,7 @@ type element_Operation struct {
 	// The unmarshal code is responsible for figuring out which Builder
 	// method to call based on the opcode, handled as part of its validation
 	// logic.
-	Operation *Operation `protobuf:"bytes,7,opt,name=operation,oneof"`
+	Operation *Operation `protobuf:"bytes,4,opt,name=operation,oneof"`
 }
 
 type element_Waiter struct {
@@ -628,20 +488,14 @@ type element_Waiter struct {
 	// the dependencies regardless of whether the dependencies were
 	// inferred automatically from expressions or declared explicitly
 	// using a "depends_on" argument.
-	Waiter *Waiter `protobuf:"bytes,8,opt,name=waiter,oneof"`
+	Waiter *Waiter `protobuf:"bytes,5,opt,name=waiter,oneof"`
 }
 
 func (*element_ConstantValue) isElement_Request() {}
 
-func (*element_ConstantProviderAddr) isElement_Request() {}
+func (*element_ConstantResourceInstAddr) isElement_Request() {}
 
-func (*element_DesiredResourceInstance) isElement_Request() {}
-
-func (*element_ResourceInstancePriorState) isElement_Request() {}
-
-func (*element_ResourceInstanceDeposedObjectState) isElement_Request() {}
-
-func (*element_ProviderInstanceConfig) isElement_Request() {}
+func (*element_ConstantProviderInstAddr) isElement_Request() {}
 
 func (*element_Operation) isElement_Request() {}
 
@@ -922,16 +776,13 @@ const file_execgraph_proto_rawDesc = "" +
 	"\x19resource_instance_results\x18\x02 \x03(\v2?.opentofu_execgraph.ExecutionGraph.ResourceInstanceResultsEntryR\x17resourceInstanceResults\x1aJ\n" +
 	"\x1cResourceInstanceResultsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xb3\x04\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xb4\x02\n" +
 	"\aElement\x12'\n" +
-	"\x0econstant_value\x18\x01 \x01(\fH\x00R\rconstantValue\x126\n" +
-	"\x16constant_provider_addr\x18\x02 \x01(\tH\x00R\x14constantProviderAddr\x12<\n" +
-	"\x19desired_resource_instance\x18\x03 \x01(\tH\x00R\x17desiredResourceInstance\x12C\n" +
-	"\x1dresource_instance_prior_state\x18\x04 \x01(\tH\x00R\x1aresourceInstancePriorState\x12\x87\x01\n" +
-	"&resource_instance_deposed_object_state\x18\x05 \x01(\v21.opentofu_execgraph.DeposedResourceInstanceObjectH\x00R\"resourceInstanceDeposedObjectState\x12:\n" +
-	"\x18provider_instance_config\x18\x06 \x01(\tH\x00R\x16providerInstanceConfig\x12=\n" +
-	"\toperation\x18\a \x01(\v2\x1d.opentofu_execgraph.OperationH\x00R\toperation\x124\n" +
-	"\x06waiter\x18\b \x01(\v2\x1a.opentofu_execgraph.WaiterH\x00R\x06waiterB\t\n" +
+	"\x0econstant_value\x18\x01 \x01(\fH\x00R\rconstantValue\x12?\n" +
+	"\x1bconstant_resource_inst_addr\x18\x02 \x01(\tH\x00R\x18constantResourceInstAddr\x12?\n" +
+	"\x1bconstant_provider_inst_addr\x18\x03 \x01(\tH\x00R\x18constantProviderInstAddr\x12=\n" +
+	"\toperation\x18\x04 \x01(\v2\x1d.opentofu_execgraph.OperationH\x00R\toperation\x124\n" +
+	"\x06waiter\x18\x05 \x01(\v2\x1a.opentofu_execgraph.WaiterH\x00R\x06waiterB\t\n" +
 	"\arequest\"e\n" +
 	"\x1dDeposedResourceInstanceObject\x12#\n" +
 	"\rinstance_addr\x18\x01 \x01(\tR\finstanceAddr\x12\x1f\n" +
@@ -955,14 +806,13 @@ var file_execgraph_proto_goTypes = []any{
 var file_execgraph_proto_depIdxs = []int32{
 	1, // 0: opentofu_execgraph.ExecutionGraph.elements:type_name -> opentofu_execgraph.Element
 	5, // 1: opentofu_execgraph.ExecutionGraph.resource_instance_results:type_name -> opentofu_execgraph.ExecutionGraph.ResourceInstanceResultsEntry
-	2, // 2: opentofu_execgraph.Element.resource_instance_deposed_object_state:type_name -> opentofu_execgraph.DeposedResourceInstanceObject
-	3, // 3: opentofu_execgraph.Element.operation:type_name -> opentofu_execgraph.Operation
-	4, // 4: opentofu_execgraph.Element.waiter:type_name -> opentofu_execgraph.Waiter
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	3, // 2: opentofu_execgraph.Element.operation:type_name -> opentofu_execgraph.Operation
+	4, // 3: opentofu_execgraph.Element.waiter:type_name -> opentofu_execgraph.Waiter
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_execgraph_proto_init() }
@@ -972,11 +822,8 @@ func file_execgraph_proto_init() {
 	}
 	file_execgraph_proto_msgTypes[1].OneofWrappers = []any{
 		(*element_ConstantValue)(nil),
-		(*element_ConstantProviderAddr)(nil),
-		(*element_DesiredResourceInstance)(nil),
-		(*element_ResourceInstancePriorState)(nil),
-		(*element_ResourceInstanceDeposedObjectState)(nil),
-		(*element_ProviderInstanceConfig)(nil),
+		(*element_ConstantResourceInstAddr)(nil),
+		(*element_ConstantProviderInstAddr)(nil),
 		(*element_Operation)(nil),
 		(*element_Waiter)(nil),
 	}

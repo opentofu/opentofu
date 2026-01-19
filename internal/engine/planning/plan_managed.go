@@ -68,7 +68,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return cty.DynamicVal, nil, diags
 	}
 
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
+	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return cty.DynamicVal, nil, diags
@@ -151,7 +151,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// so we can catch whatever subset of problems are already obvious across
 	// all of the potential resource instances.
 	planResp := providerClient.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
-		TypeName:         inst.Addr.Resource.Resource.Type,
+		TypeName:         inst.ResourceType,
 		PriorState:       refreshedVal,
 		ProposedNewState: proposedNewVal,
 		Config:           effectiveConfigVal,
@@ -267,18 +267,19 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
 	providerClientRef, closeProviderAfter := egb.ProviderInstance(*inst.ProviderInstance, egb.Waiter())
-	priorStateRef := egb.ResourceInstancePriorState(inst.Addr)
+	instAddrRef := egb.ConstantResourceInstAddr(inst.Addr)
+	priorStateRef := egb.ResourceInstancePrior(instAddrRef)
 	plannedValRef := egb.ConstantValue(planResp.PlannedState)
-	desiredInstRef := egb.DesiredResourceInstance(inst.Addr)
-	finalPlanRef := egb.ManagedResourceObjectFinalPlan(
+	desiredInstRef := egb.ResourceInstanceDesired(instAddrRef, dependencyWaiter)
+	finalPlanRef := egb.ManagedFinalPlan(
 		desiredInstRef,
 		priorStateRef,
 		plannedValRef,
 		providerClientRef,
-		dependencyWaiter,
 	)
-	finalResultRef := egb.ApplyManagedResourceObjectChanges(
+	finalResultRef := egb.ManagedApply(
 		finalPlanRef,
+		execgraph.NilResultRef[*states.ResourceInstanceObjectFull](),
 		providerClientRef,
 	)
 	closeProviderAfter(finalResultRef)

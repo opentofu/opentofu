@@ -24,22 +24,23 @@ type opCode int
 
 const (
 	_ = opCode(iota) // the zero value is not a valid operation
-	// opManagedFinalPlan uses the configuration value and initial planned state
-	// for a resource instance to produce its final plan, which can then
-	// be applied by [opApplyChanges].
+
+	opProviderInstanceConfig
+	opProviderInstanceOpen
+	opProviderInstanceClose
+
+	opResourceInstanceDesired
+	opResourceInstancePrior
+
 	opManagedFinalPlan
-	// opManagedApplyChanges applies a plan created by [opFinalPlan].
-	opManagedApplyChanges
-	// opDataRead reads a data resource.
+	opManagedApply
+	opManagedDepose
+	opManagedAlreadyDeposed
+
 	opDataRead
-	// opOpenProvider takes a provider address and a configuration value
-	// and produces a configured client for the specified provider.
-	opOpenProvider
-	// opCloseProvider takes a client previously created by [opOpenProvider],
-	// along with a "waiter" node that resolves only once all uses of the
-	// provider client are done, and closes the client once the waiter node
-	// has resolved.
-	opCloseProvider
+
+	opEphemeralOpen
+	opEphemeralClose
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type=opCode

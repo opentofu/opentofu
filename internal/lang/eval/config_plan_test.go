@@ -184,6 +184,8 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 					},
 				},
 			},
+			ResourceMode:              addrs.ManagedResourceMode,
+			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)
@@ -310,6 +312,8 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 					},
 				},
 			},
+			ResourceMode:              addrs.ManagedResourceMode,
+			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
 		}),
 	)

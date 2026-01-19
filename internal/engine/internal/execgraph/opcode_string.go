@@ -8,16 +8,23 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[opManagedFinalPlan-1]
-	_ = x[opManagedApplyChanges-2]
-	_ = x[opDataRead-3]
-	_ = x[opOpenProvider-4]
-	_ = x[opCloseProvider-5]
+	_ = x[opProviderInstanceConfig-1]
+	_ = x[opProviderInstanceOpen-2]
+	_ = x[opProviderInstanceClose-3]
+	_ = x[opResourceInstanceDesired-4]
+	_ = x[opResourceInstancePrior-5]
+	_ = x[opManagedFinalPlan-6]
+	_ = x[opManagedApply-7]
+	_ = x[opManagedDepose-8]
+	_ = x[opManagedAlreadyDeposed-9]
+	_ = x[opDataRead-10]
+	_ = x[opEphemeralOpen-11]
+	_ = x[opEphemeralClose-12]
 }
 
-const _opCode_name = "opManagedFinalPlanopManagedApplyChangesopDataReadopOpenProvideropCloseProvider"
+const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopDataReadopEphemeralOpenopEphemeralClose"
 
-var _opCode_index = [...]uint8{0, 18, 39, 49, 63, 78}
+var _opCode_index = [...]uint8{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 197, 212, 228}
 
 func (i opCode) String() string {
 	idx := int(i) - 1
