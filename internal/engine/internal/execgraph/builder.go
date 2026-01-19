@@ -219,6 +219,11 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 		opCode:   opCloseProvider,
 		operands: []AnyResultRef{openResult, closeWait},
 	})
+	b.openProviderRefs.Put(addr, resultWithCloseBlockers[providers.Configured]{
+		Result:             openResult,
+		CloseBlockerResult: closeWait,
+		CloseBlockerFunc:   registerCloseBlocker,
+	})
 	return openResult, registerCloseBlocker
 }
 
@@ -353,6 +358,31 @@ func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInst
 		panic(fmt.Sprintf("duplicate registration for %s final state result", addr))
 	}
 	b.graph.resourceInstanceResults.Put(addr, result)
+}
+
+// ResourceInstanceFinalStateResult returns the result reference for the given
+// resource instance that should previously have been registered using
+// [Builder.SetResourceInstanceFinalStateResult].
+//
+// The return type is [AnyResultRef] because this is intended for use as
+// an argument to [Builder.Waiter] when explicitly representing the dependencies
+// between different resource instances. The actual final state result for
+// the source instance travels indirectly through the evaluator rather than
+// directly within the execution graph.
+//
+// This function panics if a result reference for the given resource instance
+// was not previously registered, because that suggests a bug elsewhere in the
+// system that caused the construction of subgraphs for different resource
+// instances to happen in the wrong order.
+func (b *Builder) ResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance) AnyResultRef {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	ret, ok := b.graph.resourceInstanceResults.GetOk(addr)
+	if !ok {
+		panic(fmt.Sprintf("requested result for %s, which has not yet been registered", addr))
+	}
+	return ret
 }
 
 // Waiter creates a "fan-in" node where a single result depends on the

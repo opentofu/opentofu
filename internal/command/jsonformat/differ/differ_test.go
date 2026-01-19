@@ -134,7 +134,7 @@ func TestValue_SimpleBlocks(t *testing.T) {
 				"write_only_attribute": renderers.ValidateWriteOnly(plans.Delete, false),
 			}, nil, nil, nil, nil, plans.Delete, false),
 		},
-		"create_with_write_only_value": {
+		"create_with_only_write_only_value": {
 			input: structured.Change{
 				Before:          nil,
 				After:           map[string]any{},
@@ -165,6 +165,66 @@ func TestValue_SimpleBlocks(t *testing.T) {
 			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
 				"write_only_attribute": renderers.ValidateWriteOnly(plans.Create, false),
 			}, nil, nil, nil, nil, plans.Create, false),
+		},
+		// Before the fix for https://github.com/opentofu/opentofu/issues/3640, this test was failing randomnly.
+		// That was because the write-only attributes diffs could have been generated with NoOp instead of having
+		// the final action of the resource. After the fix, the write-only attributes diffs are generated after
+		// generating the diffs for any non write-only attribute meaning that the action generated from regular
+		// attributes will be used for all the write-only attributes.
+		"write_only_not_updated_but_regular_updated": {
+			input: structured.Change{
+				Before: map[string]any{
+					"regular_attribute": "before value",
+				},
+				After: map[string]any{
+					"regular_attribute": "after value",
+				},
+				BeforeSensitive: false,
+				AfterSensitive:  false,
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"regular_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+					"write_only_attribute": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+					"write_only_attribute2": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+					"write_only_attribute3": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+					"write_only_attribute4": {
+						AttributeType: unmarshalType(t, cty.String),
+						WriteOnly:     true,
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_with_write_only": {
+						NestingMode: "single",
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"inner_write_only": {
+									AttributeType: unmarshalType(t, cty.String),
+									WriteOnly:     true,
+								},
+							},
+						},
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"regular_attribute":     renderers.ValidatePrimitive("before value", "after value", plans.Update, false),
+				"write_only_attribute":  renderers.ValidateWriteOnly(plans.Update, false),
+				"write_only_attribute2": renderers.ValidateWriteOnly(plans.Update, false),
+				"write_only_attribute3": renderers.ValidateWriteOnly(plans.Update, false),
+				"write_only_attribute4": renderers.ValidateWriteOnly(plans.Update, false),
+			}, nil, nil, nil, nil, plans.Update, false),
 		},
 		"update_with_write_only_value": {
 			input: structured.Change{

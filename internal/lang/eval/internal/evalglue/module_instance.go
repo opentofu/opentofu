@@ -242,6 +242,35 @@ func yieldModuleInstancesDeep(ctx context.Context, instAddr addrs.ModuleInstance
 	return true
 }
 
+// ProviderInstance digs through the tree of module instances with the given
+// root to try to find the [configgraph.ResourceInstance] representation
+// of the resource instance with the given address.
+//
+// The decision about which instances exist can be made dynamically by arbitrary
+// expressions, so this call will block until the necessary information is
+// resolved.
+//
+// This is implemented in terms of [ModuleInstance] and
+// [CompiledModuleInstance.ResourceInstancesForResource].
+func ResourceInstance(ctx context.Context, root CompiledModuleInstance, addr addrs.AbsResourceInstance) *configgraph.ResourceInstance {
+	moduleInst := ModuleInstance(ctx, root, addr.Module)
+	if moduleInst == nil {
+		return nil
+	}
+	// For now we use the method that enumerates all of the instances of
+	// a resource and try to pluck out the one with a matching instance key.
+	// That therefore avoids [CompiledModuleInstance] needing a separate method
+	// for pulling out an individual resource instance. However, this is a
+	// little inefficient so we might want to push this responsibility down into
+	// a new method of CompiledModuleInstance eventually.
+	for ri := range moduleInst.ResourceInstancesForResource(ctx, addr.Resource.Resource) {
+		if ri.Addr.Equal(addr) {
+			return ri
+		}
+	}
+	return nil
+}
+
 // ResourceInstancesDeep produces all of the resource instances across the given
 // root module instance and all of its descendents.
 //

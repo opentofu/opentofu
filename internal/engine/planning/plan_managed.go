@@ -8,6 +8,7 @@ package planning
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -155,12 +156,30 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		ProposedNewState: proposedNewVal,
 		Config:           effectiveConfigVal,
 		PriorPrivate:     prevRoundPrivate,
-		// TODO: ProviderMeta
+
+		// TODO: ProviderMeta is a rarely-used feature that only really makes
+		// sense when the module and provider are both written by the same
+		// party and the module author is using the provider as a way to
+		// transport module usage telemetry. We should decide whether we want
+		// to keep supporting that, and if so design a way for the relevant
+		// meta value to get from the evaluator into here.
+		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	for _, err := range objchange.AssertPlanValid(schema.Block, refreshedVal, effectiveConfigVal, planResp.PlannedState) {
-		// TODO: If resp.LegacyTypeSystem is set then we should generate
-		// warnings in the log but continue anyway, like the original
-		// runtime does.
+		if planResp.LegacyTypeSystem {
+			// This provider seems to be using the legacy Terraform plugin SDK
+			// that cannot implement the modern protocol correctly, so we'll
+			// treat these errors as internal log warnings instead of reporting
+			// them. This compromise means that things can work for providers
+			// that are only incorrect _because_ they are using the legacy SDK,
+			// while still providing some information about the problem in case
+			// it's useful for debugging a real issue with a provider.
+			//
+			// TODO: Bring over the full version of this log message from
+			// the original runtime.
+			log.Printf("[WARN] Provider produced invalid plan: %s", tfdiags.FormatError(err))
+			continue
+		}
 		planResp.Diagnostics = planResp.Diagnostics.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider produced invalid plan",
@@ -195,9 +214,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
 	plannedChange := &plans.ResourceInstanceChange{
-		Addr:            inst.Addr,
-		PrevRunAddr:     inst.Addr,                 // TODO: If we add "moved" support above then this must record the original address
-		ProviderAddr:    addrs.AbsProviderConfig{}, // FIXME: Old models are using the not-quite-correct provider address types, so we can't populate this properly
+		Addr:        inst.Addr,
+		PrevRunAddr: inst.Addr, // TODO: If we add "moved" support above then this must record the original address
+		ProviderAddr: addrs.AbsProviderConfig{
+			// FIXME: This is a lossy shim to the old-style provider instance
+			// address representation, since our old models aren't yet updated
+			// to support the modern one. It cannot handle a provider config
+			// inside a module call that uses count or for_each.
+			Module:   (*inst.ProviderInstance).Config.Module.Module(),
+			Provider: (*inst.ProviderInstance).Config.Config.Provider,
+			Alias:    (*inst.ProviderInstance).Config.Config.Alias,
+		},
 		RequiredReplace: cty.NewPathSet(planResp.RequiresReplace...),
 		Private:         planResp.PlannedPrivate,
 		Change: plans.Change{
@@ -220,6 +247,18 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	}
 	p.planCtx.plannedChanges.AppendResourceInstanceChange(plannedChangeSrc)
 
+	// We need to explicitly model our dependency on any upstream resource
+	// instances in the resource instance graph. These don't naturally emerge
+	// from the data flow because these results are intermediated through the
+	// evaluator, which indirectly incorporates the results into the
+	// desiredInstRef result we'll build below.
+	dependencyResults := make([]execgraph.AnyResultRef, 0, len(inst.RequiredResourceInstances))
+	for _, depInstAddr := range inst.RequiredResourceInstances {
+		depInstResult := egb.ResourceInstanceFinalStateResult(depInstAddr)
+		dependencyResults = append(dependencyResults, depInstResult)
+	}
+	dependencyWaiter := egb.Waiter(dependencyResults...)
+
 	// The following is a placeholder for execgraph construction, which isn't
 	// fully wired in yet but is here just to help us understand whether we
 	// have enough graph builder and execgraph functionality for this to switch
@@ -236,7 +275,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		priorStateRef,
 		plannedValRef,
 		providerClientRef,
-		egb.Waiter( /* TODO: The final result refs for all of the other resource instances we depend on. */ ),
+		dependencyWaiter,
 	)
 	finalResultRef := egb.ApplyManagedResourceObjectChanges(
 		finalPlanRef,

@@ -72,8 +72,14 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	resp := providerClient.ReadDataSource(ctx, providers.ReadDataSourceRequest{
 		TypeName: inst.Addr.Resource.Resource.Type,
 		Config:   inst.ConfigVal,
-		// TODO: Add ProviderMeta information to eval.DesiredResourceInstance
-		// and then pass it on to the provider here.
+
+		// TODO: ProviderMeta is a rarely-used feature that only really makes
+		// sense when the module and provider are both written by the same
+		// party and the module author is using the provider as a way to
+		// transport module usage telemetry. We should decide whether we want
+		// to keep supporting that, and if so design a way for the relevant
+		// meta value to get from the evaluator into here.
+		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if resp.Diagnostics.HasErrors() {

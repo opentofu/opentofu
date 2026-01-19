@@ -180,16 +180,6 @@ func TestCompliance(t *testing.T) {
 				Validate:   nil,
 			},
 		},
-		ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *aesgcm]{
-			"empty": {
-				Config: &Config{
-					Keys: keyprovider.Output{},
-					AAD:  nil,
-				},
-				ValidBuild: false,
-				Validate:   nil,
-			},
-		},
 		EncryptDecryptTestCase: compliancetest.EncryptDecryptTestCase[*Config, *aesgcm]{
 			ValidEncryptOnlyConfig: &Config{
 				Keys: keyprovider.Output{
