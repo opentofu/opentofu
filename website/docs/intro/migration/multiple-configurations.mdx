@@ -135,19 +135,19 @@ This compatibility pattern makes **bottom-up migration safe**:
 
 For the complex dependency graph above, the safe migration order is:
 
-**Phase 1:** Migrate leaf nodes (no dependents)
+**Phase 1:** Migrate the leaf node (no dependents)
 ```
-F, G → (migrate these first)
+G → (migrate first)
 ```
 
-**Phase 2:** Migrate their dependencies
+**Phase 2:** Migrate G's direct dependencies
 ```
-B, E → (migrate after F and G)
+F, E → (migrate after G)
 ```
 
 **Phase 3:** Continue up the tree
 ```
-C, D → (migrate after E)
+B, C, D → (migrate after F and E)
 ```
 
 **Phase 4:** Migrate the root
