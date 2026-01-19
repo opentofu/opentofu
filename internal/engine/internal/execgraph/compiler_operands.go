@@ -65,12 +65,19 @@ func nextOperand[T any](operands *compilerOperands) nodeExecute[T] {
 		operands.problems = append(operands.problems, fmt.Sprintf("missing expected operand %d", idx))
 		return nil
 	}
+	if resultRef == nil {
+		// A nil reference represents returning the zero value of the expected
+		// type, whatever it is.
+		return func(ctx context.Context) (T, bool, tfdiags.Diagnostics) {
+			var zero T
+			return zero, true, nil
+		}
+	}
 	// We'll catch type mismatches during compile time as long as the compiler
 	// produces correct nodeExecuteRaw implementations that actually honor
 	// the expected type.
 	if _, typeOk := resultRef.(ResultRef[T]); !typeOk {
-		var zero T
-		ty := reflect.TypeOf(&zero).Elem()
+		ty := reflect.TypeFor[T]()
 		operands.problems = append(operands.problems, fmt.Sprintf("operand %d not of expected type %s.%s (got %T)", idx, ty.PkgPath(), ty.Name(), resultRef))
 		return nil
 	}

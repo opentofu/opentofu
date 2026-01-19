@@ -3,9 +3,11 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package execgraph
+package exec
 
 import (
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -24,6 +26,19 @@ import (
 // there should be no assumptions about e.g. there being exactly one final
 // plan per resource instance, etc.
 type ManagedResourceObjectFinalPlan struct {
+	// InstanceAddr and DeposedKey together describe which resource instance
+	// object this plan was created for.
+	//
+	// These are to be used only for recording the new state of the object
+	// after applying this plan, and should be treated opaquely. In particular,
+	// nothing from these fields should be sent to a provider as part of
+	// applying the plan because how we track resource instance objects between
+	// rounds is an implementation detail that providers should not rely on so
+	// that we can potentially change it in future while staying compatible
+	// with existing provider plugins.
+	InstanceAddr addrs.AbsResourceInstance
+	DeposedKey   states.DeposedKey
+
 	// ResourceType is the resource type of the object this plan is for, as
 	// would be understood by the provider that generated this plan.
 	ResourceType string
@@ -42,8 +57,10 @@ type ManagedResourceObjectFinalPlan struct {
 	// with unknown values as placeholders for anything that won't be known
 	// until after the change has been applied.
 	PlannedVal cty.Value
-	// TODO: The "Private" value that the provider returned in its planning
-	// response.
+	// ProviderPrivate is the raw "private" value that the provider returned
+	// in its planning response, which must be sent back to the provider
+	// verbatim when applying the plan.
+	ProviderPrivate []byte
 	// TODO: Anything else we'd need to populate an "ApplyResourceChanges"
 	// request to the associated provider.
 }

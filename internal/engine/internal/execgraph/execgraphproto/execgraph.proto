@@ -73,36 +73,19 @@ message Element {
         // this represents both the value and the value's dynamic type.
         bytes constant_value = 1;
 
-        // A constant address for a provider type, corresponding to
-        // execgraph.Builder.ConstantProviderAddr.
-        //
-        // The value is a fully-qualified provider source address in the
-        // usual syntax, such as "registry.opentofu.org/hashicorp/aws".
-        string constant_provider_addr = 2;
-
-        // Request for information about a specific "desired" resource
-        // instance, corresponding to execgraph.Builder.DesiredResourceInstance.
+        // A constant address for a resource instance, corresponding to
+        // execgraph.Builder.ConstantResourceInstAddr.
         //
         // The value is a fully-qualified resource instance address in the
-        // syntax that addrs.AbsResourceInstance.String produces.
-        string desired_resource_instance = 3;
+        // usual syntax.
+        string constant_resource_inst_addr = 2;
 
-        // Request for the prior state data for the current object for a
-        // specific resource instance, corresponding to
-        // execgraph.Builder.ResourceInstancePriorState.
+        // A constant address for a provider instance, corresponding to
+        // execgraph.Builder.ConstantProviderInstAddr.
         //
-        // The value is a fully-qualified resource instance address in the
-        // syntax that addrs.AbsResourceInstance.String produces.
-        string resource_instance_prior_state = 4;
-
-        // Request for the state data for a specific deposed object of a
-        // specific resource instance, corresponding to
-        // execgraph.Builder.ResourceDeposedObjectState.
-        DeposedResourceInstanceObject resource_instance_deposed_object_state = 5;
-
-        // Request for the configuration value for a provider instance,
-        // corresponding to execgraph.Builder.ProviderInstanceConfig .
-        string provider_instance_config = 6;
+        // The value is a fully-qualified provider instance address in the
+        // usual syntax.
+        string constant_provider_inst_addr = 3;
 
         // An operation to be performed during execution, corresponding to
         // various different methods of execgraph.Builder depending on the
@@ -111,7 +94,7 @@ message Element {
         // The unmarshal code is responsible for figuring out which Builder
         // method to call based on the opcode, handled as part of its validation
         // logic.
-        Operation operation = 7;
+        Operation operation = 4;
 
         // A collection of results whose completion an operation can depend
         // on without actually making any use of the values they produce.
@@ -121,7 +104,7 @@ message Element {
         // the dependencies regardless of whether the dependencies were
         // inferred automatically from expressions or declared explicitly
         // using a "depends_on" argument.
-        Waiter waiter = 8;
+        Waiter waiter = 5;
     }
 }
 

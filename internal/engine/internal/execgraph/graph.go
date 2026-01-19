@@ -32,28 +32,12 @@ type Graph struct {
 	// constantVals is the table of constant values that are to be saved
 	// directly inside the execution graph.
 	constantVals []cty.Value
-	// providerAddrs is the table of provider addresses that are to be saved
-	// directly inside the execution graph.
-	providerAddrs []addrs.Provider
-
-	//////// ApplyOracle queries
-	// The tables in this section represent requests for information from
-	// the configuration evaluation system via its ApplyOracle API.
-
-	// desiredStateRefs is the table of references to resource instances from
-	// the desired state.
-	desiredStateRefs []addrs.AbsResourceInstance
-	// providerInstConfigRefs is the table of references to provider instance
-	// configuration values.
-	providerInstConfigRefs []addrs.AbsProviderInstanceCorrect
-
-	//////// Prior state queries
-	// The tables in this section represent requests for information from
-	// the prior state.
-
-	// priorStateRefs is the table of references to resource instance objects
-	// from the prior state.
-	priorStateRefs []resourceInstanceStateRef
+	// resourceInstAddrs is the table of resource instance addresses that are to
+	// be saved directly inside the execution graph.
+	resourceInstAddrs []addrs.AbsResourceInstance
+	// providerInstAddrs is the table of provider instance addresses that are to
+	// be saved directly inside the execution graph.
+	providerInstAddrs []addrs.AbsProviderInstanceCorrect
 
 	//////// The actual side-effects
 	// The tables in this section deal with the main side-effects that we're
@@ -144,21 +128,12 @@ func (g *Graph) resultDebugRepr(result AnyResultRef) string {
 	switch result := result.(type) {
 	case valueResultRef:
 		return fmt.Sprintf("v[%d]", result.index)
-	case providerAddrResultRef:
-		providerAddr := g.providerAddrs[result.index]
-		return fmt.Sprintf("provider(%q)", providerAddr)
-	case desiredResourceInstanceResultRef:
-		instAddr := g.desiredStateRefs[result.index]
-		return fmt.Sprintf("desired(%s)", instAddr)
-	case resourceInstancePriorStateResultRef:
-		ref := g.priorStateRefs[result.index]
-		if ref.DeposedKey != states.NotDeposed {
-			return fmt.Sprintf("deposedState(%s, %s)", ref.ResourceInstance, ref.DeposedKey)
-		}
-		return fmt.Sprintf("priorState(%s)", ref.ResourceInstance)
-	case providerInstanceConfigResultRef:
-		pInstAddr := g.providerInstConfigRefs[result.index]
-		return fmt.Sprintf("providerInstConfig(%s)", pInstAddr)
+	case resourceInstAddrResultRef:
+		resourceInstAddr := g.resourceInstAddrs[result.index]
+		return resourceInstAddr.String()
+	case providerInstAddrResultRef:
+		providerInstAddr := g.providerInstAddrs[result.index]
+		return providerInstAddr.String()
 	case anyOperationResultRef:
 		return fmt.Sprintf("r[%d]", result.operationResultIndex())
 	case waiterResultRef:
@@ -182,9 +157,4 @@ func (g *Graph) resultDebugRepr(result AnyResultRef) string {
 		// including the output here.
 		return fmt.Sprintf("%#v", result)
 	}
-}
-
-type resourceInstanceStateRef struct {
-	ResourceInstance addrs.AbsResourceInstance
-	DeposedKey       states.DeposedKey
 }

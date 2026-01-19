@@ -35,6 +35,14 @@ type DesiredResourceInstance struct {
 	// For objects that represent placeholders for zero or more instances whose
 	// instance expansion is not yet known,
 	// [addrs.AbsResourceInstance.IsPlaceholder] returns true.
+	//
+	// Nothing about resource instance addresses should be exposed to providers
+	// through the provider protocol, because exactly how we track resource
+	// instances between rounds is a detail we want to be able to change later
+	// without breaking existing providers. In particular, when populating a
+	// resource type name in a request to a provider you should use the
+	// ResourceType field of DesiredResourceInstance instead of fishing it out
+	// from this address field.
 	Addr addrs.AbsResourceInstance
 
 	// ConfigVal is an object-typed value representing the configuration, which
@@ -64,6 +72,20 @@ type DesiredResourceInstance struct {
 	// by using [objchange.ProposedNew], and should otherwise defer any
 	// actions for this resource instance until a future plan/apply round.
 	ProviderInstance *addrs.AbsProviderInstanceCorrect
+	// ResourceMode and ResourceType are the resource type identifiers
+	// as they would be understood by the provider specified in the Provider
+	// and ProviderInstance fields.
+	//
+	// These is what should be sent to a provider plugin when making requests
+	// to it. Today these always matches the similar values encoded in the
+	// address given in the "Addr" field, but we're separating these so that
+	// we're not duplicating that rule in many different parts of the system,
+	// in case future change to OpenTofu cause the provider-facing
+	// representation to differ from how it's exposed in the OpenTofu language.
+	// (The representation in the provider protocol is much harder to change
+	// because we want to stay backward-compatible with existing provider plugins.)
+	ResourceMode addrs.ResourceMode
+	ResourceType string
 
 	// RequiredResourceInstances are the addresses of zero or more resource
 	// instances that must exist and must be fully converged before the
