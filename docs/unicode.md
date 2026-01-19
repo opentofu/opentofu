@@ -31,7 +31,7 @@ Unicode version for each Go version. The specific Unicode version for a
 particular Go version is available in
 [`unicode.Version`](https://pkg.go.dev/unicode#Version).
 
-We adopt a new version of Go by editing the `.go-version` file in the root
+We adopt a new version of Go by editing the `go.mod` file in the root
 of this repository. Although it's typically possible to build OpenTofu with
 other versions of Go, that file documents the version we intend to use for
 official releases and thus the primary version we use for development and
