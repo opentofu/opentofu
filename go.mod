@@ -328,6 +328,7 @@ tool (
 	github.com/opentofu/opentofu/tools/find-dep-upgrades
 	github.com/opentofu/opentofu/tools/loggraphdiff
 	github.com/opentofu/opentofu/tools/protobuf-compile
+	github.com/opentofu/opentofu/tools/selected-go-version
 	go.uber.org/mock/mockgen
 	golang.org/x/tools/cmd/stringer
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc
