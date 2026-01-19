@@ -15,12 +15,6 @@ import (
 )
 
 func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
-	declRange := hcl.Range{
-		Filename: "main.tf",
-		Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
-		End:      hcl.Pos{Line: 5, Column: 2, Byte: 80},
-	}
-
 	tests := []struct {
 		name                   string
 		moduleCall             *ModuleCall
@@ -30,9 +24,8 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 		{
 			name: "count",
 			moduleCall: &ModuleCall{
-				Name:      "child",
-				Count:     &hclsyntax.LiteralValueExpr{},
-				DeclRange: declRange,
+				Name:  "child",
+				Count: &hclsyntax.LiteralValueExpr{},
 			},
 			childHasProviderConfig: true,
 			wantError:              true,
@@ -40,9 +33,8 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 		{
 			name: "for_each",
 			moduleCall: &ModuleCall{
-				Name:      "child",
-				ForEach:   &hclsyntax.LiteralValueExpr{},
-				DeclRange: declRange,
+				Name:    "child",
+				ForEach: &hclsyntax.LiteralValueExpr{},
 			},
 			childHasProviderConfig: true,
 			wantError:              true,
@@ -52,7 +44,6 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 			moduleCall: &ModuleCall{
 				Name:      "child",
 				DependsOn: []hcl.Traversal{{}},
-				DeclRange: declRange,
 			},
 			childHasProviderConfig: true,
 			wantError:              true,
@@ -60,9 +51,8 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 		{
 			name: "enabled",
 			moduleCall: &ModuleCall{
-				Name:      "child",
-				Enabled:   &hclsyntax.LiteralValueExpr{},
-				DeclRange: declRange,
+				Name:    "child",
+				Enabled: &hclsyntax.LiteralValueExpr{},
 			},
 			childHasProviderConfig: true,
 			wantError:              true,
@@ -70,8 +60,7 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 		{
 			name: "no meta-arguments",
 			moduleCall: &ModuleCall{
-				Name:      "child",
-				DeclRange: declRange,
+				Name: "child",
 			},
 			childHasProviderConfig: true,
 			wantError:              false,
@@ -79,9 +68,8 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 		{
 			name: "count without child provider config",
 			moduleCall: &ModuleCall{
-				Name:      "child",
-				Count:     &hclsyntax.LiteralValueExpr{},
-				DeclRange: declRange,
+				Name:  "child",
+				Count: &hclsyntax.LiteralValueExpr{},
 			},
 			childHasProviderConfig: false,
 			wantError:              false,
@@ -101,11 +89,6 @@ func TestValidateProviderConfigs_WithMetaArguments(t *testing.T) {
 						Attributes: hclsyntax.Attributes{
 							"region": &hclsyntax.Attribute{Name: "region"},
 						},
-					},
-					DeclRange: hcl.Range{
-						Filename: "child/main.tf",
-						Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
-						End:      hcl.Pos{Line: 3, Column: 2, Byte: 30},
 					},
 				}
 			}
