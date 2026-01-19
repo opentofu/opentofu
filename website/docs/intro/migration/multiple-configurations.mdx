@@ -251,12 +251,9 @@ The bottom-up approach makes rollback safer because:
 - Root configurations migrate last (after dependents are stable)
 
 ## Handling version differences
+Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8.x). 
 
-Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8.x). This is fine:
-
-- **Migrate each configuration** according to its current Terraform version
-- **Follow version-specific guidance** as needed
-- **The bottom-up order remains the same** regardless of version differences
+**Recommended approach:** Before migrating to OpenTofu, upgrade all configurations to the same Terraform version. This narrows down variables and makes troubleshooting easier if you encounter any issues during migration.
 
 ## Getting Help
 If you encounter issues during migration:
