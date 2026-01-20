@@ -21,44 +21,45 @@ func TestParseOutput_valid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Output{
-				Name:      "",
-				ViewType:  ViewHuman,
-				StatePath: "",
+				Name:        "",
+				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				StatePath:   "",
 			},
 		},
 		"json": {
 			[]string{"-json"},
 			&Output{
-				Name:      "",
-				ViewType:  ViewJSON,
-				StatePath: "",
+				Name:        "",
+				ViewOptions: ViewOptions{ViewType: ViewJSON},
+				StatePath:   "",
 			},
 		},
 		"raw": {
 			[]string{"-raw", "foo"},
 			&Output{
-				Name:      "foo",
-				ViewType:  ViewRaw,
-				StatePath: "",
+				Name:        "foo",
+				ViewOptions: ViewOptions{ViewType: ViewRaw},
+				StatePath:   "",
 			},
 		},
 		"state": {
 			[]string{"-state=foobar.tfstate", "-raw", "foo"},
 			&Output{
-				Name:      "foo",
-				ViewType:  ViewRaw,
-				StatePath: "foobar.tfstate",
+				Name:        "foo",
+				ViewOptions: ViewOptions{ViewType: ViewRaw},
+				StatePath:   "foobar.tfstate",
 			},
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseOutput(tc.args)
+			got, _, diags := ParseOutput(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}
@@ -75,9 +76,9 @@ func TestParseOutput_invalid(t *testing.T) {
 		"unknown flag": {
 			[]string{"-boop"},
 			&Output{
-				Name:      "",
-				ViewType:  ViewHuman,
-				StatePath: "",
+				Name:        "",
+				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				StatePath:   "",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -90,9 +91,9 @@ func TestParseOutput_invalid(t *testing.T) {
 		"json and raw specified": {
 			[]string{"-json", "-raw"},
 			&Output{
-				Name:      "",
-				ViewType:  ViewHuman,
-				StatePath: "",
+				Name:        "",
+				ViewOptions: ViewOptions{ViewType: ViewHuman},
+				StatePath:   "",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -105,9 +106,9 @@ func TestParseOutput_invalid(t *testing.T) {
 		"raw with no name": {
 			[]string{"-raw"},
 			&Output{
-				Name:      "",
-				ViewType:  ViewRaw,
-				StatePath: "",
+				Name:        "",
+				ViewOptions: ViewOptions{ViewType: ViewRaw},
+				StatePath:   "",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -120,9 +121,9 @@ func TestParseOutput_invalid(t *testing.T) {
 		"too many arguments": {
 			[]string{"-raw", "-state=foo.tfstate", "bar", "baz"},
 			&Output{
-				Name:      "bar",
-				ViewType:  ViewRaw,
-				StatePath: "foo.tfstate",
+				Name:        "bar",
+				ViewOptions: ViewOptions{ViewType: ViewRaw},
+				StatePath:   "foo.tfstate",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -136,8 +137,9 @@ func TestParseOutput_invalid(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, gotDiags := ParseOutput(tc.args)
+			got, _, gotDiags := ParseOutput(tc.args)
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}

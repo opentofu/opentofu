@@ -508,7 +508,7 @@ func TestOperation_planNextStepInAutomation(t *testing.T) {
 // This test is not a realistic stream of messages.
 func TestOperationJSON_logs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	// Added an ephemeral resource change to double-check that it's not
 	// shown.
@@ -567,7 +567,7 @@ func TestOperationJSON_logs(t *testing.T) {
 // we upgrade state format in the future.
 func TestOperationJSON_emergencyDumpState(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	stateFile := statefile.New(nil, "foo", 1)
 	stateBuf := new(bytes.Buffer)
@@ -601,7 +601,7 @@ func TestOperationJSON_emergencyDumpState(t *testing.T) {
 
 func TestOperationJSON_planNoChanges(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	plan := &plans.Plan{
 		Changes: plans.NewChanges(),
@@ -630,7 +630,7 @@ func TestOperationJSON_planNoChanges(t *testing.T) {
 
 func TestOperationJSON_plan(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 	vpc, diags := addrs.ParseModuleInstanceStr("module.vpc")
@@ -799,7 +799,7 @@ func TestOperationJSON_plan(t *testing.T) {
 
 func TestOperationJSON_planWithImport(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 	vpc, diags := addrs.ParseModuleInstanceStr("module.vpc")
@@ -947,7 +947,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 
 func TestOperationJSON_planDriftWithMove(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 	boop := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_resource", Name: "boop"}
@@ -1085,7 +1085,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 
 func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 	boop := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_resource", Name: "boop"}
@@ -1217,7 +1217,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 
 func TestOperationJSON_planOutputChanges(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 
@@ -1303,7 +1303,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 
 func TestOperationJSON_plannedChange(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	v := &OperationJSON{view: NewJSONView(NewView(streams))}
+	v := &OperationJSON{view: NewJSONView(NewView(streams), nil)}
 
 	root := addrs.RootModuleInstance
 	boop := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_instance", Name: "boop"}

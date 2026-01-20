@@ -6,6 +6,8 @@
 package command
 
 import (
+	"regexp"
+
 	"github.com/mitchellh/cli"
 
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -19,9 +21,20 @@ import (
 // implement cli.Ui interface, so that we can make all command support json
 // output in a short time.
 type WrappedUi struct {
-	cliUi        cli.Ui
-	jsonView     *views.JSONView
-	outputInJSON bool
+	cliUi            cli.Ui
+	jsonView         *views.JSONView
+	onlyOutputInJSON bool
+}
+
+var matchColorRe = regexp.MustCompile("\033\\[[\\d;]*m")
+
+func stripColor(s string) string {
+	// This is a workaround for supporting json-into in legacy UI code paths. Hopefully this will all be ripped out once rfc/20251105-use-cobra-instead-of-mitchellh.md
+	// and related work is completed.
+	//
+	// NOTE: The regexp above is specifically tailored to the mitchellh colorstring.go implementation and will NOT work with the *full* set
+	// of possible colorization chars.
+	return matchColorRe.ReplaceAllString(s, "")
 }
 
 func (m *WrappedUi) Ask(s string) (string, error) {
@@ -33,32 +46,32 @@ func (m *WrappedUi) AskSecret(s string) (string, error) {
 }
 
 func (m *WrappedUi) Output(s string) {
-	if m.outputInJSON {
-		m.jsonView.Output(s)
+	m.jsonView.Output(stripColor(s))
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Output(s)
 }
 
 func (m *WrappedUi) Info(s string) {
-	if m.outputInJSON {
-		m.jsonView.Info(s)
+	m.jsonView.Info(stripColor(s))
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Info(s)
 }
 
 func (m *WrappedUi) Error(s string) {
-	if m.outputInJSON {
-		m.jsonView.Error(s)
+	m.jsonView.Error(stripColor(s))
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Error(s)
 }
 
 func (m *WrappedUi) Warn(s string) {
-	if m.outputInJSON {
-		m.jsonView.Warn(s)
+	m.jsonView.Warn(stripColor(s))
+	if m.onlyOutputInJSON {
 		return
 	}
 	m.cliUi.Warn(s)

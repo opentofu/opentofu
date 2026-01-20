@@ -27,7 +27,7 @@ import (
 // convenient way to test that NewJSONView works.
 func TestNewJSONView(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	NewJSONView(NewView(streams))
+	NewJSONView(NewView(streams), nil)
 
 	version := tfversion.String()
 	want := []map[string]interface{}{
@@ -78,7 +78,7 @@ func TestJSONView_Log(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.caseName, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			jv := NewJSONView(NewView(streams))
+			jv := NewJSONView(NewView(streams), nil)
 			jv.Log(tc.input)
 			testJSONViewOutputEquals(t, done(t).Stdout(), tc.want)
 		})
@@ -89,7 +89,7 @@ func TestJSONView_Log(t *testing.T) {
 // complex diagnostics are tested elsewhere.
 func TestJSONView_Diagnostics(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
@@ -134,7 +134,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 
 func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(tfdiags.Sourceless(
@@ -181,7 +181,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 
 func TestJSONView_PlannedChange(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	foo, diags := addrs.ParseModuleInstanceStr("module.foo")
 	if len(diags) > 0 {
@@ -222,7 +222,7 @@ func TestJSONView_PlannedChange(t *testing.T) {
 
 func TestJSONView_ResourceDrift(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	foo, diags := addrs.ParseModuleInstanceStr("module.foo")
 	if len(diags) > 0 {
@@ -263,7 +263,7 @@ func TestJSONView_ResourceDrift(t *testing.T) {
 
 func TestJSONView_ChangeSummary(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	jv.ChangeSummary(&viewsjson.ChangeSummary{
 		Add:       1,
@@ -293,7 +293,7 @@ func TestJSONView_ChangeSummary(t *testing.T) {
 
 func TestJSONView_ChangeSummaryWithImport(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	jv.ChangeSummary(&viewsjson.ChangeSummary{
 		Add:       1,
@@ -324,7 +324,7 @@ func TestJSONView_ChangeSummaryWithImport(t *testing.T) {
 
 func TestJSONView_ChangeSummaryWithForget(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	jv.ChangeSummary(&viewsjson.ChangeSummary{
 		Add:       1,
@@ -355,7 +355,7 @@ func TestJSONView_ChangeSummaryWithForget(t *testing.T) {
 
 func TestJSONView_Hook(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	foo, diags := addrs.ParseModuleInstanceStr("module.foo")
 	if len(diags) > 0 {
@@ -395,7 +395,7 @@ func TestJSONView_Hook(t *testing.T) {
 
 func TestJSONView_Outputs(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	jv := NewJSONView(NewView(streams))
+	jv := NewJSONView(NewView(streams), nil)
 
 	jv.Outputs(jsonentities.Outputs{
 		"boop_count": {

@@ -19,7 +19,7 @@ func TestUnlock(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
 
-	l := NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	l := NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 	l.Lock(statemgr.NewUnlockErrorFull(nil, nil), "test-lock")
 
 	diags := l.Unlock()
@@ -41,7 +41,7 @@ func TestUnlockWithCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	l := NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	l := NewLocker(0, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view))
 	l = l.WithContext(ctx)
 
 	mgr := statemgr.NewFullFake(nil, nil)

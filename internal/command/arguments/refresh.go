@@ -16,18 +16,14 @@ type Refresh struct {
 	Operation *Operation
 	Vars      *Vars
 
-	// InputEnabled is used to disable interactive input for unspecified
-	// variable and backend config values. Default is true.
-	InputEnabled bool
-
-	// ViewType specifies which output format to use
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 }
 
-// ParseRefresh processes CLI arguments, returning a Refresh value and errors.
+// ParseRefresh processes CLI arguments, returning a Refresh value, a closer function, and errors.
 // If errors are encountered, a Refresh value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
+func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	refresh := &Refresh{
 		State:     &State{},
@@ -36,10 +32,7 @@ func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
 	}
 
 	cmdFlags := extendedFlagSet("refresh", refresh.State, refresh.Operation, refresh.Vars)
-	cmdFlags.BoolVar(&refresh.InputEnabled, "input", true, "input")
-
-	var json bool
-	cmdFlags.BoolVar(&json, "json", false, "json")
+	refresh.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -59,18 +52,8 @@ func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(refresh.Operation.Parse())
+	closer, moreDiags := refresh.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	// JSON view currently does not support input, so we disable it here
-	if json {
-		refresh.InputEnabled = false
-	}
-
-	switch {
-	case json:
-		refresh.ViewType = ViewJSON
-	default:
-		refresh.ViewType = ViewHuman
-	}
-
-	return refresh, diags
+	return refresh, closer, diags
 }

@@ -20,10 +20,6 @@ type Plan struct {
 	// changes, and success with no changes.
 	DetailedExitCode bool
 
-	// InputEnabled is used to disable interactive input for unspecified
-	// variable and backend config values. Default is true.
-	InputEnabled bool
-
 	// OutPath contains an optional path to store the plan file
 	OutPath string
 
@@ -32,17 +28,17 @@ type Plan struct {
 	// be written to.
 	GenerateConfigPath string
 
-	// ViewType specifies which output format to use
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
 }
 
-// ParsePlan processes CLI arguments, returning a Plan value and errors.
+// ParsePlan processes CLI arguments, returning a Plan value, a closer function, and errors.
 // If errors are encountered, a Plan value is still returned representing
 // the best effort interpretation of the arguments.
-func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
+func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	plan := &Plan{
 		State:     &State{},
@@ -52,13 +48,11 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 
 	cmdFlags := extendedFlagSet("plan", plan.State, plan.Operation, plan.Vars)
 	cmdFlags.BoolVar(&plan.DetailedExitCode, "detailed-exitcode", false, "detailed-exitcode")
-	cmdFlags.BoolVar(&plan.InputEnabled, "input", true, "input")
 	cmdFlags.StringVar(&plan.OutPath, "out", "", "out")
 	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")
 	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
-	var json bool
-	cmdFlags.BoolVar(&json, "json", false, "json")
+	plan.ViewOptions.AddFlags(cmdFlags, true)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -79,18 +73,8 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(plan.Operation.Parse())
+	closer, moreDiags := plan.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	// JSON view currently does not support input, so we disable it here
-	if json {
-		plan.InputEnabled = false
-	}
-
-	switch {
-	case json:
-		plan.ViewType = ViewJSON
-	default:
-		plan.ViewType = ViewHuman
-	}
-
-	return plan, diags
+	return plan, closer, diags
 }

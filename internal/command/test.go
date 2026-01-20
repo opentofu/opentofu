@@ -83,6 +83,11 @@ Options:
   -json                 If specified, machine readable output will be printed in
                         JSON format
 
+  -json-into=out.json   Produce the same output as -json, but sent directly
+                        to the given file. This allows automation to preserve
+                        the original human-readable output streams, while
+                        capturing more detailed logs for machine analysis.
+
   -no-color             If specified, output won't contain any color.
 
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
@@ -124,14 +129,15 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
 
-	args, diags := arguments.ParseTest(rawArgs)
+	args, closer, diags := arguments.ParseTest(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("test")
 		return 1
 	}
 
-	view := views.NewTest(args.ViewType, c.View)
+	view := views.NewTest(args.ViewOptions, c.View)
 
 	// Users can also specify variables via the command line, so we'll parse
 	// all that here.

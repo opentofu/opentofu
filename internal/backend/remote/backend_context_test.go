@@ -196,7 +196,7 @@ func TestRemoteContextWithVars(t *testing.T) {
 			}
 
 			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewStateLocker(arguments.ViewHuman, views.NewView(streams))
+			view := views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, views.NewView(streams))
 
 			op := &backend.Operation{
 				ConfigDir:    configDir,
@@ -421,7 +421,7 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 			}
 
 			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewStateLocker(arguments.ViewHuman, views.NewView(streams))
+			view := views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, views.NewView(streams))
 
 			op := &backend.Operation{
 				ConfigDir:    configDir,

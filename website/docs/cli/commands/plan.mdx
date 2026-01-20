@@ -344,6 +344,9 @@ The available options are:
 
   [machine-readable-ui]: /docs/internals/machine-readable-ui
 
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
+
 * `-lock=false` - Don't hold a state lock during the operation. This is
   dangerous if others might concurrently run commands against the same
   workspace.
