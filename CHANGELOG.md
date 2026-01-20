@@ -16,6 +16,7 @@ ENHANCEMENTS:
 - Improve performance around provider checking and schema management. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
 - `tofu init` now fetches providers and their metadata in parallel. Depending on provider size and network properties, this can reduce provider installation and checking time. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
+- Add a clarifying section on how to use Tab-completion with aliases to documentation as tofu don't allow the usual methods. ([#3659](https://github.com/opentofu/opentofu/pull/3659))
 
 BUG FIXES:
 
