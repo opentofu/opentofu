@@ -149,10 +149,10 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	}
 	// TODO: Factor out the logic for building a [DesiredResourceInstance]
 	// into a place that all phases can share. Currently that logic is within
-	// the planning engine and so not reachable from here. For now this is
+	// the planning codepath and so not reachable from here. For now this is
 	// just a minimal stub giving just enough for the incomplete apply engine
 	// to do its work.
-	configVal, moreDiags := inst.Value(ctx)
+	configVal, moreDiags := inst.ConfigValue(ctx)
 	diags = diags.Append(moreDiags)
 	providerInst, _, moreDiags := inst.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
