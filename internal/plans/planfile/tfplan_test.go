@@ -585,9 +585,5 @@ func TestTFPlanChangeReasonsEncoding(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		if err != nil {
-			t.Fatal("should've succeeded, got error: ", err)
-		}
 	}
 }
