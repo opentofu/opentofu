@@ -17,7 +17,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -177,11 +176,11 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			if !ok {
 				return cty.DynamicVal
 			}
-			finalStateObj := rawResult.(*states.ResourceInstanceObjectFull)
+			finalStateObj := rawResult.(*exec.ResourceInstanceObject)
 			if finalStateObj == nil {
 				return cty.NullVal(cty.DynamicPseudoType)
 			}
-			return finalStateObj.Value
+			return finalStateObj.State.Value
 		})
 	}
 

@@ -14,7 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // Builder is a helper for multiple codepaths to collaborate to build an
@@ -46,7 +45,7 @@ type Builder struct {
 func NewBuilder() *Builder {
 	return &Builder{
 		graph: &Graph{
-			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]](),
+			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResourceInstanceResultRef](),
 		},
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[addrs.AbsResourceInstance]](),
 		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ResultRef[addrs.AbsProviderInstanceCorrect]](),
@@ -239,7 +238,7 @@ func (b *Builder) ResourceInstancePrior(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opResourceInstancePrior,
 		operands: []AnyResultRef{addr},
 	})
@@ -263,7 +262,7 @@ func (b *Builder) ResourceInstancePrior(
 // both be set when handling an in-place update.
 func (b *Builder) ManagedFinalPlan(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	priorState ResultRef[*states.ResourceInstanceObjectFull],
+	priorState ResourceInstanceResultRef,
 	plannedVal ResultRef[cty.Value],
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
@@ -281,15 +280,20 @@ func (b *Builder) ManagedFinalPlan(
 //
 // The finalPlan argument should typically be something returned by a previous
 // call to [Builder.ManagedFinalPlan] with the same provider client.
+//
+// fallbackObj is usually a [NilResultRef], but should be set for the "create"
+// leg of a "create then destroy" replace operation to be the result of a
+// call to [Builder.ManagedDepose] so that the deposed object can be restored
+// to current if the create call completely fails to create a new object.
 func (b *Builder) ManagedApply(
 	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
-	fallbackObj ResultRef[*states.ResourceInstanceObjectFull],
+	fallbackObj ResourceInstanceResultRef,
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
 		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient},
 	})
@@ -301,7 +305,7 @@ func (b *Builder) ManagedDepose(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedDepose,
 		operands: []AnyResultRef{instAddr},
 	})
@@ -313,7 +317,7 @@ func (b *Builder) ManagedAlreadyDeposed(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedAlreadyDeposed,
 		operands: []AnyResultRef{instAddr},
 	})
@@ -327,7 +331,7 @@ func (b *Builder) DataRead(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
 		operands: []AnyResultRef{desiredInst, plannedVal, providerClient},
 	})
@@ -340,7 +344,7 @@ func (b *Builder) EphemeralOpen(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opEphemeralOpen,
 		operands: []AnyResultRef{desiredInst, providerClient},
 	})

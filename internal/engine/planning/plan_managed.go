@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -279,7 +280,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	)
 	finalResultRef := egb.ManagedApply(
 		finalPlanRef,
-		execgraph.NilResultRef[*states.ResourceInstanceObjectFull](),
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
 	)
 	closeProviderAfter(finalResultRef)

@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -29,15 +30,15 @@ func (ops *execOperations) ResourceInstanceDesired(
 func (ops *execOperations) ResourceInstancePrior(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] applying: ResourceInstancePrior %s", instAddr)
-	return ops.resourceInstancePriorStateObject(ctx, instAddr, states.NotDeposed)
+	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, states.NotDeposed)
 }
 
 // ResourceInstancePostconditions implements [exec.Operations].
 func (ops *execOperations) ResourceInstancePostconditions(
 	ctx context.Context,
-	result *states.ResourceInstanceObjectFull,
+	result *exec.ResourceInstanceObject,
 ) tfdiags.Diagnostics {
 	log.Printf("[TRACE] applying: ResourceInstancePostconditions (currently just a noop!)")
 	// TODO: Implement this by delegating to a special "run resource instance
@@ -46,11 +47,12 @@ func (ops *execOperations) ResourceInstancePostconditions(
 }
 
 // ResourceInstancePrior implements [exec.Operations].
-func (ops *execOperations) resourceInstancePriorStateObject(
+func (ops *execOperations) resourceInstanceStateObject(
 	ctx context.Context,
+	fromState *states.SyncState,
 	instAddr addrs.AbsResourceInstance,
 	deposedKey states.DeposedKey,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	src := ops.priorState.ResourceInstanceObjectFull(instAddr, deposedKey)
 	if src == nil {
@@ -69,7 +71,7 @@ func (ops *execOperations) resourceInstancePriorStateObject(
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
-	ret, err := states.DecodeResourceInstanceObjectFull(src, schema.Block.ImpliedType())
+	state, err := states.DecodeResourceInstanceObjectFull(src, schema.Block.ImpliedType())
 	if err != nil {
 		nounPhrase := "a current object"
 		if deposedKey != states.NotDeposed {
@@ -85,5 +87,12 @@ func (ops *execOperations) resourceInstancePriorStateObject(
 		))
 		return nil, diags
 	}
-	return ret, diags
+	if state == nil {
+		return nil, diags
+	}
+	return &exec.ResourceInstanceObject{
+		InstanceAddr: instAddr,
+		DeposedKey:   deposedKey,
+		State:        state,
+	}, diags
 }

@@ -11,14 +11,13 @@ import (
 
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // EphemeralClose implements [exec.Operations].
 func (ops *execOperations) EphemeralClose(
 	ctx context.Context,
-	object *states.ResourceInstanceObjectFull,
+	object *exec.ResourceInstanceObject,
 	providerClient *exec.ProviderClient,
 ) tfdiags.Diagnostics {
 	// FIXME: Track instance address on resource instance objects
@@ -31,7 +30,7 @@ func (ops *execOperations) EphemeralOpen(
 	ctx context.Context,
 	desired *eval.DesiredResourceInstance,
 	providerClient *exec.ProviderClient,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] applying: EphemeralOpen %s", desired.Addr)
 	panic("unimplemented")
 }

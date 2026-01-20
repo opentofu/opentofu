@@ -113,7 +113,7 @@ type Operations interface {
 	ResourceInstancePrior(
 		ctx context.Context,
 		instAddr addrs.AbsResourceInstance,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ResourceInstancePostconditions tests whether the given object passes
 	// any postconditions that were declared for it.
@@ -125,7 +125,7 @@ type Operations interface {
 	// handled consistently for all resource modes.
 	ResourceInstancePostconditions(
 		ctx context.Context,
-		result *states.ResourceInstanceObjectFull,
+		result *ResourceInstanceObject,
 	) tfdiags.Diagnostics
 
 	//////////////////////////////////////////////////////////////////////////////
@@ -148,7 +148,7 @@ type Operations interface {
 	ManagedFinalPlan(
 		ctx context.Context,
 		desired *eval.DesiredResourceInstance,
-		prior *states.ResourceInstanceObjectFull,
+		prior *ResourceInstanceObject,
 		plannedVal cty.Value,
 		providerClient *ProviderClient,
 	) (*ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
@@ -187,9 +187,9 @@ type Operations interface {
 	ManagedApply(
 		ctx context.Context,
 		plan *ManagedResourceObjectFinalPlan,
-		fallback *states.ResourceInstanceObjectFull,
+		fallback *ResourceInstanceObject,
 		providerClient *ProviderClient,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedDepose transforms the "current" object associated with the given
 	// resource instance address into a "deposed" object for the same resource
@@ -206,7 +206,7 @@ type Operations interface {
 	ManagedDepose(
 		ctx context.Context,
 		instAddr addrs.AbsResourceInstance,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedAlreadyDeposed returns a deposed object from the prior state,
 	// nor nil if there is no such object.
@@ -225,7 +225,7 @@ type Operations interface {
 		ctx context.Context,
 		instAddr addrs.AbsResourceInstance,
 		deposedKey states.DeposedKey,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	//////////////////////////////////////////////////////////////////////////////
 	/// Resource-related operations that are relevant only for data resources.
@@ -253,7 +253,7 @@ type Operations interface {
 		desired *eval.DesiredResourceInstance,
 		plannedVal cty.Value,
 		providerClient *ProviderClient,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	//////////////////////////////////////////////////////////////////////////////
 	/// Resource-related operations that are relevant only for ephemeral resources.
@@ -280,7 +280,7 @@ type Operations interface {
 		ctx context.Context,
 		desired *eval.DesiredResourceInstance,
 		providerClient *ProviderClient,
-	) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// EphemeralClose uses the given provider client to "close" the given
 	// ephemeral object.
@@ -292,7 +292,7 @@ type Operations interface {
 	// after this method returns.
 	EphemeralClose(
 		ctx context.Context,
-		object *states.ResourceInstanceObjectFull,
+		object *ResourceInstanceObject,
 		providerClient *ProviderClient,
 	) tfdiags.Diagnostics
 }

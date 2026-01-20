@@ -22,7 +22,7 @@ import (
 func (ops *execOperations) ManagedFinalPlan(
 	ctx context.Context,
 	desired *eval.DesiredResourceInstance,
-	prior *states.ResourceInstanceObjectFull,
+	prior *exec.ResourceInstanceObject,
 	plannedVal cty.Value,
 	providerClient *exec.ProviderClient,
 ) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
@@ -35,15 +35,15 @@ func (ops *execOperations) ManagedFinalPlan(
 		// change, so we'll arbitrarily choose to prefer the desired address
 		// whenever both are set.
 		instAddr = desired.Addr
+		// (deposed objects are never "desired")
 	} else if prior != nil {
-		// FIXME: ResourceInstanceObjectFull must carry identity with it so
-		// we can know what we're working with when we're planning destroy.
-		//instAddr = prior.Addr
-		//deposedKey = prior.DeposedKey
+		instAddr = prior.InstanceAddr
+		deposedKey = prior.DeposedKey
 	} else {
 		// Both should not be nil but if they are then we'll treat it the same
 		// way as if we dynamically discover that no change is actually
 		// required, by returning a nil final plan to represent "noop".
+		log.Printf("[TRACE] applying: ManagedFinalPlan without either desired or prior state, so no change is needed")
 		return nil, nil
 	}
 	if deposedKey == states.NotDeposed {
@@ -58,9 +58,9 @@ func (ops *execOperations) ManagedFinalPlan(
 func (ops *execOperations) ManagedApply(
 	ctx context.Context,
 	plan *exec.ManagedResourceObjectFinalPlan,
-	fallback *states.ResourceInstanceObjectFull,
+	fallback *exec.ResourceInstanceObject,
 	providerClient *exec.ProviderClient,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	if plan == nil {
 		// TODO: if "fallback" is set then we should set it as current here to
 		// honor the overall contract. In practice we currently never construct
@@ -93,9 +93,17 @@ func (ops *execOperations) ManagedApply(
 func (ops *execOperations) ManagedDepose(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] applying: ManagedDepose %s", instAddr)
-	panic("unimplemented")
+	var diags tfdiags.Diagnostics
+
+	deposedKey := ops.workingState.DeposeResourceInstanceObject(instAddr)
+	if deposedKey == states.NotDeposed {
+		// This means that there was no "current" object to depose, and
+		// so we'll return nil to represent that there's nothing here.
+		return nil, diags
+	}
+	return ops.resourceInstanceStateObject(ctx, ops.workingState, instAddr, deposedKey)
 }
 
 // ManagedAlreadyDeposed implements [exec.Operations].
@@ -103,10 +111,10 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
 	deposedKey states.DeposedKey,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] applying: ManagedAlreadyDeposed %s deposed object %s", instAddr, deposedKey)
 	// This is essentially the same as ResourceInstancePrior, but for deposed
 	// objects rather than "current" objects. Therefore we'll share most of the
 	// implementation between these two.
-	return ops.resourceInstancePriorStateObject(ctx, instAddr, deposedKey)
+	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, deposedKey)
 }

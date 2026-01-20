@@ -17,7 +17,6 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // UnmarshalGraph takes some bytes previously returned by [Graph.Marshal] and
@@ -102,7 +101,7 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 		if diags.HasErrors() {
 			return nil, fmt.Errorf("invalid resource instance address %q: %w", instAddrStr, diags.Err())
 		}
-		resultRef, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](results, resultIdx)
+		resultRef, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](results, resultIdx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid result element for %s: %w", instAddr, err)
 		}
@@ -221,7 +220,7 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan desiredInst: %w", err)
 	}
-	priorState, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](prevResults, rawOperands[1])
+	priorState, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan priorState: %w", err)
 	}
@@ -244,7 +243,7 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges finalPlan: %w", err)
 	}
-	fallbackObj, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](prevResults, rawOperands[1])
+	fallbackObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges fallbackObj: %w", err)
 	}
@@ -315,7 +314,7 @@ func unmarshalOpEphemeralClose(rawOperands []uint64, prevResults []AnyResultRef,
 	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
-	obj, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](prevResults, rawOperands[0])
+	obj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
