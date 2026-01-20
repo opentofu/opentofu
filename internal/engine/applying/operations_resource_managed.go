@@ -47,9 +47,9 @@ func (ops *execOperations) ManagedFinalPlan(
 		return nil, nil
 	}
 	if deposedKey == states.NotDeposed {
-		log.Printf("[TRACE] applying: ManagedFinalPlan %s", instAddr)
+		log.Printf("[TRACE] applying: ManagedFinalPlan %s using %s", instAddr, providerClient.InstanceAddr)
 	} else {
-		log.Printf("[TRACE] applying: ManagedFinalPlan %s deposed object %s", instAddr, deposedKey)
+		log.Printf("[TRACE] applying: ManagedFinalPlan %s deposed object %s using %s", instAddr, deposedKey, providerClient.InstanceAddr)
 	}
 	panic("unimplemented")
 }
@@ -73,9 +73,9 @@ func (ops *execOperations) ManagedApply(
 		return nil, nil
 	}
 	if plan.DeposedKey == states.NotDeposed {
-		log.Printf("[TRACE] applying: ManagedApply %s", plan.InstanceAddr)
+		log.Printf("[TRACE] applying: ManagedApply %s using %s", plan.InstanceAddr, providerClient.InstanceAddr)
 	} else {
-		log.Printf("[TRACE] applying: ManagedApply %s deposed object %s", plan.InstanceAddr, plan.DeposedKey)
+		log.Printf("[TRACE] applying: ManagedApply %s deposed object %s using %s", plan.InstanceAddr, plan.DeposedKey, providerClient.InstanceAddr)
 	}
 
 	// This particular operation has a broader scope than most of them because

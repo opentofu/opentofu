@@ -14,23 +14,22 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// EphemeralClose implements [exec.Operations].
-func (ops *execOperations) EphemeralClose(
-	ctx context.Context,
-	object *exec.ResourceInstanceObject,
-	providerClient *exec.ProviderClient,
-) tfdiags.Diagnostics {
-	// FIXME: Track instance address on resource instance objects
-	//log.Printf("[TRACE] applying: EphemeralClose %s", object.Addr)
-	panic("unimplemented")
-}
-
 // EphemeralOpen implements [exec.Operations].
 func (ops *execOperations) EphemeralOpen(
 	ctx context.Context,
 	desired *eval.DesiredResourceInstance,
 	providerClient *exec.ProviderClient,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: EphemeralOpen %s", desired.Addr)
+	log.Printf("[TRACE] applying: EphemeralOpen %s using %s", desired.Addr, providerClient.InstanceAddr)
+	panic("unimplemented")
+}
+
+// EphemeralClose implements [exec.Operations].
+func (ops *execOperations) EphemeralClose(
+	ctx context.Context,
+	object *exec.ResourceInstanceObject,
+	providerClient *exec.ProviderClient,
+) tfdiags.Diagnostics {
+	log.Printf("[TRACE] applying: EphemeralClose %s using %s", object.InstanceAddr, providerClient.InstanceAddr)
 	panic("unimplemented")
 }
