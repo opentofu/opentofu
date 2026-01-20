@@ -15,6 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 )
 
 type Graph struct {
@@ -79,6 +80,67 @@ type Graph struct {
 	// the results of any resource instances that were identified as
 	// resource-instance-graph dependencies during the planning process.
 	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResourceInstanceResultRef]
+}
+
+// PromiseDrivenRequestInfo is part of our somewhat-roundabout means of
+// gathering additional context about promise-based requests only when we
+// enounter an error that makes it worth gathering this information.
+//
+// Given a [PromiseDrivenResultKey] previously advertised to a
+// [RequestTrackerWithNotify] implementation used with [CompiledGraph.Execute]
+// on a compiled version of the same graph, this returns a
+// [grapheval.RequestInfo] value summarizing what that request was intending
+// to achieve in terms that are suitable to include in an error message that
+// someone will presmuably submit in an OpenTofu bug report, because
+// promise-related errors should only crop up during processing of
+// incorrectly-constructed execution graphs.
+func (g *Graph) PromiseDrivenRequestInfo(key PromiseDrivenResultKey) grapheval.RequestInfo {
+	opIdx := key.operationIdx
+	if opIdx < 0 || opIdx >= len(g.ops) {
+		// We seem to have a key produced from a different graph than this one,
+		// but we'll tolerate this and just return a placeholder so that we
+		// can hopefully return at least a partial error message.
+		return grapheval.RequestInfo{
+			Name: "unknown execution graph operation (this is a bug in OpenTofu)",
+		}
+	}
+	opDesc := g.ops[opIdx]
+	return grapheval.RequestInfo{
+		Name: "internal operation: " + g.operationDebugSummary(opDesc),
+	}
+}
+
+func (g *Graph) operationDebugSummary(opDesc operationDesc) string {
+	var buf strings.Builder
+	buf.WriteString(strings.TrimPrefix(opDesc.opCode.String(), "op"))
+	buf.WriteByte('(')
+	for argIdx, arg := range opDesc.operands {
+		if argIdx != 0 {
+			buf.WriteString(", ")
+		}
+		switch arg := arg.(type) {
+		case anyOperationResultRef:
+			// We'll show this as a nested function call so that we can also
+			// see whatever arguments it has, since hopefully this will
+			// eventually lead to something useful like a resource instance addr.
+			childOpIdx := arg.operationResultIndex()
+			opDesc := g.ops[childOpIdx]
+			buf.WriteString(g.operationDebugSummary(opDesc))
+		case valueResultRef:
+			v := g.constantVals[arg.index]
+			fmt.Fprintf(&buf, "<%s value>", v.Type().FriendlyName())
+		case resourceInstAddrResultRef, providerInstAddrResultRef, waiterResultRef, nil:
+			// Our resultDebugRepr representation is fine for these ones
+			buf.WriteString(g.resultDebugRepr(arg))
+		default:
+			// We don't print out anything we're not already familiar with
+			// because we might add a new kind of result later that isn't
+			// appropriate to include in a UI-facing error message.
+			buf.WriteString("[...]")
+		}
+	}
+	buf.WriteByte(')')
+	return buf.String()
 }
 
 // DebugRepr returns a relatively-concise string representation of the

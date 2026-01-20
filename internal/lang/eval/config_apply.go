@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -186,4 +187,20 @@ func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.Abs
 	}
 	v, diags := inst.ConfigValue(ctx)
 	return configgraph.PrepareOutgoingValue(v), diags
+}
+
+// AnnounceAllGraphevalRequests calls the given function once for each internal
+// workgraph request that has previously been started by requests to this
+// oracle.
+//
+// This is used by the apply engine as part of its implementation of
+// [grapheval.RequestTracker], so that promise-resolution-related diagnostics
+// can include information about which requests were involved in the problem.
+//
+// This information is collected as a separate step only when needed because
+// that avoids us needing to keep track of this metadata on the happy path,
+// so that we only pay the cost of gathering this data when we're actually
+// going to use it for something.
+func (o *ApplyOracle) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	o.root.AnnounceAllGraphevalRequests(announce)
 }
