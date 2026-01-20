@@ -9,7 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 )
 
 // ResultRef represents a result of type T that will be produced by
@@ -26,7 +26,7 @@ type ResultRef[T any] interface {
 // We give this its own name just because this particular result type tends
 // to be named in function signatures elsewhere in the system and the
 // simple name is (subjectively) easier to read than the generic name.
-type ResourceInstanceResultRef = ResultRef[*states.ResourceInstanceObjectFull]
+type ResourceInstanceResultRef = ResultRef[*exec.ResourceInstanceObject]
 
 // AnyResultRef is a type-erased [ResultRef], for data
 // structures that only need to represent the relationships between results

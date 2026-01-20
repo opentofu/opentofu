@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -47,7 +47,7 @@ func TestBuilder_basics(t *testing.T) {
 		providerClient,
 	)
 	newState := builder.ManagedApply(
-		finalPlan, NilResultRef[*states.ResourceInstanceObjectFull](), providerClient,
+		finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient,
 	)
 	addProviderUser(newState)
 	builder.SetResourceInstanceFinalStateResult(resourceInstAddr, newState)

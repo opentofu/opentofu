@@ -13,7 +13,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -23,7 +22,7 @@ func (ops *execOperations) DataRead(
 	desired *eval.DesiredResourceInstance,
 	plannedVal cty.Value,
 	providerClient *exec.ProviderClient,
-) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] applying: DataRead %s", desired.Addr)
 	panic("unimplemented")
 }

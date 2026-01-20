@@ -175,7 +175,7 @@ func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) no
 
 func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExecuteRaw {
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
-	getPrior := nextOperand[*states.ResourceInstanceObjectFull](operands)
+	getPrior := nextOperand[*exec.ResourceInstanceObject](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)
 	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	diags := operands.Finish()
@@ -224,7 +224,7 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 
 func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecuteRaw {
 	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
-	getFallback := nextOperand[*states.ResourceInstanceObjectFull](operands)
+	getFallback := nextOperand[*exec.ResourceInstanceObject](operands)
 	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
@@ -405,7 +405,7 @@ func (c *compiler) compileOpEphemeralOpen(operands *compilerOperands) nodeExecut
 }
 
 func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecuteRaw {
-	getObject := nextOperand[*states.ResourceInstanceObjectFull](operands)
+	getObject := nextOperand[*exec.ResourceInstanceObject](operands)
 	getProviderClient := nextOperand[*exec.ProviderClient](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)

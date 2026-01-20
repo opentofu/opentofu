@@ -14,7 +14,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // Marshal produces an opaque byte slice representing the given graph,
@@ -63,7 +62,7 @@ func (m *graphMarshaler) EnsureOperationPresent(idx int) uint64 {
 	return m.ensureRefTarget(erasedRef)
 }
 
-func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]) {
+func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResourceInstanceResultRef]) {
 	m.resourceInstanceResults = make(map[string]uint64)
 	for _, mapElem := range results.Elems {
 		instAddr := mapElem.Key

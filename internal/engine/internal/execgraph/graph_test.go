@@ -17,8 +17,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 func TestGraphMarshalUnmarshalValid(t *testing.T) {
@@ -84,7 +84,7 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					nil,
 				)
 				finalPlan := builder.ManagedFinalPlan(desiredInst, priorState, plannedVal, providerClient)
-				newState := builder.ManagedApply(finalPlan, NilResultRef[*states.ResourceInstanceObjectFull](), providerClient)
+				newState := builder.ManagedApply(finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient)
 				registerUser(newState)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()

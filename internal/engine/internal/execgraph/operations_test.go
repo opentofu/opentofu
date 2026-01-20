@@ -22,19 +22,19 @@ import (
 type mockOperations struct {
 	Calls []mockOperationsCall
 
-	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
-	EphemeralCloseFunc                 func(ctx context.Context, object *states.ResourceInstanceObjectFull, providerClient *exec.ProviderClient) tfdiags.Diagnostics
-	EphemeralOpenFunc                  func(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
-	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
-	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *states.ResourceInstanceObjectFull, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
-	ManagedDeposeFunc                  func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
-	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *states.ResourceInstanceObjectFull, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
+	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	EphemeralCloseFunc                 func(ctx context.Context, object *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) tfdiags.Diagnostics
+	EphemeralOpenFunc                  func(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedDeposeFunc                  func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 	ProviderInstanceCloseFunc          func(ctx context.Context, client *exec.ProviderClient) tfdiags.Diagnostics
 	ProviderInstanceConfigFunc         func(ctx context.Context, instAddr addrs.AbsProviderInstanceCorrect) (*exec.ProviderInstanceConfig, tfdiags.Diagnostics)
 	ProviderInstanceOpenFunc           func(ctx context.Context, config *exec.ProviderInstanceConfig) (*exec.ProviderClient, tfdiags.Diagnostics)
 	ResourceInstanceDesiredFunc        func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics)
-	ResourceInstancePostconditionsFunc func(ctx context.Context, result *states.ResourceInstanceObjectFull) tfdiags.Diagnostics
-	ResourceInstancePriorFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics)
+	ResourceInstancePostconditionsFunc func(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics
+	ResourceInstancePriorFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 
 	mu sync.Mutex
 }
@@ -42,9 +42,9 @@ type mockOperations struct {
 var _ exec.Operations = (*mockOperations)(nil)
 
 // DataRead implements [exec.Operations].
-func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.DataReadFunc != nil {
 		result, diags = m.DataReadFunc(ctx, desired, plannedVal, providerClient)
 	}
@@ -53,7 +53,7 @@ func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredReso
 }
 
 // EphemeralClose implements [exec.Operations].
-func (m *mockOperations) EphemeralClose(ctx context.Context, object *states.ResourceInstanceObjectFull, providerClient *exec.ProviderClient) tfdiags.Diagnostics {
+func (m *mockOperations) EphemeralClose(ctx context.Context, object *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if m.EphemeralCloseFunc != nil {
 		diags = m.EphemeralCloseFunc(ctx, object, providerClient)
@@ -63,9 +63,9 @@ func (m *mockOperations) EphemeralClose(ctx context.Context, object *states.Reso
 }
 
 // EphemeralOpen implements [exec.Operations].
-func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.EphemeralOpenFunc != nil {
 		result, diags = m.EphemeralOpenFunc(ctx, desired, providerClient)
 	}
@@ -74,9 +74,9 @@ func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.Desire
 }
 
 // ManagedAlreadyDeposed implements [exec.Operations].
-func (m *mockOperations) ManagedAlreadyDeposed(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedAlreadyDeposed(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.ManagedAlreadyDeposedFunc != nil {
 		result, diags = m.ManagedAlreadyDeposedFunc(ctx, instAddr, deposedKey)
 	}
@@ -85,9 +85,9 @@ func (m *mockOperations) ManagedAlreadyDeposed(ctx context.Context, instAddr add
 }
 
 // ManagedApply implements [exec.Operations].
-func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *states.ResourceInstanceObjectFull, providerClient *exec.ProviderClient) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.ManagedApplyFunc != nil {
 		result, diags = m.ManagedApplyFunc(ctx, plan, fallback, providerClient)
 	}
@@ -96,9 +96,9 @@ func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedRes
 }
 
 // ManagedDepose implements [exec.Operations].
-func (m *mockOperations) ManagedDepose(ctx context.Context, instAddr addrs.AbsResourceInstance) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedDepose(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.ManagedDeposeFunc != nil {
 		result, diags = m.ManagedDeposeFunc(ctx, instAddr)
 	}
@@ -107,7 +107,7 @@ func (m *mockOperations) ManagedDepose(ctx context.Context, instAddr addrs.AbsRe
 }
 
 // ManagedFinalPlan implements [exec.Operations].
-func (m *mockOperations) ManagedFinalPlan(ctx context.Context, desired *eval.DesiredResourceInstance, prior *states.ResourceInstanceObjectFull, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+func (m *mockOperations) ManagedFinalPlan(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var result *exec.ManagedResourceObjectFinalPlan
 	if m.ManagedFinalPlanFunc != nil {
@@ -161,7 +161,7 @@ func (m *mockOperations) ResourceInstanceDesired(ctx context.Context, instAddr a
 }
 
 // ResourceInstancePostconditions implements [exec.Operations].
-func (m *mockOperations) ResourceInstancePostconditions(ctx context.Context, result *states.ResourceInstanceObjectFull) tfdiags.Diagnostics {
+func (m *mockOperations) ResourceInstancePostconditions(ctx context.Context, result *exec.ResourceInstanceObject) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if m.ResourceInstancePostconditionsFunc != nil {
 		diags = m.ResourceInstancePostconditionsFunc(ctx, result)
@@ -171,9 +171,9 @@ func (m *mockOperations) ResourceInstancePostconditions(ctx context.Context, res
 }
 
 // ResourceInstancePrior implements [exec.Operations].
-func (m *mockOperations) ResourceInstancePrior(ctx context.Context, instAddr addrs.AbsResourceInstance) (*states.ResourceInstanceObjectFull, tfdiags.Diagnostics) {
+func (m *mockOperations) ResourceInstancePrior(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *states.ResourceInstanceObjectFull
+	var result *exec.ResourceInstanceObject
 	if m.ResourceInstancePriorFunc != nil {
 		result, diags = m.ResourceInstancePriorFunc(ctx, instAddr)
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 type Graph struct {
@@ -79,7 +78,7 @@ type Graph struct {
 	// operation for each resource instance should also directly depend on
 	// the results of any resource instances that were identified as
 	// resource-instance-graph dependencies during the planning process.
-	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
+	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResourceInstanceResultRef]
 }
 
 // DebugRepr returns a relatively-concise string representation of the
