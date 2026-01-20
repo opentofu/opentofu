@@ -71,22 +71,7 @@ func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 	closer := func() {}
 
 	if v.jsonIntoFlag != "" {
-		var err error
-		v.JSONInto, err = os.OpenFile(v.jsonIntoFlag, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid argument",
-				fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", v.jsonIntoFlag, err.Error()),
-			))
-		} else {
-			closer = func() {
-				err := v.JSONInto.Close()
-				if err != nil {
-					log.Printf("[ERROR] Unable to close json output: %s", err.Error())
-				}
-			}
-		}
+		v.JSONInto, closer, diags = OpenJSONIntoFile(v.jsonIntoFlag)
 	}
 
 	// Default to Human
@@ -104,4 +89,27 @@ func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 		}
 	}
 	return closer, diags
+}
+
+func OpenJSONIntoFile(jsonIntoFlag string) (*os.File, func(), tfdiags.Diagnostics) {
+	closer := func() {}
+	var diags tfdiags.Diagnostics
+
+	JSONInto, err := os.OpenFile(jsonIntoFlag, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid argument",
+			fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", jsonIntoFlag, err.Error()),
+		))
+	} else {
+		closer = func() {
+			err := JSONInto.Close()
+			if err != nil {
+				log.Printf("[ERROR] Unable to close json output: %s", err.Error())
+			}
+		}
+	}
+
+	return JSONInto, closer, diags
 }

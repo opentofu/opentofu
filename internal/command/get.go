@@ -8,9 +8,9 @@ package command
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -55,12 +55,12 @@ func (c *GetCommand) Run(args []string) int {
 			return 1
 		}
 
-		out, err := os.OpenFile(c.outputJSONInto, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0600)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Unable to open the file %q specified by -json-into for writing: %s", c.outputJSONInto, err.Error()))
+		out, closer, diags := arguments.OpenJSONIntoFile(c.outputJSONInto)
+		defer closer()
+		if diags.HasErrors() {
+			c.Ui.Error(diags.Err().Error())
 			return 1
 		}
-		defer out.Close()
 
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
