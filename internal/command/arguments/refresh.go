@@ -20,7 +20,7 @@ type Refresh struct {
 	ViewOptions ViewOptions
 }
 
-// ParseRefresh processes CLI arguments, returning a Refresh value and errors.
+// ParseRefresh processes CLI arguments, returning a Refresh value, a closer function, and errors.
 // If errors are encountered, a Refresh value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseRefresh(args []string) (*Refresh, func(), tfdiags.Diagnostics) {

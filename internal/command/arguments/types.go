@@ -41,6 +41,10 @@ func (vt ViewType) String() string {
 	}
 }
 
+// ViewOptions contains all of the information nessesary for constructing a view
+// from raw CLI arguments. This replaced most of the direct usage of ViewType
+// when the -json-into flag was introduced. In practice, this allows a much
+// more nuanced set of data to be presented to the view constructors.
 type ViewOptions struct {
 	// Raw cli flags
 	jsonFlag     bool
@@ -71,6 +75,12 @@ func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 	closer := func() {}
 
 	if v.jsonIntoFlag != "" {
+		// Although it seems odd to add complex logic to the arguments
+		// package, it is currently the most reasonable place for this
+		// particular concern. The only other reasonable spot currently
+		// in the codebase is within the view constructor. Unfortunately
+		// that is not an option due to command code paths opening
+		// multiple concurrent views.
 		v.JSONInto, closer, diags = OpenJSONIntoFile(v.jsonIntoFlag)
 	}
 

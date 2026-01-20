@@ -28,7 +28,7 @@ type Output struct {
 	ShowSensitive bool
 }
 
-// ParseOutput processes CLI arguments, returning an Output value and errors.
+// ParseOutput processes CLI arguments, returning an Output value, a closer function, and errors.
 // If errors are encountered, an Output value is still returned representing
 // the best effort interpretation of the arguments.
 func ParseOutput(args []string) (*Output, func(), tfdiags.Diagnostics) {

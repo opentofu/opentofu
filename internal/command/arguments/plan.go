@@ -35,7 +35,7 @@ type Plan struct {
 	ShowSensitive bool
 }
 
-// ParsePlan processes CLI arguments, returning a Plan value and errors.
+// ParsePlan processes CLI arguments, returning a Plan value, a closer function, and errors.
 // If errors are encountered, a Plan value is still returned representing
 // the best effort interpretation of the arguments.
 func ParsePlan(args []string) (*Plan, func(), tfdiags.Diagnostics) {
