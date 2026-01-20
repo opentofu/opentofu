@@ -77,32 +77,44 @@ func (ri *ResourceInstance) StaticCheckTraversal(traversal hcl.Traversal) tfdiag
 	return ri.ConfigValuer.StaticCheckTraversal(traversal)
 }
 
+// ConfigValue returns the object value representing the for this resource
+// instance, which should be used to represent the "desired state" when planning
+// changes to this resource instance.
+func (ri *ResourceInstance) ConfigValue(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
+	// TODO: Preconditions? Or should that be handled in the parent [Resource]
+	// before we even attempt instance expansion? (Need to check the current
+	// behavior in the existing system, to see whether preconditions guard
+	// instance expansion.)
+	// If we take preconditions into account here then we must transfer
+	// [ResourceInstanceMark] marks from the check rule expressions into
+	// configVal because config evaluation indirectly depends on those
+	// references.
+
+	// We use the configuration value here only for its marks, since that
+	// allows us to propagate any
+	configVal, diags := ri.ConfigValuer.Value(ctx)
+	if diags.HasErrors() {
+		// If we don't have a valid config value then we'll stop early
+		// with an unknown value placeholder so that the external process
+		// responsible for providing the result value can assume that it
+		// will only ever recieve validated configuration values.
+		return exprs.AsEvalError(cty.DynamicVal), diags
+	}
+
+	return configVal, diags
+}
+
 // Value implements exprs.Valuer.
 func (ri *ResourceInstance) Value(ctx context.Context) (v cty.Value, diags tfdiags.Diagnostics) {
 	return ri.valueOnce.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-		// TODO: Preconditions? Or should that be handled in the parent [Resource]
-		// before we even attempt instance expansion? (Need to check the current
-		// behavior in the existing system, to see whether preconditions guard
-		// instance expansion.)
-		// If we take preconditions into account here then we must transfer
-		// [ResourceInstanceMark] marks from the check rule expressions into
-		// configVal because config evaluation indirectly depends on those
-		// references.
-
-		// We use the configuration value here only for its marks, since that
-		// allows us to propagate any
-		configVal, diags := ri.ConfigValuer.Value(ctx)
+		configVal, diags := ri.ConfigValue(ctx)
 		if diags.HasErrors() {
-			// If we don't have a valid config value then we'll stop early
-			// with an unknown value placeholder so that the external process
-			// responsible for providing the result value can assume that it
-			// will only ever recieve validated configuration values.
 			return exprs.AsEvalError(cty.DynamicVal), diags
 		}
 
 		providerInst, providerInstMarks, moreDiags := ri.ProviderInstance(ctx)
 		diags = diags.Append(moreDiags)
-		if diags.HasErrors() {
+		if moreDiags.HasErrors() {
 			return exprs.AsEvalError(cty.DynamicVal), diags
 		}
 
