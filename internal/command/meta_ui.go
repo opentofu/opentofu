@@ -26,7 +26,7 @@ type WrappedUi struct {
 	onlyOutputInJSON bool
 }
 
-var matchColorRe = regexp.MustCompile("\033\\[\\d*m")
+var matchColorRe = regexp.MustCompile("\033\\[[\\d;]*m")
 
 func stripColor(s string) string {
 	// This is a workaround for supporting json-into in legacy UI code paths. Hopefully this will all be ripped out once rfc/20251105-use-cobra-instead-of-mitchellh.md
