@@ -22,8 +22,8 @@ type Test struct {
 	// always be discovered.
 	TestDirectory string
 
-	// ViewType specifies which output format to use: human or JSON.
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	// You can specify common variables for all tests from the command line.
 	Vars *Vars
@@ -34,19 +34,19 @@ type Test struct {
 	Verbose bool
 }
 
-func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
+func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	test := Test{
 		Vars: new(Vars),
 	}
 
-	var jsonOutput bool
 	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
 	cmdFlags.Var((*flagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
+
+	test.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -55,12 +55,8 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 			err.Error()))
 	}
 
-	switch {
-	case jsonOutput:
-		test.ViewType = ViewJSON
-	default:
-		test.ViewType = ViewHuman
-	}
+	closer, moreDiags := test.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	return &test, diags
+	return &test, closer, diags
 }

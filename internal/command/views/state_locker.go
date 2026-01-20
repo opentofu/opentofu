@@ -8,6 +8,7 @@ package views
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -21,14 +22,37 @@ type StateLocker interface {
 }
 
 // NewStateLocker returns an initialized StateLocker implementation for the given ViewType.
-func NewStateLocker(vt arguments.ViewType, view *View) StateLocker {
-	switch vt {
+func NewStateLocker(args arguments.ViewOptions, view *View) StateLocker {
+	var state StateLocker
+	switch args.ViewType {
 	case arguments.ViewHuman:
-		return &StateLockerHuman{view: view}
+		state = &StateLockerHuman{view: view}
 	case arguments.ViewJSON:
-		return &StateLockerJSON{view: view}
+		state = &StateLockerJSON{output: view.streams.Stdout.File}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		state = StateLockerMulti{state, &StateLockerJSON{output: args.JSONInto}}
+	}
+
+	return state
+}
+
+type StateLockerMulti []StateLocker
+
+var _ StateLocker = (StateLockerMulti)(nil)
+
+func (m StateLockerMulti) Locking() {
+	for _, s := range m {
+		s.Locking()
+	}
+}
+
+func (m StateLockerMulti) Unlocking() {
+	for _, s := range m {
+		s.Unlocking()
 	}
 }
 
@@ -39,7 +63,6 @@ type StateLockerHuman struct {
 }
 
 var _ StateLocker = (*StateLockerHuman)(nil)
-var _ StateLocker = (*StateLockerJSON)(nil)
 
 func (v *StateLockerHuman) Locking() {
 	v.view.streams.Println("Acquiring state lock. This may take a few moments...")
@@ -52,8 +75,10 @@ func (v *StateLockerHuman) Unlocking() {
 // StateLockerJSON is an implementation of StateLocker which prints the state lock status
 // to a terminal in machine-readable JSON form.
 type StateLockerJSON struct {
-	view *View
+	output *os.File
 }
+
+var _ StateLocker = (*StateLockerJSON)(nil)
 
 func (v *StateLockerJSON) Locking() {
 	current_timestamp := time.Now().Format(time.RFC3339)
@@ -66,7 +91,7 @@ func (v *StateLockerJSON) Locking() {
 		"type":       "state_lock_acquire"}
 
 	lock_info_message, _ := json.Marshal(json_data)
-	v.view.streams.Println(string(lock_info_message))
+	fmt.Fprintln(v.output, string(lock_info_message))
 }
 
 func (v *StateLockerJSON) Unlocking() {
@@ -80,5 +105,5 @@ func (v *StateLockerJSON) Unlocking() {
 		"type":       "state_lock_release"}
 
 	lock_info_message, _ := json.Marshal(json_data)
-	v.view.streams.Println(string(lock_info_message))
+	fmt.Fprintln(v.output, string(lock_info_message))
 }

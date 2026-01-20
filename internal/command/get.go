@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -30,6 +31,7 @@ func (c *GetCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
+	cmdFlags.StringVar(&c.outputJSONInto, "json-into", "", "json-into")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -40,9 +42,31 @@ func (c *GetCommand) Run(args []string) int {
 		c.Meta.Color = false
 		c.oldUi = c.Ui
 		c.Ui = &WrappedUi{
-			cliUi:        c.oldUi,
-			jsonView:     views.NewJSONView(c.View),
-			outputInJSON: true,
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, nil),
+			onlyOutputInJSON: true,
+		}
+	}
+
+	if c.outputJSONInto != "" {
+		if c.outputInJSON {
+			// Not a valid combination
+			c.Ui.Error("The -json and -json-into options are mutually-exclusive in their use")
+			return 1
+		}
+
+		out, closer, diags := arguments.OpenJSONIntoFile(c.outputJSONInto)
+		defer closer()
+		if diags.HasErrors() {
+			c.Ui.Error(diags.Err().Error())
+			return 1
+		}
+
+		c.oldUi = c.Ui
+		c.Ui = &WrappedUi{
+			cliUi:            c.oldUi,
+			jsonView:         views.NewJSONView(c.View, out),
+			onlyOutputInJSON: false,
 		}
 	}
 
@@ -97,6 +121,11 @@ Options:
   -json                 Produce output in a machine-readable JSON format, 
                         suitable for use in text editor integrations and other 
                         automated systems. Always disables color.
+
+  -json-into=out.json   Produce the same output as -json, but sent directly
+                        to the given file. This allows automation to preserve
+                        the original human-readable output streams, while
+                        capturing more detailed logs for machine analysis.
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than

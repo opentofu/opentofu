@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -30,16 +31,40 @@ type Output interface {
 }
 
 // NewOutput returns an initialized Output implementation for the given ViewType.
-func NewOutput(vt arguments.ViewType, view *View) Output {
-	switch vt {
+func NewOutput(args arguments.ViewOptions, view *View) Output {
+	var output Output
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &OutputJSON{view: view}
+		output = &OutputJSON{view: view, output: view.streams.Stdout.File}
 	case arguments.ViewRaw:
-		return &OutputRaw{view: view}
+		output = &OutputRaw{view: view}
 	case arguments.ViewHuman:
-		return &OutputHuman{view: view}
+		output = &OutputHuman{view: view}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		output = &OutputMulti{output, &OutputJSON{view: view, output: args.JSONInto}}
+	}
+	return output
+}
+
+type OutputMulti []Output
+
+var _ Output = (OutputMulti)(nil)
+
+func (m OutputMulti) Output(name string, outputs map[string]*states.OutputValue) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, o := range m {
+		diags = diags.Append(o.Output(name, outputs))
+	}
+	return diags
+}
+
+func (m OutputMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, o := range m {
+		o.Diagnostics(diags)
 	}
 }
 
@@ -186,7 +211,8 @@ func (v *OutputRaw) Diagnostics(diags tfdiags.Diagnostics) {
 // the result is a JSON object with keys matching the output names and object
 // values including type and sensitivity metadata.
 type OutputJSON struct {
-	view *View
+	view   *View
+	output *os.File
 }
 
 var _ Output = (*OutputJSON)(nil)
@@ -208,7 +234,7 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 			return diags
 		}
 
-		v.view.streams.Println(string(jsonOutput))
+		fmt.Fprintln(v.output, string(jsonOutput))
 
 		return nil
 	}
@@ -252,7 +278,7 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 		return diags
 	}
 
-	v.view.streams.Println(string(jsonOutputs))
+	fmt.Fprintln(v.output, string(jsonOutputs))
 
 	return nil
 }

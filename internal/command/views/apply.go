@@ -29,23 +29,77 @@ type Apply interface {
 }
 
 // NewApply returns an initialized Apply implementation for the given ViewType.
-func NewApply(vt arguments.ViewType, destroy bool, view *View) Apply {
-	switch vt {
+func NewApply(args arguments.ViewOptions, destroy bool, view *View) Apply {
+	var apply Apply
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &ApplyJSON{
-			view:      NewJSONView(view),
+		apply = &ApplyJSON{
+			view:      NewJSONView(view, nil),
 			destroy:   destroy,
 			countHook: &countHook{},
 		}
 	case arguments.ViewHuman:
-		return &ApplyHuman{
+		apply = &ApplyHuman{
 			view:         view,
 			destroy:      destroy,
 			inAutomation: view.RunningInAutomation(),
 			countHook:    &countHook{},
 		}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		apply = ApplyMulti{apply, &ApplyJSON{
+			view:      NewJSONView(view, args.JSONInto),
+			destroy:   destroy,
+			countHook: &countHook{},
+		}}
+	}
+	return apply
+}
+
+type ApplyMulti []Apply
+
+var _ Apply = (ApplyMulti)(nil)
+
+func (m ApplyMulti) ResourceCount(stateOutPath string) {
+	for _, a := range m {
+		a.ResourceCount(stateOutPath)
+	}
+}
+
+func (m ApplyMulti) Outputs(outputValues map[string]*states.OutputValue) {
+	for _, a := range m {
+		a.Outputs(outputValues)
+	}
+}
+
+func (m ApplyMulti) Operation() Operation {
+	var operation OperationMulti
+	for _, a := range m {
+		operation = append(operation, a.Operation())
+	}
+	return operation
+}
+
+func (m ApplyMulti) Hooks() []tofu.Hook {
+	var hooks []tofu.Hook
+	for _, a := range m {
+		hooks = append(hooks, a.Hooks()...)
+	}
+	return hooks
+}
+
+func (m ApplyMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, a := range m {
+		a.Diagnostics(diags)
+	}
+}
+
+func (m ApplyMulti) HelpPrompt() {
+	for _, a := range m {
+		a.HelpPrompt()
 	}
 }
 
@@ -112,7 +166,7 @@ func (v *ApplyHuman) ResourceCount(stateOutPath string) {
 func (v *ApplyHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
 		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
-		NewOutput(arguments.ViewHuman, v.view).Output("", outputValues)
+		NewOutput(arguments.ViewOptions{ViewType: arguments.ViewHuman}, v.view).Output("", outputValues)
 	}
 }
 

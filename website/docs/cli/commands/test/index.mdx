@@ -105,6 +105,8 @@ tofu test -test-directory=extra-tests -filter=extra-tests/a.tftest.hcl
 * `-var-file=filename` Set multiple variables from the specified file. In addition to this file, OpenTofu automatically
   loads `terraform.tfvars` and `*.auto.tfvars`. Use this option multiple times to specify more than one file.
 * `-json` Change the output format to JSON.
+* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+  for simultaneous capture of both human readable and machine readable logs.
 * `-no-color` Disable colorized output in the command output.
 * `-verbose` Print the plan or state for each test run block as it executes.
 

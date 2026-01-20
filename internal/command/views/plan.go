@@ -23,19 +23,58 @@ type Plan interface {
 }
 
 // NewPlan returns an initialized Plan implementation for the given ViewType.
-func NewPlan(vt arguments.ViewType, view *View) Plan {
-	switch vt {
+func NewPlan(args arguments.ViewOptions, view *View) Plan {
+	var plan Plan
+	switch args.ViewType {
 	case arguments.ViewJSON:
-		return &PlanJSON{
-			view: NewJSONView(view),
+		plan = &PlanJSON{
+			view: NewJSONView(view, nil),
 		}
 	case arguments.ViewHuman:
-		return &PlanHuman{
+		plan = &PlanHuman{
 			view:         view,
 			inAutomation: view.RunningInAutomation(),
 		}
 	default:
-		panic(fmt.Sprintf("unknown view type %v", vt))
+		panic(fmt.Sprintf("unknown view type %v", args.ViewType))
+	}
+
+	if args.JSONInto != nil {
+		plan = PlanMulti{plan, &PlanJSON{view: NewJSONView(view, args.JSONInto)}}
+	}
+
+	return plan
+}
+
+type PlanMulti []Plan
+
+var _ Plan = (PlanMulti)(nil)
+
+func (m PlanMulti) Operation() Operation {
+	var operation OperationMulti
+	for _, plan := range m {
+		operation = append(operation, plan.Operation())
+	}
+	return operation
+}
+
+func (m PlanMulti) Hooks() []tofu.Hook {
+	var hooks []tofu.Hook
+	for _, plan := range m {
+		hooks = append(hooks, plan.Hooks()...)
+	}
+	return hooks
+}
+
+func (m PlanMulti) Diagnostics(diags tfdiags.Diagnostics) {
+	for _, plan := range m {
+		plan.Diagnostics(diags)
+	}
+}
+
+func (m PlanMulti) HelpPrompt() {
+	for _, plan := range m {
+		plan.HelpPrompt()
 	}
 }
 
