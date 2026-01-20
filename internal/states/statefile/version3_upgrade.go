@@ -329,10 +329,13 @@ func upgradeInstanceObjectV3ToV4(_ *resourceStateV2, isOld *instanceStateV2, ins
 		instKeyRaw = int(tk)
 	case addrs.StringKey:
 		instKeyRaw = string(tk)
-	case nil:
-		// NoKey, so instKeyRaw remains nil
 	default:
-		return nil, fmt.Errorf("unsupported instance key: %#v", instKey)
+		if instKey == addrs.NoKey {
+			// NoKey, so instKeyRaw remains nil,
+			// this is purposely left blank because it's a valid case.
+		} else {
+			return nil, fmt.Errorf("unsupported instance key: %#v", instKey)
+		}
 	}
 
 	var attributes map[string]string
