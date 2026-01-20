@@ -164,6 +164,8 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 		ConfigVal:        configVal,
 		Provider:         inst.Provider,
 		ProviderInstance: &providerInstAddr,
+		ResourceMode:     addr.Resource.Resource.Mode,
+		ResourceType:     addr.Resource.Resource.Type,
 	}, diags
 }
 
