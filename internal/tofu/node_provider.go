@@ -12,14 +12,13 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // traceAttrProviderAddress is a standardized trace span attribute name that we
@@ -127,13 +126,18 @@ func (n *NodeApplyableProvider) executeInstance(ctx context.Context, evalCtx Eva
 func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Validate provider configuration",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
-			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			traceattrs.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
 		),
 	)
 	defer span.End()
+
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
 
 	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, n.ProviderConfig())
 
@@ -193,13 +197,18 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Configure provider",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
-			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			traceattrs.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
 		),
 	)
 	defer span.End()
+
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
 
 	config := n.ProviderConfig()
 

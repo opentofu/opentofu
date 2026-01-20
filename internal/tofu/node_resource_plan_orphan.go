@@ -11,8 +11,6 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -20,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodePlannableResourceInstanceOrphan represents a resource that is "applyable":
@@ -63,10 +62,10 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
-			otelAttr.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+			traceattrs.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
 		),
 	)
 	defer span.End()
@@ -82,7 +81,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 			return diags
 		}
 		span.SetAttributes(
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 		)
 		diags = diags.Append(
 			n.managedResourceExecute(ctx, evalCtx),
@@ -188,29 +187,45 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 	var change *plans.ResourceInstanceChange
 	var planDiags tfdiags.Diagnostics
 
-	shouldForget := false
-	shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return diags
+	}
 
+	// We skip destroy for an orphaned resource instance in 2 cases:
+	// 1) Resource had lifecycle attribute destroy explicitly set to false (either in config or in state)
+	//    Config case in case of orphans only applies for multi-instance resources (count/for_each)
+	// 2) Removed block is declared to remove the resource from the state without it's destroy set to true
+	// For every other case, we should destroy the resource
+	// If the orphan instance has skip_destroy set in state, we skip destroying
+	shouldDestroy := !skipDestroy && !oldState.SkipDestroy
+
+	log.Printf("[TRACE] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan): shouldDestroy=%t (based on config)", n.Addr, shouldDestroy)
+	// Note that removed statements take precedence, since it is the latest intent the user declared
+	// As opposed to the lifecycle attribute, which was the previous intention declared on the orphaned resource
 	for _, rs := range n.RemoveStatements {
 		if rs.From.TargetContains(n.Addr) {
-			shouldForget = true
 			shouldDestroy = rs.Destroy
+			log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) removed block found, overriding shouldDestroy to %t", addr, shouldDestroy)
 		}
 	}
 
-	if shouldForget {
-		if shouldDestroy {
-			change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
-		} else {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
-			})
-			change = n.planForget(ctx, evalCtx, oldState, "")
-		}
-	} else {
+	if shouldDestroy {
 		change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
+	} else {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Resource will be removed from the state",
+			Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+		})
+		log.Printf("[DEBUG] NodePlannableResourceInstanceOrphan.managedResourceExecute: %s (orphan) planning forget instead of destroy", addr)
+		change = n.planForget(ctx, evalCtx, oldState, "")
+		if skipDestroy {
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
+		} else if oldState.SkipDestroy {
+			change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
+		}
 	}
 
 	diags = diags.Append(planDiags)
@@ -218,17 +233,20 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		return diags
 	}
 
-	// We might be able to offer an approximate reason for why we are
-	// planning to delete this object. (This is best-effort; we might
+	// In case we haven't already set a reason for the action,
+	// we might be able to offer an approximate reason for why we are
+	// planning a certain action for this object. (This is best-effort; we might
 	// sometimes not have a reason.)
-	change.ActionReason = n.deleteActionReason(evalCtx)
+	if change.ActionReason == plans.ResourceInstanceChangeNoReason {
+		change.ActionReason = n.deleteActionReason(evalCtx)
+	}
 
 	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.checkPreventDestroy(change))
+	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 	if diags.HasErrors() {
 		return diags
 	}

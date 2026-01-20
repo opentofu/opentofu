@@ -7,6 +7,7 @@ package providercache
 
 import (
 	"context"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -149,6 +150,142 @@ type InstallerEvents struct {
 // installer to send event notifications via the callbacks inside.
 func (e *InstallerEvents) OnContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctxInstallerEvents, e)
+}
+
+// Sync wraps the events in a single lock to allow consumers of the
+// InstallerEvents concept to not have to worry about race conditions
+// as these events may be emitted by multiple go-routines
+func (e *InstallerEvents) Sync() *InstallerEvents {
+	lock := sync.Mutex{}
+
+	return &InstallerEvents{
+		PendingProviders: func(reqs map[addrs.Provider]getproviders.VersionConstraints) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.PendingProviders != nil {
+				e.PendingProviders(reqs)
+			}
+		},
+		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version, inProviderCache bool) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.ProviderAlreadyInstalled != nil {
+				e.ProviderAlreadyInstalled(provider, selectedVersion, inProviderCache)
+			}
+		},
+		BuiltInProviderAvailable: func(provider addrs.Provider) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.BuiltInProviderAvailable != nil {
+				e.BuiltInProviderAvailable(provider)
+			}
+		},
+		BuiltInProviderFailure: func(provider addrs.Provider, err error) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.BuiltInProviderFailure != nil {
+				e.BuiltInProviderFailure(provider, err)
+			}
+		},
+		QueryPackagesBegin: func(provider addrs.Provider, versionConstraints getproviders.VersionConstraints, locked bool) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.QueryPackagesBegin != nil {
+				e.QueryPackagesBegin(provider, versionConstraints, locked)
+			}
+		},
+		QueryPackagesSuccess: func(provider addrs.Provider, selectedVersion getproviders.Version) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.QueryPackagesSuccess != nil {
+				e.QueryPackagesSuccess(provider, selectedVersion)
+			}
+		},
+		QueryPackagesFailure: func(provider addrs.Provider, err error) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.QueryPackagesFailure != nil {
+				e.QueryPackagesFailure(provider, err)
+			}
+		},
+		QueryPackagesWarning: func(provider addrs.Provider, warn []string) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.QueryPackagesWarning != nil {
+				e.QueryPackagesWarning(provider, warn)
+			}
+		},
+		LinkFromCacheBegin: func(provider addrs.Provider, version getproviders.Version, cacheRoot string) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.LinkFromCacheBegin != nil {
+				e.LinkFromCacheBegin(provider, version, cacheRoot)
+			}
+		},
+		LinkFromCacheSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.LinkFromCacheSuccess != nil {
+				e.LinkFromCacheSuccess(provider, version, localDir)
+			}
+		},
+		LinkFromCacheFailure: func(provider addrs.Provider, version getproviders.Version, err error) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.LinkFromCacheFailure != nil {
+				e.LinkFromCacheFailure(provider, version, err)
+			}
+		},
+		FetchPackageMeta: func(provider addrs.Provider, version getproviders.Version) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.FetchPackageMeta != nil {
+				e.FetchPackageMeta(provider, version)
+			}
+		},
+		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inProviderCache bool) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.FetchPackageBegin != nil {
+				e.FetchPackageBegin(provider, version, location, inProviderCache)
+			}
+		},
+		FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.FetchPackageSuccess != nil {
+				e.FetchPackageSuccess(provider, version, localDir, authResult)
+			}
+		},
+		FetchPackageFailure: func(provider addrs.Provider, version getproviders.Version, err error) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.FetchPackageFailure != nil {
+				e.FetchPackageFailure(provider, version, err)
+			}
+		},
+		CacheDirLockContended: func(cacheDir string) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.CacheDirLockContended != nil {
+				e.CacheDirLockContended(cacheDir)
+			}
+		},
+		ProvidersLockUpdated: func(provider addrs.Provider, version getproviders.Version, localHashes []getproviders.Hash, signedHashes []getproviders.Hash, priorHashes []getproviders.Hash) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.ProvidersLockUpdated != nil {
+				e.ProvidersLockUpdated(provider, version, localHashes, signedHashes, priorHashes)
+			}
+		},
+		ProvidersAuthenticated: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
+			lock.Lock()
+			defer lock.Unlock()
+			if e.ProvidersAuthenticated != nil {
+				e.ProvidersAuthenticated(authResults)
+			}
+		},
+	}
 }
 
 // installerEventsForContext looks on the given context for a registered

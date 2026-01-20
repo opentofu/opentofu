@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -29,6 +30,7 @@ type VersionCommand struct {
 type VersionOutput struct {
 	Version            string            `json:"terraform_version"`
 	Platform           string            `json:"platform"`
+	FIPS140Enabled     bool              `json:"fips140,omitempty"`
 	ProviderSelections map[string]string `json:"provider_selections"`
 }
 
@@ -108,6 +110,7 @@ func (c *VersionCommand) Run(args []string) int {
 			Version:            versionOutput,
 			Platform:           c.Platform.String(),
 			ProviderSelections: selectionsOutput,
+			FIPS140Enabled:     fips140.Enabled(),
 		}
 
 		jsonOutput, err := json.MarshalIndent(output, "", "  ")
@@ -120,6 +123,9 @@ func (c *VersionCommand) Run(args []string) int {
 	} else {
 		c.Ui.Output(versionString.String())
 		c.Ui.Output(fmt.Sprintf("on %s", c.Platform))
+		if fips140.Enabled() {
+			c.Ui.Output("running in FIPS 140-3 mode (not yet supported)")
+		}
 
 		if len(providerVersions) != 0 {
 			sort.Strings(providerVersions)

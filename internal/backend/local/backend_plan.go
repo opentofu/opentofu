@@ -28,6 +28,13 @@ func (b *Local) opPlan(
 	op *backend.Operation,
 	runningOp *backend.RunningOperation) {
 
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		b.opPlanWithExperimentalRuntime(stopCtx, cancelCtx, op, runningOp)
+		return
+	}
+
 	log.Printf("[INFO] backend/local: starting Plan operation")
 
 	var diags tfdiags.Diagnostics

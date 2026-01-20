@@ -45,8 +45,9 @@ func TestDirFromModule_registry(t *testing.T) {
 	hooks := &testInstallHooks{}
 
 	reg := registry.NewClient(t.Context(), nil, nil)
+	fetcher := getmodules.NewPackageFetcher(t.Context(), nil)
 	loader := configload.NewLoaderForTests(t)
-	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
+	diags := DirFromModule(t.Context(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, fetcher, hooks)
 	assertNoDiagnostics(t, diags)
 
 	v := version.Must(version.NewVersion("0.0.2"))

@@ -63,9 +63,12 @@ func TestMetadataFunctions_output(t *testing.T) {
 
 	// test that ignored functions are not part of the json
 	for _, v := range ignoredFunctions {
-		_, ok := got.Signatures[v]
-		if ok {
-			t.Fatalf("found ignored function %q inside output", v)
+		if _, ok := got.Signatures[v.Name]; ok {
+			t.Errorf("found ignored function %q inside output", v)
+		}
+		corePrefixed := v.String()
+		if _, ok := got.Signatures[corePrefixed]; ok {
+			t.Fatalf("found ignored function %q inside output", corePrefixed)
 		}
 	}
 }

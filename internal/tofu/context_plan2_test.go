@@ -3519,6 +3519,59 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 			}),
 		},
+		"from nested enabled-module multiple-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "parent" {
+						source        = "./parent"
+						child_enabled = true
+					}`,
+				"parent/main.tf": `
+					variable "child_enabled" {
+						type = bool
+					}
+
+					module "child" {
+						source   = "../child"
+						lifecycle {
+							enabled = var.child_enabled
+						}
+						grandchild1_enabled = true
+					}`,
+				"child/main.tf": `
+					variable "grandchild1_enabled" {
+						type = bool
+					}
+					variable "grandchild2_enabled" {
+						type    = bool
+						default = true
+					}
+					module "grandchild1" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild1_enabled
+						}
+					}
+					module "grandchild2" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild2_enabled
+						}
+					}
+					`,
+				"grandchild/main.tf": `resource "test_object" "a" {
+					count = 1
+				}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
 	}
 
 	p := simpleMockProvider()
@@ -5008,97 +5061,6 @@ func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	_, _, _, err := contextOptsForPlanViaFile(t, snap, plan)
 	if err != nil {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
-	}
-}
-
-func TestContext2Plan_providerDefersPlanning(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			resource "test" "test" {
-			}
-		`,
-	})
-
-	tests := []struct {
-		DeferralReason                  providers.DeferralReason
-		WantDiagSummary, WantDiagDetail string
-	}{
-		{
-			DeferralReason:  providers.DeferredBecauseProviderConfigUnknown,
-			WantDiagSummary: `Provider configuration is incomplete`,
-			WantDiagDetail: `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			DeferralReason:  providers.DeferredBecauseResourceConfigUnknown,
-			WantDiagSummary: `Resource configuration is incomplete`,
-			WantDiagDetail: `The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			// This one is currently a generic fallback message because it's
-			// unclear what this reason is intended to mean and no providers
-			// are using it yet at the time of writing.
-			DeferralReason:  providers.DeferredBecausePrereqAbsent,
-			WantDiagSummary: `Operation cannot be completed yet`,
-			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			// This special reason is the one we use if a provider returns
-			// a later-added reason that the current OpenTofu version doesn't
-			// know about.
-			DeferralReason:  providers.DeferredReasonUnknown,
-			WantDiagSummary: `Operation cannot be completed yet`,
-			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.DeferralReason.String(), func(t *testing.T) {
-			provider := &MockProvider{
-				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
-					ResourceTypes: map[string]providers.Schema{
-						"test": {
-							Block: &configschema.Block{},
-						},
-					},
-				},
-				PlanResourceChangeFn: func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-					var diags tfdiags.Diagnostics
-					diags = diags.Append(providers.NewDeferralDiagnostic(
-						test.DeferralReason,
-					))
-					return providers.PlanResourceChangeResponse{
-						Diagnostics: diags,
-					}
-				},
-			}
-			tofuCtx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
-					addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
-				},
-			})
-			_, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
-			if !diags.HasErrors() {
-				t.Fatal("plan succeeded; want an error")
-			}
-			if len(diags) != 1 {
-				t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(diags.ForRPC()))
-			}
-			desc := diags[0].Description()
-			if got, want := test.WantDiagSummary, desc.Summary; got != want {
-				t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
-			}
-			if got, want := test.WantDiagDetail, desc.Detail; got != want {
-				t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
-			}
-		})
 	}
 }
 
@@ -8531,111 +8493,6 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 	}
 }
 
-// TestContext2Plan_ephemeralResourceDeferred is testing that an ephemeral resource gets deferred
-// correctly:
-// * gets deferred when a dependency is having planned changes, so OpenEphemeralResource is not called.
-// * gets deferred when the response from OpenEphemeralResource is indicating so.
-func TestContext2Plan_ephemeralResourceDeferred(t *testing.T) {
-	// Ephemeral resource is deferred by opentofu itself, before calling OpenEphemeralResource. This is
-	// due to pending changes in the ephemeral's dependencies.
-	t.Run("before open", func(t *testing.T) {
-		m := testModuleInline(t, map[string]string{
-			"main.tf": `
-			resource "test_object" "testres" {
-			}
-			ephemeral "test_object" "testeph" {
-				depends_on = [
-					test_object.testres
-				]
-			}
-		`,
-		})
-
-		state := states.BuildState(func(s *states.SyncState) {})
-
-		p := simpleMockProvider()
-		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
-				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-			},
-		})
-		hook := &testHook{}
-		ctx.hooks = append(ctx.hooks, hook)
-
-		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-			Mode: plans.NormalMode,
-		})
-
-		if diags.HasErrors() {
-			t.Fatalf("unexpected errors: %s", diags.Err())
-		}
-
-		// last call should have been on the ephemeral defer
-		deferCall := hook.Calls[len(hook.Calls)-1]
-		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
-			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
-		}
-	})
-	// Ephemeral is deferred because of the defer reason returned from OpenEphemeralResource.
-	t.Run("from open", func(t *testing.T) {
-		m := testModuleInline(t, map[string]string{
-			"main.tf": `
-			resource "test_object" "testres" {
-				test_string = "test value"
-			}
-			ephemeral "test_object" "testeph" {
-				depends_on = [
-					test_object.testres
-				]
-			}
-		`,
-		})
-
-		addr := mustAbsResourceAddr("test_object.testres")
-		state := states.BuildState(func(s *states.SyncState) {
-			s.SetResourceInstanceCurrent(addr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
-				AttrsJSON: []byte(`{"test_string": "test value"}`),
-				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
-		})
-
-		p := simpleMockProvider()
-		p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
-			Result:   cty.Value{},
-			Deferred: &providers.EphemeralResourceDeferred{DeferralReason: providers.DeferredBecauseResourceConfigUnknown},
-		}
-		p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
-			cfg := req.Config.AsValueMap()
-			resp.PlannedState = cty.ObjectVal(cfg)
-			return resp
-		}
-		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
-				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-			},
-		})
-		hook := &testHook{}
-		ctx.hooks = append(ctx.hooks, hook)
-
-		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-			Mode: plans.NormalMode,
-		})
-
-		if diags.HasErrors() {
-			t.Fatalf("unexpected errors: %s", diags.Err())
-		}
-
-		if !p.OpenEphemeralResourceCalled {
-			t.Fatal("expected OpenEphemeralResource to be called but it was not")
-		}
-		// last call should have been on the ephemeral defer
-		deferCall := hook.Calls[len(hook.Calls)-1]
-		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
-			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
-		}
-	})
-}
-
 func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{
@@ -8815,6 +8672,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -8848,6 +8706,7 @@ ephemeral "test_ephemeral_resource" "a" {
 	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
 		"id":     cty.StringVal("id val"),
 		"secret": cty.StringVal("val"),
+		"input":  cty.NullVal(cty.String),
 	}), objTy)
 	if err != nil {
 		t.Fatalf("unexpected error creating after val: %s", err)
@@ -8948,5 +8807,60 @@ func featuresBlockTestSchema() *configschema.Block {
 				Nesting:  configschema.NestingList,
 			},
 		},
+	}
+}
+
+// TestContext2Plan_moduleDependsOnWithCheck is a regression test for
+// https://github.com/opentofu/opentofu/issues/3060
+// "Depending on a module with a check in it causes a dependency cycle"
+//
+// When module.dependent has depends_on = [module.base], and both modules
+// use a shared submodule containing a check block with a nested data source,
+// this should not cause a dependency cycle.
+func TestContext2Plan_moduleDependsOnWithCheck(t *testing.T) {
+	m := testModule(t, "plan-module-depends-on-check")
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {Block: &configschema.Block{}},
+			},
+			DataSources: map[string]providers.Schema{
+				"test_data_source": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {Type: cty.String, Computed: true},
+						},
+					},
+				},
+			},
+		},
+	}
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		return providers.ReadDataSourceResponse{
+			State: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("data-id"),
+			}),
+		}
+	}
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.EmptyObjectVal,
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	// The key assertion: planning should succeed without a cycle error.
+	// Before the fix, this would fail with:
+	// "Cycle: module.base.module.checker (close), module.dependent.module.checker (close), ..."
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }

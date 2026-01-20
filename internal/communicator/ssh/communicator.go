@@ -48,7 +48,7 @@ var (
 	// enable ssh keepalive probes by default
 	keepAliveInterval = 2 * time.Second
 
-	// max time to wait for for a KeepAlive response before considering the
+	// max time to wait for a KeepAlive response before considering the
 	// connection to be dead.
 	maxKeepAliveDelay = 120 * time.Second
 )

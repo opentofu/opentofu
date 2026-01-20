@@ -20,11 +20,13 @@ test-with-coverage:
 test:
 	go test -v ./...
 
+EXT := $(shell go env GOEXE)
+
 # build tofu binary in the current directory with the version set to the git tag
 # or commit hash if there is no tag.
 .PHONY: build
 build:
-	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o tofu ./cmd/tofu
+	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o tofu$(EXT) ./cmd/tofu
 
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with
@@ -42,12 +44,14 @@ generate:
 # versions of protoc and the protoc Go plugins.
 .PHONY: protobuf
 protobuf:
-	go run ./tools/protobuf-compile .
+	go tool protobuf-compile .
 
-# Golangci-lint
+# Golangci-lint is installed first and then run twice to cover all platforms.
 .PHONY: golangci-lint
 golangci-lint:
-	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0 run --timeout 60m ./...
+	GOBIN=$(PWD)/tools go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0
+	GOOS=windows tools/golangci-lint${EXT} run --timeout 60m ./...
+	GOOS=linux tools/golangci-lint${EXT} run --timeout 60m ./...
 
 # Run license check
 .PHONY: license-check

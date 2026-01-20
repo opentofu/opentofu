@@ -14,12 +14,11 @@ import (
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
+
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
-	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // PackageHTTPURL is a provider package location accessible via HTTP.
@@ -53,8 +52,8 @@ func (p PackageHTTPURL) String() string { return p.URL }
 func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
 	url := meta.Location.String()
 
-	ctx, span := tracing.Tracer().Start(ctx, "Install (http)", trace.WithAttributes(
-		semconv.URLFull(url),
+	ctx, span := tracing.Tracer().Start(ctx, "Install (http)", tracing.SpanAttributes(
+		traceattrs.URLFull(url),
 	))
 	defer span.End()
 

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -23,12 +24,23 @@ import (
 type contextPlugins struct {
 	providerFactories    map[addrs.Provider]providers.Factory
 	provisionerFactories map[string]provisioners.Factory
+
+	providerSchemasLock    sync.Mutex
+	providerSchemas        map[addrs.Provider]providerSchemaEntry
+	provisionerSchemasLock sync.Mutex
+	provisionerSchemas     map[string]provisionerSchemaEntry
 }
+
+type providerSchemaEntry func() (providers.ProviderSchema, error)
+type provisionerSchemaEntry func() (*configschema.Block, error)
 
 func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
 	return &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
+
+		providerSchemas:    map[addrs.Provider]providerSchemaEntry{},
+		provisionerSchemas: map[string]provisionerSchemaEntry{},
 	}
 }
 
@@ -68,72 +80,30 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 // to repeatedly call this method with the same address if various different
 // parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provider) (providers.ProviderSchema, error) {
-	// Check the global schema cache first.
-	// This cache is only written by the provider client, and transparently
-	// used by GetProviderSchema, but we check it here because at this point we
-	// may be able to avoid spinning up the provider instance at all.
-	//
-	// It's worth noting that ServerCapabilities.GetProviderSchemaOptional is ignored here.
-	// That is because we're checking *prior* to the provider's instantiation.
-	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
-	// then we need to run the get schema call at least once.
-	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
-	schemas, ok := providers.SchemaCache.Get(addr)
-	if ok {
-		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
-		return schemas, nil
-	}
+	// Coarse lock only for ensuring that a valid entry exists
+	cp.providerSchemasLock.Lock()
+	entry, ok := cp.providerSchemas[addr]
+	if !ok {
+		entry = sync.OnceValues(func() (providers.ProviderSchema, error) {
+			log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
+			provider, err := cp.NewProviderInstance(addr)
+			if err != nil {
+				return providers.ProviderSchema{}, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
+			}
+			defer provider.Close(ctx)
 
-	log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
-	provider, err := cp.NewProviderInstance(addr)
-	if err != nil {
-		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
+			schema := provider.GetProviderSchema(ctx)
+			return schema, schema.Validate(addr)
+		})
+		cp.providerSchemas[addr] = entry
 	}
-	defer provider.Close(ctx)
+	// This lock is only for access to the map. We don't need to hold the lock when calling
+	// "entry" because [sync.OnceValues] handles synchronization itself.
+	// We don't defer unlock as the majority of the work of this function happens in calling "entry"
+	// and we want to release as soon as possible for multiple concurrent callers of different providers
+	cp.providerSchemasLock.Unlock()
 
-	resp := provider.GetProviderSchema(ctx)
-	if resp.Diagnostics.HasErrors() {
-		return resp, fmt.Errorf("failed to retrieve schema from provider %q: %w", addr, resp.Diagnostics.Err())
-	}
-
-	if resp.Provider.Version < 0 {
-		// We're not using the version numbers here yet, but we'll check
-		// for validity anyway in case we start using them in future.
-		return resp, fmt.Errorf("provider %s has invalid negative schema version for its configuration blocks,which is a bug in the provider ", addr)
-	}
-
-	for t, r := range resp.ResourceTypes {
-		if err := r.Block.InternalValidate(); err != nil {
-			return resp, fmt.Errorf("provider %s has invalid schema for managed resource type %q, which is a bug in the provider: %w", addr, t, err)
-		}
-		if r.Version < 0 {
-			return resp, fmt.Errorf("provider %s has invalid negative schema version for managed resource type %q, which is a bug in the provider", addr, t)
-		}
-	}
-
-	for t, d := range resp.DataSources {
-		if err := d.Block.InternalValidate(); err != nil {
-			return resp, fmt.Errorf("provider %s has invalid schema for data resource type %q, which is a bug in the provider: %w", addr, t, err)
-		}
-		if d.Version < 0 {
-			// We're not using the version numbers here yet, but we'll check
-			// for validity anyway in case we start using them in future.
-			return resp, fmt.Errorf("provider %s has invalid negative schema version for data resource type %q, which is a bug in the provider", addr, t)
-		}
-	}
-
-	for t, d := range resp.EphemeralResources {
-		if err := d.Block.InternalValidate(); err != nil {
-			return resp, fmt.Errorf("provider %s has invalid schema for ephemeral resource type %q, which is a bug in the provider: %w", addr, t, err)
-		}
-		if d.Version < 0 {
-			// We're not using the version numbers here yet, but we'll check
-			// for validity anyway in case we start using them in future.
-			return resp, fmt.Errorf("provider %s has invalid negative schema version for ephemeral resource type %q, which is a bug in the provider", addr, t)
-		}
-	}
-
-	return resp, nil
+	return entry()
 }
 
 // ProviderConfigSchema is a helper wrapper around ProviderSchema which first
@@ -176,18 +146,32 @@ func (cp *contextPlugins) ResourceTypeSchema(ctx context.Context, providerAddr a
 // ProvisionerSchema memoizes results by provisioner type name, so it's fine
 // to repeatedly call this method with the same name if various different
 // parts of OpenTofu all need the same schema information.
-func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, error) {
-	log.Printf("[TRACE] tofu.contextPlugins: Initializing provisioner %q to read its schema", typ)
-	provisioner, err := cp.NewProvisionerInstance(typ)
-	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)
-	}
-	defer provisioner.Close()
+func (cp *contextPlugins) ProvisionerSchema(addr string) (*configschema.Block, error) {
+	// Coarse lock only for ensuring that a valid entry exists
+	cp.provisionerSchemasLock.Lock()
+	entry, ok := cp.provisionerSchemas[addr]
+	if !ok {
+		entry = sync.OnceValues(func() (*configschema.Block, error) {
+			log.Printf("[TRACE] tofu.contextPlugins: Initializing provisioner %q to read its schema", addr)
+			provisioner, err := cp.NewProvisionerInstance(addr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", addr, err)
+			}
+			defer provisioner.Close()
 
-	resp := provisioner.GetSchema()
-	if resp.Diagnostics.HasErrors() {
-		return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %w", typ, resp.Diagnostics.Err())
+			resp := provisioner.GetSchema()
+			if resp.Diagnostics.HasErrors() {
+				return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %w", addr, resp.Diagnostics.Err())
+			}
+			return resp.Provisioner, nil
+		})
+		cp.provisionerSchemas[addr] = entry
 	}
+	// This lock is only for access to the map. We don't need to hold the lock when calling
+	// "entry" because [sync.OnceValues] handles synchronization itself.
+	// We don't defer unlock as the majority of the work of this function happens in calling "entry"
+	// and we want to release as soon as possible for multiple concurrent callers of different provisioners
+	cp.provisionerSchemasLock.Unlock()
 
-	return resp.Provisioner, nil
+	return entry()
 }

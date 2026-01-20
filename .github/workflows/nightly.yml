@@ -24,6 +24,13 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      # Prepare the nightly version to be able to have it returned correctly when running `tofu --version`.
+      - name: Prepare version file
+        run: |
+          commit_created_at=`git show --no-patch --format=%cd --date=format:%Y%m%d%H%M%S ${GITHUB_SHA}`
+          short_commit=`git rev-parse --short=12 ${GITHUB_SHA}`
+          sed -i "s/-dev/-nightly${commit_created_at}-${short_commit}/" version/VERSION
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
         with:
@@ -35,6 +42,11 @@ jobs:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           RELEASE_FLAG_LATEST: "false"
           RELEASE_FLAG_PRERELEASE: "true"
+
+      # The step before goreleaser one updated version/VERSION to have it stored in the binary, but we want to bring the
+      # repo to a clean state now.
+      - name: Restore version
+        run: git restore version/VERSION
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

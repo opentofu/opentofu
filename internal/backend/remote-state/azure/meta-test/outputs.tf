@@ -1,7 +1,7 @@
 output "environment" {
   value     = <<-EOT
             export TF_AZURE_TEST_CLIENT_ID=${azuread_application.tf_test_application.client_id}
-            export TF_AZURE_TEST_SECRET=${azuread_application_password.pw.value}
+            export TF_AZURE_TEST_CLIENT_SECRET=${azuread_application_password.pw.value}
             export TF_AZURE_TEST_CERT_PATH=${local_file.cert.filename}
             export TF_AZURE_TEST_CERT_PASSWORD=${random_string.password.result}
             ${local.msi_extra_env_vars}

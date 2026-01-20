@@ -121,11 +121,11 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 	rootCtx := evalCtx.WithPath(addrs.RootModuleInstance)
 
 	if importTarget.Config.ForEach != nil {
-		const unknownsNotAllowed = false
+		const unknownsAllowed = true
 		const tupleAllowed = true
 
 		// The import target has a for_each attribute, so we need to expand it
-		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed, nil)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsAllowed, tupleAllowed, nil)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags
@@ -134,6 +134,9 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		// We are building an instances.RepetitionData based on each for_each key and val combination
 		var repetitions []instances.RepetitionData
 
+		if !forEachVal.IsKnown() {
+			return diags
+		}
 		it := forEachVal.ElementIterator()
 		for it.Next() {
 			k, v := it.Element()
@@ -144,12 +147,12 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		}
 
 		for _, keyData := range repetitions {
-			_, evalDiags = evaluateImportIdExpression(importTarget.Config.ID, evalCtx, keyData)
+			evalDiags = validateImportIdExpression(importTarget.Config.ID, rootCtx, keyData)
 			diags = diags.Append(evalDiags)
 		}
 	} else {
 		// The import target is singular, no need to expand
-		_, evalDiags := evaluateImportIdExpression(importTarget.Config.ID, evalCtx, EvalDataForNoInstanceKey)
+		evalDiags := validateImportIdExpression(importTarget.Config.ID, rootCtx, EvalDataForNoInstanceKey)
 		diags = diags.Append(evalDiags)
 	}
 

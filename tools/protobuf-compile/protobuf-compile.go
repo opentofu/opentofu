@@ -60,11 +60,16 @@ var protocSteps = []protocStep{
 		"internal/plans/internal/planproto",
 		[]string{"--go_out=.", "--go_opt=paths=source_relative", "planfile.proto"},
 	},
+	{
+		"opentofu_execgraph (execution graph serialization)",
+		"internal/engine/internal/execgraph/execgraphproto",
+		[]string{"--go_out=.", "--go_opt=paths=source_relative", "execgraph.proto"},
+	},
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("Usage: go run github.com/opentofu/opentofu/tools/protobuf-compile <basedir>")
+		log.Fatal("Usage: go tool protobuf-compile <basedir>")
 	}
 	baseDir := os.Args[1]
 	workDir := filepath.Join(baseDir, "tools/protobuf-compile/.workdir")

@@ -1,0 +1,148 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+edition = "2024";
+package opentofu_execgraph;
+
+// For OpenTofu's own parsing, the proto stub types go into an internal Go
+// package. The public API is in github.com/opentofu/opentofu/plans/planfile .
+option go_package = "github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto";
+
+// ExecutionGraph is the root message type for an execution graph file.
+//
+// Note that we expect execution graphs to be saved as part of a larger plan
+// file structure that should represent general metadata such as which OpenTofu
+// version a particular execution graph was created by. This message type and
+// its nested message types are focused only on representing the details of
+// the execution graph itself.
+message ExecutionGraph {
+    // The various "elements" of the graph.
+    //
+    // This current serialization should be thought of as a sequence of
+    // mutations that each add something new to the graph, where the available
+    // actions correspond to the methods of execgraph.Builder. Each message
+    // in the sequence therefore corresponds to a method called on an internal
+    // builder used to reconstruct the graph during unmarshaling.
+    //
+    // We use execgraph.Builder when reloading because that helps us to
+    // validate the graph data using the result type information produced by
+    // the builder method results, although a round-trip through this
+    // serialization only guarantees a functionally-equivalent graph, not an
+    // exactly-identical graph. (i.e. the internal slices used to represent
+    // the graph elements might be in a different order after round-tripping,
+    // and the text-based debug representation of the graph will reflect
+    // those changes even though the graph _topology_ should be identical.)
+    repeated Element elements = 1;
+
+    // Map from resource instance addresses to indices into the "elements"
+    // field, specifying which element produces the "final state" result
+    // for each resource instance.
+    map<string, uint64> resource_instance_results = 2;
+}
+
+// One "element" of an execution graph. Refer to ExecutionGraph.elements for
+// more information.
+message Element {
+    // Each element has only one request field populated, which therefore
+    // implies the type of element to produce. These fields should all have
+    // identifiers less than 128 so that the discriminant encodes as just one
+    // byte in the protobuf wire format.
+    //
+    // The field types should all be as simple as possible to further shrink the
+    // size of their protobuf encoding. Don't worry about forward-compatibility,
+    // because a specific version of OpenTofu is only required to unmarshal
+    // execution graphs produced by itself: we can always make the
+    // representation of a specific request type more complicated in a later
+    // release if we need to.
+    //
+    // Where one request refers to the result of another request, the referrer
+    // must be serialized after what it refers to and refers back to the earlier
+    // result using a zero-based uint64 index into the ExecutionGraph.elements
+    // list. The fields representing such references conventionally have names
+    // ending in "_result". During unmarshaling the loader will verify that
+    // these references each refer to a result of the appropriate type, which
+    // should always be true for a serialization of any graph produced by
+    // execgraph.Builder that was not subsequently tampered with.
+    oneof request {
+        // A constant value, corresponding to execgraph.Builder.ConstantValue.
+        //
+        // The value is a MessagePack serialization of a cty.Value using
+        // cty.DynamicPseudoType as the serialization type constraint, and so
+        // this represents both the value and the value's dynamic type.
+        bytes constant_value = 1;
+
+        // A constant address for a provider type, corresponding to
+        // execgraph.Builder.ConstantProviderAddr.
+        //
+        // The value is a fully-qualified provider source address in the
+        // usual syntax, such as "registry.opentofu.org/hashicorp/aws".
+        string constant_provider_addr = 2;
+
+        // Request for information about a specific "desired" resource
+        // instance, corresponding to execgraph.Builder.DesiredResourceInstance.
+        //
+        // The value is a fully-qualified resource instance address in the
+        // syntax that addrs.AbsResourceInstance.String produces.
+        string desired_resource_instance = 3;
+
+        // Request for the prior state data for the current object for a
+        // specific resource instance, corresponding to
+        // execgraph.Builder.ResourceInstancePriorState.
+        //
+        // The value is a fully-qualified resource instance address in the
+        // syntax that addrs.AbsResourceInstance.String produces.
+        string resource_instance_prior_state = 4;
+
+        // Request for the state data for a specific deposed object of a
+        // specific resource instance, corresponding to
+        // execgraph.Builder.ResourceDeposedObjectState.
+        DeposedResourceInstanceObject resource_instance_deposed_object_state = 5;
+
+        // Request for the configuration value for a provider instance,
+        // corresponding to execgraph.Builder.ProviderInstanceConfig .
+        string provider_instance_config = 6;
+
+        // An operation to be performed during execution, corresponding to
+        // various different methods of execgraph.Builder depending on the
+        // opcode.
+        //
+        // The unmarshal code is responsible for figuring out which Builder
+        // method to call based on the opcode, handled as part of its validation
+        // logic.
+        Operation operation = 7;
+
+        // A collection of results whose completion an operation can depend
+        // on without actually making any use of the values they produce.
+        //
+        // We use this to represent explicit dependencies between resource
+        // instances and providers so that the execution order will respect
+        // the dependencies regardless of whether the dependencies were
+        // inferred automatically from expressions or declared explicitly
+        // using a "depends_on" argument.
+        Waiter waiter = 8;
+    }
+}
+
+message DeposedResourceInstanceObject {
+    // A fully-qualified resource instance address in the
+    // syntax that addrs.AbsResourceInstance.String produces.
+    string instance_addr = 1;
+    // The key of the requested deposed object associated with the
+    // resource instance.
+    string deposed_key = 2;
+}
+
+message Operation {
+    // The raw opcode of the operation to be performed.
+    uint64 opcode = 1;
+    // The result ids for all of the operands. The number of results and their
+    // meanings depend on the opcode, and are validated during unmarshaling.
+    repeated uint64 operands = 2;
+}
+
+message Waiter {
+    // Result ids of all of the results that must be awaited.
+    repeated uint64 results = 1;
+}

@@ -57,7 +57,7 @@ func (b *Block) Filter(filterAttribute FilterT[*Attribute], filterBlock FilterT[
 			ret.Attributes[name] = &attr
 		}
 
-		if attr.NestedType != nil {
+		if ret.Attributes[name] != nil && attr.NestedType != nil {
 			ret.Attributes[name].NestedType = filterNestedType((&attr).NestedType, filterAttribute)
 		}
 	}

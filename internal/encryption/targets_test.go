@@ -361,15 +361,70 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 				}
 				state {
 					# Correct format but referencing a non-existent method
-					method = method.aes_gcm.nonexistent
+					method = method.aes_gcm.nonexistent # this is interpolated strictly to verify that things work as expected with interpolation of methods in the state block
 					fallback {
 						method = method.unencrypted.for_migration
 					}
 				}
-			`,
+`,
 			wantErr: `Test Config Source:12,15-41: Reference to undeclared encryption method; There is no method "aes_gcm" "nonexistent" block declared in the encryption block.`,
 			wantMethods: []func(method.Method) bool{
 				unencrypted.Is,
+			},
+		},
+		// In https://github.com/opentofu/opentofu/issues/3482 was discovered that interpolation for
+		// target.method does not work, but only literal reference.
+		// This solves the inconsistencies between the way string expressions are evaluated for state.method vs method.keys.
+		"json-config-loads-state-method-interpolated": {
+			rawConfig: `{
+			  "key_provider": {
+				"static": {
+				  "basic": {
+					"key": "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				  }
+				}
+			  },
+			  "method": {
+				"aes_gcm": {
+				  "example": {
+					"keys": "${key_provider.static.basic}"
+				  }
+				}
+			  },
+			  "state": {
+				"enforced": true,
+				"method": "method.aes_gcm.example"
+			  }
+			}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"json-config-loads-state-method-not-interpolated": {
+			rawConfig: `{
+			  "key_provider": {
+				"static": {
+				  "basic": {
+					"key": "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				  }
+				}
+			  },
+			  "method": {
+				"aes_gcm": {
+				  "example": {
+					"keys": "key_provider.static.basic"
+				  }
+				}
+			  },
+			  "state": {
+				"enforced": true,
+				"method": "method.aes_gcm.example"
+			  }
+			}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
 			},
 		},
 	}

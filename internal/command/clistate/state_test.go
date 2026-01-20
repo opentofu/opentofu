@@ -6,6 +6,7 @@
 package clistate
 
 import (
+	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -26,5 +27,31 @@ func TestUnlock(t *testing.T) {
 		t.Log(diags.Err().Error())
 	} else {
 		t.Error("expected error")
+	}
+}
+
+// TestUnlockWithCancelledContext verifies that Unlock succeeds even when the
+// locker's context has been cancelled (e.g., due to SIGINT during apply).
+// This is a regression test for https://github.com/opentofu/opentofu/issues/3624
+func TestUnlockWithCancelledContext(t *testing.T) {
+	streams, _ := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
+
+	// Create a context that is already cancelled (simulates Ctrl+C)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	l := NewLocker(0, views.NewStateLocker(arguments.ViewHuman, view))
+	l = l.WithContext(ctx)
+
+	mgr := statemgr.NewFullFake(nil, nil)
+	l.Lock(mgr, "test-lock")
+
+	// Unlock should succeed despite the cancelled context,
+	// This test isn't super because it's using the fake state manager,
+	// but it acts as a canary for the regression.
+	diags := l.Unlock()
+	if diags.HasErrors() {
+		t.Errorf("Unlock failed with cancelled context: %s", diags.Err())
 	}
 }

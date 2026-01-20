@@ -53,6 +53,8 @@ type GraphNodeProvider interface {
 	GraphNodeModulePath
 	ProviderAddr() addrs.AbsProviderConfig
 	Name() string
+	// For test framework
+	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)
 }
 
 // GraphNodeCloseProvider is an interface that nodes that can be a close
@@ -77,6 +79,11 @@ type ResolvedProvider struct {
 	KeyModule      addrs.Module
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
+
+	// Test overrides
+	IsMocked          bool
+	MockResources     []*configs.MockResource
+	OverrideResources []*configs.OverrideResource
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -169,14 +176,18 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(ResolvedProvider{
+
+			resolved := ResolvedProvider{
 				ProviderConfig: target.ProviderAddr(),
 				// Pass through key data
 				KeyExpression: req.KeyExpression,
 				KeyModule:     req.KeyModule,
 				KeyResource:   req.KeyResource,
 				KeyExact:      req.KeyExact,
-			})
+			}
+			resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = target.MocksAndOverrides()
+			pv.SetProvider(resolved)
+
 			g.Connect(dag.BasicEdge(v, target))
 		case addrs.LocalProviderConfig:
 			// We assume that the value returned from Provider() has already been
@@ -243,6 +254,9 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 				}
 			}
 			resolved.ProviderConfig = target.ProviderAddr()
+
+			// Include test mocking and override extensions
+			resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = target.MocksAndOverrides()
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(resolved)
@@ -691,6 +705,10 @@ func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
 	default:
 		return n.target
 	}
+}
+
+func (n *graphNodeProxyProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
+	return n.Target().MocksAndOverrides()
 }
 
 // Find the *single* keyExpression that is used in the provider

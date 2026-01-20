@@ -125,6 +125,25 @@ A block representation contains "attributes" and "block_types" (which represent 
       // that the attribute's value must conform to.
       "type": "string",
 
+      // Some attributes use "nested_type" instead of "type",
+      // describing an object type or a collection of an object type
+      // in a similar way as for nested block types. This should take
+      // priority over "type" if both are present, but for most
+      // providers only one of the two attributes is returned.
+      "nested_type": {
+        // "nesting_mode" describes the nesting mode for the
+        // attribute value, with the same values as for
+        // the corresponding property in "block_types" below.
+        "nesting_mode": "list",
+
+        // "attributes" describes the attributes that are
+        // expected for each nested object, using the same
+        // structure as the top-level "attributes" property.
+        "attributes": {
+          // ...
+        }
+      },
+
       // "description" is an English-language description of
       // the purpose and usage of the attribute.
       "description": "string",

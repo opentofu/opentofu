@@ -36,7 +36,7 @@ for SERVICE in $SERVICES; do
     docker compose logs ${SERVICE}
     FAILED=$((${FAILED}+1))
   fi
-  cat $TEMPFILE | grep -a -E "^[a-zA-Z]+-${SERVICE}-1\s+\| " | sed -E "s/^[a-zA-Z]+-${SERVICE}-1\s+\| //"
+  cat $TEMPFILE | grep -a -E "^${SERVICE}-1\s+\| " | sed -E "s/^${SERVICE}-1\s+\| //"
   echo "::endgroup::"
 done
 

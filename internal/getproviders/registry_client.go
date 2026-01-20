@@ -20,9 +20,6 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/svcauth"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -67,8 +64,8 @@ func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.Host
 func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provider) (map[string][]string, []string, error) {
 	ctx, span := tracing.Tracer().Start(ctx,
 		"List Versions",
-		trace.WithAttributes(
-			otelAttr.String(traceattrs.ProviderAddress, addr.String()),
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuProviderAddress(addr.String()),
 		),
 	)
 	defer span.End()
@@ -79,7 +76,7 @@ func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provid
 		return nil, nil, err
 	}
 	endpointURL := c.baseURL.ResolveReference(endpointPath)
-	span.SetAttributes(semconv.URLFull(endpointURL.String()))
+	span.SetAttributes(traceattrs.URLFull(endpointURL.String()))
 	req, err := retryablehttp.NewRequest("GET", endpointURL.String(), nil)
 	if err != nil {
 		return nil, nil, err
@@ -167,9 +164,9 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	))
 	ctx, span := tracing.Tracer().Start(ctx,
 		"Fetch metadata",
-		trace.WithAttributes(
-			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
-			otelAttr.String(traceattrs.ProviderVersion, version.String()),
+		tracing.SpanAttributes(
+			traceattrs.OpenTofuProviderAddress(provider.String()),
+			traceattrs.OpenTofuProviderVersion(version.String()),
 		))
 	defer span.End()
 
@@ -180,7 +177,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 	endpointURL := c.baseURL.ResolveReference(endpointPath)
 	span.SetAttributes(
-		semconv.URLFull(endpointURL.String()),
+		traceattrs.URLFull(endpointURL.String()),
 	)
 
 	req, err := retryablehttp.NewRequest("GET", endpointURL.String(), nil)

@@ -187,23 +187,44 @@ func deleteBlobsManually(t *testing.T, authCred azcore.TokenCredential, storageA
 	}
 }
 
+// destroyTestResources is called before checking the errors for createTestResources.
+// Since createTestResources can fail in multiple points, we must call this function
+// regardless of where it has failed, so that it can clean up the resources.
 func destroyTestResources(t *testing.T, resourceGroupClient *armresources.ResourceGroupsClient, res resourceNames) {
+	// If createTestResources fails in the beginning, the resourceGroupClient will be nil,
+	// so we must check for that.
+	if resourceGroupClient == nil {
+		return
+	}
+
 	_, err := resourceGroupClient.BeginDelete(context.Background(), res.resourceGroup, nil)
 	if err != nil {
 		t.Fatalf("Error deleting Resource Group: %v", err)
 	}
 }
 
-func emptyAuthConfig() *auth.Config {
+// testAuthConfig returns an auth config with the environment variables set for the test environment.
+func testAuthConfig() *auth.Config {
 	return &auth.Config{
 		AzureCLIAuthConfig: auth.AzureCLIAuthConfig{
 			CLIAuthEnabled: true,
 		},
-		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{},
-		ClientCertificateAuthConfig:      auth.ClientCertificateAuthConfig{},
-		OIDCAuthConfig:                   auth.OIDCAuthConfig{},
-		MSIAuthConfig:                    auth.MSIAuthConfig{},
-		StorageAddresses:                 auth.StorageAddresses{},
-		WorkloadIdentityAuthConfig:       auth.WorkloadIdentityAuthConfig{},
+		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{
+			// These environment variables are named differently from the default
+			// ARM_CLIENT_ID and ARM_CLIENT_SECRET to avoid shadowing client credentials.
+			// An acceptance test may use a specific auth method, like `TestAccBackendManagedServiceIdentity`,
+			// so we don't want to conflict using the default name for client credentials,
+			// as set by the New method from the Azure backend.
+			ClientID:     os.Getenv("TF_AZURE_TEST_CLIENT_ID"),
+			ClientSecret: os.Getenv("TF_AZURE_TEST_CLIENT_SECRET"),
+		},
+		ClientCertificateAuthConfig: auth.ClientCertificateAuthConfig{},
+		OIDCAuthConfig:              auth.OIDCAuthConfig{},
+		MSIAuthConfig:               auth.MSIAuthConfig{},
+		StorageAddresses: auth.StorageAddresses{
+			SubscriptionID: os.Getenv("ARM_SUBSCRIPTION_ID"),
+			TenantID:       os.Getenv("ARM_TENANT_ID"),
+		},
+		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{},
 	}
 }

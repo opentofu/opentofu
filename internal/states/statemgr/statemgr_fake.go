@@ -95,7 +95,11 @@ func (m *fakeFull) Lock(_ context.Context, info *LockInfo) (string, error) {
 	return "placeholder", nil
 }
 
-func (m *fakeFull) Unlock(_ context.Context, id string) error {
+func (m *fakeFull) Unlock(ctx context.Context, id string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	m.lockLock.Lock()
 	defer m.lockLock.Unlock()
 

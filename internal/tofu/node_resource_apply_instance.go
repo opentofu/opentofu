@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"log"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -22,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodeApplyableResourceInstance represents a resource instance that is
@@ -126,8 +124,8 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNameApplyResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
 		),
 	)
 	defer span.End()
@@ -161,7 +159,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 	)
 
 	// Eval info is different depending on what kind of resource this is
@@ -214,7 +212,7 @@ func (n *NodeApplyableResourceInstance) ephemeralResourceExecute(ctx context.Con
 }
 
 func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -283,7 +281,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	var deposedKey states.DeposedKey
 
 	addr := n.ResourceInstanceAddr().Resource
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -483,6 +481,10 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(evalCtx EvalContext, 
 
 	if plannedChange.Action != actualChange.Action {
 		switch {
+		case plannedChange.Action == plans.ForgetThenCreate && actualChange.Action == plans.Create:
+			// This is an expected alteration of the action, since we are, first - forgetting the resource and then calling
+			// the diffApply plan, with no state for the resource, we are generating the Create action instead of ForgetThenCreate
+			log.Printf("[DEBUG] For apply the action ForgetThenCreate was changed to Create for resource %s", absAddr)
 		case plannedChange.Action == plans.Update && actualChange.Action == plans.NoOp:
 			// It's okay for an update to become a NoOp once we've filled in
 			// all of the unknown values, since the final values might actually

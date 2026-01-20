@@ -50,6 +50,8 @@ type ResourceInstanceObject struct {
 	// destroy operations, we need to record the status to ensure a resource
 	// removed from the config will still be destroyed in the same manner.
 	CreateBeforeDestroy bool
+
+	SkipDestroy bool
 }
 
 // ObjectStatus represents the status of a RemoteObject.
@@ -148,6 +150,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 		Status:                  o.Status,
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,
+		SkipDestroy:             o.SkipDestroy,
 	}, nil
 }
 

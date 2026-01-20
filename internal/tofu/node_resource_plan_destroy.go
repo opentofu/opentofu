@@ -11,8 +11,7 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/dag"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -62,9 +61,9 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
 		),
 	)
 	defer span.End()
@@ -75,7 +74,7 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 	)
 
 	switch addr.Resource.Resource.Mode {
@@ -133,8 +132,24 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 		}
 	}
 
-	change, destroyPlanDiags := n.planDestroy(ctx, evalCtx, state, "")
-	diags = diags.Append(destroyPlanDiags)
+	var planDiags tfdiags.Diagnostics
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+	if skipDestroy {
+		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in configuration", addr)
+		change = n.planForget(ctx, evalCtx, state, "")
+		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInConfig
+	} else if state.SkipDestroy {
+		log.Printf("[DEBUG] NodePlanDestroyableResourceInstance.managedResourceExecute: %s planning forget instead of destroy due to lifecycle.destroy=false in state", addr)
+		change = n.planForget(ctx, evalCtx, state, "")
+		change.ActionReason = plans.ResourceInstanceForgotBecauseLifecycleDestroyInState
+	} else {
+		change, planDiags = n.planDestroy(ctx, evalCtx, state, "")
+	}
+	diags = diags.Append(planDiags)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -143,8 +158,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx context
 	if diags.HasErrors() {
 		return diags
 	}
-
-	diags = diags.Append(n.checkPreventDestroy(change))
+	diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 	return diags
 }
 

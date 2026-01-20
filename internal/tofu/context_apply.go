@@ -12,8 +12,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -21,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ApplyOpts are the various options that affect the details of how OpenTofu
@@ -38,6 +37,10 @@ type ApplyOpts struct {
 	// in Context#mergePlanAndApplyVariables, the merging of this with the plan variable values
 	// follows the same logic and rules of the validation mentioned above.
 	SetVariables InputValues
+
+	// SuppressForgetErrorsDuringDestroy suppresses the error that would otherwise
+	// be raised when a destroy operation completes with forgotten instances remaining.
+	SuppressForgetErrorsDuringDestroy bool
 }
 
 // Apply performs the actions described by the given Plan object and returns
@@ -57,8 +60,8 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Apply phase",
-		otelTrace.WithAttributes(
-			otelAttr.String("opentofu.plan.mode", plan.UIMode.UIName()),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.plan.mode", plan.UIMode.UIName()),
 		),
 	)
 	defer span.End()
@@ -71,6 +74,8 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		))
 		return nil, diags
 	}
+
+	var forgetCount int
 
 	for _, rc := range plan.Changes.Resources {
 		// Import is a no-op change during an apply (all the real action happens during the plan) but we'd
@@ -92,6 +97,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 		// Following the same logic, we want to show helpful output for forget operations as well.
 		if rc.Action == plans.Forget {
+			forgetCount++
 			for _, h := range c.hooks {
 				_, err := h.PreApplyForget(rc.Addr)
 				if err != nil {
@@ -142,6 +148,22 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		// unconditionally here, but we historically didn't and haven't yet
 		// verified that it'd be safe to do so.
 		newState.PruneResourceHusks()
+
+		// If this was a destroy operation, and everything else succeeded, but
+		// there are instances that were forgotten (not destroyed).
+		// Even though this was the intended outcome, some automations may depend on the success of destroy operation
+		// to indicate the complete removal of resources
+		if forgetCount > 0 {
+			suppressError := opts != nil && opts.SuppressForgetErrorsDuringDestroy
+			if !suppressError {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Destroy was successful but left behind forgotten instances",
+					`As requested, OpenTofu has not deleted some remote objects that are no longer managed by this configuration. Those objects continue to exist in their remote system and so may continue to incur charges. Refer to the original plan for more information.
+To suppress this error for the future 'destroy' runs, you can add the CLI flag "-suppress-forget-errors".`,
+				))
+			}
+		}
 	}
 
 	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {
@@ -220,7 +242,7 @@ func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *conf
 // use by the "tofu graph" command when asked to render an apply-time
 // graph.
 //
-// The result of this is intended only for rendering ot the user as a dot
+// The result of this is intended only for rendering to the user as a dot
 // graph, and so may change in future in order to make the result more useful
 // in that context, even if drifts away from the physical graph that OpenTofu
 // Core currently uses as an implementation detail of planning.

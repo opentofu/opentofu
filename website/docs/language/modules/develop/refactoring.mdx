@@ -299,7 +299,7 @@ For more examples of recording moves associated with instances, refer to
 the similar section
 [Enabling `count` and `for_each` For a Resource](#enabling-count-or-for_each-for-a-resource).
 
-# Splitting One Module into Multiple
+## Splitting One Module into Multiple
 
 As a module grows to support new requirements, it might eventually grow big
 enough to warrant splitting into two separate modules.
@@ -452,11 +452,7 @@ both configurations with objects at `aws_instance.a` _and_ configurations with
 objects at `aws_instance.b`. In both cases, OpenTofu treats the existing
 object as if it had been originally created as `aws_instance.c`.
 
-## Module variables and outputs
-
-:::warning
-This feature is considered experimental and the final UX may change in the future.
-:::
+## Deprecating Module variables and outputs
 
 Refactoring module variables and outputs requires additional changes from module
 callers. To properly communicate variables and outputs deprecation, module

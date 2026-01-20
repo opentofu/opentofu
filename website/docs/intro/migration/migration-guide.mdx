@@ -1,0 +1,107 @@
+---
+sidebar_position: 1
+sidebar_label: Migration Guide
+description: |-
+  Step-by-step guide for migrating from Terraform to OpenTofu.
+---
+
+# Migration Guide
+
+This guide walks you through migrating from Terraform to OpenTofu. It is designed to be safe and reversible, allowing you to test OpenTofu without disrupting your existing infrastructure.
+
+## Prerequisites
+
+- An existing Terraform configuration
+- Access to your Terraform state files
+- Ability to run both `terraform` and `tofu` commands during the migration
+
+## Step 1: Back up your infrastructure
+
+Before starting the migration, create backups of:
+
+1. **Your Terraform state files**
+   - For local state: Copy your `terraform.tfstate` and `terraform.tfstate_backup` files
+   - For remote state: Follow your backend's backup procedures (e.g., S3 versioning, snapshot your state bucket)
+
+2. **Your Terraform configuration files**
+   - Commit all changes to version control
+   - Consider creating a migration branch
+
+## Step 2: Install OpenTofu
+
+Follow the [installation guide](/docs/intro/install) to install OpenTofu on your system. Verify the installation:
+
+```bash
+tofu --version
+```
+
+## Step 3: Initialize OpenTofu
+
+In your Terraform project directory, initialize OpenTofu:
+
+```bash
+tofu init
+```
+
+This command will:
+- Download required providers from the OpenTofu registry
+- Initialize your backend configuration
+- Prepare your working directory
+
+## Step 4: Verify your configuration
+
+Run a plan to ensure OpenTofu can read your state and configuration:
+
+```bash
+tofu plan
+```
+
+**Expected result**: You should see "No changes" or the same plan output you would see with Terraform.
+
+If you see unexpected changes:
+1. Do not apply the changes
+2. Investigate the differences
+3. Consider rolling back (see below)
+
+## Step 5: Apply with OpenTofu
+
+Once you've verified the plan shows no unexpected changes, run:
+
+```bash
+tofu apply
+```
+
+Even if there are no infrastructure changes, this ensures OpenTofu updates the state file format if needed.
+
+## Step 6: Test with a small change
+
+Make a small, non-critical change to your configuration (e.g., add a tag to a resource) and run:
+
+```bash
+tofu plan
+tofu apply
+```
+
+This verifies that OpenTofu can successfully manage your infrastructure going forward.
+
+## Rolling back to Terraform
+
+If you encounter issues during migration, you can safely roll back:
+
+1. **Stop using OpenTofu immediately**
+2. **Restore from your backups** (if any state changes were made)
+3. **Run Terraform commands**:
+   ```bash
+   terraform init
+   terraform plan
+   ```
+4. **Verify no unexpected changes** appear in the plan
+5. **Continue using Terraform** as before
+
+## Getting help
+
+If you encounter issues during migration:
+
+- Join the <a href="/slack/">OpenTofu Slack</a>
+- Ask on [GitHub Discussions](https://github.com/orgs/opentofu/discussions)
+- Report bugs on [GitHub Issues](https://github.com/opentofu/opentofu/issues)

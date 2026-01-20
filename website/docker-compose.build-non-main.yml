@@ -1,0 +1,18 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+# This file is meant to be used only in running the `website` GH workflow on non-main branches and PRs that are targeting non-main branches.
+# This is because the [blog/](https://github.com/opentofu/opentofu.org/tree/main/blog) content can point to documentation that is not available
+# in branches of lower versions of OpenTofu.
+services:
+  website:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../:/work/opentofu-repo/main
+    command: >
+      sh -c "sed -i 's#throw#warn#g' docusaurus.config.ts && npm run build"
+    restart: no

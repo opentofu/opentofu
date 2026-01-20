@@ -7,6 +7,7 @@ package collections
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 
 	"slices"
@@ -31,6 +32,16 @@ type Set[T comparable] map[T]struct{}
 func NewSet[T comparable](members ...T) Set[T] {
 	set := Set[T]{}
 	for _, member := range members {
+		set[member] = struct{}{}
+	}
+	return set
+}
+
+// CollectSet returns a new set containing all of the distinct values from
+// the given sequence.
+func CollectSet[T comparable](seq iter.Seq[T]) Set[T] {
+	set := Set[T]{}
+	for member := range seq {
 		set[member] = struct{}{}
 	}
 	return set
