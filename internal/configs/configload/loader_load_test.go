@@ -204,7 +204,7 @@ func TestLoaderLoadConfig_childProviderGrandchildCount(t *testing.T) {
 		if !diags.HasErrors() {
 			t.Fatalf("loading succeeded; want an error")
 		}
-		if got, want := diags.Error(), "Module is incompatible with count, for_each, and depends_on"; !strings.Contains(got, want) {
+		if got, want := diags.Error(), "Module is incompatible with count, for_each, enabled and depends_on"; !strings.Contains(got, want) {
 			t.Errorf("missing expected error\nwant substring: %s\ngot: %s", want, got)
 		}
 	})
