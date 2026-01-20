@@ -197,12 +197,11 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	configResult := b.providerInstanceConfigLocked(addrResult, waitFor)
-
 	// We only register one index for each distinct provider instance address.
 	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
 		return existing.Result, existing.CloseBlockerFunc
 	}
+	configResult := b.providerInstanceConfigLocked(addrResult, waitFor)
 	openResult := b.providerInstanceOpenLocked(configResult)
 	closeWait, registerCloseBlocker := b.makeCloseBlocker()
 	// Nothing actually depends on the result of the "close" operation, but
