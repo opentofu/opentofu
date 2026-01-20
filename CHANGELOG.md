@@ -19,7 +19,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
-- Change the validation of modules using provider config to not allow `enabled` configuration. ([#3680](https://github.com/opentofu/opentofu/pull/3680))
+- Modules containing local provider configurations now also reject the `enabled` argument, matching existing behavior for `count`, `for_each`, and `depends_on`. ([#3680](https://github.com/opentofu/opentofu/pull/3680))
 - Fixed state lock not being released when `tofu apply` is interrupted with Ctrl+C while using the HTTP backend. ([#3624](https://github.com/opentofu/opentofu/issues/3624))
 - Fixed dependency cycle error when a module with check blocks is referenced via `depends_on` by another module. ([#3060](https://github.com/opentofu/opentofu/issues/3060))
 - `for_each` inside `dynamic` blocks can now call provider-defined functions. ([#3429](https://github.com/opentofu/opentofu/issues/3429))
