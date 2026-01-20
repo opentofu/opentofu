@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"iter"
-	"strings"
 
 	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
@@ -148,6 +147,7 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			resolver := opResolvers[opIdx]
 			worker := workgraph.NewWorker(resolver)
 			ctx := grapheval.ContextWithWorker(parentCtx, worker)
+			trackWorkgraphRequest(ctx, opIdx, resolver.RequestID())
 			ret, ok, diags := mainExec(ctx)
 			// Resolving the promise might allow dependent operations to begin.
 			resolver.ReportSuccess(worker, nodeResultRaw{
@@ -234,7 +234,6 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 		// that the downstream operations that rely on these results will
 		// type-assert them dynamically as needed.
 		opResults := c.opResults
-		opResolvers := c.opResolvers
 		index := ref.operationResultIndex()
 		return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 			var diags tfdiags.Diagnostics
@@ -246,7 +245,7 @@ func (c *compiler) compileResultRef(ref AnyResultRef) nodeExecuteRaw {
 				// during the apply phase is always a bug in OpenTofu because
 				// we should've detected any user-caused problems during the
 				// planning phase.
-				diags = diags.Append(diagsForWorkgraphError(ctx, err, opResolvers))
+				diags = diags.Append(grapheval.DiagnosticsForWorkgraphError(ctx, err))
 				return nil, false, diags
 			}
 			return resultRaw.Value, resultRaw.CanContinue, resultRaw.Diagnostics
@@ -310,79 +309,4 @@ type nodeResultRaw struct {
 	Value       any
 	CanContinue bool
 	Diagnostics tfdiags.Diagnostics
-}
-
-func diagsForWorkgraphError(ctx context.Context, err error, operationResolvers []workgraph.Resolver[nodeResultRaw]) tfdiags.Diagnostics {
-	// findRequestName makes a best effort to describe the given workgraph request
-	// in terms of operations in the execution graph, though because all of
-	// these are "should never happen" cases this focuses mainly on providing
-	// information to help OpenTofu developers with debugging, rather than
-	// end-user-friendly information. (Any user-caused problems ought to have
-	// been detected during the planning phase, so any problem we encounter
-	// during apply is always an OpenTofu bug.)
-	//
-	// As usual we tolerate this being a pretty inefficient linear search
-	// over all of the requests we know about because we should only end up
-	// here when something has gone very wrong, and this approach avoids
-	// tracking a bunch of extra debug state in the happy path.
-	findRequestName := func(reqId workgraph.RequestID) string {
-		for opIdx, resolver := range operationResolvers {
-			if resolver.RequestID() == reqId {
-				return fmt.Sprintf("execution graph operation r[%d]", opIdx)
-			}
-		}
-		// If we fall out here then we presumably have a request ID from some
-		// other part of the system, such as from package configgraph. We
-		// might be able to get a useful description from a request tracker
-		// attached to the given context, if so.
-		// Note that we shouldn't really get here if the execution graph was
-		// constructed correctly because the "waiter" nodes used by anything
-		// that refers to the evaluator's oracle should block us from trying
-		// to retrieve something that isn't ready yet, but we'll attempt this
-		// anyway because if we get here then there's a bug somewhere by
-		// definition.
-		if reqTracker := grapheval.RequestTrackerFromContext(ctx); reqTracker != nil {
-			for candidate, info := range reqTracker.ActiveRequests() {
-				if candidate == reqId {
-					return info.Name
-				}
-			}
-		}
-		// If all of that failed then we'll just return a useless placeholder
-		// and hope that something else in the error message or debug log
-		// gives some clue as to what's going on.
-		return "<unknown>"
-	}
-
-	var diags tfdiags.Diagnostics
-	const summary = "Apply-time execution error"
-	switch err := err.(type) {
-	case workgraph.ErrSelfDependency:
-		var buf strings.Builder
-		buf.WriteString("While performing actions during the apply phase, OpenTofu detected a self-dependency cycle between the following:\n")
-		for _, reqId := range err.RequestIDs {
-			fmt.Fprintf(&buf, "  - %s\n", findRequestName(reqId))
-		}
-		buf.WriteString("\nThis is a bug in OpenTofu.")
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			summary,
-			buf.String(),
-		))
-	case workgraph.ErrUnresolved:
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			summary,
-			fmt.Sprintf("While performing actions during the apply phase, a request for %q was left unresolved. This is a bug in OpenTofu.", findRequestName(err.RequestID)),
-		))
-	default:
-		// We're not expecting any other error types here so we'll just
-		// return something generic.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			summary,
-			fmt.Sprintf("While performing actions during the apply phase, OpenTofu encountered an unexpected error: %s.\n\nThis is a bug in OpenTofu.", err),
-		))
-	}
-	return diags
 }
