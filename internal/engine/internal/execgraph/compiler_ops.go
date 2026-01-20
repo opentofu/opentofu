@@ -18,12 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// FIXME: The execution functions below are all currently intentionally very
-// chatty in the logs while we're in the early stages of working on this, but
-// if this ships "for real" we'll probably want to be more selective in what
-// we log so that we're only chattering in there when something has gone wrong
-// and we have something to share that might be useful for debugging it.
-
 func (c *compiler) compileOpProviderInstanceConfig(operands *compilerOperands) nodeExecuteRaw {
 	getAddr := nextOperand[addrs.AbsProviderInstanceCorrect](operands)
 	waitForDeps := operands.OperandWaiter()
@@ -36,18 +30,14 @@ func (c *compiler) compileOpProviderInstanceConfig(operands *compilerOperands) n
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opProviderInstanceConfig waiting for dependencies to complete")
 		if !waitForDeps(ctx) {
-			log.Printf("[TRACE] execgraph: opProviderInstanceConfig upstream dependency failed")
 			return nil, false, diags
 		}
 		addr, ok, moreDiags := getAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opProviderInstanceConfig failed to get provider instance address")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opProviderInstanceConfig ready to execute")
 
 		ret, moreDiags := ops.ProviderInstanceConfig(ctx, addr)
 		diags = diags.Append(moreDiags)
@@ -66,14 +56,11 @@ func (c *compiler) compileOpProviderInstanceOpen(operands *compilerOperands) nod
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opProviderInstanceOpen waiting for configuration value")
 		config, ok, moreDiags := getConfig(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opProviderInstanceOpen failed to get configuration value")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opProviderInstanceOpen ready to execute")
 
 		ret, moreDiags := ops.ProviderInstanceOpen(ctx, config)
 		diags = diags.Append(moreDiags)
@@ -93,16 +80,13 @@ func (c *compiler) compileOpProviderInstanceClose(operands *compilerOperands) no
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opProviderInstanceClose waiting for all provider users to finish")
 		// We intentionally ignore results here because we want to close the
 		// provider even if one of its users fails.
 		waitForUsers(ctx)
 
-		log.Printf("[TRACE] execgraph: opProviderInstanceClose waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opProviderInstanceClose failed to get provider client")
 			return nil, false, diags
 		}
 
@@ -124,20 +108,15 @@ func (c *compiler) compileOpResourceInstanceDesired(operands *compilerOperands) 
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opResourceInstanceDesired waiting for dependencies to complete")
 
 		if !waitForDeps(ctx) {
-			log.Printf("[TRACE] execgraph: opResourceInstanceDesired upstream dependency failed")
 			return nil, false, diags
 		}
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opResourceInstanceDesired failed to get resource instance address")
 			return nil, false, diags
 		}
-
-		log.Printf("[TRACE] execgraph: opResourceInstanceDesired ready to execute")
 
 		ret, moreDiags := ops.ResourceInstanceDesired(ctx, instAddr)
 		diags = diags.Append(moreDiags)
@@ -156,16 +135,12 @@ func (c *compiler) compileOpResourceInstancePrior(operands *compilerOperands) no
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opResourceInstancePrior waiting for dependencies to complete")
 
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opResourceInstancePrior failed to get resource instance address")
 			return nil, false, diags
 		}
-
-		log.Printf("[TRACE] execgraph: opResourceInstancePrior ready to execute")
 
 		ret, moreDiags := ops.ResourceInstancePrior(ctx, instAddr)
 		diags = diags.Append(moreDiags)
@@ -186,35 +161,26 @@ func (c *compiler) compileOpManagedFinalPlan(operands *compilerOperands) nodeExe
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedFinalPlan failed to get provider client")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan waiting for desired state")
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedFinalPlan failed to get desired state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan waiting for prior state")
 		prior, ok, moreDiags := getPrior(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedFinalPlan failed to get prior state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan waiting for initial planned state")
 		initialPlanned, ok, moreDiags := getInitialPlanned(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedFinalPlan failed to get planned state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan ready to execute")
 
 		ret, moreDiags := ops.ManagedFinalPlan(ctx, desired, prior, initialPlanned, providerClient)
 		diags = diags.Append(moreDiags)
@@ -235,32 +201,26 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opManagedApply waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedApply failed to get provider client")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedApply waiting for final plan")
 		finalPlan, ok, moreDiags := getFinalPlan(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedApply failed to get final plan")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedApply waiting for fallback value")
 		fallback, ok, moreDiags := getFallback(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedApply failed to get fallback value")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opManagedFinalPlan ready to execute")
 
 		ret, moreDiags := ops.ManagedApply(ctx, finalPlan, fallback, providerClient)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions if we produced a non-nil result
+		log.Printf("[WARN] opManagedApply doesn't yet handle postconditions")
 		return ret, !diags.HasErrors(), diags
 	}
 }
@@ -276,16 +236,12 @@ func (c *compiler) compileOpManagedDepose(operands *compilerOperands) nodeExecut
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opManagedDepose waiting for dependencies to complete")
 
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedDepose failed to get resource instance address")
 			return nil, false, diags
 		}
-
-		log.Printf("[TRACE] execgraph: opManagedDepose ready to execute")
 
 		ret, moreDiags := ops.ManagedDepose(ctx, instAddr)
 		diags = diags.Append(moreDiags)
@@ -305,22 +261,17 @@ func (c *compiler) compileOpManagedAlreadyDeposed(operands *compilerOperands) no
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
-		log.Printf("[TRACE] execgraph: opManagedAlreadyDeposed waiting for dependencies to complete")
 
 		instAddr, ok, moreDiags := getInstAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedAlreadyDeposed failed to get resource instance address")
 			return nil, false, diags
 		}
 		deposedKey, ok, moreDiags := getDeposedKey(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opManagedAlreadyDeposed failed to get deposed key")
 			return nil, false, diags
 		}
-
-		log.Printf("[TRACE] execgraph: opManagedAlreadyDeposed ready to execute")
 
 		ret, moreDiags := ops.ManagedAlreadyDeposed(ctx, instAddr, deposedKey)
 		diags = diags.Append(moreDiags)
@@ -340,32 +291,26 @@ func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw 
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		log.Printf("[TRACE] execgraph: opDataRead waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opDataRead failed to get provider client")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opDataRead waiting for desired state")
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opDataRead failed to get desired state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opDataRead waiting for initial planned state")
 		initialPlanned, ok, moreDiags := getInitialPlanned(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opDataRead failed to get planned state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opDataRead ready to execute")
 
 		ret, moreDiags := ops.DataRead(ctx, desired, initialPlanned, providerClient)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
+		log.Printf("[WARN] opDataRead doesn't yet handle postconditions")
 		return ret, !diags.HasErrors(), diags
 	}
 }
@@ -381,25 +326,21 @@ func (c *compiler) compileOpEphemeralOpen(operands *compilerOperands) nodeExecut
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		log.Printf("[TRACE] execgraph: opEphemeralOpen waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opEphemeralOpen failed to get provider client")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opEphemeralOpen waiting for desired state")
 		desired, ok, moreDiags := getDesired(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opEphemeralOpen failed to get desired state")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opEphemeralOpen ready to execute")
 
 		ret, moreDiags := ops.EphemeralOpen(ctx, desired, providerClient)
 		diags = diags.Append(moreDiags)
 		// TODO: Also call ops.ResourceInstancePostconditions
+		log.Printf("[WARN] opEphemeralOpen doesn't yet handle postconditions")
 		return ret, !diags.HasErrors(), diags
 	}
 }
@@ -415,21 +356,16 @@ func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecu
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		log.Printf("[TRACE] execgraph: opEphemeralClose waiting for provider client")
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opEphemeralClose failed to get provider client")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opEphemeralClose waiting for desired state")
 		object, ok, moreDiags := getObject(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
-			log.Printf("[TRACE] execgraph: opEphemeralClose failed to get object to close")
 			return nil, false, diags
 		}
-		log.Printf("[TRACE] execgraph: opEphemeralClose ready to execute")
 
 		moreDiags = ops.EphemeralClose(ctx, object, providerClient)
 		diags = diags.Append(moreDiags)
