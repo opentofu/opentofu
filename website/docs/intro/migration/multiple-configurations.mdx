@@ -25,7 +25,6 @@ Use this guide if:
 
 The `terraform_remote_state` data source allows one configuration to read outputs from another configuration's state file. This creates a dependency relationship between configurations.
 
-For more details, see the [terraform_remote_state documentation](/docs/language/state/remote-state-data.mdx)
 
 **Example:**
 
@@ -134,8 +133,6 @@ This compatibility pattern makes **bottom-up migration safe**:
 
 ### Migration order example
 
-For the complex dependency graph above, the safe migration order is:
-
 **Phase 1:** Migrate the leaf node (no dependents)
 ```
 G → (migrate first)
@@ -155,7 +152,6 @@ B, C, D → (migrate after F and E)
 ```
 A → (migrate last)
 ```
-
 ### Why top-down is risky
 
 If you migrate A first (top-down):
@@ -209,8 +205,7 @@ For each leaf configuration:
 ### Step 5: Verify dependencies still work
 
 After migrating a configuration, verify that:
-- Any configurations that depend on it (read its state) still work correctly
-- Run `terraform plan` (or `tofu plan` if already migrated) on dependent configs
+- Any configurations that depend on it still work correctly by running `terraform plan` (or `tofu plan` if already migrated) on those dependent configs
 - Confirm no unexpected changes appear
 
 ### Step 6: Continue up the dependency tree
@@ -251,9 +246,12 @@ The bottom-up approach makes rollback safer because:
 - Root configurations migrate last (after dependents are stable)
 
 ## Handling version differences
-Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8.x). 
 
-**Recommended approach:** Before migrating to OpenTofu, upgrade all configurations to the same Terraform version. This narrows down variables and makes troubleshooting easier if you encounter any issues during migration.
+Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8.x). This is fine:
+
+- **Migrate each configuration** according to its current Terraform version
+- **Follow version-specific guidance** as needed
+- **The bottom-up order remains the same** regardless of version differences
 
 ## Getting Help
 If you encounter issues during migration:
