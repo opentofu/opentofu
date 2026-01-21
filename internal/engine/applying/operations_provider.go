@@ -23,7 +23,7 @@ func (ops *execOperations) ProviderInstanceConfig(
 	ctx context.Context,
 	instAddr addrs.AbsProviderInstanceCorrect,
 ) (*exec.ProviderInstanceConfig, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ProviderInstanceConfig %s", instAddr)
+	log.Printf("[TRACE] apply phase: ProviderInstanceConfig %s", instAddr)
 	configVal, diags := ops.configOracle.ProviderInstanceConfig(ctx, instAddr)
 	if configVal == cty.NilVal {
 		configVal = cty.DynamicVal
@@ -42,7 +42,7 @@ func (ops *execOperations) ProviderInstanceOpen(
 	ctx context.Context,
 	config *exec.ProviderInstanceConfig,
 ) (*exec.ProviderClient, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ProviderInstanceOpen %s", config.InstanceAddr)
+	log.Printf("[TRACE] apply phase: ProviderInstanceOpen %s", config.InstanceAddr)
 	provider := config.InstanceAddr.Config.Config.Provider
 	realClient, diags := ops.plugins.NewConfiguredProvider(ctx, provider, config.ConfigVal)
 	if realClient == nil {
@@ -59,7 +59,7 @@ func (ops *execOperations) ProviderInstanceClose(
 	ctx context.Context,
 	client *exec.ProviderClient,
 ) tfdiags.Diagnostics {
-	log.Printf("[TRACE] applying: ProviderInstanceClose %s", client.InstanceAddr)
+	log.Printf("[TRACE] apply phase: ProviderInstanceClose %s", client.InstanceAddr)
 	var diags tfdiags.Diagnostics
 	err := client.Ops.Close(ctx)
 	if err != nil {

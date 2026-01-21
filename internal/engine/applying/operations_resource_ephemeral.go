@@ -20,7 +20,7 @@ func (ops *execOperations) EphemeralOpen(
 	desired *eval.DesiredResourceInstance,
 	providerClient *exec.ProviderClient,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: EphemeralOpen %s using %s", desired.Addr, providerClient.InstanceAddr)
+	log.Printf("[TRACE] apply phase: EphemeralOpen %s using %s", desired.Addr, providerClient.InstanceAddr)
 	panic("unimplemented")
 }
 
@@ -30,6 +30,6 @@ func (ops *execOperations) EphemeralClose(
 	object *exec.ResourceInstanceObject,
 	providerClient *exec.ProviderClient,
 ) tfdiags.Diagnostics {
-	log.Printf("[TRACE] applying: EphemeralClose %s using %s", object.InstanceAddr, providerClient.InstanceAddr)
+	log.Printf("[TRACE] apply phase: EphemeralClose %s using %s", object.InstanceAddr, providerClient.InstanceAddr)
 	panic("unimplemented")
 }

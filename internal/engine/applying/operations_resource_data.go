@@ -23,6 +23,6 @@ func (ops *execOperations) DataRead(
 	plannedVal cty.Value,
 	providerClient *exec.ProviderClient,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: DataRead %s using %s", desired.Addr, providerClient.InstanceAddr)
+	log.Printf("[TRACE] apply phase: DataRead %s using %s", desired.Addr, providerClient.InstanceAddr)
 	panic("unimplemented")
 }

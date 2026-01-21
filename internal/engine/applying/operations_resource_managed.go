@@ -52,13 +52,13 @@ func (ops *execOperations) ManagedFinalPlan(
 		// Both should not be nil but if they are then we'll treat it the same
 		// way as if we dynamically discover that no change is actually
 		// required, by returning a nil final plan to represent "noop".
-		log.Printf("[TRACE] applying: ManagedFinalPlan without either desired or prior state, so no change is needed")
+		log.Printf("[TRACE] apply phase: ManagedFinalPlan without either desired or prior state, so no change is needed")
 		return nil, diags
 	}
 	if deposedKey == states.NotDeposed {
-		log.Printf("[TRACE] applying: ManagedFinalPlan %s using %s", instAddr, providerClient.InstanceAddr)
+		log.Printf("[TRACE] apply phase: ManagedFinalPlan %s using %s", instAddr, providerClient.InstanceAddr)
 	} else {
-		log.Printf("[TRACE] applying: ManagedFinalPlan %s deposed object %s using %s", instAddr, deposedKey, providerClient.InstanceAddr)
+		log.Printf("[TRACE] apply phase: ManagedFinalPlan %s deposed object %s using %s", instAddr, deposedKey, providerClient.InstanceAddr)
 	}
 
 	// TODO: Find a good place to centralize a function for asking a provider
@@ -179,13 +179,13 @@ func (ops *execOperations) ManagedApply(
 		// possible for in-place updates when we learn that no change is
 		// actually needed, while fallback is only used for "create then
 		// destroy" replacement -- so we'll skip this for now and just do nothing.
-		log.Printf("[TRACE] applying: ManagedApply skipped because no change is needed")
+		log.Printf("[TRACE] apply phase: ManagedApply skipped because no change is needed")
 		return nil, diags
 	}
 	if plan.DeposedKey == states.NotDeposed {
-		log.Printf("[TRACE] applying: ManagedApply %s using %s", plan.InstanceAddr, providerClient.InstanceAddr)
+		log.Printf("[TRACE] apply phase: ManagedApply %s using %s", plan.InstanceAddr, providerClient.InstanceAddr)
 	} else {
-		log.Printf("[TRACE] applying: ManagedApply %s deposed object %s using %s", plan.InstanceAddr, plan.DeposedKey, providerClient.InstanceAddr)
+		log.Printf("[TRACE] apply phase: ManagedApply %s deposed object %s using %s", plan.InstanceAddr, plan.DeposedKey, providerClient.InstanceAddr)
 	}
 	if fallback != nil && plan.DeposedKey != states.NotDeposed {
 		// This should not happen: we can't have a fallback deposed object
@@ -313,7 +313,7 @@ func (ops *execOperations) ManagedDepose(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ManagedDepose %s", instAddr)
+	log.Printf("[TRACE] apply phase: ManagedDepose %s", instAddr)
 	var diags tfdiags.Diagnostics
 
 	deposedKey := ops.workingState.DeposeResourceInstanceObject(instAddr)
@@ -331,7 +331,7 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 	instAddr addrs.AbsResourceInstance,
 	deposedKey states.DeposedKey,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ManagedAlreadyDeposed %s deposed object %s", instAddr, deposedKey)
+	log.Printf("[TRACE] apply phase: ManagedAlreadyDeposed %s deposed object %s", instAddr, deposedKey)
 	// This is essentially the same as ResourceInstancePrior, but for deposed
 	// objects rather than "current" objects. Therefore we'll share most of the
 	// implementation between these two.
