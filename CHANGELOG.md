@@ -6,11 +6,17 @@ SECURITY ADVISORIES:
 
 * Previous releases in the v1.11 series could potentially take an excessive amount of time processing a maliciously-crafted `.zip` archive during either provider or module installation during `tofu init`. ([#3689](https://github.com/opentofu/opentofu/pull/3689))
 
+BREAKING CHANGES:
+
+* Modules containing local provider configurations now also reject the `enabled` argument, matching existing behavior for `count`, `for_each`, and `depends_on`. ([#3680](https://github.com/opentofu/opentofu/pull/3680))
+
+    This was an oversight in the original design of the enabled feature and was missed during the review process. Although our goal is to not introduce breaking changes in patch releases, in some cases it may be warranted. Anyone who has used the enabled feature in this particular way will have unintentionally introduced a foot-gun into their infrastructure and should remedy it post-haste.
+
 BUG FIXES:
 
 * In JSON syntax, the state encryption method configuration now allows specifying keys using both normal expression syntax and using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3654](https://github.com/opentofu/opentofu/issues/3654))
 * Providers are not configured anymore with `DeferralAllowed` capability of OpenTofu since having that created unwanted behaviour from some providers. ([#3676](https://github.com/opentofu/opentofu/pull/3676))
-* Resources containing write-only attributes now are rendered consistently during planning. ([#3667](https://github.com/opentofu/opentofu/pull/3667)) 
+* Resources containing write-only attributes now are rendered consistently during planning. ([#3667](https://github.com/opentofu/opentofu/pull/3667))
 
 ## 1.11.3
 
