@@ -22,7 +22,7 @@ func (ops *execOperations) ResourceInstanceDesired(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
 ) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ResourceInstanceDesired %s", instAddr)
+	log.Printf("[TRACE] apply phase: ResourceInstanceDesired %s", instAddr)
 	return ops.configOracle.DesiredResourceInstance(ctx, instAddr)
 }
 
@@ -31,7 +31,7 @@ func (ops *execOperations) ResourceInstancePrior(
 	ctx context.Context,
 	instAddr addrs.AbsResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] applying: ResourceInstancePrior %s", instAddr)
+	log.Printf("[TRACE] apply phase: ResourceInstancePrior %s", instAddr)
 	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, states.NotDeposed)
 }
 
@@ -40,7 +40,7 @@ func (ops *execOperations) ResourceInstancePostconditions(
 	ctx context.Context,
 	result *exec.ResourceInstanceObject,
 ) tfdiags.Diagnostics {
-	log.Printf("[TRACE] applying: ResourceInstancePostconditions (currently just a noop!)")
+	log.Printf("[TRACE] apply phase: ResourceInstancePostconditions (currently just a noop!)")
 	// TODO: Implement this by delegating to a special "run resource instance
 	// postconditions" method on ops.configOracle.
 	return nil
