@@ -209,8 +209,7 @@ For each leaf configuration:
 ### Step 5: Verify dependencies still work
 
 After migrating a configuration, verify that:
-- Any configurations that depend on it (read its state) still work correctly
-- Run `terraform plan` (or `tofu plan` if already migrated) on dependent configs
+- Any configurations that depend on it still work correctly by running `terraform plan` (or `tofu plan` if already migrated) on those dependent configs
 - Confirm no unexpected changes appear
 
 ### Step 6: Continue up the dependency tree
