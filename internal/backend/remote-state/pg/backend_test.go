@@ -112,19 +112,19 @@ func TestBackendConfig(t *testing.T) {
 				if _, err := db.Exec(query); err != nil {
 					return fmt.Errorf("failed to create schema during setup: %w", err)
 				}
-				quotedSchema := pq.QuoteIdentifier(schemaName)
-				query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", quotedSchema, sequenceName)
+				query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", publicSchema, sequenceName)
 				if _, err := db.Exec(query); err != nil {
 					return fmt.Errorf("failed to create sequence during setup: %w", err)
 				}
 
+				quotedSchema := pq.QuoteIdentifier(schemaName)
 				query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
 						id bigint NOT NULL DEFAULT nextval('%s.%s') PRIMARY KEY,
     					-- compared with the backend implementation, we skip the UNIQUE constraint from here on
     					-- purpose to test the separate unique index creation.
 						name text,
 						data text
-						)`, quotedSchema, pq.QuoteIdentifier(tableName), quotedSchema, sequenceName)
+						)`, quotedSchema, pq.QuoteIdentifier(tableName), publicSchema, sequenceName)
 
 				if _, err := db.Exec(query); err != nil {
 					return fmt.Errorf("failed to create table during setup: %w", err)
