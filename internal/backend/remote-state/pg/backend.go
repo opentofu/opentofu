@@ -9,14 +9,17 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 	"os"
 	"strconv"
+
+	"github.com/lib/pq"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
+
+const sequenceName = "global_states_id_seq"
 
 func defaultBoolFunc(k string, dv bool) schema.SchemaDefaultFunc {
 	return func() (interface{}, error) {
@@ -143,16 +146,17 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if !skipTableCreation {
-		query = "CREATE SEQUENCE IF NOT EXISTS public.global_states_id_seq AS bigint"
+		quotedSchema := pq.QuoteIdentifier(b.schemaName)
+		query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", quotedSchema, sequenceName)
 		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 
 		query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
-			id bigint NOT NULL DEFAULT nextval('public.global_states_id_seq') PRIMARY KEY,
+			id bigint NOT NULL DEFAULT nextval('%s.%s') PRIMARY KEY,
 			name text UNIQUE,
 			data text
-			)`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+			)`, quotedSchema, pq.QuoteIdentifier(b.tableName), quotedSchema, sequenceName)
 
 		if _, err = db.Exec(query); err != nil {
 			return err
