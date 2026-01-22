@@ -146,17 +146,19 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if !skipTableCreation {
-		quotedSchema := pq.QuoteIdentifier(b.schemaName)
-		query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", quotedSchema, sequenceName)
+		query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS public.%s AS bigint", sequenceName)
 		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 
+		// The `public` schema is required for the sequence because the pg_advisory_lock is a global locking
+		// relying on the ids of the states across the db instance.
+		// So in order for the locking to work relibly, the ids of the states should be globally unique.
 		query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
-			id bigint NOT NULL DEFAULT nextval('%s.%s') PRIMARY KEY,
+			id bigint NOT NULL DEFAULT nextval('public.%s') PRIMARY KEY,
 			name text UNIQUE,
 			data text
-			)`, quotedSchema, pq.QuoteIdentifier(b.tableName), quotedSchema, sequenceName)
+			)`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName), sequenceName)
 
 		if _, err = db.Exec(query); err != nil {
 			return err

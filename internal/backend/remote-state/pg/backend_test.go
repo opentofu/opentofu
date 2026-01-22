@@ -322,7 +322,7 @@ func TestBackendConfig(t *testing.T) {
 			if !skipTableCreation {
 				// Make sure that the sequence exists
 				seqQuery := `select count(*) from pg_catalog.pg_sequences where schemaname=$1 and sequencename=$2;`
-				if err := validateQueryCount(seqQuery, 1, schemaName, sequenceName); err != nil {
+				if err := validateQueryCount(seqQuery, 1, "public", sequenceName); err != nil {
 					t.Fatalf("The sequence %q has not been created in schema %q: %s", sequenceName, schemaName, err)
 				}
 				// Make sure that the table exists
