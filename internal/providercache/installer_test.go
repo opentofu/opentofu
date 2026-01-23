@@ -2692,6 +2692,47 @@ func TestEnsureProviderVersions_protocol_errors(t *testing.T) {
 	}
 }
 
+// TestRaceConditionOnLocks checks that there are no race conditions when the locks are updated.
+func TestRaceConditionOnLocks(t *testing.T) {
+	ctx := t.Context()
+	providerLocation := t.TempDir()
+	installerTarget := t.TempDir()
+	reqs := getproviders.Requirements{}
+	var mockedPkgs []getproviders.PackageMeta
+	for i := range 500 {
+		providerName := fmt.Sprintf("example%d", i)
+		provAddr := addrs.MustParseProviderSourceString(fmt.Sprintf("test/%s", providerName))
+		reqs[provAddr] = getproviders.MustParseVersionConstraints(">= 2.0.0")
+		mockedPkgs = append(mockedPkgs, getproviders.PackageMeta{
+			Provider:         provAddr,
+			Version:          versions.MustParseVersion("2.0.1"),
+			ProtocolVersions: nil,
+			TargetPlatform:   getproviders.CurrentPlatform,
+			Filename:         "",
+			Location:         getproviders.PackageLocalDir(providerLocation),
+			Authentication:   nil,
+		})
+		err := os.WriteFile(
+			filepath.Join(providerLocation, fmt.Sprintf("terraform-provider-%s", providerName)),
+			[]byte(fmt.Sprintf("binary content for provider %s", providerName)),
+			0644,
+		)
+		if err != nil {
+			t.Fatalf("failed to write the binary for terraform-provider-example: %s", err)
+		}
+	}
+
+	mockSrc := getproviders.NewMockSource(mockedPkgs, nil)
+	installer := NewInstaller(NewDir(installerTarget), mockSrc)
+	locks := depsfile.NewLocks()
+	_, err := installer.EnsureProviderVersions(ctx, locks, reqs, InstallNewProvidersForce)
+	if err != nil {
+		t.Fatalf("unexpected error from ensure provider versions")
+	}
+
+	// NOTE: No assertions since this test is meant to be executed during race detection to ensure proper locking.
+}
+
 // testServices starts up a local HTTP server running a fake provider registry
 // service and returns a service discovery object pre-configured to consider
 // the host "example.com" to be served by the fake registry service.
