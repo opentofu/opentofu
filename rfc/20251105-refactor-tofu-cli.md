@@ -17,6 +17,7 @@ Next, we would like to talk shortly about the main reasons of this RFC:
   * https://github.com/opentofu/opentofu/issues/3500
   * https://github.com/opentofu/opentofu/issues/2239
   * https://github.com/opentofu/opentofu/issues/3050 (maybe)
+  * https://github.com/opentofu/opentofu/issues/3044
 
 This RFC attempts to propose some approaches to rework this and will tackle different challenges that we might
 encounter in doing so.
@@ -29,6 +30,15 @@ to be mindful about:
   * The purpose of some changes are to postpone (defer) some of the logic that is today performed
     ahead of its actual purpose. Hence, there might be changes where some errors would be returned before others.
     But the important thing is that the errors must still be reported, even if the order is different.
+  * Today, because the `realMain` function performs some common initialisations, the general UX of OpenTofu
+    prompts the user right away about the issues with its environment (like invalid CLI configuration) which helps
+    with pin pointing from the get go issues that user can tackle right away.
+    Even though this is having the advantage of having "one central place" to validate basic environment configuration,
+    it might change in terms that the commands that act on nothing to do related to providers, config or state, might
+    not error on the wrong environment configuration of the user. This change should be adopted mostly for
+    the commands that are purely informative or acting on other resources (like `fmt`, `--version`, `metadata functions`).
+    The current behavior should be kept for any command that acts on critical parts of a user configuration like providers,
+    configuration, modules, state, etc.
 * The logic around flags parsing will change but **must keep the same validation logic**.
 * Because this RFC will not tackle CLI library swap (there's [#3541](https://github.com/opentofu/opentofu/pull/3541) for that),
   we will not target on changing much on that layer, but the main goal here is to add the necessary
@@ -126,6 +136,9 @@ The way flags are configured and parsed today (generally) includes the following
 > Before creating new structs to hold the functionality and the flags for a particular logic bit, first, should be checked
 > if the already existing implementation in [`command/arguments`](https://github.com/opentofu/opentofu/tree/cc8e86c99842f3ee943419a333bc996095834b0a/internal/command/arguments)
 > could be used moving forward.
+> 
+> If possible, we should build on that, that package responsibility being to do specifically the "validate" part of the 
+> points above.
 
 Since many `Meta` arguments are used as containers for flag values, we want to extract logically grouped
 flags in specific functional structs and implement in those structs the steps listed above.
@@ -197,6 +210,10 @@ dependencies between one another.
 >
 > This is suggested as such because we might be actually able to improve the startup performance if the refactor
 > will allow initialisation only of the components needed by each command.
+
+#### Meta backend
+The most complex and sensitive part of the `Meta` structure is the [backend implementation](https://github.com/opentofu/opentofu/blob/85de3d40fae67efb8cfe9020bba738433b49c409/internal/command/meta_backend.go#L95).
+TODO
 
 ## Open Questions
 * Is out there some context and quirks that we need to know about, like the order of execution of specific bits 
