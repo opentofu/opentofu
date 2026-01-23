@@ -472,6 +472,11 @@ func (i *Installer) ensureProviderVersionsInstall(
 	var updateLock sync.Mutex
 	var wg sync.WaitGroup
 
+	providerExistingLock := func(provider addrs.Provider) *depsfile.ProviderLock {
+		updateLock.Lock()
+		defer updateLock.Unlock()
+		return locks.Provider(provider)
+	}
 	for provider, version := range need {
 		wg.Go(func() {
 			traceCtx, span := tracing.Tracer().Start(ctx,
@@ -485,7 +490,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			defer span.End()
 
 			// Heavy lifting
-			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, locks.Provider(provider), mode, provider, version, targetPlatform)
+			authResult, newHashes, err := i.ensureProviderVersionInstalled(traceCtx, providerExistingLock(provider), mode, provider, version, targetPlatform)
 
 			// Update results
 			updateLock.Lock()
