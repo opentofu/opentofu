@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
+	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -56,7 +58,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
-	current, isOverridden := c.WorkspaceOverridden(ctx)
+	current, isOverridden := c.Workspace.WorkspaceOverridden(ctx)
 	if isOverridden {
 		c.Ui.Error(envIsOverriddenSelectError)
 		return 1
@@ -70,8 +72,9 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -84,7 +87,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	name := args[0]
-	if !validWorkspaceName(name) {
+	if !workspace.ValidWorkspaceName(name) {
 		c.Ui.Error(fmt.Sprintf(envInvalidName, name))
 		return 1
 	}
@@ -124,7 +127,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		}
 	}
 
-	err = c.SetWorkspace(name)
+	err = c.Workspace.SetWorkspace(name)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

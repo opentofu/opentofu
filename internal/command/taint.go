@@ -76,8 +76,9 @@ func (c *TaintCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -85,7 +86,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Determine the workspace name
-	workspace, err := c.Workspace(ctx)
+	workspace, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

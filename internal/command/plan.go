@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -137,10 +138,11 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 		return nil, diags
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	be, beDiags := c.Backend(ctx, &BackendOpts{
-		Config:      backendConfig,
-		ViewOptions: viewOptions,
+	be, beDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
+		Config:   backendConfig,
+		ViewType: viewOptions,
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 
 	"github.com/mitchellh/cli"
@@ -70,8 +71,9 @@ func (c *UnlockCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -83,7 +85,7 @@ func (c *UnlockCommand) Run(args []string) int {
 	// unlocking is read only when looking at state data
 	c.ignoreRemoteVersionConflict(b)
 
-	env, err := c.Workspace(ctx)
+	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

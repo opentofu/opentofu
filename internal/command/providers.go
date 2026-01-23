@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/xlab/treeprint"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -94,8 +95,9 @@ func (c *ProvidersCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -108,7 +110,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace(ctx)
+	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

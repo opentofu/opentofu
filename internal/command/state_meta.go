@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -38,13 +39,15 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 	if c.statePath != "" {
 		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
+
+		backendFlags := buildBackendFlags(c.Meta)
 		// Load the backend
-		b, backendDiags := c.Backend(ctx, nil, enc.State())
+		b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 		if backendDiags.HasErrors() {
 			return nil, backendDiags.Err()
 		}
 
-		workspace, err := c.Workspace(ctx)
+		workspace, err := c.Workspace.Workspace(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +66,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{ForceLocal: true}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

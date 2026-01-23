@@ -50,8 +50,9 @@ func (c *StateListCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1
@@ -61,7 +62,7 @@ func (c *StateListCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace(ctx)
+	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

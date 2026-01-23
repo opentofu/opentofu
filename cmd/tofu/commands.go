@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -87,8 +88,8 @@ func initCommands(
 	}
 
 	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
-
 	meta := command.Meta{
+		Workspace:  &workspace.Workspace{Dir: wd},
 		WorkingDir: wd,
 		Streams:    streams,
 		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),

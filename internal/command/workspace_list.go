@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -56,8 +57,9 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -75,7 +77,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		return 1
 	}
 
-	env, isOverridden := c.WorkspaceOverridden(ctx)
+	env, isOverridden := c.Workspace.WorkspaceOverridden(ctx)
 
 	var out bytes.Buffer
 	for _, s := range states {

@@ -122,7 +122,7 @@ func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.Stat
 	}
 	variables, diags := m.collectVariableValues()
 
-	workspace, err := m.Workspace(ctx)
+	workspace, err := m.Workspace.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 	}

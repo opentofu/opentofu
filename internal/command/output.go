@@ -81,8 +81,9 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 		c.Meta.statePath = statePath
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -91,7 +92,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 	// This is a read-only command
 	c.ignoreRemoteVersionConflict(b)
 
-	env, err := c.Workspace(ctx)
+	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error selecting workspace: %w", err))
 		return nil, diags

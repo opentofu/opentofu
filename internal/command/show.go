@@ -214,8 +214,9 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 	ctx, span := tracing.Tracer().Start(ctx, "Show State")
 	defer span.End()
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -223,7 +224,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 	c.ignoreRemoteVersionConflict(b)
 
 	// Load the workspace
-	workspace, err := c.Workspace(ctx)
+	workspace, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
@@ -409,7 +410,8 @@ func (c *ShowCommand) getPlanFromPath(ctx context.Context, path string, enc encr
 
 func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(ctx, nil, enc.State())
+	backendFlags := buildBackendFlags(c.Meta)
+	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}

@@ -6,7 +6,6 @@
 package command
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -14,7 +13,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,11 +21,11 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -48,6 +46,9 @@ import (
 
 // Meta are the meta-options that are available on all or most commands.
 type Meta struct {
+	// TODO andrei properly handling this
+	Workspace *workspace.Workspace
+
 	// The exported fields below should be set by anyone using a
 	// command with a Meta field. These are expected to be set externally
 	// (not from within the command itself).
@@ -365,6 +366,7 @@ func (m *Meta) fixupMissingWorkingDir() {
 	if m.WorkingDir == nil {
 		log.Printf("[WARN] This 'Meta' object is missing its WorkingDir, so we're creating a default one suitable only for tests")
 		m.WorkingDir = workdir.NewDir(".")
+		m.Workspace = &workspace.Workspace{Dir: m.WorkingDir}
 	}
 }
 
@@ -577,7 +579,7 @@ func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *back
 // contextOpts returns the options to use to initialize a OpenTofu
 // context with the settings from this Meta.
 func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
-	workspace, err := m.Workspace(ctx)
+	ws, err := m.Workspace.Workspace(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +603,7 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	}
 
 	opts.Meta = &tofu.ContextMeta{
-		Env:                workspace,
+		Env:                ws,
 		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),
 	}
 
@@ -824,63 +826,6 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 			m.Ui.Output(msg)
 		}
 	}
-}
-
-// WorkspaceNameEnvVar is the name of the environment variable that can be used
-// to set the name of the OpenTofu workspace, overriding the workspace chosen
-// by `tofu workspace select`.
-//
-// Note that this environment variable is ignored by `tofu workspace new`
-// and `tofu workspace delete`.
-const WorkspaceNameEnvVar = "TF_WORKSPACE"
-
-var errInvalidWorkspaceNameEnvVar = fmt.Errorf("Invalid workspace name set using %s", WorkspaceNameEnvVar)
-
-// Workspace returns the name of the currently configured workspace, corresponding
-// to the desired named state.
-func (m *Meta) Workspace(ctx context.Context) (string, error) {
-	current, overridden := m.WorkspaceOverridden(ctx)
-	if overridden && !validWorkspaceName(current) {
-		return "", errInvalidWorkspaceNameEnvVar
-	}
-	return current, nil
-}
-
-// WorkspaceOverridden returns the name of the currently configured workspace,
-// corresponding to the desired named state, as well as a bool saying whether
-// this was set via the TF_WORKSPACE environment variable.
-func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
-	if envVar := os.Getenv(WorkspaceNameEnvVar); envVar != "" {
-		return envVar, true
-	}
-
-	envData, err := os.ReadFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile))
-	current := string(bytes.TrimSpace(envData))
-	if current == "" {
-		current = backend.DefaultStateName
-	}
-
-	if err != nil && !os.IsNotExist(err) {
-		// always return the default if we can't get a workspace name
-		log.Printf("[ERROR] failed to read current workspace: %s", err)
-	}
-
-	return current, false
-}
-
-// SetWorkspace saves the given name as the current workspace in the local
-// filesystem.
-func (m *Meta) SetWorkspace(name string) error {
-	err := os.MkdirAll(m.DataDir(), 0755)
-	if err != nil {
-		return err
-	}
-
-	err = os.WriteFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // isAutoVarFile determines if the file ends with .auto.tfvars or .auto.tfvars.json

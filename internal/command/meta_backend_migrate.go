@@ -146,7 +146,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 	return nil
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // State Migration Scenarios
 //
 // The functions below cover handling all the various scenarios that
@@ -160,7 +160,7 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 // The suffix is used to disambiguate multiple cases with the same type of
 // states.
 //
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // Multi-state to multi-state.
 func (m *Meta) backendMigrateState_S_S(ctx context.Context, opts *backendMigrateOpts) error {
@@ -221,7 +221,7 @@ func (m *Meta) backendMigrateState_S_S(ctx context.Context, opts *backendMigrate
 func (m *Meta) backendMigrateState_S_s(ctx context.Context, opts *backendMigrateOpts) error {
 	log.Printf("[INFO] backendMigrateState: destination backend type %q does not support named workspaces", opts.DestinationType)
 
-	currentWorkspace, err := m.Workspace(ctx)
+	currentWorkspace, err := m.Workspace.Workspace(ctx)
 	if err != nil {
 		return err
 	}
@@ -254,7 +254,7 @@ func (m *Meta) backendMigrateState_S_s(ctx context.Context, opts *backendMigrate
 	opts.sourceWorkspace = currentWorkspace
 
 	// now switch back to the default env so we can access the new backend
-	if err := m.SetWorkspace(backend.DefaultStateName); err != nil {
+	if err := m.Workspace.SetWorkspace(backend.DefaultStateName); err != nil {
 		return err
 	}
 
@@ -301,12 +301,12 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 			}
 
 			// Ignore invalid workspace name as it is irrelevant in this context.
-			workspace, _ := m.Workspace(ctx)
+			workspace, _ := m.Workspace.Workspace(ctx)
 
 			// If the currently selected workspace is the default workspace, then set
 			// the named workspace as the new selected workspace.
 			if workspace == backend.DefaultStateName {
-				if err := m.SetWorkspace(opts.destinationWorkspace); err != nil {
+				if err := m.Workspace.SetWorkspace(opts.destinationWorkspace); err != nil {
 					return nil, fmt.Errorf("Failed to set new workspace: %w", err)
 				}
 			}
@@ -591,7 +591,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 			opts.destinationWorkspace = cloudBackendDestination.WorkspaceMapping.Name
 		}
 
-		currentWorkspace, err := m.Workspace(ctx)
+		currentWorkspace, err := m.Workspace.Workspace(ctx)
 		if err != nil {
 			return err
 		}
@@ -624,7 +624,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 		if migrate, err := m.promptSingleToCloudSingleStateMigration(opts); err != nil {
 			return err
 		} else if !migrate {
-			return nil //skip migrating but return successfully
+			return nil // skip migrating but return successfully
 		}
 
 		return m.backendMigrateState_s_s(ctx, opts)
@@ -635,7 +635,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 
 	multiSource := !sourceSingleState && len(sourceWorkspaces) > 1
 	if multiSource && destinationNameStrategy {
-		currentWorkspace, err := m.Workspace(ctx)
+		currentWorkspace, err := m.Workspace.Workspace(ctx)
 		if err != nil {
 			return err
 		}
@@ -669,7 +669,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigrateOpts, sourceWorkspaces []string) error {
 	log.Print("[TRACE] backendMigrateState: migrating all named workspaces")
 
-	currentWorkspace, err := m.Workspace(ctx)
+	currentWorkspace, err := m.Workspace.Workspace(ctx)
 	if err != nil {
 		return err
 	}
@@ -777,7 +777,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	// If we couldn't select the workspace automatically from the backend (maybe it was empty
 	// and wasn't migrated, for instance), ask the user to select one instead and be done.
 	if !workspacePresent {
-		if err = m.selectWorkspace(ctx, opts.Destination); err != nil {
+		if err = configuredWorkspace(m.Workspace, m.input, m.UIInput()).SelectWorkspace(ctx, opts.Destination); err != nil {
 			return err
 		}
 		return nil
@@ -786,7 +786,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	// The newly renamed current workspace is present, so we'll automatically select it for the
 	// user, as well as display the equivalent of 'workspace list' to show how the workspaces
 	// were changed (as well as the newly selected current workspace).
-	if err = m.SetWorkspace(newCurrentWorkspace); err != nil {
+	if err = m.Workspace.SetWorkspace(newCurrentWorkspace); err != nil {
 		return err
 	}
 
@@ -1120,11 +1120,4 @@ If you answer "yes", OpenTofu will migrate all states. If you answer
 const inputBackendNewWorkspaceName = `
 Please provide a new workspace name (e.g. dev, test) that will be used
 to migrate the existing default workspace.
-`
-
-const inputBackendSelectWorkspace = `
-This is expected behavior when the selected workspace did not have an
-existing non-empty state. Please enter a number to select a workspace:
-
-%s
 `

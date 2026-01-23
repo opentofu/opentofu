@@ -6,7 +6,6 @@
 package command
 
 import (
-	"net/url"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -41,13 +40,6 @@ Usage: tofu [global options] workspace
 
 func (c *WorkspaceCommand) Synopsis() string {
 	return "Workspace management"
-}
-
-// validWorkspaceName returns true is this name is valid to use as a workspace name.
-// Since most named states are accessed via a filesystem path or URL, check if
-// escaping the name would be required.
-func validWorkspaceName(name string) bool {
-	return name == url.PathEscape(name)
 }
 
 func envCommandShowWarning(ui cli.Ui, show bool) {

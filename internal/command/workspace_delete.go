@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -75,7 +76,8 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	backendFlags := buildBackendFlags(c.Meta)
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -107,7 +109,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		return 1
 	}
 
-	currentWorkspace, err := c.Workspace(ctx)
+	currentWorkspace, err := c.Workspace.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

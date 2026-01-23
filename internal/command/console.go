@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -68,9 +69,9 @@ func (c *ConsoleCommand) Run(args []string) int {
 		c.showDiagnostics(diags)
 		return 1
 	}
-
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)

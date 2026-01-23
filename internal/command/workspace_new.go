@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
+	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -53,16 +55,16 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	workspace := args[0]
+	workspaceArg := args[0]
 
-	if !validWorkspaceName(workspace) {
-		c.Ui.Error(fmt.Sprintf(envInvalidName, workspace))
+	if !workspace.ValidWorkspaceName(workspaceArg) {
+		c.Ui.Error(fmt.Sprintf(envInvalidName, workspaceArg))
 		return 1
 	}
 
-	// You can't ask to create a workspace when you're overriding the
-	// workspace name to be something different.
-	if current, isOverridden := c.WorkspaceOverridden(ctx); current != workspace && isOverridden {
+	// You can't ask to create a workspaceArg when you're overriding the
+	// workspaceArg name to be something different.
+	if current, isOverridden := c.Workspace.WorkspaceOverridden(ctx); current != workspaceArg && isOverridden {
 		c.Ui.Error(envIsOverriddenNewError)
 		return 1
 	}
@@ -90,8 +92,9 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
+	backendFlags := buildBackendFlags(c.Meta)
 	// Load the backend
-	b, backendDiags := c.Backend(ctx, &BackendOpts{
+	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -109,26 +112,26 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 	for _, ws := range workspaces {
-		if workspace == ws {
-			c.Ui.Error(fmt.Sprintf(envExists, workspace))
+		if workspaceArg == ws {
+			c.Ui.Error(fmt.Sprintf(envExists, workspaceArg))
 			return 1
 		}
 	}
 
-	_, err = b.StateMgr(ctx, workspace)
+	_, err = b.StateMgr(ctx, workspaceArg)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
 	// now set the current workspace locally
-	if err := c.SetWorkspace(workspace); err != nil {
+	if err := c.Workspace.SetWorkspace(workspaceArg); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting new workspace: %s", err))
 		return 1
 	}
 
 	c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-		strings.TrimSpace(envCreated), workspace)))
+		strings.TrimSpace(envCreated), workspaceArg)))
 
 	if statePath == "" {
 		// if we're not loading a state, then we're done
@@ -136,7 +139,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// load the new Backend state
-	stateMgr, err := b.StateMgr(ctx, workspace)
+	stateMgr, err := b.StateMgr(ctx, workspaceArg)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
