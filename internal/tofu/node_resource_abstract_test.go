@@ -239,7 +239,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State:    states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProvider }},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) (providers.Configured, error) { return mockProvider, nil }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -259,7 +259,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProvider }},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) (providers.Configured, error) { return mockProvider, nil }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -279,7 +279,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProviderWithStateChange }},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) (providers.Configured, error) { return mockProviderWithStateChange, nil }},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -300,7 +300,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) providers.Configured { return mockProviderWithMoveUnsupported }},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`), Instance: func(addrs.InstanceKey) (providers.Configured, error) { return mockProviderWithMoveUnsupported, nil }},
 				},
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},

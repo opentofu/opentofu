@@ -60,7 +60,7 @@ type GraphNodeProvider interface {
 	// This is a hard requirement that we have determined it is too hard to change,
 	// which is an extension of the "provider configurations may not live in modules with
 	// expansion" that we ensure within the configuration.
-	Instance(addrs.InstanceKey) providers.Configured
+	Instance(addrs.InstanceKey) (providers.Configured, error)
 	// Call close for all provider instances within this GraphNodeProvider
 	Close(ctx context.Context) error
 	// For test framework
@@ -90,7 +90,7 @@ type ResolvedProvider struct {
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
 
-	Instance func(addrs.InstanceKey) providers.Configured
+	Instance func(addrs.InstanceKey) (providers.Configured, error)
 
 	// Test overrides
 	IsMocked          bool
@@ -297,7 +297,7 @@ type FunctionProvidedBy struct {
 	KeyModule     addrs.Module
 	KeyExpression hcl.Expression
 
-	Instance func(addrs.InstanceKey) providers.Configured
+	Instance func(addrs.InstanceKey) (providers.Configured, error)
 }
 
 // ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
@@ -728,7 +728,7 @@ func (n *graphNodeProxyProvider) MocksAndOverrides() (IsMocked bool, MockResourc
 	return n.Target().MocksAndOverrides()
 }
 
-func (n *graphNodeProxyProvider) Instance(key addrs.InstanceKey) providers.Configured {
+func (n *graphNodeProxyProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
 	return n.Target().Instance(key)
 }
 

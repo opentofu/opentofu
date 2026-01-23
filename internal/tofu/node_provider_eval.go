@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -27,8 +28,14 @@ var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
 var _ GraphNodeProvider = (*NodeEvalableProvider)(nil) // Partial, see NodeAbstractProvider
 
 // GraphNodeProvider
-func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) providers.Configured {
-	return n.instance
+func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
+	if key != addrs.NoKey {
+		return nil, fmt.Errorf("unexpected key %s passed to NodeEvalableProvider.Instance for %s", key, n.Addr)
+	}
+	if n.instance == nil {
+		return nil, fmt.Errorf("bug: provider %s not yet initialized or encountered an error during initialization", n.Addr)
+	}
+	return n.instance, nil
 }
 
 // GraphNodeProvider

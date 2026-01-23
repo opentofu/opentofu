@@ -176,8 +176,8 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		NodeAbstractResource: NodeAbstractResource{
 			ResolvedProvider: ResolvedProvider{
 				ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-				Instance: func(key addrs.InstanceKey) providers.Configured {
-					return mockProvider
+				Instance: func(key addrs.InstanceKey) (providers.Configured, error) {
+					return mockProvider, nil
 				},
 			},
 		},

@@ -61,8 +61,17 @@ var (
 )
 
 // GraphNodeProvider
-func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) providers.Configured {
-	return n.instances[key]
+func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
+	if n.instances == nil {
+		// Should never happen
+		panic("BUG: NodeApplyableProvider.Instance() called before Execute()")
+	}
+	instance, ok := n.instances[key]
+	if !ok {
+		return nil, fmt.Errorf("provider %s not initialized with key %s", n.Addr, key)
+	}
+
+	return instance, nil
 }
 
 // GraphNodeProvider

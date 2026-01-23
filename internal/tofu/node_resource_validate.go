@@ -187,7 +187,11 @@ func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx Eva
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider := n.ResolvedProvider.Instance(addrs.NoKey) // Provider Instance Keys are ignored during validate
+	provider, err := n.ResolvedProvider.Instance(addrs.NoKey) // Provider Instance Keys are ignored during validate
+	diags = diags.Append(err)
+	if diags.HasErrors() {
+		return diags
+	}
 	providerSchema, err := evalCtx.ProviderSchema(ctx, n.ResolvedProvider.ProviderConfig)
 	diags = diags.Append(err)
 	if diags.HasErrors() {

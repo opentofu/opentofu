@@ -49,7 +49,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
+		}, Instance: func(addrs.InstanceKey) (providers.Configured, error) { return provider, nil }},
 	}
 
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
@@ -105,7 +105,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
+		}, Instance: func(addrs.InstanceKey) (providers.Configured, error) { return provider, nil }},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if diags.HasErrors() {
@@ -167,7 +167,7 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
-		}, Instance: func(addrs.InstanceKey) providers.Configured { return provider }},
+		}, Instance: func(addrs.InstanceKey) (providers.Configured, error) { return provider, nil }},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkImport)
 	if !diags.HasErrors() {

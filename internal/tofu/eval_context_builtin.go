@@ -405,7 +405,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 		}
 
-		provider := providedBy.Instance(providerKey)
+		provider, _ := providedBy.Instance(providerKey)
 
 		if provider == nil {
 			// This should not be possible if references are tracked correctly

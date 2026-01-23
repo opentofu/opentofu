@@ -304,8 +304,8 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 	evalCtx := &MockEvalContext{
 		InitProviderProvider: testProvider("aws"),
 	}
-	found.ResolvedProvider.Instance = func(addrs.InstanceKey) providers.Configured {
-		return evalCtx.InitProviderProvider
+	found.ResolvedProvider.Instance = func(addrs.InstanceKey) (providers.Configured, error) {
+		return evalCtx.InitProviderProvider, nil
 	}
 	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
 	got := diags.Err().Error()
