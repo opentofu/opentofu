@@ -125,8 +125,10 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 
 	for _, key := range initKeys {
 		instance, err := evalCtx.InitProvider(ctx, n.Addr, key)
-		n.instances[key] = instance
 		diags = diags.Append(err)
+		if err == nil {
+			n.instances[key] = instance
+		}
 	}
 	if diags.HasErrors() {
 		return nil, diags
