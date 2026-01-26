@@ -29,7 +29,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -45,17 +44,16 @@ type backendMigrateOpts struct {
 	force                bool // if true, won't ask for confirmation
 
 	// TODO andrei these are shortcuts that are moved from the BackendFlags
-	UIInput              func() tofu.UIInput
-	Input                arguments.Input
-	UserInputDisabled    bool
-	Workspace            *workspace.Workspace
-	Ui                   cli.Ui
-	View                 *views.View
-	Colorize             func() *colorstring.Colorize
-	stateLock            bool
-	stateLockTimeout     time.Duration
-	remoteVersionChecker func(b backend.Backend, workspace string) tfdiags.Diagnostics
-	IgnoreRemoteVersion  bool
+	UIInput             func() tofu.UIInput
+	Input               arguments.Input
+	UserInputDisabled   bool
+	Workspace           *workspace.Workspace
+	Ui                  cli.Ui
+	View                *views.View
+	Colorize            func() *colorstring.Colorize
+	stateLock           bool
+	stateLockTimeout    time.Duration
+	IgnoreRemoteVersion bool
 }
 
 // backendMigrateState handles migrating (copying) state from one backend
@@ -104,7 +102,7 @@ func (opts *backendMigrateOpts) backendMigrateState(ctx context.Context) error {
 		// it's a Terraform Cloud remote backend, we want to ensure that we don't
 		// break the workspace by uploading an incompatible state file.
 		for _, workspace := range destinationWorkspaces {
-			diags := opts.remoteVersionChecker(opts.Destination, workspace)
+			diags := RemoteVersionCheck(opts.Destination, workspace, opts.IgnoreRemoteVersion)
 			if diags.HasErrors() {
 				return diags.Err()
 			}
@@ -114,7 +112,7 @@ func (opts *backendMigrateOpts) backendMigrateState(ctx context.Context) error {
 		// Ensure that we are not dealing with Terraform Cloud migrations, as it
 		// does not support the default name.
 		if len(destinationWorkspaces) == 0 && !destinationTFC {
-			diags := opts.remoteVersionChecker(opts.Destination, backend.DefaultStateName)
+			diags := RemoteVersionCheck(opts.Destination, backend.DefaultStateName, opts.IgnoreRemoteVersion)
 			if diags.HasErrors() {
 				return diags.Err()
 			}

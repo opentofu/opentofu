@@ -83,11 +83,10 @@ type BackendFlags struct {
 	Input             arguments.Input
 
 	// TODO andrei this is a shortcut, we need to find where the colorize should be introduced
-	Colorize             func() *colorstring.Colorize
-	ShowDiagnostics      func(vals ...interface{})
-	UIInput              func() tofu.UIInput
-	RemoteVersionChecker func(b backend.Backend, workspace string) tfdiags.Diagnostics
-	IgnoreRemoteVersion  bool
+	Colorize            func() *colorstring.Colorize
+	ShowDiagnostics     func(vals ...interface{})
+	UIInput             func() tofu.UIInput
+	IgnoreRemoteVersion bool
 
 	Ui   cli.Ui
 	View *views.View
@@ -749,17 +748,16 @@ func (m *BackendFlags) backend_c_r_S(
 		ViewOptions:     viewOptions,
 		force:           m.ForceInitCopy, // TODO andrei check if this is correct. I am not sure that the logic that uses
 		// force inside the migration logic
-		UIInput:              m.UIInput,
-		Input:                m.Input,
-		UserInputDisabled:    m.InputForcefullyDisabled,
-		Workspace:            m.Workspace,
-		Ui:                   m.Ui,
-		View:                 m.View,
-		Colorize:             m.Colorize,
-		stateLock:            m.StateLock,
-		stateLockTimeout:     m.StateLockTimeout,
-		remoteVersionChecker: m.RemoteVersionChecker,
-		IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+		UIInput:             m.UIInput,
+		Input:               m.Input,
+		UserInputDisabled:   m.InputForcefullyDisabled,
+		Workspace:           m.Workspace,
+		Ui:                  m.Ui,
+		View:                m.View,
+		Colorize:            m.Colorize,
+		stateLock:           m.StateLock,
+		stateLockTimeout:    m.StateLockTimeout,
+		IgnoreRemoteVersion: m.IgnoreRemoteVersion,
 	}
 	// Perform the migration
 	err := bmo.backendMigrateState(ctx)
@@ -853,23 +851,22 @@ func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cH
 	if len(localStates) > 0 {
 		// Perform the migration
 		bmomigrate := &backendMigrateOpts{
-			SourceType:           "local",
-			DestinationType:      c.Type,
-			Source:               localB,
-			Destination:          b,
-			ViewOptions:          viewOptions,
-			force:                m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
-			UIInput:              m.UIInput,
-			Input:                m.Input,
-			UserInputDisabled:    m.InputForcefullyDisabled,
-			Workspace:            m.Workspace,
-			Ui:                   m.Ui,
-			View:                 m.View,
-			Colorize:             m.Colorize,
-			stateLock:            m.StateLock,
-			stateLockTimeout:     m.StateLockTimeout,
-			remoteVersionChecker: m.RemoteVersionChecker,
-			IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+			SourceType:          "local",
+			DestinationType:     c.Type,
+			Source:              localB,
+			Destination:         b,
+			ViewOptions:         viewOptions,
+			force:               m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
+			UIInput:             m.UIInput,
+			Input:               m.Input,
+			UserInputDisabled:   m.InputForcefullyDisabled,
+			Workspace:           m.Workspace,
+			Ui:                  m.Ui,
+			View:                m.View,
+			Colorize:            m.Colorize,
+			stateLock:           m.StateLock,
+			stateLockTimeout:    m.StateLockTimeout,
+			IgnoreRemoteVersion: m.IgnoreRemoteVersion,
 		}
 		err = bmomigrate.backendMigrateState(ctx)
 		if err != nil {
@@ -1043,23 +1040,22 @@ func (m *BackendFlags) backend_C_r_S_changed(ctx context.Context, c *configs.Bac
 
 		// Perform the migration
 		bmomigrate := &backendMigrateOpts{
-			SourceType:           s.Backend.Type,
-			DestinationType:      c.Type,
-			Source:               oldB,
-			Destination:          b,
-			ViewOptions:          viewOptions,
-			force:                m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
-			UIInput:              m.UIInput,
-			Input:                m.Input,
-			UserInputDisabled:    m.InputForcefullyDisabled,
-			Workspace:            m.Workspace,
-			Ui:                   m.Ui,
-			View:                 m.View,
-			Colorize:             m.Colorize,
-			stateLock:            m.StateLock,
-			stateLockTimeout:     m.StateLockTimeout,
-			remoteVersionChecker: m.RemoteVersionChecker,
-			IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+			SourceType:          s.Backend.Type,
+			DestinationType:     c.Type,
+			Source:              oldB,
+			Destination:         b,
+			ViewOptions:         viewOptions,
+			force:               m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
+			UIInput:             m.UIInput,
+			Input:               m.Input,
+			UserInputDisabled:   m.InputForcefullyDisabled,
+			Workspace:           m.Workspace,
+			Ui:                  m.Ui,
+			View:                m.View,
+			Colorize:            m.Colorize,
+			stateLock:           m.StateLock,
+			stateLockTimeout:    m.StateLockTimeout,
+			IgnoreRemoteVersion: m.IgnoreRemoteVersion,
 		}
 		err := bmomigrate.backendMigrateState(ctx)
 		if err != nil {
@@ -1509,6 +1505,30 @@ func IgnoreRemoteVersionConflict(b backend.Backend) {
 	if back, ok := b.(BackendWithRemoteTerraformVersion); ok {
 		back.IgnoreVersionConflict()
 	}
+}
+
+// Helper method to check the local OpenTofu version against the configured
+// version in the remote workspace, returning diagnostics if they conflict.
+func RemoteVersionCheck(b backend.Backend, workspace string, ignoreRemoteVersion bool) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	if back, ok := b.(BackendWithRemoteTerraformVersion); ok {
+		// Allow user override based on command-line flag
+		if ignoreRemoteVersion {
+			back.IgnoreVersionConflict()
+		}
+		// If the override is set, this check will return a warning instead of
+		// an error
+		versionDiags := back.VerifyWorkspaceTerraformVersion(workspace)
+		diags = diags.Append(versionDiags)
+		// If there are no errors resulting from this check, we do not need to
+		// check again
+		if !diags.HasErrors() {
+			back.IgnoreVersionConflict()
+		}
+	}
+
+	return diags
 }
 
 // -------------------------------------------------------------------

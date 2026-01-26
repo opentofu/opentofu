@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/states"
@@ -84,7 +85,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	}
 
 	// Check remote OpenTofu version is compatible
-	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
+	remoteVersionDiags := backend.RemoteVersionCheck(b, workspace, c.ignoreRemoteVersion)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)
 	if diags.HasErrors() {

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
@@ -104,7 +105,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	}
 
 	// Check remote OpenTofu version is compatible
-	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
+	remoteVersionDiags := backend2.RemoteVersionCheck(b, workspace, c.ignoreRemoteVersion)
 	c.showDiagnostics(remoteVersionDiags)
 	if remoteVersionDiags.HasErrors() {
 		return 1

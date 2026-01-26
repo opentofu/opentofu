@@ -81,30 +81,6 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.Vi
 	}
 }
 
-// Helper method to check the local OpenTofu version against the configured
-// version in the remote workspace, returning diagnostics if they conflict.
-func (m *Meta) remoteVersionCheck(b backend.Backend, workspace string) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	if back, ok := b.(backend2.BackendWithRemoteTerraformVersion); ok {
-		// Allow user override based on command-line flag
-		if m.ignoreRemoteVersion {
-			back.IgnoreVersionConflict()
-		}
-		// If the override is set, this check will return a warning instead of
-		// an error
-		versionDiags := back.VerifyWorkspaceTerraformVersion(workspace)
-		diags = diags.Append(versionDiags)
-		// If there are no errors resulting from this check, we do not need to
-		// check again
-		if !diags.HasErrors() {
-			back.IgnoreVersionConflict()
-		}
-	}
-
-	return diags
-}
-
 // backendCLIOpts returns a backend.CLIOpts object that should be passed to
 // a backend that supports local CLI operations.
 func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
@@ -188,7 +164,6 @@ func buildBackendFlags(m *Meta) *backend2.BackendFlags {
 		ShowDiagnostics:         m.showDiagnostics,
 		UIInput:                 m.UIInput,
 		Services:                m.Services,
-		RemoteVersionChecker:    m.remoteVersionCheck,
 		IgnoreRemoteVersion:     m.ignoreRemoteVersion,
 		// TODO andrei this is ugly and should be handled separately
 		LegacyStateCb: func() {

@@ -53,7 +53,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 		}
 
 		// Check remote OpenTofu version is compatible
-		remoteVersionDiags := c.remoteVersionCheck(b, workspace)
+		remoteVersionDiags := backend2.RemoteVersionCheck(b, workspace, c.ignoreRemoteVersion)
 		c.showDiagnostics(remoteVersionDiags)
 		if remoteVersionDiags.HasErrors() {
 			return nil, fmt.Errorf("Error checking remote OpenTofu version")

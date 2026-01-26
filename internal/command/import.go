@@ -231,7 +231,7 @@ func (c *ImportCommand) Run(args []string) int {
 	opReq.View = views.NewOperation(arguments.ViewHuman, c.RunningInAutomation, c.View)
 
 	// Check remote OpenTofu version is compatible
-	remoteVersionDiags := c.remoteVersionCheck(b, opReq.Workspace)
+	remoteVersionDiags := backend2.RemoteVersionCheck(b, opReq.Workspace, c.ignoreRemoteVersion)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)
 	if diags.HasErrors() {
