@@ -233,6 +233,15 @@ func mustProviderConfig(s string) addrs.AbsProviderConfig {
 	return p
 }
 
+func mustResolvedProviderInRoot(s string, p providers.Interface) ResolvedProvider {
+	return ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider(s),
+		Module:   addrs.RootModule,
+	},
+		Instance: func(addrs.InstanceKey) (providers.Configured, error) { return p, nil },
+	}
+}
+
 func mustReference(s string) *addrs.Reference {
 	p, diags := addrs.ParseRefStr(s)
 	if diags.HasErrors() {
