@@ -40,7 +40,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
 
-		backendFlags := buildBackendFlags(c.Meta)
+		backendFlags := buildBackendFlags(&c.Meta)
 		// Load the backend
 		b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 		if backendDiags.HasErrors() {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -103,7 +104,8 @@ func (c *GraphCommand) Run(args []string) int {
 			return 1
 		}
 		var backendDiags tfdiags.Diagnostics
-		b, backendDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc.State())
+		bf := buildBackendFlags(&c.Meta)
+		b, backendDiags = bf.BackendForLocalPlan(ctx, plan.Backend, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
 			c.showDiagnostics(diags)
@@ -117,7 +119,8 @@ func (c *GraphCommand) Run(args []string) int {
 			return 1
 		}
 
-		b, backendDiags = c.Backend(ctx, &BackendOpts{
+		bf := buildBackendFlags(&c.Meta)
+		b, backendDiags = bf.Backend(ctx, &backend2.BackendOpts{
 			Config: backendConfig,
 		}, enc.State())
 		diags = diags.Append(backendDiags)
@@ -136,7 +139,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// This is a read-only command
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	// Build the operation
 	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewHuman}, enc)

@@ -11,7 +11,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -23,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -161,7 +159,7 @@ func (m *Meta) rootModuleCall(ctx context.Context, rootDir string) (configs.Stat
 }
 
 func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string, error) {
-	if !m.Input() {
+	if !m.Input.Input(test) {
 		return "", fmt.Errorf("input is disabled")
 	}
 
@@ -338,65 +336,6 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 		return true, diags
 	}
 	return false, diags
-}
-
-// inputForSchema uses interactive prompts to try to populate any
-// not-yet-populated required attributes in the given object value to
-// comply with the given schema.
-//
-// An error will be returned if input is disabled for this meta or if
-// values cannot be obtained for some other operational reason. Errors are
-// not returned for invalid input since the input loop itself will report
-// that interactively.
-//
-// It is not guaranteed that the result will be valid, since certain attribute
-// types and nested blocks are not supported for input.
-//
-// The given value must conform to the given schema. If not, this method will
-// panic.
-func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.Value, error) {
-	if given.IsNull() || !given.IsKnown() {
-		// This is not reasonable input, but we'll tolerate it anyway and
-		// just pass it through for the caller to handle downstream.
-		return given, nil
-	}
-
-	retVals := given.AsValueMap()
-	names := make([]string, 0, len(schema.Attributes))
-	for name, attrS := range schema.Attributes {
-		if attrS.Required && retVals[name].IsNull() && attrS.Type.IsPrimitiveType() {
-			names = append(names, name)
-		}
-	}
-	sort.Strings(names)
-
-	input := m.UIInput()
-	for _, name := range names {
-		attrS := schema.Attributes[name]
-
-		for {
-			strVal, err := input.Input(context.Background(), &tofu.InputOpts{
-				Id:          name,
-				Query:       name,
-				Description: attrS.Description,
-			})
-			if err != nil {
-				return cty.UnknownVal(schema.ImpliedType()), fmt.Errorf("%s: %w", name, err)
-			}
-
-			val := cty.StringVal(strVal)
-			val, err = convert.Convert(val, attrS.Type)
-			if err != nil {
-				m.showDiagnostics(fmt.Errorf("Invalid value: %w", err))
-				continue
-			}
-
-			retVals[name] = val
-			break
-		}
-	}
-
-	return cty.ObjectVal(retVals), nil
 }
 
 // configSources returns the source cache from the receiver's config loader,

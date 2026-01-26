@@ -27,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Operation initializes a new backend.Operation struct.
@@ -82,14 +81,6 @@ func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.Vi
 	}
 }
 
-// Helper method to ignore remote/cloud backend version conflicts. Only call this
-// for commands which cannot accidentally upgrade remote state files.
-func (m *Meta) ignoreRemoteVersionConflict(b backend.Backend) {
-	if back, ok := b.(backend2.BackendWithRemoteTerraformVersion); ok {
-		back.IgnoreVersionConflict()
-	}
-}
-
 // Helper method to check the local OpenTofu version against the configured
 // version in the remote workspace, returning diagnostics if they conflict.
 func (m *Meta) remoteVersionCheck(b backend.Backend, workspace string) tfdiags.Diagnostics {
@@ -129,12 +120,12 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 		StateOutPath:        m.stateOutPath,
 		StateBackupPath:     m.backupPath,
 		ContextOpts:         contextOpts,
-		Input:               m.Input(),
+		Input:               m.Input.Input(test),
 		RunningInAutomation: m.RunningInAutomation,
 	}, err
 }
 
-func buildCliOpts(m Meta) backend2.BackendCLIOptsBuilder {
+func buildCliOpts(m *Meta) backend2.BackendCLIOptsBuilder {
 	return func(ctx context.Context, opts *backend2.BackendOpts) (cliOpts *backend.CLIOpts, diags tfdiags.Diagnostics) {
 		cliOpts, err := m.backendCLIOpts(ctx)
 		if err != nil {
@@ -176,14 +167,7 @@ func buildCliOpts(m Meta) backend2.BackendCLIOptsBuilder {
 	}
 }
 
-func configuredWorkspace(in *workspace.Workspace, input bool, uiinput tofu.UIInput) *workspace.Workspace {
-	return &workspace.Workspace{
-		Dir:     in.Dir,
-		Input:   input,
-		UIInput: uiinput,
-	}
-}
-func buildBackendFlags(m Meta) *backend2.BackendFlags {
+func buildBackendFlags(m *Meta) *backend2.BackendFlags {
 	return &backend2.BackendFlags{
 		AllowExperimentalFeatures: m.AllowExperimentalFeatures,
 		ConfigLoader: func(ctx context.Context) (*configs.Backend, tfdiags.Diagnostics) {
@@ -195,7 +179,17 @@ func buildBackendFlags(m Meta) *backend2.BackendFlags {
 		SetBackendStateCb: func(b *legacy.BackendState) {
 			m.backendState = b
 		},
-		Workspace: configuredWorkspace(m.Workspace, m.input, m.UIInput()),
+		Workspace:               workspace.ConfiguredWorkspace(m.Workspace, m.Input, m.UIInput()),
+		InputForcefullyDisabled: test,
+		Input:                   m.Input,
+		Ui:                      m.Ui, // TODO andrei this needs to be done differently
+		View:                    m.View,
+		Colorize:                m.Colorize,
+		ShowDiagnostics:         m.showDiagnostics,
+		UIInput:                 m.UIInput,
+		Services:                m.Services,
+		RemoteVersionChecker:    m.remoteVersionCheck,
+		IgnoreRemoteVersion:     m.ignoreRemoteVersion,
 		// TODO andrei this is ugly and should be handled separately
 		LegacyStateCb: func() {
 			// If we got here from backendFromConfig returning nil then m.backendState
@@ -224,6 +218,8 @@ func buildBackendFlags(m Meta) *backend2.BackendFlags {
 		WorkdirFetcher: func() *workdir.Dir {
 			return m.WorkingDir
 		},
-		CLIOptsBuilder: buildCliOpts(m),
+		CLIOptsBuilder:   buildCliOpts(m),
+		StateLock:        m.stateLock,
+		StateLockTimeout: m.stateLockTimeout,
 	}
 }

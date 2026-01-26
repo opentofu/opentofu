@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -214,14 +215,14 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 	ctx, span := tracing.Tracer().Start(ctx, "Show State")
 	defer span.End()
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
 	}
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	// Load the workspace
 	workspace, err := c.Workspace.Workspace(ctx)
@@ -410,7 +411,7 @@ func (c *ShowCommand) getPlanFromPath(ctx context.Context, path string, enc encr
 
 func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")

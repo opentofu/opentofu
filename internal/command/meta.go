@@ -13,7 +13,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -48,6 +47,7 @@ import (
 type Meta struct {
 	// TODO andrei properly handling this
 	Workspace *workspace.Workspace
+	Input     arguments.Input
 
 	// The exported fields below should be set by anyone using a
 	// command with a Meta field. These are expected to be set externally
@@ -228,7 +228,6 @@ type Meta struct {
 
 	// Variables for the context (private)
 	variableArgs rawFlags
-	input        bool
 
 	// Targets for this context (private)
 	targets     []addrs.Targetable
@@ -375,34 +374,6 @@ func (m *Meta) fixupMissingWorkingDir() {
 func (m *Meta) DataDir() string {
 	m.fixupMissingWorkingDir()
 	return m.WorkingDir.DataDir()
-}
-
-const (
-	// InputModeEnvVar is the environment variable that, if set to "false" or
-	// "0", causes tofu commands to behave as if the `-input=false` flag was
-	// specified.
-	InputModeEnvVar = "TF_INPUT"
-)
-
-// InputMode returns the type of input we should ask for in the form of
-// tofu.InputMode which is passed directly to Context.Input.
-func (m *Meta) InputMode() tofu.InputMode {
-	if test || !m.input {
-		return 0
-	}
-
-	if envVar := os.Getenv(InputModeEnvVar); envVar != "" {
-		if v, err := strconv.ParseBool(envVar); err == nil {
-			if !v {
-				return 0
-			}
-		}
-	}
-
-	var mode tofu.InputMode
-	mode |= tofu.InputModeProvider
-
-	return mode
 }
 
 // UIInput returns a UIInput object to be used for asking for input.
@@ -650,7 +621,7 @@ func (m *Meta) varFlagSet(f *flag.FlagSet) {
 func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
-	f.BoolVar(&m.input, "input", true, "input")
+	m.Input.RegisterFlags(f)
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.Var((*FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
@@ -719,29 +690,6 @@ func (m *Meta) process(args []string) []string {
 // uiHook returns the UiHook to use with the context.
 func (m *Meta) uiHook() *views.UiHook {
 	return views.NewUiHook(m.View)
-}
-
-// confirm asks a yes/no confirmation.
-func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
-	if !m.Input() {
-		return false, errors.New("input is disabled")
-	}
-
-	for i := 0; i < 2; i++ {
-		v, err := m.UIInput().Input(context.Background(), opts)
-		if err != nil {
-			return false, fmt.Errorf(
-				"Error asking for confirmation: %w", err)
-		}
-
-		switch strings.ToLower(v) {
-		case "no":
-			return false, nil
-		case "yes":
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // showDiagnostics displays error and warning messages in the UI.

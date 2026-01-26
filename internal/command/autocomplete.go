@@ -8,6 +8,7 @@ package command
 import (
 	"context"
 
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/posener/complete"
 )
 
@@ -63,7 +64,8 @@ func (m *Meta) completePredictWorkspaceName(ctx context.Context) complete.Predic
 			return nil
 		}
 
-		b, diags := m.Backend(ctx, &BackendOpts{
+		bf := buildBackendFlags(m)
+		b, diags := bf.Backend(ctx, &backend2.BackendOpts{
 			Config: backendConfig,
 		}, enc.State())
 		if diags.HasErrors() {

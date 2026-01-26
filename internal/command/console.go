@@ -69,7 +69,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		c.showDiagnostics(diags)
 		return 1
 	}
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
@@ -89,7 +89,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	// This is a read-only command
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	// Build the operation
 	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewHuman}, enc)

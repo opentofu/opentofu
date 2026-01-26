@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
@@ -262,7 +263,8 @@ func (c *InitCommand) Run(args []string) int {
 		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra, enc)
 	default:
 		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
+		bf := buildBackendFlags(&c.Meta)
+		back, backDiags = bf.BackendFromState(ctx, enc.State())
 	}
 	if backendOutput {
 		header = true
@@ -274,8 +276,8 @@ func (c *InitCommand) Run(args []string) int {
 	// on a previous run) we'll use the current state as a potential source
 	// of provider dependencies.
 	if back != nil {
-		c.ignoreRemoteVersionConflict(back)
-		workspace, err := c.Workspace(ctx)
+		backend2.IgnoreRemoteVersionConflict(back)
+		workspace, err := c.Workspace.Workspace(ctx)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 			return 1
@@ -488,12 +490,13 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 
 	backendConfig := root.CloudConfig.ToBackendConfig()
 
-	opts := &BackendOpts{
+	bf := buildBackendFlags(&c.Meta)
+	opts := backend2.BackendOpts{
 		Config: &backendConfig,
 		Init:   true,
 	}
 
-	back, backDiags := c.Backend(ctx, opts, enc.State())
+	back, backDiags := bf.Backend(ctx, &opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
@@ -573,13 +576,13 @@ the backend configuration is present and valid.
 		}
 	}
 
-	opts := &BackendOpts{
+	opts := &backend2.BackendOpts{
 		Config:         backendConfig,
 		ConfigOverride: backendConfigOverride,
 		Init:           true,
 	}
-
-	back, backDiags := c.Backend(ctx, opts, enc.State())
+	bf := buildBackendFlags(&c.Meta)
+	back, backDiags := bf.Backend(ctx, opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }

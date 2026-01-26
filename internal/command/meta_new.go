@@ -7,28 +7,12 @@ package command
 
 import (
 	"os"
-	"strconv"
 
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 )
 
 // NOTE: Temporary file until this branch is cleaned up.
-
-// Input returns whether or not input asking is enabled.
-func (m *Meta) Input() bool {
-	if test || !m.input {
-		return false
-	}
-
-	if envVar := os.Getenv(InputModeEnvVar); envVar != "" {
-		if v, err := strconv.ParseBool(envVar); err == nil && !v {
-			return false
-		}
-	}
-
-	return true
-}
 
 // PlanFile loads the plan file at the given path, which might be either a local
 // or cloud plan.

@@ -126,7 +126,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {

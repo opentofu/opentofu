@@ -71,7 +71,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		return 1
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
@@ -83,7 +83,7 @@ func (c *UnlockCommand) Run(args []string) int {
 	}
 
 	// unlocking is read only when looking at state data
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {

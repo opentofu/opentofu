@@ -178,7 +178,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		resource.ProviderConfig.Provider = to
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {

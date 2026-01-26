@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/backend"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
@@ -19,13 +23,17 @@ import (
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
@@ -72,6 +80,23 @@ type BackendFlags struct {
 	ForceInitCopy     bool
 	SetBackendStateCb func(b *legacy.BackendState)
 	Workspace         *workspace.Workspace
+	Input             arguments.Input
+
+	// TODO andrei this is a shortcut, we need to find where the colorize should be introduced
+	Colorize             func() *colorstring.Colorize
+	ShowDiagnostics      func(vals ...interface{})
+	UIInput              func() tofu.UIInput
+	RemoteVersionChecker func(b backend.Backend, workspace string) tfdiags.Diagnostics
+	IgnoreRemoteVersion  bool
+
+	Ui   cli.Ui
+	View *views.View
+
+	// TODO andrei - This is to proxy it to the migration process in the meta_backend_migrate.go
+	StateLock               bool
+	StateLockTimeout        time.Duration
+	InputForcefullyDisabled bool // TODO remove this when `command.test` global const is removed
+	Services                *disco.Disco
 }
 
 // BackendWithRemoteTerraformVersion is a shared interface between the 'remote' and 'cloud' backends
@@ -82,8 +107,8 @@ type BackendWithRemoteTerraformVersion interface {
 	IsLocalOperations() bool
 }
 
-// backendConfig returns the local configuration for the backend
-func (m *BackendFlags) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.Backend, int, tfdiags.Diagnostics) {
+// BackendConfig returns the local configuration for the backend
+func (m *BackendFlags) BackendConfig(ctx context.Context, opts *BackendOpts) (*configs.Backend, int, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Config == nil {
@@ -268,12 +293,12 @@ func (m *BackendFlags) Backend(ctx context.Context, opts *BackendOpts, enc encry
 // which case this function will error.
 func (m *BackendFlags) BackendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	// Get the local backend configuration.
-	// Note that [Meta.backendConfig] returns a possibly-modified copy of
+	// Note that [Meta.BackendConfig] returns a possibly-modified copy of
 	// the original configuration, and in particular has the backend type
 	// already translated from an alias to the canonical name so everything
 	// using "c" after this can assume that c.Type is definitely the canonical
 	// name for a backend that actually exists and is not an alias.
-	c, cHash, diags := m.backendConfig(ctx, opts)
+	c, cHash, diags := m.BackendConfig(ctx, opts)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -563,11 +588,11 @@ func (m *BackendFlags) BackendForLocalPlan(ctx context.Context, settings plans.B
 	return local, diags
 }
 
-// backendFromState returns the initialized (not configured) backend directly
+// BackendFromState returns the initialized (not configured) backend directly
 // from the backend state. This should be used only when a user runs
 // `tofu init -backend=false`. This function returns a local backend if
 // there is no backend state or no backend configured.
-func (m *BackendFlags) backendFromState(ctx context.Context, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
+func (m *BackendFlags) BackendFromState(ctx context.Context, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
@@ -675,11 +700,14 @@ func (m *BackendFlags) backend_c_r_S(
 
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
+	var viewOptions arguments.ViewOptions
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+	}
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+		viewOptions.ViewType = arguments.ViewHuman
 	}
 
 	s := sMgr.State()
@@ -713,14 +741,28 @@ func (m *BackendFlags) backend_c_r_S(
 		return nil, diags
 	}
 
-	// Perform the migration
-	err := m.backendMigrateState(ctx, &backendMigrateOpts{
+	bmo := &backendMigrateOpts{
 		SourceType:      s.Backend.Type,
 		DestinationType: "local",
 		Source:          b,
 		Destination:     localB,
-		ViewType:        vt,
-	})
+		ViewOptions:     viewOptions,
+		force:           m.ForceInitCopy, // TODO andrei check if this is correct. I am not sure that the logic that uses
+		// force inside the migration logic
+		UIInput:              m.UIInput,
+		Input:                m.Input,
+		UserInputDisabled:    m.InputForcefullyDisabled,
+		Workspace:            m.Workspace,
+		Ui:                   m.Ui,
+		View:                 m.View,
+		Colorize:             m.Colorize,
+		stateLock:            m.StateLock,
+		stateLockTimeout:     m.StateLockTimeout,
+		remoteVersionChecker: m.RemoteVersionChecker,
+		IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+	}
+	// Perform the migration
+	err := bmo.backendMigrateState(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -751,11 +793,14 @@ func (m *BackendFlags) backend_c_r_S(
 func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
+	var viewOptions arguments.ViewOptions
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+	}
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+		viewOptions.ViewType = arguments.ViewHuman
 	}
 
 	// Grab a purely local backend to get the local state if it exists
@@ -807,13 +852,26 @@ func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cH
 
 	if len(localStates) > 0 {
 		// Perform the migration
-		err = m.backendMigrateState(ctx, &backendMigrateOpts{
-			SourceType:      "local",
-			DestinationType: c.Type,
-			Source:          localB,
-			Destination:     b,
-			ViewType:        vt,
-		})
+		bmomigrate := &backendMigrateOpts{
+			SourceType:           "local",
+			DestinationType:      c.Type,
+			Source:               localB,
+			Destination:          b,
+			ViewOptions:          viewOptions,
+			force:                m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
+			UIInput:              m.UIInput,
+			Input:                m.Input,
+			UserInputDisabled:    m.InputForcefullyDisabled,
+			Workspace:            m.Workspace,
+			Ui:                   m.Ui,
+			View:                 m.View,
+			Colorize:             m.Colorize,
+			stateLock:            m.StateLock,
+			stateLockTimeout:     m.StateLockTimeout,
+			remoteVersionChecker: m.RemoteVersionChecker,
+			IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+		}
+		err = bmomigrate.backendMigrateState(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
@@ -849,9 +907,9 @@ func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cH
 		}
 	}
 
-	if m.stateLock {
-		view := views.NewStateLocker(vt, m.View)
-		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+	if m.StateLock {
+		view := views.NewStateLocker(viewOptions, m.View)
+		stateLocker := clistate.NewLocker(m.StateLockTimeout, view)
 		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 			return nil, diags
@@ -878,7 +936,7 @@ func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cH
 
 	// Verify that selected workspace exists in the backend.
 	if opts.Init && b != nil {
-		err := m.selectWorkspace(ctx, b)
+		err := m.Workspace.SelectWorkspace(ctx, b)
 		if err != nil {
 			diags = diags.Append(err)
 
@@ -920,11 +978,14 @@ func (m *BackendFlags) backend_C_r_s(ctx context.Context, c *configs.Backend, cH
 func (m *BackendFlags) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
+	var viewOptions arguments.ViewOptions
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+	}
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+		viewOptions.ViewType = arguments.ViewHuman
 	}
 
 	// Get the old state
@@ -981,21 +1042,34 @@ func (m *BackendFlags) backend_C_r_S_changed(ctx context.Context, c *configs.Bac
 		}
 
 		// Perform the migration
-		err := m.backendMigrateState(ctx, &backendMigrateOpts{
-			SourceType:      s.Backend.Type,
-			DestinationType: c.Type,
-			Source:          oldB,
-			Destination:     b,
-			ViewType:        vt,
-		})
+		bmomigrate := &backendMigrateOpts{
+			SourceType:           s.Backend.Type,
+			DestinationType:      c.Type,
+			Source:               oldB,
+			Destination:          b,
+			ViewOptions:          viewOptions,
+			force:                m.ForceInitCopy, // TODO check other comments on this initialisation of the force flag
+			UIInput:              m.UIInput,
+			Input:                m.Input,
+			UserInputDisabled:    m.InputForcefullyDisabled,
+			Workspace:            m.Workspace,
+			Ui:                   m.Ui,
+			View:                 m.View,
+			Colorize:             m.Colorize,
+			stateLock:            m.StateLock,
+			stateLockTimeout:     m.StateLockTimeout,
+			remoteVersionChecker: m.RemoteVersionChecker,
+			IgnoreRemoteVersion:  m.IgnoreRemoteVersion,
+		}
+		err := bmomigrate.backendMigrateState(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
 		}
 
-		if m.stateLock {
-			view := views.NewStateLocker(vt, m.View)
-			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
+		if m.StateLock {
+			view := views.NewStateLocker(viewOptions, m.View)
+			stateLocker := clistate.NewLocker(m.StateLockTimeout, view)
 			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
 				return nil, diags
@@ -1023,7 +1097,7 @@ func (m *BackendFlags) backend_C_r_S_changed(ctx context.Context, c *configs.Bac
 
 	// Verify that selected workspace exist. Otherwise prompt user to create one
 	if opts.Init && b != nil {
-		if err := m.selectWorkspace(ctx, b); err != nil {
+		if err := m.Workspace.SelectWorkspace(ctx, b); err != nil {
 			diags = diags.Append(err)
 			return b, diags
 		}
@@ -1287,7 +1361,7 @@ func (m *BackendFlags) backendInitFromConfig(ctx context.Context, c *configs.Bac
 	var diags tfdiags.Diagnostics
 
 	// Get the backend
-	// Note that Meta.backendConfig should already have rewritten c.Type to be
+	// Note that Meta.BackendConfig should already have rewritten c.Type to be
 	// canonical before we were called, so we are expecting canonType to
 	// match c.Type now.
 	f, canonType := backendInit.Backend(c.Type)
@@ -1316,8 +1390,7 @@ func (m *BackendFlags) backendInitFromConfig(ctx context.Context, c *configs.Bac
 		return nil, cty.NilVal, diags
 	}
 
-	// TODO: test
-	if m.Input() {
+	if m.Input.Input(m.InputForcefullyDisabled) {
 		var err error
 		configVal, err = m.inputForSchema(configVal, schema)
 		if err != nil {
@@ -1369,6 +1442,73 @@ func (m *BackendFlags) setupEnhancedBackendAliases(b backend.Enhanced) error {
 		m.Services.Alias(alias.From, alias.To)
 	}
 	return nil
+}
+
+// inputForSchema uses interactive prompts to try to populate any
+// not-yet-populated required attributes in the given object value to
+// comply with the given schema.
+//
+// An error will be returned if input is disabled for this meta or if
+// values cannot be obtained for some other operational reason. Errors are
+// not returned for invalid input since the input loop itself will report
+// that interactively.
+//
+// It is not guaranteed that the result will be valid, since certain attribute
+// types and nested blocks are not supported for input.
+//
+// The given value must conform to the given schema. If not, this method will
+// panic.
+func (m *BackendFlags) inputForSchema(given cty.Value, schema *configschema.Block) (cty.Value, error) {
+	if given.IsNull() || !given.IsKnown() {
+		// This is not reasonable input, but we'll tolerate it anyway and
+		// just pass it through for the caller to handle downstream.
+		return given, nil
+	}
+
+	retVals := given.AsValueMap()
+	names := make([]string, 0, len(schema.Attributes))
+	for name, attrS := range schema.Attributes {
+		if attrS.Required && retVals[name].IsNull() && attrS.Type.IsPrimitiveType() {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+
+	input := m.UIInput()
+	for _, name := range names {
+		attrS := schema.Attributes[name]
+
+		for {
+			strVal, err := input.Input(context.Background(), &tofu.InputOpts{
+				Id:          name,
+				Query:       name,
+				Description: attrS.Description,
+			})
+			if err != nil {
+				return cty.UnknownVal(schema.ImpliedType()), fmt.Errorf("%s: %w", name, err)
+			}
+
+			val := cty.StringVal(strVal)
+			val, err = convert.Convert(val, attrS.Type)
+			if err != nil {
+				m.ShowDiagnostics(fmt.Errorf("Invalid value: %w", err))
+				continue
+			}
+
+			retVals[name] = val
+			break
+		}
+	}
+
+	return cty.ObjectVal(retVals), nil
+}
+
+// Helper method to ignore remote/cloud backend version conflicts. Only call this
+// for commands which cannot accidentally upgrade remote state files.
+func IgnoreRemoteVersionConflict(b backend.Backend) {
+	if back, ok := b.(BackendWithRemoteTerraformVersion); ok {
+		back.IgnoreVersionConflict()
+	}
 }
 
 // -------------------------------------------------------------------

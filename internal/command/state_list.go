@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -50,7 +51,7 @@ func (c *StateListCommand) Run(args []string) int {
 		return 1
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
@@ -59,7 +60,7 @@ func (c *StateListCommand) Run(args []string) int {
 	}
 
 	// This is a read-only command
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	// Get the state
 	env, err := c.Workspace.Workspace(ctx)

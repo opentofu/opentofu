@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -94,7 +95,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.Input = args.ViewOptions.Input
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
@@ -139,7 +140,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Render the resource count and outputs, unless those counts are being
 	// rendered already in a remote OpenTofu process.
-	if rb, isRemoteBackend := be.(BackendWithRemoteTerraformVersion); !isRemoteBackend || rb.IsLocalOperations() {
+	if rb, isRemoteBackend := be.(backend2.BackendWithRemoteTerraformVersion); !isRemoteBackend || rb.IsLocalOperations() { // TODO andrei check this
 		view.ResourceCount(args.State.StateOutPath)
 		if !c.Destroy && op.State != nil {
 			view.Outputs(op.State.RootModule().OutputValues)
@@ -230,7 +231,8 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 			))
 			return nil, diags
 		}
-		be, beDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc)
+		bf := buildBackendFlags(&c.Meta)
+		be, beDiags = bf.BackendForLocalPlan(ctx, plan.Backend, enc)
 	} else {
 		// Both new plans and saved cloud plans load their backend from config.
 		backendConfig, configDiags := c.loadBackendConfig(ctx, ".")
@@ -239,7 +241,8 @@ func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.Wr
 			return nil, diags
 		}
 
-		be, beDiags = c.Backend(ctx, &BackendOpts{
+		bf := buildBackendFlags(&c.Meta)
+		be, beDiags = bf.Backend(ctx, &backend2.BackendOpts{
 			Config:      backendConfig,
 			ViewOptions: viewOptions,
 		}, enc)

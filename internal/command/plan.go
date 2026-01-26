@@ -64,7 +64,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
-	c.Meta.input = args.ViewOptions.InputEnabled
+	c.Meta.Input = args.ViewOptions.Input
 
 	// FIXME: the -parallelism flag is used to control the concurrency of
 	// OpenTofu operations. At the moment, this value is used both to
@@ -138,11 +138,11 @@ func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State,
 		return nil, diags
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	be, beDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
-		Config:   backendConfig,
-		ViewType: viewOptions,
+		Config:      backendConfig,
+		ViewOptions: viewOptions,
 	}, enc.State())
 	diags = diags.Append(beDiags)
 	if beDiags.HasErrors() {

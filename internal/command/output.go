@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
@@ -81,7 +82,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 		c.Meta.statePath = statePath
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
@@ -90,7 +91,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 	}
 
 	// This is a read-only command
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	env, err := c.Workspace.Workspace(ctx)
 	if err != nil {

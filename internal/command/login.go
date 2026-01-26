@@ -70,7 +70,7 @@ func (c *LoginCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	if !c.input {
+	if !c.Input.Input(test) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Login is an interactive command",

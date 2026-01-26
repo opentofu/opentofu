@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workspace"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -90,6 +91,7 @@ func initCommands(
 	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
 	meta := command.Meta{
 		Workspace:  &workspace.Workspace{Dir: wd},
+		Input:      arguments.Input{}, // TODO andrei check if this needs to be a pointer or not
 		WorkingDir: wd,
 		Streams:    streams,
 		View:       views.NewView(streams).SetRunningInAutomation(inAutomation),

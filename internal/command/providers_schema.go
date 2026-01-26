@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	backend2 "github.com/opentofu/opentofu/internal/command/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -67,7 +68,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 		return 1
 	}
 
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	// Load the backend
 	b, backendDiags := backendFlags.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
@@ -85,7 +86,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// This is a read-only command
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	// we expect that the config dir is the cwd
 	cwd, err := os.Getwd()

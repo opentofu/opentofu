@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -30,8 +31,10 @@ var errInvalidWorkspaceNameEnvVar = fmt.Errorf("Invalid workspace name set using
 
 type Workspace struct {
 	*workdir.Dir
-	Input   bool
+	Input   arguments.Input
 	UIInput tofu.UIInput
+
+	Test bool // TODO andrei this needs to be replaced when configured properly
 }
 
 // Workspace returns the name of the currently configured workspace, corresponding
@@ -100,7 +103,7 @@ func (m *Workspace) SelectWorkspace(ctx context.Context, b backend.Backend) erro
 		return fmt.Errorf("Failed to get existing workspaces: %w", err)
 	}
 	if len(workspaces) == 0 {
-		if c, ok := b.(*cloud.Cloud); ok && m.Input {
+		if c, ok := b.(*cloud.Cloud); ok && m.Input.Input(m.Test) {
 			// len is always 1 if using Name; 0 means we're using Tags and there
 			// aren't any matching workspaces. Which might be normal and fine, so
 			// let's just ask:
@@ -146,7 +149,7 @@ func (m *Workspace) SelectWorkspace(ctx context.Context, b backend.Backend) erro
 		return m.SetWorkspace(workspaces[0])
 	}
 
-	if !m.Input {
+	if !m.Input.Input(m.Test) {
 		return fmt.Errorf("Currently selected workspace %q does not exist", workspace)
 	}
 
@@ -171,6 +174,14 @@ func (m *Workspace) SelectWorkspace(ctx context.Context, b backend.Backend) erro
 	workspace = workspaces[idx-1]
 	log.Printf("[TRACE] Meta.selectWorkspace: setting the current workspace according to user selection (%s)", workspace)
 	return m.SetWorkspace(workspace)
+}
+
+func ConfiguredWorkspace(in *Workspace, input arguments.Input, uiinput tofu.UIInput) *Workspace {
+	return &Workspace{
+		Dir:     in.Dir,
+		Input:   input,
+		UIInput: uiinput,
+	}
 }
 
 const errBackendNoExistingWorkspaces = `

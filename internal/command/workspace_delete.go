@@ -76,7 +76,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	backendFlags := buildBackendFlags(c.Meta)
+	backendFlags := buildBackendFlags(&c.Meta)
 	b, backendDiags := backendFlags.Backend(ctx, &backend2.BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
@@ -87,7 +87,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	// This command will not write state
-	c.ignoreRemoteVersionConflict(b)
+	backend2.IgnoreRemoteVersionConflict(b)
 
 	workspaces, err := b.Workspaces(ctx)
 	if err != nil {

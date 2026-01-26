@@ -55,7 +55,7 @@ type ViewOptions struct {
 
 	// InputEnabled is used to disable interactive input for unspecified
 	// variable and backend config values. Default is true.
-	InputEnabled bool
+	Input Input // TODO andrei check if this needs to be a pointer or not
 
 	// Optional stream to write json data to
 	JSONInto *os.File
@@ -63,7 +63,7 @@ type ViewOptions struct {
 
 func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
 	if input {
-		cmdFlags.BoolVar(&v.InputEnabled, "input", true, "input")
+		v.Input.RegisterFlags(cmdFlags)
 	}
 
 	cmdFlags.BoolVar(&v.jsonFlag, "json", false, "json")
@@ -89,7 +89,7 @@ func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
 	if v.jsonFlag {
 		v.ViewType = ViewJSON
 		// JSON view currently does not support input, so we disable it here
-		v.InputEnabled = false
+		v.Input.input = false
 		if v.jsonIntoFlag != "" {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
