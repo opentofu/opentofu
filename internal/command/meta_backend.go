@@ -145,26 +145,45 @@ func buildCliOpts(m *Meta) backend2.BackendCLIOptsBuilder {
 
 func buildBackendFlags(m *Meta) *backend2.BackendFlags {
 	return &backend2.BackendFlags{
+		// Regular dependencies which are ok as they are
+		Workspace: workspace.ConfiguredWorkspace(m.Workspace, m.Input, m.UIInput()),
+		Services:  m.Services,
+		// NOTE: This is ok because comes from ldflags
 		AllowExperimentalFeatures: m.AllowExperimentalFeatures,
+		// TODO: this needs more investigation because I am not sure that all the functionality inside backend
+		// relies strictly on the rootDir = '.' config. If it does, for the moment, this works.
+		// The idea would be to have all the config loading capabilities in a separate component
+		// that most probably will depend on the -var/-var-file.
+		// !!!! Be careful: the guts of the loadBackendConfig contains also a call on the view where it stores
+		// the cb to allow the view to use the loaded source
 		ConfigLoader: func(ctx context.Context) (*configs.Backend, tfdiags.Diagnostics) {
 			return m.loadBackendConfig(ctx, ".")
 		},
-		Reconfigure:   m.reconfigure,
-		MigrateState:  m.migrateState,
+		// NOTE: this reconfigure is doing quite well here. It's only used in the backend :thinking.
+		// We might be able to think of this as a flag of the backend, registered and managed by the backend.
+		Reconfigure: m.reconfigure,
+		// NOTE: this the same, backend flag
 		ForceInitCopy: m.forceInitCopy,
+		// NOTE: this the same, backend flag
+		MigrateState: m.migrateState,
 		SetBackendStateCb: func(b *legacy.BackendState) {
 			m.backendState = b
 		},
-		Workspace:               workspace.ConfiguredWorkspace(m.Workspace, m.Input, m.UIInput()),
 		InputForcefullyDisabled: test,
 		Input:                   m.Input,
-		Ui:                      m.Ui, // TODO andrei this needs to be done differently
+		Ui:                      m.Ui,
 		View:                    m.View,
 		Colorize:                m.Colorize,
 		ShowDiagnostics:         m.showDiagnostics,
 		UIInput:                 m.UIInput,
-		Services:                m.Services,
 		IgnoreRemoteVersion:     m.ignoreRemoteVersion,
+		StateLock:               m.stateLock,
+		StateLockTimeout:        m.stateLockTimeout,
+
+		WorkdirFetcher: func() *workdir.Dir {
+			return m.WorkingDir
+		},
+		CLIOptsBuilder: buildCliOpts(m),
 		// TODO andrei this is ugly and should be handled separately
 		LegacyStateCb: func() {
 			// If we got here from backendFromConfig returning nil then m.backendState
@@ -190,11 +209,5 @@ func buildBackendFlags(m *Meta) *backend2.BackendFlags {
 				}
 			}
 		},
-		WorkdirFetcher: func() *workdir.Dir {
-			return m.WorkingDir
-		},
-		CLIOptsBuilder:   buildCliOpts(m),
-		StateLock:        m.stateLock,
-		StateLockTimeout: m.stateLockTimeout,
 	}
 }
