@@ -34,12 +34,16 @@ type providerInstances struct {
 	// we belong to so that we can detect when all of the work of each particular
 	// provider instance has completed.
 	completion *completionTracker
+
+	closers   addrs.Map[addrs.AbsProviderInstanceCorrect, func(context.Context) error]
+	closersMu sync.Mutex
 }
 
 func newProviderInstances(completion *completionTracker) *providerInstances {
 	return &providerInstances{
 		active:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providers.Configured]](),
 		completion: completion,
+		closers:    addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(context.Context) error](),
 	}
 }
 
@@ -94,31 +98,30 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// problem.
 		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
 
+		// Mark this as "closed".  The planGraphCloseOperations will take care of it properly later
+		planGlue.planCtx.reportProviderInstanceClosed(addr)
+
+		closeCh := make(chan struct{})
+
+		// Register closer for use in planGraphCloseOperations
+		pi.closersMu.Lock()
+		pi.closers.Put(addr, func(ctx context.Context) error {
+			closeCh <- struct{}{}
+			return ret.Close(ctx)
+		})
+		pi.closersMu.Unlock()
+
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our
 		// given context is cancelled.
-		waitCh := pi.completion.NewWaiterFor(planGlue.providerInstanceCompletionEvents(ctx, addr))
 		go func() {
-			// Once this goroutine is complete the provider instance should be
-			// treated as closed.
-			defer planGlue.planCtx.reportProviderInstanceClosed(addr)
-
 			cancelCtx := ctx
 			withoutCancelCtx := context.WithoutCancel(ctx)
 			for {
 				select {
-				case <-waitCh:
-					// Everything that we were expecting to use the provider
-					// instance has now completed, so we can close it.
-					//
-					// (An error from this goes nowhere. If we want to track
-					// this then maybe we _should_ switch to having a central
-					// diags repository inside the providerInstances object,
-					// as discussed above for failing NewConfiguredProvider,
-					// and then we could write this failure into there.)
-					if ret != nil {
-						_ = ret.Close(withoutCancelCtx)
-					}
+				case <-closeCh:
+					// Close() has been called from within the closers
+					// No further actions are nessesary
 					return
 				case <-cancelCtx.Done():
 					// If the context we were given is cancelled then we'll
@@ -128,10 +131,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 					if ret != nil {
 						_ = ret.Stop(withoutCancelCtx)
 					}
-					// We'll now replace cancelCtx with the one guaranteed
-					// to never be cancelled so that we'll block until waitCh
-					// is closed.
-					cancelCtx = withoutCancelCtx
+					return
 				}
 			}
 		}()

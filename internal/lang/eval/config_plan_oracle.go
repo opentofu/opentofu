@@ -7,7 +7,6 @@ package eval
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -19,8 +18,6 @@ import (
 // A PlanningOracle provides information from the configuration that is needed
 // by the planning engine to help orchestrate the planning process.
 type PlanningOracle struct {
-	relationships *ResourceRelationships
-
 	// NOTE: Any method of PlanningOracle that interacts with methods of
 	// this or anything accessible through it MUST use
 	// [grapheval.ContextWithNewWorker] to make sure it's using a
@@ -61,52 +58,6 @@ func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.
 	// them when it visits the provider instance, th
 	ret, _ := providerInst.ConfigValue(ctx)
 	return ret
-}
-
-// ProviderInstanceUsers returns an object representing which resource instances
-// are associated with the provider instance that has the given address.
-//
-// The planning phase must keep the provider open at least long enough for
-// all of the reported resource instances to be planned.
-//
-// Note that the planning engine will need to plan destruction of any resource
-// instances that aren't in the desired state once
-// [ConfigInstance.DrivePlanning] returns, and provider instances involved in
-// those followup steps will need to remain open until that other work is
-// done. This package is not concerned with those details; that's the planning
-// engine's responsibility.
-func (o *PlanningOracle) ProviderInstanceUsers(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) ProviderInstanceUsers {
-	ctx = grapheval.ContextWithNewWorker(ctx)
-	_ = ctx // not using this right now, but keeping this to remind future maintainers that we'd need this
-
-	return o.relationships.ProviderInstanceUsers.Get(addr)
-}
-
-// EphemeralResourceInstanceUsers returns an object describing which other
-// resource instances and providers rely on the result value of the ephemeral
-// resource with the given address.
-//
-// The planning phase must keep the ephemeral resource instance open at least
-// long enough for all of the reported resource instances to be planned and
-// for all of the reported provider instances to be closed.
-//
-// The given address must be for an ephemeral resource instance or this function
-// will panic.
-//
-// Note that the planning engine will need to plan destruction of any resource
-// instances that aren't in the desired state once
-// [ConfigInstance.DrivePlanning] returns, and provider instances involved in
-// those followup steps might be included in a result from this method, in
-// which case the planning phase must hold the provider instance open long
-// enough to complete those followup steps.
-func (o *PlanningOracle) EphemeralResourceInstanceUsers(ctx context.Context, addr addrs.AbsResourceInstance) EphemeralResourceInstanceUsers {
-	ctx = grapheval.ContextWithNewWorker(ctx)
-	_ = ctx // not using this right now, but keeping this to remind future maintainers that we'd need this
-
-	if addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
-		panic(fmt.Sprintf("EphemeralResourceInstanceUsers with non-ephemeral %s", addr))
-	}
-	return o.relationships.EphemeralResourceUsers.Get(addr)
 }
 
 func (o *PlanningOracle) EvalContext(ctx context.Context) *EvalContext {

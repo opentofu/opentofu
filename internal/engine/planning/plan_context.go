@@ -6,6 +6,7 @@
 package planning
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -103,6 +104,24 @@ func (p *planContext) Close() *plans.Plan {
 	if logging.IsDebugOrHigher() {
 		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
 	}
+
+	// Re-compile the graph with the planGraphCloser so we can close all of the open providers and
+	// ephemerals in the correct order
+	// The planning process opens ephemerals and providers, but does not know when it is safe to close them.
+	// The two other possible approaches to this would be to pre-compute a partial graph from the config and state
+	// and injecting that into the planning engine or building a much more cumbersome reference counting system
+	compiled, diags := execGraph.Compile(&closeOperations{
+		providerInstances: p.providerInstances,
+	})
+	if diags.HasErrors() {
+		panic(diags.Err())
+	}
+	// Execute the close operations
+	diags = compiled.Execute(context.TODO())
+	if diags.HasErrors() {
+		panic(diags.Err())
+	}
+
 	execGraphOpaque := execGraph.Marshal()
 
 	return &plans.Plan{
