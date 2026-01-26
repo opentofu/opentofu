@@ -6,15 +6,18 @@
 package planning
 
 import (
+	"context"
 	"log"
+	"slices"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/lifecycle"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // planContext is our shared state for the various parts of a single call
@@ -45,15 +48,18 @@ type planContext struct {
 	// of prevRoundState.
 	refreshedState *states.SyncState
 
-	completion *completionTracker
+	providers plugins.Providers
 
 	providerInstances *providerInstances
 
-	providers plugins.Providers
-
-	// TODO: something to track which ephemeral resource instances are currently
-	// open? (Do we actually need that, or can we just rely on a background
-	// goroutine to babysit those based on the completion tracker?)
+	// Stack of ephemeral and provider close functions
+	// Given the current state of the planning engine, we wait until
+	// the end of the run to close all of the "opened" items.  We
+	// also need to close them in a specific order to prevent dependency
+	// conflicts. We posit that for plan, closing in the reverse order of opens
+	// will ensure that this order is correctly preserved.
+	closeStackMu sync.Mutex
+	closeStack   []func(context.Context) tfdiags.Diagnostics
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers) *planContext {
@@ -63,8 +69,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	changes := plans.NewChanges()
 	refreshedState := prevRoundState.DeepCopy()
 
-	completion := lifecycle.NewCompletionTracker[completionEvent]()
-
 	execGraphBuilder := newExecGraphBuilder()
 
 	return &planContext{
@@ -73,8 +77,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		execGraphBuilder:  execGraphBuilder,
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),
-		completion:        completion,
-		providerInstances: newProviderInstances(completion),
+		providerInstances: newProviderInstances(),
 		providers:         providers,
 	}
 }
@@ -84,16 +87,8 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 //
 // After calling this function the [planContext] object is invalid and must
 // not be used anymore.
-func (p *planContext) Close() *plans.Plan {
-	// Before we return we'll make sure our completion tracker isn't waiting
-	// for anything else to complete, so that we can unblock closing of
-	// any provider instances or ephemeral resource instances that might've
-	// got left behind by panics/etc. We should not be relying on this in the
-	// happy path.
-	for event := range p.completion.PendingItems() {
-		log.Printf("[TRACE] planContext: synthetic completion of %#v", event)
-		p.completion.ReportCompletion(event)
-	}
+func (p *planContext) Close(ctx context.Context) (*plans.Plan, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
 	// We'll freeze the execution graph into a serialized form here, so that
 	// we can recover an equivalent execution graph again during the apply
@@ -102,6 +97,15 @@ func (p *planContext) Close() *plans.Plan {
 	if logging.IsDebugOrHigher() {
 		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
 	}
+
+	p.closeStackMu.Lock()
+	defer p.closeStackMu.Unlock()
+
+	slices.Reverse(p.closeStack)
+	for _, closer := range p.closeStack {
+		diags = diags.Append(closer(ctx))
+	}
+
 	execGraphOpaque := execGraph.Marshal()
 
 	return &plans.Plan{
@@ -119,5 +123,5 @@ func (p *planContext) Close() *plans.Plan {
 		// graph so we can round-trip it through saved plan files while
 		// the CLI layer is still working in terms of [plans.Plan].
 		ExecutionGraph: execGraphOpaque,
-	}
+	}, diags
 }

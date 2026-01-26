@@ -20,8 +20,6 @@ import (
 )
 
 func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
 
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
@@ -91,8 +89,6 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 }
 
 func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 	var diags tfdiags.Diagnostics
 
 	// An orphan data object is always just discarded completely, because

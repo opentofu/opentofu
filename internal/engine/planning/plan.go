@@ -74,9 +74,9 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		// here but we'll still produce a best-effort [plans.Plan] describing
 		// the situation because that often gives useful information for debugging
 		// what caused the errors.
-		plan := planCtx.Close()
+		plan, moreDiags := planCtx.Close(ctx)
 		plan.Errored = true
-		return plan, diags
+		return plan, diags.Append(moreDiags)
 	}
 	if evalResult == nil {
 		// This should not happen: we should always have an evalResult if
@@ -125,5 +125,10 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		}
 	}
 
-	return planCtx.Close(), diags
+	plan, moreDiags := planCtx.Close(ctx)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		plan.Errored = true
+	}
+	return plan, diags
 }

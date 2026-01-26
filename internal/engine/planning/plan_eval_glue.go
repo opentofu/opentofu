@@ -297,49 +297,6 @@ func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderIns
 	return p.planCtx.providerInstances.ProviderClient(ctx, addr, p)
 }
 
-// providerInstanceCompletionEvents returns all of the [completionEvent] values
-// that need to have been reported to the completion tracker before an
-// instance of the given provider can be closed.
-func (p *planGlue) providerInstanceCompletionEvents(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) iter.Seq[completionEvent] {
-	return func(yield func(completionEvent) bool) {
-		configUsers := p.oracle.ProviderInstanceUsers(ctx, addr)
-		for _, resourceInstAddr := range configUsers.ResourceInstances {
-			event := resourceInstancePlanningComplete{resourceInstAddr.UniqueKey()}
-			if !yield(event) {
-				return
-			}
-		}
-		// We also need to wait for the completion of anything we can find
-		// in the state, just in case any resource instances are "orphaned"
-		// and in case there are any deposed objects we need to deal with.
-		for _, modState := range p.planCtx.prevRoundState.Modules {
-			for _, resourceState := range modState.Resources {
-				for instKey, instanceState := range resourceState.Instances {
-					resourceInstAddr := resourceState.Addr.Instance(instKey)
-					// FIXME: State is still using the not-quite-right address
-					// types for provider instances, so we'll shim here.
-					providerInstAddr := resourceState.ProviderConfig.InstanceCorrect(instanceState.ProviderKey)
-					if !addr.Equal(providerInstAddr) {
-						continue // not for this provider instance
-					}
-					if instanceState.Current != nil {
-						event := resourceInstancePlanningComplete{resourceInstAddr.UniqueKey()}
-						if !yield(event) {
-							return
-						}
-					}
-					for dk := range instanceState.Deposed {
-						event := resourceInstanceDeposedPlanningComplete{resourceInstAddr.UniqueKey(), dk}
-						if !yield(event) {
-							return
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a

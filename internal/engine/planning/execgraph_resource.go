@@ -45,8 +45,6 @@ func (b *execGraphBuilder) SetResourceInstanceFinalStateResult(addr addrs.AbsRes
 // system that caused the construction of subgraphs for different resource
 // instances to happen in the wrong order.
 func (b *execGraphBuilder) resourceInstanceFinalStateResult(addr addrs.AbsResourceInstance) execgraph.AnyResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
 	return b.lower.ResourceInstanceFinalStateResult(addr)
 }
 
@@ -60,11 +58,21 @@ func (b *execGraphBuilder) resourceInstanceFinalStateResult(addr addrs.AbsResour
 // The value of the returned result is not actually meaningful; it's used only
 // for its blocking behavior to add additional ordering constraints to an
 // execution graph.
-func (b *execGraphBuilder) waiterForResourceInstances(instAddrs iter.Seq[addrs.AbsResourceInstance]) execgraph.AnyResultRef {
+//
+// The function returned allows callers to ensure any dependency resources
+// that stay "open" will not be closed until the given references has completed.
+func (b *execGraphBuilder) waiterForResourceInstances(instAddrs iter.Seq[addrs.AbsResourceInstance]) (execgraph.AnyResultRef, registerExecCloseBlockerFunc) {
 	var dependencyResults []execgraph.AnyResultRef
 	for instAddr := range instAddrs {
 		depInstResult := b.resourceInstanceFinalStateResult(instAddr)
 		dependencyResults = append(dependencyResults, depInstResult)
 	}
-	return b.lower.Waiter(dependencyResults...)
+
+	return b.lower.Waiter(dependencyResults...), func(ref execgraph.AnyResultRef) {
+		for instAddr := range instAddrs {
+			if instAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				b.openEphemeralRefs.Get(instAddr)(ref)
+			}
+		}
+	}
 }

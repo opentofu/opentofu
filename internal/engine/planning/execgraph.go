@@ -45,6 +45,7 @@ type execGraphBuilder struct {
 	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
 	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]]
 	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]]
+	openEphemeralRefs    addrs.Map[addrs.AbsResourceInstance, registerExecCloseBlockerFunc]
 }
 
 // NOTE: There are additional methods for [execGraphBuilder] declared in
@@ -57,6 +58,7 @@ func newExecGraphBuilder() *execGraphBuilder {
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
 		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]](),
 		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]](),
+		openEphemeralRefs:    addrs.MakeMap[addrs.AbsResourceInstance, registerExecCloseBlockerFunc](),
 	}
 }
 
@@ -93,9 +95,7 @@ type registerExecCloseBlockerFunc func(execgraph.AnyResultRef)
 func (b *execGraphBuilder) makeCloseBlocker() (execgraph.AnyResultRef, registerExecCloseBlockerFunc) {
 	waiter, lowerRegister := b.lower.MutableWaiter()
 	registerFunc := registerExecCloseBlockerFunc(func(ref execgraph.AnyResultRef) {
-		b.mu.Lock()
 		lowerRegister(ref)
-		b.mu.Unlock()
 	})
 	return waiter, registerFunc
 }
