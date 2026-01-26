@@ -182,7 +182,6 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 			},
 		},
 	}
-	evalCtx.InitProviderProvider = mockProvider
 	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
 	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj, workingState)

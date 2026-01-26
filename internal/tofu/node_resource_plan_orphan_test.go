@@ -223,7 +223,6 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				RefreshStateState:        state.DeepCopy().SyncWrapper(),
 				PrevRunStateState:        state.DeepCopy().SyncWrapper(),
 				InstanceExpanderExpander: instances.NewExpander(),
-				InitProviderProvider:     p,
 				ProviderSchemaSchema:     schema,
 				ChangesChanges:           plans.NewChanges().SyncWrapper(),
 			}
@@ -294,7 +293,6 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		InitProviderProvider:     p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
@@ -379,7 +377,6 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		InitProviderProvider:     p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {

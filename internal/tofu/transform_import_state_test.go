@@ -32,8 +32,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 
 	evalCtx := &MockEvalContext{
-		StateState:           state.SyncWrapper(),
-		InitProviderProvider: provider,
+		StateState: state.SyncWrapper(),
 	}
 
 	// Import a new aws_instance.foo, this time with ID=bar. The original
@@ -72,8 +71,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	provider := testProvider("aws")
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	evalCtx := &MockEvalContext{
-		StateState:           state.SyncWrapper(),
-		InitProviderProvider: provider,
+		StateState: state.SyncWrapper(),
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"aws_instance": {
@@ -134,8 +132,7 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 	}
 
 	evalCtx := &MockEvalContext{
-		StateState:           state.SyncWrapper(),
-		InitProviderProvider: provider,
+		StateState: state.SyncWrapper(),
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"aws_instance": {
