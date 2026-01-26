@@ -14,8 +14,8 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -80,8 +80,7 @@ type Provisioners interface {
 }
 
 type newRuntimePlugins struct {
-	providers    map[addrs.Provider]providers.Factory
-	provisioners map[string]provisioners.Factory
+	library plugins.Library
 
 	// unconfiguredInsts is all of the provider instances we've created for
 	// unconfigured uses such as schema fetching and validation, which we
@@ -96,10 +95,9 @@ type newRuntimePlugins struct {
 var _ Providers = (*newRuntimePlugins)(nil)
 var _ Provisioners = (*newRuntimePlugins)(nil)
 
-func NewRuntimePlugins(providers map[addrs.Provider]providers.Factory, provisioners map[string]provisioners.Factory) Plugins {
+func NewRuntimePlugins(library plugins.Library) Plugins {
 	return &newRuntimePlugins{
-		providers:    providers,
-		provisioners: provisioners,
+		library: library,
 	}
 }
 
@@ -281,7 +279,7 @@ func (m *newRuntimePlugins) unconfiguredProviderInst(ctx context.Context, provid
 // an already-active instance of the same provider.
 func (m *newRuntimePlugins) newProviderInst(_ context.Context, provider addrs.Provider) (providers.Interface, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	factory, ok := m.providers[provider]
+	ok := m.library.HasProvider(provider)
 	if !ok {
 		// FIXME: If this error remains reachable in the final version of this
 		// code (i.e. if some caller isn't already guaranteeing that all
@@ -295,7 +293,7 @@ func (m *newRuntimePlugins) newProviderInst(_ context.Context, provider addrs.Pr
 		return nil, diags
 	}
 
-	inst, err := factory()
+	inst, err := m.library.NewProviderInstance(provider)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

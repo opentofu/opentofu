@@ -16,6 +16,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -34,9 +35,9 @@ func TestContext2Validate_badCount(t *testing.T) {
 
 	m := testModule(t, "validate-bad-count")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -57,9 +58,9 @@ func TestContext2Validate_badResource_reference(t *testing.T) {
 
 	m := testModule(t, "validate-bad-resource-count")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -83,9 +84,9 @@ func TestContext2Validate_badVar(t *testing.T) {
 
 	m := testModule(t, "validate-bad-var")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -150,10 +151,10 @@ func TestContext2Validate_computedVar(t *testing.T) {
 
 	m := testModule(t, "validate-computed-var")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(pt),
-		},
+		}, nil),
 	})
 
 	p.ValidateProviderConfigFn = func(req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
@@ -200,9 +201,9 @@ func TestContext2Validate_computedInFunction(t *testing.T) {
 
 	m := testModule(t, "validate-computed-in-function")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -238,9 +239,9 @@ func TestContext2Validate_countComputed(t *testing.T) {
 
 	m := testModule(t, "validate-count-computed")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -262,9 +263,9 @@ func TestContext2Validate_countNegative(t *testing.T) {
 	}
 	m := testModule(t, "validate-count-negative")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -288,9 +289,9 @@ func TestContext2Validate_countVariable(t *testing.T) {
 	}
 	m := testModule(t, "apply-count-variable")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -314,9 +315,9 @@ func TestContext2Validate_countVariableNoDefault(t *testing.T) {
 		},
 	}
 	c, diags := NewContext(&ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	assertNoDiagnostics(t, diags)
 
@@ -342,9 +343,9 @@ func TestContext2Validate_moduleBadOutput(t *testing.T) {
 	}
 	m := testModule(t, "validate-bad-module-output")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -368,9 +369,9 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 	}
 	m := testModule(t, "validate-good-module")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -393,9 +394,9 @@ func TestContext2Validate_moduleBadResource(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateResourceConfigResponse = &providers.ValidateResourceConfigResponse{
@@ -424,9 +425,9 @@ func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -458,9 +459,9 @@ func TestContext2Validate_moduleProviderVar(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateProviderConfigFn = func(req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
@@ -499,9 +500,9 @@ func TestContext2Validate_moduleProviderInheritUnused(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateProviderConfigFn = func(req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
@@ -535,9 +536,9 @@ func TestContext2Validate_orphans(t *testing.T) {
 	m := testModule(t, "validate-good")
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
@@ -577,9 +578,9 @@ func TestContext2Validate_providerConfig_bad(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateProviderConfigResponse = &providers.ValidateProviderConfigResponse{
@@ -616,9 +617,9 @@ func TestContext2Validate_providerConfig_skippedEmpty(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateProviderConfigResponse = &providers.ValidateProviderConfigResponse{
@@ -652,9 +653,9 @@ func TestContext2Validate_providerConfig_good(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -687,9 +688,9 @@ func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -716,12 +717,11 @@ func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
 	pr := simpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	p.ValidateProviderConfigResponse = &providers.ValidateProviderConfigResponse{
@@ -752,12 +752,11 @@ func TestContext2Validate_badResourceConnection(t *testing.T) {
 	pr := simpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -785,12 +784,11 @@ func TestContext2Validate_badProvisionerConnection(t *testing.T) {
 	pr := simpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -834,12 +832,11 @@ func TestContext2Validate_provisionerConfig_good(t *testing.T) {
 	}
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -863,9 +860,9 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 		},
 	}
 	c, diags := NewContext(&ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	assertNoDiagnostics(t, diags)
 
@@ -899,9 +896,9 @@ func TestContext2Validate_resourceConfig_bad(t *testing.T) {
 		},
 	}
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateResourceConfigResponse = &providers.ValidateResourceConfigResponse{
@@ -929,9 +926,9 @@ func TestContext2Validate_resourceConfig_good(t *testing.T) {
 		},
 	}
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -957,9 +954,9 @@ func TestContext2Validate_tainted(t *testing.T) {
 
 	m := testModule(t, "validate-good")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
@@ -1001,12 +998,11 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1030,9 +1026,9 @@ func TestContext2Validate_varRefUnknown(t *testing.T) {
 		},
 	}
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	var value cty.Value
@@ -1071,9 +1067,9 @@ func TestContext2Validate_interpolateVar(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -1103,9 +1099,9 @@ func TestContext2Validate_interpolateComputedModuleVarDef(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -1123,9 +1119,9 @@ func TestContext2Validate_interpolateMap(t *testing.T) {
 	p := testProvider("template")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		UIInput: input,
 	})
 
@@ -1174,9 +1170,9 @@ resource "aws_instance" "foo" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1205,9 +1201,9 @@ output "out" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1241,9 +1237,9 @@ resource "aws_instance" "foo" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1299,9 +1295,9 @@ output "out" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1329,9 +1325,9 @@ output "out" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1359,9 +1355,9 @@ output "out" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1388,9 +1384,9 @@ resource "test_instance" "bar" {
 
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1420,9 +1416,9 @@ resource "test_instance" "bar" {
 
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1444,9 +1440,9 @@ func TestContext2Validate_variableCustomValidationsFail(t *testing.T) {
 
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1478,9 +1474,9 @@ variable "test" {
 
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1539,9 +1535,9 @@ resource "aws_instance" "foo" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1566,9 +1562,9 @@ resource "aws_instance" "foo" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1596,9 +1592,9 @@ resource "aws_instance" "foo" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1677,9 +1673,9 @@ output "out" {
 
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -1791,9 +1787,9 @@ resource "test_instance" "a" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
@@ -1830,12 +1826,11 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 	pr := simpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"test": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	pr.ValidateProvisionerConfigFn = func(r provisioners.ValidateProvisionerConfigRequest) provisioners.ValidateProvisionerConfigResponse {
@@ -1934,9 +1929,9 @@ resource "test_instance" "c" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2001,9 +1996,9 @@ resource "test_object" "t" {
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2058,9 +2053,9 @@ output "out" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2134,9 +2129,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2177,9 +2172,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2223,9 +2218,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2264,9 +2259,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2313,9 +2308,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2354,9 +2349,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2400,9 +2395,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2443,9 +2438,9 @@ resource "aws_instance" "test" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2477,9 +2472,9 @@ locals {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2496,9 +2491,9 @@ func TestContext2Validate_rangeOverZeroPlanTimestamp(t *testing.T) {
 	m := testModule(t, "plan_range_over_plan_timestamp")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2530,9 +2525,9 @@ resource "test_object" "t" {
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2561,9 +2556,9 @@ resource "test_object" "t" {
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := ctx.Validate(context.Background(), m)
@@ -2605,9 +2600,9 @@ func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
 		return providers.ReadResourceResponse{
@@ -2709,9 +2704,9 @@ func TestContext2Validate_importIntoModuleResource(t *testing.T) {
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
 		return providers.ReadResourceResponse{
@@ -2763,9 +2758,9 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadResourceFn = func(request providers.ReadResourceRequest) providers.ReadResourceResponse {
 		return providers.ReadResourceResponse{

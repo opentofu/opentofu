@@ -14,10 +14,10 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -40,12 +40,11 @@ const (
 // ContextOpts are the user-configurable options to create a context with
 // NewContext.
 type ContextOpts struct {
-	Meta         *ContextMeta
-	Hooks        []Hook
-	Parallelism  int
-	Providers    map[addrs.Provider]providers.Factory
-	Provisioners map[string]provisioners.Factory
-	Encryption   encryption.Encryption
+	Meta        *ContextMeta
+	Hooks       []Hook
+	Parallelism int
+	Plugins     plugins.Library
+	Encryption  encryption.Encryption
 
 	UIInput UIInput
 }
@@ -135,7 +134,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		par = 10
 	}
 
-	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
+	plugins := newContextPlugins(opts.Plugins)
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 

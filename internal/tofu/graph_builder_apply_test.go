@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -780,9 +781,9 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 		},
 	}
 
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
-	}, nil)
+	}, nil))
 
 	b := &ApplyGraphBuilder{
 		Config:    testModule(t, "apply-with-checks"),

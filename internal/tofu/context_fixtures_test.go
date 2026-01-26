@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
@@ -30,8 +31,10 @@ type contextTestFixture struct {
 // _shallow_ modifications to the options as needed.
 func (f *contextTestFixture) ContextOpts() *ContextOpts {
 	return &ContextOpts{
-		Providers:    f.Providers,
-		Provisioners: f.Provisioners,
+		Plugins: plugins.NewLibrary(
+			f.Providers,
+			f.Provisioners,
+		),
 	}
 }
 

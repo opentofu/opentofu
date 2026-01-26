@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -215,9 +216,9 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 	}
 
 	ctxOpts := &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	}
 
 	t.Run("pass", func(t *testing.T) {
