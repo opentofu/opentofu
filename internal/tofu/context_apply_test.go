@@ -33,6 +33,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -45,9 +46,9 @@ func TestContext2Apply_basic(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -79,6 +80,10 @@ func TestContext2Apply_stop(t *testing.T) {
 	stoppedCh := make(chan struct{})
 	stopCalled := uint32(0)
 	applyStopped := uint32(0)
+
+	// This provider is started multiple times. Ideally this test would be setup to track each instance
+	var stopOnce sync.Once
+
 	p := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
@@ -126,12 +131,14 @@ func TestContext2Apply_stop(t *testing.T) {
 			// Closing this channel will unblock the channel read in
 			// ApplyResourceChangeFn above.
 			log.Printf("[TRACE] TestContext2Apply_stop: Stop called")
-			atomic.AddUint32(&stopCalled, 1)
-			close(stopCh)
-			// This will block until ApplyResourceChange has reacted to
-			// being stopped.
-			log.Printf("[TRACE] TestContext2Apply_stop: Waiting for ApplyResourceChange to react to being stopped")
-			<-stoppedCh
+			stopOnce.Do(func() {
+				atomic.AddUint32(&stopCalled, 1)
+				close(stopCh)
+				// This will block until ApplyResourceChange has reacted to
+				// being stopped.
+				log.Printf("[TRACE] TestContext2Apply_stop: Waiting for ApplyResourceChange to react to being stopped")
+				<-stoppedCh
+			})
 			log.Printf("[TRACE] TestContext2Apply_stop: Stop is completing")
 			return nil
 		},
@@ -140,9 +147,9 @@ func TestContext2Apply_stop(t *testing.T) {
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.MustParseProviderSourceString("terraform.io/test/indefinite"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -261,9 +268,9 @@ func TestContext2Apply_unstable(t *testing.T) {
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -317,9 +324,9 @@ func TestContext2Apply_escape(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -345,9 +352,9 @@ func TestContext2Apply_resourceCountOneList(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -373,9 +380,9 @@ func TestContext2Apply_resourceCountZeroList(t *testing.T) {
 	p := testProvider("null")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -426,9 +433,9 @@ func TestContext2Apply_resourceDependsOnModule(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -500,9 +507,9 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -527,9 +534,9 @@ func TestContext2Apply_resourceDependsOnModuleDestroy(t *testing.T) {
 	var globalState *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -568,9 +575,9 @@ func TestContext2Apply_resourceDependsOnModuleDestroy(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, globalState, &PlanOpts{
@@ -621,9 +628,9 @@ func TestContext2Apply_resourceDependsOnModuleGrandchild(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -672,9 +679,9 @@ func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -699,9 +706,9 @@ func TestContext2Apply_mapVarBetweenModules(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -737,9 +744,9 @@ func TestContext2Apply_refCount(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -774,9 +781,9 @@ func TestContext2Apply_providerAlias(t *testing.T) {
 		return p, nil
 	}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): p,
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -813,9 +820,9 @@ func TestContext2Apply_providerAliasConfigure(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("another"): p,
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -845,9 +852,9 @@ func TestContext2Apply_providerAliasConfigure(t *testing.T) {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("another"): p,
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Apply(context.Background(), plan, m, nil)
@@ -877,9 +884,9 @@ func TestContext2Apply_providerWarning(t *testing.T) {
 		return
 	}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -912,9 +919,9 @@ func TestContext2Apply_emptyModule(t *testing.T) {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -950,9 +957,9 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1032,9 +1039,9 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1091,9 +1098,9 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1162,9 +1169,9 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1242,9 +1249,9 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1304,9 +1311,9 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -1345,9 +1352,9 @@ func TestContext2Apply_destroyComputed(t *testing.T) {
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -1415,9 +1422,9 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		Parallelism: 1, // To check ordering
 	})
 
@@ -1511,9 +1518,9 @@ func testContext2Apply_destroyDependsOnStateOnly(t *testing.T, state *states.Sta
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		Parallelism: 1, // To check ordering
 	})
 
@@ -1608,9 +1615,9 @@ func testContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T, state *stat
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		Parallelism: 1, // To check ordering
 	})
 
@@ -1643,9 +1650,9 @@ func TestContext2Apply_dataBasic(t *testing.T) {
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -1696,9 +1703,9 @@ func TestContext2Apply_destroyData(t *testing.T) {
 
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		Hooks: []Hook{hook},
 	})
 
@@ -1764,9 +1771,9 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -1802,9 +1809,9 @@ func TestContext2Apply_destroyModuleVarProviderConfig(t *testing.T) {
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): p,
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -1890,7 +1897,7 @@ func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, p
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: providerFactories,
+		Plugins: plugins.NewLibrary(providerFactories, nil),
 	})
 
 	return ctx, m, state
@@ -1902,9 +1909,9 @@ func TestContext2Apply_minimal(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -1928,9 +1935,9 @@ func TestContext2Apply_cancel(t *testing.T) {
 	m := testModule(t, "apply-cancel")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
@@ -1988,9 +1995,9 @@ func TestContext2Apply_cancelBlock(t *testing.T) {
 	m := testModule(t, "apply-cancel-block")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	applyCh := make(chan struct{})
@@ -2085,12 +2092,11 @@ func TestContext2Apply_cancelProvisioner(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	prStopped := make(chan struct{})
@@ -2190,9 +2196,9 @@ func TestContext2Apply_compute(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -2253,9 +2259,9 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -2306,9 +2312,9 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -2370,9 +2376,9 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -2438,9 +2444,9 @@ func TestContext2Apply_countTainted(t *testing.T) {
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -2489,9 +2495,9 @@ func TestContext2Apply_countVariable(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -2515,9 +2521,9 @@ func TestContext2Apply_countVariableRef(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -2555,8 +2561,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 		"local-exec": testProvisionerFuncFixed(pr),
 	}
 	ctx := testContext2(t, &ContextOpts{
-		Providers:    Providers,
-		Provisioners: provisioners,
+		Plugins: plugins.NewLibrary(Providers, provisioners),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -2569,8 +2574,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctxOpts.Providers = Providers
-	ctxOpts.Provisioners = provisioners
+	ctxOpts.Plugins = plugins.NewLibrary(Providers, provisioners)
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
@@ -2594,9 +2598,9 @@ func TestContext2Apply_foreachVariable(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -2627,9 +2631,9 @@ func TestContext2Apply_moduleBasic(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -2708,9 +2712,9 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -2758,9 +2762,9 @@ func TestContext2Apply_moduleInheritAlias(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -2805,9 +2809,9 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 	// Step 1: create the resources and instances
 	m := testModule(t, "apply-orphan-resource")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
@@ -2840,9 +2844,9 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 	// Step 2: update with an empty config, to destroy everything
 	m = testModule(t, "empty")
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
@@ -2906,9 +2910,9 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -2970,9 +2974,9 @@ func TestContext2Apply_moduleOrphanProvider(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -3011,9 +3015,9 @@ func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -3045,9 +3049,9 @@ func TestContext2Apply_moduleGrandchildProvider(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3078,10 +3082,10 @@ func TestContext2Apply_moduleOnlyProvider(t *testing.T) {
 	pTest.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(pTest),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3105,9 +3109,9 @@ func TestContext2Apply_moduleProviderAlias(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3130,9 +3134,9 @@ func TestContext2Apply_moduleProviderAliasTargets(t *testing.T) {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -3181,9 +3185,9 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -3219,9 +3223,9 @@ func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -3244,9 +3248,9 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -3264,9 +3268,9 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 	assertNoErrors(t, diags)
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -3292,9 +3296,9 @@ func TestContext2Apply_moduleBool(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3320,9 +3324,9 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -3373,10 +3377,10 @@ func TestContext2Apply_multiProvider(t *testing.T) {
 	pDO.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			addrs.NewDefaultProvider("do"):  testProviderFuncFixed(pDO),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3437,10 +3441,10 @@ func TestContext2Apply_multiProviderDestroy(t *testing.T) {
 	// First, create the instances
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"):   testProviderFuncFixed(p),
 				addrs.NewDefaultProvider("vault"): testProviderFuncFixed(p2),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3484,10 +3488,10 @@ func TestContext2Apply_multiProviderDestroy(t *testing.T) {
 		p2.ApplyResourceChangeFn = applyFn
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"):   testProviderFuncFixed(p),
 				addrs.NewDefaultProvider("vault"): testProviderFuncFixed(p2),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -3550,10 +3554,10 @@ func TestContext2Apply_multiProviderDestroyChild(t *testing.T) {
 	// First, create the instances
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"):   testProviderFuncFixed(p),
 				addrs.NewDefaultProvider("vault"): testProviderFuncFixed(p2),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -3599,10 +3603,10 @@ func TestContext2Apply_multiProviderDestroyChild(t *testing.T) {
 		p2.ApplyResourceChangeFn = applyFn
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"):   testProviderFuncFixed(p),
 				addrs.NewDefaultProvider("vault"): testProviderFuncFixed(p2),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -3634,9 +3638,9 @@ func TestContext2Apply_multiVar(t *testing.T) {
 
 	// First, apply with a count of 3
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -3666,9 +3670,9 @@ func TestContext2Apply_multiVar(t *testing.T) {
 	// Apply again, reduce the count to 1
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -3771,9 +3775,9 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 
 	// First, apply with a count of 3
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -3937,9 +3941,9 @@ func TestContext2Apply_multiVarOrder(t *testing.T) {
 
 	// First, apply with a count of 3
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -3968,9 +3972,9 @@ func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
 
 	// First, apply with a count of 3
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -4002,9 +4006,9 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		p.PlanResourceChangeFn = testDiffFn
 		p.ApplyResourceChangeFn = testApplyFn
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		log.Print("\n========\nStep 1 Plan\n========")
@@ -4066,9 +4070,9 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		log.Print("\n========\nStep 2 Plan\n========")
@@ -4118,9 +4122,9 @@ func TestContext2Apply_multiVarMissingState(t *testing.T) {
 
 	// First, apply with a count of 3
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4145,9 +4149,9 @@ func TestContext2Apply_outputOrphan(t *testing.T) {
 	root.SetOutputValue("bar", cty.StringVal("baz"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -4173,9 +4177,9 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 	state := states.NewState()
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -4195,9 +4199,9 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 	// now apply with no module in the config, which should remove the
 	// remaining output
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	emptyConfig := configs.NewEmptyConfig()
@@ -4231,10 +4235,10 @@ func TestContext2Apply_providerComputedVar(t *testing.T) {
 	pTest.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(pTest),
-		},
+		}, nil),
 	})
 
 	p.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
@@ -4269,9 +4273,9 @@ func TestContext2Apply_providerConfigureDisabled(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4303,12 +4307,11 @@ func TestContext2Apply_provisionerModule(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4350,12 +4353,11 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 	h := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -4408,12 +4410,11 @@ func TestContext2Apply_provisionerCreateFail(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4443,12 +4444,11 @@ func TestContext2Apply_provisionerCreateFailNoId(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4478,12 +4478,11 @@ func TestContext2Apply_provisionerFail(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4525,12 +4524,11 @@ func TestContext2Apply_provisionerFail_createBeforeDestroy(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -4565,9 +4563,9 @@ func TestContext2Apply_error_createBeforeDestroy(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("placeholder error from ApplyFn"))
@@ -4612,9 +4610,9 @@ func TestContext2Apply_errorDestroy_createBeforeDestroy(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 		// Fail the destroy!
@@ -4673,7 +4671,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: ps,
+		Plugins: plugins.NewLibrary(ps, nil),
 	})
 	createdInstanceId := "bar"
 	// Create works
@@ -4725,7 +4723,7 @@ aws_instance.web: (1 deposed)
 
 	createdInstanceId = "baz"
 	ctx = testContext2(t, &ContextOpts{
-		Providers: ps,
+		Plugins: plugins.NewLibrary(ps, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -4791,7 +4789,7 @@ aws_instance.web: (1 deposed)
 
 	createdInstanceId = "qux"
 	ctx = testContext2(t, &ContextOpts{
-		Providers: ps,
+		Plugins: plugins.NewLibrary(ps, nil),
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
@@ -4826,7 +4824,7 @@ aws_instance.web: (1 deposed)
 
 	createdInstanceId = "quux"
 	ctx = testContext2(t, &ContextOpts{
-		Providers: ps,
+		Plugins: plugins.NewLibrary(ps, nil),
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
@@ -4866,12 +4864,11 @@ func TestContext2Apply_provisionerFailContinue(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4911,12 +4908,11 @@ func TestContext2Apply_provisionerFailContinueHook(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -4961,12 +4957,11 @@ func TestContext2Apply_provisionerDestroy(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
@@ -5009,12 +5004,11 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
@@ -5074,12 +5068,11 @@ func TestContext2Apply_provisionerDestroyFailContinue(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5142,12 +5135,11 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5209,12 +5201,11 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5270,12 +5261,11 @@ func TestContext2Apply_provisionerResourceRef(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5314,12 +5304,11 @@ func TestContext2Apply_provisionerSelfRef(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5365,12 +5354,11 @@ func TestContext2Apply_provisionerMultiSelfRef(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5423,12 +5411,11 @@ func TestContext2Apply_provisionerMultiSelfRefSingle(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5475,12 +5462,11 @@ func TestContext2Apply_provisionerExplicitSelfRef(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
-			Provisioners: map[string]provisioners.Factory{
+			}, map[string]provisioners.Factory{
 				"shell": testProvisionerFuncFixed(pr),
-			},
+			}),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5501,12 +5487,11 @@ func TestContext2Apply_provisionerExplicitSelfRef(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
-			Provisioners: map[string]provisioners.Factory{
+			}, map[string]provisioners.Factory{
 				"shell": testProvisionerFuncFixed(pr),
-			},
+			}),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5541,12 +5526,11 @@ func TestContext2Apply_provisionerForEachSelfRef(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5566,12 +5550,11 @@ func TestContext2Apply_Provisioner_Diff(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5611,12 +5594,11 @@ func TestContext2Apply_Provisioner_Diff(t *testing.T) {
 
 	// Re-create context with state
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -5656,9 +5638,9 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.PlanResourceChangeFn = testDiffFn
@@ -5703,9 +5685,9 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -5721,9 +5703,9 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	h.Active = true
 	ctx = testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5758,9 +5740,9 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -5778,9 +5760,9 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	h.Active = true
 	ctx = testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5816,9 +5798,9 @@ func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -5839,9 +5821,9 @@ func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	h = new(MockHook)
 	ctx = testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -5878,9 +5860,9 @@ func TestContext2Apply_destroyNestedModule(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -5917,9 +5899,9 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -5946,9 +5928,9 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -5973,9 +5955,9 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 	{
 		ctx := testContext2(t, &ContextOpts{
 			Hooks: []Hook{h},
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -5993,9 +5975,9 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 			t.Fatalf("failed to round-trip through planfile: %s", err)
 		}
 
-		ctxOpts.Providers = map[addrs.Provider]providers.Factory{
+		ctxOpts.Plugins = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		}
+		}, nil)
 
 		ctx, diags = NewContext(ctxOpts)
 		if diags.HasErrors() {
@@ -6024,9 +6006,9 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -6045,9 +6027,9 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 	{
 		ctx := testContext2(t, &ContextOpts{
 			Hooks: []Hook{h},
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -6063,10 +6045,10 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 			t.Fatalf("failed to round-trip through planfile: %s", err)
 		}
 
-		ctxOpts.Providers =
+		ctxOpts.Plugins = plugins.NewLibrary(
 			map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			}
+			}, nil)
 
 		ctx, diags = NewContext(ctxOpts)
 		if diags.HasErrors() {
@@ -6096,9 +6078,9 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -6113,9 +6095,9 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -6170,9 +6152,9 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -6191,9 +6173,9 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 	{
 		ctx := testContext2(t, &ContextOpts{
 			Hooks: []Hook{h},
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -6207,10 +6189,10 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 			t.Fatalf("failed to round-trip through planfile: %s", err)
 		}
 
-		ctxOpts.Providers =
+		ctxOpts.Plugins = plugins.NewLibrary(
 			map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			}
+			}, nil)
 
 		ctx, diags = NewContext(ctxOpts)
 		if diags.HasErrors() {
@@ -6248,9 +6230,9 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// First plan and apply a create operation
@@ -6265,9 +6247,9 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 
 	// Next, plan and apply a destroy operation
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -6287,9 +6269,9 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 
 	// destroying again should produce no errors
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
@@ -6316,9 +6298,9 @@ func TestContext2Apply_destroyOrphan(t *testing.T) {
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.PlanResourceChangeFn = testDiffFn
@@ -6356,12 +6338,11 @@ func TestContext2Apply_destroyTaintedProvisioner(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -6391,9 +6372,9 @@ func TestContext2Apply_error(t *testing.T) {
 	m := testModule(t, "apply-error")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
@@ -6453,9 +6434,9 @@ func TestContext2Apply_errorDestroy(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state := states.BuildState(func(ss *states.SyncState) {
@@ -6528,9 +6509,9 @@ func TestContext2Apply_errorCreateInvalidNew(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6586,9 +6567,9 @@ func TestContext2Apply_errorUpdateNullNew(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state := states.BuildState(func(ss *states.SyncState) {
@@ -6661,9 +6642,9 @@ func TestContext2Apply_errorPartial(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
@@ -6704,9 +6685,9 @@ func TestContext2Apply_hook(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6747,9 +6728,9 @@ func TestContext2Apply_hookOrphan(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -6774,9 +6755,9 @@ func TestContext2Apply_idAttr(t *testing.T) {
 	m := testModule(t, "apply-idattr")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.PlanResourceChangeFn = testDiffFn
@@ -6811,9 +6792,9 @@ func TestContext2Apply_outputBasic(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6837,9 +6818,9 @@ func TestContext2Apply_outputAdd(t *testing.T) {
 	p1.ApplyResourceChangeFn = testApplyFn
 	p1.PlanResourceChangeFn = testDiffFn
 	ctx1 := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p1),
-		},
+		}, nil),
 	})
 
 	plan1, diags := ctx1.Plan(context.Background(), m1, states.NewState(), DefaultPlanOpts)
@@ -6855,9 +6836,9 @@ func TestContext2Apply_outputAdd(t *testing.T) {
 	p2.ApplyResourceChangeFn = testApplyFn
 	p2.PlanResourceChangeFn = testDiffFn
 	ctx2 := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p2),
-		},
+		}, nil),
 	})
 
 	plan2, diags := ctx1.Plan(context.Background(), m2, state1, DefaultPlanOpts)
@@ -6881,9 +6862,9 @@ func TestContext2Apply_outputList(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6907,9 +6888,9 @@ func TestContext2Apply_outputMulti(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6933,9 +6914,9 @@ func TestContext2Apply_outputMultiIndex(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -6986,9 +6967,9 @@ func TestContext2Apply_taintX(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -7043,9 +7024,9 @@ func TestContext2Apply_taintDep(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -7096,9 +7077,9 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -7126,9 +7107,9 @@ func TestContext2Apply_targeted(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7166,9 +7147,9 @@ func TestContext2Apply_targetedCount(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7208,9 +7189,9 @@ func TestContext2Apply_targetedCountIndex(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7245,9 +7226,9 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -7266,9 +7247,9 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7348,9 +7329,9 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7418,9 +7399,9 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7507,9 +7488,9 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7552,9 +7533,9 @@ func TestContext2Apply_targetedModule(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7601,9 +7582,9 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7660,9 +7641,9 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 	child1.SetOutputValue("instance_id", cty.StringVal("something"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7706,9 +7687,9 @@ func TestContext2Apply_targetedModuleResource(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -7761,9 +7742,9 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -7822,9 +7803,9 @@ func TestContext2Apply_unknownAttribute(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -7847,9 +7828,9 @@ func TestContext2Apply_unknownAttributeInterpolate(t *testing.T) {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	if _, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts); diags == nil {
@@ -8025,9 +8006,9 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -8155,9 +8136,9 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -8193,9 +8174,9 @@ func TestContext2Apply_issue7824(t *testing.T) {
 
 	// Apply cleanly step 0
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -8209,10 +8190,10 @@ func TestContext2Apply_issue7824(t *testing.T) {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
 	}
 
-	ctxOpts.Providers =
+	ctxOpts.Plugins = plugins.NewLibrary(
 		map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		}
+		}, nil)
 
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
@@ -8249,9 +8230,9 @@ func TestContext2Apply_issue5254(t *testing.T) {
 	// Apply cleanly step 0
 	m := testModule(t, "issue-5254/step-0")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -8268,9 +8249,9 @@ func TestContext2Apply_issue5254(t *testing.T) {
 
 	// Application success. Now make the modification and store a plan
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -8284,9 +8265,9 @@ func TestContext2Apply_issue5254(t *testing.T) {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
 	}
 
-	ctxOpts.Providers = map[addrs.Provider]providers.Factory{
+	ctxOpts.Plugins = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("template"): testProviderFuncFixed(p),
-	}
+	}, nil)
 
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
@@ -8339,9 +8320,9 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -8362,9 +8343,9 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
 	}
 
-	ctxOpts.Providers = map[addrs.Provider]providers.Factory{
+	ctxOpts.Plugins = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-	}
+	}, nil)
 
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
@@ -8406,9 +8387,9 @@ func TestContext2Apply_ignoreChangesCreate(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8520,9 +8501,9 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state.DeepCopy(), DefaultPlanOpts)
@@ -8551,9 +8532,9 @@ func TestContext2Apply_ignoreChangesAll(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8595,9 +8576,9 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 	var state *states.State
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		// First plan and apply a create operation
@@ -8612,9 +8593,9 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -8629,9 +8610,9 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 			t.Fatalf("failed to round-trip through planfile: %s", err)
 		}
 
-		ctxOpts.Providers = map[addrs.Provider]providers.Factory{
+		ctxOpts.Plugins = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		}
+		}, nil)
 
 		ctx, diags = NewContext(ctxOpts)
 		if diags.HasErrors() {
@@ -8670,9 +8651,9 @@ resource "null_instance" "depends" {
 `})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// the "provisioner" here writes to this variable, because the intent is to
@@ -8757,9 +8738,9 @@ resource "null_instance" "depends" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -8785,9 +8766,9 @@ func TestContext2Apply_tfWorkspace(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Meta: &ContextMeta{Env: "foo"},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8812,9 +8793,9 @@ func TestContext2Apply_tofuWorkspace(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Meta: &ContextMeta{Env: "foo"},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8838,9 +8819,9 @@ func TestContext2Apply_multiRef(t *testing.T) {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8863,9 +8844,9 @@ func TestContext2Apply_targetedModuleRecursive(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -8905,7 +8886,7 @@ module.child.subchild:
 func TestContext2Apply_localVal(t *testing.T) {
 	m := testModule(t, "apply-local-val")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{},
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -8948,9 +8929,9 @@ func TestContext2Apply_destroyWithLocals(t *testing.T) {
 	root.SetOutputValue("name", cty.StringVal("test-bar"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -8987,9 +8968,9 @@ func TestContext2Apply_providerWithLocals(t *testing.T) {
 
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -9001,9 +8982,9 @@ func TestContext2Apply_providerWithLocals(t *testing.T) {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -9043,9 +9024,9 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// test that we can't destroy if the provider is missing
@@ -9057,9 +9038,9 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 	state.Modules["module.mod.module.removed"].Resources["aws_instance.child"].ProviderConfig = mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`)
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -9151,9 +9132,9 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-				},
+				}, nil),
 			})
 
 			plan, diags := ctx.Plan(context.Background(), m, tc.state, DefaultPlanOpts)
@@ -9202,7 +9183,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: Providers,
+		Plugins: plugins.NewLibrary(Providers, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -9218,7 +9199,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
 	}
 
-	ctxOpts.Providers = Providers
+	ctxOpts.Plugins = plugins.NewLibrary(Providers, nil)
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
@@ -9263,7 +9244,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 	root.SetOutputValue("out", cty.ListVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("foo")}), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: providers,
+		Plugins: plugins.NewLibrary(providers, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
@@ -9279,7 +9260,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
 	}
 
-	ctxOpts.Providers = providers
+	ctxOpts.Plugins = plugins.NewLibrary(providers, nil)
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
@@ -9327,7 +9308,7 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: Providers,
+		Plugins: plugins.NewLibrary(Providers, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -9412,9 +9393,9 @@ func TestContext2Apply_inconsistentWithPlan(t *testing.T) {
 		}
 	}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -9459,9 +9440,9 @@ func TestContext2Apply_issue19908(t *testing.T) {
 		}
 	}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
@@ -9531,9 +9512,9 @@ func TestContext2Apply_invalidIndexRef(t *testing.T) {
 
 	m := testModule(t, "apply-invalid-index")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
@@ -9648,9 +9629,9 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 		}
 
 		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		changes := &plans.Changes{
@@ -9789,7 +9770,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: Providers,
+		Plugins: plugins.NewLibrary(Providers, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -9807,7 +9788,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctxOpts.Providers = Providers
+	ctxOpts.Plugins = plugins.NewLibrary(Providers, nil)
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
@@ -9928,8 +9909,8 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: Providers,
-		Hooks:     []Hook{&testHook{}},
+		Plugins: plugins.NewLibrary(Providers, nil),
+		Hooks:   []Hook{&testHook{}},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -10040,9 +10021,8 @@ func TestContext2Apply_plannedConnectionRefs(t *testing.T) {
 
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
-		Providers:    Providers,
-		Provisioners: provisioners,
-		Hooks:        []Hook{hook},
+		Plugins: plugins.NewLibrary(Providers, provisioners),
+		Hooks:   []Hook{hook},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -10147,8 +10127,8 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
-		Providers: Providers,
-		Hooks:     []Hook{hook},
+		Plugins: plugins.NewLibrary(Providers, nil),
+		Hooks:   []Hook{hook},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -10164,7 +10144,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctxOpts.Providers = Providers
+	ctxOpts.Plugins = plugins.NewLibrary(Providers, nil)
 	ctx, diags = NewContext(ctxOpts)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
@@ -10209,9 +10189,9 @@ func TestContext2Apply_ProviderMeta_apply_set(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10289,9 +10269,9 @@ func TestContext2Apply_ProviderMeta_apply_unset(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10338,9 +10318,9 @@ func TestContext2Apply_ProviderMeta_plan_set(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10405,9 +10385,9 @@ func TestContext2Apply_ProviderMeta_plan_unset(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10435,9 +10415,9 @@ func TestContext2Apply_ProviderMeta_plan_setNoSchema(t *testing.T) {
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10483,9 +10463,9 @@ func TestContext2Apply_ProviderMeta_plan_setInvalid(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10545,9 +10525,9 @@ func TestContext2Apply_ProviderMeta_refresh_set(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10614,9 +10594,9 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10629,9 +10609,9 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 	schema.ProviderMeta = nil
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
@@ -10679,9 +10659,9 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -10701,9 +10681,9 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
@@ -10753,9 +10733,9 @@ func TestContext2Apply_ProviderMeta_refreshdata_set(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	rdsPMs := map[string]cty.Value{}
 	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
@@ -10847,9 +10827,9 @@ func TestContext2Apply_ProviderMeta_refreshdata_unset(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	rdsPMs := map[string]cty.Value{}
 	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
@@ -10904,9 +10884,9 @@ func TestContext2Apply_ProviderMeta_refreshdata_setNoSchema(t *testing.T) {
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
@@ -10958,9 +10938,9 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 	}
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(schema)
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
@@ -11034,9 +11014,9 @@ output "out" {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11093,9 +11073,9 @@ resource "aws_instance" "cbd" {
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11165,9 +11145,9 @@ func TestContext2Apply_moduleDependsOn(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11222,9 +11202,9 @@ output "c" {
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11238,9 +11218,9 @@ output "c" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11289,9 +11269,9 @@ output "myoutput" {
 	p := testProvider("test")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11305,9 +11285,9 @@ output "myoutput" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11445,9 +11425,9 @@ locals {
 
 	// reduce the count to 1
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11508,9 +11488,9 @@ locals {
 
 	// reduce the count to 0
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11650,10 +11630,10 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(testP),
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(nullP),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11669,7 +11649,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 		addrs.NewDefaultProvider("null"): testProviderFuncFixed(nullP),
 	}
 	ctx = testContext2(t, &ContextOpts{
-		Providers: providers,
+		Plugins: plugins.NewLibrary(providers, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11684,7 +11664,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctxOpts.Providers = providers
+	ctxOpts.Plugins = plugins.NewLibrary(providers, nil)
 	ctx, diags = NewContext(ctxOpts)
 
 	if diags.HasErrors() {
@@ -11758,9 +11738,9 @@ output "outputs" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -11773,9 +11753,9 @@ output "outputs" {
 
 	destroy := func() {
 		ctx = testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
+			Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-			},
+			}, nil),
 		})
 
 		plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11838,9 +11818,9 @@ resource "test_resource" "a" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -11859,9 +11839,9 @@ resource "test_resource" "a" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11901,9 +11881,9 @@ resource "test_instance" "b" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -11922,9 +11902,9 @@ resource "test_instance" "b" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -11962,9 +11942,9 @@ resource "test_resource" "c" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -11983,9 +11963,9 @@ resource "test_resource" "c" {
 	}
 
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -12062,9 +12042,9 @@ resource "test_resource" "foo" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -12077,9 +12057,9 @@ resource "test_resource" "foo" {
 
 	// Run a second apply with no changes
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -12092,9 +12072,9 @@ resource "test_resource" "foo" {
 
 	// Now change the variable value for sensitive_var
 	ctx = testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -12135,9 +12115,9 @@ resource "test_resource" "foo" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -12211,9 +12191,9 @@ resource "test_resource" "baz" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -12299,9 +12279,9 @@ resource "test_resource" "foo" {
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state := states.BuildState(func(s *states.SyncState) {
@@ -12377,9 +12357,9 @@ resource "test_resource" "foo" {
 	})
 
 	newCtx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags = newCtx.Plan(context.Background(), newModule, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -12657,12 +12637,11 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 	h := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-		Provisioners: map[string]provisioners.Factory{
+		}, map[string]provisioners.Factory{
 			"shell": testProvisionerFuncFixed(pr),
-		},
+		}),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
@@ -12726,9 +12705,9 @@ resource "test_resource" "foo" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -12772,9 +12751,9 @@ resource "test_instance" "a" {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
@@ -12813,9 +12792,9 @@ func TestContext2Apply_dataSensitive(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -12868,9 +12847,9 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -12913,9 +12892,9 @@ func TestContext2Apply_errorRestoreStatus(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -12975,9 +12954,9 @@ resource "test_object" "a" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -13011,9 +12990,9 @@ resource "test_object" "a" {
 	p.ApplyResourceChangeResponse = &providers.ApplyResourceChangeResponse{}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)

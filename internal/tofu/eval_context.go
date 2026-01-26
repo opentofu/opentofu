@@ -18,8 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -41,20 +40,8 @@ type EvalContext interface {
 	// Input is the UIInput object for interacting with the UI.
 	Input() UIInput
 
-	// InitProvider initializes the provider with the given address, and returns
-	// the implementation of the resource provider or an error.
-	//
-	// It is an error to initialize the same provider more than once. This
-	// method will panic if the module instance address of the given provider
-	// configuration does not match the Path() of the EvalContext.
-	InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) (providers.Interface, error)
-
-	// ProviderSchema retrieves the schema for a particular provider, which
-	// must have already been initialized with InitProvider.
-	//
-	// This method expects an _absolute_ provider configuration address, since
-	// resources in one module are able to use providers from other modules.
-	ProviderSchema(context.Context, addrs.AbsProviderConfig) (providers.ProviderSchema, error)
+	Providers() plugins.ProviderManager
+	Provisioners() plugins.ProvisionerManager
 
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
@@ -63,17 +50,6 @@ type EvalContext interface {
 	// provider configuration does not match the Path() of the EvalContext.
 	ProviderInput(context.Context, addrs.AbsProviderConfig) map[string]cty.Value
 	SetProviderInput(context.Context, addrs.AbsProviderConfig, map[string]cty.Value)
-
-	// Provisioner gets the provisioner instance with the given name.
-	Provisioner(string) (provisioners.Interface, error)
-
-	// ProvisionerSchema retrieves the main configuration schema for a
-	// particular provisioner, which must have already been initialized with
-	// InitProvisioner.
-	ProvisionerSchema(string) (*configschema.Block, error)
-
-	// CloseProvisioner closes all provisioner plugins.
-	CloseProvisioners() error
 
 	// EvaluateBlock takes the given raw configuration block and associated
 	// schema and evaluates it to produce a value of an object type that

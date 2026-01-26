@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
 
@@ -35,10 +36,10 @@ func TestPlanGraphBuilder(t *testing.T) {
 		},
 	}
 	openstackProvider := mockProviderWithResourceTypeSchema("openstack_floating_ip", simpleTestSchema())
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"):       providers.FactoryFixed(awsProvider),
 		addrs.NewDefaultProvider("openstack"): providers.FactoryFixed(openstackProvider),
-	}, nil)
+	}, nil))
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-basic"),
@@ -79,9 +80,9 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
-	}, nil)
+	}, nil))
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-dynblock"),
@@ -135,9 +136,9 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 			},
 		},
 	})
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
-	}, nil)
+	}, nil))
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-attr-as-blocks"),
@@ -221,9 +222,9 @@ func TestPlanGraphBuilder_excludeModule(t *testing.T) {
 func TestPlanGraphBuilder_forEach(t *testing.T) {
 	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
 
-	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
+	plugins := newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
-	}, nil)
+	}, nil))
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "plan-for-each"),
@@ -256,9 +257,9 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 	b := &PlanGraphBuilder{
 		Config:    &configs.Config{Module: &configs.Module{}},
 		Operation: walkPlanDestroy,
-		Plugins: newContextPlugins(map[addrs.Provider]providers.Factory{
+		Plugins: newContextPlugins(plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
-		}, nil),
+		}, nil)),
 		State: &states.State{
 			Modules: map[string]*states.Module{
 				"": {
