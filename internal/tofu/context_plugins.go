@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 )
@@ -22,8 +23,7 @@ import (
 // tofu.Context, and thus it'll be safe to cache certain information
 // about the providers for performance reasons.
 type contextPlugins struct {
-	providerFactories    map[addrs.Provider]providers.Factory
-	provisionerFactories map[string]provisioners.Factory
+	library plugins.Library
 
 	providerSchemasLock    sync.Mutex
 	providerSchemas        map[addrs.Provider]providerSchemaEntry
@@ -34,10 +34,13 @@ type contextPlugins struct {
 type providerSchemaEntry func() (providers.ProviderSchema, error)
 type provisionerSchemaEntry func() (*configschema.Block, error)
 
-func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
+func newContextPlugins(library plugins.Library) *contextPlugins {
+	if library == nil {
+		// We are in a *_test.go that should be fixed
+		library = plugins.NewLibrary(nil, nil)
+	}
 	return &contextPlugins{
-		providerFactories:    providerFactories,
-		provisionerFactories: provisionerFactories,
+		library: library,
 
 		providerSchemas:    map[addrs.Provider]providerSchemaEntry{},
 		provisionerSchemas: map[string]provisionerSchemaEntry{},
@@ -45,32 +48,19 @@ func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, p
 }
 
 func (cp *contextPlugins) HasProvider(addr addrs.Provider) bool {
-	_, ok := cp.providerFactories[addr]
-	return ok
+	return cp.library.HasProvider(addr)
 }
 
 func (cp *contextPlugins) NewProviderInstance(addr addrs.Provider) (providers.Interface, error) {
-	f, ok := cp.providerFactories[addr]
-	if !ok {
-		return nil, fmt.Errorf("unavailable provider %q", addr.String())
-	}
-
-	return f()
-
+	return cp.library.NewProviderInstance(addr)
 }
 
 func (cp *contextPlugins) HasProvisioner(typ string) bool {
-	_, ok := cp.provisionerFactories[typ]
-	return ok
+	return cp.library.HasProvisioner(typ)
 }
 
 func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Interface, error) {
-	f, ok := cp.provisionerFactories[typ]
-	if !ok {
-		return nil, fmt.Errorf("unavailable provisioner %q", typ)
-	}
-
-	return f()
+	return cp.library.NewProvisionerInstance(typ)
 }
 
 // ProviderSchema uses a temporary instance of the provider with the given

@@ -100,7 +100,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			PlanTimestamp:      tc.Plan.Timestamp,
 			// InstanceExpander is intentionally nil for test contexts
 			// The GetModule function will fall back to using state/changes when it's nil
-			InstanceExpander:   nil,
+			InstanceExpander: nil,
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,
@@ -124,14 +124,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			return inst
 		}
 
-		factory, ok := tc.plugins.providerFactories[addr]
-		if !ok {
-			log.Printf("[WARN] Unable to find provider %s in test context", addr)
-			providerInstances[addr] = nil
-			return nil
-		}
-		log.Printf("[INFO] Starting test provider %s", addr)
-		inst, err := factory()
+		inst, err := tc.plugins.NewProviderInstance(addr)
 		if err != nil {
 			log.Printf("[WARN] Unable to start provider %s in test context", addr)
 			providerInstances[addr] = nil

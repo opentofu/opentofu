@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -107,9 +108,9 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 		},
 	}
 	tofuCtx := testContext2(b, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewBuiltInProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 		// With this many resource instances we need a high concurrency limit
 		// for the runtime to be in any way reasonable. In this case we're
 		// going to set it so high that there is effectively no limit at all,
@@ -229,7 +230,7 @@ func BenchmarkManyModuleInstances(b *testing.B) {
 		`,
 	})
 	tofuCtx := testContext2(b, &ContextOpts{
-		Providers: nil, // no providers for this test
+		Plugins: nil, // no providers for this test
 		// With this many resource instances we need a high concurrency limit
 		// for the runtime to be in any way reasonable. In this case we're
 		// going to set it so high that there is effectively no limit at all,

@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -105,9 +106,9 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 	}
 
 	// Set up our provider
-	b.ContextOpts.Providers = map[addrs.Provider]providers.Factory{
+	b.ContextOpts.Plugins = plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider(name): providers.FactoryFixed(p),
-	}
+	}, nil)
 
 	return p
 

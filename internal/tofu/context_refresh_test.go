@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -41,9 +42,9 @@ func TestContext2Refresh(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
@@ -129,9 +130,9 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["test_instance"].Block
@@ -204,9 +205,9 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.RefreshOnlyMode})
@@ -268,9 +269,9 @@ func TestContext2Refresh_targeted(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -355,9 +356,9 @@ func TestContext2Refresh_excluded(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -439,9 +440,9 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -532,9 +533,9 @@ func TestContext2Refresh_excludedCount(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -620,9 +621,9 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -707,9 +708,9 @@ func TestContext2Refresh_excludedCountIndex(t *testing.T) {
 
 	m := testModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	refreshedResources := make([]string, 0, 2)
@@ -762,9 +763,9 @@ func TestContext2Refresh_moduleComputedVar(t *testing.T) {
 
 	m := testModule(t, "refresh-module-computed-var")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	// This was failing (see GH-2188) at some point, so this test just
@@ -783,9 +784,9 @@ func TestContext2Refresh_delete(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
@@ -807,9 +808,9 @@ func TestContext2Refresh_ignoreUncreated(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "refresh-basic")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
@@ -838,9 +839,9 @@ func TestContext2Refresh_hook(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{h},
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	if _, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode}); diags.HasErrors() {
@@ -865,9 +866,9 @@ func TestContext2Refresh_modules(t *testing.T) {
 	testSetResourceInstanceCurrent(child, "aws_instance.web", `{"id":"baz"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
@@ -923,9 +924,9 @@ func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	if _, diags := ctx.Refresh(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.NormalMode}); diags.HasErrors() {
@@ -937,9 +938,9 @@ func TestContext2Refresh_moduleVarModule(t *testing.T) {
 	m := testModule(t, "refresh-module-var-module")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	if _, diags := ctx.Refresh(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.NormalMode}); diags.HasErrors() {
@@ -952,9 +953,9 @@ func TestContext2Refresh_noState(t *testing.T) {
 	p := testProvider("aws")
 	m := testModule(t, "refresh-no-state")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
@@ -998,9 +999,9 @@ func TestContext2Refresh_output(t *testing.T) {
 	root.SetOutputValue("foo", cty.StringVal("foo"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	s, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
@@ -1046,9 +1047,9 @@ func TestContext2Refresh_outputPartial(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.foo", `{}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	s, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
@@ -1072,9 +1073,9 @@ func TestContext2Refresh_stateBasic(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"bar"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
@@ -1142,9 +1143,9 @@ func TestContext2Refresh_dataCount(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	s, diags := ctx.Refresh(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.NormalMode})
@@ -1177,9 +1178,9 @@ func TestContext2Refresh_dataState(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	var readStateVal cty.Value
@@ -1241,9 +1242,9 @@ func TestContext2Refresh_dataStateRefData(t *testing.T) {
 	m := testModule(t, "refresh-data-ref-data")
 	state := states.NewState()
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
@@ -1277,9 +1278,9 @@ func TestContext2Refresh_tainted(t *testing.T) {
 	testSetResourceInstanceTainted(root, "aws_instance.web", `{"id":"bar"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
 		// add the required id
@@ -1318,7 +1319,7 @@ func TestContext2Refresh_unknownProvider(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	c, diags := NewContext(&ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{},
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{}, nil),
 	})
 	assertNoDiagnostics(t, diags)
 
@@ -1359,9 +1360,9 @@ func TestContext2Refresh_vars(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	readStateVal, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
@@ -1455,9 +1456,9 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 	testSetResourceInstanceCurrent(grandchild, "aws_instance.baz", `{"id":"i-cde345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	testCheckDeadlock(t, func() {
@@ -1496,9 +1497,9 @@ func TestContext2Validate(t *testing.T) {
 
 	m := testModule(t, "validate-good")
 	c := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	diags := c.Validate(context.Background(), m)
@@ -1516,9 +1517,9 @@ func TestContext2Refresh_updateProviderInState(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.bar", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"].baz`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	expected := strings.TrimSpace(`
@@ -1584,9 +1585,9 @@ func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Refresh(context.Background(), m, s, &PlanOpts{Mode: plans.NormalMode})
@@ -1667,9 +1668,9 @@ func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Refresh(context.Background(), m, s, &PlanOpts{Mode: plans.NormalMode})
@@ -1723,9 +1724,9 @@ data "aws_data_source" "foo" {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.NormalMode})
@@ -1771,9 +1772,9 @@ func TestContext2Refresh_dataResourceDependsOn(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "test_resource.a", `{"id":"a"}`, `provider["registry.opentofu.org/hashicorp/test"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
@@ -1816,9 +1817,9 @@ resource "aws_instance" "bar" {
 	p := testProvider("aws")
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	state, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
@@ -1863,9 +1864,9 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Refresh(context.Background(), m, state, &PlanOpts{Mode: plans.NormalMode})
@@ -1949,9 +1950,9 @@ resource "test_resource" "foo" {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: plans.RefreshOnlyMode})
