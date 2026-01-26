@@ -90,6 +90,8 @@ type ResolvedProvider struct {
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
 
+	// Instance gets the provider instance (already initialized)
+	// or returns nil and an error if the provider isn't initialized.
 	Instance func(addrs.InstanceKey) (providers.Configured, error)
 
 	// Test overrides
@@ -297,6 +299,8 @@ type FunctionProvidedBy struct {
 	KeyModule     addrs.Module
 	KeyExpression hcl.Expression
 
+	// Instance gets the provider instance (already initialized)
+	// or returns nil and an error if the provider isn't initialized.
 	Instance func(addrs.InstanceKey) (providers.Configured, error)
 }
 

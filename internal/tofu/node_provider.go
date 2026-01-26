@@ -64,7 +64,7 @@ var (
 func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
 	if n.instances == nil {
 		// Should never happen
-		panic("BUG: NodeApplyableProvider.Instance() called before Execute()")
+		return nil, fmt.Errorf("bug: NodeApplyableProvider.Instance() called before Execute()")
 	}
 	instance, ok := n.instances[key]
 	if !ok {
@@ -76,6 +76,10 @@ func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) (providers.Confi
 
 // GraphNodeProvider
 func (n *NodeApplyableProvider) Close(ctx context.Context) error {
+	if n.instances == nil {
+		// Should never happen
+		return fmt.Errorf("bug: NodeApplyableProvider.Close() called before Execute()")
+	}
 	var errs []error
 	for _, instance := range n.instances {
 		errs = append(errs, instance.Close(ctx))

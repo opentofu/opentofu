@@ -40,6 +40,9 @@ func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) (providers.Config
 
 // GraphNodeProvider
 func (n *NodeEvalableProvider) Close(ctx context.Context) error {
+	if n.instance == nil {
+		return fmt.Errorf("bug: provider %s not yet initialized or encountered an error during initialization", n.Addr)
+	}
 	return n.instance.Close(ctx)
 }
 
