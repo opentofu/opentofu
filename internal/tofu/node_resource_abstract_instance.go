@@ -3225,7 +3225,6 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 				trie.Set(res.TargetParsed, res.Values)
 			}
 		}
-		// TODO how do we make sure defaults get set, in case there are no overrides?
 		overrideValues = trie.Get(&n.Addr)
 	}
 
