@@ -95,7 +95,7 @@ We recommend using environment variables to supply credentials and other sensiti
 The following configuration options or environment variables are supported:
 
 - `conn_str` - Postgres connection string; a `postgres://` URL. The `PG_CONN_STR` and [standard `libpq`](https://www.postgresql.org/docs/current/libpq-envars.html) environment variables can also be used to indicate how to connect to the PostgreSQL database.
-- `schema_name` - Name of the automatically-managed Postgres schema, default to `terraform_remote_state`. Can also be set using the `PG_SCHEMA_NAME` environment variable. The `public` schema will still be used the sequence that creates state IDs. See the [locking section](#locking-approach) for more details.
+- `schema_name` - Name of the automatically-managed Postgres schema, default to `terraform_remote_state`. Can also be set using the `PG_SCHEMA_NAME` environment variable. The `public` schema will still be used for the sequence that creates state IDs. See the [locking section](#locking-approach) for more details.
 - `skip_schema_creation` - If set to `true`, the Postgres schema must already exist. Can also be set using the `PG_SKIP_SCHEMA_CREATION` environment variable. OpenTofu won't try to create the schema, this is useful when it has already been created by a database administrator.
 - `table_name` - Name of the automatically-managed Postgres table, default to `states`. Can also be set using the `PG_TABLE_NAME` environment variable.
 - `skip_table_creation` - If set to `true`, the Postgres table must already exist. Can also be set using the `PG_SKIP_TABLE_CREATION` environment variable. OpenTofu won't try to create the table, this is useful when it has already been created by a database administrator.
@@ -128,4 +128,5 @@ To be able to lock correctly different configurations that use the same database
 used to generate the state IDs is stored in the `public` schema and will be used by all the configurations that use
 that database instance for the locking needs.
 
-Therefore, ensure that the postgres user have access to the schema for that particular configuration and to the `public` schema too.
+Therefore, ensure that the postgres user has access to the schema for that particular configuration and to the `public` schema too.
+
