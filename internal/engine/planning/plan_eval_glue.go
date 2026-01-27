@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -293,7 +294,7 @@ func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs
 // of this function will probably want to return a more specialized error saying
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
-func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
+func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, execgraph.ResultRef[*exec.ProviderClient], execgraph.RegisterCloseBlockerFunc, tfdiags.Diagnostics) {
 	return p.planCtx.providerInstances.ProviderClient(ctx, addr, p)
 }
 

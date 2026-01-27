@@ -49,13 +49,10 @@ type planContext struct {
 
 	completion *completionTracker
 
-	providerInstances *providerInstances
-
 	providers plugins.Providers
 
-	// TODO: something to track which ephemeral resource instances are currently
-	// open? (Do we actually need that, or can we just rely on a background
-	// goroutine to babysit those based on the completion tracker?)
+	providerInstances  *providerInstances
+	ephemeralInstances *ephemeralInstances
 }
 
 func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, providers plugins.Providers) *planContext {
@@ -70,14 +67,15 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	execgraphBuilder := execgraph.NewBuilder()
 
 	return &planContext{
-		evalCtx:           evalCtx,
-		plannedChanges:    changes.SyncWrapper(),
-		execgraphBuilder:  execgraphBuilder,
-		prevRoundState:    prevRoundState,
-		refreshedState:    refreshedState.SyncWrapper(),
-		completion:        completion,
-		providerInstances: newProviderInstances(completion),
-		providers:         providers,
+		evalCtx:            evalCtx,
+		plannedChanges:     changes.SyncWrapper(),
+		execgraphBuilder:   execgraphBuilder,
+		prevRoundState:     prevRoundState,
+		refreshedState:     refreshedState.SyncWrapper(),
+		completion:         completion,
+		providers:          providers,
+		providerInstances:  newProviderInstances(),
+		ephemeralInstances: newEphemeralInstances(),
 	}
 }
 
@@ -105,13 +103,16 @@ func (p *planContext) Close() *plans.Plan {
 		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
 	}
 
+	println(execGraph.DebugRepr())
+
 	// Re-compile the graph with the planGraphCloser so we can close all of the open providers and
 	// ephemerals in the correct order
 	// The planning process opens ephemerals and providers, but does not know when it is safe to close them.
 	// The two other possible approaches to this would be to pre-compute a partial graph from the config and state
 	// and injecting that into the planning engine or building a much more cumbersome reference counting system
 	compiled, diags := execGraph.Compile(&closeOperations{
-		providerInstances: p.providerInstances,
+		providerInstances:  p.providerInstances,
+		ephemeralInstances: p.ephemeralInstances,
 	})
 	if diags.HasErrors() {
 		panic(diags.Err())

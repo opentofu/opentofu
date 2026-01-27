@@ -7,10 +7,12 @@ package eval
 
 import (
 	"context"
+	"iter"
 
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 )
@@ -58,6 +60,16 @@ func (o *PlanningOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.
 	// them when it visits the provider instance, th
 	ret, _ := providerInst.ConfigValue(ctx)
 	return ret
+}
+
+func (o *PlanningOracle) ProviderInstanceResourceDependencies(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) iter.Seq[*configgraph.ResourceInstance] {
+	ctx = grapheval.ContextWithNewWorker(ctx)
+
+	providerInst := evalglue.ProviderInstance(ctx, o.rootModuleInstance, addr)
+	if providerInst == nil {
+		return nil
+	}
+	return providerInst.ResourceInstanceDependencies(ctx)
 }
 
 func (o *PlanningOracle) EvalContext(ctx context.Context) *EvalContext {

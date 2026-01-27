@@ -12,7 +12,8 @@ import (
 )
 
 type closeOperations struct {
-	providerInstances *providerInstances
+	providerInstances  *providerInstances
+	ephemeralInstances *ephemeralInstances
 }
 
 var _ exec.Operations = (*closeOperations)(nil)
@@ -26,13 +27,16 @@ func (h *closeOperations) ProviderInstanceOpen(ctx context.Context, config *exec
 }
 
 func (h *closeOperations) ProviderInstanceClose(ctx context.Context, client *exec.ProviderClient) tfdiags.Diagnostics {
-	println("CLOSE PROVIDER " + client.InstanceAddr.String())
-	closer := h.providerInstances.closers.Get(client.InstanceAddr)
-	err := closer(ctx)
+	err := h.providerInstances.callClose(ctx, client.InstanceAddr)
 	return tfdiags.Diagnostics{}.Append(err)
 }
 
 func (h *closeOperations) ResourceInstanceDesired(ctx context.Context, instAddr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
+	if instAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		return &eval.DesiredResourceInstance{
+			Addr: instAddr,
+		}, nil
+	}
 	return nil, nil
 }
 
@@ -65,10 +69,9 @@ func (h *closeOperations) DataRead(ctx context.Context, desired *eval.DesiredRes
 }
 
 func (h *closeOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	return nil, nil
+	return &exec.ResourceInstanceObject{InstanceAddr: desired.Addr}, nil
 }
 
 func (h *closeOperations) EphemeralClose(ctx context.Context, object *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) tfdiags.Diagnostics {
-	println("TODO EPHEMERAL CLOSE")
-	return nil
+	return h.ephemeralInstances.callClose(ctx, object.InstanceAddr)
 }

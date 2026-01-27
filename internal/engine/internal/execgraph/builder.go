@@ -203,7 +203,7 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 	}
 	configResult := b.providerInstanceConfigLocked(addrResult, waitFor)
 	openResult := b.providerInstanceOpenLocked(configResult)
-	closeWait, registerCloseBlocker := b.makeCloseBlocker()
+	closeWait, registerCloseBlocker := b.MakeCloseBlocker()
 	// Nothing actually depends on the result of the "close" operation, but
 	// eventual execution of the graph will still wait for it to complete
 	// because _all_ operations must complete before execution is considered
@@ -433,11 +433,11 @@ func operationRef[T any](builder *Builder, op operationDesc) ResultRef[T] {
 	return operationResultRef[T]{idx}
 }
 
-// makeCloseBlocker is a helper used by [Builder] methods that produce
+// MakeCloseBlocker is a helper used by [Builder] methods that produce
 // open/close node pairs.
 //
 // Callers MUST hold a lock on b.mu throughout any call to this method.
-func (b *Builder) makeCloseBlocker() (ResultRef[struct{}], RegisterCloseBlockerFunc) {
+func (b *Builder) MakeCloseBlocker() (ResultRef[struct{}], RegisterCloseBlockerFunc) {
 	idx := appendIndex(&b.graph.waiters, []AnyResultRef{})
 	ref := waiterResultRef{idx}
 	registerFunc := RegisterCloseBlockerFunc(func(ref AnyResultRef) {

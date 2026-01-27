@@ -110,8 +110,9 @@ func (n *newRuntimePlugins) NewConfiguredProvider(ctx context.Context, provider 
 		return nil, diags
 	}
 
+	unmarkedConfigVal, _ := configVal.UnmarkDeep()
 	resp := inst.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
-		Config: configVal,
+		Config: unmarkedConfigVal,
 
 		// We aren't actually Terraform, so we'll just pretend to be a
 		// Terraform version that has roughly the same functionality that
@@ -197,8 +198,9 @@ func (n *newRuntimePlugins) ValidateProviderConfig(ctx context.Context, provider
 		return diags
 	}
 
+	unmarkedConfigVal, _ := configVal.UnmarkDeep()
 	resp := inst.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
-		Config: configVal,
+		Config: unmarkedConfigVal,
 	})
 	diags = diags.Append(resp.Diagnostics)
 	return diags

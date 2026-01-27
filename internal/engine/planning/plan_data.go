@@ -55,7 +55,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// then plan to read this during the apply phase and return a "proposed new
 	// value" for use during the planning phase.
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, _, _, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,

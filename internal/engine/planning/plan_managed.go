@@ -122,7 +122,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return proposedNewVal, nil, diags
 	}
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, providerClientRef, closeProviderAfter, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -267,7 +267,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	//
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
-	providerClientRef, closeProviderAfter := egb.ProviderInstance(*inst.ProviderInstance, egb.Waiter())
 	instAddrRef := egb.ConstantResourceInstAddr(inst.Addr)
 	priorStateRef := egb.ResourceInstancePrior(instAddrRef)
 	plannedValRef := egb.ConstantValue(planResp.PlannedState)
