@@ -40,9 +40,14 @@ type msiTokenCredentialWrapper struct {
 
 func (cred *managedIdentityAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
 	client := httpclient.New(ctx)
+	var id azidentity.ManagedIDKind
+	if config.ClientID != "" {
+		id = azidentity.ClientID(config.ClientID)
+	}
 	c, err := azidentity.NewManagedIdentityCredential(
 		&azidentity.ManagedIdentityCredentialOptions{
 			ClientOptions: clientOptions(client, config.CloudConfig),
+			ID:            id,
 		},
 	)
 	endpoint := reconcileMSIEndpoint(config.Endpoint)

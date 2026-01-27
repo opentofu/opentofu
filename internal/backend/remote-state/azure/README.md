@@ -114,6 +114,14 @@ Finally, run the MSI test:
 $ ./azure.test -test.v -test.run "TestAcc.*ManagedServiceIdentity"
 ```
 
+Sometimes may you want to test something against the full `tofu` binary (as happened in [this issue](https://github.com/opentofu/opentofu/issues/3586)). From the root of this `opentofu` repository, you can run:
+
+```bash
+$ GOOS=linux GOARCH=amd64 make build
+```
+
+You can then `scp` the resulting binary and run `./tofu init`, `./tofu apply`, etc., on the server.
+
 ### Running AKS Workload Identity Test
 
 We strongly recommend using the workspace in the `meta-test` folder to set up the AKS Kubernetes cluster and associated authorizations.

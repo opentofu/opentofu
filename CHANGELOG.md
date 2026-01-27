@@ -30,6 +30,7 @@ BUG FIXES:
 - In JSON syntax, the state encryption method configuration now allows specifying keys using both normal expression syntax and using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3654](https://github.com/opentofu/opentofu/issues/3654))
 - No longer generate spurious error messages about incorrectly-detected provider reference problems when modules fail to load during the construction of a configuration tree. ([#3681](https://github.com/opentofu/opentofu/pull/3681))
 - OpenTofu consistently sends "null" to external `key_provider` programs when only encryption key is requested ([#3672](https://github.com/opentofu/opentofu/pull/3672))
+- The `azurerm` backend's MSI authentication method will now respect the provided client ID ([#3586](https://github.com/opentofu/opentofu/issues/3586))
 
 ## Previous Releases
 
