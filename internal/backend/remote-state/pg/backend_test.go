@@ -66,6 +66,8 @@ func TestBackendConfig(t *testing.T) {
 		Name                     string
 		EnvVars                  map[string]string
 		Config                   map[string]interface{}
+		Setup                    func(db *sql.DB) error
+		Teardown                 func(t *testing.T, db *sql.DB)
 		ExpectConfigurationError string
 		ExpectConnectionError    string
 	}{
@@ -99,6 +101,46 @@ func TestBackendConfig(t *testing.T) {
 				"schema_name": fmt.Sprintf("terraform_%s", t.Name()),
 				"index_name":  fmt.Sprintf("terraform_%s", t.Name()),
 				"table_name":  fmt.Sprintf("terraform_%s", t.Name()),
+			},
+		},
+		{
+			Name: "valid-config-creates-only-index",
+			Setup: func(db *sql.DB) error {
+				schemaName := fmt.Sprintf("terraform_%s", t.Name())
+				tableName := fmt.Sprintf("terraform_table_%s", t.Name())
+				query := fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, pq.QuoteIdentifier(schemaName))
+				if _, err := db.Exec(query); err != nil {
+					return fmt.Errorf("failed to create schema during setup: %w", err)
+				}
+				query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", publicSchema, sequenceName)
+				if _, err := db.Exec(query); err != nil {
+					return fmt.Errorf("failed to create sequence during setup: %w", err)
+				}
+
+				quotedSchema := pq.QuoteIdentifier(schemaName)
+				query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
+						id bigint NOT NULL DEFAULT nextval('%s.%s') PRIMARY KEY,
+    					-- compared with the backend implementation, we skip the UNIQUE constraint from here on
+    					-- purpose to test the separate unique index creation.
+						name text,
+						data text
+						)`, quotedSchema, pq.QuoteIdentifier(tableName), publicSchema, sequenceName)
+
+				if _, err := db.Exec(query); err != nil {
+					return fmt.Errorf("failed to create table during setup: %w", err)
+				}
+				return nil
+			},
+			Teardown: func(t *testing.T, db *sql.DB) {
+				dropSchema(t, db, fmt.Sprintf("terraform_%s", t.Name()))
+			},
+			Config: map[string]interface{}{
+				"conn_str":             connStr,
+				"schema_name":          fmt.Sprintf("terraform_%s", t.Name()),
+				"index_name":           fmt.Sprintf("terraform_%s", t.Name()),
+				"table_name":           fmt.Sprintf("terraform_table_%s", t.Name()),
+				"skip_schema_creation": true,
+				"skip_table_creation":  true,
 			},
 		},
 		{
@@ -213,9 +255,22 @@ func TestBackendConfig(t *testing.T) {
 			} else if diags.HasErrors() {
 				t.Fatal(diags.ErrWithWarnings())
 			}
-
 			obj = newObj
 
+			dbCleaner, err := sql.Open("postgres", connStr)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.Setup != nil {
+				if tc.Teardown == nil {
+					t.Fatalf("invalid configuration of the test. A teardown is required when a setup is configured")
+				}
+				defer tc.Teardown(t, dbCleaner)
+				if err := tc.Setup(dbCleaner); err != nil {
+					t.Fatalf("failed to run setup for test: %s", err)
+				}
+			}
 			confDiags := b.Configure(t.Context(), obj)
 			if tc.ExpectConnectionError != "" {
 				err := confDiags.InConfigBody(config, "").ErrWithWarnings()
@@ -235,60 +290,62 @@ func TestBackendConfig(t *testing.T) {
 				t.Fatal("Backend could not be configured")
 			}
 
+			validateQueryCount := func(query string, expectedCount int, queryArgs ...any) error {
+				var count int
+				if err = b.db.QueryRow(query, queryArgs...).Scan(&count); err != nil {
+					t.Fatal(err)
+				}
+
+				if count != expectedCount {
+					return fmt.Errorf("expected to have %d entries but got %d", expectedCount, count)
+				}
+				return nil
+			}
 			schemaName := b.Config().Get("schema_name").(string)
 			tableName := b.Config().Get("table_name").(string)
 			indexName := b.Config().Get("index_name").(string)
 			skipSchemaCreation := b.Config().Get("skip_schema_creation").(bool)
 			skipTableCreation := b.Config().Get("skip_table_creation").(bool)
 			skipIndexCreation := b.Config().Get("skip_index_creation").(bool)
-
-			dbCleaner, err := sql.Open("postgres", connStr)
-			if err != nil {
-				t.Fatal(err)
-			}
 			defer dropSchema(t, dbCleaner, schemaName)
 
 			// Make sure everything has been created
-			if skipSchemaCreation {
+			if !skipSchemaCreation {
 				// Make sure schema exists
-				var count int
 				query := `select count(*) from information_schema.schemata where schema_name=$1`
-				if err = b.db.QueryRow(query, schemaName).Scan(&count); err != nil {
-					t.Fatal(err)
-				}
-
-				if count != 1 {
-					t.Fatalf("The schema has not been created (%d)", count)
+				if err := validateQueryCount(query, 1, schemaName); err != nil {
+					t.Fatalf("The schema %q has not been created: %s", schemaName, err)
 				}
 			}
 
-			if skipTableCreation {
-				// Make sure that the index exists
-				var count int
-
-				query := `select count(*) from pg_catalog.pg_tables where schemaname=$1 and tablename=$2;`
-				err = b.db.QueryRow(query, schemaName, tableName).Scan(&count)
-				if err != nil {
-					t.Fatal(err)
+			var implicitIndexCreated bool
+			if !skipTableCreation {
+				// Make sure that the sequence exists
+				seqQuery := `select count(*) from pg_catalog.pg_sequences where schemaname=$1 and sequencename=$2;`
+				if err := validateQueryCount(seqQuery, 1, "public", sequenceName); err != nil {
+					t.Fatalf("The sequence %q has not been created in schema %q: %s", sequenceName, schemaName, err)
 				}
-
-				if count != 1 {
-					t.Fatalf("The table has not been created (%d)", count)
+				// Make sure that the table exists
+				tableQuery := `select count(*) from pg_catalog.pg_tables where schemaname=$1 and tablename=$2;`
+				if err := validateQueryCount(tableQuery, 1, schemaName, tableName); err != nil {
+					t.Fatalf("The table %q has not been created in schema %q: %s", tableName, schemaName, err)
 				}
+				// If the table has been created, it creates automatically a unique index on the name field
+				// composed from the table name and the automatically added suffix "_<field>_key".
+				// In this case it needs to be "<table_name>_name_key.
+				fullIndexName := fmt.Sprintf("%s_name_key", tableName)
+				indexQuery := `select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`
+				if err := validateQueryCount(indexQuery, 1, schemaName, tableName, fullIndexName); err != nil {
+					t.Fatalf("The index %q has not been created for table %s.%s: %s", indexName, schemaName, tableName, err)
+				}
+				implicitIndexCreated = true
 			}
 
-			if skipIndexCreation {
-				// Make sure that the index exists
-				var count int
-
-				query := `select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`
-				err = b.db.QueryRow(query, schemaName, tableName, indexName+"_name_key").Scan(&count)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				if count != 1 {
-					t.Fatalf("The index has not been created (%d)", count)
+			if !skipIndexCreation && !implicitIndexCreated {
+				// Make sure that the index on the name column exists
+				indexQuery := `select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`
+				if err := validateQueryCount(indexQuery, 1, schemaName, tableName, indexName); err != nil {
+					t.Fatalf("The index %q has not been created for table %s.%s: %s", indexName, schemaName, tableName, err)
 				}
 			}
 
