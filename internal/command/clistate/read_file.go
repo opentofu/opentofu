@@ -15,7 +15,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/copystructure"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -176,7 +175,7 @@ func (b *BackendState) ForPlan(schema *configschema.Block, workspaceName string)
 
 	configVal, err := b.Config(schema)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to decode backend config: {{err}}", err)
+		return nil, fmt.Errorf("failed to decode backend config: %w", err)
 	}
 	return plans.NewBackend(b.Type, configVal, schema, workspaceName)
 }
