@@ -6,8 +6,8 @@
 package cloud
 
 import (
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/configs"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // Most of the logic for migrating into and out of "cloud mode" actually lives
@@ -50,7 +50,7 @@ const (
 // the way we currently model working directory settings and config, so its
 // signature probably won't survive any non-trivial refactoring of how
 // the CLI layer thinks about backends/state storage.
-func DetectConfigChangeType(wdState *legacy.BackendState, config *configs.Backend, haveLocalStates bool) ConfigChangeMode {
+func DetectConfigChangeType(wdState *clistate.BackendState, config *configs.Backend, haveLocalStates bool) ConfigChangeMode {
 	// Although externally the cloud integration isn't really a "backend",
 	// internally we treat it a bit like one just to preserve all of our
 	// existing interfaces that assume backends. "cloud" is the placeholder

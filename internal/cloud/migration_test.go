@@ -8,8 +8,8 @@ package cloud
 import (
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/configs"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestDetectConfigChangeType(t *testing.T) {
@@ -103,10 +103,10 @@ func TestDetectConfigChangeType(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			var state *legacy.BackendState
+			var state *clistate.BackendState
 			var config *configs.Backend
 			if test.stateType != "" {
-				state = &legacy.BackendState{
+				state = &clistate.BackendState{
 					Type: test.stateType,
 					// everything else is irrelevant for our purposes here
 				}

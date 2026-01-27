@@ -38,7 +38,6 @@ import (
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 // BackendOpts are the options used to initialize a backend.Backend.
@@ -218,7 +217,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		// with inside backendFromConfig, because we still need that codepath
 		// to be able to recognize the lack of a config as distinct from
 		// explicitly setting local until we do some more refactoring here.
-		m.backendState = &legacy.BackendState{
+		m.backendState = &clistate.BackendState{
 			Type:      "local",
 			ConfigRaw: json.RawMessage("{}"),
 		}
@@ -610,7 +609,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	s := sMgr.State()
 	if s == nil {
 		log.Printf("[TRACE] Meta.Backend: backend has not previously been initialized in this working directory")
-		s = legacy.NewState()
+		s = clistate.NewState()
 	} else if s.Backend != nil {
 		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 	} else {
@@ -1129,9 +1128,9 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	// Store the metadata in our saved state location
 	s := sMgr.State()
 	if s == nil {
-		s = legacy.NewState()
+		s = clistate.NewState()
 	}
-	s.Backend = &legacy.BackendState{
+	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
@@ -1277,9 +1276,9 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	// Update the backend state
 	s = sMgr.State()
 	if s == nil {
-		s = legacy.NewState()
+		s = clistate.NewState()
 	}
-	s.Backend = &legacy.BackendState{
+	s.Backend = &clistate.BackendState{
 		Type:      c.Type,
 		ConfigRaw: json.RawMessage(configJSON),
 		Hash:      uint64(cHash),
@@ -1408,7 +1407,7 @@ func (m *Meta) updateSavedBackendHash(cHash int, sMgr *clistate.LocalState) tfdi
 // this function will conservatively assume that migration is required,
 // expecting that the migration code will subsequently deal with the same
 // errors.
-func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backend, s *legacy.BackendState) bool {
+func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backend, s *clistate.BackendState) bool {
 	if s == nil || s.Empty() {
 		log.Print("[TRACE] backendConfigNeedsMigration: no cached config, so migration is required")
 		return true
