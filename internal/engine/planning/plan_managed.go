@@ -24,9 +24,6 @@ import (
 )
 
 func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (plannedVal cty.Value, applyResultRef execgraph.ResourceInstanceResultRef, diags tfdiags.Diagnostics) {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
-
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
@@ -289,17 +286,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
-
 	// TODO: Implement
 	panic("unimplemented")
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
-
 	// TODO: Implement
 	panic("unimplemented")
 }

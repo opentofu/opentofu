@@ -11,7 +11,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
-	"github.com/opentofu/opentofu/internal/engine/lifecycle"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -47,8 +46,6 @@ type planContext struct {
 	// of prevRoundState.
 	refreshedState *states.SyncState
 
-	completion *completionTracker
-
 	providers plugins.Providers
 
 	providerInstances  *providerInstances
@@ -62,8 +59,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	changes := plans.NewChanges()
 	refreshedState := prevRoundState.DeepCopy()
 
-	completion := lifecycle.NewCompletionTracker[completionEvent]()
-
 	execgraphBuilder := execgraph.NewBuilder()
 
 	return &planContext{
@@ -72,7 +67,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 		execgraphBuilder:   execgraphBuilder,
 		prevRoundState:     prevRoundState,
 		refreshedState:     refreshedState.SyncWrapper(),
-		completion:         completion,
 		providers:          providers,
 		providerInstances:  newProviderInstances(),
 		ephemeralInstances: newEphemeralInstances(),
@@ -85,16 +79,6 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 // After calling this function the [planContext] object is invalid and must
 // not be used anymore.
 func (p *planContext) Close() *plans.Plan {
-	// Before we return we'll make sure our completion tracker isn't waiting
-	// for anything else to complete, so that we can unblock closing of
-	// any provider instances or ephemeral resource instances that might've
-	// got left behind by panics/etc. We should not be relying on this in the
-	// happy path.
-	for event := range p.completion.PendingItems() {
-		log.Printf("[TRACE] planContext: synthetic completion of %#v", event)
-		p.completion.ReportCompletion(event)
-	}
-
 	// We'll freeze the execution graph into a serialized form here, so that
 	// we can recover an equivalent execution graph again during the apply
 	// phase.

@@ -141,9 +141,6 @@ func (p *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsPr
 		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
 		result.instance = ret
 
-		// Mark this as "closed".  The planGraphCloseOperations will take care of it properly later
-		planGlue.planCtx.reportProviderInstanceClosed(addr)
-
 		closeCh := make(chan struct{})
 
 		// Register closer for use in planGraphCloseOperations

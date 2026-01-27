@@ -58,8 +58,6 @@ func (e *ephemeralInstances) callClose(ctx context.Context, addr addrs.AbsResour
 }
 
 func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
 
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
