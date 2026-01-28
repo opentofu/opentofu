@@ -43,9 +43,9 @@ type ModuleInstaller struct {
 	// addresses and the values are the registry response.
 	registryPackageVersions map[addrs.ModuleRegistryPackage]*response.ModuleVersions
 
-	// The keys in moduleVersionsUrl are the moduleVersion struct below and
-	// addresses and the values are underlying remote source addresses.
-	registryPackageSources map[moduleVersion]addrs.ModuleSourceRemote
+	// The keys in registryPackageSources are the moduleVersion struct below and
+	// the values are package locations returned by the registry client.
+	registryPackageSources map[moduleVersion]registry.PackageLocation
 }
 
 type moduleVersion struct {
@@ -78,7 +78,7 @@ func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClien
 		reg:                     registryClient,
 		fetcher:                 remotePackageFetcher,
 		registryPackageVersions: make(map[addrs.ModuleRegistryPackage]*response.ModuleVersions),
-		registryPackageSources:  make(map[moduleVersion]addrs.ModuleSourceRemote),
+		registryPackageSources:  make(map[moduleVersion]registry.PackageLocation),
 	}
 }
 
@@ -746,7 +746,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// first check the cache for the download URL
 	moduleAddr := moduleVersion{module: packageAddr, version: latestMatch.String()}
 	if _, exists := i.registryPackageSources[moduleAddr]; !exists {
-		packageLocation, err := reg.ModulePackageLocation(ctx, packageAddr, latestMatch.String()) // Need to accomodate for the new subdir param
+		packageLocation, err := reg.ModulePackageLocation(ctx, packageAddr, latestMatch.String(), addr.Subdir)
 		if err != nil {
 			log.Printf("[ERROR] %s from %s %s: %s", key, addr, latestMatch, err)
 			diags = diags.Append(&hcl.Diagnostic{
