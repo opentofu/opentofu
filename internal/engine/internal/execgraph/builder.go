@@ -12,9 +12,8 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // Builder is a helper for multiple codepaths to collaborate to build an
@@ -37,25 +36,21 @@ type Builder struct {
 	// multiple callers, and so these maps track those singletons but
 	// we throw these away after building is complete because the graph
 	// becomes immutable at that point.
-	desiredStateRefs       addrs.Map[addrs.AbsResourceInstance, ResultRef[*eval.DesiredResourceInstance]]
-	priorStateRefs         addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
-	providerAddrRefs       map[addrs.Provider]ResultRef[addrs.Provider]
-	providerInstConfigRefs addrs.Map[addrs.AbsProviderInstanceCorrect, ResultRef[cty.Value]]
-	openProviderRefs       addrs.Map[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[providers.Configured]]
-	emptyWaiterRef         ResultRef[struct{}]
+	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, ResultRef[addrs.AbsResourceInstance]]
+	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, ResultRef[addrs.AbsProviderInstanceCorrect]]
+	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[*exec.ProviderClient]]
+	emptyWaiterRef       ResultRef[struct{}]
 }
 
 func NewBuilder() *Builder {
 	return &Builder{
 		graph: &Graph{
-			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]](),
+			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResourceInstanceResultRef](),
 		},
-		desiredStateRefs:       addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*eval.DesiredResourceInstance]](),
-		priorStateRefs:         addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]](),
-		providerAddrRefs:       make(map[addrs.Provider]ResultRef[addrs.Provider]),
-		providerInstConfigRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ResultRef[cty.Value]](),
-		openProviderRefs:       addrs.MakeMap[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[providers.Configured]](),
-		emptyWaiterRef:         nil, // will be populated on first request for an empty waiter
+		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[addrs.AbsResourceInstance]](),
+		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ResultRef[addrs.AbsProviderInstanceCorrect]](),
+		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[*exec.ProviderClient]](),
+		emptyWaiterRef:       nil, // will be populated on first request for an empty waiter
 	}
 }
 
@@ -84,101 +79,103 @@ func (b *Builder) ConstantValue(v cty.Value) ResultRef[cty.Value] {
 	return valueResultRef{idx}
 }
 
-// ConstantValue adds a constant [addrs.Provider] address as a source node.
-// The result can be used as an operand to a subsequent operation.
+// ConstantResourceInstAddr adds a constant [addrs.AbsResourceInstance]
+// address as a source node. The result can be used as an operand to a
+// subsequent operation.
 //
-// Multiple calls with the same provider address all return the same result,
-// so in practice each distinct provider address is stored only once.
-func (b *Builder) ConstantProviderAddr(addr addrs.Provider) ResultRef[addrs.Provider] {
+// Multiple calls with the same address all return the same result, so in
+// practice each distinct address is stored only once.
+func (b *Builder) ConstantResourceInstAddr(addr addrs.AbsResourceInstance) ResultRef[addrs.AbsResourceInstance] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if existing, ok := b.providerAddrRefs[addr]; ok {
+	if existing, ok := b.resourceInstAddrRefs.GetOk(addr); ok {
 		return existing
 	}
-	idx := appendIndex(&b.graph.providerAddrs, addr)
-	return providerAddrResultRef{idx}
-}
-
-func (b *Builder) DesiredResourceInstance(addr addrs.AbsResourceInstance) ResultRef[*eval.DesiredResourceInstance] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// We only register one index for each distinct resource instance address.
-	if existing, ok := b.desiredStateRefs.GetOk(addr); ok {
-		return existing
-	}
-	idx := appendIndex(&b.graph.desiredStateRefs, addr)
-	ret := desiredResourceInstanceResultRef{idx}
-	b.desiredStateRefs.Put(addr, ret)
+	idx := appendIndex(&b.graph.resourceInstAddrs, addr)
+	ret := resourceInstAddrResultRef{idx}
+	b.resourceInstAddrRefs.Put(addr, ret)
 	return ret
 }
 
-// ResourceInstancePriorState returns a source node whose result will be
-// the prior state resource instance object for the "current" (i.e. not deposed)
-// object associated given resource instance address, if any.
+// ConstantProviderInstAddr adds a constant [addrs.AbsProviderInstanceCorrect]
+// address as a source node. The result can be used as an operand to a
+// subsequent operation.
 //
-// NOTE: This is currently using states.ResourceInstanceObject from our existing
-// state model, but a real implementation of this might benefit from a slightly
-// different model tailored to be used in isolation, without the rest of the
-// state tree it came from.
-func (b *Builder) ResourceInstancePriorState(addr addrs.AbsResourceInstance) ResultRef[*states.ResourceInstanceObjectFull] {
+// Multiple calls with the same address all return the same result, so in
+// practice each distinct address is stored only once.
+func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect) ResultRef[addrs.AbsProviderInstanceCorrect] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// We only register one index for each distinct resource instance address.
-	if existing, ok := b.priorStateRefs.GetOk(addr); ok {
+	if existing, ok := b.providerInstAddrRefs.GetOk(addr); ok {
 		return existing
 	}
-	idx := appendIndex(&b.graph.priorStateRefs, resourceInstanceStateRef{
-		ResourceInstance: addr,
-		DeposedKey:       states.NotDeposed,
+	idx := appendIndex(&b.graph.providerInstAddrs, addr)
+	ret := providerInstAddrResultRef{idx}
+	b.providerInstAddrRefs.Put(addr, ret)
+	return ret
+}
+
+func (b *Builder) ProviderInstanceConfig(addrRef ResultRef[addrs.AbsProviderInstanceCorrect], waitFor AnyResultRef) ResultRef[*exec.ProviderInstanceConfig] {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.providerInstanceConfigLocked(addrRef, waitFor)
+}
+
+func (b *Builder) providerInstanceConfigLocked(addrRef ResultRef[addrs.AbsProviderInstanceCorrect], waitFor AnyResultRef) ResultRef[*exec.ProviderInstanceConfig] {
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[*exec.ProviderInstanceConfig](b, operationDesc{
+		opCode:   opProviderInstanceConfig,
+		operands: []AnyResultRef{addrRef, waiter},
 	})
-	ret := resourceInstancePriorStateResultRef{idx}
-	b.priorStateRefs.Put(addr, ret)
-	return ret
 }
 
-// ResourceDeposedObjectState is like [Builder.ResourceInstancePriorState] but
-// produces the state for a deposed object currently associated with a resource
-// instance, rather than its "current" object.
+// ProviderInstanceOpen registers an operation for opening a client for a
+// particular provider instance.
 //
-// Unlike [Builder.ResourceInstancePriorState] this registers an entirely new
-// result for each call, with the expectation that there will only be one
-// codepath attempting to register the chain of nodes for any deposed object,
-// and no resource instance should depend on the result of applying changes
-// to a deposed object.
-func (b *Builder) ResourceDeposedObjectState(instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) ResultRef[*states.ResourceInstanceObjectFull] {
+// Direct callers should typically use [Builder.ProviderInstance] instead,
+// because it automatically deduplicates requests for the same provider
+// instance and registers the associated "close" operation for the provider
+// instance. This method is here primarily for the benefit of [UnmarshalGraph],
+// which needs to be able to work with the individual operation nodes when
+// reconstructing a previously-marshaled graph.
+func (b *Builder) ProviderInstanceOpen(config ResultRef[*exec.ProviderInstanceConfig]) ResultRef[*exec.ProviderClient] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	idx := appendIndex(&b.graph.priorStateRefs, resourceInstanceStateRef{
-		ResourceInstance: instAddr,
-		DeposedKey:       deposedKey,
+	return b.providerInstanceOpenLocked(config)
+}
+
+func (b *Builder) providerInstanceOpenLocked(config ResultRef[*exec.ProviderInstanceConfig]) ResultRef[*exec.ProviderClient] {
+	return operationRef[*exec.ProviderClient](b, operationDesc{
+		opCode:   opProviderInstanceOpen,
+		operands: []AnyResultRef{config},
 	})
-	ret := resourceInstancePriorStateResultRef{idx}
-	return ret
 }
 
-// ProviderInstanceConfig registers a request to obtain the configuration for
-// a specific provider instance, returning a reference to its [cty.Value]
-// result representing the evaluated configuration.
+// ProviderInstanceClose registers an operation for closing a provider client
+// that was previously opened through [Builder.OpenProviderInstance].
 //
-// In most cases callers should use [Builder.ProviderInstance] to obtain a
-// preconfigured client for the provider instance, which deals with getting
-// the provider instance configuration as part of its work.
-func (b *Builder) ProviderInstanceConfig(addr addrs.AbsProviderInstanceCorrect) ResultRef[cty.Value] {
+// Direct callers should typically use [Builder.ProviderInstance] instead,
+// because it deals with all of the ceremony of opening and closing provider
+// clients. This method is here primarily for the benefit of [UnmarshalGraph],
+// which needs to be able to work with the individual operation nodes when
+// reconstructing a previously-marshaled graph.
+func (b *Builder) ProviderInstanceClose(client ResultRef[*exec.ProviderClient], waitFor AnyResultRef) ResultRef[struct{}] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	// We only register one index for each distinct provider instance address.
-	if existing, ok := b.providerInstConfigRefs.GetOk(addr); ok {
-		return existing
-	}
-	idx := appendIndex(&b.graph.providerInstConfigRefs, addr)
-	ret := providerInstanceConfigResultRef{idx}
-	b.providerInstConfigRefs.Put(addr, ret)
-	return ret
+	return b.providerInstanceCloseLocked(client, waitFor)
+}
+
+func (b *Builder) providerInstanceCloseLocked(clientResult ResultRef[*exec.ProviderClient], waitFor AnyResultRef) ResultRef[struct{}] {
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[struct{}](b, operationDesc{
+		opCode:   opProviderInstanceClose,
+		operands: []AnyResultRef{clientResult, waiter},
+	})
 }
 
 // ProviderInstance encapsulates everything required to obtain a configured
@@ -194,10 +191,8 @@ func (b *Builder) ProviderInstanceConfig(addr addrs.AbsProviderInstanceCorrect) 
 // the graph at once, although each distinct provider instance address gets
 // only one set of nodes added and then subsequent calls get references to
 // the same operation results.
-func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFor AnyResultRef) (ResultRef[providers.Configured], RegisterCloseBlockerFunc) {
-	configResult := b.ProviderInstanceConfig(addr)
-	providerAddrResult := b.ConstantProviderAddr(addr.Config.Config.Provider)
-	waiter := b.ensureWaiterRef(waitFor)
+func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFor AnyResultRef) (ResultRef[*exec.ProviderClient], RegisterCloseBlockerFunc) {
+	addrResult := b.ConstantProviderInstAddr(addr)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -206,20 +201,15 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
 		return existing.Result, existing.CloseBlockerFunc
 	}
-	openResult := operationRef[providers.Configured](b, operationDesc{
-		opCode:   opOpenProvider,
-		operands: []AnyResultRef{providerAddrResult, configResult, waiter},
-	})
+	configResult := b.providerInstanceConfigLocked(addrResult, waitFor)
+	openResult := b.providerInstanceOpenLocked(configResult)
 	closeWait, registerCloseBlocker := b.makeCloseBlocker()
 	// Nothing actually depends on the result of the "close" operation, but
 	// eventual execution of the graph will still wait for it to complete
 	// because _all_ operations must complete before execution is considered
 	// to be finished.
-	_ = operationRef[struct{}](b, operationDesc{
-		opCode:   opCloseProvider,
-		operands: []AnyResultRef{openResult, closeWait},
-	})
-	b.openProviderRefs.Put(addr, resultWithCloseBlockers[providers.Configured]{
+	_ = b.providerInstanceCloseLocked(openResult, closeWait)
+	b.openProviderRefs.Put(addr, resultWithCloseBlockers[*exec.ProviderClient]{
 		Result:             openResult,
 		CloseBlockerResult: closeWait,
 		CloseBlockerFunc:   registerCloseBlocker,
@@ -227,118 +217,150 @@ func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFo
 	return openResult, registerCloseBlocker
 }
 
-// OpenProviderClient registers an operation for opening a client for a
-// particular provider instance.
-//
-// Direct callers should typically use [Builder.ProviderInstance] instead,
-// because it automatically deduplicates requests for the same provider
-// instance and registers the associated "close" operation for the provider
-// instance. This method is here primarily for the benefit of [UnmarshalGraph],
-// which needs to be able to work with the individual operation nodes when
-// reconstructing a previously-marshaled graph.
-func (b *Builder) OpenProviderClient(providerAddr ResultRef[addrs.Provider], config ResultRef[cty.Value], waitFor AnyResultRef) ResultRef[providers.Configured] {
+func (b *Builder) ResourceInstanceDesired(
+	addr ResultRef[addrs.AbsResourceInstance],
+	waitFor AnyResultRef,
+) ResultRef[*eval.DesiredResourceInstance] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[providers.Configured](b, operationDesc{
-		opCode:   opOpenProvider,
-		operands: []AnyResultRef{providerAddr, config, waiter},
+	return operationRef[*eval.DesiredResourceInstance](b, operationDesc{
+		opCode:   opResourceInstanceDesired,
+		operands: []AnyResultRef{addr, waiter},
 	})
 }
 
-// CloseProviderClient registers an operation for closing a provider client
-// that was previously opened through [Builder.OpenProviderClient].
-//
-// Direct callers should typically use [Builder.ProviderInstance] instead,
-// because it deals with all of the ceremony of opening and closing provider
-// clients. This method is here primarily for the benefit of [UnmarshalGraph],
-// which needs to be able to work with the individual operation nodes when
-// reconstructing a previously-marshaled graph.
-func (b *Builder) CloseProviderClient(clientResult ResultRef[providers.Configured], waitFor AnyResultRef) ResultRef[struct{}] {
+func (b *Builder) ResourceInstancePrior(
+	addr ResultRef[addrs.AbsResourceInstance],
+) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[struct{}](b, operationDesc{
-		opCode:   opCloseProvider,
-		operands: []AnyResultRef{clientResult, waiter},
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opResourceInstancePrior,
+		operands: []AnyResultRef{addr},
 	})
 }
 
-// ManagedResourceObjectFinalPlan registers an operation to decide the "final plan" for a managed
-// resource instance object, which may or may not be "desired".
+// ManagedFinalPlan registers an operation to decide the "final plan" for a
+// managed resource instance object, which may or may not be "desired".
 //
-// If the object is not "desired" then the desiredInst result is a
-// [NilResultRef], producing a nil pointer. The underlying provider API
-// represents that situation by setting the "configuration value" to null.
+// If the object is not "desired" then the desiredInst result is a nil pointer.
+// The underlying provider API represents that situation by setting the
+// "configuration value" to null.
 //
 // Similarly, if the object did not previously exist but is now desired then
-// the priorState result is a [NilResultRef] producing a nil pointer, which
-// should be represented in the provider API by setting the prior state
-// value to null.
+// the priorState result is a nil pointer, which should be represented in the
+// provider API by setting the prior state value to null.
 //
 // If the planning phase learned that the provider needs to handle a change
 // as a "replace" then in the execution graph there should be two separate
 // "final plan" and "apply changes" chains, where one has a nil desiredInst
 // and the other has a nil priorState. desiredInst and priorState should only
 // both be set when handling an in-place update.
-//
-// The waitFor argument captures arbitrary additional results that the
-// operation should block on even though it doesn't directly consume their
-// results. In practice this should refer to the final results of applying
-// any resource instances that this object depends on according to the
-// resource-instance-graph calculated during the planning process, thereby
-// ensuring that a particular object cannot be final-planned until all of its
-// resource-instance-graph dependencies have had their changes applied.
-func (b *Builder) ManagedResourceObjectFinalPlan(
+func (b *Builder) ManagedFinalPlan(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	priorState ResultRef[*states.ResourceInstanceObjectFull],
+	priorState ResourceInstanceResultRef,
 	plannedVal ResultRef[cty.Value],
-	providerClient ResultRef[providers.Configured],
-	waitFor AnyResultRef,
-) ResultRef[*ManagedResourceObjectFinalPlan] {
+	providerClient ResultRef[*exec.ProviderClient],
+) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[*ManagedResourceObjectFinalPlan](b, operationDesc{
+	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
 		opCode:   opManagedFinalPlan,
-		operands: []AnyResultRef{desiredInst, priorState, plannedVal, providerClient, waiter},
+		operands: []AnyResultRef{desiredInst, priorState, plannedVal, providerClient},
 	})
 }
 
-// ApplyManagedResourceObjectChanges registers an operation to apply a "final
-// plan" for a managed resource instance object.
+// ManagedApply registers an operation to apply a "final plan" for a managed
+// resource instance object.
 //
 // The finalPlan argument should typically be something returned by a previous
-// call to [Builder.ManagedResourceObjectFinalPlan] with the same provider
-// client.
-func (b *Builder) ApplyManagedResourceObjectChanges(
-	finalPlan ResultRef[*ManagedResourceObjectFinalPlan],
-	providerClient ResultRef[providers.Configured],
+// call to [Builder.ManagedFinalPlan] with the same provider client.
+//
+// fallbackObj is usually a [NilResultRef], but should be set for the "create"
+// leg of a "create then destroy" replace operation to be the result of a
+// call to [Builder.ManagedDepose] so that the deposed object can be restored
+// to current if the create call completely fails to create a new object.
+func (b *Builder) ManagedApply(
+	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
+	fallbackObj ResourceInstanceResultRef,
+	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
-		opCode:   opManagedApplyChanges,
-		operands: []AnyResultRef{finalPlan, providerClient},
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opManagedApply,
+		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient},
+	})
+}
+
+func (b *Builder) ManagedDepose(
+	instAddr ResultRef[addrs.AbsResourceInstance],
+) ResourceInstanceResultRef {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opManagedDepose,
+		operands: []AnyResultRef{instAddr},
+	})
+}
+
+func (b *Builder) ManagedAlreadyDeposed(
+	instAddr ResultRef[addrs.AbsResourceInstance],
+) ResourceInstanceResultRef {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opManagedAlreadyDeposed,
+		operands: []AnyResultRef{instAddr},
 	})
 }
 
 func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
-	providerClient ResultRef[providers.Configured],
-	waitFor AnyResultRef,
+	plannedVal ResultRef[cty.Value],
+	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	waiter := b.ensureWaiterRef(waitFor)
-	return operationRef[*states.ResourceInstanceObjectFull](b, operationDesc{
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
-		operands: []AnyResultRef{desiredInst, providerClient, waiter},
+		operands: []AnyResultRef{desiredInst, plannedVal, providerClient},
+	})
+}
+
+func (b *Builder) EphemeralOpen(
+	desiredInst ResultRef[*eval.DesiredResourceInstance],
+	providerClient ResultRef[*exec.ProviderClient],
+) ResourceInstanceResultRef {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opEphemeralOpen,
+		operands: []AnyResultRef{desiredInst, providerClient},
+	})
+}
+
+func (b *Builder) EphemeralClose(
+	obj ResourceInstanceResultRef,
+	providerClient ResultRef[*exec.ProviderClient],
+	waitFor AnyResultRef,
+) ResultRef[struct{}] {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	waiter := b.ensureWaiterRef(waitFor)
+	return operationRef[struct{}](b, operationDesc{
+		opCode:   opEphemeralClose,
+		operands: []AnyResultRef{obj, providerClient, waiter},
 	})
 }
 

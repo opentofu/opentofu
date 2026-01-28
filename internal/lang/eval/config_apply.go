@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/apparentlymart/go-workgraph/workgraph"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -148,10 +149,10 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	}
 	// TODO: Factor out the logic for building a [DesiredResourceInstance]
 	// into a place that all phases can share. Currently that logic is within
-	// the planning engine and so not reachable from here. For now this is
+	// the planning codepath and so not reachable from here. For now this is
 	// just a minimal stub giving just enough for the incomplete apply engine
 	// to do its work.
-	configVal, moreDiags := inst.Value(ctx)
+	configVal, moreDiags := inst.ConfigValue(ctx)
 	diags = diags.Append(moreDiags)
 	providerInst, _, moreDiags := inst.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
@@ -163,6 +164,8 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 		ConfigVal:        configVal,
 		Provider:         inst.Provider,
 		ProviderInstance: &providerInstAddr,
+		ResourceMode:     addr.Resource.Resource.Mode,
+		ResourceType:     addr.Resource.Resource.Type,
 	}, diags
 }
 
@@ -186,4 +189,20 @@ func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.Abs
 	}
 	v, diags := inst.ConfigValue(ctx)
 	return configgraph.PrepareOutgoingValue(v), diags
+}
+
+// AnnounceAllGraphevalRequests calls the given function once for each internal
+// workgraph request that has previously been started by requests to this
+// oracle.
+//
+// This is used by the apply engine as part of its implementation of
+// [grapheval.RequestTracker], so that promise-resolution-related diagnostics
+// can include information about which requests were involved in the problem.
+//
+// This information is collected as a separate step only when needed because
+// that avoids us needing to keep track of this metadata on the happy path,
+// so that we only pay the cost of gathering this data when we're actually
+// going to use it for something.
+func (o *ApplyOracle) AnnounceAllGraphevalRequests(announce func(workgraph.RequestID, grapheval.RequestInfo)) {
+	o.root.AnnounceAllGraphevalRequests(announce)
 }

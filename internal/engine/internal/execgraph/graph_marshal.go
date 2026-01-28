@@ -14,7 +14,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // Marshal produces an opaque byte slice representing the given graph,
@@ -63,7 +62,7 @@ func (m *graphMarshaler) EnsureOperationPresent(idx int) uint64 {
 	return m.ensureRefTarget(erasedRef)
 }
 
-func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]) {
+func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[addrs.AbsResourceInstance, ResourceInstanceResultRef]) {
 	m.resourceInstanceResults = make(map[string]uint64)
 	for _, mapElem := range results.Elems {
 		instAddr := mapElem.Key
@@ -75,7 +74,10 @@ func (m *graphMarshaler) EnsureResourceInstanceResultsPresent(results addrs.Map[
 
 func (m *graphMarshaler) ensureRefTarget(ref AnyResultRef) uint64 {
 	if ref == nil {
-		panic("ensureRefTarget with nil ref")
+		return m.newElement(ref, func(elem *execgraphproto.Element) {
+			// Intentionally not setting elem here so that it'll be unpopulated
+			// in the generated protobuf message, representing NilResultRef.
+		})
 	}
 	if opRef, ok := ref.(anyOperationResultRef); ok {
 		// Our lookup table doesn't care about the result type of each
@@ -90,14 +92,10 @@ func (m *graphMarshaler) ensureRefTarget(ref AnyResultRef) uint64 {
 	switch ref := ref.(type) {
 	case valueResultRef:
 		return m.addConstantValue(ref, m.graph.constantVals[ref.index])
-	case providerAddrResultRef:
-		return m.addProviderAddr(ref, m.graph.providerAddrs[ref.index])
-	case desiredResourceInstanceResultRef:
-		return m.addDesiredStateRef(ref, m.graph.desiredStateRefs[ref.index])
-	case resourceInstancePriorStateResultRef:
-		return m.addPriorStateRef(ref, m.graph.priorStateRefs[ref.index])
-	case providerInstanceConfigResultRef:
-		return m.addProviderInstanceConfigRef(ref, m.graph.providerInstConfigRefs[ref.index])
+	case resourceInstAddrResultRef:
+		return m.addResourceInstAddr(ref, m.graph.resourceInstAddrs[ref.index])
+	case providerInstAddrResultRef:
+		return m.addProviderInstAddr(ref, m.graph.providerInstAddrs[ref.index])
 	case operationResultRef[struct{}]:
 		return m.addOperationWithDependencies(ref, m.graph.ops[ref.index])
 	case waiterResultRef:
@@ -122,42 +120,17 @@ func (m *graphMarshaler) addConstantValue(ref valueResultRef, v cty.Value) uint6
 	})
 }
 
-func (m *graphMarshaler) addProviderAddr(ref providerAddrResultRef, addr addrs.Provider) uint64 {
+func (m *graphMarshaler) addResourceInstAddr(ref resourceInstAddrResultRef, addr addrs.AbsResourceInstance) uint64 {
 	addrStr := addr.String()
 	return m.newElement(ref, func(elem *execgraphproto.Element) {
-		elem.SetConstantProviderAddr(addrStr)
+		elem.SetConstantResourceInstAddr(addrStr)
 	})
 }
 
-func (m *graphMarshaler) addDesiredStateRef(ref desiredResourceInstanceResultRef, addr addrs.AbsResourceInstance) uint64 {
+func (m *graphMarshaler) addProviderInstAddr(ref providerInstAddrResultRef, addr addrs.AbsProviderInstanceCorrect) uint64 {
 	addrStr := addr.String()
 	return m.newElement(ref, func(elem *execgraphproto.Element) {
-		elem.SetDesiredResourceInstance(addrStr)
-	})
-}
-
-func (m *graphMarshaler) addPriorStateRef(ref resourceInstancePriorStateResultRef, target resourceInstanceStateRef) uint64 {
-	// We serialize these ones a little differently depending on whether there's
-	// a deposed key, because deposed objects in prior state are relatively
-	// rare and we'd prefer a more compact representation of the more common
-	// case of describing a "current" resource instance object.
-	return m.newElement(ref, func(elem *execgraphproto.Element) {
-		if target.DeposedKey == states.NotDeposed {
-			elem.SetResourceInstancePriorState(target.ResourceInstance.String())
-		} else {
-			var req execgraphproto.DeposedResourceInstanceObject
-			req.Reset()
-			req.SetInstanceAddr(target.ResourceInstance.String())
-			req.SetDeposedKey(target.DeposedKey.String())
-			elem.SetResourceInstanceDeposedObjectState(&req)
-		}
-	})
-}
-
-func (m *graphMarshaler) addProviderInstanceConfigRef(ref providerInstanceConfigResultRef, addr addrs.AbsProviderInstanceCorrect) uint64 {
-	addrStr := addr.String()
-	return m.newElement(ref, func(elem *execgraphproto.Element) {
-		elem.SetProviderInstanceConfig(addrStr)
+		elem.SetConstantProviderInstAddr(addrStr)
 	})
 }
 

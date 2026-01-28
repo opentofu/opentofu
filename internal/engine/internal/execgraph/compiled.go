@@ -14,6 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -116,4 +117,60 @@ func (c *CompiledGraph) ResourceInstanceValue(ctx context.Context, addr addrs.Ab
 		return cty.DynamicVal
 	}
 	return getter(ctx)
+}
+
+// trackWorkgraphRequest attempts to notify an upstream about a workgraph
+// request we've started as part of producing the result for the given
+// reference.
+//
+// This is here to help an execgraph caller -- typically the applying engine --
+// to produce a more helpful error message if any promise-related errors occur
+// during execution graph processing. Calls to this are not used when execution
+// is successful, but unfortunately we nonetheless need to send this information
+// anyway just in case a related error occurs downstream somewhere.
+//
+// In order to benefit from this the execgraph caller must use []
+func trackWorkgraphRequest(ctx context.Context, operationIdx int, reqID workgraph.RequestID) {
+	reqTracker := grapheval.RequestTrackerFromContext(ctx)
+	if reqTracker == nil {
+		return
+	}
+	// Unfortunately this relies on the "optional extension interface" pattern,
+	// so we have no compile-time checking that the applying engine implements
+	// this correctly. This is a pragmatic concession since we should only
+	// need this information in "should never happen" error cases in order to
+	// produce more helpful diagnostic information, since there should not be
+	// any promise-related errors when handling a correctly-constructed
+	// execution graph.
+	withNotify, ok := reqTracker.(RequestTrackerWithNotify)
+	if !ok {
+		return
+	}
+	key := PromiseDrivenResultKey{operationIdx: operationIdx}
+	withNotify.TrackExecutionGraphRequest(ctx, key, reqID)
+}
+
+// RequestTrackerWithNotify is an optional extension of [grapheval.RequestTracker]
+// which must be implemented by the request tracker passed in
+// [CompiledGraph.Execute]'s [context.Context] argument if the request tracker
+// needs to be aware of workgraph requests made as part of resolving results
+// during execution graph processing.
+//
+// If the given context has no request tracker at all, or if the request tracker
+// does not implement this extension interface, then no notifications will be
+// delivered but execution is otherwise unaffected.
+type RequestTrackerWithNotify interface {
+	grapheval.RequestTracker
+	TrackExecutionGraphRequest(ctx context.Context, key PromiseDrivenResultKey, reqID workgraph.RequestID)
+}
+
+// PromiseDrivenResultKey is an opaque representation of a [ResultRef] whose
+// result is produced using [grapheval] and [workgraph] mechanisms, which
+// we use in [RequsetTrackerWithNotify] to give a caller just enough information
+// to selectively request more detail from a source graph only if necessary
+// to report an error.
+type PromiseDrivenResultKey struct {
+	// for now operations are the only kind of result we track in this way,
+	// and so this just directly tracks the operation index.
+	operationIdx int
 }

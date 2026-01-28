@@ -9,8 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 )
 
 // ResultRef represents a result of type T that will be produced by
@@ -27,7 +26,7 @@ type ResultRef[T any] interface {
 // We give this its own name just because this particular result type tends
 // to be named in function signatures elsewhere in the system and the
 // simple name is (subjectively) easier to read than the generic name.
-type ResourceInstanceResultRef = ResultRef[*states.ResourceInstanceObjectFull]
+type ResourceInstanceResultRef = ResultRef[*exec.ResourceInstanceObject]
 
 // AnyResultRef is a type-erased [ResultRef], for data
 // structures that only need to represent the relationships between results
@@ -50,62 +49,33 @@ func (v valueResultRef) anyResultPlaceholderSigil() {}
 // resultPlaceholderSigil implements ResultPlaceholder.
 func (v valueResultRef) resultPlaceholderSigil(cty.Value) {}
 
-// providerAddrResultRef is a [ResultRef] referring to an item in the a graph's
-// table of constant provider addresses.
-type providerAddrResultRef struct {
+// resourceInstAddrResultRef is a [ResultRef] referring to an item in the a
+// graph's table of constant resource instance addresses.
+type resourceInstAddrResultRef struct {
 	index int
 }
 
-var _ ResultRef[addrs.Provider] = providerAddrResultRef{}
+var _ ResultRef[addrs.AbsResourceInstance] = resourceInstAddrResultRef{}
 
 // anyResultPlaceholderSigil implements ResultPlaceholder.
-func (v providerAddrResultRef) anyResultPlaceholderSigil() {}
+func (v resourceInstAddrResultRef) anyResultPlaceholderSigil() {}
 
 // resultPlaceholderSigil implements ResultPlaceholder.
-func (v providerAddrResultRef) resultPlaceholderSigil(addrs.Provider) {}
+func (v resourceInstAddrResultRef) resultPlaceholderSigil(addrs.AbsResourceInstance) {}
 
-// desiredResourceInstanceResultRef is a [ResultRef] referring to an item in
-// the a graph's table of desired state lookups.
-type desiredResourceInstanceResultRef struct {
+// providerInstAddrResultRef is a [ResultRef] referring to an item in the a
+// graph's table of constant provider instance addresses.
+type providerInstAddrResultRef struct {
 	index int
 }
 
-var _ ResultRef[*eval.DesiredResourceInstance] = desiredResourceInstanceResultRef{}
-
-// anyResultPlaceholderSigil implements ResultRef.
-func (d desiredResourceInstanceResultRef) anyResultPlaceholderSigil() {}
-
-// resultPlaceholderSigil implements ResultRef.
-func (d desiredResourceInstanceResultRef) resultPlaceholderSigil(*eval.DesiredResourceInstance) {}
-
-// resourceInstancePriorStateResultRef is a [ResultRef] referring to an item in
-// the a graph's table of prior state lookups.
-type resourceInstancePriorStateResultRef struct {
-	index int
-}
-
-var _ ResultRef[*states.ResourceInstanceObjectFull] = resourceInstancePriorStateResultRef{}
-
-// anyResultPlaceholderSigil implements ResultRef.
-func (r resourceInstancePriorStateResultRef) anyResultPlaceholderSigil() {}
-
-// resultPlaceholderSigil implements ResultRef.
-func (r resourceInstancePriorStateResultRef) resultPlaceholderSigil(*states.ResourceInstanceObjectFull) {
-}
-
-// providerInstanceConfigResultRef is a [ResultRef] referring to an item in a
-// graph's table of provider instance configuration requests.
-type providerInstanceConfigResultRef struct {
-	index int
-}
-
-var _ ResultRef[cty.Value] = providerInstanceConfigResultRef{}
+var _ ResultRef[addrs.AbsProviderInstanceCorrect] = providerInstAddrResultRef{}
 
 // anyResultPlaceholderSigil implements ResultPlaceholder.
-func (v providerInstanceConfigResultRef) anyResultPlaceholderSigil() {}
+func (v providerInstAddrResultRef) anyResultPlaceholderSigil() {}
 
 // resultPlaceholderSigil implements ResultPlaceholder.
-func (v providerInstanceConfigResultRef) resultPlaceholderSigil(cty.Value) {}
+func (v providerInstAddrResultRef) resultPlaceholderSigil(addrs.AbsProviderInstanceCorrect) {}
 
 type operationResultRef[T any] struct {
 	index int

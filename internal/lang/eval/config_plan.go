@@ -230,6 +230,8 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		ConfigVal:                 configgraph.PrepareOutgoingValue(configVal),
 		Provider:                  ri.Provider,
 		RequiredResourceInstances: riDeps,
+		ResourceType:              ri.Addr.Resource.Resource.Type,
+		ResourceMode:              ri.Addr.Resource.Resource.Mode,
 	}
 	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
 		desired.ProviderInstance = &providerInst.Addr

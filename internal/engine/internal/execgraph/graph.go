@@ -15,7 +15,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 )
 
 type Graph struct {
@@ -32,28 +32,12 @@ type Graph struct {
 	// constantVals is the table of constant values that are to be saved
 	// directly inside the execution graph.
 	constantVals []cty.Value
-	// providerAddrs is the table of provider addresses that are to be saved
-	// directly inside the execution graph.
-	providerAddrs []addrs.Provider
-
-	//////// ApplyOracle queries
-	// The tables in this section represent requests for information from
-	// the configuration evaluation system via its ApplyOracle API.
-
-	// desiredStateRefs is the table of references to resource instances from
-	// the desired state.
-	desiredStateRefs []addrs.AbsResourceInstance
-	// providerInstConfigRefs is the table of references to provider instance
-	// configuration values.
-	providerInstConfigRefs []addrs.AbsProviderInstanceCorrect
-
-	//////// Prior state queries
-	// The tables in this section represent requests for information from
-	// the prior state.
-
-	// priorStateRefs is the table of references to resource instance objects
-	// from the prior state.
-	priorStateRefs []resourceInstanceStateRef
+	// resourceInstAddrs is the table of resource instance addresses that are to
+	// be saved directly inside the execution graph.
+	resourceInstAddrs []addrs.AbsResourceInstance
+	// providerInstAddrs is the table of provider instance addresses that are to
+	// be saved directly inside the execution graph.
+	providerInstAddrs []addrs.AbsProviderInstanceCorrect
 
 	//////// The actual side-effects
 	// The tables in this section deal with the main side-effects that we're
@@ -95,7 +79,68 @@ type Graph struct {
 	// operation for each resource instance should also directly depend on
 	// the results of any resource instances that were identified as
 	// resource-instance-graph dependencies during the planning process.
-	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResultRef[*states.ResourceInstanceObjectFull]]
+	resourceInstanceResults addrs.Map[addrs.AbsResourceInstance, ResourceInstanceResultRef]
+}
+
+// PromiseDrivenRequestInfo is part of our somewhat-roundabout means of
+// gathering additional context about promise-based requests only when we
+// enounter an error that makes it worth gathering this information.
+//
+// Given a [PromiseDrivenResultKey] previously advertised to a
+// [RequestTrackerWithNotify] implementation used with [CompiledGraph.Execute]
+// on a compiled version of the same graph, this returns a
+// [grapheval.RequestInfo] value summarizing what that request was intending
+// to achieve in terms that are suitable to include in an error message that
+// someone will presmuably submit in an OpenTofu bug report, because
+// promise-related errors should only crop up during processing of
+// incorrectly-constructed execution graphs.
+func (g *Graph) PromiseDrivenRequestInfo(key PromiseDrivenResultKey) grapheval.RequestInfo {
+	opIdx := key.operationIdx
+	if opIdx < 0 || opIdx >= len(g.ops) {
+		// We seem to have a key produced from a different graph than this one,
+		// but we'll tolerate this and just return a placeholder so that we
+		// can hopefully return at least a partial error message.
+		return grapheval.RequestInfo{
+			Name: "unknown execution graph operation (this is a bug in OpenTofu)",
+		}
+	}
+	opDesc := g.ops[opIdx]
+	return grapheval.RequestInfo{
+		Name: "internal operation: " + g.operationDebugSummary(opDesc),
+	}
+}
+
+func (g *Graph) operationDebugSummary(opDesc operationDesc) string {
+	var buf strings.Builder
+	buf.WriteString(strings.TrimPrefix(opDesc.opCode.String(), "op"))
+	buf.WriteByte('(')
+	for argIdx, arg := range opDesc.operands {
+		if argIdx != 0 {
+			buf.WriteString(", ")
+		}
+		switch arg := arg.(type) {
+		case anyOperationResultRef:
+			// We'll show this as a nested function call so that we can also
+			// see whatever arguments it has, since hopefully this will
+			// eventually lead to something useful like a resource instance addr.
+			childOpIdx := arg.operationResultIndex()
+			opDesc := g.ops[childOpIdx]
+			buf.WriteString(g.operationDebugSummary(opDesc))
+		case valueResultRef:
+			v := g.constantVals[arg.index]
+			fmt.Fprintf(&buf, "<%s value>", v.Type().FriendlyName())
+		case resourceInstAddrResultRef, providerInstAddrResultRef, waiterResultRef, nil:
+			// Our resultDebugRepr representation is fine for these ones
+			buf.WriteString(g.resultDebugRepr(arg))
+		default:
+			// We don't print out anything we're not already familiar with
+			// because we might add a new kind of result later that isn't
+			// appropriate to include in a UI-facing error message.
+			buf.WriteString("[...]")
+		}
+	}
+	buf.WriteByte(')')
+	return buf.String()
 }
 
 // DebugRepr returns a relatively-concise string representation of the
@@ -144,21 +189,12 @@ func (g *Graph) resultDebugRepr(result AnyResultRef) string {
 	switch result := result.(type) {
 	case valueResultRef:
 		return fmt.Sprintf("v[%d]", result.index)
-	case providerAddrResultRef:
-		providerAddr := g.providerAddrs[result.index]
-		return fmt.Sprintf("provider(%q)", providerAddr)
-	case desiredResourceInstanceResultRef:
-		instAddr := g.desiredStateRefs[result.index]
-		return fmt.Sprintf("desired(%s)", instAddr)
-	case resourceInstancePriorStateResultRef:
-		ref := g.priorStateRefs[result.index]
-		if ref.DeposedKey != states.NotDeposed {
-			return fmt.Sprintf("deposedState(%s, %s)", ref.ResourceInstance, ref.DeposedKey)
-		}
-		return fmt.Sprintf("priorState(%s)", ref.ResourceInstance)
-	case providerInstanceConfigResultRef:
-		pInstAddr := g.providerInstConfigRefs[result.index]
-		return fmt.Sprintf("providerInstConfig(%s)", pInstAddr)
+	case resourceInstAddrResultRef:
+		resourceInstAddr := g.resourceInstAddrs[result.index]
+		return resourceInstAddr.String()
+	case providerInstAddrResultRef:
+		providerInstAddr := g.providerInstAddrs[result.index]
+		return providerInstAddr.String()
 	case anyOperationResultRef:
 		return fmt.Sprintf("r[%d]", result.operationResultIndex())
 	case waiterResultRef:
@@ -182,9 +218,4 @@ func (g *Graph) resultDebugRepr(result AnyResultRef) string {
 		// including the output here.
 		return fmt.Sprintf("%#v", result)
 	}
-}
-
-type resourceInstanceStateRef struct {
-	ResourceInstance addrs.AbsResourceInstance
-	DeposedKey       states.DeposedKey
 }

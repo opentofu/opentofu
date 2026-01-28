@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -41,17 +42,20 @@ func ApplyPlannedChanges(ctx context.Context, plan *plans.Plan, configInst *eval
 		return nil, diags
 	}
 
-	execGraph, execCtx, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
+	execGraphSrc, execGraph, execOps, moreDiags := compileExecutionGraph(ctx, plan, oracle, plugins)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
 	glue.graph = execGraph
 
+	reqTracker := newRequestTracker(execGraphSrc, execOps)
+	ctx = grapheval.ContextWithRequestTracker(ctx, reqTracker)
+
 	moreDiags = execGraph.Execute(ctx)
 	diags = diags.Append(moreDiags)
 
-	newState, moreDiags := execCtx.Finish(ctx)
+	newState, moreDiags := execOps.Finish(ctx)
 	diags = diags.Append(moreDiags)
 
 	return newState, diags

@@ -14,10 +14,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // UnmarshalGraph takes some bytes previously returned by [Graph.Marshal] and
@@ -45,6 +44,13 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 	builder := NewBuilder()
 
 	for idx, elem := range elems {
+		if !elem.HasRequest() {
+			// As a special case, a totally-unpopulated result is allowed to
+			// coerce to any type when we're decoding operation arguments,
+			// becoming the zero value of the target type.
+			results[idx] = nil
+			continue
+		}
 		switch reqType := elem.WhichRequest(); reqType {
 		case execgraphproto.Element_Operation_case:
 			resultRef, err := unmarshalOperationElem(elem.GetOperation(), results, builder)
@@ -67,40 +73,19 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 			}
 			results[idx] = builder.ConstantValue(val)
 
-		case execgraphproto.Element_ConstantProviderAddr_case:
-			addr, err := unmarshalConstantProviderAddr(elem.GetConstantProviderAddr())
+		case execgraphproto.Element_ConstantResourceInstAddr_case:
+			addr, err := unmarshalConstantResourceInstAddr(elem.GetConstantResourceInstAddr())
 			if err != nil {
-				return nil, fmt.Errorf("invalid provider address in element %d: %w", idx, err)
+				return nil, fmt.Errorf("invalid resource instance address in element %d: %w", idx, err)
 			}
-			results[idx] = builder.ConstantProviderAddr(addr)
+			results[idx] = builder.ConstantResourceInstAddr(addr)
 
-		case execgraphproto.Element_DesiredResourceInstance_case:
-			addr, err := unmarshalDesiredResourceInstance(elem.GetDesiredResourceInstance())
-			if err != nil {
-				return nil, fmt.Errorf("invalid desired resource instance address in element %d: %w", idx, err)
-			}
-			results[idx] = builder.DesiredResourceInstance(addr)
-
-		case execgraphproto.Element_ResourceInstancePriorState_case:
-			addr, err := unmarshalResourceInstancePriorState(elem.GetResourceInstancePriorState())
-			if err != nil {
-				return nil, fmt.Errorf("invalid prior state resource instance address in element %d: %w", idx, err)
-			}
-			results[idx] = builder.ResourceInstancePriorState(addr)
-
-		case execgraphproto.Element_ResourceInstanceDeposedObjectState_case:
-			objRef, err := unmarshalResourceInstanceDeposedObjectState(elem.GetResourceInstanceDeposedObjectState())
-			if err != nil {
-				return nil, fmt.Errorf("invalid deposed resource instance object reference in element %d: %w", idx, err)
-			}
-			results[idx] = builder.ResourceDeposedObjectState(objRef.ResourceInstance, objRef.DeposedKey)
-
-		case execgraphproto.Element_ProviderInstanceConfig_case:
-			addr, err := unmarshalProviderInstanceConfig(elem.GetProviderInstanceConfig())
+		case execgraphproto.Element_ConstantProviderInstAddr_case:
+			addr, err := unmarshalConstantProviderInstAddr(elem.GetConstantProviderInstAddr())
 			if err != nil {
 				return nil, fmt.Errorf("invalid provider instance address in element %d: %w", idx, err)
 			}
-			results[idx] = builder.ProviderInstanceConfig(addr)
+			results[idx] = builder.ConstantProviderInstAddr(addr)
 
 		default:
 			// The above cases should cover all of the valid values of
@@ -116,7 +101,7 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 		if diags.HasErrors() {
 			return nil, fmt.Errorf("invalid resource instance address %q: %w", instAddrStr, diags.Err())
 		}
-		resultRef, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](results, resultIdx)
+		resultRef, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](results, resultIdx)
 		if err != nil {
 			return nil, fmt.Errorf("invalid result element for %s: %w", instAddr, err)
 		}
@@ -128,18 +113,30 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 
 func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
 	switch c := protoOp.GetOpcode(); opCode(c) {
+	case opProviderInstanceConfig:
+		return unmarshalOpProviderInstanceConfig(protoOp.GetOperands(), prevResults, builder)
+	case opProviderInstanceOpen:
+		return unmarshalOpProviderInstanceOpen(protoOp.GetOperands(), prevResults, builder)
+	case opProviderInstanceClose:
+		return unmarshalOpProviderInstanceClose(protoOp.GetOperands(), prevResults, builder)
+	case opResourceInstanceDesired:
+		return unmarshalOpResourceInstanceDesired(protoOp.GetOperands(), prevResults, builder)
+	case opResourceInstancePrior:
+		return unmarshalOpResourceInstancePrior(protoOp.GetOperands(), prevResults, builder)
 	case opManagedFinalPlan:
 		return unmarshalOpManagedFinalPlan(protoOp.GetOperands(), prevResults, builder)
-	case opManagedApplyChanges:
-		return unmarshalOpManagedApplyChanges(protoOp.GetOperands(), prevResults, builder)
+	case opManagedApply:
+		return unmarshalOpManagedApply(protoOp.GetOperands(), prevResults, builder)
+	case opManagedDepose:
+		return unmarshalOpManagedDepose(protoOp.GetOperands(), prevResults, builder)
+	case opManagedAlreadyDeposed:
+		return unmarshalOpManagedAlreadyDeposed(protoOp.GetOperands(), prevResults, builder)
 	case opDataRead:
 		return unmarshalOpDataRead(protoOp.GetOperands(), prevResults, builder)
-	case opOpenProvider:
-		return unmarshalOpOpenProvider(protoOp.GetOperands(), prevResults, builder)
-	case opCloseProvider:
-		return unmarshalOpCloseProvider(protoOp.GetOperands(), prevResults, builder)
-
-		// TODO: All of the other opcodes
+	case opEphemeralOpen:
+		return unmarshalOpEphemeralOpen(protoOp.GetOperands(), prevResults, builder)
+	case opEphemeralClose:
+		return unmarshalOpEphemeralClose(protoOp.GetOperands(), prevResults, builder)
 	default:
 		// The above cases should cover all valid values of [opCode], so we
 		// should not get here unless the serialized graph was tampered
@@ -148,15 +145,82 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 	}
 }
 
+func unmarshalOpProviderInstanceConfig(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceConfig", len(rawOperands))
+	}
+	providerInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsProviderInstanceCorrect](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opProviderInstanceConfig providerInstAddr: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opProviderInstanceConfig waitFor: %w", err)
+	}
+	return builder.ProviderInstanceConfig(providerInstAddr, waitFor), nil
+}
+
+func unmarshalOpProviderInstanceOpen(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 1 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceOpen", len(rawOperands))
+	}
+	config, err := unmarshalGetPrevResultOf[*exec.ProviderInstanceConfig](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opProviderInstanceOpen config: %w", err)
+	}
+	return builder.ProviderInstanceOpen(config), nil
+}
+
+func unmarshalOpProviderInstanceClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opProviderInstanceClose", len(rawOperands))
+	}
+	client, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opProviderInstanceClose client: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opProviderInstanceClose waitFor: %w", err)
+	}
+	return builder.ProviderInstanceClose(client, waitFor), nil
+}
+
+func unmarshalOpResourceInstanceDesired(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstanceDesired", len(rawOperands))
+	}
+	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstanceDesired addr: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstanceDesired waitFor: %w", err)
+	}
+	return builder.ResourceInstanceDesired(addr, waitFor), nil
+}
+
+func unmarshalOpResourceInstancePrior(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 1 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opResourceInstancePrior", len(rawOperands))
+	}
+	addr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opResourceInstancePrior addr: %w", err)
+	}
+	return builder.ResourceInstancePrior(addr), nil
+}
+
 func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 5 {
+	if len(rawOperands) != 4 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedFinalPlan", len(rawOperands))
 	}
 	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan desiredInst: %w", err)
 	}
-	priorState, err := unmarshalGetPrevResultOf[*states.ResourceInstanceObjectFull](prevResults, rawOperands[1])
+	priorState, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan priorState: %w", err)
 	}
@@ -164,30 +228,52 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan plannedVal: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[providers.Configured](prevResults, rawOperands[3])
+	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[3])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedFinalPlan providerClient: %w", err)
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[4])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedFinalPlan waitFor: %w", err)
-	}
-	return builder.ManagedResourceObjectFinalPlan(desiredInst, priorState, plannedVal, providerClient, waitFor), nil
+	return builder.ManagedFinalPlan(desiredInst, priorState, plannedVal, providerClient), nil
 }
 
-func unmarshalOpManagedApplyChanges(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
+func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 3 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedApplyChanges", len(rawOperands))
 	}
-	finalPlan, err := unmarshalGetPrevResultOf[*ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
+	finalPlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges finalPlan: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[providers.Configured](prevResults, rawOperands[1])
+	fallbackObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedApplyChanges fallbackObj: %w", err)
+	}
+	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[2])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges providerClient: %w", err)
 	}
-	return builder.ApplyManagedResourceObjectChanges(finalPlan, providerClient), nil
+	return builder.ManagedApply(finalPlan, fallbackObj, providerClient), nil
+}
+
+func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 1 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedDepose", len(rawOperands))
+	}
+	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedDepose instAddr: %w", err)
+	}
+	return builder.ManagedDepose(instAddr), nil
+}
+
+func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 1 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedAlreadyDeposed", len(rawOperands))
+	}
+	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedAlreadyDeposed instAddr: %w", err)
+	}
+	return builder.ManagedAlreadyDeposed(instAddr), nil
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -198,7 +284,41 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[providers.Configured](prevResults, rawOperands[1])
+	plannedVal, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead plannedVal: %w", err)
+	}
+	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[2])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
+	}
+	return builder.DataRead(desiredInst, plannedVal, providerClient), nil
+}
+
+func unmarshalOpEphemeralOpen(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
+	}
+	desiredInst, err := unmarshalGetPrevResultOf[*eval.DesiredResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
+	}
+	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
+	}
+	return builder.EphemeralOpen(desiredInst, providerClient), nil
+}
+
+func unmarshalOpEphemeralClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 3 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
+	}
+	obj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
+	}
+	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
 	}
@@ -206,41 +326,7 @@ func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, build
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
-	return builder.DataRead(desiredInst, providerClient, waitFor), nil
-}
-
-func unmarshalOpOpenProvider(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opOpenProvider", len(rawOperands))
-	}
-	providerAddr, err := unmarshalGetPrevResultOf[addrs.Provider](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opOpenProvider providerAddr: %w", err)
-	}
-	config, err := unmarshalGetPrevResultOf[cty.Value](prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opOpenProvider config: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opOpenProvider waitFor: %w", err)
-	}
-	return builder.OpenProviderClient(providerAddr, config, waitFor), nil
-}
-
-func unmarshalOpCloseProvider(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 2 {
-		return nil, fmt.Errorf("wrong number of operands (%d) for opCloseProvider", len(rawOperands))
-	}
-	client, err := unmarshalGetPrevResultOf[providers.Configured](prevResults, rawOperands[0])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opCloseProvider client: %w", err)
-	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opCloseProvider waitFor: %w", err)
-	}
-	return builder.CloseProviderClient(client, waitFor), nil
+	return builder.EphemeralClose(obj, providerClient, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -265,61 +351,36 @@ func unmarshalConstantValueElem(src []byte) (cty.Value, error) {
 	return v, nil
 }
 
-func unmarshalConstantProviderAddr(addrStr string) (addrs.Provider, error) {
-	// This address parser returns diagnostics rather than just an error,
-	// which is inconvenient. :(
-	ret, diags := addrs.ParseProviderSourceString(addrStr)
-	return ret, diags.Err()
-}
-
-func unmarshalDesiredResourceInstance(addrStr string) (addrs.AbsResourceInstance, error) {
-	// This address parser returns diagnostics rather than just an error,
+func unmarshalConstantResourceInstAddr(addrStr string) (addrs.AbsResourceInstance, error) {
+	// This address parser also returns diagnostics rather than just an error,
 	// which is inconvenient. :(
 	ret, diags := addrs.ParseAbsResourceInstanceStr(addrStr)
 	return ret, diags.Err()
 }
 
-func unmarshalResourceInstancePriorState(addrStr string) (addrs.AbsResourceInstance, error) {
-	// This address parser returns diagnostics rather than just an error,
+func unmarshalConstantProviderInstAddr(addrStr string) (addrs.AbsProviderInstanceCorrect, error) {
+	// FIXME: We don't yet have a parser for addrs.AbsProviderInstanceCorrect,
+	// so we'll borrow the legacy one and then adapt its result. Note that this
+	// means that there are certain shapes of address that we'll fail to
+	// parse here, because this legacy parser doesn't support module instances
+	// that have instance keys.
+	// This address parser also returns diagnostics rather than just an error,
 	// which is inconvenient. :(
-	ret, diags := addrs.ParseAbsResourceInstanceStr(addrStr)
-	return ret, diags.Err()
-}
-
-func unmarshalProviderInstanceConfig(addrStr string) (addrs.AbsProviderInstanceCorrect, error) {
-	// This address parser returns diagnostics rather than just an error,
-	// which is inconvenient. :(
-	//
-	// FIXME: AbsProviderInstanceCorrect doesn't currently have its own string
-	// parsing function, we'll borrow the one we introduced for the world where
-	// instance keys are tracked externally from the address. This means that
-	// we're limited to only the address forms that the old system could handle,
-	// including not supporting provider instances inside multi-instance modules,
-	// but that's okay for now.
-	var ret addrs.AbsProviderInstanceCorrect
-	configAddr, instKey, diags := addrs.ParseAbsProviderConfigInstanceStr(addrStr)
+	pc, k, diags := addrs.ParseAbsProviderConfigInstanceStr(addrStr)
 	if diags.HasErrors() {
-		return ret, fmt.Errorf("invalid provider instance address: %w", diags.Err())
+		return addrs.AbsProviderInstanceCorrect{}, diags.Err()
 	}
-	ret.Config = configAddr.Correct()
-	ret.Key = instKey
+	ret := addrs.AbsProviderInstanceCorrect{
+		Config: addrs.AbsProviderConfigCorrect{
+			Module: pc.Module.UnkeyedInstanceShim(),
+			Config: addrs.ProviderConfigCorrect{
+				Provider: pc.Provider,
+				Alias:    pc.Alias,
+			},
+		},
+		Key: k,
+	}
 	return ret, diags.Err()
-}
-
-func unmarshalResourceInstanceDeposedObjectState(protoRef *execgraphproto.DeposedResourceInstanceObject) (resourceInstanceStateRef, error) {
-	var ret resourceInstanceStateRef
-	instAddrStr := protoRef.GetInstanceAddr()
-	deposedKeyStr := protoRef.GetDeposedKey()
-
-	// This address parser returns diagnostics rather than just an error,
-	// which is inconvenient. :(
-	instAddr, diags := addrs.ParseAbsResourceInstanceStr(instAddrStr)
-	if diags.HasErrors() {
-		return ret, fmt.Errorf("invalid resource instance address: %w", diags.Err())
-	}
-	ret.ResourceInstance = instAddr
-	ret.DeposedKey = states.DeposedKey(deposedKeyStr)
-	return ret, nil
 }
 
 func unmarshalGetPrevResult(prevResults []AnyResultRef, resultIdx uint64) AnyResultRef {
@@ -332,7 +393,11 @@ func unmarshalGetPrevResult(prevResults []AnyResultRef, resultIdx uint64) AnyRes
 func unmarshalGetPrevResultOf[T any](prevResults []AnyResultRef, resultIdx uint64) (ResultRef[T], error) {
 	dynResult := unmarshalGetPrevResult(prevResults, resultIdx)
 	if dynResult == nil {
-		return nil, fmt.Errorf("refers to later element %d", resultIdx)
+		// We're assuming here that nil represents NilResultRef. This could
+		// also potentially represent a reference to a result that hasn't
+		// appeared yet, but that would only be possible if the input is
+		// invalid.
+		return NilResultRef[T](), nil
 	}
 	ret, ok := dynResult.(ResultRef[T])
 	if !ok {

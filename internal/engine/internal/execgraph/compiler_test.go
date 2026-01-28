@@ -17,6 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -29,6 +30,12 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	// for building the execution subgraph for a desired resource instance,
 	// arranging for its changes to be planned and applied with whatever
 	// provider instance was selected in the configuration.
+	//
+	// FIXME: This test became more gnarly and less maintainable as a result
+	// of the recent changes to the execgraph operations, but so far we've
+	// just done the minimum to make it work again. In future commits we should
+	// find a different way to test this that doesn't require so much
+	// boilerplate and mocking.
 	builder := NewBuilder()
 	resourceInstAddr := addrs.Resource{
 		Mode: addrs.ManagedResourceMode,
@@ -47,16 +54,18 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		"name": cty.StringVal("thingy"),
 	}))
 	providerClient, addProviderUser := builder.ProviderInstance(providerInstAddr, nil)
-	desiredInst := builder.DesiredResourceInstance(resourceInstAddr)
-	priorState := builder.ResourceInstancePriorState(resourceInstAddr)
-	finalPlan := builder.ManagedResourceObjectFinalPlan(
+	instAddrResult := builder.ConstantResourceInstAddr(resourceInstAddr)
+	desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
+	priorState := builder.ResourceInstancePrior(instAddrResult)
+	finalPlan := builder.ManagedFinalPlan(
 		desiredInst,
 		priorState,
 		initialPlannedValue,
 		providerClient,
-		nil,
 	)
-	newState := builder.ApplyManagedResourceObjectChanges(finalPlan, providerClient)
+	newState := builder.ManagedApply(
+		finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient,
+	)
 	addProviderUser(newState)
 	builder.SetResourceInstanceFinalStateResult(resourceInstAddr, newState)
 	sourceGraph := builder.Finish()
@@ -66,11 +75,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	// only the part that relates to this package in particular since we're
 	// focused only on testing the compiler and our ability to execute what
 	// it produces.
-	var execCtx *MockExecContext
-	execCtx = &MockExecContext{
-		DesiredResourceInstanceFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) *eval.DesiredResourceInstance {
+	var ops *mockOperations
+	ops = &mockOperations{
+		ResourceInstanceDesiredFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*eval.DesiredResourceInstance, tfdiags.Diagnostics) {
 			if !addr.Equal(resourceInstAddr) {
-				return nil
+				return nil, nil
 			}
 			return &eval.DesiredResourceInstance{
 				Addr: addr,
@@ -79,48 +88,79 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 				}),
 				Provider:         providerAddr,
 				ProviderInstance: &providerInstAddr,
-			}
+				ResourceMode:     addrs.ManagedResourceMode,
+				ResourceType:     addr.Resource.Resource.Type,
+			}, nil
 		},
-		ResourceInstancePriorStateFunc: func(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey) *states.ResourceInstanceObjectFull {
-			return &states.ResourceInstanceObjectFull{
-				Status: states.ObjectReady,
-				Value: cty.ObjectVal(map[string]cty.Value{
-					"name": cty.StringVal("prior"),
-				}),
-				ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
-					Config: addrs.AbsProviderConfigCorrect{
-						Config: addrs.ProviderConfigCorrect{
-							Provider: addrs.NewBuiltInProvider("test"),
+		ResourceInstancePriorFunc: func(ctx context.Context, addr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+			return &exec.ResourceInstanceObject{
+				InstanceAddr: addr,
+				State: &states.ResourceInstanceObjectFull{
+					Status: states.ObjectReady,
+					Value: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("prior"),
+					}),
+					ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
+						Config: addrs.AbsProviderConfigCorrect{
+							Config: addrs.ProviderConfigCorrect{
+								Provider: addrs.NewBuiltInProvider("test"),
+							},
 						},
 					},
+					ResourceType: addr.Resource.Resource.Type,
 				},
-				ResourceType: addr.Resource.Resource.Type,
-			}
+			}, nil
 		},
-		ProviderInstanceConfigFunc: func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) cty.Value {
+		ManagedFinalPlanFunc: func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics) {
+			return &exec.ManagedResourceObjectFinalPlan{
+				InstanceAddr:  desired.Addr,
+				ResourceType:  desired.ResourceType,
+				ConfigVal:     desired.ConfigVal,
+				PriorStateVal: prior.State.Value,
+				PlannedVal:    plannedVal,
+			}, nil
+		},
+		ManagedApplyFunc: func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+			return &exec.ResourceInstanceObject{
+				InstanceAddr: plan.InstanceAddr,
+				State: &states.ResourceInstanceObjectFull{
+					Status:               states.ObjectReady,
+					Value:                plan.PlannedVal,
+					ResourceType:         plan.ResourceType,
+					ProviderInstanceAddr: providerClient.InstanceAddr,
+				},
+			}, nil
+		},
+		ProviderInstanceConfigFunc: func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (*exec.ProviderInstanceConfig, tfdiags.Diagnostics) {
 			if !addr.Equal(providerInstAddr) {
-				return cty.NilVal
+				return nil, nil
 			}
-			return cty.ObjectVal(map[string]cty.Value{
-				"provider_config": cty.True,
-			})
+			return &exec.ProviderInstanceConfig{
+				InstanceAddr: addr,
+				ConfigVal: cty.ObjectVal(map[string]cty.Value{
+					"provider_config": cty.True,
+				}),
+			}, nil
 		},
-		NewProviderClientFunc: func(ctx context.Context, addr addrs.Provider, configVal cty.Value) (providers.Configured, tfdiags.Diagnostics) {
-			return execCtx.NewManagedResourceProviderClient(
-				func(ctx context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-					return providers.PlanResourceChangeResponse{
-						PlannedState: req.Config,
-					}
-				},
-				func(ctx context.Context, req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
-					return providers.ApplyResourceChangeResponse{
-						NewState: req.PlannedState,
-					}
-				},
-			), nil
+		ProviderInstanceOpenFunc: func(ctx context.Context, config *exec.ProviderInstanceConfig) (*exec.ProviderClient, tfdiags.Diagnostics) {
+			return &exec.ProviderClient{
+				InstanceAddr: config.InstanceAddr,
+				Ops: ops.NewManagedResourceProviderClient(
+					func(ctx context.Context, req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+						return providers.PlanResourceChangeResponse{
+							PlannedState: req.Config,
+						}
+					},
+					func(ctx context.Context, req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+						return providers.ApplyResourceChangeResponse{
+							NewState: req.PlannedState,
+						}
+					},
+				),
+			}, nil
 		},
 	}
-	compiledGraph, diags := sourceGraph.Compile(execCtx)
+	compiledGraph, diags := sourceGraph.Compile(ops)
 	if diags.HasErrors() {
 		t.Fatal("unexpected compile errors\n" + diags.Err().Error())
 	}
@@ -146,107 +186,160 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		t.Fatal("unexpected execute errors\n" + diags.Err().Error())
 	}
 
-	gotLog := execCtx.Calls
+	gotLog := ops.Calls
 	// There are multiple valid call orders, so we'll just discard the order
 	// by sorting the log by method name since we only expect one call to
 	// each method in this particular test.
-	slices.SortFunc(gotLog, func(a, b MockExecContextCall) int {
+	slices.SortFunc(gotLog, func(a, b mockOperationsCall) int {
 		return cmp.Compare(a.MethodName, b.MethodName)
 	})
 	// We also can't compare the actual provider client, so we'll stub that
 	// result out.
 	for i := range gotLog {
-		if gotLog[i].MethodName == "NewProviderClient" {
-			gotLog[i].Result = "<ignored for test comparison>"
+		// We can't reliably compare the actual provider clients and so
+		// we'll just replace them with their instance addresses.
+		for ai, arg := range gotLog[i].Args {
+			if c, ok := arg.(*exec.ProviderClient); ok {
+				gotLog[i].Args[ai] = c.InstanceAddr
+			}
+		}
+		if c, ok := gotLog[i].Result.(*exec.ProviderClient); ok {
+			gotLog[i].Result = c.InstanceAddr
 		}
 	}
-	wantLog := []MockExecContextCall{
+	wantLog := []mockOperationsCall{
 		{
-			MethodName: "DesiredResourceInstance",
-			Args:       []any{resourceInstAddr},
-			Result: &eval.DesiredResourceInstance{
-				Addr: resourceInstAddr,
-				ConfigVal: cty.ObjectVal(map[string]cty.Value{
-					"name": cty.StringVal("thingy"),
-				}),
-				Provider:         providerAddr,
-				ProviderInstance: &providerInstAddr,
+			MethodName: "ManagedApply",
+			Args: []any{
+				&exec.ManagedResourceObjectFinalPlan{
+					InstanceAddr: resourceInstAddr,
+					ResourceType: resourceInstAddr.Resource.Resource.Type,
+					ConfigVal:    wantValue,
+					PlannedVal:   wantValue,
+					PriorStateVal: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("prior"),
+					}),
+				},
+				(*exec.ResourceInstanceObject)(nil),
+				providerInstAddr,
+			},
+			Result: &exec.ResourceInstanceObject{
+				InstanceAddr: resourceInstAddr,
+				State: &states.ResourceInstanceObjectFull{
+					Status:               states.ObjectReady,
+					Value:                wantValue,
+					ProviderInstanceAddr: providerInstAddr,
+					ResourceType:         resourceInstAddr.Resource.Resource.Type,
+				},
 			},
 		},
 		{
-			MethodName: "NewProviderClient",
+			MethodName: "ManagedFinalPlan",
 			Args: []any{
-				providerAddr,
-				cty.ObjectVal(map[string]cty.Value{
-					"provider_config": cty.True,
-				}),
+				&eval.DesiredResourceInstance{
+					Addr:             resourceInstAddr,
+					ConfigVal:        wantValue,
+					Provider:         providerAddr,
+					ProviderInstance: &providerInstAddr,
+					ResourceMode:     addrs.ManagedResourceMode,
+					ResourceType:     resourceInstAddr.Resource.Resource.Type,
+				},
+				&exec.ResourceInstanceObject{
+					InstanceAddr: resourceInstAddr,
+					State: &states.ResourceInstanceObjectFull{
+						Status: states.ObjectReady,
+						Value: cty.ObjectVal(map[string]cty.Value{
+							"name": cty.StringVal("prior"),
+						}),
+						ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
+							Config: addrs.AbsProviderConfigCorrect{
+								Config: addrs.ProviderConfigCorrect{
+									Provider: addrs.NewBuiltInProvider("test"),
+								},
+							},
+						},
+						ResourceType: resourceInstAddr.Resource.Resource.Type,
+					},
+				},
+				wantValue,
+				providerInstAddr,
 			},
-			Result: "<ignored for test comparison>",
+			Result: &exec.ManagedResourceObjectFinalPlan{
+				InstanceAddr: resourceInstAddr,
+				ResourceType: resourceInstAddr.Resource.Resource.Type,
+				ConfigVal:    wantValue,
+				PriorStateVal: cty.ObjectVal(map[string]cty.Value{
+					"name": cty.StringVal("prior"),
+				}),
+				PlannedVal: wantValue,
+			},
+		},
+		{
+			MethodName: "ProviderInstanceClose",
+			Args: []any{
+				providerInstAddr,
+			},
+			Result: struct{}{},
 		},
 		{
 			MethodName: "ProviderInstanceConfig",
-			Args:       []any{providerInstAddr},
-			Result: cty.ObjectVal(map[string]cty.Value{
-				"provider_config": cty.True,
-			}),
+			Args: []any{
+				providerInstAddr,
+			},
+			Result: &exec.ProviderInstanceConfig{
+				InstanceAddr: providerInstAddr,
+				ConfigVal: cty.ObjectVal(map[string]cty.Value{
+					"provider_config": cty.True,
+				}),
+			},
 		},
 		{
-			MethodName: "ResourceInstancePriorState",
-			Args:       []any{resourceInstAddr, states.NotDeposed},
-			Result: &states.ResourceInstanceObjectFull{
-				Status: states.ObjectReady,
-				Value: cty.ObjectVal(map[string]cty.Value{
-					"name": cty.StringVal("prior"),
-				}),
-				ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
-					Config: addrs.AbsProviderConfigCorrect{
-						Config: addrs.ProviderConfigCorrect{
-							Provider: addrs.NewBuiltInProvider("test"),
+			MethodName: "ProviderInstanceOpen",
+			Args: []any{
+				&exec.ProviderInstanceConfig{
+					InstanceAddr: providerInstAddr,
+					ConfigVal: cty.ObjectVal(map[string]cty.Value{
+						"provider_config": cty.True,
+					}),
+				},
+			},
+			Result: providerInstAddr,
+		},
+		{
+			MethodName: "ResourceInstanceDesired",
+			Args: []any{
+				resourceInstAddr,
+			},
+			Result: &eval.DesiredResourceInstance{
+				Addr:             resourceInstAddr,
+				ConfigVal:        wantValue,
+				Provider:         providerAddr,
+				ProviderInstance: &providerInstAddr,
+				ResourceMode:     addrs.ManagedResourceMode,
+				ResourceType:     resourceInstAddr.Resource.Resource.Type,
+			},
+		},
+		{
+			MethodName: "ResourceInstancePrior",
+			Args: []any{
+				resourceInstAddr,
+			},
+			Result: &exec.ResourceInstanceObject{
+				InstanceAddr: resourceInstAddr,
+				State: &states.ResourceInstanceObjectFull{
+					Status: states.ObjectReady,
+					Value: cty.ObjectVal(map[string]cty.Value{
+						"name": cty.StringVal("prior"),
+					}),
+					ProviderInstanceAddr: addrs.AbsProviderInstanceCorrect{
+						Config: addrs.AbsProviderConfigCorrect{
+							Config: addrs.ProviderConfigCorrect{
+								Provider: addrs.NewBuiltInProvider("test"),
+							},
 						},
 					},
+					ResourceType: resourceInstAddr.Resource.Resource.Type,
 				},
-				ResourceType: "bar_thing",
-			},
-		},
-		{
-			MethodName: "providerClient.ApplyResourceChange",
-			Args: []any{
-				providers.ApplyResourceChangeRequest{
-					TypeName: "bar_thing",
-					PriorState: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("prior"),
-					}),
-					PlannedState: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("thingy"),
-					}),
-					Config: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("thingy"),
-					}),
-				},
-			},
-			Result: providers.ApplyResourceChangeResponse{
-				NewState: cty.ObjectVal(map[string]cty.Value{
-					"name": cty.StringVal("thingy"),
-				}),
-			},
-		},
-		{
-			MethodName: "providerClient.PlanResourceChange",
-			Args: []any{
-				providers.PlanResourceChangeRequest{
-					TypeName: "bar_thing",
-					PriorState: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("prior"),
-					}),
-					Config: cty.ObjectVal(map[string]cty.Value{
-						"name": cty.StringVal("thingy"),
-					}),
-				},
-			},
-			Result: providers.PlanResourceChangeResponse{
-				PlannedState: cty.ObjectVal(map[string]cty.Value{
-					"name": cty.StringVal("thingy"),
-				}),
 			},
 		},
 	}

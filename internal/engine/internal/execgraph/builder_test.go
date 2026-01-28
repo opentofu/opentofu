@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -36,16 +37,18 @@ func TestBuilder_basics(t *testing.T) {
 			},
 		},
 	}, nil)
-	desiredInst := builder.DesiredResourceInstance(resourceInstAddr)
-	priorState := builder.ResourceInstancePriorState(resourceInstAddr)
-	finalPlan := builder.ManagedResourceObjectFinalPlan(
+	instAddrResult := builder.ConstantResourceInstAddr(resourceInstAddr)
+	desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
+	priorState := builder.ResourceInstancePrior(instAddrResult)
+	finalPlan := builder.ManagedFinalPlan(
 		desiredInst,
 		priorState,
 		initialPlannedValue,
 		providerClient,
-		nil,
 	)
-	newState := builder.ApplyManagedResourceObjectChanges(finalPlan, providerClient)
+	newState := builder.ManagedApply(
+		finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient,
+	)
 	addProviderUser(newState)
 	builder.SetResourceInstanceFinalStateResult(resourceInstAddr, newState)
 
@@ -56,12 +59,15 @@ v[0] = cty.ObjectVal(map[string]cty.Value{
     "name": cty.StringVal("thingy"),
 });
 
-r[0] = OpenProvider(provider("example.com/foo/bar"), providerInstConfig(provider["example.com/foo/bar"]), await());
-r[1] = CloseProvider(r[0], await(r[3]));
-r[2] = ManagedFinalPlan(desired(bar_thing.example), priorState(bar_thing.example), v[0], r[0], await());
-r[3] = ManagedApplyChanges(r[2], r[0]);
+r[0] = ProviderInstanceConfig(provider["example.com/foo/bar"], await());
+r[1] = ProviderInstanceOpen(r[0]);
+r[2] = ProviderInstanceClose(r[1], await(r[6]));
+r[3] = ResourceInstanceDesired(bar_thing.example, await());
+r[4] = ResourceInstancePrior(bar_thing.example);
+r[5] = ManagedFinalPlan(r[3], r[4], v[0], r[1]);
+r[6] = ManagedApply(r[5], nil, r[1]);
 
-bar_thing.example = r[3];
+bar_thing.example = r[6];
 `, "\n")
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Error("wrong result\n" + diff)
