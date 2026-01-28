@@ -348,6 +348,7 @@ func (c *compiler) compileOpEphemeralOpen(operands *compilerOperands) nodeExecut
 func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecuteRaw {
 	getObject := nextOperand[*exec.ResourceInstanceObject](operands)
 	getProviderClient := nextOperand[*exec.ProviderClient](operands)
+	waitForUsers := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -356,6 +357,10 @@ func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecu
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		// We intentionally ignore results here because we want to close the
+		// ephemeral even if one of its users fails.
+		waitForUsers(ctx)
+
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {

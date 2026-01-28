@@ -24,9 +24,6 @@ import (
 )
 
 func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (plannedVal cty.Value, applyResultRef execgraph.ResourceInstanceResultRef, diags tfdiags.Diagnostics) {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
-
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
@@ -122,7 +119,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return proposedNewVal, nil, diags
 	}
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, providerClientRef, closeProviderAfter, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -267,7 +264,6 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	//
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
-	providerClientRef, closeProviderAfter := egb.ProviderInstance(*inst.ProviderInstance, egb.Waiter())
 	instAddrRef := egb.ConstantResourceInstAddr(inst.Addr)
 	priorStateRef := egb.ResourceInstancePrior(instAddrRef)
 	plannedValRef := egb.ConstantValue(planResp.PlannedState)
@@ -283,6 +279,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
 	)
+
+	for _, depInstAddr := range inst.RequiredResourceInstances {
+		if depInstAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			// Our open was dependent on an ephemeral's open,
+			// therefore the ephemeral's close should depend on our close
+			//
+			// The dependency should already have been populated via planDesiredEphemeralResourceInstance
+			p.planCtx.ephemeralInstances.addCloseDependsOn(depInstAddr, finalResultRef)
+		}
+	}
+
 	closeProviderAfter(finalResultRef)
 
 	// Our result value for ongoing downstream planning is the planned new state.
@@ -290,17 +297,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
-
 	// TODO: Implement
 	panic("unimplemented")
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
-
 	// TODO: Implement
 	panic("unimplemented")
 }

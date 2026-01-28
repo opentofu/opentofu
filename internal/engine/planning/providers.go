@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -27,20 +29,29 @@ type providerInstances struct {
 	//
 	// callers must hold activeMu while accessing this map but should release it
 	// before waiting on an object retrieved from it.
-	active   addrs.Map[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providers.Configured]]
+	active   addrs.Map[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providerInstance]]
 	activeMu sync.Mutex
 
-	// completion is a [completionTracker] that's shared with the [planCtx]
-	// we belong to so that we can detect when all of the work of each particular
-	// provider instance has completed.
-	completion *completionTracker
+	closers   addrs.Map[addrs.AbsProviderInstanceCorrect, func(context.Context) error]
+	closersMu sync.Mutex
 }
 
-func newProviderInstances(completion *completionTracker) *providerInstances {
+func newProviderInstances() *providerInstances {
 	return &providerInstances{
-		active:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providers.Configured]](),
-		completion: completion,
+		active:  addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providerInstance]](),
+		closers: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(context.Context) error](),
 	}
+}
+
+type providerInstance struct {
+	instance             providers.Configured
+	ref                  execgraph.ResultRef[*exec.ProviderClient]
+	registerCloseBlocker execgraph.RegisterCloseBlockerFunc
+}
+
+func (p *providerInstances) callClose(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) error {
+	// This is called after any modifications to the map is active
+	return p.closers.Get(addr)(ctx)
 }
 
 // ProviderClient returns a client for the requested provider instance, using
@@ -56,21 +67,44 @@ func newProviderInstances(completion *completionTracker) *providerInstances {
 // of this function will probably want to return a more specialized error saying
 // that the corresponding resource cannot be planned because its associated
 // provider has an invalid configuration.
-func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, planGlue *planGlue) (providers.Configured, tfdiags.Diagnostics) {
+func (p *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, planGlue *planGlue) (providers.Configured, execgraph.ResultRef[*exec.ProviderClient], execgraph.RegisterCloseBlockerFunc, tfdiags.Diagnostics) {
 	// We hold this central lock only while we make sure there's an entry
 	// in the "active" map for this provider instance. We then use the
 	// more granular grapheval.Once inside to wait for the provider client
 	// to be available, so that requests for already-active provider instances
 	// will not block on the startup of other provider instances.
-	pi.activeMu.Lock()
-	if !pi.active.Has(addr) {
-		pi.active.Put(addr, &grapheval.Once[providers.Configured]{})
+	p.activeMu.Lock()
+	if !p.active.Has(addr) {
+		p.active.Put(addr, &grapheval.Once[providerInstance]{})
 	}
-	pi.activeMu.Unlock()
+	p.activeMu.Unlock()
 
 	oracle := planGlue.oracle
-	once := pi.active.Get(addr)
-	return once.Do(ctx, func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
+	egb := planGlue.planCtx.execgraphBuilder
+	once := p.active.Get(addr)
+	val, diags := once.Do(ctx, func(ctx context.Context) (providerInstance, tfdiags.Diagnostics) {
+		var result providerInstance
+
+		resourceDependencies := oracle.ProviderInstanceResourceDependencies(ctx, addr)
+
+		var dependencyResults []execgraph.AnyResultRef
+		for depInst := range resourceDependencies {
+			depInstResult := egb.ResourceInstanceFinalStateResult(depInst.Addr)
+			dependencyResults = append(dependencyResults, depInstResult)
+		}
+		dependencyWaiter := egb.Waiter(dependencyResults...)
+
+		//result.ref, result.registerCloseBlocker = egb.ProviderInstance(addr, dependencyWaiter)
+
+		addrResult := egb.ConstantProviderInstAddr(addr)
+		configResult := egb.ProviderInstanceConfig(addrResult, dependencyWaiter)
+		openResult := egb.ProviderInstanceOpen(configResult)
+		closeWait, registerCloseBlocker := egb.MakeCloseBlocker()
+		closeResult := egb.ProviderInstanceClose(openResult, closeWait)
+
+		result.ref = openResult
+		result.registerCloseBlocker = registerCloseBlocker
+
 		configVal := oracle.ProviderInstanceConfig(ctx, addr)
 		if configVal == cty.NilVal {
 			// This suggests that the provider instance has an invalid
@@ -79,8 +113,20 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 			// nil to prompt the caller to generate its own error saying that
 			// whatever operation the provider was going to be used for cannot
 			// be performed.
-			return nil, nil
+			return result, nil
 		}
+
+		for depInst := range resourceDependencies {
+			if depInst.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+				// Our open was dependent on an ephemeral's open,
+				// therefore the ephemeral's close should depend on our close
+				//
+				// The dependency should already have been populated via planDesiredEphemeralResourceInstance
+				// TODO it's unclear if we can do this before or after the oracle call above
+				planGlue.planCtx.ephemeralInstances.addCloseDependsOn(depInst.Addr, closeResult)
+			}
+		}
+
 		// If _this_ call fails then unfortunately we'll end up duplicating
 		// its diagnostics for every resource instance that depends on this
 		// provider instance, which is not ideal but we don't currently have
@@ -93,32 +139,30 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// caller will treat it the same as a "configuration not valid enough"
 		// problem.
 		ret, diags := planGlue.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
+		result.instance = ret
+
+		closeCh := make(chan struct{})
+
+		// Register closer for use in planGraphCloseOperations
+		p.closersMu.Lock()
+		p.closers.Put(addr, func(ctx context.Context) error {
+			println("CLOSING PROVIDER " + addr.String())
+			closeCh <- struct{}{}
+			return ret.Close(ctx)
+		})
+		p.closersMu.Unlock()
 
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our
 		// given context is cancelled.
-		waitCh := pi.completion.NewWaiterFor(planGlue.providerInstanceCompletionEvents(ctx, addr))
 		go func() {
-			// Once this goroutine is complete the provider instance should be
-			// treated as closed.
-			defer planGlue.planCtx.reportProviderInstanceClosed(addr)
-
 			cancelCtx := ctx
 			withoutCancelCtx := context.WithoutCancel(ctx)
 			for {
 				select {
-				case <-waitCh:
-					// Everything that we were expecting to use the provider
-					// instance has now completed, so we can close it.
-					//
-					// (An error from this goes nowhere. If we want to track
-					// this then maybe we _should_ switch to having a central
-					// diags repository inside the providerInstances object,
-					// as discussed above for failing NewConfiguredProvider,
-					// and then we could write this failure into there.)
-					if ret != nil {
-						_ = ret.Close(withoutCancelCtx)
-					}
+				case <-closeCh:
+					// Close() has been called from within the closers
+					// No further actions are nessesary
 					return
 				case <-cancelCtx.Done():
 					// If the context we were given is cancelled then we'll
@@ -128,14 +172,13 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 					if ret != nil {
 						_ = ret.Stop(withoutCancelCtx)
 					}
-					// We'll now replace cancelCtx with the one guaranteed
-					// to never be cancelled so that we'll block until waitCh
-					// is closed.
-					cancelCtx = withoutCancelCtx
+					return
 				}
 			}
 		}()
 
-		return ret, diags
+		return result, diags
 	})
+
+	return val.instance, val.ref, val.registerCloseBlocker, diags
 }
