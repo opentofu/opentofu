@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-retryablehttp"
 	version "github.com/hashicorp/go-version"
 	regaddr "github.com/opentofu/registry-address/v2"
@@ -94,7 +95,7 @@ func TestRegistryAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0")
+	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestRegistryAuth(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0")
+	_, err = client.ModulePackageLocation(context.Background(), modsrc, "1.0.0", "")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -122,14 +123,18 @@ func TestLookupModuleLocationRelative(t *testing.T) {
 	src := "relative/foo/bar"
 	modsrc := testParseModulePackageAddr(t, src)
 
-	got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
+	got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	want := server.URL + "/relative-path"
-	if got != want {
-		t.Errorf("wrong location %s; want %s", got, want)
+	want := PackageLocationIndirect{
+		SourceAddr: addrs.ModuleSourceRemote{
+			Package: addrs.ModulePackage(server.URL + "/relative-path"),
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong location\n" + diff)
 	}
 }
 
@@ -193,7 +198,7 @@ func TestLookupLookupModuleError(t *testing.T) {
 		return oldCheck(ctx, resp, err)
 	}
 
-	_, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
+	_, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0", "")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -285,28 +290,70 @@ func TestLookupModuleNetworkError(t *testing.T) {
 }
 
 func TestModuleLocation_readRegistryResponse(t *testing.T) {
+	makeIndirectLocation := func(packageAddr string, subDir string) PackageLocationIndirect {
+		return PackageLocationIndirect{
+			SourceAddr: addrs.ModuleSourceRemote{
+				Package: addrs.ModulePackage(packageAddr),
+				Subdir:  subDir,
+			},
+		}
+	}
+	mustParseURL := func(s string) *url.URL {
+		ret, err := url.Parse(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ret
+	}
+
 	cases := map[string]struct {
 		src                  string
 		handlerFunc          func(w http.ResponseWriter, r *http.Request)
 		registryFlags        []uint8
-		want                 string
+		want                 PackageLocation
 		wantErrorStr         string
 		wantToReadFromHeader bool
 		wantStatusCode       int
 	}{
-		"shall find the module location in the registry response body": {
+		"shall find direct module location in the registry response body, opting to use the registry's credentials": {
+			src: "exists-in-registry/identifier/provider",
+			want: PackageLocationDirect{
+				packageAddr:            testParseModulePackageAddr(t, "exists-in-registry/identifier/provider"),
+				packageURL:             mustParseURL("https://example.com/package.zip"),
+				useRegistryCredentials: true,
+			},
+			wantStatusCode: http.StatusOK,
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"location":"https://example.com/package.zip","use_registry_credentials":true}`))
+			},
+		},
+		"shall find direct module location in the registry response body, not opting to use the registry's credentials": {
+			src: "exists-in-registry/identifier/provider",
+			want: PackageLocationDirect{
+				packageAddr:            testParseModulePackageAddr(t, "exists-in-registry/identifier/provider"),
+				packageURL:             mustParseURL("https://example.com/package.zip"),
+				useRegistryCredentials: false,
+			},
+			wantStatusCode: http.StatusOK,
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"location":"https://example.com/package.zip","use_registry_credentials":false}`))
+			},
+		},
+		"shall find indirect module location in the registry response body": {
 			src:            "exists-in-registry/identifier/provider",
-			want:           "file:///registry/exists",
+			want:           makeIndirectLocation("file:///registry/exists", ""),
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				_ = json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
 			},
 		},
-		"shall find the module location in the registry response header": {
+		"shall find indirect module location in the registry response header": {
 			src:                  "exists-in-registry/identifier/provider",
 			registryFlags:        []uint8{test.WithModuleLocationInHeader},
-			want:                 "file:///registry/exists",
+			want:                 makeIndirectLocation("file:///registry/exists", ""),
 			wantToReadFromHeader: true,
 			wantStatusCode:       http.StatusNoContent,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
@@ -314,9 +361,9 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 				w.WriteHeader(http.StatusNoContent)
 			},
 		},
-		"shall read location from the registry response body even if the header with location address is also set": {
+		"shall read indirect location from the registry response body even if the header with location address is also set": {
 			src:                  "exists-in-registry/identifier/provider",
-			want:                 "file:///registry/exists",
+			want:                 makeIndirectLocation("file:///registry/exists", ""),
 			wantStatusCode:       http.StatusOK,
 			wantToReadFromHeader: false,
 			registryFlags:        []uint8{test.WithModuleLocationInBody, test.WithModuleLocationInHeader},
@@ -367,7 +414,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 		},
 		"shall fail because location is not found in the response": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `failed to get download URL for "registry.opentofu.org/foo/bar/baz": 200 OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
+			wantErrorStr:   `registry did not return a location for this package`,
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -394,7 +441,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			client := NewClient(t.Context(), test.Disco(registryServer), httpClient)
 			modsrc := testParseModulePackageAddr(t, tc.src)
 
-			got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0")
+			got, err := client.ModulePackageLocation(context.Background(), modsrc, "0.2.0", "")
 
 			// Validate the results
 			if err != nil && tc.wantErrorStr == "" {
@@ -403,8 +450,8 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			if err != nil && !strings.Contains(err.Error(), tc.wantErrorStr) {
 				t.Fatalf("unexpected error content: want=%s, got=%v", tc.wantErrorStr, err)
 			}
-			if got != tc.want {
-				t.Fatalf("unexpected location: want=%s, got=%v", tc.want, got)
+			if diff := cmp.Diff(tc.want, got, cmp.AllowUnexported(PackageLocationDirect{})); diff != "" {
+				t.Fatal("unexpected location\n" + diff)
 			}
 
 			// Verify status code if we have a successful response
