@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/experiments"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -26,7 +27,7 @@ func (b *Local) opRefresh(
 
 	// TEMP: Opt-in support for testing with the new experimental language
 	// runtime. Refer to backend_temp_new_runtime.go for more information.
-	if experimentalRuntimeEnabled() {
+	if experiments.ExperimentalRuntimeEnabled() {
 		b.opRefreshWithExperimentalRuntime(stopCtx, cancelCtx, op, runningOp)
 		return
 	}

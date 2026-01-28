@@ -25,8 +25,8 @@ type basicEdge struct {
 	S, T Vertex
 }
 
-func (e *basicEdge) Hashcode() interface{} {
-	return [...]interface{}{e.S, e.T}
+func (e *basicEdge) Hashcode() any {
+	return [...]any{hashcode(e.S), hashcode(e.T)}
 }
 
 func (e *basicEdge) Source() Vertex {
