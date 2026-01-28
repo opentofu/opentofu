@@ -37,7 +37,7 @@ type ephemeralInstance struct {
 	closeFunc            func(context.Context) tfdiags.Diagnostics
 }
 
-func (e *ephemeralInstances) addCloseDependsOn(addr addrs.AbsResourceInstance, dep execgraph.ResultRef[struct{}]) {
+func (e *ephemeralInstances) addCloseDependsOn(addr addrs.AbsResourceInstance, dep execgraph.AnyResultRef) {
 	e.instancesMu.Lock()
 	instance := e.instances.Get(addr)
 	e.instancesMu.Unlock()

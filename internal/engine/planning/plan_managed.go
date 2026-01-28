@@ -279,6 +279,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
 	)
+
+	for _, depInstAddr := range inst.RequiredResourceInstances {
+		if depInstAddr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			// Our open was dependent on an ephemeral's open,
+			// therefore the ephemeral's close should depend on our close
+			//
+			// The dependency should already have been populated via planDesiredEphemeralResourceInstance
+			p.planCtx.ephemeralInstances.addCloseDependsOn(depInstAddr, finalResultRef)
+		}
+	}
+
 	closeProviderAfter(finalResultRef)
 
 	// Our result value for ongoing downstream planning is the planned new state.
