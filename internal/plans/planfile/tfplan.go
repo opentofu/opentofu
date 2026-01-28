@@ -471,6 +471,14 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
 
+	if rawChange.PlannedIdentity != nil {
+		plannedIdentity, err := valueFromTfplan(rawChange.PlannedIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid planned identity value: %w", err)
+		}
+		ret.PlannedIdentity = plannedIdentity
+	}
+
 	sensitive := cty.NewValueMarks(marks.Sensitive)
 	beforeValMarks, err := pathValueMarksFromTfplan(rawChange.BeforeSensitivePaths, sensitive)
 	if err != nil {
@@ -836,6 +844,10 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 
 	}
 	ret.GeneratedConfig = change.GeneratedConfig
+
+	if len(change.PlannedIdentity) > 0 {
+		ret.PlannedIdentity = valueToTfplan(change.PlannedIdentity)
+	}
 
 	switch change.Action {
 	case plans.NoOp:

@@ -47,10 +47,10 @@ func (ss *Schemas) ProviderConfig(provider addrs.Provider) *configschema.Block {
 //
 // In many cases the provider type is inferable from the resource type name,
 // but this is not always true because users can override the provider for
-// a resource using the "provider" meta-argument. Therefore it's important to
+// a resource using the "provider" meta-argument. Therefore, it's important to
 // always pass the correct provider name, even though it many cases it feels
 // redundant.
-func (ss *Schemas) ResourceTypeConfig(provider addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (block *configschema.Block, schemaVersion uint64) {
+func (ss *Schemas) ResourceTypeConfig(provider addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (block *providers.Schema, schemaVersion uint64) {
 	ps := ss.ProviderSchema(provider)
 	return ps.SchemaForResourceType(resourceMode, resourceType)
 }
@@ -64,7 +64,7 @@ func (ss *Schemas) ProvisionerConfig(name string) *configschema.Block {
 // loadSchemas searches the given configuration, state  and plan (any of which
 // may be nil) for constructs that have an associated schema, requests the
 // necessary schemas from the given component factory (which must _not_ be nil),
-// and returns a single object representing all of the necessary schemas.
+// and returns a single object representing all the necessary schemas.
 //
 // If an error is returned, it may be a wrapped tfdiags.Diagnostics describing
 // errors across multiple separate objects. Errors here will usually indicate

@@ -24,8 +24,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-const defaultPeriodicUiTimer = 10 * time.Second
-const maxIdLen = 80
+const (
+	defaultPeriodicUiTimer = 10 * time.Second
+	maxIdLen               = 80
+)
 
 func NewUiHook(view *View) *UiHook {
 	return &UiHook{
@@ -314,10 +316,10 @@ func (h *UiHook) PostImportState(addr addrs.AbsResourceInstance, imported []prov
 	return tofu.HookActionContinue, nil
 }
 
-func (h *UiHook) PrePlanImport(addr addrs.AbsResourceInstance, importID string) (tofu.HookAction, error) {
+func (h *UiHook) PrePlanImport(addr addrs.AbsResourceInstance, target providers.ImportTarget) (tofu.HookAction, error) {
 	h.println(fmt.Sprintf(
 		h.view.colorize.Color("[reset][bold]%s: Preparing import... [id=%s]"),
-		addr, importID,
+		addr, target.String(), // TODO: Look at if .String() is good enough here...
 	))
 
 	return tofu.HookActionContinue, nil

@@ -78,7 +78,8 @@ provider "aws" {
 resource "aws_instance" "foo" {
   count = 2
 }
-`})
+`,
+	})
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -150,7 +151,8 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 				for_each = { "foo" = "a" }
 				provider = test.multi[each.value]
 			}
-		`})
+		`,
+	})
 
 	resourceTypeSchema := providers.Schema{
 		Block: &configschema.Block{
@@ -216,7 +218,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 					{
 						TypeName: "test_thing",
 						State: cty.ObjectVal(map[string]cty.Value{
-							"id":             cty.StringVal(req.ID),
+							"id":             cty.StringVal(req.Target.ID),
 							"import_marker":  configuredMarker,
 							"refresh_marker": cty.NullVal(cty.String), // we'll populate this in ReadResource
 						}),
@@ -317,7 +319,8 @@ resource "aws_instance" "foo" {
   id = "bar"
   var = data.aws_sensitive_data_source.source.value
 }
-`})
+`,
+	})
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -733,7 +736,8 @@ resource "aws_instance" "bar" {
 data "aws_data_source" "bar" {
   foo = aws_instance.bar.id
 }
-`})
+`,
+	})
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1235,7 +1239,8 @@ resource "test_resource" "two" {
 
 resource "test_resource" "test" {
 }
-`})
+`,
+	})
 
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{

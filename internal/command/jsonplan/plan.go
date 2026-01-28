@@ -156,6 +156,9 @@ type Importing struct {
 	// The original ID of this resource used to target it as part of planned
 	// import operation.
 	ID string `json:"id,omitempty"`
+
+	// The identity of this resource used to target it
+	Identity json.RawMessage `json:"identity,omitempty"`
 }
 
 type Output struct {
@@ -410,11 +413,11 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			rc.ChangeSrc.Before = nil
 			rc.ChangeSrc.After = nil
 		}
-		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
+		isDataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up
 		// their entries in state, but this is an implementation detail that
 		// users shouldn't see.
-		if dataSource && rc.Action == plans.Delete {
+		if isDataSource && rc.Action == plans.Delete {
 			continue
 		}
 
@@ -427,7 +430,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			return nil, fmt.Errorf("no schema found for %s (in provider %s)", r.Address, rc.ProviderAddr.Provider)
 		}
 
-		changeV, err := rc.Decode(schema.ImpliedType())
+		changeV, err := rc.Decode(schema)
 		if err != nil {
 			return nil, err
 		}
@@ -446,8 +449,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				return nil, err
 			}
 			valMarks := rc.BeforeValMarks
-			if schema.ContainsMarks() {
-				valMarks = append(valMarks, schema.ValueMarks(changeV.Before, nil)...)
+			if schema.Block.ContainsMarks() {
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.Before, nil)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err
@@ -478,8 +481,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				afterUnknown = unknownAsBool(changeV.After)
 			}
 			valMarks := rc.AfterValMarks
-			if schema.ContainsMarks() {
-				valMarks = append(valMarks, schema.ValueMarks(changeV.After, nil)...)
+			if schema.Block.ContainsMarks() {
+				valMarks = append(valMarks, schema.Block.ValueMarks(changeV.After, nil)...)
 			}
 			if err := ensureEphemeralMarksAreValid(addr, valMarks); err != nil {
 				return nil, err
@@ -502,7 +505,22 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 
 		var importing *Importing
 		if rc.Importing != nil {
-			importing = &Importing{ID: rc.Importing.ID}
+			importing = &Importing{}
+			if rc.Importing.ID != "" {
+				importing.ID = rc.Importing.ID
+			} else if rc.Importing.Identity != nil {
+				identity, err := rc.Importing.Identity.Decode(schema.IdentitySchema.ImpliedType())
+				if err != nil {
+					return nil, err
+				}
+
+				identityJSON, err := ctyjson.Marshal(identity, identity.Type())
+				if err != nil {
+					return nil, err
+				}
+				importing.Identity = identityJSON
+			}
+
 		}
 
 		r.Change = Change{

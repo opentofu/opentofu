@@ -261,8 +261,8 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	// in the provider abstraction.
 	switch n.Config.Mode {
 	case addrs.ManagedResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
+		schemaForType, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schemaForType == nil {
 			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -273,7 +273,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
@@ -282,7 +282,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		if n.Config.Managed != nil { // can be nil only in tests with poorly-configured mocks
 			for _, traversal := range n.Config.Managed.IgnoreChanges {
 				// validate the ignore_changes traversals apply.
-				moreDiags := schema.StaticValidateTraversal(traversal)
+				moreDiags := schemaForType.Block.StaticValidateTraversal(traversal)
 				diags = diags.Append(moreDiags)
 
 				// ignore_changes cannot be used for Computed attributes,
@@ -293,7 +293,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 				if !diags.HasErrors() {
 					path := traversalToPath(traversal)
 
-					attrSchema := schema.AttributeByPath(path)
+					attrSchema := schemaForType.Block.AttributeByPath(path)
 
 					if attrSchema != nil && !attrSchema.Optional && attrSchema.Computed {
 						// ignore_changes uses absolute traversal syntax in config despite
@@ -323,8 +323,8 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	case addrs.DataResourceMode:
-		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
-		if schema == nil {
+		schemaForType, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schemaForType == nil {
 			suggestion := n.noResourceSchemaSuggestion(providerSchema)
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -334,8 +334,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			})
 			return diags
 		}
-
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schemaForType.Block, nil, keyData)
 		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
@@ -363,7 +362,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema.Block, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -423,9 +422,11 @@ func (n *NodeValidatableResource) noResourceSchemaSuggestion(providerSchema prov
 func nodeValidationAlternateBlockModeSuggestion(schema providers.ProviderSchema, mode addrs.ResourceMode, resourceType string) (addrs.ResourceMode, *configschema.Block) {
 	filterOnOtherModes := func(targetModes []addrs.ResourceMode) (addrs.ResourceMode, *configschema.Block) {
 		for _, candidateMode := range targetModes {
-			if b, _ := schema.SchemaForResourceType(candidateMode, resourceType); b != nil {
-				return candidateMode, b
+			b, _ := schema.SchemaForResourceType(candidateMode, resourceType)
+			if b != nil && b.Block != nil {
+				continue
 			}
+			return candidateMode, b.Block
 		}
 		return addrs.InvalidResourceMode, nil
 	}

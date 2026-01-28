@@ -7,6 +7,7 @@ package grpcwrap
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -22,14 +23,16 @@ import (
 // internal provider implementation.
 func Provider6(p providers.Interface) tfplugin6.ProviderServer {
 	return &provider6{
-		provider: p,
-		schema:   p.GetProviderSchema(context.TODO()),
+		provider:        p,
+		schema:          p.GetProviderSchema(context.TODO()),
+		identitySchemas: p.GetResourceIdentitySchemas(context.TODO()),
 	}
 }
 
 type provider6 struct {
-	provider providers.Interface
-	schema   providers.GetProviderSchemaResponse
+	provider        providers.Interface
+	schema          providers.GetProviderSchemaResponse
+	identitySchemas providers.GetResourceIdentitySchemasResponse
 
 	tfplugin6.UnimplementedProviderServer
 }
@@ -358,9 +361,32 @@ func (p *provider6) ApplyResourceChange(ctx context.Context, req *tfplugin6.Appl
 func (p *provider6) ImportResourceState(ctx context.Context, req *tfplugin6.ImportResourceState_Request) (*tfplugin6.ImportResourceState_Response, error) {
 	resp := &tfplugin6.ImportResourceState_Response{}
 
+	target := providers.ImportTarget{
+		ID: req.Id,
+	}
+
+	if req.Identity != nil {
+		// If identity isn't nil, then we need to instead import by identity
+		// We should use the schema to decode the identity value
+		identitySchema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]
+		if !ok {
+			resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, fmt.Errorf("no identity schema found for resource type %q", req.TypeName))
+			return resp, nil
+		}
+		identityType := identitySchema.Body.ImpliedType()
+		identityVal, err := decodeDynamicValue6(req.Identity.GetIdentityData(), identityType)
+		if err != nil {
+			resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+			return resp, nil
+		}
+		target = providers.ImportTarget{
+			Identity: identityVal,
+		}
+	}
+
 	importResp := p.provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: req.TypeName,
-		ID:       req.Id,
+		Target:   target,
 	})
 	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, importResp.Diagnostics)
 
@@ -505,13 +531,53 @@ func (p *provider6) CallFunction(context.Context, *tfplugin6.CallFunction_Reques
 }
 
 // GetResourceIdentitySchemas implements tfplugin6.ProviderServer.
-func (p *provider6) GetResourceIdentitySchemas(context.Context, *tfplugin6.GetResourceIdentitySchemas_Request) (*tfplugin6.GetResourceIdentitySchemas_Response, error) {
-	panic("unimplemented")
+func (p *provider6) GetResourceIdentitySchemas(ctx context.Context, req *tfplugin6.GetResourceIdentitySchemas_Request) (*tfplugin6.GetResourceIdentitySchemas_Response, error) {
+	resp := &tfplugin6.GetResourceIdentitySchemas_Response{
+		IdentitySchemas: make(map[string]*tfplugin6.ResourceIdentitySchema),
+		Diagnostics:     []*tfplugin6.Diagnostic{},
+	}
+	for ri, schema := range p.identitySchemas.IdentitySchemas {
+		resp.IdentitySchemas[ri] = convert.ResourceIdentitySchemaToProto(&schema)
+	}
+
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, p.identitySchemas.Diagnostics)
+	return resp, nil
 }
 
 // UpgradeResourceIdentity implements tfplugin6.ProviderServer.
-func (p *provider6) UpgradeResourceIdentity(context.Context, *tfplugin6.UpgradeResourceIdentity_Request) (*tfplugin6.UpgradeResourceIdentity_Response, error) {
-	panic("unimplemented")
+func (p *provider6) UpgradeResourceIdentity(ctx context.Context, req *tfplugin6.UpgradeResourceIdentity_Request) (*tfplugin6.UpgradeResourceIdentity_Response, error) {
+	resp := &tfplugin6.UpgradeResourceIdentity_Response{}
+
+	upgradeResp := p.provider.UpgradeResourceIdentity(ctx, providers.UpgradeResourceIdentityRequest{
+		TypeName:        req.TypeName,
+		Version:         req.Version,
+		RawIdentityJSON: req.RawIdentity.Json,
+	})
+
+	resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, upgradeResp.Diagnostics)
+	if upgradeResp.Diagnostics.HasErrors() {
+		return resp, nil
+	}
+
+	schema, ok := p.identitySchemas.IdentitySchemas[req.TypeName]
+	if !ok {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, fmt.Errorf("no identity schema found for resource type %q", req.TypeName))
+		return resp, nil
+	}
+
+	identityMP, err := msgpack.Marshal(upgradeResp.UpgradedIdentity, schema.Body.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = convert.AppendProtoDiag(resp.Diagnostics, err)
+		return resp, nil
+	}
+
+	resp.UpgradedIdentity = &tfplugin6.ResourceIdentityData{
+		IdentityData: &tfplugin6.DynamicValue{
+			Msgpack: identityMP,
+		},
+	}
+
+	return resp, nil
 }
 
 func (p *provider6) GetMetadata(context.Context, *tfplugin6.GetMetadata_Request) (*tfplugin6.GetMetadata_Response, error) {

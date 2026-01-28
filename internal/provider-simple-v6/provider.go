@@ -37,6 +37,15 @@ func Provider() providers.Interface {
 				},
 			},
 		},
+		IdentitySchemaVersion: 1,
+		IdentitySchema: &configschema.Object{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {
+					Type:     cty.String,
+					Required: true,
+				},
+			},
+		},
 	}
 	// Only managed resource should have write-only arguments.
 	withWriteOnlyBlocks := func(s providers.Schema) providers.Schema {
@@ -103,6 +112,21 @@ func (s simple) GetProviderSchema(_ context.Context) providers.GetProviderSchema
 	return s.schema
 }
 
+func (s simple) GetResourceIdentitySchemas(_ context.Context) providers.GetResourceIdentitySchemasResponse {
+	identitySchemas := make(map[string]providers.ResourceIdentitySchema, len(s.schema.ResourceTypes))
+	for typeName, schema := range s.schema.ResourceTypes {
+		if schema.IdentitySchema != nil {
+			identitySchemas[typeName] = providers.ResourceIdentitySchema{
+				Version: schema.IdentitySchemaVersion,
+				Body:    schema.IdentitySchema,
+			}
+		}
+	}
+	return providers.GetResourceIdentitySchemasResponse{
+		IdentitySchemas: identitySchemas,
+	}
+}
+
 func (s simple) ValidateProviderConfig(_ context.Context, req providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	return resp
 }
@@ -130,6 +154,7 @@ func (s simple) MoveResourceState(_ context.Context, req providers.MoveResourceS
 	resp.TargetPrivate = req.SourcePrivate
 	return resp
 }
+
 func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	var resp providers.UpgradeResourceStateResponse
 	ty := s.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
@@ -137,6 +162,10 @@ func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeRes
 	resp.Diagnostics = resp.Diagnostics.Append(err)
 	resp.UpgradedState = val
 	return resp
+}
+
+func (s simple) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return providers.UpgradeResourceIdentityResponse{}
 }
 
 func (s simple) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {

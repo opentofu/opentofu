@@ -29,22 +29,22 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 		{
 			name:    "sensitive_value",
 			expr:    hcltest.MockExprLiteral(cty.StringVal("value").Mark(marks.Sensitive)),
-			wantErr: "Invalid import id argument: The import ID cannot be sensitive.",
+			wantErr: "Invalid import id argument: The import id cannot be sensitive.",
 		},
 		{
 			name:    "ephemeral_value",
 			expr:    hcltest.MockExprLiteral(cty.StringVal("value").Mark(marks.Ephemeral)),
-			wantErr: "Invalid import id argument: The import ID cannot be ephemeral.",
+			wantErr: "Invalid import id argument: The import id cannot be ephemeral.",
 		},
 		{
 			name:    "expr_is_nil",
 			expr:    nil,
-			wantErr: "Invalid import id argument: The import ID cannot be null.",
+			wantErr: "Invalid import id argument: The import id cannot be null.",
 		},
 		{
 			name:    "evaluates_to_null",
 			expr:    hcltest.MockExprLiteral(cty.NullVal(cty.String)),
-			wantErr: "Invalid import id argument: The import ID cannot be null.",
+			wantErr: "Invalid import id argument: The import id cannot be null.",
 		},
 		{
 			name:    "evaluates_to_unknown",
@@ -60,13 +60,13 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, diags := evaluateImportIdExpression(tc.expr, ctx, EvalDataForNoInstanceKey)
+			_, diags := evaluateImportIdExpression(t.Context(), tc.expr, ctx, EvalDataForNoInstanceKey)
 
 			if tc.wantErr != "" {
 				if len(diags) != 1 {
 					t.Errorf("expected diagnostics, got %s", spew.Sdump(diags))
 				} else if diags.Err().Error() != tc.wantErr {
-					t.Errorf("unexpected error diagnostic %s", diags.Err().Error())
+					t.Errorf("unexpected error diagnostic. wanted %q got %q", tc.wantErr, diags.Err().Error())
 				}
 			} else {
 				if len(diags) != 0 {

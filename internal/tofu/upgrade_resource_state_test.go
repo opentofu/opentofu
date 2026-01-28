@@ -526,3 +526,176 @@ func TestTransformResourceState(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgradeResourceIdentity(t *testing.T) {
+	uint64Ptr := func(i uint64) *uint64 {
+		return &i
+	}
+	boolPtr := func(b bool) *bool {
+		return &b
+	}
+	tests := []struct {
+		name           string
+		currentAddr    addrs.AbsResourceInstance
+		src            *states.ResourceInstanceObjectSrc
+		provider       *MockProvider
+		providerSchema providers.ProviderSchema
+
+		wantIdentityJSON    []byte
+		wantIdentityVersion *uint64
+		wantErr             string
+		wantUpgradeCalled   *bool
+	}{
+		{
+			name:        "no upgrade needed, same versions",
+			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+			src: &states.ResourceInstanceObjectSrc{
+				IdentityJSON:          []byte(`{"id":"1234"}`),
+				IdentitySchemaVersion: uint64Ptr(2),
+			},
+			provider: &MockProvider{
+				GetProviderSchemaResponse: testProviderSchema("test"),
+			},
+			providerSchema: providers.ProviderSchema{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						IdentitySchemaVersion: 2,
+					},
+				},
+			},
+			wantIdentityJSON:    []byte(`{"id":"1234"}`),
+			wantIdentityVersion: uint64Ptr(2),
+			wantUpgradeCalled:   boolPtr(false),
+		},
+		{
+			name:        "v1 to v2 upgrade",
+			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+			src: &states.ResourceInstanceObjectSrc{
+				IdentityJSON:          []byte(`{"id":"1234"}`),
+				IdentitySchemaVersion: uint64Ptr(1),
+			},
+			provider: &MockProvider{
+				UpgradeResourceIdentityResponse: &providers.UpgradeResourceIdentityResponse{
+					UpgradedIdentity: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("1234"), "new_field": cty.StringVal("value")}),
+				},
+				GetProviderSchemaResponse: testProviderSchema("test"),
+			},
+			providerSchema: providers.ProviderSchema{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						IdentitySchema: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"id":        {Type: cty.String, Required: true},
+								"new_field": {Type: cty.String, Required: true},
+							},
+							Nesting: configschema.NestingSingle,
+						},
+						IdentitySchemaVersion: 2,
+					},
+				},
+			},
+			wantIdentityJSON:    []byte(`{"id":"1234","new_field":"value"}`),
+			wantIdentityVersion: uint64Ptr(2),
+			wantUpgradeCalled:   boolPtr(true),
+		},
+		{
+			name:        "downgrade attempt - should error",
+			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+			src: &states.ResourceInstanceObjectSrc{
+				IdentityJSON:          []byte(`{"id":"test-123"}`),
+				IdentitySchemaVersion: uint64Ptr(3),
+			},
+			provider: &MockProvider{
+				GetProviderSchemaResponse: testProviderSchema("test"),
+			},
+			providerSchema: providers.ProviderSchema{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						IdentitySchema: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {Type: cty.String, Required: true},
+							},
+							Nesting: configschema.NestingSingle,
+						},
+						IdentitySchemaVersion: 2,
+					},
+				},
+			},
+			wantErr: "Resource identity managed by newer provider version",
+		},
+		{
+			name:        "provider returns error during upgrade",
+			currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+			src: &states.ResourceInstanceObjectSrc{
+				IdentityJSON:          []byte(`{"id":"test-123"}`),
+				IdentitySchemaVersion: uint64Ptr(1),
+			},
+			provider: &MockProvider{
+				UpgradeResourceIdentityResponse: &providers.UpgradeResourceIdentityResponse{
+					Diagnostics: tfdiags.Diagnostics{
+						tfdiags.Sourceless(
+							tfdiags.Error,
+							"Upgrade failed",
+							"Could not upgrade identity",
+						),
+					},
+				},
+				GetProviderSchemaResponse: testProviderSchema("test"),
+			},
+			providerSchema: providers.ProviderSchema{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						IdentitySchema: &configschema.Object{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {Type: cty.String, Required: true},
+							},
+							Nesting: configschema.NestingSingle,
+						},
+						IdentitySchemaVersion: 2,
+					},
+				},
+			},
+			wantErr: "Upgrade failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotSrc, diags := upgradeResourceIdentity(t.Context(), tt.currentAddr, tt.src, tt.provider, tt.providerSchema, nil)
+
+			if tt.wantErr != "" {
+				if !diags.HasErrors() {
+					t.Fatal("expected error diagnostics")
+				}
+				if !strings.Contains(diags.Err().Error(), tt.wantErr) {
+					t.Errorf("expected error containing %q, got %q", tt.wantErr, diags.Err())
+				}
+				return
+			}
+
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors: %s", diags.Err())
+			}
+
+			// Check if UpgradeResourceIdentity was called (or not called) as expected
+			if tt.wantUpgradeCalled != nil {
+				if tt.provider.UpgradeResourceIdentityCalled != *tt.wantUpgradeCalled {
+					t.Errorf("expected UpgradeResourceIdentity called=%v, got called=%v",
+						*tt.wantUpgradeCalled, tt.provider.UpgradeResourceIdentityCalled)
+				}
+			}
+
+			if !bytes.Equal(gotSrc.IdentityJSON, tt.wantIdentityJSON) {
+				t.Errorf("unexpected identity JSON: got %q, want %q", gotSrc.IdentityJSON, tt.wantIdentityJSON)
+			}
+
+			if tt.wantIdentityVersion != nil {
+				if gotSrc.IdentitySchemaVersion == nil {
+					t.Errorf("expected identity version %d, got nil", *tt.wantIdentityVersion)
+				} else if *gotSrc.IdentitySchemaVersion != *tt.wantIdentityVersion {
+					t.Errorf("unexpected identity version: got %d, want %d", *gotSrc.IdentitySchemaVersion, *tt.wantIdentityVersion)
+				}
+			}
+		})
+	}
+}
