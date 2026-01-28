@@ -50,6 +50,10 @@ data "terraform_remote_state" "foo" {
 }
 ```
 
+## CLI Authentication
+
+If you have the [TCCLI installed](https://www.tencentcloud.com/document/product/1013/33464), you can use the credentials file obtained with `tccli auth login` to authenticate to your `cos` backend (other methods are described [here](https://www.tencentcloud.com/document/product/1013/64709)). This is ordinarily stored in the home directory under `.tccli`, but you can use the backend variable `shared_credentials_dir` if your TenCent credential files are stored elsewhere. You may also use the `profile` variable to choose which profile file to authenticate with.
+
 ## Configuration Variables
 
 :::danger Warning
@@ -68,6 +72,8 @@ The following configuration options or environment variables are supported:
 - `encrypt` - (Optional) Whether to enable server side encryption of the state file. If it is true, COS will use 'AES256' encryption algorithm to encrypt state file.
 - `acl` - (Optional) Object ACL to be applied to the state file, allows `private` and `public-read`. Defaults to `private`.
 - `accelerate` - (Optional) Whether to enable global Acceleration. Defaults to `false`.
+- `shared_credentials_dir` - (Optional) The directory of the shared credentials. It can also be sourced from the `TENCENTCLOUD_SHARED_CREDENTIALS_DIR` environment variable. If not set this defaults to ~/.tccli.
+- `profile` - (Optional) The profile name as set in the shared credentials. It can also be sourced from the `TENCENTCLOUD_PROFILE` environment variable. If not set, the default profile created with `tccli configure` will be used.
 
 ### Assume Role
 If provided with an assume role, OpenTofu will attempt to assume this role using the supplied credentials.
