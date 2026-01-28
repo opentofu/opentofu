@@ -239,7 +239,7 @@ func TestMissingProviderTransformer(t *testing.T) {
 func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
 	mod := testModule(t, "transform-provider-missing-grandchild")
 
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	{
@@ -304,7 +304,7 @@ func TestPruneProviderTransformer(t *testing.T) {
 // the child module resource is attached to the configured parent provider
 func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 	mod := testModule(t, "transform-provider-inherit")
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	{
@@ -324,7 +324,7 @@ func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 // the child module resource is attached to the configured grand-parent provider
 func TestProviderConfigTransformer_grandparentProviders(t *testing.T) {
 	mod := testModule(t, "transform-provider-grandchild-inherit")
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	{
@@ -358,7 +358,7 @@ resource "test_object" "a" {
 }
 `,
 	})
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	{
@@ -436,7 +436,7 @@ resource "test_object" "a" {
 }
 `,
 	})
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	{
@@ -478,7 +478,7 @@ terraform {
 provider "test" {
 }
 `})
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *NodeAbstractProvider) dag.Vertex { return &NodeEvalableProvider{NodeAbstractProvider: a} }
 
 	g := testProviderTransformerGraph(t, mod)
 	tf := ProviderConfigTransformer{
@@ -517,7 +517,7 @@ output "output_test" {
 `})
 	concrete := func(a *NodeAbstractProvider) dag.Vertex {
 		return &NodeApplyableProvider{
-			a,
+			NodeAbstractProvider: a,
 		}
 	}
 
