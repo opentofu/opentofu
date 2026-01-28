@@ -6,8 +6,10 @@
 package registry
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -522,4 +524,329 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.lastResponse = resp
 	}
 	return resp, err
+}
+
+// TestInstallModulePackage tests the InstallModulePackage method
+func TestInstallModulePackage(t *testing.T) {
+	t.Parallel()
+
+	// Create a minimal valid zip file for testing
+	createTestZip := func(t *testing.T, files map[string]string) []byte {
+		t.Helper()
+		var buf strings.Builder
+		w := zip.NewWriter(&buf)
+		for name, content := range files {
+			f, err := w.Create(name)
+			if err != nil {
+				t.Fatalf("failed to create file in zip: %v", err)
+			}
+			_, err = f.Write([]byte(content))
+			if err != nil {
+				t.Fatalf("failed to write file content: %v", err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("failed to close zip writer: %v", err)
+		}
+		return []byte(buf.String())
+	}
+
+	t.Run("successful download and extraction", func(t *testing.T) {
+		zipContent := createTestZip(t, map[string]string{
+			"main.tf": "# test module",
+		})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipContent)
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		modDir, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if modDir != targetDir {
+			t.Errorf("expected modDir %q, got %q", targetDir, modDir)
+		}
+
+		// Verify the file was extracted
+		content, err := os.ReadFile(targetDir + "/main.tf")
+		if err != nil {
+			t.Fatalf("failed to read extracted file: %v", err)
+		}
+		if string(content) != "# test module" {
+			t.Errorf("unexpected file content: %q", content)
+		}
+	})
+
+	t.Run("Content-Length mismatch error", func(t *testing.T) {
+		zipContent := createTestZip(t, map[string]string{
+			"main.tf": "# test module",
+		})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Claim more bytes than we actually send
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipContent)+100))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipContent)
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err == nil {
+			t.Fatal("expected error for Content-Length mismatch")
+		}
+		// The error could be either a Content-Length mismatch or an EOF error
+		// depending on how the HTTP client handles the truncated response
+		if !strings.Contains(err.Error(), "server promised") && !strings.Contains(err.Error(), "EOF") {
+			t.Errorf("expected Content-Length mismatch or EOF error, got: %v", err)
+		}
+	})
+
+	t.Run("network failure handling", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Close connection immediately to simulate network failure
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Fatal("server doesn't support hijacking")
+			}
+			conn, _, _ := hj.Hijack()
+			conn.Close()
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err == nil {
+			t.Fatal("expected error for network failure")
+		}
+	})
+
+	t.Run("subdirectory path handling", func(t *testing.T) {
+		zipContent := createTestZip(t, map[string]string{
+			"subdir/main.tf": "# test module in subdir",
+		})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipContent)
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			subdir:                 "subdir",
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		modDir, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		expectedModDir := targetDir + "/subdir"
+		if modDir != expectedModDir {
+			t.Errorf("expected modDir %q, got %q", expectedModDir, modDir)
+		}
+
+		// Verify the file was extracted to the subdirectory
+		content, err := os.ReadFile(modDir + "/main.tf")
+		if err != nil {
+			t.Fatalf("failed to read extracted file: %v", err)
+		}
+		if string(content) != "# test module in subdir" {
+			t.Errorf("unexpected file content: %q", content)
+		}
+	})
+
+	t.Run("HTTP error response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte("not found"))
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err == nil {
+			t.Fatal("expected error for HTTP error response")
+		}
+		// The error should be about extraction failure since we got a non-archive response
+		if !strings.Contains(err.Error(), "extracting package archive") {
+			t.Errorf("expected extraction error, got: %v", err)
+		}
+	})
+
+	t.Run("invalid archive format", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("this is not a valid archive"))
+		}))
+		defer server.Close()
+
+		client := NewClient(t.Context(), nil, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr:            testParseModulePackageAddr(t, "test/module/provider"),
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err == nil {
+			t.Fatal("expected error for invalid archive format")
+		}
+		if !strings.Contains(err.Error(), "module package is not zip archive") {
+			t.Errorf("expected archive format error, got: %v", err)
+		}
+	})
+}
+
+// TestInstallModulePackage_CredentialAttachment tests that credentials are
+// correctly attached or omitted based on the useRegistryCredentials flag
+func TestInstallModulePackage_CredentialAttachment(t *testing.T) {
+	t.Parallel()
+
+	// Create a minimal valid zip file for testing
+	createTestZip := func(t *testing.T) []byte {
+		t.Helper()
+		var buf strings.Builder
+		w := zip.NewWriter(&buf)
+		f, _ := w.Create("main.tf")
+		_, _ = f.Write([]byte("# test"))
+		_ = w.Close()
+		return []byte(buf.String())
+	}
+
+	t.Run("credentials attached when useRegistryCredentials is true", func(t *testing.T) {
+		zipContent := createTestZip(t)
+		var receivedAuthHeader string
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedAuthHeader = r.Header.Get("Authorization")
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipContent)
+		}))
+		defer server.Close()
+
+		// Create a disco with credentials using the test package's approach
+		d := test.Disco(httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})))
+
+		client := NewClient(t.Context(), d, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr: regaddr.ModulePackage{
+				Host:         "registry.opentofu.org",
+				Namespace:    "test",
+				Name:         "module",
+				TargetSystem: "provider",
+			},
+			packageURL:             packageURL,
+			useRegistryCredentials: true,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if receivedAuthHeader == "" {
+			t.Error("expected Authorization header to be set when useRegistryCredentials is true")
+		}
+		if !strings.Contains(receivedAuthHeader, "test-auth-token") {
+			t.Errorf("expected Authorization header to contain token, got: %q", receivedAuthHeader)
+		}
+	})
+
+	t.Run("credentials not attached when useRegistryCredentials is false", func(t *testing.T) {
+		zipContent := createTestZip(t)
+		var receivedAuthHeader string
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedAuthHeader = r.Header.Get("Authorization")
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(zipContent)))
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(zipContent)
+		}))
+		defer server.Close()
+
+		// Create a disco with credentials using the test package's approach
+		d := test.Disco(httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})))
+
+		client := NewClient(t.Context(), d, nil)
+		targetDir := t.TempDir()
+
+		packageURL, _ := url.Parse(server.URL + "/package.zip")
+		location := PackageLocationDirect{
+			packageAddr: regaddr.ModulePackage{
+				Host:         "registry.opentofu.org",
+				Namespace:    "test",
+				Name:         "module",
+				TargetSystem: "provider",
+			},
+			packageURL:             packageURL,
+			useRegistryCredentials: false,
+		}
+
+		_, err := client.InstallModulePackage(context.Background(), location, targetDir)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if receivedAuthHeader != "" {
+			t.Errorf("expected no Authorization header when useRegistryCredentials is false, got: %q", receivedAuthHeader)
+		}
+	})
 }
