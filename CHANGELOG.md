@@ -9,6 +9,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
+- Module registries can now return `use_registry_credentials` in the download location response to indicate that package downloads should use the same `TF_TOKEN_*` credentials as registry API calls, eliminating the need for separate `.netrc` configuration. ([#3313](https://github.com/opentofu/opentofu/issues/3313))
 - `prevent_destroy` arguments in the `lifecycle` block for managed resources can now use references to other symbols in the same module, such as to a module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))
 - New `lifecycle` meta-argument `destroy` for altering resource destruction behavior. When set to `false` OpenTofu will not retain resources when they are planned for destruction. ([#3409](https://github.com/opentofu/opentofu/pull/3409))
 - New `-suppress-forget-errors` flag for the `tofu destroy` command to suppress errors and exit with a zero status code when resources are forgotten during destroy operations. ([#3588](https://github.com/opentofu/opentofu/issues/3588))
