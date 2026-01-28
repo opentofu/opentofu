@@ -213,7 +213,24 @@ dependencies between one another.
 
 #### Meta backend
 The most complex and sensitive part of the `Meta` structure is the [backend implementation](https://github.com/opentofu/opentofu/blob/85de3d40fae67efb8cfe9020bba738433b49c409/internal/command/meta_backend.go#L95).
-TODO
+
+The implementation visible in [`meta_backend.go`](https://github.com/opentofu/opentofu/blob/d24b85fc685be224da93de546b5566429ca7b62f/internal/command/meta_backend.go)
+and in [`meta_backend_migrate.go`](https://github.com/opentofu/opentofu/blob/d24b85fc685be224da93de546b5566429ca7b62f/internal/command/meta_backend_migrate.go)
+tackles a lot of edge cases and legacy concerns that the reasons behing it is not that clear.
+Therefore, this RFC would want only to extract these 2 files in their own components (or just only one component),
+to make things clearer on what it depends on. Some clear dependencies are:
+* workspace information
+* discovery for services
+* config loader
+* ui/view
+* workdir information
+* state related flags (`-state`, `-state-out`, `-backup`, `-lock`, `-lock-timeout`)
+* backend related flags (`-reconfigure`, `-migrate-state`, `-force-copy`)
+* the logic for asking user input together with its flag (`-input`)
+  * in here we also have [this ugly global bool](https://github.com/opentofu/opentofu/blob/d24b85fc685be224da93de546b5566429ca7b62f/internal/command/command.go#L15) 
+    that controls if it's enabled or not and this should be handled separately and included in the user input prompt component.
+
+Before even attempting backend implementation isolation, at least the list of dependencies above should be handled.
 
 ## Open Questions
 * Is out there some context and quirks that we need to know about, like the order of execution of specific bits 
