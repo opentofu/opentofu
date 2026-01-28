@@ -7,14 +7,17 @@ package cos
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
@@ -34,6 +37,11 @@ const (
 	PROVIDER_ASSUME_ROLE_ARN              = "TENCENTCLOUD_ASSUME_ROLE_ARN"
 	PROVIDER_ASSUME_ROLE_SESSION_NAME     = "TENCENTCLOUD_ASSUME_ROLE_SESSION_NAME"
 	PROVIDER_ASSUME_ROLE_SESSION_DURATION = "TENCENTCLOUD_ASSUME_ROLE_SESSION_DURATION"
+	PROVIDER_SHARED_CREDENTIALS_DIR       = "TENCENTCLOUD_SHARED_CREDENTIALS_DIR"
+	PROVIDER_PROFILE                      = "TENCENTCLOUD_PROFILE"
+
+	DEFAULT_REGION  = "ap-guangzhou"
+	DEFAULT_PROFILE = "default"
 )
 
 // Backend implements "backend".Backend for tencentCloud cos
@@ -77,6 +85,19 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc(PROVIDER_SECURITY_TOKEN, nil),
 				Description: "TencentCloud Security Token of temporary access credentials. It can be sourced from the `TENCENTCLOUD_SECURITY_TOKEN` environment variable. Notice: for supported products, please refer to: [temporary key supported products](https://intl.cloud.tencent.com/document/product/598/10588).",
 				Sensitive:   true,
+			},
+			// copied from https://github.com/tencentcloudstack/terraform-provider-tencentcloud/
+			"shared_credentials_dir": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(PROVIDER_SHARED_CREDENTIALS_DIR, nil),
+				Description: "The directory of the shared credentials. It can also be sourced from the `TENCENTCLOUD_SHARED_CREDENTIALS_DIR` environment variable. If not set this defaults to ~/.tccli.",
+			},
+			"profile": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc(PROVIDER_PROFILE, nil),
+				Description: "The profile name as set in the shared credentials. It can also be sourced from the `TENCENTCLOUD_PROFILE` environment variable. If not set, the default profile created with `tccli configure` will be used.",
 			},
 			"region": {
 				Type:         schema.TypeString,
@@ -237,6 +258,19 @@ func (b *Backend) configure(ctx context.Context) error {
 	secretKey := data.Get("secret_key").(string)
 	securityToken := data.Get("security_token").(string)
 
+	if secretId == "" && secretKey == "" && securityToken == "" {
+		config, err := loadCLIConfig(data)
+		if err == nil {
+			secretId = config.SecretID
+			secretKey = config.SecretKey
+			securityToken = config.SecurityToken
+			if b.region == "" && config.Region != nil {
+				b.region = *config.Region
+			}
+
+		}
+	}
+
 	// init credential by AKSK & TOKEN
 	b.credential = common.NewTokenCredential(secretId, secretKey, securityToken)
 	// update credential if assume role exist
@@ -259,6 +293,102 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	b.tagClient = b.UseTagClient()
 	return err
+}
+
+type CLIConfig struct {
+	SecretID      string
+	SecretKey     string
+	SecurityToken string
+	Region        *string
+}
+
+type SysParam struct {
+	Region string `json:"region"`
+}
+
+type CLIConfigureFile struct {
+	SysParam `json:"_sys_param"`
+}
+
+type CLICredentialFile struct {
+	SecretID      string `json:"secretId"`
+	SecretKey     string `json:"secretKey"`
+	SecurityToken string `json:"token"`
+}
+
+// loadCLIConfig is adapted from the terraform-provider-tencentcloud repository
+func loadCLIConfig(d *schema.ResourceData) (*CLIConfig, error) {
+	var (
+		profile              string
+		sharedCredentialsDir string
+		credentialPath       string
+		configurePath        string
+	)
+
+	if v, ok := d.GetOk("profile"); ok {
+		profile = v.(string)
+	} else {
+		profile = DEFAULT_PROFILE
+	}
+
+	if v, ok := d.GetOk("shared_credentials_dir"); ok {
+		sharedCredentialsDir = v.(string)
+	}
+
+	tmpSharedCredentialsDir, err := homedir.Expand(sharedCredentialsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if tmpSharedCredentialsDir == "" {
+		tmpSharedCredentialsDir = fmt.Sprintf("%s/.tccli", os.Getenv("HOME"))
+		if runtime.GOOS == "windows" {
+			tmpSharedCredentialsDir = fmt.Sprintf("%s/.tccli", os.Getenv("USERPROFILE"))
+		}
+	}
+
+	credentialPath = fmt.Sprintf("%s/%s.credential", tmpSharedCredentialsDir, profile)
+	configurePath = fmt.Sprintf("%s/%s.configure", tmpSharedCredentialsDir, profile)
+
+	cliConfig := &CLIConfig{}
+
+	// Load credentials
+	_, err = os.Stat(credentialPath)
+	if !os.IsNotExist(err) {
+		data, err := os.ReadFile(credentialPath)
+		if err != nil {
+			return nil, err
+		}
+
+		config := CLICredentialFile{}
+		err = json.Unmarshal(data, &config)
+		if err != nil {
+			return nil, err
+		}
+
+		cliConfig.SecretID = strings.TrimSpace(config.SecretID)
+		cliConfig.SecretKey = strings.TrimSpace(config.SecretKey)
+		cliConfig.SecurityToken = strings.TrimSpace(config.SecurityToken)
+	}
+
+	// load other configurations
+	_, err = os.Stat(configurePath)
+	if !os.IsNotExist(err) {
+		data, err := os.ReadFile(configurePath)
+		if err != nil {
+			return nil, err
+		}
+
+		config := CLIConfigureFile{}
+		err = json.Unmarshal(data, &config)
+		if err != nil {
+			return nil, err
+		}
+		region := strings.TrimSpace(config.Region)
+		cliConfig.Region = &region
+	}
+
+	return cliConfig, nil
 }
 
 func handleAssumeRole(data *schema.ResourceData, b *Backend) error {

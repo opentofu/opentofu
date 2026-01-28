@@ -89,7 +89,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.1.41
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.1.11
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.1.0
-	github.com/tencentyun/cos-go-sdk-v5 v0.7.70
+	github.com/tencentyun/cos-go-sdk-v5 v0.7.72
 	github.com/xanzy/ssh-agent v0.3.3
 	github.com/xlab/treeprint v1.2.0
 	github.com/zclconf/go-cty v1.17.0
@@ -202,7 +202,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc // indirect
@@ -243,7 +243,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
-	github.com/mozillazg/go-httpheader v0.3.0 // indirect
+	github.com/mozillazg/go-httpheader v0.4.0 // indirect
 	github.com/muesli/termenv v0.12.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
