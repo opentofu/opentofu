@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -27,7 +28,8 @@ func TestLogout(t *testing.T) {
 
 	c := &LogoutCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 			Services: disco.New(
 				disco.WithCredentials(credsSrc),
 			),

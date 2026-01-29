@@ -13,6 +13,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -30,6 +31,7 @@ func TestStatePush_empty(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -58,6 +60,7 @@ func TestStatePush_lockedState(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -92,6 +95,7 @@ func TestStatePush_replaceMatch(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -129,6 +133,7 @@ func TestStatePush_replaceMatchStdin(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -159,6 +164,7 @@ func TestStatePush_lineageMismatch(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -189,6 +195,7 @@ func TestStatePush_serialNewer(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -219,6 +226,7 @@ func TestStatePush_serialOlder(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -249,7 +257,11 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	initCmd := &InitCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 	if code := initCmd.Run([]string{}); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
@@ -258,7 +270,11 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// create a new workspace
 	ui = new(cli.MockUi)
 	newCmd := &WorkspaceNewCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 	if code := newCmd.Run([]string{"test"}); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -280,7 +296,11 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	// push our local state to that new workspace
 	ui = new(cli.MockUi)
 	c := &StatePushCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 
 	args := []string{"-force", statePath}
@@ -300,6 +320,7 @@ func TestStatePush_checkRequiredVersion(t *testing.T) {
 	view, _ := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,

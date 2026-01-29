@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -42,8 +43,9 @@ func TestTaint(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -88,8 +90,9 @@ func TestTaint_lockedState(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -136,8 +139,9 @@ func TestTaint_backup(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -181,8 +185,9 @@ func TestTaint_backupDisable(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -206,8 +211,9 @@ func TestTaint_badState(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -249,8 +255,9 @@ func TestTaint_defaultState(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -291,7 +298,11 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	meta := Meta{Ui: ui, View: view}
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if err := meta.SetWorkspace(testWorkspace); err != nil {
 		t.Fatal(err)
 	}
@@ -334,8 +345,9 @@ func TestTaint_missing(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -373,8 +385,9 @@ func TestTaint_missingAllow(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -430,8 +443,9 @@ func TestTaint_stateOut(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -488,8 +502,9 @@ func TestTaint_module(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -535,6 +550,7 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 	view, _ := testView(t)
 	c := &TaintCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,

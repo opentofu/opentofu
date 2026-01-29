@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestStatePull(t *testing.T) {
@@ -29,6 +30,7 @@ func TestStatePull(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &StatePullCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -52,6 +54,7 @@ func TestStatePull_noState(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StatePullCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -78,6 +81,7 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StatePullCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},

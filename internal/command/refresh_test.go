@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -45,6 +46,7 @@ func TestRefresh(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -99,6 +101,7 @@ func TestRefresh_empty(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -142,6 +145,7 @@ func TestRefresh_lockedState(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -181,6 +185,7 @@ func TestRefresh_cwd(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -253,6 +258,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -322,6 +328,7 @@ func TestRefresh_outPath(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -382,6 +389,7 @@ func TestRefresh_var(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -419,6 +427,7 @@ func TestRefresh_varFile(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -461,6 +470,7 @@ func TestRefresh_varFileDefault(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -509,6 +519,7 @@ func TestRefresh_varsUnset(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -574,6 +585,7 @@ func TestRefresh_backup(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -644,6 +656,7 @@ func TestRefresh_disableBackup(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -710,6 +723,7 @@ func TestRefresh_displaysOutputs(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -774,6 +788,7 @@ func TestRefresh_targeted(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -814,7 +829,8 @@ func TestRefresh_targetFlagsDiags(t *testing.T) {
 			view, done := testView(t)
 			c := &RefreshCommand{
 				Meta: Meta{
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					View:       view,
 				},
 			}
 
@@ -868,6 +884,7 @@ func TestRefresh_excluded(t *testing.T) {
 	view, done := testView(t)
 	c := &RefreshCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -908,7 +925,8 @@ func TestRefresh_excludeFlagsDiags(t *testing.T) {
 			view, done := testView(t)
 			c := &RefreshCommand{
 				Meta: Meta{
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					View:       view,
 				},
 			}
 
@@ -954,6 +972,7 @@ func TestRefresh_warnings(t *testing.T) {
 		view, done := testView(t)
 		c := &RefreshCommand{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
 			},
@@ -979,6 +998,7 @@ func TestRefresh_warnings(t *testing.T) {
 		view, done := testView(t)
 		c := &RefreshCommand{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
 			},

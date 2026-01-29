@@ -13,6 +13,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -67,6 +68,7 @@ func TestApply_destroy(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -168,6 +170,7 @@ func TestApply_destroyApproveNo(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -237,6 +240,7 @@ func TestApply_destroyApproveYes(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -306,6 +310,7 @@ func TestApply_destroyLockedState(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -341,6 +346,7 @@ func TestApply_destroyPlan(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -372,6 +378,7 @@ func TestApply_destroyPath(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -425,6 +432,7 @@ func TestApply_destroySkipInConfigAndState(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -496,6 +504,7 @@ func TestApply_destroySkipWithSuppressFlag(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -566,6 +575,7 @@ func TestApply_destroySkipInStateNotInConfig(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -635,6 +645,7 @@ func TestApply_destroySkipInStateOrphaned(t *testing.T) {
 	c := &ApplyCommand{
 		Destroy: true,
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -826,6 +837,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 			c := &ApplyCommand{
 				Destroy: true,
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
 				},

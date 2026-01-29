@@ -10,13 +10,18 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 // More thorough tests for providers mirror can be found in the e2etest
 func TestProvidersMirror(t *testing.T) {
 	// noop example
 	t.Run("noop", func(t *testing.T) {
-		c := &ProvidersMirrorCommand{}
+		c := &ProvidersMirrorCommand{
+			Meta{
+				WorkingDir: workdir.NewDir("."),
+			},
+		}
 		code := c.Run([]string{"."})
 		if code != 0 {
 			t.Fatalf("wrong exit code. expected 0, got %d", code)
@@ -26,7 +31,10 @@ func TestProvidersMirror(t *testing.T) {
 	t.Run("missing arg error", func(t *testing.T) {
 		ui := new(cli.MockUi)
 		c := &ProvidersMirrorCommand{
-			Meta: Meta{Ui: ui},
+			Meta: Meta{
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
+			},
 		}
 		code := c.Run([]string{})
 		if code != 1 {

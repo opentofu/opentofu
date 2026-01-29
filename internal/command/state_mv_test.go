@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -64,6 +65,7 @@ func TestStateMv(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -196,6 +198,7 @@ func TestStateMv_backupAndBackupOutOptionsWithNonLocalBackend(t *testing.T) {
 		c := &StateMvCommand{
 			StateMeta{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,
@@ -244,6 +247,7 @@ on a local state file only. You must specify a local state file with the
 		c := &StateMvCommand{
 			StateMeta{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,
@@ -293,6 +297,7 @@ on a local state file only. You must specify a local state file with the
 		c := &StateMvCommand{
 			StateMeta{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,
@@ -343,6 +348,7 @@ on a local state file only. You must specify a local state file with the
 		c := &StateMvCommand{
 			StateMeta{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,
@@ -383,6 +389,7 @@ on a local state file only. You must specify a local state file with the
 		c := &StateMvCommand{
 			StateMeta{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,
@@ -461,6 +468,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -538,6 +546,7 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -607,6 +616,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:          workdir.NewDir("."),
 				testingOverrides:    metaOverridesForProvider(p),
 				Ui:                  ui,
 				View:                view,
@@ -683,6 +693,7 @@ func TestStateMv_instanceToResource(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -759,6 +770,7 @@ func TestStateMv_instanceToNewResource(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -833,6 +845,7 @@ func TestStateMv_differentResourceTypes(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -911,6 +924,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 	view, _ := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,
@@ -928,6 +942,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -994,6 +1009,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1046,6 +1062,7 @@ func TestStateMv_stateOutNew(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1122,6 +1139,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1166,6 +1184,7 @@ func TestStateMv_noState(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1239,6 +1258,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1317,6 +1337,7 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1391,6 +1412,7 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1450,6 +1472,7 @@ func TestStateMv_toNewModule(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1552,6 +1575,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1625,6 +1649,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1679,6 +1704,7 @@ func TestStateMv_onlyResourceInModule(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1723,6 +1749,7 @@ func TestStateMvInvalidSourceAddress(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -1790,6 +1817,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 	c := &StateMvCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,

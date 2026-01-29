@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestFmt_TestFiles(t *testing.T) {
@@ -61,6 +62,7 @@ func TestFmt_TestFiles(t *testing.T) {
 			ui := cli.NewMockUi()
 			c := &FmtCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					Ui:               ui,
 				},
@@ -125,6 +127,7 @@ func TestFmt(t *testing.T) {
 			ui := cli.NewMockUi()
 			c := &FmtCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					Ui:               ui,
 				},
@@ -152,6 +155,7 @@ func TestFmt_nonexist(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -184,6 +188,7 @@ a = 1 +
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -213,6 +218,7 @@ func TestFmt_snippetInError(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -248,6 +254,7 @@ func TestFmt_manyArgs(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -279,6 +286,7 @@ func TestFmt_workingDirectory(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -308,6 +316,7 @@ func TestFmt_directoryArg(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -342,6 +351,7 @@ func TestFmt_fileArg(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -370,6 +380,7 @@ func TestFmt_stdinArg(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -393,6 +404,7 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -420,6 +432,7 @@ func TestFmt_check(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -435,7 +448,7 @@ func TestFmt_check(t *testing.T) {
 
 	// Given that we give relative paths back to the user, normalize this temp
 	// dir so that we're comparing against a relative-ized (normalized) path
-	tempDir = c.normalizePath(tempDir)
+	tempDir = c.Meta.WorkingDir.NormalizePath(tempDir)
 
 	if actual := ui.OutputWriter.String(); !strings.Contains(actual, tempDir) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, tempDir)
@@ -449,6 +462,7 @@ func TestFmt_checkStdin(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},

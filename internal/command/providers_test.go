@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestProviders(t *testing.T) {
@@ -18,7 +19,8 @@ func TestProviders(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -47,7 +49,8 @@ func TestProviders_noConfigs(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -78,6 +81,7 @@ func TestProviders_modules(t *testing.T) {
 	})
 	defer close()
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               initUi,
 		ProviderSource:   providerSource,
@@ -93,7 +97,8 @@ func TestProviders_modules(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -123,7 +128,8 @@ func TestProviders_state(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -153,7 +159,8 @@ func TestProviders_tests(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 

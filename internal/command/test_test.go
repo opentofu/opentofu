@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -201,6 +202,7 @@ func TestTest(t *testing.T) {
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -290,6 +292,7 @@ func TestTest_Full_Output(t *testing.T) {
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -326,6 +329,7 @@ func TestTest_Interrupt(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 			ShutdownCh:       interrupt,
@@ -358,6 +362,7 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 			ShutdownCh:       interrupt,
@@ -411,6 +416,7 @@ func TestTest_ProviderAlias(t *testing.T) {
 	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -482,6 +488,7 @@ func TestTest_ModuleDependencies(t *testing.T) {
 	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
 		testingOverrides: &testingOverrides{
 			Providers: map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("test"):  providers.FactoryFixed(test.Provider),
@@ -544,6 +551,7 @@ func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 		},
@@ -599,6 +607,7 @@ func TestTest_Verbose(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 		},
@@ -760,6 +769,7 @@ can remove the provider configuration again.
 			ui := new(cli.MockUi)
 
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				Ui:               ui,
 				View:             view,
@@ -907,6 +917,7 @@ func TestTest_Modules(t *testing.T) {
 			view := views.NewView(streams)
 			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				Ui:               ui,
 				View:             view,
@@ -985,6 +996,7 @@ func TestTest_StatePropagation(t *testing.T) {
 	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -1174,6 +1186,7 @@ Condition expression could not be evaluated at this time.
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -1280,6 +1293,7 @@ Success! 1 passed, 0 failed.
 			view := views.NewView(streams)
 			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				Ui:               ui,
 				View:             view,
@@ -1366,6 +1380,7 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 			view := views.NewView(streams)
 			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				Ui:               ui,
 				View:             view,
@@ -1451,6 +1466,7 @@ digits, underscores, and dashes.
 			view := views.NewView(streams)
 			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
 				Ui:               ui,
 				View:             view,
@@ -1527,6 +1543,7 @@ func TestTest_MockProviderValidation(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -1593,6 +1610,7 @@ func TestTest_MockProviderValidationForEach(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -1619,8 +1637,9 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
-		Ui:   ui,
-		View: view,
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
 	}
 
 	testCmd := &TestCommand{

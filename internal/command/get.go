@@ -80,7 +80,7 @@ func (c *GetCommand) Run(args []string) int {
 		return 1
 	}
 
-	path = c.normalizePath(path)
+	path = c.Meta.WorkingDir.NormalizePath(path)
 
 	abort, diags := getModules(ctx, &c.Meta, path, testsDirectory, update)
 	c.showDiagnostics(diags)

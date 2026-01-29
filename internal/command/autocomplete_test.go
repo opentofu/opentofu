@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/posener/complete"
 )
 
@@ -26,7 +27,10 @@ func TestMetaCompletePredictWorkspaceName(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
-	meta := &Meta{Ui: ui}
+	meta := &Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+	}
 
 	predictor := meta.completePredictWorkspaceName(t.Context())
 

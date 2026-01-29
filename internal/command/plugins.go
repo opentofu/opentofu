@@ -38,8 +38,6 @@ func (m *Meta) storePluginPath(pluginPath []string) error {
 		return nil
 	}
 
-	m.fixupMissingWorkingDir()
-
 	// remove the plugin dir record if the path was set to an empty string
 	if len(pluginPath) == 1 && (pluginPath[0] == "") {
 		return m.WorkingDir.SetForcedPluginDirs(nil)
@@ -51,13 +49,12 @@ func (m *Meta) storePluginPath(pluginPath []string) error {
 // Load the user-defined plugin search path into Meta.pluginPath if the file
 // exists.
 func (m *Meta) loadPluginPath() ([]string, error) {
-	m.fixupMissingWorkingDir()
 	return m.WorkingDir.ForcedPluginDirs()
 }
 
 // the default location for automatically installed plugins
 func (m *Meta) pluginDir() string {
-	return filepath.Join(m.DataDir(), "plugins", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	return filepath.Join(m.WorkingDir.DataDir(), "plugins", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 }
 
 // pluginDirs return a list of directories to search for plugins.

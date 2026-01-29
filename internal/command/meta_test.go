@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/mitchellh/cli"
 
@@ -27,7 +28,9 @@ func TestMetaColorize(t *testing.T) {
 	var args, args2 []string
 
 	// Test basic, color
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.Color = true
 	args = []string{"foo", "bar"}
 	args2 = []string{"foo", "bar"}
@@ -40,7 +43,9 @@ func TestMetaColorize(t *testing.T) {
 	}
 
 	// Test basic, no change
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	args = []string{"foo", "bar"}
 	args2 = []string{"foo", "bar"}
 	args = m.process(args)
@@ -52,7 +57,9 @@ func TestMetaColorize(t *testing.T) {
 	}
 
 	// Test disable #1
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.Color = true
 	args = []string{"foo", "-no-color", "bar"}
 	args2 = []string{"foo", "bar"}
@@ -67,7 +74,9 @@ func TestMetaColorize(t *testing.T) {
 	// Test disable #2
 	// Verify multiple -no-color options are removed from args slice.
 	// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.Color = true
 	args = []string{"foo", "-no-color", "bar", "-no-color"}
 	args2 = []string{"foo", "bar"}
@@ -84,7 +93,9 @@ func TestMetaInputMode(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	args := []string{}
 
 	fs := m.extendedFlagSet("foo")
@@ -101,7 +112,9 @@ func TestMetaInputMode_envVar(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	args := []string{}
 
 	fs := m.extendedFlagSet("foo")
@@ -133,7 +146,9 @@ func TestMetaInputMode_disable(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	args := []string{"-input=false"}
 
 	fs := m.extendedFlagSet("foo")
@@ -147,7 +162,9 @@ func TestMetaInputMode_disable(t *testing.T) {
 }
 
 func TestMeta_initStatePaths(t *testing.T) {
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.initStatePaths()
 
 	if m.statePath != DefaultStateFilename {
@@ -160,7 +177,9 @@ func TestMeta_initStatePaths(t *testing.T) {
 		t.Fatalf("bad: %#v", m)
 	}
 
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.statePath = "foo"
 	m.initStatePaths()
 
@@ -171,7 +190,9 @@ func TestMeta_initStatePaths(t *testing.T) {
 		t.Fatalf("bad: %#v", m)
 	}
 
-	m = new(Meta)
+	m = &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	m.stateOutPath = "foo"
 	m.initStatePaths()
 
@@ -187,7 +208,9 @@ func TestMeta_Env(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 
 	env, err := m.Workspace(t.Context())
 	if err != nil {
@@ -219,7 +242,9 @@ func TestMeta_Env(t *testing.T) {
 }
 
 func TestMeta_Workspace_override(t *testing.T) {
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 
 	testCases := map[string]struct {
 		workspace string
@@ -266,14 +291,16 @@ func TestMeta_Workspace_invalidSelected(t *testing.T) {
 	}
 
 	// create the workspace file to select it
-	if err := os.MkdirAll(DefaultDataDir, 0755); err != nil {
+	if err := os.MkdirAll(workdir.DefaultDataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(DefaultDataDir, local.DefaultWorkspaceFile), []byte(workspace), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(workdir.DefaultDataDir, local.DefaultWorkspaceFile), []byte(workspace), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	m := new(Meta)
+	m := &Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 
 	ws, err := m.Workspace(t.Context())
 	if ws != workspace {
@@ -366,7 +393,9 @@ func TestMeta_process(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s", test.GivenArgs), func(t *testing.T) {
-			m := new(Meta)
+			m := &Meta{
+				WorkingDir: workdir.NewDir("."),
+			}
 			m.Color = true // this is the default also for normal use, overridden by -no-color
 			args := test.GivenArgs
 			args = m.process(args)
@@ -390,7 +419,8 @@ func TestCommand_checkRequiredVersion(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	meta := Meta{
-		Ui: ui,
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
 	}
 
 	diags := meta.checkRequiredVersion(t.Context())
