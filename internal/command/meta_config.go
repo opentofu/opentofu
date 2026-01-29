@@ -36,7 +36,6 @@ import (
 // paths used to load configuration, because we want to prefer recording
 // relative paths in source code references within the configuration.
 func (m *Meta) normalizePath(path string) string {
-	m.fixupMissingWorkingDir()
 	return m.WorkingDir.NormalizePath(path)
 }
 

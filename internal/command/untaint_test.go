@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -41,8 +42,9 @@ func TestUntaint(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -92,8 +94,9 @@ func TestUntaint_lockedState(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -140,8 +143,9 @@ func TestUntaint_backup(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -196,8 +200,9 @@ func TestUntaint_backupDisable(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -225,8 +230,9 @@ func TestUntaint_badState(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -268,8 +274,9 @@ func TestUntaint_defaultState(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -315,7 +322,11 @@ func TestUntaint_defaultWorkspaceState(t *testing.T) {
 
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	meta := Meta{Ui: ui, View: view}
+	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if err := meta.SetWorkspace(testWorkspace); err != nil {
 		t.Fatal(err)
 	}
@@ -362,8 +373,9 @@ func TestUntaint_missing(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -401,8 +413,9 @@ func TestUntaint_missingAllow(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -458,8 +471,9 @@ func TestUntaint_stateOut(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -524,8 +538,9 @@ func TestUntaint_module(t *testing.T) {
 	view, _ := testView(t)
 	c := &UntaintCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 

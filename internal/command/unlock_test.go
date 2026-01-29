@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
@@ -40,6 +41,7 @@ func TestUnlock(t *testing.T) {
 	view, _ := testView(t)
 	c := &UnlockCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -79,8 +81,9 @@ func TestUnlock_inmemBackend(t *testing.T) {
 	view, _ := testView(t)
 	ci := &InitCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 	if code := ci.Run(nil); code != 0 {
@@ -90,8 +93,9 @@ func TestUnlock_inmemBackend(t *testing.T) {
 	ui = new(cli.MockUi)
 	c := &UnlockCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 
@@ -108,8 +112,9 @@ func TestUnlock_inmemBackend(t *testing.T) {
 	ui = new(cli.MockUi)
 	c = &UnlockCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
 		},
 	}
 

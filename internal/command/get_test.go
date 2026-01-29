@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
-
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 

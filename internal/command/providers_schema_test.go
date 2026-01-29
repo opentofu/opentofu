@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -25,6 +26,7 @@ func TestProvidersSchema_error(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersSchemaCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 		},
@@ -61,6 +63,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			p := providersSchemaFixtureProvider()
 			ui := new(cli.MockUi)
 			m := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				ProviderSource:   providerSource,

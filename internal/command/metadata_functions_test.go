@@ -10,13 +10,15 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestMetadataFunctions_error(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &MetadataFunctionsCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -28,7 +30,9 @@ func TestMetadataFunctions_error(t *testing.T) {
 
 func TestMetadataFunctions_output(t *testing.T) {
 	ui := new(cli.MockUi)
-	m := Meta{Ui: ui}
+	m := Meta{
+		Ui: ui,
+	}
 	c := &MetadataFunctionsCommand{Meta: m}
 
 	if code := c.Run([]string{"-json"}); code != 0 {

@@ -8,6 +8,8 @@ package command
 import (
 	"reflect"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestPluginPath(t *testing.T) {
@@ -16,7 +18,9 @@ func TestPluginPath(t *testing.T) {
 
 	pluginPath := []string{"a", "b", "c"}
 
-	m := Meta{}
+	m := Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	if err := m.storePluginPath(pluginPath); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +36,9 @@ func TestPluginPath(t *testing.T) {
 }
 
 func TestInternalProviders(t *testing.T) {
-	m := Meta{}
+	m := Meta{
+		WorkingDir: workdir.NewDir("."),
+	}
 	internal := m.internalProviders()
 	tfProvider, err := internal["terraform"]()
 	if err != nil {

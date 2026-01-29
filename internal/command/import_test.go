@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -32,6 +33,7 @@ func TestImport(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -87,6 +89,7 @@ func TestImport_providerConfig(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -180,6 +183,7 @@ func TestImport_remoteState(t *testing.T) {
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -200,6 +204,7 @@ func TestImport_remoteState(t *testing.T) {
 	ui = new(cli.MockUi)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -292,6 +297,7 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -317,6 +323,7 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	ui = new(cli.MockUi)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -357,6 +364,7 @@ func TestImport_providerConfigWithVar(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -437,6 +445,7 @@ func TestImport_providerConfigWithDataSource(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -502,6 +511,7 @@ func TestImport_providerConfigWithVarDefault(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -581,6 +591,7 @@ func TestImport_providerConfigWithVarFile(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -661,6 +672,7 @@ func TestImport_emptyConfig(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -693,6 +705,7 @@ func TestImport_missingResourceConfig(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -725,6 +738,7 @@ func TestImport_missingModuleConfig(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -776,6 +790,7 @@ func TestImportModuleVarFile(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -793,6 +808,7 @@ func TestImportModuleVarFile(t *testing.T) {
 	ui = new(cli.MockUi)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -850,6 +866,7 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -867,6 +884,7 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 	ui = new(cli.MockUi)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -893,6 +911,7 @@ func TestImport_nonManagedResource(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -942,6 +961,7 @@ func TestImport_invalidResourceAddr(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -974,6 +994,7 @@ func TestImport_targetIsModule(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -1005,6 +1026,7 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 	view, _ := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -1071,6 +1093,7 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -1087,6 +1110,7 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 	// Import
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -1143,6 +1167,7 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	m := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               ui,
 		View:             view,
@@ -1159,6 +1184,7 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 	// Import
 	c := &ImportCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,

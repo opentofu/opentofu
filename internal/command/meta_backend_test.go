@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -2031,7 +2032,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-empty"), td)
 	t.Chdir(td)
 
-	//// create our local state
+	// create our local state
 	orig := states.NewState()
 	orig.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	testStateFileDefault(t, orig)
@@ -2134,6 +2135,7 @@ func testMetaBackend(t *testing.T, args []string) *Meta {
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true
+	m.WorkingDir = workdir.NewDir(".")
 
 	t.Cleanup(func() {
 		// Trigger garbage collection to ensure that all open file handles are closed.

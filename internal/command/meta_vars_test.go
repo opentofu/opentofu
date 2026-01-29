@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -66,7 +67,9 @@ func TestMeta_addVarsFromFile(t *testing.T) {
 				t.Fatalf("err: %s", err)
 			}
 
-			m := new(Meta)
+			m := &Meta{
+				WorkingDir: workdir.NewDir("."),
+			}
 			to := make(map[string]backend.UnparsedVariableValue)
 			diags := m.addVarsFromFile(target, tofu.ValueFromAutoFile, to)
 			if tc.errors != diags.HasErrors() {

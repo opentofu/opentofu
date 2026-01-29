@@ -354,24 +354,9 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	}
 }
 
-// fixupMissingWorkingDir is a compensation for various existing tests which
-// directly construct incomplete "Meta" objects. Specifically, it deals with
-// a test that omits a WorkingDir value by constructing one just-in-time.
-//
-// We shouldn't ever rely on this in any real codepath, because it doesn't
-// take into account the various ways users can override our default
-// directory selection behaviors.
-func (m *Meta) fixupMissingWorkingDir() {
-	if m.WorkingDir == nil {
-		log.Printf("[WARN] This 'Meta' object is missing its WorkingDir, so we're creating a default one suitable only for tests")
-		m.WorkingDir = workdir.NewDir(".")
-	}
-}
-
 // DataDir returns the directory where local data will be stored.
 // Defaults to DefaultDataDir in the current working directory.
 func (m *Meta) DataDir() string {
-	m.fixupMissingWorkingDir()
 	return m.WorkingDir.DataDir()
 }
 

@@ -117,7 +117,6 @@ func (m *Meta) providerCustomLocalDirectorySource(ctx context.Context, dirs []st
 // Only one object returned from this method should be live at any time,
 // because objects inside contain caches that must be maintained properly.
 func (m *Meta) providerLocalCacheDir() *providercache.Dir {
-	m.fixupMissingWorkingDir()
 	dir := m.WorkingDir.ProviderLocalCacheDir()
 	return providercache.NewDir(dir)
 }
