@@ -280,7 +280,7 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
 	rootDir = m.normalizePath(rootDir)
 
-	err := os.MkdirAll(m.modulesDir(), os.ModePerm)
+	err := os.MkdirAll(m.WorkingDir.ModulesDir(), os.ModePerm)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %w", err))
 		return true, diags
@@ -292,7 +292,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
+	inst := initwd.NewModuleInstaller(m.WorkingDir.ModulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
 
 	call, vDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(vDiags)
@@ -329,7 +329,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	}
 
 	targetDir = m.normalizePath(targetDir)
-	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
+	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
 		m.showDiagnostics(diags)
@@ -411,10 +411,6 @@ func (m *Meta) configSources() map[string]*hcl.File {
 	return m.configLoader.Sources()
 }
 
-func (m *Meta) modulesDir() string {
-	return filepath.Join(m.DataDir(), "modules")
-}
-
 // registerSynthConfigSource allows commands to add synthetic additional source
 // buffers to the config loader's cache of sources (as returned by
 // configSources), which is useful when a command is directly parsing something
@@ -445,7 +441,7 @@ func (m *Meta) registerSynthConfigSource(filename string, src []byte) {
 func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
-			ModulesDir: m.modulesDir(),
+			ModulesDir: m.WorkingDir.ModulesDir(),
 		})
 		if err != nil {
 			return nil, err

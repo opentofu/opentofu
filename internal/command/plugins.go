@@ -54,7 +54,7 @@ func (m *Meta) loadPluginPath() ([]string, error) {
 
 // the default location for automatically installed plugins
 func (m *Meta) pluginDir() string {
-	return filepath.Join(m.DataDir(), "plugins", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
+	return filepath.Join(m.WorkingDir.DataDir(), "plugins", fmt.Sprintf("%s_%s", runtime.GOOS, runtime.GOARCH))
 }
 
 // pluginDirs return a list of directories to search for plugins.

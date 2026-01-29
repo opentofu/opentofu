@@ -16,6 +16,10 @@ const (
 
 	// DefaultDataDir is the default directory for storing local data.
 	DefaultDataDir = ".terraform"
+
+	// modulesDir is the name of the directory inside [Dir.DataDir] that is used to store the configuration
+	// used modules.
+	modulesDir = "modules"
 )
 
 // Dir represents a single OpenTofu working directory.
@@ -170,6 +174,12 @@ func (d *Dir) OriginalWorkingDir() string {
 // this method. Avoid using this method for new use-cases.
 func (d *Dir) DataDir() string {
 	return d.dataDir
+}
+
+// ModulesDir returns the directory in the [Dir.DataDir] that is used to store
+// the cached modules.
+func (d *Dir) ModulesDir() string {
+	return filepath.Join(d.DataDir(), modulesDir)
 }
 
 // ensureDataDir creates the data directory and all of the necessary parent
