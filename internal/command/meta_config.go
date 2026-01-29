@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -31,20 +30,12 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-// normalizePath normalizes a given path so that it is, if possible, relative
-// to the current working directory. This is primarily used to prepare
-// paths used to load configuration, because we want to prefer recording
-// relative paths in source code references within the configuration.
-func (m *Meta) normalizePath(path string) string {
-	return m.WorkingDir.NormalizePath(path)
-}
-
 // loadConfig reads a configuration from the given directory, which should
 // contain a root module and have already have any required descendent modules
 // installed.
 func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -67,7 +58,7 @@ func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config,
 // into the config alongside the main configuration.
 func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -96,7 +87,7 @@ func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string)
 // can be used.
 func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.SelectiveLoader) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	dir = m.normalizePath(dir)
+	dir = m.WorkingDir.NormalizePath(dir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -185,7 +176,7 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 // tests for the target module.
 func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDir string) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	dir = m.normalizePath(dir)
+	dir = m.WorkingDir.NormalizePath(dir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -257,7 +248,7 @@ func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.
 // specialized "load..." methods to get a higher-level representation.
 func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	filename = m.normalizePath(filename)
+	filename = m.WorkingDir.NormalizePath(filename)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -278,7 +269,7 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	err := os.MkdirAll(m.WorkingDir.ModulesDir(), os.ModePerm)
 	if err != nil {
@@ -328,7 +319,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 		return true, diags
 	}
 
-	targetDir = m.normalizePath(targetDir)
+	targetDir = m.WorkingDir.NormalizePath(targetDir)
 	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {

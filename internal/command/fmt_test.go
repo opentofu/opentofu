@@ -448,7 +448,7 @@ func TestFmt_check(t *testing.T) {
 
 	// Given that we give relative paths back to the user, normalize this temp
 	// dir so that we're comparing against a relative-ized (normalized) path
-	tempDir = c.normalizePath(tempDir)
+	tempDir = c.Meta.WorkingDir.NormalizePath(tempDir)
 
 	if actual := ui.OutputWriter.String(); !strings.Contains(actual, tempDir) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, tempDir)

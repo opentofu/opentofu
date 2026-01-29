@@ -506,7 +506,7 @@ func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *back
 		panic("RunOperation called with nil View")
 	}
 	if opReq.ConfigDir != "" {
-		opReq.ConfigDir = m.normalizePath(opReq.ConfigDir)
+		opReq.ConfigDir = m.WorkingDir.NormalizePath(opReq.ConfigDir)
 	}
 
 	// Inject variables and root module call
