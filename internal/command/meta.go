@@ -354,12 +354,6 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 	}
 }
 
-// DataDir returns the directory where local data will be stored.
-// Defaults to DefaultDataDir in the current working directory.
-func (m *Meta) DataDir() string {
-	return m.WorkingDir.DataDir()
-}
-
 const (
 	// InputModeEnvVar is the environment variable that, if set to "false" or
 	// "0", causes tofu commands to behave as if the `-input=false` flag was
@@ -839,7 +833,7 @@ func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
 		return envVar, true
 	}
 
-	envData, err := os.ReadFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile))
+	envData, err := os.ReadFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile))
 	current := string(bytes.TrimSpace(envData))
 	if current == "" {
 		current = backend.DefaultStateName
@@ -856,12 +850,12 @@ func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
 // SetWorkspace saves the given name as the current workspace in the local
 // filesystem.
 func (m *Meta) SetWorkspace(name string) error {
-	err := os.MkdirAll(m.DataDir(), 0755)
+	err := os.MkdirAll(m.WorkingDir.DataDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
+	err = os.WriteFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
 	if err != nil {
 		return err
 	}

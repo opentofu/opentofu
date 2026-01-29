@@ -73,7 +73,7 @@ func TestMetaBackend_emptyDir(t *testing.T) {
 	}
 
 	// Verify no backend state was made
-	if !isEmptyState(filepath.Join(m.DataDir(), DefaultStateFilename)) {
+	if !isEmptyState(filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)) {
 		t.Fatal("backend state should be empty")
 	}
 }
@@ -137,7 +137,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	stateName := filepath.Join(m.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -208,7 +208,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 		t.Fatal("file should not exist")
 	}
 
-	stateName := filepath.Join(m.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -1745,7 +1745,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	}
 
 	// Verify we have no configured backend
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1848,7 +1848,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1937,7 +1937,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}

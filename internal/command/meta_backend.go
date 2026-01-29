@@ -599,7 +599,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -749,7 +749,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		cloudMode := cloud.DetectConfigChangeType(s.Backend, c, false)
 
 		if !opts.Init {
-			//user ran another cmd that is not init but they are required to initialize because of a potential relevant change to their backend configuration
+			// user ran another cmd that is not init but they are required to initialize because of a potential relevant change to their backend configuration
 			initDiag := m.determineInitReason(s.Backend.Type, c.Type, cloudMode)
 			diags = diags.Append(initDiag)
 			return nil, diags
@@ -827,7 +827,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -846,7 +846,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 
-	//backend init function
+	// backend init function
 	if s.Backend.Type == "" {
 		return backendLocal.New(enc), diags
 	}
@@ -906,7 +906,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	return b, diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Backend Config Scenarios
 //
 // The functions below cover handling all the various scenarios that
@@ -921,7 +921,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 //   * R - Legacy remote state is set
 //   * S - Backend configuration is set in the state
 //
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // Unconfiguring a backend (moving from backend => local).
 func (m *Meta) backend_c_r_S(
@@ -1394,9 +1394,9 @@ func (m *Meta) updateSavedBackendHash(cHash int, sMgr *clistate.LocalState) tfdi
 	return diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Reusable helper functions for backend management
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // backendConfigNeedsMigration returns true if migration might be required to
 // move from the configured backend to the given cached backend config.
@@ -1628,9 +1628,9 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 	return diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Output constants and initialization code
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 const errBackendLocalRead = `
 Error reading local state: %w
