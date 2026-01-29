@@ -51,6 +51,7 @@ type ModuleInstaller struct {
 type moduleVersion struct {
 	module  addrs.ModuleRegistryPackage
 	version string
+	subdir  string
 }
 
 // NewModuleInstaller constructs a new [ModuleInstaller] object whose methods
@@ -744,7 +745,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// The response to this is a go-getter-style address string.
 
 	// first check the cache for the download URL
-	moduleAddr := moduleVersion{module: packageAddr, version: latestMatch.String()}
+	moduleAddr := moduleVersion{module: packageAddr, version: latestMatch.String(), subdir: addr.Subdir}
 	if _, exists := i.registryPackageSources[moduleAddr]; !exists {
 		packageLocation, err := reg.ModulePackageLocation(ctx, packageAddr, latestMatch.String(), addr.Subdir)
 		if err != nil {
