@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -72,7 +73,7 @@ func TestWorkdirCreatedCorrectly(t *testing.T) {
 				return []string{fmt.Sprintf("-chdir=%s", chdirModule), "-anotherflag=test"}
 			},
 			wantNewArgs:          []string{"-anotherflag=test"},
-			wantDataDir:          "/just/a/random/path/since/it/is/not/checked",
+			wantDataDir:          filepath.Clean("/just/a/random/path/since/it/is/not/checked"),
 			wantWorkingDirSuffix: "root_module",
 		},
 	}
