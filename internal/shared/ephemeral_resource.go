@@ -179,7 +179,8 @@ func OpenEphemeralResourceInstance(
 				case closeCtx = <-closeCh:
 					return
 				case <-ctx.Done():
-					// TODO how should we clean up in this scenario
+					// Even though the context is "Done" we still want to execute the close operation
+					closeCtx = context.WithoutCancel(closeCtx)
 					return
 				}
 			}

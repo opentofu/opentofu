@@ -2115,18 +2115,17 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return newVal, diags
 	}
 
-	// TODO make sure I didn't break this...
+	n.ephemeralCloseFn = func() tfdiags.Diagnostics {
+		// We use the same context for close here, not sure if we want to consider using the context for the close node instead
+		return closeFn(ctx).InConfigBody(config.Config, n.Addr.String())
+	}
+
 	// Due to the go scheduler inner works, the goroutine spawned below can be actually scheduled
 	// later than the execution of the nodeCloseableResource graph node.
 	// Therefore, we want to mark the renewal process as started before the goroutine spawning to be sure
 	// that the execution of nodeCloseableResource will block on the diagnostics reported by the
 	// goroutine below.
 	n.renewStarted.Store(true)
-
-	n.ephemeralCloseFn = func() tfdiags.Diagnostics {
-		// We use the same context for close here, not sure if we want to consider using the context for the close node instead
-		return closeFn(ctx).InConfigBody(config.Config, n.Addr.String())
-	}
 
 	return newVal, diags
 }
