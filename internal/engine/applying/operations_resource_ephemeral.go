@@ -7,14 +7,28 @@ package applying
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"sync"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+type ephemerals struct {
+	closers   addrs.Map[addrs.AbsResourceInstance, shared.EphemeralCloseFunc]
+	closersMu sync.Mutex
+}
+
+func newEphemerals() *ephemerals {
+	return &ephemerals{
+		closers: addrs.MakeMap[addrs.AbsResourceInstance, shared.EphemeralCloseFunc](),
+	}
+}
 
 // EphemeralOpen implements [exec.Operations].
 func (ops *execOperations) EphemeralOpen(
@@ -26,35 +40,41 @@ func (ops *execOperations) EphemeralOpen(
 
 	var diags tfdiags.Diagnostics
 
-	validateDiags := ops.plugins.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
+	schema, _ := ops.plugins.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
+	if schema == nil || schema.Block == nil {
+		// Should be caught during validation, so we don't bother with a pretty error here
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance, inst.Addr.Resource.Resource.Type))
 		return nil, diags
 	}
 
-	resp := providerClient.Ops.OpenEphemeralResource(ctx, providers.OpenEphemeralResourceRequest{
-		TypeName: inst.Addr.Resource.Resource.Type,
-		Config:   inst.ConfigVal,
-	})
-	diags = diags.Append(resp.Diagnostics)
-	if diags.HasErrors() {
+	newVal, closeFunc, openDiags := shared.OpenEphemeralResourceInstance(
+		ctx,
+		inst.Addr,
+		schema.Block,
+		*inst.ProviderInstance,
+		providerClient.Ops,
+		inst.ConfigVal,
+		shared.EphemeralResourceHooks{},
+	)
+	diags = diags.Append(openDiags)
+	if openDiags.HasErrors() {
 		return nil, diags
 	}
-	// TODO refresher
-	/*ops.ephemeralInstancesMu.Lock()
-	ops.ephemeralInstances.Put(inst.Addr, &ephemeralInstance{})
-	ops.ephemeralInstancesMu.Unlock()*/
+
+	ops.ephemerals.closersMu.Lock()
+	ops.ephemerals.closers.Put(inst.Addr, closeFunc)
+	ops.ephemerals.closersMu.Unlock()
 
 	return &exec.ResourceInstanceObject{
 		InstanceAddr: inst.Addr,
 		State: &states.ResourceInstanceObjectFull{
-			Status:  states.ObjectReady,
-			Value:   resp.Result,
-			Private: resp.Private,
+			Status: states.ObjectReady,
+			Value:  newVal,
 			// TODO Not sure these fields are needed
 			ResourceType:         inst.Addr.Resource.Resource.Type,
 			ProviderInstanceAddr: providerClient.InstanceAddr,
 			//SchemaVersion:        uint64(schema.Version),
+			//Private: resp.Private,
 		},
 	}, diags
 }
@@ -67,13 +87,9 @@ func (ops *execOperations) EphemeralClose(
 ) tfdiags.Diagnostics {
 	log.Printf("[TRACE] apply phase: EphemeralClose %s using %s", inst.InstanceAddr, providerClient.InstanceAddr)
 
-	/*ops.ephemeralInstancesMu.Lock()
-	instance := ops.ephemeralInstances.Get(inst.InstanceAddr)
-	ops.ephemeralInstancesMu.Unlock()*/
+	ops.ephemerals.closersMu.Lock()
+	closeFunc := ops.ephemerals.closers.Get(inst.InstanceAddr)
+	ops.ephemerals.closersMu.Unlock()
 
-	closeResp := providerClient.Ops.CloseEphemeralResource(ctx, providers.CloseEphemeralResourceRequest{
-		TypeName: inst.InstanceAddr.Resource.Resource.Type,
-		Private:  inst.State.Private,
-	})
-	return closeResp.Diagnostics
+	return closeFunc()
 }

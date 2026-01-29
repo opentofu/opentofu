@@ -13,7 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -34,7 +34,7 @@ func newEphemeralInstances() *ephemeralInstances {
 
 type ephemeralInstance struct {
 	registerCloseBlocker execgraph.RegisterCloseBlockerFunc
-	closeFunc            func(context.Context) tfdiags.Diagnostics
+	closeFunc            shared.EphemeralCloseFunc
 }
 
 func (e *ephemeralInstances) addCloseDependsOn(addr addrs.AbsResourceInstance, dep execgraph.AnyResultRef) {
@@ -52,7 +52,8 @@ func (e *ephemeralInstances) callClose(ctx context.Context, addr addrs.AbsResour
 	e.instancesMu.Unlock()
 
 	if instance != nil {
-		return instance.closeFunc(ctx)
+		// TODO passing the ctx through the close func
+		return instance.closeFunc()
 	}
 	return nil
 }
@@ -60,28 +61,18 @@ func (e *ephemeralInstances) callClose(ctx context.Context, addr addrs.AbsResour
 func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type, inst.ConfigVal)
-	diags = diags.Append(validateDiags)
-	if diags.HasErrors() {
-		return cty.DynamicVal, nil, diags
-	}
-
-	// Refactored from NodeAbstractResourceInstance.planEphemeralResource
 	schema, _ := p.planCtx.providers.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if schema == nil || schema.Block == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance, inst.Addr.Resource.Resource.Type))
-		return cty.DynamicVal, nil, diags
+		return cty.NilVal, nil, diags
 	}
-
-	objTy := schema.Block.ImpliedType()
-	nullVal := cty.NullVal(objTy)
 
 	if inst.ProviderInstance == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we'll just return a placeholder value, because
 		// we don't have any way to generate a speculative plan.
-		return nullVal, nil, diags
+		return cty.NilVal, nil, diags
 	}
 
 	providerClient, providerClientRef, closeProviderAfter, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
@@ -95,25 +86,21 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return nullVal, nil, diags
+		return cty.NilVal, nil, diags
 	}
 
-	openResp := providerClient.OpenEphemeralResource(ctx, providers.OpenEphemeralResourceRequest{
-		TypeName: inst.Addr.Resource.Resource.Type,
-		Config:   inst.ConfigVal,
-	})
-	diags = diags.Append(openResp.Diagnostics)
-	if diags.HasErrors() {
-		return nullVal, nil, diags
-	}
-	// TODO refresher
-	closeFunc := func(ctx context.Context) tfdiags.Diagnostics {
-		println("CLOSING EPHEMERAL " + inst.Addr.String())
-		closeResp := providerClient.CloseEphemeralResource(ctx, providers.CloseEphemeralResourceRequest{
-			TypeName: inst.Addr.Resource.Resource.Type,
-			Private:  openResp.Private,
-		})
-		return closeResp.Diagnostics
+	newVal, closeFunc, openDiags := shared.OpenEphemeralResourceInstance(
+		ctx,
+		inst.Addr,
+		schema.Block,
+		*inst.ProviderInstance,
+		providerClient,
+		inst.ConfigVal,
+		shared.EphemeralResourceHooks{},
+	)
+	diags = diags.Append(openDiags)
+	if openDiags.HasErrors() {
+		return cty.NilVal, nil, diags
 	}
 
 	dependencyResults := make([]execgraph.AnyResultRef, 0, len(inst.RequiredResourceInstances))
@@ -149,5 +136,5 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	})
 	p.planCtx.ephemeralInstances.instancesMu.Unlock()
 
-	return openResp.Result, openRef, diags
+	return newVal, openRef, diags
 }
