@@ -52,8 +52,7 @@ func (e *ephemeralInstances) callClose(ctx context.Context, addr addrs.AbsResour
 	e.instancesMu.Unlock()
 
 	if instance != nil {
-		// TODO passing the ctx through the close func
-		return instance.closeFunc()
+		return instance.closeFunc(ctx)
 	}
 	return nil
 }

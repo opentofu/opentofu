@@ -106,7 +106,7 @@ type NodeAbstractResourceInstance struct {
 	// start so calls to NodeAbstractResourceInstance.Close can return no diagnostics whatsoever.
 	// A common reason for which the renewal goroutine can be skipped from being created is when the ephemeral
 	// resource is deferred for the apply phase.
-	ephemeralCloseFn shared.EphemeralCloseFunc
+	ephemeralCloseFn func() tfdiags.Diagnostics
 	renewStarted     atomic.Bool
 }
 
@@ -2124,7 +2124,8 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	n.renewStarted.Store(true)
 
 	n.ephemeralCloseFn = func() tfdiags.Diagnostics {
-		return closeFn().InConfigBody(config.Config, n.Addr.String())
+		// We use the same context for close here, not sure if we want to consider using the context for the close node instead
+		return closeFn(ctx).InConfigBody(config.Config, n.Addr.String())
 	}
 
 	return newVal, diags

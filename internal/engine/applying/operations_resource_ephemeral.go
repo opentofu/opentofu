@@ -91,5 +91,5 @@ func (ops *execOperations) EphemeralClose(
 	closeFunc := ops.ephemerals.closers.Get(inst.InstanceAddr)
 	ops.ephemerals.closersMu.Unlock()
 
-	return closeFunc()
+	return closeFunc(ctx)
 }

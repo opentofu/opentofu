@@ -23,7 +23,7 @@ type EphemeralResourceHooks struct {
 	PostClose func(addrs.AbsResourceInstance, tfdiags.Diagnostics)
 }
 
-type EphemeralCloseFunc func() tfdiags.Diagnostics
+type EphemeralCloseFunc func(context.Context) tfdiags.Diagnostics
 
 func OpenEphemeralResourceInstance(
 	ctx context.Context,
@@ -139,12 +139,14 @@ func OpenEphemeralResourceInstance(
 	}
 
 	// Initialize the closing channel and the channel that sends diagnostics back to the close caller.
-	closeCh := make(chan struct{}, 1)
+	closeCh := make(chan context.Context, 1)
 	diagsCh := make(chan tfdiags.Diagnostics, 1)
 	go func() {
 		var diags tfdiags.Diagnostics
 		renewAt := openResp.RenewAt
 		privateData := openResp.Private
+
+		closeCtx := ctx
 
 		// We have two exit paths that should take the same route
 		func() {
@@ -174,9 +176,10 @@ func OpenEphemeralResourceInstance(
 						hooks.PostRenew(addr, diags)
 					}
 					privateData = renewResp.Private
-				case <-closeCh:
+				case closeCtx = <-closeCh:
 					return
 				case <-ctx.Done():
+					// TODO how should we clean up in this scenario
 					return
 				}
 			}
@@ -190,7 +193,7 @@ func OpenEphemeralResourceInstance(
 			TypeName: addr.Resource.Resource.Type,
 			Private:  privateData,
 		}
-		closeResp := provider.CloseEphemeralResource(ctx, closReq)
+		closeResp := provider.CloseEphemeralResource(closeCtx, closReq)
 		diags = diags.Append(closeResp.Diagnostics)
 
 		if hooks.PostClose != nil {
@@ -200,7 +203,8 @@ func OpenEphemeralResourceInstance(
 		diagsCh <- diags
 	}()
 
-	closeFunc := func() tfdiags.Diagnostics {
+	closeFunc := func(ctx context.Context) tfdiags.Diagnostics {
+		closeCh <- ctx
 		close(closeCh)
 		defer func() {
 			close(diagsCh)
