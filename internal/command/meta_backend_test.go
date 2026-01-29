@@ -2003,7 +2003,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s := testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	if s.Backend.Hash != uint64(cHash) {
 		t.Fatal("mismatched state and config backend hashes")
 	}
@@ -2019,7 +2019,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s = testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	if s.Backend.Hash != uint64(cHash) {
 		t.Fatal("mismatched state and config backend hashes")
 	}
@@ -2069,7 +2069,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s := testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	backendHash := s.Backend.Hash
 
 	// init again but remove the path option from the config
@@ -2090,7 +2090,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 		t.Fatal(diags.Err())
 	}
 
-	s = testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 
 	if s.Backend.Hash == backendHash {
 		t.Fatal("state.Backend.Hash was not updated")

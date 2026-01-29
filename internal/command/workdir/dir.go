@@ -13,6 +13,9 @@ import (
 
 const (
 	workingDirEnvVarKey = "TF_DATA_DIR"
+
+	// DefaultDataDir is the default directory for storing local data.
+	DefaultDataDir = ".terraform"
 )
 
 // Dir represents a single OpenTofu working directory.
@@ -111,7 +114,7 @@ func NewDir(mainPath string) *Dir {
 	return &Dir{
 		mainDir:     mainPath,
 		originalDir: mainPath,
-		dataDir:     filepath.Join(mainPath, ".terraform"),
+		dataDir:     filepath.Join(mainPath, DefaultDataDir),
 	}
 }
 

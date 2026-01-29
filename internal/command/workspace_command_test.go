@@ -351,10 +351,10 @@ func TestWorkspace_delete(t *testing.T) {
 	}
 
 	// create the workspace file
-	if err := os.MkdirAll(DefaultDataDir, 0755); err != nil {
+	if err := os.MkdirAll(workdir.DefaultDataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(DefaultDataDir, local.DefaultWorkspaceFile), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(workdir.DefaultDataDir, local.DefaultWorkspaceFile), []byte("test"), 0644); err != nil {
 		t.Fatal(err)
 	}
 

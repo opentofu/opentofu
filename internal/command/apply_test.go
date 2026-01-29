@@ -821,7 +821,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 	tmp := testCwdTemp(t)
-	remoteStatePath := filepath.Join(tmp, DefaultDataDir, DefaultStateFilename)
+	remoteStatePath := filepath.Join(tmp, workdir.DefaultDataDir, DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(remoteStatePath), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
