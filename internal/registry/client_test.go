@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -682,13 +683,13 @@ func TestInstallModulePackage(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expectedModDir := targetDir + "/subdir"
+		expectedModDir := filepath.Join(targetDir, "subdir")
 		if modDir != expectedModDir {
 			t.Errorf("expected modDir %q, got %q", expectedModDir, modDir)
 		}
 
 		// Verify the file was extracted to the subdirectory
-		content, err := os.ReadFile(modDir + "/main.tf")
+		content, err := os.ReadFile(filepath.Join(modDir, "main.tf"))
 		if err != nil {
 			t.Fatalf("failed to read extracted file: %v", err)
 		}
