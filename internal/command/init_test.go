@@ -1791,7 +1791,7 @@ func TestInit_providerSource(t *testing.T) {
 		t.Fatalf("unexpected \"configuration upgrade\" warning in output")
 	}
 
-	cacheDir := m.providerLocalCacheDir()
+	cacheDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 	gotPackages := cacheDir.AllAvailablePackages()
 	wantPackages := map[addrs.Provider][]providercache.CachedProvider{
 		addrs.NewDefaultProvider("test"): {
@@ -2033,7 +2033,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 		t.Fatalf("command did not complete successfully:\n%s", ui.ErrorWriter.String())
 	}
 
-	cacheDir := m.providerLocalCacheDir()
+	cacheDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 	gotPackages := cacheDir.AllAvailablePackages()
 	wantPackages := map[addrs.Provider][]providercache.CachedProvider{
 		// "between" wasn't previously installed at all, so we installed
@@ -3336,7 +3336,7 @@ func newMockProviderSource(t *testing.T, availableProviderVersions map[string][]
 func installFakeProviderPackages(t *testing.T, meta *Meta, providerVersions map[string][]string) {
 	t.Helper()
 
-	cacheDir := meta.providerLocalCacheDir()
+	cacheDir := providercache.NewDir(meta.WorkingDir.ProviderLocalCacheDir())
 	installFakeProviderPackagesElsewhere(t, cacheDir, providerVersions)
 }
 
