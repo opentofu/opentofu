@@ -33,6 +33,7 @@ import (
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // traceNamePlanResourceInstance is a standardize trace span name we use for the
@@ -627,7 +628,7 @@ func (n *NodeAbstractResourceInstance) preApplyHook(evalCtx EvalContext, change 
 		priorState := change.Before
 		plannedNewState := change.After
 
-		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 			return h.PreApply(n.Addr, change.DeposedKey.Generation(), change.Action, priorState, plannedNewState)
 		}))
 		if diags.HasErrors() {
@@ -650,7 +651,7 @@ func (n *NodeAbstractResourceInstance) postApplyHook(evalCtx EvalContext, state 
 		} else {
 			newState = cty.NullVal(cty.DynamicPseudoType)
 		}
-		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 			return h.PostApply(n.Addr, nil, newState, err)
 		}))
 	}
@@ -997,7 +998,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	}
 
 	// Call pre-refresh hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PreRefresh(absAddr, hookGen, state.Value)
 	}))
 	if diags.HasErrors() {
@@ -1077,7 +1078,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	}
 
 	// Call post-refresh hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostRefresh(absAddr, hookGen, priorVal, ret.Value)
 	}))
 	if diags.HasErrors() {
@@ -1248,7 +1249,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	proposedNewVal := objchange.ProposedNew(schema, unmarkedPriorVal, unmarkedConfigVal)
 
 	// Call pre-diff hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PreDiff(n.Addr, states.CurrentGen, priorVal, proposedNewVal)
 	}))
 	if diags.HasErrors() {
@@ -1610,7 +1611,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	// Call post-refresh hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostDiff(n.Addr, states.CurrentGen, action, priorVal, plannedNewVal)
 	}))
 	if diags.HasErrors() {
@@ -1940,7 +1941,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 	// to actually call the provider to read the data.
 	log.Printf("[TRACE] readDataSource: %s configuration is complete, so reading from provider", n.Addr)
 
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PreApply(n.Addr, states.CurrentGen, plans.Read, cty.NullVal(configVal.Type()), configVal)
 	}))
 	if diags.HasErrors() {
@@ -2018,7 +2019,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 		newVal = newVal.MarkWithPaths(pvm)
 	}
 
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
 	}))
 
@@ -2078,32 +2079,32 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		configVal,
 		shared.EphemeralResourceHooks{
 			PreOpen: func(addr addrs.AbsResourceInstance) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PreOpen(addr)
 				})
 			},
 			PostOpen: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PostOpen(addr, diags.Err())
 				})
 			},
 			PreRenew: func(addr addrs.AbsResourceInstance) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PreRenew(addr)
 				})
 			},
 			PostRenew: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PostRenew(addr, diags.Err())
 				})
 			},
 			PreClose: func(addr addrs.AbsResourceInstance) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PreClose(addr)
 				})
 			},
 			PostClose: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
-				evalCtx.Hook(func(h Hook) (HookAction, error) {
+				evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					return h.PostClose(addr, diags.Err())
 				})
 			},
@@ -2264,7 +2265,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 			Status: states.ObjectPlanned,
 		}
 
-		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 			return h.PostDiff(n.Addr, states.CurrentGen, plans.Read, priorVal, proposedNewVal)
 		}))
 
@@ -2466,7 +2467,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, eval
 	)
 	diags = diags.Append(checkDiags)
 	if diags.HasErrors() {
-		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 			return h.PostApply(n.Addr, states.CurrentGen, planned.Before, diags.Err())
 		}))
 		return nil, keyData, diags // failed preconditions prevent further evaluation
@@ -2556,7 +2557,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx context.Context
 	}
 
 	// Call pre hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PreProvisionInstance(n.Addr, state.Value)
 	}))
 	if diags.HasErrors() {
@@ -2572,7 +2573,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx context.Context
 	}
 
 	// Call post hook
-	return diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	return diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostProvisionInstance(n.Addr, state.Value)
 	}))
 }
@@ -2692,7 +2693,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 
 		{
 			// Call pre hook
-			err := evalCtx.Hook(func(h Hook) (HookAction, error) {
+			err := evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 				return h.PreProvisionInstanceStep(n.Addr, prov.Type)
 			})
 			if err != nil {
@@ -2703,9 +2704,9 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		// The output function
 		outputFn := func(msg string) {
 			// Given that we return nil below, this will never error
-			_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+			_ = evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 				h.ProvisionOutput(n.Addr, prov.Type, msg)
-				return HookActionContinue, nil
+				return hooks.HookActionContinue, nil
 			})
 		}
 
@@ -2723,9 +2724,9 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
 			outputFn = func(msg string) {
 				// Given that we return nil below, this will never error
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				_ = evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
-					return HookActionContinue, nil
+					return hooks.HookActionContinue, nil
 				})
 			}
 		}
@@ -2734,9 +2735,9 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		if _, hasEphemeral := configMarks[marks.Ephemeral]; hasEphemeral {
 			outputFn = func(msg string) {
 				// Given that we return nil below, this will never error
-				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+				_ = evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to ephemeral value in config)")
-					return HookActionContinue, nil
+					return hooks.HookActionContinue, nil
 				})
 			}
 		}
@@ -2750,7 +2751,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		applyDiags := resp.Diagnostics.InConfigBody(prov.Config, n.Addr.String())
 
 		// Call post hook
-		hookErr := evalCtx.Hook(func(h Hook) (HookAction, error) {
+		hookErr := evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 			return h.PostProvisionInstanceStep(n.Addr, prov.Type, applyDiags.Err())
 		})
 
@@ -3416,7 +3417,7 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 		Status: states.ObjectPlanned,
 	}
 
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.Deferred(n.Addr, reason)
 	}))
 

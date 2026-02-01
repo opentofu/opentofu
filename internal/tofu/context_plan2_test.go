@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 
@@ -5173,9 +5174,9 @@ import {
 	}
 
 	p := testhelpers.SimpleMockProvider()
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
@@ -5445,9 +5446,9 @@ import {
 				},
 			}
 
-			hook := new(MockHook)
+			hook := new(hooks.MockHook)
 			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{hook},
+				Hooks: []hooks.Hook{hook},
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 				},
@@ -5638,9 +5639,9 @@ import {
 				},
 			}
 
-			hook := new(MockHook)
+			hook := new(hooks.MockHook)
 			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{hook},
+				Hooks: []hooks.Hook{hook},
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 				},
@@ -5803,9 +5804,9 @@ import {
 			m := testhelpers.TestModuleInline(t, configuration.inlineConfiguration)
 			p := testhelpers.SimpleMockProvider()
 
-			hook := new(MockHook)
+			hook := new(hooks.MockHook)
 			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{hook},
+				Hooks: []hooks.Hook{hook},
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 				},
@@ -6125,9 +6126,9 @@ import {
 				},
 			}
 
-			hook := new(MockHook)
+			hook := new(hooks.MockHook)
 			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{hook},
+				Hooks: []hooks.Hook{hook},
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 				},
@@ -8523,9 +8524,9 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 			},
 		},
 	}
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},

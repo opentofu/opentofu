@@ -37,6 +37,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
@@ -140,7 +141,7 @@ func TestContext2Apply_stop(t *testing.T) {
 
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.MustParseProviderSourceString("terraform.io/test/indefinite"): testProviderFuncFixed(p),
 		},
@@ -1134,7 +1135,7 @@ aws_instance.foo:
 }
 
 func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	m := testhelpers.TestModule(t, "apply-good-create-before")
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
@@ -1153,16 +1154,16 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 
 	var actual []cty.Value
 	var actualLock sync.Mutex
-	h.PostApplyFn = func(addr addrs.AbsResourceInstance, gen states.Generation, sv cty.Value, e error) (HookAction, error) {
+	h.PostApplyFn = func(addr addrs.AbsResourceInstance, gen states.Generation, sv cty.Value, e error) (hooks.HookAction, error) {
 		actualLock.Lock()
 
 		defer actualLock.Unlock()
 		actual = append(actual, sv)
-		return HookActionContinue, nil
+		return hooks.HookActionContinue, nil
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -1641,9 +1642,9 @@ func TestContext2Apply_dataBasic(t *testing.T) {
 		}),
 	}
 
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
 		},
@@ -1700,7 +1701,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
 		},
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
@@ -4348,9 +4349,9 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 
 		return
 	}
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -4900,7 +4901,7 @@ aws_instance.foo:
 // Verify that a normal provisioner with on_failure "continue" records
 // the error with the hook.
 func TestContext2Apply_provisionerFailContinueHook(t *testing.T) {
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	m := testhelpers.TestModule(t, "apply-provisioner-fail-continue")
 	p := testhelpers.TestProvider("aws")
 	pr := testhelpers.TestProvisioner()
@@ -4911,7 +4912,7 @@ func TestContext2Apply_provisionerFailContinueHook(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5703,7 +5704,7 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5721,7 +5722,7 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	// Next, plan and apply a destroy operation
 	h.Active = true
 	ctx = testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5758,7 +5759,7 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5778,7 +5779,7 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	// Next, plan and apply a destroy
 	h.Active = true
 	ctx = testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5812,11 +5813,11 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 // https://github.com/hashicorp/terraform/issues/2767
 func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	m := testhelpers.TestModule(t, "apply-destroy-module-resource-prefix")
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5837,9 +5838,9 @@ func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	}
 
 	// Next, plan and apply a destroy operation and reset the hook
-	h = new(MockHook)
+	h = new(hooks.MockHook)
 	ctx = testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -5973,7 +5974,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Hooks: []Hook{h},
+			Hooks: []hooks.Hook{h},
 			Providers: map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			},
@@ -6045,7 +6046,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Hooks: []Hook{h},
+			Hooks: []hooks.Hook{h},
 			Providers: map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			},
@@ -6191,7 +6192,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 
 	{
 		ctx := testContext2(t, &ContextOpts{
-			Hooks: []Hook{h},
+			Hooks: []hooks.Hook{h},
 			Providers: map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 			},
@@ -6700,11 +6701,11 @@ func TestContext2Apply_errorPartial(t *testing.T) {
 
 func TestContext2Apply_hook(t *testing.T) {
 	m := testhelpers.TestModule(t, "apply-good")
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -6730,7 +6731,7 @@ func TestContext2Apply_hook(t *testing.T) {
 
 func TestContext2Apply_hookOrphan(t *testing.T) {
 	m := testhelpers.TestModule(t, "apply-blank")
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 
@@ -6747,7 +6748,7 @@ func TestContext2Apply_hookOrphan(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -8025,7 +8026,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -8155,7 +8156,7 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 	)
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -9930,7 +9931,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: Providers,
-		Hooks:     []Hook{&testHook{}},
+		Hooks:     []hooks.Hook{&testHook{}},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -10043,7 +10044,7 @@ func TestContext2Apply_plannedConnectionRefs(t *testing.T) {
 	ctx := testContext2(t, &ContextOpts{
 		Providers:    Providers,
 		Provisioners: provisioners,
-		Hooks:        []Hook{hook},
+		Hooks:        []hooks.Hook{hook},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
@@ -10149,7 +10150,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 	hook := &testHook{}
 	ctx := testContext2(t, &ContextOpts{
 		Providers: Providers,
-		Hooks:     []Hook{hook},
+		Hooks:     []hooks.Hook{hook},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
@@ -12655,9 +12656,9 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},

@@ -35,6 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
@@ -4000,10 +4001,10 @@ func TestContext2Plan_diffVar(t *testing.T) {
 
 func TestContext2Plan_hook(t *testing.T) {
 	m := testhelpers.TestModule(t, "plan-good")
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},

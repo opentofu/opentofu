@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 func TestProvisionerUIOutput_impl(t *testing.T) {
@@ -16,7 +17,7 @@ func TestProvisionerUIOutput_impl(t *testing.T) {
 }
 
 func TestProvisionerUIOutputOutput(t *testing.T) {
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	output := &ProvisionerUIOutput{
 		InstanceAddr: addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -24,7 +25,7 @@ func TestProvisionerUIOutputOutput(t *testing.T) {
 			Name: "test",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 		ProvisionerType: "foo",
-		Hooks:           []Hook{hook},
+		Hooks:           []hooks.Hook{hook},
 	}
 
 	output.Output("bar")

@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
@@ -566,7 +567,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 	var diags tfdiags.Diagnostics
 	absAddr := addr.Resource.Absolute(evalCtx.Path())
 
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PrePlanImport(absAddr, importId)
 	}))
 	if diags.HasErrors() {
@@ -612,7 +613,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 	}
 
 	// call post-import hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostPlanImport(absAddr, imported)
 	}))
 

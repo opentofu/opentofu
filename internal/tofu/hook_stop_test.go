@@ -7,8 +7,10 @@ package tofu
 
 import (
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 func TestStopHook_impl(t *testing.T) {
-	var _ Hook = new(stopHook)
+	var _ hooks.Hook = new(stopHook)
 }

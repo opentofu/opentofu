@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // InputMode defines what sort of input will be asked for when Input
@@ -41,7 +42,7 @@ const (
 // NewContext.
 type ContextOpts struct {
 	Meta         *ContextMeta
-	Hooks        []Hook
+	Hooks        []hooks.Hook
 	Parallelism  int
 	Providers    map[addrs.Provider]providers.Factory
 	Provisioners map[string]provisioners.Factory
@@ -82,7 +83,7 @@ type Context struct {
 
 	plugins *contextPlugins
 
-	hooks   []Hook
+	hooks   []hooks.Hook
 	sh      *stopHook
 	uiInput UIInput
 
@@ -113,7 +114,7 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	// Copy all the hooks and add our stop hook. We don't append directly
 	// to the Config so that we're not modifying that in-place.
 	sh := new(stopHook)
-	hooks := make([]Hook, len(opts.Hooks)+1)
+	hooks := make([]hooks.Hook, len(opts.Hooks)+1)
 	copy(hooks, opts.Hooks)
 	hooks[len(opts.Hooks)] = sh
 

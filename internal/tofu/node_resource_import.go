@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 type graphNodeImportState struct {
@@ -110,7 +111,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 	absAddr := n.Addr.Resource.Absolute(evalCtx.Path())
 
 	// Call pre-import hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PreImportState(absAddr, n.ID)
 	}))
 	if diags.HasErrors() {
@@ -133,7 +134,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 	n.states = imported
 
 	// Call post-import hook
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostImportState(absAddr, imported)
 	}))
 	return diags

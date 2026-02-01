@@ -35,6 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/opentofu/opentofu/version"
 )
@@ -70,9 +71,9 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		addrs.NoKey,
 	)
 
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
@@ -2460,9 +2461,9 @@ import {
 			},
 		}
 	}
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
@@ -2582,7 +2583,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 			}
 		`,
 	})
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -5772,7 +5773,7 @@ ephemeral "test_ephemeral_resource" "a" {
 	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
-			Hooks:     []Hook{h},
+			Hooks:     []hooks.Hook{h},
 		})
 
 		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
@@ -5965,7 +5966,7 @@ output "regular_optional" {
 		t.Run(name, func(t *testing.T) {
 			h := &testHook{}
 			ctx := testContext2(t, &ContextOpts{
-				Hooks: []Hook{h},
+				Hooks: []hooks.Hook{h},
 			})
 
 			// check plan
@@ -6923,7 +6924,7 @@ func TestContext2Apply_ephemeralInModuleWithExpansion(t *testing.T) {
 			apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 				ctx := testContext2(t, &ContextOpts{
 					Providers: ps,
-					Hooks:     []Hook{h},
+					Hooks:     []hooks.Hook{h},
 				})
 
 				plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{

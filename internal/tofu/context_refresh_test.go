@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
@@ -829,7 +830,7 @@ func TestContext2Refresh_ignoreUncreated(t *testing.T) {
 }
 
 func TestContext2Refresh_hook(t *testing.T) {
-	h := new(MockHook)
+	h := new(hooks.MockHook)
 	p := testhelpers.TestProvider("aws")
 	m := testhelpers.TestModule(t, "refresh-basic")
 
@@ -838,7 +839,7 @@ func TestContext2Refresh_hook(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{h},
+		Hooks: []hooks.Hook{h},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},

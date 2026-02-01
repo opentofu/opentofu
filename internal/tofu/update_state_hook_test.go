@@ -12,10 +12,11 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 func TestUpdateStateHook(t *testing.T) {
-	mockHook := new(MockHook)
+	mockHook := new(hooks.MockHook)
 
 	resAddr := addrs.Resource{
 		Mode: addrs.ManagedResourceMode,
@@ -51,7 +52,7 @@ func TestUpdateStateHook(t *testing.T) {
 }
 
 func TestUpdateStateHookRemoved(t *testing.T) {
-	mockHook := new(MockHook)
+	mockHook := new(hooks.MockHook)
 
 	resAddr0 := addrs.Resource{
 		Mode: addrs.ManagedResourceMode,

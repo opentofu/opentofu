@@ -27,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -63,7 +64,7 @@ type BuiltinEvalContext struct {
 	// available for use during a graph walk.
 	Plugins *contextPlugins
 
-	Hooks      []Hook
+	Hooks      []hooks.Hook
 	InputValue UIInput
 
 	ProviderLock        *sync.Mutex
@@ -104,7 +105,7 @@ func (c *BuiltinEvalContext) Stopped() <-chan struct{} {
 	return c.StopContext.Done()
 }
 
-func (c *BuiltinEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
+func (c *BuiltinEvalContext) Hook(fn func(hooks.Hook) (hooks.HookAction, error)) error {
 	for _, h := range c.Hooks {
 		action, err := fn(h)
 		if err != nil {
@@ -112,9 +113,9 @@ func (c *BuiltinEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
 		}
 
 		switch action {
-		case HookActionContinue:
+		case hooks.HookActionContinue:
 			continue
-		case HookActionHalt:
+		case hooks.HookActionHalt:
 			// Return an early exit error to trigger an early exit
 			log.Printf("[WARN] Early exit triggered by hook: %T", h)
 			return nil

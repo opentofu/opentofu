@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
@@ -2603,9 +2604,9 @@ func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
 `,
 	})
 	p := testhelpers.SimpleMockProvider()
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
@@ -2707,9 +2708,9 @@ func TestContext2Validate_importIntoModuleResource(t *testing.T) {
 		},
 	}
 	p := testhelpers.SimpleMockProvider()
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
@@ -2761,9 +2762,9 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 	// one of the purpose being to generate the missing block.
 	// Related to: https://github.com/opentofu/opentofu/issues/3615
 	p := testhelpers.SimpleMockProvider()
-	hook := new(MockHook)
+	hook := new(hooks.MockHook)
 	ctx := testContext2(t, &ContextOpts{
-		Hooks: []Hook{hook},
+		Hooks: []hooks.Hook{hook},
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},

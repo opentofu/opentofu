@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 
 	_ "github.com/opentofu/opentofu/internal/logging"
@@ -100,7 +101,7 @@ func testProvisionerFuncFixed(rp *testhelpers.MockProvisioner) provisioners.Fact
 // HookRecordApplyOrder is a test hook that records the order of applies
 // by recording the PreApply event.
 type HookRecordApplyOrder struct {
-	NilHook
+	hooks.NilHook
 
 	Active bool
 
@@ -110,9 +111,9 @@ type HookRecordApplyOrder struct {
 	Diffs  []*plans.Change
 }
 
-func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (HookAction, error) {
+func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (hooks.HookAction, error) {
 	if plannedNewState.RawEquals(priorState) {
-		return HookActionContinue, nil
+		return hooks.HookActionContinue, nil
 	}
 
 	if h.Active {
@@ -128,7 +129,7 @@ func (h *HookRecordApplyOrder) PreApply(addr addrs.AbsResourceInstance, gen stat
 		h.States = append(h.States, priorState)
 	}
 
-	return HookActionContinue, nil
+	return hooks.HookActionContinue, nil
 }
 
 // Below are all the constant strings that are the expected output for

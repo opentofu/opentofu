@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // MockEvalContext is a mock version of EvalContext that can be used
@@ -34,7 +35,7 @@ type MockEvalContext struct {
 	StoppedValue  <-chan struct{}
 
 	HookCalled bool
-	HookHook   Hook
+	HookHook   hooks.Hook
 	HookError  error
 
 	InputCalled bool
@@ -170,7 +171,7 @@ func (c *MockEvalContext) Stopped() <-chan struct{} {
 	return c.StoppedValue
 }
 
-func (c *MockEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
+func (c *MockEvalContext) Hook(fn func(hooks.Hook) (hooks.HookAction, error)) error {
 	c.HookCalled = true
 	if c.HookHook != nil {
 		if _, err := fn(c.HookHook); err != nil {

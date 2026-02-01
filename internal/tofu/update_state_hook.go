@@ -8,12 +8,13 @@ package tofu
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // updateState calls the PostStateUpdate hook with the state modification function
 func updateStateHook(evalCtx EvalContext, addr addrs.AbsResourceInstance) error {
 	// Call the hook
-	return evalCtx.Hook(func(h Hook) (HookAction, error) {
+	return evalCtx.Hook(func(h hooks.Hook) (hooks.HookAction, error) {
 		return h.PostStateUpdate(func(s *states.SyncState) {
 			provider := evalCtx.State().ResourceProvider(addr.ContainingResource())
 			if provider == nil {

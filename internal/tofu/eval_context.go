@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // EvalContext is the interface that is given to eval nodes to execute.
@@ -36,7 +37,7 @@ type EvalContext interface {
 
 	// Hook is used to call hook methods. The callback is called for each
 	// hook and should return the hook action to take and the error.
-	Hook(func(Hook) (HookAction, error)) error
+	Hook(func(hooks.Hook) (hooks.HookAction, error)) error
 
 	// Input is the UIInput object for interacting with the UI.
 	Input() UIInput

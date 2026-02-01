@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/hooks"
 )
 
 // ProvisionerUIOutput is an implementation of UIOutput that calls a hook
@@ -14,7 +15,7 @@ import (
 type ProvisionerUIOutput struct {
 	InstanceAddr    addrs.AbsResourceInstance
 	ProvisionerType string
-	Hooks           []Hook
+	Hooks           []hooks.Hook
 }
 
 func (o *ProvisionerUIOutput) Output(msg string) {
