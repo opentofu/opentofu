@@ -38,9 +38,6 @@ type MockEvalContext struct {
 	HookHook   hooks.Hook
 	HookError  error
 
-	InputCalled bool
-	InputInput  UIInput
-
 	InitProviderCalled   bool
 	InitProviderType     string
 	InitProviderAddr     addrs.AbsProviderConfig
@@ -180,11 +177,6 @@ func (c *MockEvalContext) Hook(fn func(hooks.Hook) (hooks.HookAction, error)) er
 	}
 
 	return c.HookError
-}
-
-func (c *MockEvalContext) Input() UIInput {
-	c.InputCalled = true
-	return c.InputInput
 }
 
 func (c *MockEvalContext) InitProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {

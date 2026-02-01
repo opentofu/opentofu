@@ -39,9 +39,6 @@ type EvalContext interface {
 	// hook and should return the hook action to take and the error.
 	Hook(func(hooks.Hook) (hooks.HookAction, error)) error
 
-	// Input is the UIInput object for interacting with the UI.
-	Input() UIInput
-
 	// InitProvider initializes the provider with the given address, and returns
 	// the implementation of the resource provider or an error.
 	//

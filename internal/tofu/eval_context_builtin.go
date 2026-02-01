@@ -64,8 +64,7 @@ type BuiltinEvalContext struct {
 	// available for use during a graph walk.
 	Plugins *contextPlugins
 
-	Hooks      []hooks.Hook
-	InputValue UIInput
+	Hooks []hooks.Hook
 
 	ProviderLock        *sync.Mutex
 	ProviderCache       map[string]map[addrs.InstanceKey]providers.Interface
@@ -123,10 +122,6 @@ func (c *BuiltinEvalContext) Hook(fn func(hooks.Hook) (hooks.HookAction, error))
 	}
 
 	return nil
-}
-
-func (c *BuiltinEvalContext) Input() UIInput {
-	return c.InputValue
 }
 
 func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerInstanceKey addrs.InstanceKey) (providers.Interface, error) {

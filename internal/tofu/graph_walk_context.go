@@ -105,7 +105,6 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 	ctx := &BuiltinEvalContext{
 		StopContext:             w.StopContext,
 		Hooks:                   w.Context.hooks,
-		InputValue:              w.Context.uiInput,
 		InstanceExpanderValue:   w.InstanceExpander,
 		Plugins:                 w.Context.plugins,
 		MoveResultsValue:        w.MoveResults,
