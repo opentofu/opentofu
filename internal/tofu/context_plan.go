@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
 	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
@@ -99,7 +100,7 @@ type PlanOpts struct {
 
 	// ImportTargets is a list of target resources to import. These resources
 	// will be added to the plan graph.
-	ImportTargets []*ImportTarget
+	ImportTargets []*importing.ImportTarget
 
 	// RemoveStatements are the list of resources and modules to forget from
 	// the state.
@@ -666,10 +667,10 @@ func (c *Context) postExpansionImportValidation(importResolver *ImportResolver, 
 
 // findImportTargets builds a list of import targets by going over the import
 // blocks in the config.
-func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
-	var importTargets []*ImportTarget
+func (c *Context) findImportTargets(config *configs.Config) []*importing.ImportTarget {
+	var importTargets []*importing.ImportTarget
 	for _, ic := range config.Module.Import {
-		importTargets = append(importTargets, &ImportTarget{
+		importTargets = append(importTargets, &importing.ImportTarget{
 			Config: ic,
 		})
 	}
@@ -681,7 +682,7 @@ func (c *Context) findImportTargets(config *configs.Config) []*ImportTarget {
 //  2. Config generation is not attempted for resources inside sub-modules
 //  3. Config generation is not attempted for resources with indexes (for_each/count) - This will always include
 //     resources for which we could not yet resolve the address
-func (c *Context) validateImportTargets(config *configs.Config, importTargets []*ImportTarget, generateConfigPath string) (diags tfdiags.Diagnostics) {
+func (c *Context) validateImportTargets(config *configs.Config, importTargets []*importing.ImportTarget, generateConfigPath string) (diags tfdiags.Diagnostics) {
 	configGeneration := len(generateConfigPath) > 0
 	for _, imp := range importTargets {
 		staticAddress := imp.StaticAddr()

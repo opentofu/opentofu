@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -103,7 +104,7 @@ type NodeAbstractResource struct {
 	storedProviderConfig ResolvedProvider
 
 	// This resource may expand into instances which need to be imported.
-	importTargets []*ImportTarget
+	importTargets []*importing.ImportTarget
 
 	// generateConfigPath tells this node which file to write generated config
 	// into. If empty, then config should not be generated.

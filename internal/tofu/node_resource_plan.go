@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
 )
 
 // nodeExpandPlannableResource represents an addrs.ConfigResource and implements
@@ -334,7 +335,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Contex
 func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
-	var commandLineImportTargets []CommandLineImportTarget
+	var commandLineImportTargets []importing.CommandLineImportTarget
 
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportCommandLine() {

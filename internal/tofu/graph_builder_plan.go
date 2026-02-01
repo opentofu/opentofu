@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
 	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
@@ -87,7 +88,7 @@ type PlanGraphBuilder struct {
 	ExternalReferences []*addrs.Reference
 
 	// ImportTargets are the list of resources to import.
-	ImportTargets []*ImportTarget
+	ImportTargets []*importing.ImportTarget
 
 	// RemoveStatements are the list of resources and modules to forget from
 	// the state.

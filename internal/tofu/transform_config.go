@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
 )
 
 // ConfigTransformer is a GraphTransformer that adds all the resources
@@ -40,7 +41,7 @@ type ConfigTransformer struct {
 
 	// importTargets specifies a slice of addresses that will have state
 	// imported for them.
-	importTargets []*ImportTarget
+	importTargets []*importing.ImportTarget
 
 	// generateConfigPathForImportTargets tells the graph where to write any
 	// generated config for import targets that are not contained within config.
@@ -114,7 +115,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 	// Take a copy of the import targets, so we can edit them as we go.
 	// Only include import targets that are targeting the current module.
-	var importTargets []*ImportTarget
+	var importTargets []*importing.ImportTarget
 	for _, target := range t.importTargets {
 		if targetModule := target.StaticAddr().Module; targetModule.Equal(config.Path) {
 			importTargets = append(importTargets, target)
@@ -132,7 +133,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 
 		// If any of the import targets can apply to this node's instances,
 		// filter them down to the applicable addresses.
-		var imports []*ImportTarget
+		var imports []*importing.ImportTarget
 		configAddr := relAddr.InModule(path)
 
 		var matchedIndices []int
@@ -196,7 +197,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 			abstract := &NodeAbstractResource{
 				// We've already validated in validateImportTargets that the address is fully resolvable
 				Addr:               i.ResolvedAddr().ConfigResource(),
-				importTargets:      []*ImportTarget{i},
+				importTargets:      []*importing.ImportTarget{i},
 				generateConfigPath: generateConfigPath,
 			}
 			var node dag.Vertex = abstract
@@ -210,7 +211,7 @@ func (t *ConfigTransformer) transformSingle(g *Graph, config *configs.Config, ge
 			abstract := &NodeAbstractResource{
 				// We've already validated in validateImportTargets that the address is fully resolvable
 				Addr:          i.StaticAddr(),
-				importTargets: []*ImportTarget{i},
+				importTargets: []*importing.ImportTarget{i},
 			}
 			var node dag.Vertex = abstract
 			if f := t.Concrete; f != nil {
