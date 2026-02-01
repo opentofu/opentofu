@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -24,24 +25,24 @@ func TestPlanGraphBuilder_impl(t *testing.T) {
 }
 
 func TestPlanGraphBuilder(t *testing.T) {
-	awsProvider := &MockProvider{
+	awsProvider := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
-			Provider: providers.Schema{Block: simpleTestSchema()},
+			Provider: providers.Schema{Block: testhelpers.SimpleTestSchema()},
 			ResourceTypes: map[string]providers.Schema{
-				"aws_security_group": {Block: simpleTestSchema()},
-				"aws_instance":       {Block: simpleTestSchema()},
-				"aws_load_balancer":  {Block: simpleTestSchema()},
+				"aws_security_group": {Block: testhelpers.SimpleTestSchema()},
+				"aws_instance":       {Block: testhelpers.SimpleTestSchema()},
+				"aws_load_balancer":  {Block: testhelpers.SimpleTestSchema()},
 			},
 		},
 	}
-	openstackProvider := mockProviderWithResourceTypeSchema("openstack_floating_ip", simpleTestSchema())
+	openstackProvider := mockProviderWithResourceTypeSchema("openstack_floating_ip", testhelpers.SimpleTestSchema())
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"):       providers.FactoryFixed(awsProvider),
 		addrs.NewDefaultProvider("openstack"): providers.FactoryFixed(openstackProvider),
 	}, nil)
 
 	b := &PlanGraphBuilder{
-		Config:    testModule(t, "graph-builder-plan-basic"),
+		Config:    testhelpers.TestModule(t, "graph-builder-plan-basic"),
 		Plugins:   plugins,
 		Operation: walkPlan,
 	}
@@ -84,7 +85,7 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 	}, nil)
 
 	b := &PlanGraphBuilder{
-		Config:    testModule(t, "graph-builder-plan-dynblock"),
+		Config:    testhelpers.TestModule(t, "graph-builder-plan-dynblock"),
 		Plugins:   plugins,
 		Operation: walkPlan,
 	}
@@ -140,7 +141,7 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 	}, nil)
 
 	b := &PlanGraphBuilder{
-		Config:    testModule(t, "graph-builder-plan-attr-as-blocks"),
+		Config:    testhelpers.TestModule(t, "graph-builder-plan-attr-as-blocks"),
 		Plugins:   plugins,
 		Operation: walkPlan,
 	}
@@ -178,7 +179,7 @@ test_thing.b (expand)
 
 func TestPlanGraphBuilder_targetModule(t *testing.T) {
 	b := &PlanGraphBuilder{
-		Config:  testModule(t, "graph-builder-plan-target-module-provider"),
+		Config:  testhelpers.TestModule(t, "graph-builder-plan-target-module-provider"),
 		Plugins: simpleMockPluginLibrary(),
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
@@ -199,7 +200,7 @@ func TestPlanGraphBuilder_targetModule(t *testing.T) {
 
 func TestPlanGraphBuilder_excludeModule(t *testing.T) {
 	b := &PlanGraphBuilder{
-		Config:  testModule(t, "graph-builder-plan-target-module-provider"),
+		Config:  testhelpers.TestModule(t, "graph-builder-plan-target-module-provider"),
 		Plugins: simpleMockPluginLibrary(),
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child1", addrs.NoKey),
@@ -219,14 +220,14 @@ func TestPlanGraphBuilder_excludeModule(t *testing.T) {
 }
 
 func TestPlanGraphBuilder_forEach(t *testing.T) {
-	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
+	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", testhelpers.SimpleTestSchema())
 
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
 	}, nil)
 
 	b := &PlanGraphBuilder{
-		Config:    testModule(t, "plan-for-each"),
+		Config:    testhelpers.TestModule(t, "plan-for-each"),
 		Plugins:   plugins,
 		Operation: walkPlan,
 	}
@@ -252,7 +253,7 @@ func TestPlanGraphBuilder_forEach(t *testing.T) {
 // TestPlanGraphBuilder_ephemeralResourceDestroy contains some wierd and theoretically impossible setup steps, but it's done
 // this way to verify that some checks are in place along the way. Check the inline comments for more details.
 func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
-	awsProvider := mockProviderWithResourceTypeSchema("aws_secretmanager_secret", simpleTestSchema())
+	awsProvider := mockProviderWithResourceTypeSchema("aws_secretmanager_secret", testhelpers.SimpleTestSchema())
 	b := &PlanGraphBuilder{
 		Config:    &configs.Config{Module: &configs.Module{}},
 		Operation: walkPlanDestroy,
@@ -267,7 +268,7 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 						// This setup is done this way only to be sure that the code path for creating NodePlanDestroyableResourceInstance
 						// is working well and that the node resulted from that returns an error on v.Execute(...)
 						"ephemeral.aws_secretmanager_secret.test": {
-							Addr: mustAbsResourceAddr("ephemeral.aws_secretmanager_secret.test"),
+							Addr: testhelpers.MustAbsResourceAddr("ephemeral.aws_secretmanager_secret.test"),
 							Instances: map[addrs.InstanceKey]*states.ResourceInstance{
 								addrs.NoKey: {
 									Current: &states.ResourceInstanceObjectSrc{},
@@ -302,7 +303,7 @@ func TestPlanGraphBuilder_ephemeralResourceDestroy(t *testing.T) {
 
 	// Let's see how NodePlanDestroyableResourceInstance.Execute is behaving when it's for an ephemeral resource
 	evalCtx := &MockEvalContext{
-		ProviderProvider: testProvider("aws"),
+		ProviderProvider: testhelpers.TestProvider("aws"),
 	}
 	diags := found.Execute(t.Context(), evalCtx, walkPlanDestroy)
 	got := diags.Err().Error()

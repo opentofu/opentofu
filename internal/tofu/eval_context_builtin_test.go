@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -58,7 +59,7 @@ func TestBuiltinEvalContextProviderInput(t *testing.T) {
 func TestBuildingEvalContextInitProvider(t *testing.T) {
 	var lock sync.Mutex
 
-	testP := &MockProvider{}
+	testP := &testhelpers.MockProvider{}
 
 	ctx := testBuiltinEvalContext(t)
 	ctx = ctx.WithPath(addrs.RootModuleInstance).(*BuiltinEvalContext)

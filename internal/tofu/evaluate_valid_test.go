@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestStaticValidateReferences(t *testing.T) {
@@ -101,7 +102,7 @@ Did you mean the data resource data.beep.boop?`,
 		},
 	}
 
-	cfg := testModule(t, "static-validate-refs")
+	cfg := testhelpers.TestModule(t, "static-validate-refs")
 	evaluator := &Evaluator{
 		Config: cfg,
 		Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{

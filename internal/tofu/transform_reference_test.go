@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestReferenceTransformer_simple(t *testing.T) {
@@ -183,7 +184,7 @@ module.foo[1].thing.b
 // This expects to find the dependency injected into the graph nodes that this
 // transformer is working with (data sources and ephemeral resource).
 func TestAttachResourceDependsOnTransformer(t *testing.T) {
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "null_instance" "write" {
   foo = "attribute"

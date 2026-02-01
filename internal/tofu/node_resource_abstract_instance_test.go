@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
@@ -170,10 +171,10 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	}
 
 	node := &NodeAbstractResourceInstance{
-		Addr: mustResourceInstanceAddr("aws_instance.foo"),
+		Addr: testhelpers.MustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 	evalCtx.ProviderProvider = mockProvider
@@ -184,7 +185,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
-	checkStateString(t, state, `
+	testhelpers.CheckStateString(t, state, `
 aws_instance.foo:
   ID = i-abc123
   provider = provider["registry.opentofu.org/hashicorp/aws"]

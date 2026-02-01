@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestModuleVariableTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
-	module := testModule(t, "transform-module-var-basic")
+	module := testhelpers.TestModule(t, "transform-module-var-basic")
 
 	{
 		tf := &RootVariableTransformer{Config: module}
@@ -39,7 +40,7 @@ func TestModuleVariableTransformer(t *testing.T) {
 
 func TestModuleVariableTransformer_nested(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
-	module := testModule(t, "transform-module-var-nested")
+	module := testhelpers.TestModule(t, "transform-module-var-nested")
 
 	{
 		tf := &RootVariableTransformer{Config: module}

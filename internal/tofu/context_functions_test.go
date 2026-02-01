@@ -17,12 +17,13 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
 
 func TestFunctions(t *testing.T) {
-	mockProvider := &MockProvider{
+	mockProvider := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{},
 			Functions: map[string]providers.FunctionSpec{
@@ -284,7 +285,7 @@ func TestFunctions(t *testing.T) {
 
 // Standard scenario using root provider explicitly passed
 func TestContext2Functions_providerFunctions(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -308,7 +309,7 @@ func TestContext2Functions_providerFunctions(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {
@@ -373,7 +374,7 @@ variable "obfmod" {
 
 // Explicitly passed provider with custom function
 func TestContext2Functions_providerFunctionsCustom(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetFunctionsResponse = &providers.GetFunctionsResponse{
 		Functions: map[string]providers.FunctionSpec{
 			"arn_parse_custom": providers.FunctionSpec{
@@ -388,7 +389,7 @@ func TestContext2Functions_providerFunctionsCustom(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {
@@ -470,7 +471,7 @@ variable "obfmod" {
 
 // Defaulted stub provider with non-custom function
 func TestContext2Functions_providerFunctionsStub(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -487,7 +488,7 @@ func TestContext2Functions_providerFunctionsStub(t *testing.T) {
 		Result: cty.True,
 	}
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod" {
   source = "./mod"
@@ -562,7 +563,7 @@ variable "obfmod" {
 
 // Defaulted stub provider with custom function (no allowed)
 func TestContext2Functions_providerFunctionsStubCustom(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -579,7 +580,7 @@ func TestContext2Functions_providerFunctionsStubCustom(t *testing.T) {
 		Result: cty.True,
 	}
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod" {
   source = "./mod"
@@ -638,7 +639,7 @@ variable "obfmod" {
 
 // Defaulted stub provider
 func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -655,7 +656,7 @@ func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
 		Result: cty.True,
 	}
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 provider "aws" {
   for_each = {"a": 1, "b": 2}
@@ -738,7 +739,7 @@ variable "obfmod" {
 
 // Functions used as variable values are evaluated correctly
 func TestContext2Functions_providerFunctionsVariableCustom(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetFunctionsResponse = &providers.GetFunctionsResponse{
 		Functions: map[string]providers.FunctionSpec{
 			"arn_parse_custom": providers.FunctionSpec{
@@ -753,7 +754,7 @@ func TestContext2Functions_providerFunctionsVariableCustom(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {

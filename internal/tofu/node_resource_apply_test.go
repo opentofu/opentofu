@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestNodeExpandApplyableResourceExecute(t *testing.T) {
@@ -24,7 +25,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 
 		node := &nodeExpandApplyableResource{
 			NodeAbstractResource: &NodeAbstractResource{
-				Addr:   mustConfigResourceAddr("test_instance.foo"),
+				Addr:   testhelpers.MustConfigResourceAddr("test_instance.foo"),
 				Config: nil,
 			},
 		}
@@ -47,7 +48,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 
 		node := &nodeExpandApplyableResource{
 			NodeAbstractResource: &NodeAbstractResource{
-				Addr: mustConfigResourceAddr("test_instance.foo"),
+				Addr: testhelpers.MustConfigResourceAddr("test_instance.foo"),
 				Config: &configs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test_instance",
@@ -66,7 +67,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 		if state.Empty() {
 			t.Fatal("expected resources in state, got empty state")
 		}
-		r := state.Resource(mustAbsResourceAddr("test_instance.foo"))
+		r := state.Resource(testhelpers.MustAbsResourceAddr("test_instance.foo"))
 		if r == nil {
 			t.Fatal("test_instance.foo not found in state")
 		}

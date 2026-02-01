@@ -13,12 +13,13 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestGraphNodeImportStateExecute(t *testing.T) {
 	state := states.NewState()
-	provider := testProvider("aws")
+	provider := testhelpers.TestProvider("aws")
 	provider.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
 		ImportedResources: []providers.ImportedResource{
 			{
@@ -69,7 +70,7 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 
 func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	state := states.NewState()
-	provider := testProvider("aws")
+	provider := testhelpers.TestProvider("aws")
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	evalCtx := &MockEvalContext{
 		StateState:       state.SyncWrapper(),
@@ -124,7 +125,7 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 
 func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 	state := states.NewState()
-	provider := testProvider("aws")
+	provider := testhelpers.TestProvider("aws")
 	provider.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 		// return null indicating that the requested resource does not exist
 		resp.NewState = cty.NullVal(cty.Object(map[string]cty.Type{

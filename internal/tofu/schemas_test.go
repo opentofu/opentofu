@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 // TestResourceTypeConfig checks that ResourceTypeConfig works correctly in all possible combinations:
@@ -272,8 +273,8 @@ func TestResourceTypeConfig(t *testing.T) {
 }
 
 func simpleTestSchemas() *Schemas {
-	provider := simpleMockProvider()
-	provisioner := simpleMockProvisioner()
+	provider := testhelpers.SimpleMockProvider()
+	provisioner := testhelpers.SimpleMockProvisioner()
 
 	return &Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
@@ -303,7 +304,7 @@ func schemaOnlyProvidersForTesting(schemas map[addrs.Provider]providers.Provider
 		for _, s := range schema.EphemeralResources {
 			s.Block.Ephemeral = true
 		}
-		provider := &MockProvider{
+		provider := &testhelpers.MockProvider{
 			GetProviderSchemaResponse: &schema,
 		}
 

@@ -20,11 +20,12 @@ import (
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestContext2Validate_badCount(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{},
@@ -32,7 +33,7 @@ func TestContext2Validate_badCount(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "validate-bad-count")
+	m := testhelpers.TestModule(t, "validate-bad-count")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -46,8 +47,8 @@ func TestContext2Validate_badCount(t *testing.T) {
 }
 
 func TestContext2Validate_badResource_reference(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{},
@@ -55,7 +56,7 @@ func TestContext2Validate_badResource_reference(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "validate-bad-resource-count")
+	m := testhelpers.TestModule(t, "validate-bad-resource-count")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -69,8 +70,8 @@ func TestContext2Validate_badResource_reference(t *testing.T) {
 }
 
 func TestContext2Validate_badVar(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -81,7 +82,7 @@ func TestContext2Validate_badVar(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "validate-bad-var")
+	m := testhelpers.TestModule(t, "validate-bad-var")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -95,7 +96,7 @@ func TestContext2Validate_badVar(t *testing.T) {
 }
 
 func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
-	m := testModule(t, "validate-var-no-default-explicit-type")
+	m := testhelpers.TestModule(t, "validate-var-no-default-explicit-type")
 	c, diags := NewContext(&ContextOpts{})
 	if diags.HasErrors() {
 		t.Fatalf("unexpected NewContext errors: %s", diags.Err())
@@ -117,7 +118,7 @@ func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
 }
 
 func TestContext2Validate_computedVar(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -134,7 +135,7 @@ func TestContext2Validate_computedVar(t *testing.T) {
 			},
 		},
 	}
-	pt := testProvider("test")
+	pt := testhelpers.TestProvider("test")
 	pt.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {
@@ -148,7 +149,7 @@ func TestContext2Validate_computedVar(t *testing.T) {
 		},
 	}
 
-	m := testModule(t, "validate-computed-var")
+	m := testhelpers.TestModule(t, "validate-computed-var")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
@@ -175,7 +176,7 @@ func TestContext2Validate_computedVar(t *testing.T) {
 }
 
 func TestContext2Validate_computedInFunction(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -198,7 +199,7 @@ func TestContext2Validate_computedInFunction(t *testing.T) {
 		},
 	}
 
-	m := testModule(t, "validate-computed-in-function")
+	m := testhelpers.TestModule(t, "validate-computed-in-function")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -215,7 +216,7 @@ func TestContext2Validate_computedInFunction(t *testing.T) {
 // them to fail during "plan" since we can't know if the computed values
 // can be realized during a plan.
 func TestContext2Validate_countComputed(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -236,7 +237,7 @@ func TestContext2Validate_countComputed(t *testing.T) {
 		},
 	}
 
-	m := testModule(t, "validate-count-computed")
+	m := testhelpers.TestModule(t, "validate-count-computed")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -250,7 +251,7 @@ func TestContext2Validate_countComputed(t *testing.T) {
 }
 
 func TestContext2Validate_countNegative(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -260,7 +261,7 @@ func TestContext2Validate_countNegative(t *testing.T) {
 			},
 		},
 	}
-	m := testModule(t, "validate-count-negative")
+	m := testhelpers.TestModule(t, "validate-count-negative")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -274,7 +275,7 @@ func TestContext2Validate_countNegative(t *testing.T) {
 }
 
 func TestContext2Validate_countVariable(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -286,7 +287,7 @@ func TestContext2Validate_countVariable(t *testing.T) {
 			},
 		},
 	}
-	m := testModule(t, "apply-count-variable")
+	m := testhelpers.TestModule(t, "apply-count-variable")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -300,8 +301,8 @@ func TestContext2Validate_countVariable(t *testing.T) {
 }
 
 func TestContext2Validate_countVariableNoDefault(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "validate-count-variable")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "validate-count-variable")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -318,7 +319,7 @@ func TestContext2Validate_countVariableNoDefault(t *testing.T) {
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
 	})
-	assertNoDiagnostics(t, diags)
+	testhelpers.AssertNoDiagnostics(t, diags)
 
 	_, diags = c.Plan(context.Background(), m, nil, &PlanOpts{})
 	if !diags.HasErrors() {
@@ -328,7 +329,7 @@ func TestContext2Validate_countVariableNoDefault(t *testing.T) {
 }
 
 func TestContext2Validate_moduleBadOutput(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -340,7 +341,7 @@ func TestContext2Validate_moduleBadOutput(t *testing.T) {
 			},
 		},
 	}
-	m := testModule(t, "validate-bad-module-output")
+	m := testhelpers.TestModule(t, "validate-bad-module-output")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -354,7 +355,7 @@ func TestContext2Validate_moduleBadOutput(t *testing.T) {
 }
 
 func TestContext2Validate_moduleGood(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -366,7 +367,7 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 			},
 		},
 	}
-	m := testModule(t, "validate-good-module")
+	m := testhelpers.TestModule(t, "validate-good-module")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -380,8 +381,8 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 }
 
 func TestContext2Validate_moduleBadResource(t *testing.T) {
-	m := testModule(t, "validate-module-bad-rc")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-module-bad-rc")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -409,8 +410,8 @@ func TestContext2Validate_moduleBadResource(t *testing.T) {
 }
 
 func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
-	m := testModule(t, "validate-module-deps-cycle")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-module-deps-cycle")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -436,8 +437,8 @@ func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
 }
 
 func TestContext2Validate_moduleProviderVar(t *testing.T) {
-	m := testModule(t, "validate-module-pc-vars")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-module-pc-vars")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -477,8 +478,8 @@ func TestContext2Validate_moduleProviderVar(t *testing.T) {
 }
 
 func TestContext2Validate_moduleProviderInheritUnused(t *testing.T) {
-	m := testModule(t, "validate-module-pc-inherit-unused")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-module-pc-inherit-unused")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -518,7 +519,7 @@ func TestContext2Validate_moduleProviderInheritUnused(t *testing.T) {
 }
 
 func TestContext2Validate_orphans(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -532,7 +533,7 @@ func TestContext2Validate_orphans(t *testing.T) {
 		},
 	}
 
-	m := testModule(t, "validate-good")
+	m := testhelpers.TestModule(t, "validate-good")
 
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -557,8 +558,8 @@ func TestContext2Validate_orphans(t *testing.T) {
 }
 
 func TestContext2Validate_providerConfig_bad(t *testing.T) {
-	m := testModule(t, "validate-bad-pc")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-pc")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -596,8 +597,8 @@ func TestContext2Validate_providerConfig_bad(t *testing.T) {
 }
 
 func TestContext2Validate_providerConfig_skippedEmpty(t *testing.T) {
-	m := testModule(t, "validate-skipped-pc-empty")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-skipped-pc-empty")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -632,8 +633,8 @@ func TestContext2Validate_providerConfig_skippedEmpty(t *testing.T) {
 }
 
 func TestContext2Validate_providerConfig_good(t *testing.T) {
-	m := testModule(t, "validate-bad-pc")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-pc")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -666,8 +667,8 @@ func TestContext2Validate_providerConfig_good(t *testing.T) {
 // In this test there is a mismatch between the provider's fqn (hashicorp/test)
 // and it's local name set in required_providers (arbitrary).
 func TestContext2Validate_requiredProviderConfig(t *testing.T) {
-	m := testModule(t, "validate-required-provider-config")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-required-provider-config")
+	p := testhelpers.TestProvider("aws")
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
@@ -699,8 +700,8 @@ func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 }
 
 func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
-	m := testModule(t, "validate-bad-prov-conf")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-prov-conf")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -713,7 +714,7 @@ func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
 		},
 	}
 
-	pr := simpleMockProvisioner()
+	pr := testhelpers.SimpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -735,8 +736,8 @@ func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
 }
 
 func TestContext2Validate_badResourceConnection(t *testing.T) {
-	m := testModule(t, "validate-bad-resource-connection")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-resource-connection")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -749,7 +750,7 @@ func TestContext2Validate_badResourceConnection(t *testing.T) {
 		},
 	}
 
-	pr := simpleMockProvisioner()
+	pr := testhelpers.SimpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -768,8 +769,8 @@ func TestContext2Validate_badResourceConnection(t *testing.T) {
 }
 
 func TestContext2Validate_badProvisionerConnection(t *testing.T) {
-	m := testModule(t, "validate-bad-prov-connection")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-prov-connection")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -782,7 +783,7 @@ func TestContext2Validate_badProvisionerConnection(t *testing.T) {
 		},
 	}
 
-	pr := simpleMockProvisioner()
+	pr := testhelpers.SimpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -801,8 +802,8 @@ func TestContext2Validate_badProvisionerConnection(t *testing.T) {
 }
 
 func TestContext2Validate_provisionerConfig_good(t *testing.T) {
-	m := testModule(t, "validate-bad-prov-conf")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-prov-conf")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
 			Block: &configschema.Block{
@@ -822,7 +823,7 @@ func TestContext2Validate_provisionerConfig_good(t *testing.T) {
 		},
 	}
 
-	pr := simpleMockProvisioner()
+	pr := testhelpers.SimpleMockProvisioner()
 	pr.ValidateProvisionerConfigFn = func(req provisioners.ValidateProvisionerConfigRequest) provisioners.ValidateProvisionerConfigResponse {
 		var diags tfdiags.Diagnostics
 		if req.Config.GetAttr("test_string").IsNull() {
@@ -849,8 +850,8 @@ func TestContext2Validate_provisionerConfig_good(t *testing.T) {
 }
 
 func TestContext2Validate_requiredVar(t *testing.T) {
-	m := testModule(t, "validate-required-var")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-required-var")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -867,7 +868,7 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
 	})
-	assertNoDiagnostics(t, diags)
+	testhelpers.AssertNoDiagnostics(t, diags)
 
 	// NOTE: This test has grown idiosyncratic because originally Terraform
 	// would (optionally) check variables during validation, and then in
@@ -885,8 +886,8 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 }
 
 func TestContext2Validate_resourceConfig_bad(t *testing.T) {
-	m := testModule(t, "validate-bad-rc")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-rc")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -915,8 +916,8 @@ func TestContext2Validate_resourceConfig_bad(t *testing.T) {
 }
 
 func TestContext2Validate_resourceConfig_good(t *testing.T) {
-	m := testModule(t, "validate-bad-rc")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-bad-rc")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -941,7 +942,7 @@ func TestContext2Validate_resourceConfig_good(t *testing.T) {
 }
 
 func TestContext2Validate_tainted(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -955,7 +956,7 @@ func TestContext2Validate_tainted(t *testing.T) {
 		},
 	}
 
-	m := testModule(t, "validate-good")
+	m := testhelpers.TestModule(t, "validate-good")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -979,9 +980,9 @@ func TestContext2Validate_tainted(t *testing.T) {
 }
 
 func TestContext2Validate_targetedDestroy(t *testing.T) {
-	m := testModule(t, "validate-targeted")
-	p := testProvider("aws")
-	pr := simpleMockProvisioner()
+	m := testhelpers.TestModule(t, "validate-targeted")
+	p := testhelpers.TestProvider("aws")
+	pr := testhelpers.SimpleMockProvisioner()
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -1016,8 +1017,8 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 }
 
 func TestContext2Validate_varRefUnknown(t *testing.T) {
-	m := testModule(t, "validate-variable-ref")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-variable-ref")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -1056,8 +1057,8 @@ func TestContext2Validate_varRefUnknown(t *testing.T) {
 func TestContext2Validate_interpolateVar(t *testing.T) {
 	input := new(MockUIInput)
 
-	m := testModule(t, "input-interpolate-var")
-	p := testProvider("null")
+	m := testhelpers.TestModule(t, "input-interpolate-var")
+	p := testhelpers.TestProvider("null")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"template_file": {
@@ -1088,8 +1089,8 @@ func TestContext2Validate_interpolateVar(t *testing.T) {
 func TestContext2Validate_interpolateComputedModuleVarDef(t *testing.T) {
 	input := new(MockUIInput)
 
-	m := testModule(t, "validate-computed-module-var-ref")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-computed-module-var-ref")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -1119,8 +1120,8 @@ func TestContext2Validate_interpolateComputedModuleVarDef(t *testing.T) {
 func TestContext2Validate_interpolateMap(t *testing.T) {
 	input := new(MockUIInput)
 
-	m := testModule(t, "issue-9549")
-	p := testProvider("template")
+	m := testhelpers.TestModule(t, "issue-9549")
+	p := testhelpers.TestProvider("template")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1137,7 +1138,7 @@ func TestContext2Validate_interpolateMap(t *testing.T) {
 
 func TestContext2Validate_varSensitive(t *testing.T) {
 	// Smoke test through validate where a variable has sensitive applied
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "foo" {
   default = "xyz"
@@ -1158,7 +1159,7 @@ resource "aws_instance" "foo" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		// Providers receive unmarked values
 		if got, want := req.Config.GetAttr("foo"), cty.UnknownVal(cty.String); !got.RawEquals(want) {
@@ -1194,7 +1195,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_invalidOutput(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 data "aws_data_source" "name" {}
 
@@ -1203,7 +1204,7 @@ output "out" {
 }`,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1222,7 +1223,7 @@ output "out" {
 }
 
 func TestContext2Validate_invalidModuleOutput(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"child/main.tf": `
 data "aws_data_source" "name" {}
 
@@ -1239,7 +1240,7 @@ resource "aws_instance" "foo" {
 }`,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1258,7 +1259,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_sensitiveRootModuleOutput(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"child/main.tf": `
 variable "foo" {
   default = "xyz"
@@ -1288,7 +1289,7 @@ output "root" {
 }
 
 func TestContext2Validate_legacyResourceCount(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "test" {}
 
@@ -1297,7 +1298,7 @@ output "out" {
 }`,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1319,7 +1320,7 @@ func TestContext2Validate_invalidModuleRef(t *testing.T) {
 	// This test is verifying that we properly validate and report on references
 	// to modules that are not declared, since we were missing some validation
 	// here in early 0.12.0 alphas that led to a panic.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 output "out" {
   # Intentionally referencing undeclared module to ensure error
@@ -1327,7 +1328,7 @@ output "out" {
 }`,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1349,7 +1350,7 @@ func TestContext2Validate_invalidModuleOutputRef(t *testing.T) {
 	// This test is verifying that we properly validate and report on references
 	// to modules that are not declared, since we were missing some validation
 	// here in early 0.12.0 alphas that led to a panic.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 output "out" {
   # Intentionally referencing undeclared module to ensure error
@@ -1357,7 +1358,7 @@ output "out" {
 }`,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1378,7 +1379,7 @@ output "out" {
 func TestContext2Validate_invalidDependsOnResourceRef(t *testing.T) {
 	// This test is verifying that we raise an error if depends_on
 	// refers to something that doesn't exist in configuration.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "bar" {
   depends_on = [test_resource.nonexistent]
@@ -1386,7 +1387,7 @@ resource "test_instance" "bar" {
 `,
 	})
 
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -1408,7 +1409,7 @@ func TestContext2Validate_invalidResourceIgnoreChanges(t *testing.T) {
 	// This test is verifying that we raise an error if ignore_changes
 	// refers to something that can be statically detected as not conforming
 	// to the resource type schema.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "bar" {
   lifecycle {
@@ -1418,7 +1419,7 @@ resource "test_instance" "bar" {
 `,
 	})
 
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -1440,9 +1441,9 @@ func TestContext2Validate_variableCustomValidationsFail(t *testing.T) {
 	// This test is for custom validation rules associated with root module
 	// variables, and specifically that we handle the situation where the
 	// given value is invalid in a child module.
-	m := testModule(t, "validate-variable-custom-validations-child")
+	m := testhelpers.TestModule(t, "validate-variable-custom-validations-child")
 
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -1463,7 +1464,7 @@ func TestContext2Validate_variableCustomValidationsRoot(t *testing.T) {
 	// variables, and specifically that we handle the situation where their
 	// values are unknown during validation, skipping the validation check
 	// altogether. (Root module variables are never known during validation.)
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "test" {
   type = string
@@ -1476,7 +1477,7 @@ variable "test" {
 `,
 	})
 
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -1490,7 +1491,7 @@ variable "test" {
 }
 
 func TestContext2Validate_expandModules(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
   for_each = toset(["a", "b"])
@@ -1537,7 +1538,7 @@ resource "aws_instance" "foo" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1551,7 +1552,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_expandModulesInvalidCount(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
   count = -1
@@ -1564,7 +1565,7 @@ resource "aws_instance" "foo" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1581,7 +1582,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_expandModulesInvalidForEach(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
   for_each = ["a", "b"]
@@ -1594,7 +1595,7 @@ resource "aws_instance" "foo" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1611,7 +1612,7 @@ resource "aws_instance" "foo" {
 }
 
 func TestContext2Validate_expandMultipleNestedModules(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "modA" {
   for_each = {
@@ -1675,7 +1676,7 @@ output "out" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1690,7 +1691,7 @@ output "out" {
 
 func TestContext2Validate_invalidModuleDependsOn(t *testing.T) {
 	// validate module and output depends_on
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
   source = "./mod"
@@ -1728,7 +1729,7 @@ output "out" {
 
 func TestContext2Validate_invalidOutputDependsOn(t *testing.T) {
 	// validate module and output depends_on
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod1" {
   source = "./mod"
@@ -1766,14 +1767,14 @@ output "out" {
 
 func TestContext2Validate_rpcDiagnostics(t *testing.T) {
 	// validate module and output depends_on
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
 }
 `,
 	})
 
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {
@@ -1813,8 +1814,8 @@ resource "test_instance" "a" {
 }
 
 func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
-	m := testModule(t, "validate-sensitive-provisioner-config")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "validate-sensitive-provisioner-config")
+	p := testhelpers.TestProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
 			"aws_instance": {
@@ -1827,7 +1828,7 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 		},
 	}
 
-	pr := simpleMockProvisioner()
+	pr := testhelpers.SimpleMockProvisioner()
 
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1855,8 +1856,8 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 }
 
 func TestContext2Plan_validateMinMaxDynamicBlock(t *testing.T) {
-	p := new(MockProvider)
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := new(testhelpers.MockProvider)
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1885,7 +1886,7 @@ func TestContext2Plan_validateMinMaxDynamicBlock(t *testing.T) {
 		},
 	})
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
   // MinItems 2
@@ -1946,7 +1947,7 @@ resource "test_instance" "c" {
 }
 
 func TestContext2Validate_passInheritedProvider(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {
@@ -1999,7 +2000,7 @@ resource "test_object" "t" {
 `,
 	})
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -2013,8 +2014,8 @@ resource "test_object" "t" {
 }
 
 func TestContext2Plan_lookupMismatchedObjectTypes(t *testing.T) {
-	p := new(MockProvider)
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := new(testhelpers.MockProvider)
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2031,7 +2032,7 @@ func TestContext2Plan_lookupMismatchedObjectTypes(t *testing.T) {
 		},
 	})
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "items" {
   type = list(string)
@@ -2070,7 +2071,7 @@ output "out" {
 }
 
 func TestContext2Validate_nonNullableVariableDefaultValidation(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
  module "first" {
    source = "./mod"
@@ -2103,8 +2104,8 @@ func TestContext2Validate_nonNullableVariableDefaultValidation(t *testing.T) {
 }
 
 func TestContext2Validate_precondition_good(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2113,7 +2114,7 @@ func TestContext2Validate_precondition_good(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "input" {
   type    = string
@@ -2146,8 +2147,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_precondition_badCondition(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2156,7 +2157,7 @@ func TestContext2Validate_precondition_badCondition(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "input" {
   type    = string
@@ -2192,8 +2193,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_precondition_badErrorMessage(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2202,7 +2203,7 @@ func TestContext2Validate_precondition_badErrorMessage(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "input" {
   type    = string
@@ -2238,8 +2239,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_postcondition_good(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2248,7 +2249,7 @@ func TestContext2Validate_postcondition_good(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "test" {
   foo = "foo"
@@ -2276,8 +2277,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_postcondition_badCondition(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2292,7 +2293,7 @@ func TestContext2Validate_postcondition_badCondition(t *testing.T) {
 	// validation of conditions which refer to resource arguments is not
 	// possible until plan time. For now we exercise the code by referring to
 	// an input variable.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 variable "input" {
   type    = string
@@ -2328,8 +2329,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_postcondition_badErrorMessage(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2338,7 +2339,7 @@ func TestContext2Validate_postcondition_badErrorMessage(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "test" {
   foo = "foo"
@@ -2369,8 +2370,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_precondition_count(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2379,7 +2380,7 @@ func TestContext2Validate_precondition_count(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 locals {
   foos = ["bar", "baz"]
@@ -2412,8 +2413,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_postcondition_forEach(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2422,7 +2423,7 @@ func TestContext2Validate_postcondition_forEach(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 locals {
   foos = toset(["bar", "baz", "boop"])
@@ -2455,8 +2456,8 @@ resource "aws_instance" "test" {
 }
 
 func TestContext2Validate_deprecatedAttr(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -2465,7 +2466,7 @@ func TestContext2Validate_deprecatedAttr(t *testing.T) {
 			},
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "test" {
 }
@@ -2491,9 +2492,9 @@ locals {
 
 // Ensure that the plantimestamp() call is not affecting the validation step.
 func TestContext2Validate_rangeOverZeroPlanTimestamp(t *testing.T) {
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 
-	m := testModule(t, "plan_range_over_plan_timestamp")
+	m := testhelpers.TestModule(t, "plan_range_over_plan_timestamp")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -2511,7 +2512,7 @@ func TestContext2Validate_providerAliasesInRoot(t *testing.T) {
 	// This tests the scenario where a user is running tofu validate in a module, instead of the root
 	// It should allow configuration_aliases to function, even in the root, similar to how input
 	// variables function in validate.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {
@@ -2528,7 +2529,7 @@ resource "test_object" "t" {
 `,
 	})
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -2542,7 +2543,7 @@ resource "test_object" "t" {
 }
 
 func TestContext2Validate_providerAliasesInRootMisconfigured(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
   required_providers {
@@ -2559,7 +2560,7 @@ resource "test_object" "t" {
 `,
 	})
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -2582,7 +2583,7 @@ func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
 	// for_each statement on unknown values.
 	// In this case, the validation is skipped since the expansion cannot be performed.
 	// Related to https://github.com/opentofu/opentofu/issues/3563
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 			variable "server_ids" {
 			  type    = list(string)
@@ -2601,7 +2602,7 @@ func TestContext2Validate_importWithForEachOnUnknown(t *testing.T) {
 			}
 `,
 	})
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
@@ -2705,7 +2706,7 @@ func TestContext2Validate_importIntoModuleResource(t *testing.T) {
 		`,
 		},
 	}
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
@@ -2743,7 +2744,7 @@ func TestContext2Validate_importIntoModuleResource(t *testing.T) {
 
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := testModuleInline(t, tt)
+			m := testhelpers.TestModuleInline(t, tt)
 			diags := ctx.Validate(context.Background(), m)
 			if diags.HasErrors() {
 				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
@@ -2759,7 +2760,7 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 	// In those cases, the execution should run as intended without the configuration block,
 	// one of the purpose being to generate the missing block.
 	// Related to: https://github.com/opentofu/opentofu/issues/3615
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	hook := new(MockHook)
 	ctx := testContext2(t, &ContextOpts{
 		Hooks: []Hook{hook},
@@ -2795,7 +2796,7 @@ func TestContext2Validate_importIntoUnexistingResourceBlock(t *testing.T) {
 		}
 	}
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 			import {
 			  to = test_object.a

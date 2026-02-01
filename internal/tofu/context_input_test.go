@@ -19,10 +19,11 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestContext2Input_provider(t *testing.T) {
-	m := testModule(t, "input-provider")
+	m := testhelpers.TestModule(t, "input-provider")
 
 	providerCfgSchema := configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -42,16 +43,16 @@ func TestContext2Input_provider(t *testing.T) {
 		},
 	}
 	// Create an aws provider with one resource
-	awsp := testProvider("aws")
-	awsp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	awsp := testhelpers.TestProvider("aws")
+	awsp.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &providerCfgSchema,
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": &resourceCfgSchema,
 		},
 	})
 	// Create a cloudflare provider with one data source
-	cfp := testProvider("cloudflare")
-	cfp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	cfp := testhelpers.TestProvider("cloudflare")
+	cfp.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &providerCfgSchema,
 		DataSources: map[string]*configschema.Block{
 			"cloudflare_account": &resourceCfgSchema,
@@ -61,8 +62,8 @@ func TestContext2Input_provider(t *testing.T) {
 		State: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("data content")}),
 	}
 	// Create an azure provider with one ephemeral resource
-	azp := testProvider("azurem")
-	azp.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	azp := testhelpers.TestProvider("azurem")
+	azp.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &providerCfgSchema,
 		EphemeralTypes: map[string]*configschema.Block{
 			"azurerm_key_vault_secret": &resourceCfgSchema,
@@ -122,7 +123,7 @@ func TestContext2Input_provider(t *testing.T) {
 	}
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	if _, diags := ctx.Apply(context.Background(), plan, m, nil); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
@@ -139,9 +140,9 @@ func TestContext2Input_provider(t *testing.T) {
 }
 
 func TestContext2Input_providerMulti(t *testing.T) {
-	m := testModule(t, "input-provider-multi")
+	m := testhelpers.TestModule(t, "input-provider-multi")
 
-	getProviderSchemaResponse := getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	getProviderSchemaResponse := testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"foo": {
@@ -169,7 +170,7 @@ func TestContext2Input_providerMulti(t *testing.T) {
 	// work during apply we need to maintain the same context value, preventing
 	// us from assigning a new Providers map.
 	providerFactory := func() (providers.Interface, error) {
-		p := testProvider("aws")
+		p := testhelpers.TestProvider("aws")
 		p.GetProviderSchemaResponse = getProviderSchemaResponse
 		return p, nil
 	}
@@ -198,10 +199,10 @@ func TestContext2Input_providerMulti(t *testing.T) {
 	}
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	providerFactory = func() (providers.Interface, error) {
-		p := testProvider("aws")
+		p := testhelpers.TestProvider("aws")
 		p.GetProviderSchemaResponse = getProviderSchemaResponse
 		p.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 			lock.Lock()
@@ -223,8 +224,8 @@ func TestContext2Input_providerMulti(t *testing.T) {
 }
 
 func TestContext2Input_providerOnce(t *testing.T) {
-	m := testModule(t, "input-provider-once")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "input-provider-once")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -239,9 +240,9 @@ func TestContext2Input_providerOnce(t *testing.T) {
 func TestContext2Input_providerOnly(t *testing.T) {
 	input := new(MockUIInput)
 
-	m := testModule(t, "input-provider-vars")
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	m := testhelpers.TestModule(t, "input-provider-vars")
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"foo": {
@@ -299,7 +300,7 @@ func TestContext2Input_providerOnly(t *testing.T) {
 			},
 		},
 	})
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	state, err := ctx.Apply(context.Background(), plan, m, nil)
 	if err != nil {
@@ -319,8 +320,8 @@ func TestContext2Input_providerOnly(t *testing.T) {
 
 func TestContext2Input_providerVars(t *testing.T) {
 	input := new(MockUIInput)
-	m := testModule(t, "input-provider-with-vars")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "input-provider-with-vars")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -350,7 +351,7 @@ func TestContext2Input_providerVars(t *testing.T) {
 			},
 		},
 	})
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	if _, diags := ctx.Apply(context.Background(), plan, m, nil); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
@@ -363,8 +364,8 @@ func TestContext2Input_providerVars(t *testing.T) {
 
 func TestContext2Input_providerVarsModuleInherit(t *testing.T) {
 	input := new(MockUIInput)
-	m := testModule(t, "input-provider-with-vars-and-module")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "input-provider-with-vars-and-module")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -380,8 +381,8 @@ func TestContext2Input_providerVarsModuleInherit(t *testing.T) {
 // adding a list interpolation in fails to interpolate the count variable
 func TestContext2Input_submoduleTriggersInvalidCount(t *testing.T) {
 	input := new(MockUIInput)
-	m := testModule(t, "input-submodule-count")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "input-submodule-count")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -398,10 +399,10 @@ func TestContext2Input_submoduleTriggersInvalidCount(t *testing.T) {
 // it's refreshed, but it can't be refreshed during Input.
 func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 	input := new(MockUIInput)
-	p := testProvider("null")
-	m := testModule(t, "input-module-data-vars")
+	p := testhelpers.TestProvider("null")
+	m := testhelpers.TestModule(t, "input-module-data-vars")
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		DataSources: map[string]*configschema.Block{
 			"null_data_source": {
 				Attributes: map[string]*configschema.Attribute{

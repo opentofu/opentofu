@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -88,7 +89,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 			"test_string": cty.UnknownVal(cty.String),
 		}),
 	}
-	provider := mockProviderWithConfigSchema(simpleTestSchema())
+	provider := mockProviderWithConfigSchema(testhelpers.SimpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
@@ -123,7 +124,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 			"test_string": cty.UnknownVal(cty.String),
 		}),
 	}
-	provider := mockProviderWithConfigSchema(simpleTestSchema())
+	provider := mockProviderWithConfigSchema(testhelpers.SimpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
@@ -159,7 +160,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 			"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
 		}),
 	}
-	provider := mockProviderWithConfigSchema(simpleTestSchema())
+	provider := mockProviderWithConfigSchema(testhelpers.SimpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
@@ -196,7 +197,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 			"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
 		}),
 	}
-	provider := mockProviderWithConfigSchema(simpleTestSchema())
+	provider := mockProviderWithConfigSchema(testhelpers.SimpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
@@ -282,7 +283,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -303,7 +304,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -317,7 +318,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 	t.Run("empty config", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -364,7 +365,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -378,7 +379,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -398,7 +399,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -453,7 +454,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -467,7 +468,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -487,7 +488,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -503,13 +504,13 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 }
 
 func TestGetSchemaError(t *testing.T) {
-	provider := &MockProvider{
+	provider := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Diagnostics: tfdiags.Diagnostics.Append(nil, tfdiags.WholeContainingBody(tfdiags.Error, "oops", "error")),
 		},
 	}
 
-	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
+	providerAddr := testhelpers.MustProviderConfig(`provider["terraform.io/some/provider"]`)
 	evalCtx := &MockEvalContext{ProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	node := NodeApplyableProvider{

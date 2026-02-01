@@ -9,12 +9,13 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
@@ -186,21 +187,21 @@ type readResourceInstanceStateTest struct {
 	State              *states.State
 	Node               *NodeAbstractResourceInstance
 	MoveResults        refactoring.MoveResults
-	Provider           *MockProvider
+	Provider           *testhelpers.MockProvider
 	ExpectedInstanceId string
 	WantErrorStr       string
 }
 
-func getMockProviderForReadResourceInstanceState() *MockProvider {
-	return &MockProvider{
+func getMockProviderForReadResourceInstanceState() *testhelpers.MockProvider {
+	return &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"aws_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"aws_instance": testhelpers.ConstructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
 						Type: cty.String,
 					},
 				}),
-				"aws_instance0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+				"aws_instance0": testhelpers.ConstructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
 						Type: cty.String,
 					},
@@ -239,10 +240,10 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State:    states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
-				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -251,18 +252,18 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			Provider: mockProvider,
 			MoveResults: refactoring.MoveResults{
 				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
-					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
-						From: mustResourceInstanceAddr("aws_instance0.baz"),
-						To:   mustResourceInstanceAddr("aws_instance.bar"),
+					addrs.MakeMapElem(testhelpers.MustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: testhelpers.MustResourceInstanceAddr("aws_instance0.baz"),
+						To:   testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 					})),
 			},
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
-				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -271,18 +272,18 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			Provider: mockProviderWithStateChange,
 			MoveResults: refactoring.MoveResults{
 				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
-					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
-						From: mustResourceInstanceAddr("aws_instance0.baz"),
-						To:   mustResourceInstanceAddr("aws_instance.bar"),
+					addrs.MakeMapElem(testhelpers.MustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: testhelpers.MustResourceInstanceAddr("aws_instance0.baz"),
+						To:   testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 					})),
 			},
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
-				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 			},
 			// The state change should have been applied
 			ExpectedInstanceId: "i-abc1234",
@@ -292,17 +293,17 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			Provider: mockProviderWithMoveUnsupported,
 			MoveResults: refactoring.MoveResults{
 				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
-					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
-						From: mustResourceInstanceAddr("aws_instance0.baz"),
+					addrs.MakeMapElem(testhelpers.MustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: testhelpers.MustResourceInstanceAddr("aws_instance0.baz"),
 					}),
 				),
 			},
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
-				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.bar"),
 			},
 			WantErrorStr: "move not supported",
 		},

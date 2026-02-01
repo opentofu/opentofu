@@ -11,36 +11,37 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestOrphanResourceCountTransformer(t *testing.T) {
 	state := states.NewState()
 	root := state.RootModule()
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.web").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.web").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -52,7 +53,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			Addr: addrs.RootModuleInstance.Resource(
 				addrs.ManagedResourceMode, "aws_instance", "foo",
 			),
-			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
+			InstanceAddrs: []addrs.AbsResourceInstance{testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
 		if err := tf.Transform(t.Context(), &g); err != nil {
@@ -71,30 +72,30 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 	state := states.NewState()
 	root := state.RootModule()
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.web").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.web").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -125,30 +126,30 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 	state := states.NewState()
 	root := state.RootModule()
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.web").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.web").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[1]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -160,7 +161,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			Addr: addrs.RootModuleInstance.Resource(
 				addrs.ManagedResourceMode, "aws_instance", "foo",
 			),
-			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
+			InstanceAddrs: []addrs.AbsResourceInstance{testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
 		if err := tf.Transform(t.Context(), &g); err != nil {
@@ -179,40 +180,40 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 	state := states.NewState()
 	root := state.RootModule()
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.web").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.web").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[1]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
-		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		states.NewDeposedKey(),
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -224,7 +225,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			Addr: addrs.RootModuleInstance.Resource(
 				addrs.ManagedResourceMode, "aws_instance", "foo",
 			),
-			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
+			InstanceAddrs: []addrs.AbsResourceInstance{testhelpers.MustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
 		if err := tf.Transform(t.Context(), &g); err != nil {
@@ -258,7 +259,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			addrs.NoKey,
 		)
 
@@ -275,7 +276,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			addrs.NoKey,
 		)
 	})

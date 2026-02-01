@@ -11,11 +11,12 @@ import (
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestProviderForTest_ReadResource(t *testing.T) {
-	mockProvider := &MockProvider{}
+	mockProvider := &testhelpers.MockProvider{}
 
 	provider, err := newProviderForTestWithSchema(mockProvider, mockProvider.GetProviderSchema(t.Context()), nil)
 	if err != nil {

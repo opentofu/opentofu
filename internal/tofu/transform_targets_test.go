@@ -10,10 +10,11 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestTargetsTransformer(t *testing.T) {
-	mod := testModule(t, "transform-targets-basic")
+	mod := testhelpers.TestModule(t, "transform-targets-basic")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
@@ -64,7 +65,7 @@ aws_vpc.me
 }
 
 func TestTargetsTransformerExclude(t *testing.T) {
-	mod := testModule(t, "transform-targets-basic")
+	mod := testhelpers.TestModule(t, "transform-targets-basic")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
@@ -122,7 +123,7 @@ aws_vpc.me
 }
 
 func TestTargetsTransformer_downstream(t *testing.T) {
-	mod := testModule(t, "transform-targets-downstream")
+	mod := testhelpers.TestModule(t, "transform-targets-downstream")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
@@ -194,7 +195,7 @@ output.grandchild_id (expand)
 }
 
 func TestTargetsTransformer_downstreamExclude(t *testing.T) {
-	mod := testModule(t, "transform-targets-downstream")
+	mod := testhelpers.TestModule(t, "transform-targets-downstream")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
@@ -266,7 +267,7 @@ output.grandchild_id (expand)
 // This tests the TargetingTransformer targeting a whole module,
 // rather than a resource within a module instance.
 func TestTargetsTransformer_wholeModule(t *testing.T) {
-	mod := testModule(t, "transform-targets-downstream")
+	mod := testhelpers.TestModule(t, "transform-targets-downstream")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{

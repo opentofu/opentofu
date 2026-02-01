@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -165,13 +166,13 @@ func TestStripRemovedStateAttributes(t *testing.T) {
 func getMoveStateArgs() stateTransformArgs {
 	providerSchemaResponse := &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
-			"foo_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+			"foo_instance": testhelpers.ConstructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"foo": {
 					Type:     cty.String,
 					Required: true,
 				},
 			}),
-			"foo2_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
+			"foo2_instance": testhelpers.ConstructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"foo": {
 					Type:     cty.String,
 					Required: true,
@@ -180,9 +181,9 @@ func getMoveStateArgs() stateTransformArgs {
 		},
 	}
 	return stateTransformArgs{
-		currentAddr: mustResourceInstanceAddr("foo2_instance.cur"),
-		prevAddr:    mustResourceInstanceAddr("foo_instance.prev"),
-		provider: &MockProvider{
+		currentAddr: testhelpers.MustResourceInstanceAddr("foo2_instance.cur"),
+		prevAddr:    testhelpers.MustResourceInstanceAddr("foo_instance.prev"),
+		provider: &testhelpers.MockProvider{
 			ConfigureProviderCalled: true,
 			MoveResourceStateResponse: &providers.MoveResourceStateResponse{
 				TargetState: cty.ObjectVal(map[string]cty.Value{
@@ -242,7 +243,7 @@ func TestMoveResourceStateTransform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotState, gotPrivate, diags := moveResourceStateTransform(tt.args)
 			if tt.wantRequest != nil {
-				mockProvider, ok := tt.args.provider.(*MockProvider)
+				mockProvider, ok := tt.args.provider.(*testhelpers.MockProvider)
 				if !ok {
 					t.Fatalf("unexpected provider type: %T", tt.args.provider)
 				}
@@ -279,9 +280,9 @@ func getUpgradeStateArgs() stateTransformArgs {
 		},
 	}
 	args := stateTransformArgs{
-		currentAddr: mustResourceInstanceAddr("foo_instance.cur"),
-		prevAddr:    mustResourceInstanceAddr("foo_instance.cur"),
-		provider: &MockProvider{
+		currentAddr: testhelpers.MustResourceInstanceAddr("foo_instance.cur"),
+		prevAddr:    testhelpers.MustResourceInstanceAddr("foo_instance.cur"),
+		provider: &testhelpers.MockProvider{
 			ConfigureProviderCalled: true,
 			UpgradeResourceStateResponse: &providers.UpgradeResourceStateResponse{
 				UpgradedState: cty.ObjectVal(map[string]cty.Value{
@@ -289,7 +290,7 @@ func getUpgradeStateArgs() stateTransformArgs {
 					"field2": cty.True,
 				}),
 			},
-			GetProviderSchemaResponse: getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+			GetProviderSchemaResponse: testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 				ResourceTypes: map[string]*configschema.Block{
 					"foo_instance": sch,
 				},
@@ -362,7 +363,7 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 				return
 			}
 			if tt.wantRequest != nil {
-				mockProvider, ok := tt.args.provider.(*MockProvider)
+				mockProvider, ok := tt.args.provider.(*testhelpers.MockProvider)
 				if !ok {
 					t.Fatalf("unexpected provider type: %T", tt.args.provider)
 				}
@@ -385,7 +386,7 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 }
 
 func getDataResourceModeInstance() addrs.AbsResourceInstance {
-	addr := mustResourceInstanceAddr("foo_instance.cur")
+	addr := testhelpers.MustResourceInstanceAddr("foo_instance.cur")
 	addr.Resource.Resource.Mode = addrs.DataResourceMode
 	return addr
 }
@@ -403,9 +404,9 @@ func TestTransformResourceState(t *testing.T) {
 		{
 			name: "flatmap state should be removed after transformation",
 			args: stateTransformArgs{
-				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-				provider: &MockProvider{
-					GetProviderSchemaResponse: testProviderSchema("test"),
+				currentAddr: testhelpers.MustResourceInstanceAddr("test_instance.foo"),
+				provider: &testhelpers.MockProvider{
+					GetProviderSchemaResponse: testhelpers.TestProviderSchema("test"),
 				},
 				objectSrc: &states.ResourceInstanceObjectSrc{
 					AttrsFlat: map[string]string{"foo": "bar"},
@@ -432,9 +433,9 @@ func TestTransformResourceState(t *testing.T) {
 		{
 			name: "state must conform to schema",
 			args: stateTransformArgs{
-				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-				provider: &MockProvider{
-					GetProviderSchemaResponse: testProviderSchema("test"),
+				currentAddr: testhelpers.MustResourceInstanceAddr("test_instance.foo"),
+				provider: &testhelpers.MockProvider{
+					GetProviderSchemaResponse: testhelpers.TestProviderSchema("test"),
 				},
 				objectSrc: &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{"foo":"bar"}`),
@@ -475,9 +476,9 @@ func TestTransformResourceState(t *testing.T) {
 		{
 			name: "private state should be updated",
 			args: stateTransformArgs{
-				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-				provider: &MockProvider{
-					GetProviderSchemaResponse: testProviderSchema("test"),
+				currentAddr: testhelpers.MustResourceInstanceAddr("test_instance.foo"),
+				provider: &testhelpers.MockProvider{
+					GetProviderSchemaResponse: testhelpers.TestProviderSchema("test"),
 				},
 				objectSrc: &states.ResourceInstanceObjectSrc{
 					AttrsJSON: []byte(`{"foo":"bar"}`),

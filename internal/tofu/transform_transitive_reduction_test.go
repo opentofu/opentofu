@@ -12,11 +12,12 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestTransitiveReductionTransformer(t *testing.T) {
-	mod := testModule(t, "transform-trans-reduce-basic")
+	mod := testhelpers.TestModule(t, "transform-trans-reduce-basic")
 
 	g := Graph{Path: addrs.RootModuleInstance}
 	{

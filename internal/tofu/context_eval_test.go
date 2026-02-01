@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -52,8 +53,8 @@ func TestContextEval(t *testing.T) {
 
 	// This module has a little bit of everything (and if it is missing something, add to it):
 	// resources, variables, locals, modules, output
-	m := testModule(t, "eval-context-basic")
-	p := testProvider("test")
+	m := testhelpers.TestModule(t, "eval-context-basic")
+	p := testhelpers.TestProvider("test")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -94,7 +95,7 @@ func TestContextEval(t *testing.T) {
 
 // ensure that we can execute a console when outputs have preconditions
 func TestContextEval_outputsWithPreconditions(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "mod" {
   source = "./mod"
@@ -122,7 +123,7 @@ output "out" {
 `,
 	})
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
@@ -132,5 +133,5 @@ output "out" {
 	_, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 }

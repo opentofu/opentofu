@@ -20,13 +20,14 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	mp := &MockProvisioner{}
+	mp := &testhelpers.MockProvisioner{}
 	ps := &configschema.Block{}
 	ctx.ProvisionerSchemaSchema = ps
 	ctx.ProvisionerProvisioner = mp
@@ -52,7 +53,7 @@ func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:   mustConfigResourceAddr("test_foo.bar"),
+			Addr:   testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config: rc,
 		},
 	}
@@ -69,7 +70,7 @@ func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	mp := &MockProvisioner{}
+	mp := &testhelpers.MockProvisioner{}
 	ps := &configschema.Block{}
 	ctx.ProvisionerSchemaSchema = ps
 	ctx.ProvisionerProvisioner = mp
@@ -89,7 +90,7 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:   mustConfigResourceAddr("test_foo.bar"),
+			Addr:   testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config: rc,
 		},
 	}
@@ -115,7 +116,7 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	mp := &MockProvisioner{}
+	mp := &testhelpers.MockProvisioner{}
 	ps := &configschema.Block{}
 	ctx.ProvisionerSchemaSchema = ps
 	ctx.ProvisionerProvisioner = mp
@@ -142,7 +143,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:   mustConfigResourceAddr("test_foo.bar"),
+			Addr:   testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config: rc,
 		},
 	}
@@ -162,7 +163,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 }
 
 func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		if got, want := req.TypeName, "test_object"; got != want {
 			t.Fatalf("wrong resource type\ngot:  %#v\nwant: %#v", got, want)
@@ -188,9 +189,9 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -211,7 +212,7 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 
 func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testing.T) {
 	// Setup
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		if got, want := req.TypeName, "test_object"; got != want {
 			t.Fatalf("wrong resource type\ngot:  %#v\nwant: %#v", got, want)
@@ -256,9 +257,9 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 			}
 			node := NodeValidatableResource{
 				NodeAbstractResource: &NodeAbstractResource{
-					Addr:             mustConfigResourceAddr("test_foo.bar"),
+					Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 					Config:           rc,
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 			}
 
@@ -275,7 +276,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 }
 
 func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 
 	p := providers.Interface(mp)
 	rc := &configs.Resource{
@@ -290,9 +291,9 @@ func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T
 
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("ephemeral.test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("ephemeral.test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -353,7 +354,7 @@ func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T
 }
 
 func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateDataResourceConfigFn = func(req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
 		if got, want := req.TypeName, "test_object"; got != want {
 			t.Fatalf("wrong resource type\ngot:  %#v\nwant: %#v", got, want)
@@ -380,9 +381,9 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -402,7 +403,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 }
 
 func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
@@ -416,9 +417,9 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_object.foo"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_object.foo"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -434,7 +435,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 }
 
 func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.SimpleWarning("warn"))
@@ -453,9 +454,9 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -482,7 +483,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 }
 
 func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
@@ -515,9 +516,9 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -574,7 +575,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 }
 
 func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexistent(t *testing.T) {
-	mp := simpleMockProvider()
+	mp := testhelpers.SimpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
@@ -599,9 +600,9 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -649,7 +650,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		},
 	}
 
-	mp := &MockProvider{
+	mp := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: ms},
 			ResourceTypes: map[string]providers.Schema{
@@ -682,9 +683,9 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 	}
 	node := NodeValidatableResource{
 		NodeAbstractResource: &NodeAbstractResource{
-			Addr:             mustConfigResourceAddr("test_foo.bar"),
+			Addr:             testhelpers.MustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -736,7 +737,7 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 		},
 	}
 
-	mp := &MockProvider{
+	mp := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: ms},
 			ResourceTypes: map[string]providers.Schema{
@@ -810,9 +811,9 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 			}
 			node := NodeValidatableResource{
 				NodeAbstractResource: &NodeAbstractResource{
-					Addr:             mustConfigResourceAddr(fmt.Sprintf("%s%s.bar", prefix, tt.rtype)),
+					Addr:             testhelpers.MustConfigResourceAddr(fmt.Sprintf("%s%s.bar", prefix, tt.rtype)),
 					Config:           rc,
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderConfig: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 			}
 

@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestCheckInputVariables(t *testing.T) {
-	c := testModule(t, "input-variables")
+	c := testhelpers.TestModule(t, "input-variables")
 
 	t.Run("No variables set", func(t *testing.T) {
 		// No variables set

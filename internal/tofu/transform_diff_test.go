@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/refactoring"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -96,7 +97,7 @@ func TestDiffTransformer_noOpChange(t *testing.T) {
 	// aws_instance.foo has a precondition, so should be included in the final
 	// graph. aws_instance.bar has no conditions, so there is nothing to
 	// execute during apply and it should not be included in the graph.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "bar" {
 }
@@ -180,7 +181,7 @@ aws_instance.foo
 
 func TestTransformRemovedProvisioners(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
-	module := testModule(t, "transform-diff-creates-destroy-node")
+	module := testhelpers.TestModule(t, "transform-diff-creates-destroy-node")
 
 	err := (&ConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
@@ -188,7 +189,7 @@ func TestTransformRemovedProvisioners(t *testing.T) {
 	}
 
 	// instead of creating nodes manually in the graph, just use the DiffTransformer for doing it
-	resAddr := mustResourceInstanceAddr("module.child.tfcoremock_simple_resource.example")
+	resAddr := testhelpers.MustResourceInstanceAddr("module.child.tfcoremock_simple_resource.example")
 	err = (&DiffTransformer{
 		Config: module,
 		Changes: &plans.Changes{

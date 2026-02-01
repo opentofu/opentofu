@@ -14,10 +14,11 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func cbdTestGraph(t *testing.T, mod string, changes *plans.Changes, state *states.State) *Graph {
-	module := testModule(t, mod)
+	module := testhelpers.TestModule(t, mod)
 
 	applyBuilder := &ApplyGraphBuilder{
 		Config:  module,
@@ -82,13 +83,13 @@ func TestCBDEdgeTransformer(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -99,22 +100,22 @@ func TestCBDEdgeTransformer(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -139,19 +140,19 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.C"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.C"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -162,34 +163,34 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.C").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.C").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"C","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{
-				mustConfigResourceAddr("test_object.A"),
-				mustConfigResourceAddr("test_object.B"),
+				testhelpers.MustConfigResourceAddr("test_object.A"),
+				testhelpers.MustConfigResourceAddr("test_object.B"),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -218,19 +219,19 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B[0]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B[0]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B[1]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B[1]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -241,32 +242,32 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B[1]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B[1]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -292,25 +293,25 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A[0]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A[0]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.A[1]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A[1]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B[0]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B[0]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B[1]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B[1]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -321,41 +322,41 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A[1]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A[1]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B[0]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B[0]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B[1]").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B[1]").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 

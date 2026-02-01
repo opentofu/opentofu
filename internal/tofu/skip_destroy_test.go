@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 type skipStateInstance struct {
@@ -65,17 +66,17 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 
 		if inst.deposedKey != "" {
 			root.SetResourceInstanceDeposed(
-				mustResourceInstanceAddr(inst.addr).Resource,
+				testhelpers.MustResourceInstanceAddr(inst.addr).Resource,
 				states.DeposedKey(inst.deposedKey),
 				obj,
-				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				instanceKey,
 			)
 		} else {
 			root.SetResourceInstanceCurrent(
-				mustResourceInstanceAddr(inst.addr).Resource,
+				testhelpers.MustResourceInstanceAddr(inst.addr).Resource,
 				obj,
-				mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				instanceKey,
 			)
 		}
@@ -84,9 +85,9 @@ func setupSkipTestState(t *testing.T, instances []skipStateInstance) *states.Sta
 	return state
 }
 
-func setupSkipTestDefaultContext(t *testing.T) (*Context, *MockProvider) {
+func setupSkipTestDefaultContext(t *testing.T) (*Context, *testhelpers.MockProvider) {
 	t.Helper()
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
 
 	ctx := testContext2(t, &ContextOpts{
@@ -101,7 +102,7 @@ func setupSkipTestDefaultContext(t *testing.T) (*Context, *MockProvider) {
 func runSkipDestroyTestCase(t *testing.T, tc skipDestroyTestCase) {
 	t.Helper()
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": tc.config,
 	})
 	ctx, _ := setupSkipTestDefaultContext(t)
@@ -1412,7 +1413,7 @@ func TestSkipDestroy_RemovedBlock_DeposedInstance(t *testing.T) {
 // Another apply with destroy=true and verify that the attribute is removed from state
 func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 	// Apply with destroy=false
-	m := testModule(t, "skip-destroy")
+	m := testhelpers.TestModule(t, "skip-destroy")
 	ctx, _ := setupSkipTestDefaultContext(t)
 	state := states.NewState()
 
@@ -1425,7 +1426,7 @@ func TestSkipDestroy_ConfigChange_UpdatesState(t *testing.T) {
 
 	// Change config to destroy=true (using "simple" module which has default destroy=true)
 	// and apply. This should remove the attribute.
-	m2 := testModule(t, "simple")
+	m2 := testhelpers.TestModule(t, "simple")
 	plan2, diags := ctx.Plan(t.Context(), m2, appliedState, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())

@@ -22,21 +22,22 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestContext2Refresh(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.web").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.web").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo","foo":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -83,7 +84,7 @@ func TestContext2Refresh(t *testing.T) {
 }
 
 func TestContext2Refresh_dynamicAttr(t *testing.T) {
-	m := testModule(t, "refresh-dynamic")
+	m := testhelpers.TestModule(t, "refresh-dynamic")
 
 	startingState := states.BuildState(func(ss *states.SyncState) {
 		ss.SetResourceInstanceCurrent(
@@ -108,8 +109,8 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 		"dynamic": cty.EmptyTupleVal,
 	})
 
-	p := testProvider("test")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("test")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_instance": {
 				Attributes: map[string]*configschema.Attribute{
@@ -158,8 +159,8 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 }
 
 func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-data-module-var")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-data-module-var")
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		obj := req.ProposedNewState.AsValueMap()
 		obj["id"] = cty.UnknownVal(cty.String)
@@ -171,7 +172,7 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 		return resp
 	}
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -214,14 +215,14 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}
 
-	checkStateString(t, plan.PriorState, `
+	testhelpers.CheckStateString(t, plan.PriorState, `
 <no state>
 `)
 }
 
 func TestContext2Refresh_targeted(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -266,7 +267,7 @@ func TestContext2Refresh_targeted(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted")
+	m := testhelpers.TestModule(t, "refresh-targeted")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -305,8 +306,8 @@ func TestContext2Refresh_targeted(t *testing.T) {
 // Usually that test exists right before the exclude flag test
 
 func TestContext2Refresh_excluded(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -353,7 +354,7 @@ func TestContext2Refresh_excluded(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted")
+	m := testhelpers.TestModule(t, "refresh-targeted")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -389,8 +390,8 @@ func TestContext2Refresh_excluded(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCount(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -437,7 +438,7 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted-count")
+	m := testhelpers.TestModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -479,8 +480,8 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCount(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -530,7 +531,7 @@ func TestContext2Refresh_excludedCount(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted-count")
+	m := testhelpers.TestModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -570,8 +571,8 @@ func TestContext2Refresh_excludedCount(t *testing.T) {
 }
 
 func TestContext2Refresh_targetedCountIndex(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -618,7 +619,7 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted-count")
+	m := testhelpers.TestModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -654,8 +655,8 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 }
 
 func TestContext2Refresh_excludedCountIndex(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_elb": {
@@ -705,7 +706,7 @@ func TestContext2Refresh_excludedCountIndex(t *testing.T) {
 	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
 
-	m := testModule(t, "refresh-targeted-count")
+	m := testhelpers.TestModule(t, "refresh-targeted-count")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -741,8 +742,8 @@ func TestContext2Refresh_excludedCountIndex(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleComputedVar(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -760,7 +761,7 @@ func TestContext2Refresh_moduleComputedVar(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "refresh-module-computed-var")
+	m := testhelpers.TestModule(t, "refresh-module-computed-var")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -775,8 +776,8 @@ func TestContext2Refresh_moduleComputedVar(t *testing.T) {
 }
 
 func TestContext2Refresh_delete(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -804,8 +805,8 @@ func TestContext2Refresh_delete(t *testing.T) {
 }
 
 func TestContext2Refresh_ignoreUncreated(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -829,8 +830,8 @@ func TestContext2Refresh_ignoreUncreated(t *testing.T) {
 
 func TestContext2Refresh_hook(t *testing.T) {
 	h := new(MockHook)
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -855,8 +856,8 @@ func TestContext2Refresh_hook(t *testing.T) {
 }
 
 func TestContext2Refresh_modules(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-modules")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-modules")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -901,9 +902,9 @@ func TestContext2Refresh_modules(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
-	m := testModule(t, "refresh-module-input-computed-output")
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	m := testhelpers.TestModule(t, "refresh-module-input-computed-output")
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -934,8 +935,8 @@ func TestContext2Refresh_moduleInputComputedOutput(t *testing.T) {
 }
 
 func TestContext2Refresh_moduleVarModule(t *testing.T) {
-	m := testModule(t, "refresh-module-var-module")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-module-var-module")
+	p := testhelpers.TestProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -949,8 +950,8 @@ func TestContext2Refresh_moduleVarModule(t *testing.T) {
 
 // GH-70
 func TestContext2Refresh_noState(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-no-state")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-no-state")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -969,9 +970,9 @@ func TestContext2Refresh_noState(t *testing.T) {
 }
 
 func TestContext2Refresh_output(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -990,7 +991,7 @@ func TestContext2Refresh_output(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "refresh-output")
+	m := testhelpers.TestModule(t, "refresh-output")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -1016,14 +1017,14 @@ func TestContext2Refresh_output(t *testing.T) {
 }
 
 func TestContext2Refresh_outputPartial(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-output-partial")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-output-partial")
 
 	// Refresh creates a partial plan for any instances that don't have
 	// remote objects yet, to get stub values for interpolation. Therefore
 	// we need to make DiffFn available to let that complete.
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -1064,8 +1065,8 @@ func TestContext2Refresh_outputPartial(t *testing.T) {
 }
 
 func TestContext2Refresh_stateBasic(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -1112,8 +1113,8 @@ func TestContext2Refresh_stateBasic(t *testing.T) {
 }
 
 func TestContext2Refresh_dataCount(t *testing.T) {
-	p := testProvider("test")
-	m := testModule(t, "refresh-data-count")
+	p := testhelpers.TestProvider("test")
+	m := testhelpers.TestModule(t, "refresh-data-count")
 
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		m := req.ProposedNewState.AsValueMap()
@@ -1121,7 +1122,7 @@ func TestContext2Refresh_dataCount(t *testing.T) {
 		resp.PlannedState = cty.ObjectVal(m)
 		return resp
 	}
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1153,11 +1154,11 @@ func TestContext2Refresh_dataCount(t *testing.T) {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}
 
-	checkStateString(t, s, `<no state>`)
+	testhelpers.CheckStateString(t, s, `<no state>`)
 }
 
 func TestContext2Refresh_dataState(t *testing.T) {
-	m := testModule(t, "refresh-data-resource-basic")
+	m := testhelpers.TestModule(t, "refresh-data-resource-basic")
 	state := states.NewState()
 	schema := &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -1168,8 +1169,8 @@ func TestContext2Refresh_dataState(t *testing.T) {
 		},
 	}
 
-	p := testProvider("null")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("null")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		DataSources: map[string]*configschema.Block{
 			"null_data_source": schema,
@@ -1215,8 +1216,8 @@ func TestContext2Refresh_dataState(t *testing.T) {
 }
 
 func TestContext2Refresh_dataStateRefData(t *testing.T) {
-	p := testProvider("null")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("null")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		DataSources: map[string]*configschema.Block{
 			"null_data_source": {
@@ -1238,7 +1239,7 @@ func TestContext2Refresh_dataStateRefData(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "refresh-data-ref-data")
+	m := testhelpers.TestModule(t, "refresh-data-ref-data")
 	state := states.NewState()
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1269,8 +1270,8 @@ func TestContext2Refresh_dataStateRefData(t *testing.T) {
 }
 
 func TestContext2Refresh_tainted(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-basic")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-basic")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -1311,7 +1312,7 @@ func TestContext2Refresh_tainted(t *testing.T) {
 // an error. The key bug this found was that this wasn't happening if
 // Providers was _empty_.
 func TestContext2Refresh_unknownProvider(t *testing.T) {
-	m := testModule(t, "refresh-unknown-provider")
+	m := testhelpers.TestModule(t, "refresh-unknown-provider")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -1320,7 +1321,7 @@ func TestContext2Refresh_unknownProvider(t *testing.T) {
 	c, diags := NewContext(&ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{},
 	})
-	assertNoDiagnostics(t, diags)
+	testhelpers.AssertNoDiagnostics(t, diags)
 
 	_, diags = c.Refresh(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.NormalMode})
 	if !diags.HasErrors() {
@@ -1333,7 +1334,7 @@ func TestContext2Refresh_unknownProvider(t *testing.T) {
 }
 
 func TestContext2Refresh_vars(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	schema := &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -1348,12 +1349,12 @@ func TestContext2Refresh_vars(t *testing.T) {
 		},
 	}
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider:      &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{"aws_instance": schema},
 	})
 
-	m := testModule(t, "refresh-vars")
+	m := testhelpers.TestModule(t, "refresh-vars")
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
@@ -1409,8 +1410,8 @@ func TestContext2Refresh_vars(t *testing.T) {
 }
 
 func TestContext2Refresh_orphanModule(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "refresh-module-orphan")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "refresh-module-orphan")
 
 	// Create a custom refresh function to track the order they were visited
 	var order []string
@@ -1428,7 +1429,7 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.foo").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.foo").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
@@ -1437,18 +1438,18 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 				{Module: addrs.Module{"module.child"}},
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		testhelpers.MustResourceInstanceAddr("aws_instance.bar").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"i-bcd23"}`),
 			Dependencies: []addrs.ConfigResource{{Module: addrs.Module{"module.grandchild"}}},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	grandchild := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey).Child("grandchild", addrs.NoKey))
@@ -1475,8 +1476,8 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 }
 
 func TestContext2Validate(t *testing.T) {
-	p := testProvider("aws")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p := testhelpers.TestProvider("aws")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"aws_instance": {
@@ -1494,7 +1495,7 @@ func TestContext2Validate(t *testing.T) {
 		},
 	})
 
-	m := testModule(t, "validate-good")
+	m := testhelpers.TestModule(t, "validate-good")
 	c := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -1508,8 +1509,8 @@ func TestContext2Validate(t *testing.T) {
 }
 
 func TestContext2Refresh_updateProviderInState(t *testing.T) {
-	m := testModule(t, "update-resource-provider")
-	p := testProvider("aws")
+	m := testhelpers.TestModule(t, "update-resource-provider")
+	p := testhelpers.TestProvider("aws")
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -1538,9 +1539,9 @@ aws_instance.bar:
 }
 
 func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
-	m := testModule(t, "refresh-schema-upgrade")
-	p := testProvider("test")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	m := testhelpers.TestModule(t, "refresh-schema-upgrade")
+	p := testhelpers.TestProvider("test")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_thing": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1623,9 +1624,9 @@ test_thing.bar:
 }
 
 func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
-	m := testModule(t, "refresh-schema-upgrade")
-	p := testProvider("test")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	m := testhelpers.TestModule(t, "refresh-schema-upgrade")
+	p := testhelpers.TestProvider("test")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_thing": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1704,7 +1705,7 @@ test_thing.bar:
 }
 
 func TestContext2Refresh_dataValidation(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 data "aws_data_source" "foo" {
   foo = "bar"
@@ -1712,7 +1713,7 @@ data "aws_data_source" "foo" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 		resp.PlannedState = req.ProposedNewState
 		return
@@ -1741,9 +1742,9 @@ data "aws_data_source" "foo" {
 }
 
 func TestContext2Refresh_dataResourceDependsOn(t *testing.T) {
-	m := testModule(t, "plan-data-depends-on")
-	p := testProvider("test")
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	m := testhelpers.TestModule(t, "plan-data-depends-on")
+	p := testhelpers.TestProvider("test")
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_resource": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1803,7 +1804,7 @@ func TestRefresh_updateLifecycle(t *testing.T) {
 		addrs.NoKey,
 	)
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "aws_instance" "bar" {
   lifecycle {
@@ -1813,7 +1814,7 @@ resource "aws_instance" "bar" {
 `,
 	})
 
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1826,14 +1827,14 @@ resource "aws_instance" "bar" {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
 
-	r := state.ResourceInstance(mustResourceInstanceAddr("aws_instance.bar"))
+	r := state.ResourceInstance(testhelpers.MustResourceInstanceAddr("aws_instance.bar"))
 	if !r.Current.CreateBeforeDestroy {
 		t.Fatal("create_before_destroy not updated in instance state")
 	}
 }
 
 func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": ``,
 	})
 
@@ -1856,7 +1857,7 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 		},
 		addrs.NoKey,
 	)
-	p := testProvider("test")
+	p := testhelpers.TestProvider("test")
 	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 		resp.State = cty.NullVal(req.Config.Type())
 		return
@@ -1886,14 +1887,14 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 // the diff output and unexpected behavior with ignore_changes. Make sure
 // refresh fixes these up before storing the state.
 func TestContext2Refresh_reifyNullBlock(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_resource" "foo" {
 }
 `,
 	})
 
-	p := new(MockProvider)
+	p := new(testhelpers.MockProvider)
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
 		// incorrectly return a null _set_block value
 		v := req.PriorState.AsValueMap()
@@ -1901,7 +1902,7 @@ resource "test_resource" "foo" {
 		return providers.ReadResourceResponse{NewState: cty.ObjectVal(v)}
 	}
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{},
 		ResourceTypes: map[string]*configschema.Block{
 			"test_resource": {

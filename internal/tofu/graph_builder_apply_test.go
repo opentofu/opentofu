@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestApplyGraphBuilder_impl(t *testing.T) {
@@ -27,25 +28,25 @@ func TestApplyGraphBuilder(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.create"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.create"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Create,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.other"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.other"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.child.test_object.create"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child.test_object.create"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Create,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.child.test_object.other"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child.test_object.other"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Create,
 				},
@@ -54,7 +55,7 @@ func TestApplyGraphBuilder(t *testing.T) {
 	}
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-basic"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-basic"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 	}
@@ -81,13 +82,13 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -98,27 +99,27 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-dep-cbd"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-dep-cbd"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -176,13 +177,13 @@ func TestApplyGraphBuilder_doubleCBD(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.CreateThenDelete,
 				},
@@ -191,7 +192,7 @@ func TestApplyGraphBuilder_doubleCBD(t *testing.T) {
 	}
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-double-cbd"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-double-cbd"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 	}
@@ -248,13 +249,13 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("module.child.test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child.test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.child.test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child.test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
@@ -266,27 +267,27 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"bar"}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.A")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("module.child.test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "empty"),
+		Config:  testhelpers.TestModule(t, "empty"),
 		Changes: changes,
 		State:   state,
 		Plugins: simpleMockPluginLibrary(),
@@ -312,13 +313,13 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A[1]"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A[1]"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.B"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.B"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -328,29 +329,29 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 
 	state := states.NewState()
 	root := state.RootModule()
-	addrA := mustResourceInstanceAddr("test_object.A[1]")
+	addrA := testhelpers.MustResourceInstanceAddr("test_object.A[1]")
 	root.SetResourceInstanceCurrent(
 		addrA.Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.B").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"B"}`),
 			Dependencies: []addrs.ConfigResource{addrA.ContainingResource().Config()},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-count"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-count"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -376,13 +377,13 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("module.A.test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.A.test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.B.test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.B.test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
@@ -393,28 +394,28 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 	state := states.NewState()
 	modA := state.EnsureModule(addrs.RootModuleInstance.Child("A", addrs.NoKey))
 	modA.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.foo").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.foo").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	modB := state.EnsureModule(addrs.RootModuleInstance.Child("B", addrs.NoKey))
 	modB.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.foo").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.foo").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:       states.ObjectReady,
 			AttrsJSON:    []byte(`{"id":"foo","value":"foo"}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.A.test_object.foo")},
+			Dependencies: []addrs.ConfigResource{testhelpers.MustConfigResourceAddr("module.A.test_object.foo")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-module-destroy"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-module-destroy"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -436,13 +437,13 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.child2.test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child2.test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -451,7 +452,7 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 	}
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-target-module"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-target-module"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		Targets: []addrs.Targetable{
@@ -471,13 +472,13 @@ func TestApplyGraphBuilder_excludeModule(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("module.child2.test_object.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("module.child2.test_object.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 				},
@@ -486,7 +487,7 @@ func TestApplyGraphBuilder_excludeModule(t *testing.T) {
 	}
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-target-module"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-target-module"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		Excludes: []addrs.Targetable{
@@ -522,13 +523,13 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.a"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.a"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.b"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.b"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 					Before: bBefore,
@@ -584,7 +585,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-orphan-update"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-orphan-update"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -629,13 +630,13 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.a"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.a"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("test_object.b"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.b"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Update,
 					Before: bBefore,
@@ -658,7 +659,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 			AttrsJSON:           []byte(`{"id":"a_id"}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -681,12 +682,12 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-apply-orphan-update"),
+		Config:  testhelpers.TestModule(t, "graph-builder-apply-orphan-update"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -716,7 +717,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("test_object.A"),
+				Addr: testhelpers.MustResourceInstanceAddr("test_object.A"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Delete,
 				},
@@ -727,17 +728,17 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("test_object.A").Resource,
+		testhelpers.MustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].foo`),
+		testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].foo`),
 		addrs.NoKey,
 	)
 
 	b := &ApplyGraphBuilder{
-		Config:  testModule(t, "graph-builder-orphan-alias"),
+		Config:  testhelpers.TestModule(t, "graph-builder-orphan-alias"),
 		Changes: changes,
 		Plugins: simpleMockPluginLibrary(),
 		State:   state,
@@ -754,24 +755,24 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 }
 
 func TestApplyGraphBuilder_withChecks(t *testing.T) {
-	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
+	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", testhelpers.SimpleTestSchema())
 
 	changes := &plans.Changes{
 		Resources: []*plans.ResourceInstanceChangeSrc{
 			{
-				Addr: mustResourceInstanceAddr("aws_instance.foo"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.foo"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Create,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("aws_instance.baz"),
+				Addr: testhelpers.MustResourceInstanceAddr("aws_instance.baz"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Create,
 				},
 			},
 			{
-				Addr: mustResourceInstanceAddr("data.aws_data_source.bar"),
+				Addr: testhelpers.MustResourceInstanceAddr("data.aws_data_source.bar"),
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.Read,
 				},
@@ -785,7 +786,7 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 	}, nil)
 
 	b := &ApplyGraphBuilder{
-		Config:    testModule(t, "apply-with-checks"),
+		Config:    testhelpers.TestModule(t, "apply-with-checks"),
 		Changes:   changes,
 		Plugins:   plugins,
 		State:     states.NewState(),

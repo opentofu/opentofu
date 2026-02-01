@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -41,7 +42,7 @@ func (f *contextTestFixture) ContextOpts() *ContextOpts {
 // configured with a resource type schema for aws_instance that matches
 // what's used in that configuration.
 func contextFixtureApplyVars(t *testing.T) *contextTestFixture {
-	c := testModule(t, "apply-vars")
+	c := testhelpers.TestModule(t, "apply-vars")
 	p := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"id":   {Type: cty.String, Computed: true},
@@ -69,7 +70,7 @@ func contextFixtureApplyVars(t *testing.T) *contextTestFixture {
 // configured with a resource type schema for aws_instance that matches
 // what's used in that configuration.
 func contextFixtureApplyVarsEnv(t *testing.T) *contextTestFixture {
-	c := testModule(t, "apply-vars-env")
+	c := testhelpers.TestModule(t, "apply-vars-env")
 	p := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"string": {Type: cty.String, Optional: true},

@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestNodeModuleVariablePath(t *testing.T) {
@@ -137,7 +138,7 @@ func TestNodeModuleVariableReference_grandchild(t *testing.T) {
 func TestNodeModuleVariableConstraints(t *testing.T) {
 	// This is a little extra convoluted to poke at some edge cases that have cropped up in the past around
 	// evaluating dependent nodes between the plan -> apply and destroy cycle.
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 			variable "input" {
 				type = string
@@ -188,9 +189,9 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		addrs.InputVariable{Name: "input"}.Absolute(addrs.RootModuleInstance.Child("child", addrs.NoKey)),
 	}
 
-	p := &MockProvider{
+	p := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
-			Provider: providers.Schema{Block: simpleTestSchema()},
+			Provider: providers.Schema{Block: testhelpers.SimpleTestSchema()},
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": providers.Schema{Block: &configschema.Block{
 					Attributes: map[string]*configschema.Attribute{
@@ -231,7 +232,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 				},
 			},
 		})
-		assertNoDiagnostics(t, diags)
+		testhelpers.AssertNoDiagnostics(t, diags)
 
 		for _, addr := range checkableObjects {
 			result := plan.Checks.GetObjectResult(addr)
@@ -244,7 +245,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		}
 
 		state, diags := ctx.Apply(context.Background(), plan, m, nil)
-		assertNoDiagnostics(t, diags)
+		testhelpers.AssertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
 			if result == nil {
@@ -264,10 +265,10 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 				},
 			},
 		})
-		assertNoDiagnostics(t, diags)
+		testhelpers.AssertNoDiagnostics(t, diags)
 
 		state, diags = ctx.Apply(context.Background(), plan, m, nil)
-		assertNoDiagnostics(t, diags)
+		testhelpers.AssertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
 			if result == nil {

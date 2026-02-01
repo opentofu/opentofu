@@ -13,10 +13,11 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestOrphanResourceInstanceTransformer(t *testing.T) {
-	mod := testModule(t, "transform-orphan-basic")
+	mod := testhelpers.TestModule(t, "transform-orphan-basic")
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -107,7 +108,7 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 }
 
 func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
-	mod := testModule(t, "transform-orphan-count")
+	mod := testhelpers.TestModule(t, "transform-orphan-count")
 
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -175,7 +176,7 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 }
 
 func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
-	mod := testModule(t, "transform-orphan-count-empty")
+	mod := testhelpers.TestModule(t, "transform-orphan-count-empty")
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -242,7 +243,7 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 }
 
 func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
-	mod := testModule(t, "transform-orphan-modules")
+	mod := testhelpers.TestModule(t, "transform-orphan-modules")
 	state := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{

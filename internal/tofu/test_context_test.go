@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestTestContext_EvaluateAgainstState(t *testing.T) {
@@ -28,7 +29,7 @@ func TestTestContext_EvaluateAgainstState(t *testing.T) {
 		configs   map[string]string
 		state     *states.State
 		variables InputValues
-		provider  *MockProvider
+		provider  *testhelpers.MockProvider
 
 		expectedDiags  []tfdiags.Description
 		expectedStatus moduletest.Status
@@ -67,7 +68,7 @@ run "test_case" {
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
 			}),
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -125,7 +126,7 @@ run "test_case" {
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
 			}),
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -169,7 +170,7 @@ run "test_case" {
 				outputAddr, _ := addrs.ParseAbsOutputValueStr("module.mod.output.a")
 				state.SetOutputValue(outputAddr, cty.StringVal("a"), false, "Don't use me")
 			}),
-			provider:       &MockProvider{},
+			provider:       &testhelpers.MockProvider{},
 			expectedStatus: moduletest.Pass,
 			expectedDiags: []tfdiags.Description{
 				{
@@ -225,7 +226,7 @@ run "test_case" {
 					Value: cty.StringVal("Hello, world!"),
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -277,7 +278,7 @@ run "test_case" {
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
 			}),
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -340,7 +341,7 @@ run "test_case" {
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
 			}),
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -371,7 +372,7 @@ run "test_case" {
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
-			config := testModuleInline(t, tc.configs)
+			config := testhelpers.TestModuleInline(t, tc.configs)
 			ctx := testContext2(t, &ContextOpts{
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(tc.provider),
@@ -401,7 +402,7 @@ func TestTestContext_EvaluateAgainstPlan(t *testing.T) {
 		state     *states.State
 		plan      *plans.Plan
 		variables InputValues
-		provider  *MockProvider
+		provider  *testhelpers.MockProvider
 
 		expectedDiags  []tfdiags.Description
 		expectedStatus moduletest.Status
@@ -464,7 +465,7 @@ run "test_case" {
 					},
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -540,7 +541,7 @@ run "test_case" {
 					},
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
 						"test_resource": {
@@ -567,7 +568,7 @@ run "test_case" {
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
-			config := testModuleInline(t, tc.configs)
+			config := testhelpers.TestModuleInline(t, tc.configs)
 			ctx := testContext2(t, &ContextOpts{
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test"): testProviderFuncFixed(tc.provider),

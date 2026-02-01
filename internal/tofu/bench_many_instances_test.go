@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 // This test file contains a small collection of benchmarks, written using the benchmark
@@ -50,7 +51,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 	// instanceCount is the number of instances we declare _for each resource_.
 	// Since there are two resources, there are 2*instanceCount instances total.
 	const instanceCount = 2500
-	m := testModuleInline(b, map[string]string{
+	m := testhelpers.TestModuleInline(b, map[string]string{
 		"main.tf": `
 			# This test has two resources that each have a lot of instances
 			# that are correlated with one another.
@@ -80,7 +81,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 			}
 		`,
 	})
-	p := &MockProvider{
+	p := &testhelpers.MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
 				"test": {
@@ -177,10 +178,10 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 		priorState := priorStateBase.DeepCopy()
 
 		plan, planDiags := tofuCtx.Plan(ctx, m, priorState, planOpts)
-		assertNoDiagnostics(b, planDiags)
+		testhelpers.AssertNoDiagnostics(b, planDiags)
 
 		_, applyDiags := tofuCtx.Apply(ctx, plan, m, nil)
-		assertNoDiagnostics(b, applyDiags)
+		testhelpers.AssertNoDiagnostics(b, applyDiags)
 	}
 }
 
@@ -193,7 +194,7 @@ func BenchmarkManyModuleInstances(b *testing.B) {
 	// Since there are two module calls, each object declared in the module
 	// is instantiated twice per instanceCount.
 	const instanceCount = 2500
-	m := testModuleInline(b, map[string]string{
+	m := testhelpers.TestModuleInline(b, map[string]string{
 		"main.tf": `
 			variable "instance_count" {
 				type = number
@@ -251,9 +252,9 @@ func BenchmarkManyModuleInstances(b *testing.B) {
 
 	for range b.N {
 		plan, planDiags := tofuCtx.Plan(ctx, m, states.NewState(), planOpts)
-		assertNoDiagnostics(b, planDiags)
+		testhelpers.AssertNoDiagnostics(b, planDiags)
 
 		_, applyDiags := tofuCtx.Apply(ctx, plan, m, nil)
-		assertNoDiagnostics(b, applyDiags)
+		testhelpers.AssertNoDiagnostics(b, applyDiags)
 	}
 }

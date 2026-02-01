@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -233,7 +234,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
             })
 		}
 	`
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
 	})
 	variableConfigs := cfg.Module.Variables
@@ -1154,7 +1155,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
   }
 }
 `
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf.json": cfgSrc,
 	})
 	variableConfigs := cfg.Module.Variables
@@ -1325,7 +1326,7 @@ variable "bar" {
   }
 }
 `
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
 	})
 	variableConfigs := cfg.Module.Variables
@@ -1470,7 +1471,7 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 			}
 		}
 	`
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
 	})
 	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
@@ -1535,7 +1536,7 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 
 // Testing the way variable deprecation diagnostics are generated
 func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
-	cfg := testModule(t, "validate-deprecated-var")
+	cfg := testhelpers.TestModule(t, "validate-deprecated-var")
 
 	ctx := &MockEvalContext{}
 	ctx.EvaluationScopeScope = &lang.Scope{
@@ -1660,7 +1661,7 @@ variable "bar" {
   }
 }
 `
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
 	})
 	variableConfigs := cfg.Module.Variables
@@ -1802,7 +1803,7 @@ func TestEvalVariableValidations_ephemeralValueDiagnostics(t *testing.T) {
 			}
 		}
 	`
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
 	})
 	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)

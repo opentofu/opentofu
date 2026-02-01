@@ -22,11 +22,12 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestContextImport_basic(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -68,8 +69,8 @@ func TestContextImport_basic(t *testing.T) {
 
 // import 1 of count instances in the configuration
 func TestContextImport_countIndex(t *testing.T) {
-	p := testProvider("aws")
-	m := testModuleInline(t, map[string]string{
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 provider "aws" {
   foo = "bar"
@@ -126,7 +127,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 	// and thus the import step needs to perform dynamic provider instance
 	// selection to determine exactly which provider instance to use.
 
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 			terraform {
 				required_providers {
@@ -194,7 +195,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 		// To run just this test with trace logs:
 		//   TF_LOG=trace go test ./internal/tofu -run '^TestContextImport_multiInstanceProviderConfig$'
 
-		ret := &MockProvider{}
+		ret := &testhelpers.MockProvider{}
 		var configuredMarker cty.Value
 		log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: creating new instance of provider 'test' at %p", ret)
 
@@ -264,7 +265,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 			},
 		},
 	})
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	resourceState := state.Resource(existingInstanceAddr.ContainingResource())
 
@@ -302,8 +303,8 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 }
 
 func TestContextImport_importResourceWithSensitiveDataSource(t *testing.T) {
-	p := testProvider("aws")
-	m := testModuleInline(t, map[string]string{
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 provider "aws" {
   foo = "bar"
@@ -372,15 +373,15 @@ resource "aws_instance" "foo" {
 		t.Fatalf("bad: \n%s", actual)
 	}
 
-	obj := state.ResourceInstance(mustResourceInstanceAddr("aws_instance.foo"))
+	obj := state.ResourceInstance(testhelpers.MustResourceInstanceAddr("aws_instance.foo"))
 	if len(obj.Current.AttrSensitivePaths) != 1 {
 		t.Fatalf("Expected 1 sensitive mark for aws_instance.foo, got %#v\n", obj.Current.AttrSensitivePaths)
 	}
 }
 
 func TestContextImport_collision(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -446,8 +447,8 @@ func TestContextImport_collision(t *testing.T) {
 }
 
 func TestContextImport_missingType(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
 		ImportedResources: []providers.ImportedResource{
@@ -489,7 +490,7 @@ func TestContextImport_missingType(t *testing.T) {
 }
 
 func TestContextImport_moduleProvider(t *testing.T) {
-	p := testProvider("aws")
+	p := testhelpers.TestProvider("aws")
 
 	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
 		ImportedResources: []providers.ImportedResource{
@@ -511,7 +512,7 @@ func TestContextImport_moduleProvider(t *testing.T) {
 		return
 	}
 
-	m := testModule(t, "import-provider")
+	m := testhelpers.TestModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -547,8 +548,8 @@ func TestContextImport_moduleProvider(t *testing.T) {
 
 // Importing into a module requires a provider config in that module.
 func TestContextImport_providerModule(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-module")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -614,8 +615,8 @@ func TestContextImport_providerConfig(t *testing.T) {
 	}
 	for name, test := range testCases {
 		t.Run(name, func(t *testing.T) {
-			p := testProvider("aws")
-			m := testModule(t, test.module)
+			p := testhelpers.TestProvider("aws")
+			m := testhelpers.TestModule(t, test.module)
 			ctx := testContext2(t, &ContextOpts{
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -674,9 +675,9 @@ func TestContextImport_providerConfig(t *testing.T) {
 
 // Test that provider configs can't reference resources.
 func TestContextImport_providerConfigResources(t *testing.T) {
-	p := testProvider("aws")
-	pTest := testProvider("test")
-	m := testModule(t, "import-provider-resources")
+	p := testhelpers.TestProvider("aws")
+	pTest := testhelpers.TestProvider("test")
+	m := testhelpers.TestModule(t, "import-provider-resources")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"):  testProviderFuncFixed(p),
@@ -716,8 +717,8 @@ func TestContextImport_providerConfigResources(t *testing.T) {
 }
 
 func TestContextImport_refresh(t *testing.T) {
-	p := testProvider("aws")
-	m := testModuleInline(t, map[string]string{
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 provider "aws" {
   foo = "bar"
@@ -784,7 +785,7 @@ data "aws_data_source" "bar" {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 
-	if d := state.ResourceInstance(mustResourceInstanceAddr("data.aws_data_source.bar")); d != nil {
+	if d := state.ResourceInstance(testhelpers.MustResourceInstanceAddr("data.aws_data_source.bar")); d != nil {
 		t.Errorf("data.aws_data_source.bar has a status of ObjectPlanned and should not be in the state\ngot:%#v\n", d.Current)
 	}
 
@@ -796,8 +797,8 @@ data "aws_data_source" "bar" {
 }
 
 func TestContextImport_refreshNil(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -845,8 +846,8 @@ func TestContextImport_refreshNil(t *testing.T) {
 }
 
 func TestContextImport_module(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-module")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -888,8 +889,8 @@ func TestContextImport_module(t *testing.T) {
 }
 
 func TestContextImport_moduleDepth2(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-module")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -931,8 +932,8 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 }
 
 func TestContextImport_moduleDiff(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-module")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-module")
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
@@ -974,10 +975,10 @@ func TestContextImport_moduleDiff(t *testing.T) {
 }
 
 func TestContextImport_multiState(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"foo": {Type: cty.String, Optional: true},
@@ -1044,10 +1045,10 @@ func TestContextImport_multiState(t *testing.T) {
 }
 
 func TestContextImport_multiStateSame(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "import-provider")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "import-provider")
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"foo": {Type: cty.String, Optional: true},
@@ -1120,8 +1121,8 @@ func TestContextImport_multiStateSame(t *testing.T) {
 }
 
 func TestContextImport_nestedModuleImport(t *testing.T) {
-	p := testProvider("aws")
-	m := testModuleInline(t, map[string]string{
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 locals {
   xs = toset(["foo"])
@@ -1158,7 +1159,7 @@ resource "test_resource" "unused" {
 `,
 	})
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		Provider: &configschema.Block{
 			Attributes: map[string]*configschema.Attribute{
 				"foo": {Type: cty.String, Optional: true},
@@ -1208,7 +1209,7 @@ resource "test_resource" "unused" {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	ri := state.ResourceInstance(mustResourceInstanceAddr("test_resource.test"))
+	ri := state.ResourceInstance(testhelpers.MustResourceInstanceAddr("test_resource.test"))
 	expected := `{"id":"test","required":"value"}`
 	if ri == nil || ri.Current == nil {
 		t.Fatal("no state is recorded for resource instance test_resource.test")
@@ -1223,8 +1224,8 @@ resource "test_resource" "unused" {
 // that references to them are unknown, but in the case of single instances, we
 // can at least know the type of unknown value.
 func TestContextImport_newResourceUnknown(t *testing.T) {
-	p := testProvider("aws")
-	m := testModuleInline(t, map[string]string{
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_resource" "one" {
 }
@@ -1237,7 +1238,7 @@ resource "test_resource" "test" {
 }
 `})
 
-	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+	p.GetProviderSchemaResponse = testhelpers.GetProviderSchemaResponseFromProviderSchema(&testhelpers.ProviderSchema{
 		ResourceTypes: map[string]*configschema.Block{
 			"test_resource": {
 				Attributes: map[string]*configschema.Attribute{
@@ -1280,7 +1281,7 @@ resource "test_resource" "test" {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	ri := state.ResourceInstance(mustResourceInstanceAddr("test_resource.test"))
+	ri := state.ResourceInstance(testhelpers.MustResourceInstanceAddr("test_resource.test"))
 	expected := `{"id":"test"}`
 	if ri == nil || ri.Current == nil {
 		t.Fatal("no state is recorded for resource instance test_resource.test")
@@ -1291,8 +1292,8 @@ resource "test_resource" "test" {
 }
 
 func TestContextImport_33572(t *testing.T) {
-	p := testProvider("aws")
-	m := testModule(t, "issue-33572")
+	p := testhelpers.TestProvider("aws")
+	m := testhelpers.TestModule(t, "issue-33572")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{

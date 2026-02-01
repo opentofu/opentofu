@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -39,7 +40,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			description: "remove block is targeting another resource name of same type",
 			nodeAddress: "test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
-				{From: mustConfigResourceAddr("test_instance.bar")},
+				{From: testhelpers.MustConfigResourceAddr("test_instance.bar")},
 			},
 			wantAction: plans.Delete,
 		},
@@ -55,7 +56,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			description: "remove block is targeting current node",
 			nodeAddress: "test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
-				{From: mustConfigResourceAddr("test_instance.foo")},
+				{From: testhelpers.MustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
@@ -69,7 +70,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			nodeAddress: "test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
 				{
-					From:    mustConfigResourceAddr("test_instance.foo"),
+					From:    testhelpers.MustConfigResourceAddr("test_instance.foo"),
 					Destroy: true,
 				},
 			},
@@ -79,7 +80,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			description: "remove block is targeting a resource and the current node is an instance of that",
 			nodeAddress: "test_instance.foo[1]",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
-				{From: mustConfigResourceAddr("test_instance.foo")},
+				{From: testhelpers.MustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
@@ -93,7 +94,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			nodeAddress: "test_instance.foo[1]",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
 				{
-					From:    mustConfigResourceAddr("test_instance.foo"),
+					From:    testhelpers.MustConfigResourceAddr("test_instance.foo"),
 					Destroy: true,
 				},
 			},
@@ -103,7 +104,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			description: "remove block is targeting a resource from a module which is the current node",
 			nodeAddress: "module.boop.test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
-				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
+				{From: testhelpers.MustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
@@ -117,7 +118,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			nodeAddress: "module.boop.test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
 				{
-					From:    mustConfigResourceAddr("module.boop.test_instance.foo"),
+					From:    testhelpers.MustConfigResourceAddr("module.boop.test_instance.foo"),
 					Destroy: true,
 				},
 			},
@@ -128,7 +129,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			nodeAddress: "module.boop.test_instance.foo",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
 				{
-					From:    mustConfigResourceAddr("module.boop.test_instance.foo"),
+					From:    testhelpers.MustConfigResourceAddr("module.boop.test_instance.foo"),
 					Destroy: true,
 				},
 			},
@@ -138,7 +139,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			description: "remove block is targeting a resource from a module of which the current node is an instance of",
 			nodeAddress: "module.boop[1].test_instance.foo[1]",
 			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
-				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
+				{From: testhelpers.MustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
@@ -178,7 +179,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s %s", test.wantAction, test.description), func(t *testing.T) {
 			state := states.NewState()
-			absResource := mustResourceInstanceAddr(test.nodeAddress)
+			absResource := testhelpers.MustResourceInstanceAddr(test.nodeAddress)
 
 			if !absResource.Module.IsRoot() {
 				state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
@@ -214,7 +215,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				},
 			}
 
-			p := simpleMockProvider()
+			p := testhelpers.SimpleMockProvider()
 			p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 			p.GetProviderSchemaResponse = &schema
 
@@ -282,7 +283,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	prevRunState := state.DeepCopy()
 	changes := plans.NewChanges()
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
@@ -296,7 +297,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
-					Block: simpleTestSchema(),
+					Block: testhelpers.SimpleTestSchema(),
 				},
 			},
 		},
@@ -311,7 +312,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 					Module:   addrs.RootModule,
 				}},
 			},
-			Addr: mustResourceInstanceAddr("test_object.foo"),
+			Addr: testhelpers.MustResourceInstanceAddr("test_object.foo"),
 		},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkPlan)
@@ -365,7 +366,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	prevRunState := state.DeepCopy()
 	changes := plans.NewChanges()
 
-	p := simpleMockProvider()
+	p := testhelpers.SimpleMockProvider()
 	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
@@ -379,7 +380,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
-					Block: simpleTestSchema(),
+					Block: testhelpers.SimpleTestSchema(),
 				},
 			},
 		},
@@ -394,7 +395,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 					Module:   addrs.RootModule,
 				}},
 			},
-			Addr: mustResourceInstanceAddr("test_object.foo"),
+			Addr: testhelpers.MustResourceInstanceAddr("test_object.foo"),
 		},
 	}
 	diags := node.Execute(t.Context(), evalCtx, walkPlan)

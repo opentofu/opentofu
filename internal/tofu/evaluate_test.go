@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestEvaluatorGetTerraformAttr(t *testing.T) {
@@ -527,7 +528,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	// to exercise retrieving the After value of the change
 	changesSync := plans.NewChanges().SyncWrapper()
 	change := &plans.ResourceInstanceChange{
-		Addr: mustResourceInstanceAddr("test_resource.foo"),
+		Addr: testhelpers.MustResourceInstanceAddr("test_resource.foo"),
 		ProviderAddr: addrs.AbsProviderConfig{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewDefaultProvider("test"),
@@ -649,7 +650,7 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 		Config: configs.SynthBody("", map[string]cty.Value{
 			"secret_name": cty.StringVal("foo"),
 		}),
-		Provider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
+		Provider: testhelpers.MustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`).Provider,
 	}
 	ephemeralSchema := providers.Schema{
 		Block: &configschema.Block{

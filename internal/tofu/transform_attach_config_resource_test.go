@@ -11,12 +11,13 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 func TestModuleTransformAttachConfigTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
-	module := testModule(t, "transform-attach-config")
+	module := testhelpers.TestModule(t, "transform-attach-config")
 
 	err := (&ConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {

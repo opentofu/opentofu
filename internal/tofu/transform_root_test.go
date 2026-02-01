@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestRootTransformer(t *testing.T) {
 	t.Run("many nodes", func(t *testing.T) {
-		mod := testModule(t, "transform-root-basic")
+		mod := testhelpers.TestModule(t, "transform-root-basic")
 
 		g := Graph{Path: addrs.RootModuleInstance}
 		{

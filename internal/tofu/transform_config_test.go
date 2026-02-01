@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 func TestConfigTransformer_nilModule(t *testing.T) {
@@ -27,7 +28,7 @@ func TestConfigTransformer_nilModule(t *testing.T) {
 
 func TestConfigTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
-	tf := &ConfigTransformer{Config: testModule(t, "graph-basic")}
+	tf := &ConfigTransformer{Config: testhelpers.TestModule(t, "graph-basic")}
 	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -81,7 +82,7 @@ ephemeral.aws_secret.secret`,
 		t.Run(name, func(t *testing.T) {
 			g := Graph{Path: addrs.RootModuleInstance}
 			tf := &ConfigTransformer{
-				Config:     testModule(t, "transform-config-mode-data"),
+				Config:     testhelpers.TestModule(t, "transform-config-mode-data"),
 				ModeFilter: tt.filterFunc,
 			}
 			if err := tf.Transform(t.Context(), &g); err != nil {
@@ -104,7 +105,7 @@ func TestConfigTransformer_nonUnique(t *testing.T) {
 			addrs.ManagedResourceMode, "aws_instance", "web",
 		),
 	))
-	tf := &ConfigTransformer{Config: testModule(t, "graph-basic")}
+	tf := &ConfigTransformer{Config: testhelpers.TestModule(t, "graph-basic")}
 	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}

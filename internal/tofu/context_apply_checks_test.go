@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 )
 
 // This file contains 'integration' tests for the OpenTofu check blocks.
@@ -41,8 +42,8 @@ func TestContextChecks(t *testing.T) {
 		applyError   string
 		applyWarning string
 		state        *states.State
-		provider     *MockProvider
-		providerHook func(*MockProvider)
+		provider     *testhelpers.MockProvider
+		providerHook func(*testhelpers.MockProvider)
 	}{
 		"passing": {
 			configs: map[string]string{
@@ -69,7 +70,7 @@ check "passing" {
 					status: checks.StatusPass,
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -123,7 +124,7 @@ check "failing" {
 				},
 			},
 			applyWarning: "Check block assertion failed: negative number",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -182,7 +183,7 @@ check "failing" {
 				},
 			},
 			applyWarning: "Check block assertion failed: positive number",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -252,7 +253,7 @@ check "nested_data_block" {
 				},
 			},
 			applyWarning: "Check block assertion failed: negative number",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -276,7 +277,7 @@ check "nested_data_block" {
 					}
 				},
 			},
-			providerHook: func(provider *MockProvider) {
+			providerHook: func(provider *testhelpers.MockProvider) {
 				provider.ReadDataSourceFn = func(request providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 					// The data returned by the data sources are changing
 					// between the plan and apply stage. The nested data block
@@ -320,7 +321,7 @@ check "resource_block" {
 					status: checks.StatusPass,
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
@@ -418,7 +419,7 @@ check "error" {
 				},
 			},
 			applyWarning: "data source read failed: something bad happened and the provider couldn't read the data source",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -493,7 +494,7 @@ check "error" {
 				},
 			},
 			applyWarning: "data source read failed: something bad happened and the provider couldn't read the data source",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
@@ -585,7 +586,7 @@ check "passing" {
 					status: checks.StatusPass,
 				},
 			},
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					ResourceTypes: map[string]providers.Schema{
@@ -633,7 +634,7 @@ check "error" {
 `,
 			},
 			planError: "data source read failed: something bad happened and the provider couldn't read the data source",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -676,7 +677,7 @@ check "error" {
 `,
 			},
 			planError: "Reference to scoped resource: The referenced data resource \"checks_object\" \"nested_data_block\" is not available from this context.",
-			provider: &MockProvider{
+			provider: &testhelpers.MockProvider{
 				Meta: "checks",
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					DataSources: map[string]providers.Schema{
@@ -712,7 +713,7 @@ check "error" {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			configs := testModuleInline(t, test.configs)
+			configs := testhelpers.TestModuleInline(t, test.configs)
 			ctx := testContext2(t, &ContextOpts{
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider(test.provider.Meta.(string)): testProviderFuncFixed(test.provider),
@@ -772,7 +773,7 @@ func validateCheckDiagnostics(t *testing.T, stage string, expectedWarning, expec
 		}
 	}
 
-	assertNoErrors(t, actual)
+	testhelpers.AssertNoErrors(t, actual)
 	return false
 }
 

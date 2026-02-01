@@ -30,10 +30,10 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
 	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -95,7 +95,7 @@ func TestNewContextRequiredVersion(t *testing.T) {
 			tfversion.SemVer = version.Must(version.NewVersion(tc.Version))
 			defer func() { tfversion.SemVer = old }()
 
-			mod := testModule(t, "context-required-version")
+			mod := testhelpers.TestModule(t, "context-required-version")
 			if tc.Value != "" {
 				constraint, err := version.NewConstraint(tc.Value)
 				if err != nil {
@@ -119,7 +119,7 @@ func TestNewContextRequiredVersion(t *testing.T) {
 }
 
 func TestNewContextRequiredVersion_child(t *testing.T) {
-	mod := testModuleInline(t, map[string]string{
+	mod := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 module "child" {
   source = "./child"
@@ -179,7 +179,7 @@ terraform {}
 
 func TestContext_missingPlugins(t *testing.T) {
 	ctx, diags := NewContext(&ContextOpts{})
-	assertNoDiagnostics(t, diags)
+	testhelpers.AssertNoDiagnostics(t, diags)
 
 	configSrc := `
 terraform {
@@ -203,7 +203,7 @@ resource "implicit_thing" "b" {
 }
 `
 
-	cfg := testModuleInline(t, map[string]string{
+	cfg := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": configSrc,
 	})
 
@@ -252,7 +252,7 @@ resource "implicit_thing" "b" {
 					`This configuration requires provisioner plugin "nonexist", which isn't available. If you're intending to use an external provisioner plugin, you must install it manually into one of the plugin search directories before running OpenTofu.`,
 				),
 			)
-			assertDiagnosticsMatch(t, gotDiags, wantDiags)
+			testhelpers.AssertDiagnosticsMatch(t, gotDiags, wantDiags)
 		})
 	}
 }
@@ -263,12 +263,12 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 	// calls. It does so using [tracing.ContextProbe], which is a helper for
 	// probing to make sure that values (in this case, the probe itself)
 	// are able to reach calls to [tracing.ContextProbeReport] that are included
-	// in the [MockProvider] methods.
+	// in the [testhelpers.MockProvider] methods.
 
 	ctx, probe := tracing.NewContextProbe(t, t.Context())
 	tofuCtx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewBuiltInProvider("test"): providers.FactoryFixed(&MockProvider{
+			addrs.NewBuiltInProvider("test"): providers.FactoryFixed(&testhelpers.MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{
 						Block: &configschema.Block{},
@@ -290,7 +290,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 			}),
 		},
 	})
-	m := testModuleInline(t, map[string]string{
+	m := testhelpers.TestModuleInline(t, map[string]string{
 		"main.tf": `
 			terraform {
 				required_providers {
@@ -305,20 +305,20 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 	})
 
 	plan, diags := tofuCtx.Plan(ctx, m, states.NewState(), DefaultPlanOpts)
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 	_, diags = tofuCtx.Apply(ctx, plan, m, nil)
-	assertNoErrors(t, diags)
+	testhelpers.AssertNoErrors(t, diags)
 
 	probe.ExpectReportsFrom(t,
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).GetProviderSchema",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateProviderConfig",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateDataResourceConfig",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateResourceConfig",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ConfigureProvider",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ReadDataSource",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).PlanResourceChange",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ApplyResourceChange",
-		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).Close",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).GetProviderSchema",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ValidateProviderConfig",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ValidateDataResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ValidateResourceConfig",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ConfigureProvider",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ReadDataSource",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).PlanResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).ApplyResourceChange",
+		"github.com/opentofu/opentofu/internal/tofu/testhelpers.(*MockProvider).Close",
 	)
 }
 
@@ -436,45 +436,6 @@ func testDiffFn(req providers.PlanResourceChangeRequest) (resp providers.PlanRes
 	resp.PlannedState = cty.ObjectVal(planned)
 	return
 }
-func testProvider(prefix string) *MockProvider {
-	p := new(MockProvider)
-	p.GetProviderSchemaResponse = testProviderSchema(prefix)
-
-	return p
-}
-
-func testProvisioner() *MockProvisioner {
-	p := new(MockProvisioner)
-	p.GetSchemaResponse = provisioners.GetSchemaResponse{
-		Provisioner: &configschema.Block{
-			Attributes: map[string]*configschema.Attribute{
-				"command": {
-					Type:     cty.String,
-					Optional: true,
-				},
-				"order": {
-					Type:     cty.String,
-					Optional: true,
-				},
-				"when": {
-					Type:     cty.String,
-					Optional: true,
-				},
-			},
-		},
-	}
-	return p
-}
-
-func checkStateString(t *testing.T, state *states.State, expected string) {
-	t.Helper()
-	actual := strings.TrimSpace(state.String())
-	expected = strings.TrimSpace(expected)
-
-	if actual != expected {
-		t.Fatalf("incorrect state\ngot:\n%s\n\nwant:\n%s", actual, expected)
-	}
-}
 
 // Test helper that gives a function 3 seconds to finish, assumes deadlock and
 // fails test if it does not.
@@ -496,284 +457,6 @@ func testCheckDeadlock(t *testing.T, f func()) {
 	case <-done:
 		// ok
 	}
-}
-
-func testProviderSchema(name string) *providers.GetProviderSchemaResponse {
-	return getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
-		Provider: &configschema.Block{
-			Attributes: map[string]*configschema.Attribute{
-				"region": {
-					Type:     cty.String,
-					Optional: true,
-				},
-				"foo": {
-					Type:     cty.String,
-					Optional: true,
-				},
-				"value": {
-					Type:     cty.String,
-					Optional: true,
-				},
-				"root": {
-					Type:     cty.Number,
-					Optional: true,
-				},
-			},
-		},
-		ResourceTypes: map[string]*configschema.Block{
-			name + "_instance": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"ami": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"dep": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"num": {
-						Type:     cty.Number,
-						Optional: true,
-					},
-					"require_new": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"var": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"foo": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-					"bar": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"compute": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: false,
-					},
-					"compute_value": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-					"value": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-					"output": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"write": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"instance": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"vpc_id": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"type": {
-						Type:     cty.String,
-						Computed: true,
-					},
-
-					// Generated by testDiffFn if compute = "unknown" is set in the test config
-					"unknown": {
-						Type:     cty.String,
-						Computed: true,
-					},
-				},
-			},
-			name + "_eip": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"instance": {
-						Type:     cty.String,
-						Optional: true,
-					},
-				},
-			},
-			name + "_resource": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"value": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"sensitive_value": {
-						Type:      cty.String,
-						Sensitive: true,
-						Optional:  true,
-					},
-					"random": {
-						Type:     cty.String,
-						Optional: true,
-					},
-				},
-				BlockTypes: map[string]*configschema.NestedBlock{
-					"nesting_single": {
-						Block: configschema.Block{
-							Attributes: map[string]*configschema.Attribute{
-								"value":           {Type: cty.String, Optional: true},
-								"sensitive_value": {Type: cty.String, Optional: true, Sensitive: true},
-							},
-						},
-						Nesting: configschema.NestingSingle,
-					},
-				},
-			},
-			name + "_ami_list": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-					"ids": {
-						Type:     cty.List(cty.String),
-						Optional: true,
-						Computed: true,
-					},
-				},
-			},
-			name + "_remote_state": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"foo": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"output": {
-						Type:     cty.Map(cty.String),
-						Computed: true,
-					},
-				},
-			},
-			name + "_file": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"template": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"rendered": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"__template_requires_new": {
-						Type:     cty.String,
-						Optional: true,
-					},
-				},
-			},
-		},
-		DataSources: map[string]*configschema.Block{
-			name + "_data_source": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"foo": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-				},
-			},
-			name + "_remote_state": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"foo": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"output": {
-						Type:     cty.Map(cty.String),
-						Optional: true,
-					},
-				},
-			},
-			name + "_file": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"template": {
-						Type:     cty.String,
-						Optional: true,
-					},
-					"rendered": {
-						Type:     cty.String,
-						Computed: true,
-					},
-				},
-			},
-			name + "_sensitive_data_source": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"value": {
-						Type:      cty.String,
-						Optional:  true,
-						Sensitive: true,
-					},
-				},
-			},
-		},
-		EphemeralTypes: map[string]*configschema.Block{
-			name + "_ephemeral_resource": {
-				Attributes: map[string]*configschema.Attribute{
-					"id": {
-						Type:     cty.String,
-						Computed: true,
-					},
-					"secret": {
-						Type:     cty.String,
-						Optional: true,
-						Computed: true,
-					},
-					"input": {
-						Type:     cty.String,
-						Optional: true,
-					},
-				},
-			},
-		},
-	})
 }
 
 // contextOptsForPlanViaFile is a helper that creates a temporary plan file,
@@ -1034,83 +717,6 @@ func legacyDiffComparisonString(changes *plans.Changes) string {
 	}
 
 	return buf.String()
-}
-
-// assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
-// diagnostics is non-empty.
-func assertNoDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
-	t.Helper()
-	if len(diags) == 0 {
-		return
-	}
-	logDiagnostics(t, diags)
-	t.FailNow()
-}
-
-// assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
-// diagnostics has any errors.
-func assertNoErrors(t testing.TB, diags tfdiags.Diagnostics) {
-	t.Helper()
-	if !diags.HasErrors() {
-		return
-	}
-	logDiagnostics(t, diags)
-	t.FailNow()
-}
-
-// assertDiagnosticsMatch fails the test in progress (using t.Fatal) if the
-// two sets of diagnostics don't match after being normalized using the
-// "ForRPC" processing step, which eliminates the specific type information
-// and HCL expression information of each diagnostic.
-//
-// assertDiagnosticsMatch sorts the two sets of diagnostics in the usual way
-// before comparing them, though diagnostics only have a partial order so that
-// will not totally normalize the ordering of all diagnostics sets.
-func assertDiagnosticsMatch(t testing.TB, got, want tfdiags.Diagnostics) {
-	got = got.ForRPC()
-	want = want.ForRPC()
-	got.Sort()
-	want.Sort()
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Fatalf("wrong diagnostics\n%s", diff)
-	}
-}
-
-// logDiagnostics is a test helper that logs the given diagnostics to the
-// given testing.T using t.Log, in a way that is hopefully useful in debugging
-// a test. It does not generate any errors or fail the test. See
-// assertNoDiagnostics and assertNoErrors for more specific helpers that can
-// also fail the test.
-func logDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
-	t.Helper()
-	for _, diag := range diags {
-		desc := diag.Description()
-		rng := diag.Source()
-
-		var severity string
-		switch diag.Severity() {
-		case tfdiags.Error:
-			severity = "ERROR"
-		case tfdiags.Warning:
-			severity = "WARN"
-		default:
-			severity = "???" // should never happen
-		}
-
-		if subj := rng.Subject; subj != nil {
-			if desc.Detail == "" {
-				t.Logf("[%s@%s] %s", severity, subj.StartString(), desc.Summary)
-			} else {
-				t.Logf("[%s@%s] %s: %s", severity, subj.StartString(), desc.Summary, desc.Detail)
-			}
-		} else {
-			if desc.Detail == "" {
-				t.Logf("[%s] %s", severity, desc.Summary)
-			} else {
-				t.Logf("[%s] %s: %s", severity, desc.Summary, desc.Detail)
-			}
-		}
-	}
 }
 
 const testContextRefreshModuleStr = `
