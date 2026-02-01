@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestContext2Input_provider(t *testing.T) {
@@ -293,10 +294,10 @@ func TestContext2Input_providerOnly(t *testing.T) {
 	// other than what it set out to test.
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("us-west-2"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -344,10 +345,10 @@ func TestContext2Input_providerVars(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("bar"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})

@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // TestContext wraps a Context, and adds in direct values for the current state,
@@ -38,12 +39,12 @@ type TestContext struct {
 	Config    *configs.Config
 	State     *states.State
 	Plan      *plans.Plan
-	Variables InputValues
+	Variables variables.InputValues
 }
 
 // TestContext creates a TestContext structure that can evaluate test assertions
 // against the provided state and plan.
-func (c *Context) TestContext(config *configs.Config, state *states.State, plan *plans.Plan, variables InputValues) *TestContext {
+func (c *Context) TestContext(config *configs.Config, state *states.State, plan *plans.Plan, variables variables.InputValues) *TestContext {
 	return &TestContext{
 		Context:   c,
 		Config:    config,
@@ -100,7 +101,7 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			PlanTimestamp:      tc.Plan.Timestamp,
 			// InstanceExpander is intentionally nil for test contexts
 			// The GetModule function will fall back to using state/changes when it's nil
-			InstanceExpander:   nil,
+			InstanceExpander: nil,
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,

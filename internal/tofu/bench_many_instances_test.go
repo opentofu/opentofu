@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // This test file contains a small collection of benchmarks, written using the benchmark
@@ -161,7 +162,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 	})
 	planOpts := &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"instance_count": {
 				Value: cty.NumberIntVal(instanceCount),
 			},
@@ -242,7 +243,7 @@ func BenchmarkManyModuleInstances(b *testing.B) {
 	ctx := context.Background()
 	planOpts := &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"instance_count": {
 				Value: cty.NumberIntVal(instanceCount),
 			},

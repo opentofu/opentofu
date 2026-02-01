@@ -3,14 +3,13 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package tofu
+package variables
 
 import (
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -269,52 +268,4 @@ func (vv InputValues) Identical(other InputValues) bool {
 	}
 
 	return true
-}
-
-// checkInputVariables ensures that the caller provided an InputValue
-// definition for each root module variable declared in the configuration.
-// The caller must provide an InputVariables with keys exactly matching
-// the declared variables, though some of them may be marked explicitly
-// unset by their values being cty.NilVal.
-//
-// This doesn't perform any type checking, default value substitution, or
-// validation checks. Those are all handled during a graph walk when we
-// visit the graph nodes representing each root variable.
-//
-// The set of values is considered valid only if the returned diagnostics
-// does not contain errors. A valid set of values may still produce warnings,
-// which should be returned to the user.
-func checkInputVariables(vcs map[string]*configs.Variable, vs InputValues) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	for name := range vcs {
-		_, isSet := vs[name]
-		if !isSet {
-			// Always an error, since the caller should have produced an
-			// item with Value: cty.NilVal to be explicit that it offered
-			// an opportunity to set this variable.
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Unassigned variable",
-				fmt.Sprintf("The input variable %q has not been assigned a value. This is a bug in OpenTofu; please report it in a GitHub issue.", name),
-			))
-			continue
-		}
-	}
-
-	// Check for any variables that are assigned without being configured.
-	// This is always an implementation error in the caller, because we
-	// expect undefined variables to be caught during context construction
-	// where there is better context to report it well.
-	for name := range vs {
-		if _, defined := vcs[name]; !defined {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Value assigned to undeclared variable",
-				fmt.Sprintf("A value was assigned to an undeclared input variable %q.", name),
-			))
-		}
-	}
-
-	return diags
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // ContextGraphWalker is the GraphWalker implementation used with the
@@ -42,7 +43,7 @@ type ContextGraphWalker struct {
 	MoveResults             refactoring.MoveResults // Read-only record of earlier processing of move statements
 	Operation               walkOperation
 	StopContext             context.Context
-	RootVariableValues      InputValues
+	RootVariableValues      variables.InputValues
 	Config                  *configs.Config
 	PlanTimestamp           time.Time
 	Encryption              encryption.Encryption

@@ -14,11 +14,12 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type EvalOpts struct {
-	SetVariables InputValues
+	SetVariables variables.InputValues
 }
 
 // Eval produces a scope in which expressions can be evaluated for

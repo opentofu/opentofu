@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestContextImport_basic(t *testing.T) {
@@ -645,10 +646,10 @@ func TestContextImport_providerConfig(t *testing.T) {
 						},
 					},
 				},
-				SetVariables: InputValues{
-					"foo": &InputValue{
+				SetVariables: variables.InputValues{
+					"foo": &variables.InputValue{
 						Value:      cty.StringVal("bar"),
-						SourceType: ValueFromCaller,
+						SourceType: variables.ValueFromCaller,
 					},
 				},
 			})

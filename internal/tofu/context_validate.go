@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -53,7 +54,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	// input values, current state, etc. Therefore we populate all of the
 	// input values with unknown values of the expected type, allowing us
 	// to perform a type check without assuming any particular values.
-	varValues := make(InputValues)
+	varValues := make(variables.InputValues)
 	for name, variable := range config.Module.Variables {
 		ty := variable.Type
 		if ty == cty.NilType {
@@ -61,9 +62,9 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 			// cty.DynamicVal (unknown value of cty.DynamicPseudoType).
 			ty = cty.DynamicPseudoType
 		}
-		varValues[name] = &InputValue{
+		varValues[name] = &variables.InputValue{
 			Value:      cty.UnknownVal(ty),
-			SourceType: ValueFromUnknown,
+			SourceType: variables.ValueFromUnknown,
 		}
 	}
 

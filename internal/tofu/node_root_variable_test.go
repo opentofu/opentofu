@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestNodeRootVariableExecute(t *testing.T) {
@@ -29,9 +30,9 @@ func TestNodeRootVariableExecute(t *testing.T) {
 				Type:           cty.String,
 				ConstraintType: cty.String,
 			},
-			RawValue: &InputValue{
+			RawValue: &variables.InputValue{
 				Value:      cty.True,
-				SourceType: ValueFromUnknown,
+				SourceType: variables.ValueFromUnknown,
 			},
 		}
 
@@ -120,11 +121,11 @@ func TestNodeRootVariableExecute(t *testing.T) {
 					},
 				},
 			},
-			RawValue: &InputValue{
+			RawValue: &variables.InputValue{
 				// Note: This is a string, but the variable's type constraint
 				// is number so it should be converted before use.
 				Value:      cty.StringVal("5"),
-				SourceType: ValueFromUnknown,
+				SourceType: variables.ValueFromUnknown,
 			},
 		}
 

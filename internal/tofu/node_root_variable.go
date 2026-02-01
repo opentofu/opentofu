@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // NodeRootVariable represents a root variable input.
@@ -27,7 +28,7 @@ type NodeRootVariable struct {
 	// or similar. This is the raw value that was provided, not yet
 	// converted or validated, and can be nil for a variable that isn't
 	// set at all.
-	RawValue *InputValue
+	RawValue *variables.InputValue
 }
 
 var (
@@ -81,9 +82,9 @@ func (n *NodeRootVariable) Execute(_ context.Context, evalCtx EvalContext, op wa
 		// should never get here because all variables should have raw
 		// values, but we can get here in some historical tests that call
 		// in directly and don't necessarily obey the rules.
-		givenVal = &InputValue{
+		givenVal = &variables.InputValue{
 			Value:      cty.NilVal,
-			SourceType: ValueFromUnknown,
+			SourceType: variables.ValueFromUnknown,
 		}
 	}
 

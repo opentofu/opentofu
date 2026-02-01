@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
@@ -36,7 +37,7 @@ type ApplyOpts struct {
 	// do not differ from the ones saved in the plan. The place where this is used,
 	// in Context#mergePlanAndApplyVariables, the merging of this with the plan variable values
 	// follows the same logic and rules of the validation mentioned above.
-	SetVariables InputValues
+	SetVariables variables.InputValues
 
 	// SuppressForgetErrorsDuringDestroy suppresses the error that would otherwise
 	// be raised when a destroy operation completes with forgotten instances remaining.
@@ -257,7 +258,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 	return graph, diags
 }
 
-// mergePlanAndApplyVariables is meant to prepare InputValues for the apply phase.
+// mergePlanAndApplyVariables is meant to prepare variables.InputValues for the apply phase.
 //
 // # Context:
 // As requested in opentofu/opentofu#1922, we had to add the ability to specify variable's values
@@ -267,18 +268,18 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 // plan (encryption configuration, ephemeral variables).
 //
 // # mergePlanAndApplyVariables
-// This gets the plan and the *ApplyOpts and builds the InputValues. The values saved in the plan have
+// This gets the plan and the *ApplyOpts and builds the variables.InputValues. The values saved in the plan have
 // priority *when defined*, but the variables marked as ephemeral in the plan and values for those are searched in the ApplyOpts.
 // The implementation is an incremental check from the basic value to the most specific one:
 // * First, the initial value is cty.NilVal that will force later the variable node to check for its default value
 // * Second, it tries to find the value of the variable in the ApplyOpts#SetVariables, and if it does, it overrides the value from the previous step with it
 // * Third, it tries to find the value of the variable in the plans.Plan#VariableValues, and if it does, it overrides the value from the previous step with it
 // * Last, it executed two validations to ensure that the resulted value matches its configuration and the plan content.
-func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (InputValues, tfdiags.Diagnostics) {
+func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans.Plan, opts *ApplyOpts) (variables.InputValues, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	variables := map[string]*InputValue{}
+	varMap := map[string]*variables.InputValue{}
 
-	var inputVars map[string]*InputValue
+	var inputVars map[string]*variables.InputValue
 	if opts != nil && opts.SetVariables != nil {
 		inputVars = opts.SetVariables
 	}
@@ -315,9 +316,9 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 		// placeholders for any other variables that the user didn't set, in
 		// which case OpenTofu will once again use the default value from the
 		// configuration when we visit these variables during the graph walk.
-		variables[name] = &InputValue{
+		varMap[name] = &variables.InputValue{
 			Value:      cty.NilVal,
-			SourceType: ValueFromPlan,
+			SourceType: variables.ValueFromPlan,
 		}
 
 		// Pull the var value from the input vars
@@ -327,7 +328,7 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 			inputValue = inputVar.Value
 
 			// Record the var in our return value
-			variables[name] = inputVar
+			varMap[name] = inputVar
 		}
 
 		// Pull the var value from the plan vars
@@ -346,9 +347,9 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 			planValue = val
 
 			// Record the var in our return value (potentially overriding the above set)
-			variables[name] = &InputValue{
+			varMap[name] = &variables.InputValue{
 				Value:      val,
-				SourceType: ValueFromPlan,
+				SourceType: variables.ValueFromPlan,
 			}
 		}
 
@@ -381,5 +382,5 @@ func (c *Context) mergePlanAndApplyVariables(config *configs.Config, plan *plans
 		}
 	}
 
-	return variables, diags
+	return varMap, diags
 }

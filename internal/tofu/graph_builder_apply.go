@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // ApplyGraphBuilder implements GraphBuilder and is responsible for building
@@ -36,7 +37,7 @@ type ApplyGraphBuilder struct {
 	// RootVariableValues are the root module input variables captured as
 	// part of the plan object, which we must reproduce in the apply step
 	// to get a consistent result.
-	RootVariableValues InputValues
+	RootVariableValues variables.InputValues
 
 	// Plugins is a library of the plug-in components (providers and
 	// provisioners) available for use.

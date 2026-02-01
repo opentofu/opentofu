@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
@@ -58,7 +59,7 @@ type PlanOpts struct {
 	// by the user who is requesting the run, prior to any normalization or
 	// substitution of defaults. See the documentation for the InputValue
 	// type for more information on how to correctly populate this.
-	SetVariables InputValues
+	SetVariables variables.InputValues
 
 	// If Targets has a non-zero length then it activates targeted planning
 	// mode, where OpenTofu will take actions only for resource instances
@@ -331,7 +332,7 @@ var DefaultPlanOpts = &PlanOpts{
 // The "mode" and "setVariables" arguments become the values of the "Mode"
 // and "SetVariables" fields in the result. Refer to the PlanOpts type
 // documentation to learn about the meanings of those fields.
-func SimplePlanOpts(mode plans.Mode, setVariables InputValues) *PlanOpts {
+func SimplePlanOpts(mode plans.Mode, setVariables variables.InputValues) *PlanOpts {
 	return &PlanOpts{
 		Mode:         mode,
 		SetVariables: setVariables,
@@ -1156,9 +1157,9 @@ func (c *Context) relevantResourceAttrsForPlan(ctx context.Context, config *conf
 
 // warnOnUsedDeprecatedVars is checking for variables whose values are given by the user and if any of that is
 // marked as deprecated, a warning message is written for it.
-func warnOnUsedDeprecatedVars(inputs InputValues, decls map[string]*configs.Variable) (diags tfdiags.Diagnostics) {
+func warnOnUsedDeprecatedVars(inputs variables.InputValues, decls map[string]*configs.Variable) (diags tfdiags.Diagnostics) {
 	for vn, in := range inputs {
-		if in.SourceType == ValueFromConfig {
+		if in.SourceType == variables.ValueFromConfig {
 			continue
 		}
 		vc, ok := decls[vn]

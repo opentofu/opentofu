@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/lint"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // nodeExpandModuleVariable is the placeholder for an variable that has not yet had
@@ -243,9 +244,9 @@ func (n *nodeModuleVariable) evalModuleVariable(ctx context.Context, evalCtx Eva
 	// We construct a synthetic InputValue here to pretend as if this were
 	// a root module variable set from outside, just as a convenience so we
 	// can reuse the InputValue type for this.
-	rawVal := &InputValue{
+	rawVal := &variables.InputValue{
 		Value:       givenVal,
-		SourceType:  ValueFromConfig,
+		SourceType:  variables.ValueFromConfig,
 		SourceRange: errSourceRange,
 	}
 

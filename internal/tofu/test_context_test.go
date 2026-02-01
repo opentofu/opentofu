@@ -22,13 +22,14 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestTestContext_EvaluateAgainstState(t *testing.T) {
 	tcs := map[string]struct {
 		configs   map[string]string
 		state     *states.State
-		variables InputValues
+		variables variables.InputValues
 		provider  *testhelpers.MockProvider
 
 		expectedDiags  []tfdiags.Description
@@ -221,7 +222,7 @@ run "test_case" {
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
 			}),
-			variables: InputValues{
+			variables: variables.InputValues{
 				"value": {
 					Value: cty.StringVal("Hello, world!"),
 				},
@@ -401,7 +402,7 @@ func TestTestContext_EvaluateAgainstPlan(t *testing.T) {
 		configs   map[string]string
 		state     *states.State
 		plan      *plans.Plan
-		variables InputValues
+		variables variables.InputValues
 		provider  *testhelpers.MockProvider
 
 		expectedDiags  []tfdiags.Description

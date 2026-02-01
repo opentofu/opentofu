@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // EvalGraphBuilder implements GraphBuilder and constructs a graph suitable
@@ -40,7 +41,7 @@ type EvalGraphBuilder struct {
 	// RootVariableValues are the raw input values for root input variables
 	// given by the caller, which we'll resolve into final values as part
 	// of the plan walk.
-	RootVariableValues InputValues
+	RootVariableValues variables.InputValues
 
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.

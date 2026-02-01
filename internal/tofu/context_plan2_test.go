@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -3664,10 +3665,10 @@ resource "test_resource" "a" {
 		}
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3693,10 +3694,10 @@ resource "test_resource" "a" {
 
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3726,10 +3727,10 @@ resource "test_resource" "a" {
 		})
 		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3762,10 +3763,10 @@ resource "test_resource" "a" {
 		}
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3811,10 +3812,10 @@ resource "test_resource" "a" {
 		}
 		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3864,10 +3865,10 @@ resource "test_resource" "a" {
 		}
 		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -3963,10 +3964,10 @@ resource "test_resource" "a" {
 		}
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4007,10 +4008,10 @@ resource "test_resource" "a" {
 		})
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4033,10 +4034,10 @@ resource "test_resource" "a" {
 		})
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4077,10 +4078,10 @@ resource "test_resource" "a" {
 		}
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4109,10 +4110,10 @@ resource "test_resource" "a" {
 		}
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4150,10 +4151,10 @@ resource "test_resource" "a" {
 		}
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4202,10 +4203,10 @@ output "a" {
 	t.Run("condition pass", func(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4236,10 +4237,10 @@ output "a" {
 	t.Run("condition fail", func(t *testing.T) {
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4254,10 +4255,10 @@ output "a" {
 	t.Run("condition fail refresh-only", func(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.RefreshOnlyMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("nope"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -4415,10 +4416,10 @@ output "a" {
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"boop": &InputValue{
+		SetVariables: variables.InputValues{
+			"boop": &variables.InputValue{
 				Value:      cty.StringVal("bleep"),
-				SourceType: ValueFromCLIArg,
+				SourceType: variables.ValueFromCLIArg,
 			},
 		},
 	})
@@ -6466,8 +6467,8 @@ func TestContext2Plan_importIdVariable(t *testing.T) {
 	}
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
-		SetVariables: InputValues{
-			"the_id": &InputValue{
+		SetVariables: variables.InputValues{
+			"the_id": &variables.InputValue{
 				// let var take its default value
 				Value: cty.NilVal,
 			},
@@ -6499,8 +6500,8 @@ func TestContext2Plan_importIdReference(t *testing.T) {
 	}
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
-		SetVariables: InputValues{
-			"the_id": &InputValue{
+		SetVariables: variables.InputValues{
+			"the_id": &variables.InputValue{
 				// let var take its default value
 				Value: cty.NilVal,
 			},
@@ -6648,8 +6649,8 @@ func TestContext2Plan_importIdInvalidNull(t *testing.T) {
 	})
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
-		SetVariables: InputValues{
-			"the_id": &InputValue{
+		SetVariables: variables.InputValues{
+			"the_id": &variables.InputValue{
 				Value: cty.NullVal(cty.String),
 			},
 		},
@@ -8745,14 +8746,14 @@ variable "ephemeral_var" {
 	newState := states.NewState()
 	plan, diags := ctx.Plan(context.Background(), m, newState, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"regular_var": &InputValue{
+		SetVariables: variables.InputValues{
+			"regular_var": &variables.InputValue{
 				Value:      cty.StringVal("regular var value"),
-				SourceType: ValueFromEnvVar,
+				SourceType: variables.ValueFromEnvVar,
 			},
-			"ephemeral_var": &InputValue{
+			"ephemeral_var": &variables.InputValue{
 				Value:      cty.StringVal("ephemeral var value"),
-				SourceType: ValueFromCLIArg,
+				SourceType: variables.ValueFromCLIArg,
 			},
 		},
 	})

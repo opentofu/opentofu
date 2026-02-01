@@ -39,6 +39,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestContext2Apply_basic(t *testing.T) {
@@ -2198,10 +2199,10 @@ func TestContext2Apply_compute(t *testing.T) {
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
-		SetVariables: InputValues{
-			"value": &InputValue{
+		SetVariables: variables.InputValues{
+			"value": &variables.InputValue{
 				Value:      cty.NumberIntVal(1),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -2603,8 +2604,8 @@ func TestContext2Apply_foreachVariable(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value: cty.StringVal("hello"),
 			},
 		},
@@ -3253,10 +3254,10 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.DestroyMode,
-		SetVariables: InputValues{
-			"num": &InputValue{
+		SetVariables: variables.InputValues{
+			"num": &variables.InputValue{
 				Value:      cty.NumberIntVal(2),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -3273,10 +3274,10 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"num": &InputValue{
+		SetVariables: variables.InputValues{
+			"num": &variables.InputValue{
 				Value:      cty.NumberIntVal(5),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -3643,10 +3644,10 @@ func TestContext2Apply_multiVar(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"num": &InputValue{
+		SetVariables: variables.InputValues{
+			"num": &variables.InputValue{
 				Value:      cty.NumberIntVal(3),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -3675,10 +3676,10 @@ func TestContext2Apply_multiVar(t *testing.T) {
 
 		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"num": &InputValue{
+			SetVariables: variables.InputValues{
+				"num": &variables.InputValue{
 					Value:      cty.NumberIntVal(1),
-					SourceType: ValueFromCaller,
+					SourceType: variables.ValueFromCaller,
 				},
 			},
 		})
@@ -3780,10 +3781,10 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"num": &InputValue{
+		SetVariables: variables.InputValues{
+			"num": &variables.InputValue{
 				Value:      cty.NumberIntVal(3),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -4012,10 +4013,10 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		log.Print("\n========\nStep 1 Plan\n========")
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"num": &InputValue{
+			SetVariables: variables.InputValues{
+				"num": &variables.InputValue{
 					Value:      cty.NumberIntVal(2),
-					SourceType: ValueFromCaller,
+					SourceType: variables.ValueFromCaller,
 				},
 			},
 		})
@@ -4076,10 +4077,10 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		log.Print("\n========\nStep 2 Plan\n========")
 		plan, diags := ctx.Plan(context.Background(), m, s, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"num": &InputValue{
+			SetVariables: variables.InputValues{
+				"num": &variables.InputValue{
 					Value:      cty.NumberIntVal(1),
-					SourceType: ValueFromCaller,
+					SourceType: variables.ValueFromCaller,
 				},
 			},
 		})
@@ -4362,10 +4363,10 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"value": &InputValue{
+		SetVariables: variables.InputValues{
+			"value": &variables.InputValue{
 				Value:      cty.NumberIntVal(1),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -4702,8 +4703,8 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"require_new": &InputValue{
+		SetVariables: variables.InputValues{
+			"require_new": &variables.InputValue{
 				Value: cty.StringVal("yes"),
 			},
 		},
@@ -4732,8 +4733,8 @@ aws_instance.web: (1 deposed)
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"require_new": &InputValue{
+		SetVariables: variables.InputValues{
+			"require_new": &variables.InputValue{
 				Value: cty.StringVal("baz"),
 			},
 		},
@@ -4797,8 +4798,8 @@ aws_instance.web: (1 deposed)
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"require_new": &InputValue{
+		SetVariables: variables.InputValues{
+			"require_new": &variables.InputValue{
 				Value: cty.StringVal("qux"),
 			},
 		},
@@ -4832,8 +4833,8 @@ aws_instance.web: (1 deposed)
 	})
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"require_new": &InputValue{
+		SetVariables: variables.InputValues{
+			"require_new": &variables.InputValue{
 				Value: cty.StringVal("quux"),
 			},
 		},
@@ -5221,12 +5222,12 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"input": &InputValue{
+		SetVariables: variables.InputValues{
+			"input": &variables.InputValue{
 				Value: cty.MapVal(map[string]cty.Value{
 					"a": cty.StringVal("b"),
 				}),
-				SourceType: ValueFromInput,
+				SourceType: variables.ValueFromInput,
 			},
 		},
 	})
@@ -7870,37 +7871,37 @@ func TestContext2Apply_vars(t *testing.T) {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
 
-	variables := InputValues{
-		"foo": &InputValue{
+	variables := variables.InputValues{
+		"foo": &variables.InputValue{
 			Value:      cty.StringVal("us-east-1"),
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
-		"bar": &InputValue{
+		"bar": &variables.InputValue{
 			// This one is not explicitly set but that's okay because it
 			// has a declared default, which OpenTofu Core will use instead.
 			Value:      cty.NilVal,
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
-		"test_list": &InputValue{
+		"test_list": &variables.InputValue{
 			Value: cty.ListVal([]cty.Value{
 				cty.StringVal("Hello"),
 				cty.StringVal("World"),
 			}),
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
-		"test_map": &InputValue{
+		"test_map": &variables.InputValue{
 			Value: cty.MapVal(map[string]cty.Value{
 				"Hello": cty.StringVal("World"),
 				"Foo":   cty.StringVal("Bar"),
 				"Baz":   cty.StringVal("Foo"),
 			}),
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
-		"amis": &InputValue{
+		"amis": &variables.InputValue{
 			Value: cty.MapVal(map[string]cty.Value{
 				"us-east-1": cty.StringVal("override"),
 			}),
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
 	}
 
@@ -7933,25 +7934,25 @@ func TestContext2Apply_varsEnv(t *testing.T) {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
 
-	variables := InputValues{
-		"string": &InputValue{
+	variables := variables.InputValues{
+		"string": &variables.InputValue{
 			Value:      cty.StringVal("baz"),
-			SourceType: ValueFromEnvVar,
+			SourceType: variables.ValueFromEnvVar,
 		},
-		"list": &InputValue{
+		"list": &variables.InputValue{
 			Value: cty.ListVal([]cty.Value{
 				cty.StringVal("Hello"),
 				cty.StringVal("World"),
 			}),
-			SourceType: ValueFromEnvVar,
+			SourceType: variables.ValueFromEnvVar,
 		},
-		"map": &InputValue{
+		"map": &variables.InputValue{
 			Value: cty.MapVal(map[string]cty.Value{
 				"Hello": cty.StringVal("World"),
 				"Foo":   cty.StringVal("Bar"),
 				"Baz":   cty.StringVal("Foo"),
 			}),
-			SourceType: ValueFromEnvVar,
+			SourceType: variables.ValueFromEnvVar,
 		},
 	}
 
@@ -9334,10 +9335,10 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"instance_count": {
 				Value:      cty.NumberIntVal(0),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -11454,10 +11455,10 @@ locals {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"ct": &InputValue{
+		SetVariables: variables.InputValues{
+			"ct": &variables.InputValue{
 				Value:      cty.NumberIntVal(1),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -11517,10 +11518,10 @@ locals {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"ct": &InputValue{
+		SetVariables: variables.InputValues{
+			"ct": &variables.InputValue{
 				Value:      cty.NumberIntVal(0),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -11847,8 +11848,8 @@ resource "test_resource" "a" {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"v": &InputValue{
+		SetVariables: variables.InputValues{
+			"v": &variables.InputValue{
 				Value: cty.StringVal("A"),
 			},
 		},
@@ -11868,8 +11869,8 @@ resource "test_resource" "a" {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"v": &InputValue{
+		SetVariables: variables.InputValues{
+			"v": &variables.InputValue{
 				Value: cty.StringVal("B"),
 			},
 		},
@@ -11910,8 +11911,8 @@ resource "test_instance" "b" {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"v": &InputValue{
+		SetVariables: variables.InputValues{
+			"v": &variables.InputValue{
 				Value: cty.StringVal("A"),
 			},
 		},
@@ -11931,8 +11932,8 @@ resource "test_instance" "b" {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"v": &InputValue{
+		SetVariables: variables.InputValues{
+			"v": &variables.InputValue{
 				Value: cty.StringVal("B"),
 			},
 		},
@@ -11971,8 +11972,8 @@ resource "test_resource" "c" {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"ct": &InputValue{
+		SetVariables: variables.InputValues{
+			"ct": &variables.InputValue{
 				Value: cty.NumberIntVal(1),
 			},
 		},
@@ -11992,8 +11993,8 @@ resource "test_resource" "c" {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"ct": &InputValue{
+		SetVariables: variables.InputValues{
+			"ct": &variables.InputValue{
 				Value: cty.NumberIntVal(0),
 			},
 		},
@@ -12101,9 +12102,9 @@ resource "test_resource" "foo" {
 
 	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"sensitive_id": &InputValue{Value: cty.NilVal},
-			"sensitive_var": &InputValue{
+		SetVariables: variables.InputValues{
+			"sensitive_id": &variables.InputValue{Value: cty.NilVal},
+			"sensitive_var": &variables.InputValue{
 				Value: cty.StringVal("bar"),
 			},
 		},
@@ -12433,12 +12434,12 @@ output "out" {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"in": &InputValue{
+		SetVariables: variables.InputValues{
+			"in": &variables.InputValue{
 				Value: cty.MapVal(map[string]cty.Value{
 					"required": cty.StringVal("boop"),
 				}),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -12669,10 +12670,10 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"password": &InputValue{
+		SetVariables: variables.InputValues{
+			"password": &variables.InputValue{
 				Value:      cty.StringVal("secret"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})

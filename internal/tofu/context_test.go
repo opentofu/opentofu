@@ -34,6 +34,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -717,6 +718,28 @@ func legacyDiffComparisonString(changes *plans.Changes) string {
 	}
 
 	return buf.String()
+}
+
+// testInputValuesUnset is a helper for constructing InputValues values for
+// situations where all of the root module variables are optional and a
+// test case intends to just use those default values and not override them
+// at all.
+//
+// In other words, this constructs an InputValues with one entry per given
+// input variable declaration where all of them are declared as unset.
+func testInputValuesUnset(decls map[string]*configs.Variable) variables.InputValues {
+	if len(decls) == 0 {
+		return nil
+	}
+
+	ret := make(variables.InputValues, len(decls))
+	for name := range decls {
+		ret[name] = &variables.InputValue{
+			Value:      cty.NilVal,
+			SourceType: variables.ValueFromUnknown,
+		}
+	}
+	return ret
 }
 
 const testContextRefreshModuleStr = `

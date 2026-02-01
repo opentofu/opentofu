@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // RootVariableTransformer is a GraphTransformer that adds all the root
@@ -22,7 +23,7 @@ import (
 type RootVariableTransformer struct {
 	Config *configs.Config
 
-	RawValues InputValues
+	RawValues variables.InputValues
 }
 
 func (t *RootVariableTransformer) Transform(_ context.Context, g *Graph) error {

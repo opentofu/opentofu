@@ -37,6 +37,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -1130,10 +1131,10 @@ resource "test_resource" "c" {
 	t.Run("condition pass", func(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -1179,10 +1180,10 @@ resource "test_resource" "c" {
 	t.Run("condition fail", func(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"boop": &InputValue{
+			SetVariables: variables.InputValues{
+				"boop": &variables.InputValue{
 					Value:      cty.StringVal("boop"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -1291,10 +1292,10 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 		ctx := testContext2(t, &ContextOpts{})
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal("beep"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -1331,10 +1332,10 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 		ctx := testContext2(t, &ContextOpts{})
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal(""),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -1446,10 +1447,10 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 	{
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal("beep"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -1483,10 +1484,10 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 	{
 		plan, diags := ctx.Plan(context.Background(), m, prevRunState, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal("boop"), // NOTE: This has changed
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -5004,7 +5005,7 @@ variable "other_var" {
 	})
 
 	t.Run("valid", func(t *testing.T) {
-		input := InputValuesFromCaller(map[string]cty.Value{"root_var": cty.NumberIntVal(10)})
+		input := variables.InputValuesFromCaller(map[string]cty.Value{"root_var": cty.NumberIntVal(10)})
 
 		provider := testhelpers.TestProvider("test")
 
@@ -5052,7 +5053,7 @@ variable "other_var" {
 	})
 
 	t.Run("circular", func(t *testing.T) {
-		input := InputValuesFromCaller(map[string]cty.Value{
+		input := variables.InputValuesFromCaller(map[string]cty.Value{
 			"root_var":  cty.NumberIntVal(10),
 			"other_var": cty.NumberIntVal(10),
 		})
@@ -5105,7 +5106,7 @@ variable "res_data" {
 		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
 	}
 
-	var input InputValues
+	var input variables.InputValues
 
 	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		ctx := testContext2(t, &ContextOpts{
@@ -5143,7 +5144,7 @@ variable "res_data" {
 	resAddr := testhelpers.MustResourceInstanceAddr(`test_instance.a`)
 
 	// Invalid validation condition
-	input = InputValuesFromCaller(map[string]cty.Value{
+	input = variables.InputValuesFromCaller(map[string]cty.Value{
 		"expected": cty.StringVal("bar"),
 	})
 	_, diags := apply(t, m, states.NewState())
@@ -5155,7 +5156,7 @@ variable "res_data" {
 	}
 
 	// Valid validation condition
-	input = InputValuesFromCaller(map[string]cty.Value{
+	input = variables.InputValuesFromCaller(map[string]cty.Value{
 		"expected": cty.StringVal("foo"),
 	})
 	state, diags := apply(t, m, states.NewState())
@@ -5179,7 +5180,7 @@ variable "res_data" {
 	}
 
 	// Invalid Destroy
-	input = InputValuesFromCaller(map[string]cty.Value{
+	input = variables.InputValuesFromCaller(map[string]cty.Value{
 		"expected": cty.StringVal("bar"),
 	})
 	diags = destroy(t, m, state)
@@ -5463,10 +5464,10 @@ module "call" {
 	ctx := testContext2(t, &ContextOpts{})
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"var": {
 				Value:      cty.StringVal("from cli"),
-				SourceType: ValueFromCLIArg,
+				SourceType: variables.ValueFromCLIArg,
 			},
 		},
 	})
@@ -5868,7 +5869,7 @@ output "regular_optional" {
 	})
 
 	cases := map[string]struct {
-		planSetVariables InputValues
+		planSetVariables variables.InputValues
 		applyOpts        *ApplyOpts
 		// Set this to "true" to test a flow similar with the one ran when running `tofu plan -out <planfile>` followed by `tofu apply <planfile>`.
 		// "False" it means that it will run the test like running directly `tofu apply -auto-approve`
@@ -5881,7 +5882,7 @@ output "regular_optional" {
 		// then read from the file during `tofu apply <planfile>`. This is the only way for the
 		// ApplyOpts to be passed into the context.Apply()
 		"mutate plan to be similar with the one loaded from file and apply without any opts": {
-			planSetVariables: map[string]*InputValue{
+			planSetVariables: map[string]*variables.InputValue{
 				"ephemeral_required": {Value: cty.StringVal("eph val")},
 				"ephemeral_optional": {},
 				"regular_required":   {Value: cty.StringVal("reg val")},
@@ -5892,13 +5893,13 @@ output "regular_optional" {
 			expectedApplyErrors:   []string{"No value for required variable - Variable \"ephemeral_required\" is configured as ephemeral. This type of variables need to be given a value during `tofu plan` and also during `tofu apply`."},
 		},
 		"mutate plan to be similar with the one loaded from file and apply with opts containing the ephemeral_required": {
-			planSetVariables: map[string]*InputValue{
-				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
-				"ephemeral_optional": {SourceType: ValueFromPlan},
-				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
-				"regular_optional":   {SourceType: ValueFromPlan},
+			planSetVariables: map[string]*variables.InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: variables.ValueFromPlan},
+				"ephemeral_optional": {SourceType: variables.ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: variables.ValueFromPlan},
+				"regular_optional":   {SourceType: variables.ValueFromPlan},
 			},
-			applyOpts:             &ApplyOpts{SetVariables: InputValues{"ephemeral_required": &InputValue{Value: cty.StringVal("from applyopts"), SourceType: ValueFromCLIArg}}},
+			applyOpts:             &ApplyOpts{SetVariables: variables.InputValues{"ephemeral_required": &variables.InputValue{Value: cty.StringVal("from applyopts"), SourceType: variables.ValueFromCLIArg}}},
 			simulatePlanRoundtrip: true,
 			expectedApplyErrors:   nil,
 		},
@@ -5907,15 +5908,15 @@ output "regular_optional" {
 
 		// Validates that even when the optional variables have null values during plan creation, the applyOpts do not override the null values.
 		"apply configuration directly where planOpts satisfies completely the variables therefore applyOpts don't get used": {
-			planSetVariables: map[string]*InputValue{
-				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
-				"ephemeral_optional": {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
-				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
-				"regular_optional":   {SourceType: ValueFromPlan}, // This will not get into the plan since it's optional
+			planSetVariables: map[string]*variables.InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: variables.ValueFromPlan},
+				"ephemeral_optional": {SourceType: variables.ValueFromPlan}, // This will not get into the plan since it's optional
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: variables.ValueFromPlan},
+				"regular_optional":   {SourceType: variables.ValueFromPlan}, // This will not get into the plan since it's optional
 			},
-			applyOpts: &ApplyOpts{SetVariables: InputValues{
-				"ephemeral_optional": &InputValue{Value: cty.StringVal("eph from applyopts"), SourceType: ValueFromCLIArg},
-				"regular_optional":   &InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: ValueFromCLIArg},
+			applyOpts: &ApplyOpts{SetVariables: variables.InputValues{
+				"ephemeral_optional": &variables.InputValue{Value: cty.StringVal("eph from applyopts"), SourceType: variables.ValueFromCLIArg},
+				"regular_optional":   &variables.InputValue{Value: cty.StringVal("regular from applyopts"), SourceType: variables.ValueFromCLIArg},
 			}},
 			expectedApplyErrors: nil,
 			expectedOutputs: map[string]*states.OutputValue{
@@ -5923,15 +5924,15 @@ output "regular_optional" {
 			},
 		},
 		"apply setVariables contain value for undefined variable": {
-			planSetVariables: map[string]*InputValue{
-				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
-				"ephemeral_optional": {SourceType: ValueFromPlan},
-				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
-				"regular_optional":   {SourceType: ValueFromPlan},
+			planSetVariables: map[string]*variables.InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: variables.ValueFromPlan},
+				"ephemeral_optional": {SourceType: variables.ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: variables.ValueFromPlan},
+				"regular_optional":   {SourceType: variables.ValueFromPlan},
 			},
 			applyOpts: &ApplyOpts{
-				SetVariables: map[string]*InputValue{
-					"undefined_variable": {SourceType: ValueFromCLIArg, Value: cty.StringVal("test")},
+				SetVariables: map[string]*variables.InputValue{
+					"undefined_variable": {SourceType: variables.ValueFromCLIArg, Value: cty.StringVal("test")},
 				},
 			},
 			expectedApplyErrors: []string{
@@ -5939,18 +5940,18 @@ output "regular_optional" {
 			},
 		},
 		"same variable has different values in applyOpts and planOpts": {
-			planSetVariables: map[string]*InputValue{
-				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: ValueFromPlan},
-				"ephemeral_optional": {Value: cty.StringVal("eph optional val"), SourceType: ValueFromPlan},
-				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: ValueFromPlan},
-				"regular_optional":   {Value: cty.StringVal("reg optional val"), SourceType: ValueFromPlan},
+			planSetVariables: map[string]*variables.InputValue{
+				"ephemeral_required": {Value: cty.StringVal("eph val"), SourceType: variables.ValueFromPlan},
+				"ephemeral_optional": {Value: cty.StringVal("eph optional val"), SourceType: variables.ValueFromPlan},
+				"regular_required":   {Value: cty.StringVal("reg val"), SourceType: variables.ValueFromPlan},
+				"regular_optional":   {Value: cty.StringVal("reg optional val"), SourceType: variables.ValueFromPlan},
 			},
 			applyOpts: &ApplyOpts{
-				SetVariables: map[string]*InputValue{
-					"ephemeral_required": {Value: cty.StringVal("eph val 2"), SourceType: ValueFromPlan},
-					"ephemeral_optional": {Value: cty.StringVal("eph optional val 2"), SourceType: ValueFromPlan},
-					"regular_required":   {Value: cty.StringVal("reg val 2"), SourceType: ValueFromPlan},
-					"regular_optional":   {Value: cty.StringVal("reg optional val 2"), SourceType: ValueFromPlan},
+				SetVariables: map[string]*variables.InputValue{
+					"ephemeral_required": {Value: cty.StringVal("eph val 2"), SourceType: variables.ValueFromPlan},
+					"ephemeral_optional": {Value: cty.StringVal("eph optional val 2"), SourceType: variables.ValueFromPlan},
+					"regular_required":   {Value: cty.StringVal("reg val 2"), SourceType: variables.ValueFromPlan},
+					"regular_optional":   {Value: cty.StringVal("reg optional val 2"), SourceType: variables.ValueFromPlan},
 				},
 			},
 			expectedApplyErrors: []string{
@@ -6028,7 +6029,7 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 		config               *configs.Config
 		plan                 *plans.Plan
 		opts                 *ApplyOpts
-		expectedVals         InputValues
+		expectedVals         variables.InputValues
 		expectedDiagsDetails []tfdiags.Description
 	}{
 		"backwards compatibility test - missing values from plan are set to nil": {
@@ -6046,14 +6047,14 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				},
 			},
 			nil,
-			InputValues{
-				"var1": &InputValue{
+			variables.InputValues{
+				"var1": &variables.InputValue{
 					Value:      cty.StringVal("var1 value"),
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
-				"var2": &InputValue{
+				"var2": &variables.InputValue{
 					Value:      cty.NilVal,
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 			},
 			[]tfdiags.Description{},
@@ -6072,12 +6073,12 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				},
 			},
 			nil,
-			InputValues{
+			variables.InputValues{
 				// Initially, before the introduction of mergePlanAndApplyVariables, the returned InputValues had no entries.
 				// But due to the new way this is implemented, now these are returned with their nil value.
 				// This is not an issue, functionally speaking, because the call to this new method must check
 				// first for the diags and after user the returned values.
-				"var1": &InputValue{SourceType: ValueFromPlan},
+				"var1": &variables.InputValue{SourceType: variables.ValueFromPlan},
 			},
 			[]tfdiags.Description{
 				{
@@ -6118,10 +6119,10 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				VariableValues: map[string]plans.DynamicValue{},
 			},
 			&ApplyOpts{
-				SetVariables: InputValues{
-					"var1": &InputValue{
+				SetVariables: variables.InputValues{
+					"var1": &variables.InputValue{
 						Value:      cty.StringVal("var1 value"),
-						SourceType: ValueFromCLIArg,
+						SourceType: variables.ValueFromCLIArg,
 					},
 				},
 			},
@@ -6145,17 +6146,17 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				VariableValues: map[string]plans.DynamicValue{},
 			},
 			&ApplyOpts{
-				SetVariables: InputValues{
-					"var1": &InputValue{
+				SetVariables: variables.InputValues{
+					"var1": &variables.InputValue{
 						Value:      cty.StringVal("var1 value"),
-						SourceType: ValueFromCLIArg,
+						SourceType: variables.ValueFromCLIArg,
 					},
 				},
 			},
-			InputValues{
-				"var1": &InputValue{
+			variables.InputValues{
+				"var1": &variables.InputValue{
 					Value:      cty.StringVal("var1 value"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 			[]tfdiags.Description{},
@@ -6173,11 +6174,11 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				EphemeralVariables: map[string]bool{"var1": true},
 			},
 			nil,
-			InputValues{
+			variables.InputValues{
 				// This is returned strictly due to the way mergePlanAndApplyVariables is implemented. Check
 				// the comment on the method
-				"var1": &InputValue{
-					SourceType: ValueFromPlan,
+				"var1": &variables.InputValue{
+					SourceType: variables.ValueFromPlan,
 				},
 			},
 			[]tfdiags.Description{
@@ -6202,10 +6203,10 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				EphemeralVariables: map[string]bool{"var1": true},
 			},
 			nil,
-			InputValues{
-				"var1": &InputValue{
+			variables.InputValues{
+				"var1": &variables.InputValue{
 					Value:      cty.NilVal,
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 			},
 			[]tfdiags.Description{},
@@ -6224,17 +6225,17 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				},
 			},
 			&ApplyOpts{
-				SetVariables: InputValues{
-					"var1": &InputValue{
+				SetVariables: variables.InputValues{
+					"var1": &variables.InputValue{
 						Value:      cty.StringVal("value from apply opts"),
-						SourceType: ValueFromCLIArg,
+						SourceType: variables.ValueFromCLIArg,
 					},
 				},
 			},
-			InputValues{
-				"var1": &InputValue{
+			variables.InputValues{
+				"var1": &variables.InputValue{
 					Value:      cty.StringVal("value from plan"),
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 			},
 			[]tfdiags.Description{
@@ -6269,29 +6270,29 @@ func TestMergePlanAndApplyVariables(t *testing.T) {
 				},
 			},
 			&ApplyOpts{
-				SetVariables: InputValues{
-					"ephemeral_without_default": &InputValue{
+				SetVariables: variables.InputValues{
+					"ephemeral_without_default": &variables.InputValue{
 						Value:      cty.StringVal("ephemeral value from apply opts"),
-						SourceType: ValueFromCLIArg,
+						SourceType: variables.ValueFromCLIArg,
 					},
 				},
 			},
-			InputValues{
+			variables.InputValues{
 				"regular_with_default": {
 					Value:      cty.NilVal,
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 				"regular_without_default": {
 					Value:      cty.StringVal("regular value from plan"),
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 				"ephemeral_with_default": {
 					Value:      cty.NilVal,
-					SourceType: ValueFromPlan,
+					SourceType: variables.ValueFromPlan,
 				},
 				"ephemeral_without_default": {
 					Value:      cty.StringVal("ephemeral value from apply opts"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 			[]tfdiags.Description{},
@@ -6366,8 +6367,8 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.False,
 				},
 			},
@@ -6399,8 +6400,8 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.True,
 				},
 			},
@@ -6437,8 +6438,8 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.False,
 				},
 			},
@@ -6495,8 +6496,8 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.False,
 				},
 			},
@@ -6519,8 +6520,8 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.True,
 				},
 			},
@@ -6550,8 +6551,8 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 
 		plan, diags := tfCtx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"on": &InputValue{
+			SetVariables: variables.InputValues{
+				"on": &variables.InputValue{
 					Value: cty.False,
 				},
 			},

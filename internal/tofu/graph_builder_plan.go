@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // PlanGraphBuilder is a GraphBuilder implementation that builds a graph for
@@ -39,7 +40,7 @@ type PlanGraphBuilder struct {
 	// RootVariableValues are the raw input values for root input variables
 	// given by the caller, which we'll resolve into final values as part
 	// of the plan walk.
-	RootVariableValues InputValues
+	RootVariableValues variables.InputValues
 
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.

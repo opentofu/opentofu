@@ -23,9 +23,10 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
-func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *InputValue, cfg *configs.Variable) (cty.Value, tfdiags.Diagnostics) {
+func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *variables.InputValue, cfg *configs.Variable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	convertTy := cfg.ConstraintType
@@ -84,11 +85,11 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 		// messages.
 		sourceRange = tfdiags.SourceRangeFromHCL(cfg.DeclRange)
 		switch raw.SourceType {
-		case ValueFromCLIArg:
+		case variables.ValueFromCLIArg:
 			nonFileSource = fmt.Sprintf("set using -var=\"%s=...\"", addr.Variable.Name)
-		case ValueFromEnvVar:
+		case variables.ValueFromEnvVar:
 			nonFileSource = fmt.Sprintf("set using the TF_VAR_%s environment variable", addr.Variable.Name)
-		case ValueFromInput:
+		case variables.ValueFromInput:
 			nonFileSource = "set using an interactive prompt"
 		default:
 			nonFileSource = "set from outside of the configuration"

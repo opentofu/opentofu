@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 // ImportOpts are used as the configuration for Import.
@@ -26,7 +27,7 @@ type ImportOpts struct {
 
 	// SetVariables are the variables set outside of the configuration,
 	// such as on the command line, in variables files, etc.
-	SetVariables InputValues
+	SetVariables variables.InputValues
 }
 
 // CommandLineImportTarget is a target that we need to import, that originated from the CLI command

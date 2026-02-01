@@ -37,6 +37,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestContext2Plan_basic(t *testing.T) {
@@ -685,10 +686,10 @@ func TestContext2Plan_moduleInputFromVar(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("52"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -1149,10 +1150,10 @@ func TestContext2Plan_moduleProviderDefaultsVar(t *testing.T) {
 
 	_, err := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("root"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -1571,10 +1572,10 @@ func TestContext2Plan_preventDestroy_dynamic(t *testing.T) {
 						},
 					})
 
-					_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, InputValues{
+					_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, variables.InputValues{
 						"prevent_destroy": {
 							Value:      test.PreventDestroy,
-							SourceType: ValueFromCaller,
+							SourceType: variables.ValueFromCaller,
 						},
 					}))
 					if test.WantErr == "" {
@@ -1634,10 +1635,10 @@ func TestContext2Plan_preventDestroy_dynamicEphemeral(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, InputValues{
+	_, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, variables.InputValues{
 		"prevent_destroy": {
 			Value:      cty.NilVal, // as if not set at all
-			SourceType: ValueFromCaller,
+			SourceType: variables.ValueFromCaller,
 		},
 	}))
 	if !diags.HasErrors() {
@@ -2908,10 +2909,10 @@ func TestContext2Plan_countVar(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"instance_count": &InputValue{
+		SetVariables: variables.InputValues{
+			"instance_count": &variables.InputValue{
 				Value:      cty.StringVal("3"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -3586,10 +3587,10 @@ func TestContext2Plan_forEachUnknownValue(t *testing.T) {
 
 	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"foo": {
 				Value:      cty.UnknownVal(cty.String),
-				SourceType: ValueFromCLIArg,
+				SourceType: variables.ValueFromCLIArg,
 			},
 		},
 	})
@@ -5416,10 +5417,10 @@ func TestContext2Plan_provider(t *testing.T) {
 	})
 	opts := &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("bar"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	}
@@ -5474,10 +5475,10 @@ func TestContext2Plan_ignoreChanges(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("ami-1234abcd"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -5547,14 +5548,14 @@ func TestContext2Plan_ignoreChangesWildcard(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("ami-1234abcd"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
-			"bar": &InputValue{
+			"bar": &variables.InputValue{
 				Value:      cty.StringVal("t2.small"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -5671,10 +5672,10 @@ func TestContext2Plan_ignoreChangesSensitive(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
-			"foo": &InputValue{
+		SetVariables: variables.InputValues{
+			"foo": &variables.InputValue{
 				Value:      cty.StringVal("ami-1234abcd"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})
@@ -6559,11 +6560,11 @@ func TestContext2Plan_variableSensitivityModule(t *testing.T) {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
-		SetVariables: InputValues{
+		SetVariables: variables.InputValues{
 			"sensitive_var": {Value: cty.NilVal},
-			"another_var": &InputValue{
+			"another_var": &variables.InputValue{
 				Value:      cty.StringVal("boop"),
-				SourceType: ValueFromCaller,
+				SourceType: variables.ValueFromCaller,
 			},
 		},
 	})

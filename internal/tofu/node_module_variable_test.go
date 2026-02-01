@@ -26,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
 
 func TestNodeModuleVariablePath(t *testing.T) {
@@ -225,10 +226,10 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		ctx := testContext2(t, ctxOpts)
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal("beep"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -258,10 +259,10 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 
 		plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal("beep"),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
@@ -284,10 +285,10 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 		ctx := testContext2(t, ctxOpts)
 		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
-			SetVariables: InputValues{
-				"input": &InputValue{
+			SetVariables: variables.InputValues{
+				"input": &variables.InputValue{
 					Value:      cty.StringVal(""),
-					SourceType: ValueFromCLIArg,
+					SourceType: variables.ValueFromCLIArg,
 				},
 			},
 		})
