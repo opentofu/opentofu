@@ -28,9 +28,8 @@ import (
 // all of the same checks as Validate, in addition to the other work it does
 // to consider the previous run state and the planning options.
 func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.Diagnostics {
-	defer c.acquireRun("validate")()
-
-	var diags tfdiags.Diagnostics
+	impl, done, diags := c.acquireRun("validate")
+	defer done()
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Validation phase",
@@ -67,11 +66,5 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	}
 
 	importTargets := c.findImportTargets(config)
-
-	impl, implDiags := c.impl()
-	diags = diags.Append(implDiags)
-	if diags.HasErrors() {
-		return diags
-	}
 	return impl.Validate(ctx, config, varValues, importTargets)
 }

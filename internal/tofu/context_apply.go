@@ -54,7 +54,8 @@ type ApplyOpts struct {
 func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config, opts *ApplyOpts) (*states.State, tfdiags.Diagnostics) {
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
-	var diags tfdiags.Diagnostics
+	impl, done, diags := c.acquireRun("apply")
+	defer done()
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Apply phase",
@@ -111,12 +112,6 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	variables, vDiags := c.mergePlanAndApplyVariables(config, plan, opts)
 	diags = diags.Append(vDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	impl, implDiags := c.impl()
-	diags = diags.Append(implDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}

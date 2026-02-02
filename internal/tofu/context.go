@@ -73,9 +73,8 @@ type Context struct {
 	parallelSem         Semaphore
 	l                   sync.Mutex // Lock acquired during any task
 	providerInputConfig map[string]map[string]cty.Value
-	runCond             *sync.Cond
-	runContext          context.Context
-	runContextCancel    context.CancelFunc
+
+	runContext contract.Context
 
 	encryption encryption.Encryption
 }
@@ -182,15 +181,15 @@ func (c *Context) Stop() {
 	defer c.l.Unlock()
 
 	// If we're running, then stop
-	if c.runContextCancel != nil {
+	if c.runContext != nil {
 		log.Printf("[WARN] tofu: run context exists, stopping")
 
 		// Tell the hook we want to stop
 		c.sh.Stop()
 
 		// Stop the context
-		c.runContextCancel()
-		c.runContextCancel = nil
+		c.runContext.Stop()
+
 	}
 
 	// Notify all of the hooks that we're stopping, in case they want to try
@@ -199,53 +198,32 @@ func (c *Context) Stop() {
 		hook.Stopping()
 	}
 
-	// Grab the condition var before we exit
-	if cond := c.runCond; cond != nil {
-		log.Printf("[INFO] tofu: waiting for graceful stop to complete")
-		cond.Wait()
-	}
-
-	log.Printf("[WARN] tofu: stop complete")
 }
 
-func (c *Context) acquireRun(phase string) func() {
+func (c *Context) acquireRun(phase string) (contract.Context, func(), tfdiags.Diagnostics) {
 	// With the run lock held, grab the context lock to make changes
 	// to the run context.
 	c.l.Lock()
 	defer c.l.Unlock()
 
-	// Wait until we're no longer running
-	for c.runCond != nil {
-		c.runCond.Wait()
+	if c.runContext != nil {
+		panic("Invalid context state")
 	}
 
-	// Build our lock
-	c.runCond = sync.NewCond(&c.l)
+	impl, diags := c.impl()
+	if diags.HasErrors() {
+		return nil, nil, diags
+	}
 
-	// Create a new run context
-	c.runContext, c.runContextCancel = context.WithCancel(context.Background())
+	c.runContext = impl
 
-	// Reset the stop hook so we're not stopped
-	c.sh.Reset()
-
-	return c.releaseRun
+	return c.runContext, c.releaseRun, diags
 }
 
 func (c *Context) releaseRun() {
 	// Grab the context lock so that we can make modifications to fields
 	c.l.Lock()
 	defer c.l.Unlock()
-
-	// End our run. We check if runContext is non-nil because it can be
-	// set to nil if it was cancelled via Stop()
-	if c.runContextCancel != nil {
-		c.runContextCancel()
-	}
-
-	// Unlock all waiting our condition
-	cond := c.runCond
-	c.runCond = nil
-	cond.Broadcast()
 
 	// Unset the context
 	c.runContext = nil

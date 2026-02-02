@@ -56,6 +56,7 @@ type Context interface {
 	Apply(ctx context.Context, plan *plans.Plan, config *configs.Config, setVariables variables.InputValues) (*states.State, tfdiags.Diagnostics)
 	Import(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics)
 	Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, variables variables.InputValues) (*lang.Scope, tfdiags.Diagnostics)
+	Stop()
 }
 
 // PlanOpts are the various options that affect the details of how OpenTofu

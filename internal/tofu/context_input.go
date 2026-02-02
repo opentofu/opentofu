@@ -48,8 +48,9 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	// CLI layer too in order to avoid this odd situation where core code
 	// produces UI input prompts.)
 
-	var diags tfdiags.Diagnostics
-	defer c.acquireRun("input")()
+	_, done, diags := c.acquireRun("input")
+	defer done()
+	// TODO cam72cam how should this deal with context cancellation in here?
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Gather input",

@@ -27,8 +27,9 @@ type ImportOpts contract.ImportOpts
 // an import there is a failure, all previously imported resources remain
 // imported.
 func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
+	impl, done, diags := c.acquireRun("import")
+	defer done()
 
-	impl, diags := c.impl()
 	if diags.HasErrors() {
 		return nil, diags
 	}

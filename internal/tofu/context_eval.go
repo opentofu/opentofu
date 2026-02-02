@@ -45,8 +45,8 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
 
-	var diags tfdiags.Diagnostics
-	defer c.acquireRun("eval")()
+	impl, done, diags := c.acquireRun("eval")
+	defer done()
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Evaluation phase",
@@ -71,10 +71,5 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 
 	log.Printf("[DEBUG] Building and walking 'eval' graph")
 
-	impl, implDiags := c.impl()
-	diags = diags.Append(implDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
 	return impl.Eval(ctx, config, state, moduleAddr, variables)
 }
