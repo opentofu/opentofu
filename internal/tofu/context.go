@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sort"
 	"sync"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/engine"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -138,6 +140,12 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 }
 
 func (c *Context) impl() (contract.Context, tfdiags.Diagnostics) {
+	if os.Getenv("TOFU_X_EXPERIMENTAL_RUNTIME") != "" {
+		return engine.NewContext(
+			c.plugins.providerFactories,
+			c.plugins.provisionerFactories,
+		), nil
+	}
 	return graph.NewContext(&contract.ContextOpts{
 		Meta:         (*contract.ContextMeta)(c.meta),
 		Hooks:        c.hooks,
