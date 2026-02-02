@@ -56,7 +56,6 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// Start with a copy of state so that we don't affect the instance that
 	// the caller is holding.
 	state = state.DeepCopy()
-	var walker *ContextGraphWalker
 
 	variables := opts.SetVariables
 
@@ -72,42 +71,10 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 
 	log.Printf("[DEBUG] Building and walking 'eval' graph")
 
-	providerFunctionTracker := make(ProviderFunctionMapping)
-
-	graph, moreDiags := (&EvalGraphBuilder{
-		Config:                  config,
-		State:                   state,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(ctx, addrs.RootModuleInstance)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	impl, implDiags := c.impl()
+	diags = diags.Append(implDiags)
+	if diags.HasErrors() {
 		return nil, diags
 	}
-
-	walkOpts := &graphWalkOpts{
-		InputState:              state,
-		Config:                  config,
-		ProviderFunctionTracker: providerFunctionTracker,
-	}
-
-	walker, moreDiags = c.walk(ctx, graph, walkEval, walkOpts)
-	diags = diags.Append(moreDiags)
-	if walker != nil {
-		diags = diags.Append(walker.NonFatalDiagnostics)
-	} else {
-		// If we skipped walking the graph (due to errors) then we'll just
-		// use a placeholder graph walker here, which'll refer to the
-		// unmodified state.
-		walker = c.graphWalker(walkEval, walkOpts)
-	}
-
-	// This is a bit weird since we don't normally evaluate outside of
-	// the context of a walk, but we'll "re-enter" our desired path here
-	// just to get hold of an EvalContext for it. ContextGraphWalker
-	// caches its contexts, so we should get hold of the context that was
-	// previously used for evaluation here, unless we skipped walking.
-	evalCtx := walker.EnterPath(moduleAddr)
-	return evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey), diags
+	return impl.Eval(ctx, config, state, moduleAddr, variables)
 }

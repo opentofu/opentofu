@@ -17,11 +17,12 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/contract"
+	"github.com/opentofu/opentofu/internal/tofu/graph"
 	"github.com/opentofu/opentofu/internal/tofu/hooks"
 	"github.com/opentofu/opentofu/internal/tofu/variables"
 )
@@ -52,26 +53,7 @@ type ContextOpts struct {
 	UIInput UIInput
 }
 
-// ContextMeta is metadata about the running context. This is information
-// that this package or structure cannot determine on its own but exposes
-// into OpenTofu in various ways. This must be provided by the Context
-// initializer.
-type ContextMeta struct {
-	Env string // Env is the state environment
-
-	// OriginalWorkingDir is the working directory where the OpenTofu CLI
-	// was run from, which may no longer actually be the current working
-	// directory if the user included the -chdir=... option.
-	//
-	// If this string is empty then the original working directory is the same
-	// as the current working directory.
-	//
-	// In most cases we should respect the user's override by ignoring this
-	// path and just using the current working directory, but this is here
-	// for some exceptional cases where the original working directory is
-	// needed.
-	OriginalWorkingDir string
-}
+type ContextMeta contract.ContextMeta
 
 // Context represents all the context that OpenTofu needs in order to
 // perform operations on infrastructure. This structure is built using
@@ -154,6 +136,17 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 
 		encryption: opts.Encryption,
 	}, diags
+}
+
+func (c *Context) impl() (contract.Context, tfdiags.Diagnostics) {
+	return graph.NewContext(&contract.ContextOpts{
+		Meta:         (*contract.ContextMeta)(c.meta),
+		Hooks:        c.hooks,
+		Parallelism:  10, // TODO cam72cam
+		Providers:    c.plugins.providerFactories,
+		Provisioners: c.plugins.provisionerFactories,
+		Encryption:   c.encryption,
+	})
 }
 
 func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
@@ -256,84 +249,6 @@ func (c *Context) releaseRun() {
 
 	// Unset the context
 	c.runContext = nil
-}
-
-// watchStop immediately returns a `stop` and a `wait` chan after dispatching
-// the watchStop goroutine. This will watch the runContext for cancellation and
-// stop the providers accordingly.  When the watch is no longer needed, the
-// `stop` chan should be closed before waiting on the `wait` chan.
-// The `wait` chan is important, because without synchronizing with the end of
-// the watchStop goroutine, the runContext may also be closed during the select
-// incorrectly causing providers to be stopped. Even if the graph walk is done
-// at that point, stopping a provider permanently cancels its StopContext which
-// can cause later actions to fail.
-func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan struct{}) {
-	stop := make(chan struct{})
-	wait := make(chan struct{})
-
-	// get the runContext cancellation channel now, because releaseRun will
-	// write to the runContext field.
-	done := c.runContext.Done()
-
-	panicHandler := logging.PanicHandlerWithTraceFn()
-	go func() {
-		defer panicHandler()
-
-		defer close(wait)
-		// Wait for a stop or completion
-		select {
-		case <-done:
-			// done means the context was canceled, so we need to try and stop
-			// providers.
-		case <-stop:
-			// our own stop channel was closed.
-			return
-		}
-
-		// If we're here, we're stopped, trigger the call.
-		log.Printf("[TRACE] Context: requesting providers and provisioners to gracefully stop")
-
-		{
-			// Copy the providers so that a misbehaved blocking Stop doesn't
-			// completely hang OpenTofu.
-			walker.providerLock.Lock()
-			toStop := make([]providers.Interface, 0, len(walker.providerCache))
-			for _, providerMap := range walker.providerCache {
-				for _, provider := range providerMap {
-					toStop = append(toStop, provider)
-				}
-			}
-			defer walker.providerLock.Unlock()
-
-			for _, p := range toStop {
-				// We ignore the error for now since there isn't any reasonable
-				// action to take if there is an error here, since the stop is still
-				// advisory: OpenTofu will exit once the graph node completes.
-				// The providers.Interface API contract requires that the
-				// context passed to Stop is never canceled and has no deadline.
-				_ = p.Stop(context.WithoutCancel(context.TODO()))
-			}
-		}
-
-		{
-			// Call stop on all the provisioners
-			walker.provisionerLock.Lock()
-			ps := make([]provisioners.Interface, 0, len(walker.provisionerCache))
-			for _, p := range walker.provisionerCache {
-				ps = append(ps, p)
-			}
-			defer walker.provisionerLock.Unlock()
-
-			for _, p := range ps {
-				// We ignore the error for now since there isn't any reasonable
-				// action to take if there is an error here, since the stop is still
-				// advisory: OpenTofu will exit once the graph node completes.
-				_ = p.Stop()
-			}
-		}
-	}()
-
-	return stop, wait
 }
 
 // checkConfigDependencies checks whether the receiving context is able to

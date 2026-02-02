@@ -1,0 +1,131 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package graph
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tofu/testhelpers"
+)
+
+func TestConfigTransformer_nilModule(t *testing.T) {
+	g := Graph{Path: addrs.RootModuleInstance}
+	tf := &ConfigTransformer{}
+	if err := tf.Transform(t.Context(), &g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if len(g.Vertices()) > 0 {
+		t.Fatalf("graph is not empty: %s", g.String())
+	}
+}
+
+func TestConfigTransformer(t *testing.T) {
+	g := Graph{Path: addrs.RootModuleInstance}
+	tf := &ConfigTransformer{Config: testhelpers.TestModule(t, "graph-basic")}
+	if err := tf.Transform(t.Context(), &g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	actual := strings.TrimSpace(g.String())
+	expected := strings.TrimSpace(testConfigTransformerGraphBasicStr)
+	if actual != expected {
+		t.Fatalf("bad:\n\n%s", actual)
+	}
+}
+
+func TestConfigTransformer_mode(t *testing.T) {
+	cases := map[string]struct {
+		filterFunc    func(mode addrs.ResourceMode) bool
+		expectedGraph string
+	}{
+		"no filter": {
+			filterFunc: nil,
+			expectedGraph: `aws_instance.web
+data.aws_ami.foo
+ephemeral.aws_secret.secret`,
+		},
+		"allow all": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return false
+			},
+			expectedGraph: `aws_instance.web
+data.aws_ami.foo
+ephemeral.aws_secret.secret`,
+		},
+		"only managed resources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.ManagedResourceMode
+			},
+			expectedGraph: `aws_instance.web`,
+		},
+		"only data sources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.DataResourceMode
+			},
+			expectedGraph: `data.aws_ami.foo`,
+		},
+		"only ephemeral resources": {
+			filterFunc: func(mode addrs.ResourceMode) bool {
+				return mode != addrs.EphemeralResourceMode
+			},
+			expectedGraph: `ephemeral.aws_secret.secret`,
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			g := Graph{Path: addrs.RootModuleInstance}
+			tf := &ConfigTransformer{
+				Config:     testhelpers.TestModule(t, "transform-config-mode-data"),
+				ModeFilter: tt.filterFunc,
+			}
+			if err := tf.Transform(t.Context(), &g); err != nil {
+				t.Fatalf("err: %s", err)
+			}
+
+			actual := strings.TrimSpace(g.String())
+			expected := strings.TrimSpace(tt.expectedGraph)
+			if diff := cmp.Diff(expected, actual); diff != "" {
+				t.Errorf("wrong graph:\n\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConfigTransformer_nonUnique(t *testing.T) {
+	g := Graph{Path: addrs.RootModuleInstance}
+	g.Add(NewNodeAbstractResource(
+		addrs.RootModule.Resource(
+			addrs.ManagedResourceMode, "aws_instance", "web",
+		),
+	))
+	tf := &ConfigTransformer{Config: testhelpers.TestModule(t, "graph-basic")}
+	if err := tf.Transform(t.Context(), &g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	actual := strings.TrimSpace(g.String())
+	expected := strings.TrimSpace(`
+aws_instance.web
+aws_instance.web
+aws_load_balancer.weblb
+aws_security_group.firewall
+openstack_floating_ip.random
+`)
+	if actual != expected {
+		t.Fatalf("bad:\n\n%s", actual)
+	}
+}
+
+const testConfigTransformerGraphBasicStr = `
+aws_instance.web
+aws_load_balancer.weblb
+aws_security_group.firewall
+openstack_floating_ip.random
+`

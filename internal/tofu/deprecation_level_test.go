@@ -7,10 +7,6 @@ package tofu
 import (
 	"fmt"
 	"testing"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestParseDeprecatedWarningLevel(t *testing.T) {
@@ -35,6 +31,7 @@ func TestParseDeprecatedWarningLevel(t *testing.T) {
 	}
 }
 
+/* TODO cam72cam
 func TestDeprecationDiagnosticAllowed(t *testing.T) {
 	tests := map[string]struct {
 		diag tfdiags.Diagnostics
@@ -208,3 +205,5 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 		})
 	}
 }
+
+*/

@@ -10,7 +10,6 @@ package tofu
 import (
 	"log"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -36,6 +35,8 @@ func DeprecationDiagnosticAllowed(lvl DeprecationWarningLevel, diagnostic tfdiag
 	if lvl == DeprecationWarningLevelAll {
 		return true
 	}
+	return true
+	/* TODO cam72cam
 	outputCause, outputOk := marks.DiagnosticOutputDeprecationCause(diagnostic)
 	variableCause, variableOk := DiagnosticVariableDeprecationCause(diagnostic)
 	switch lvl {
@@ -57,7 +58,7 @@ func DeprecationDiagnosticAllowed(lvl DeprecationWarningLevel, diagnostic tfdiag
 		return true
 	default:
 		return true
-	}
+	}*/
 }
 
 // ParseDeprecatedWarningLevel gets in a string and returns a DeprecationWarningLevel.

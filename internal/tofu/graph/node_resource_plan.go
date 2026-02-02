@@ -1,0 +1,486 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package graph
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"strings"
+	"sync"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu/importing"
+)
+
+// nodeExpandPlannableResource represents an addrs.ConfigResource and implements
+// DynamicExpand to a subgraph containing all of the addrs.AbsResourceInstance
+// resulting from both the containing module and resource-specific expansion.
+type nodeExpandPlannableResource struct {
+	*NodeAbstractResource
+
+	// ForceCreateBeforeDestroy might be set via our GraphNodeDestroyerCBD
+	// during graph construction, if dependencies require us to force this
+	// on regardless of what the configuration says.
+	ForceCreateBeforeDestroy *bool
+
+	// skipRefresh indicates that we should skip refreshing individual instances
+	skipRefresh bool
+
+	preDestroyRefresh bool
+
+	// skipPlanChanges indicates we should skip trying to plan change actions
+	// for any instances.
+	skipPlanChanges bool
+
+	// forceReplace are resource instance addresses where the user wants to
+	// force generating a replace action. This set isn't pre-filtered, so
+	// it might contain addresses that have nothing to do with the resource
+	// that this node represents, which the node itself must therefore ignore.
+	forceReplace []addrs.AbsResourceInstance
+
+	// We attach dependencies to the Resource during refresh, since the
+	// instances are instantiated during DynamicExpand.
+	// FIXME: These would be better off converted to a generic Set data
+	// structure in the future, as we need to compare for equality and take the
+	// union of multiple groups of dependencies.
+	dependencies []addrs.ConfigResource
+
+	// This slice is meant to keep references to the resourceCloser's of the expanded instances.
+	// Later, this will be called from nodeCloseableResource.
+	// At the time of introducing this, it was strictly meant for ephemeral resources, but if there
+	// will be other closeable resources, this could be used for those too.
+	closers []resourceCloser
+}
+
+var (
+	_ GraphNodeDestroyerCBD                          = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeDynamicExpandable                     = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferenceable                         = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeReferencer                            = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeConfigResource                        = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachResourceConfig                  = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeAttachDependencies                    = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeTargetable                            = (*nodeExpandPlannableResource)(nil)
+	_ graphNodeRetainedByPruneUnusedNodesTransformer = (*nodeExpandPlannableResource)(nil)
+	_ closableResource                               = (*nodeExpandPlannableResource)(nil)
+)
+
+func (n *nodeExpandPlannableResource) Name() string {
+	return n.NodeAbstractResource.Name() + " (expand)"
+}
+
+func (n *nodeExpandPlannableResource) retainDuringUnusedPruning() {
+}
+
+// GraphNodeAttachDependencies
+func (n *nodeExpandPlannableResource) AttachDependencies(deps []addrs.ConfigResource) {
+	n.dependencies = deps
+}
+
+// GraphNodeDestroyerCBD
+func (n *nodeExpandPlannableResource) CreateBeforeDestroy() bool {
+	if n.ForceCreateBeforeDestroy != nil {
+		return *n.ForceCreateBeforeDestroy
+	}
+
+	// If we have no config, we just assume no
+	if n.Config == nil || n.Config.Managed == nil {
+		return false
+	}
+
+	return n.Config.Managed.CreateBeforeDestroy
+}
+
+// GraphNodeDestroyerCBD
+func (n *nodeExpandPlannableResource) ModifyCreateBeforeDestroy(v bool) error {
+	n.ForceCreateBeforeDestroy = &v
+	return nil
+}
+
+func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
+	var g Graph
+
+	expander := evalCtx.InstanceExpander()
+	moduleInstances := expander.ExpandModule(n.Addr.Module)
+
+	// Lock the state while we inspect it
+	state := evalCtx.State().Lock()
+
+	var orphans []*states.Resource
+	for _, res := range state.Resources(n.Addr) {
+		found := false
+		for _, m := range moduleInstances {
+			if m.Equal(res.Addr.Module) {
+				found = true
+				break
+			}
+		}
+		// The module instance of the resource in the state doesn't exist
+		// in the current config, so this whole resource is orphaned.
+		if !found {
+			orphans = append(orphans, res)
+		}
+	}
+
+	// We'll no longer use the state directly here, and the other functions
+	// we'll call below may use it so we'll release the lock.
+	state = nil
+	evalCtx.State().Unlock()
+
+	// The concrete resource factory we'll use for orphans
+	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
+		// Add the config and state since we don't do that via transforms
+		a.Config = n.Config
+		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey set in AttachResourceState
+		a.Schema = n.Schema
+		a.ProvisionerSchemas = n.ProvisionerSchemas
+		a.ProviderMetas = n.ProviderMetas
+		a.Dependencies = n.dependencies
+
+		return &NodePlannableResourceInstanceOrphan{
+			NodeAbstractResourceInstance: a,
+			skipRefresh:                  n.skipRefresh,
+			skipPlanChanges:              n.skipPlanChanges,
+		}
+	}
+
+	for _, res := range orphans {
+		for key := range res.Instances {
+			addr := res.Addr.Instance(key)
+			abs := NewNodeAbstractResourceInstance(addr)
+			abs.AttachResourceState(res)
+			n := concreteResourceOrphan(abs)
+			g.Add(n)
+		}
+	}
+
+	// Resolve addresses and IDs of all import targets that originate from import blocks
+	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
+	importResolver := evalCtx.ImportResolver()
+	var diags tfdiags.Diagnostics
+	// If the import target originated from the import command (instead of the import block), we don't need to
+	// resolve the import as it's already in the resolved form. But it still requires to be validated after the graph walk.
+	// The following loop adds CLI import targets for validation and expands and resolves config import targets.
+	for _, importTarget := range n.importTargets {
+		// We add CLI import targets to the import resolver. Those targets are validated after the graph walk in Context.Import method.
+		// This was added to correctly validate the existence of the targeted resource instances in case for_each key is used, either on a module or on a resource.
+		if importTarget.IsFromImportCommandLine() {
+			importResolver.addCLIImportTarget(importTarget)
+			continue
+		}
+		// If we have import from import block and PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
+		if importTarget.IsFromImportBlock() && !n.preDestroyRefresh {
+			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
+			diags = diags.Append(err)
+		}
+	}
+
+	// The above dealt with the expansion of the containing module, so now
+	// we need to deal with the expansion of the resource itself across all
+	// instances of the module.
+	//
+	// We'll gather up all of the leaf instances we learn about along the way
+	// so that we can inform the checks subsystem of which instances it should
+	// be expecting check results for, below.
+	instAddrs := addrs.MakeSet[addrs.Checkable]()
+	for _, module := range moduleInstances {
+		resAddr := n.Addr.Resource.Absolute(module)
+		err := n.expandResourceInstances(context.TODO(), evalCtx, resAddr, &g, instAddrs)
+		diags = diags.Append(err)
+	}
+	if diags.HasErrors() {
+		return nil, diags.ErrWithWarnings()
+	}
+
+	// If this is a resource that participates in custom condition checks
+	// (i.e. it has preconditions or postconditions) then the check state
+	// wants to know the addresses of the checkable objects so that it can
+	// treat them as unknown status if we encounter an error before actually
+	// visiting the checks.
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
+		checkState.ReportCheckableObjects(n.NodeAbstractResource.Addr, instAddrs)
+	}
+
+	addRootNodeToGraph(&g)
+
+	return &g, diags.ErrWithWarnings()
+}
+
+// expandResourceInstances calculates the dynamic expansion for the resource
+// itself in the context of a particular module instance.
+//
+// It has several side-effects:
+//   - Adds a node to Graph g for each leaf resource instance it discovers, whether present or orphaned.
+//   - Registers the expansion of the resource in the "expander" object embedded inside EvalContext ctx.
+//   - Adds each present (non-orphaned) resource instance address to instAddrs (guaranteed to always be addrs.AbsResourceInstance, despite being declared as addrs.Checkable).
+//
+// After calling this for each of the module instances the resource appears
+// within, the caller must register the final superset instAddrs with the
+// checks subsystem so that it knows the fully expanded set of checkable
+// object instances for this resource instance.
+func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Context, globalCtx EvalContext, resAddr addrs.AbsResource, g *Graph, instAddrs addrs.Set[addrs.Checkable]) error {
+	var diags tfdiags.Diagnostics
+
+	// The rest of our work here needs to know which module instance it's
+	// working in, so that it can evaluate expressions in the appropriate scope.
+	moduleCtx := globalCtx.WithPath(resAddr.Module)
+
+	// writeResourceState is responsible for informing the expander of what
+	// repetition mode this resource has, which allows expander.ExpandResource
+	// to work below.
+	moreDiags := n.writeResourceState(ctx, moduleCtx, resAddr)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return diags.ErrWithWarnings()
+	}
+
+	// Before we expand our resource into potentially many resource instances,
+	// we'll verify that any mention of this resource in n.forceReplace is
+	// consistent with the repetition mode of the resource. In other words,
+	// we're aiming to catch a situation where naming a particular resource
+	// instance would require an instance key but the given address has none.
+	expander := moduleCtx.InstanceExpander()
+	instanceAddrs := expander.ExpandResource(resAddr)
+
+	// If there's a number of instances other than 1 then we definitely need
+	// an index.
+	mustHaveIndex := len(instanceAddrs) != 1
+	// If there's only one instance then we might still need an index, if the
+	// instance address has one.
+	if len(instanceAddrs) == 1 && instanceAddrs[0].Resource.Key != addrs.NoKey {
+		mustHaveIndex = true
+	}
+	if mustHaveIndex {
+		for _, candidateAddr := range n.forceReplace {
+			if candidateAddr.Resource.Key == addrs.NoKey {
+				if n.Addr.Resource.Equal(candidateAddr.Resource.Resource) {
+					switch {
+					case len(instanceAddrs) == 0:
+						// In this case there _are_ no instances to replace, so
+						// there isn't any alternative address for us to suggest.
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because this resource doesn't have any instances.",
+								candidateAddr,
+							),
+						))
+					case len(instanceAddrs) == 1:
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of the single declared instance, use the following option instead:\n  -replace=%q",
+								candidateAddr, instanceAddrs[0],
+							),
+						))
+					default:
+						var possibleValidOptions strings.Builder
+						for _, addr := range instanceAddrs {
+							fmt.Fprintf(&possibleValidOptions, "\n  -replace=%q", addr)
+						}
+
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Warning,
+							"Incompletely-matched force-replace resource instance",
+							fmt.Sprintf(
+								"Your force-replace request for %s doesn't match any resource instances because it lacks an instance key.\n\nTo force replacement of particular instances, use one or more of the following options instead:%s",
+								candidateAddr, possibleValidOptions.String(),
+							),
+						))
+					}
+				}
+			}
+		}
+	}
+	// NOTE: The actual interpretation of n.forceReplace to produce replace
+	// actions is in the per-instance function we're about to call, because
+	// we need to evaluate it on a per-instance basis.
+
+	for _, addr := range instanceAddrs {
+		// If this resource is participating in the "checks" mechanism then our
+		// caller will need to know all of our expanded instance addresses as
+		// checkable object instances.
+		// (NOTE: instAddrs probably already has other instance addresses in it
+		// from earlier calls to this function with different resource addresses,
+		// because its purpose is to aggregate them all together into a single set.)
+		instAddrs.Add(addr)
+	}
+
+	// Our graph builder mechanism expects to always be constructing new
+	// graphs rather than adding to existing ones, so we'll first
+	// construct a subgraph just for this individual modules's instances and
+	// then we'll steal all of its nodes and edges to incorporate into our
+	// main graph which contains all of the resource instances together.
+	instG, err := n.resourceInstanceSubgraph(ctx, moduleCtx, resAddr, instanceAddrs)
+	if err != nil {
+		diags = diags.Append(err)
+		return diags.ErrWithWarnings()
+	}
+	g.Subsume(&instG.AcyclicGraph.Graph)
+
+	return diags.ErrWithWarnings()
+}
+
+func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
+	var diags tfdiags.Diagnostics
+
+	var commandLineImportTargets []importing.CommandLineImportTarget
+
+	for _, importTarget := range n.importTargets {
+		if importTarget.IsFromImportCommandLine() {
+			commandLineImportTargets = append(commandLineImportTargets, *importTarget.CommandLineImportTarget)
+		}
+	}
+
+	// Our graph transformers require access to the full state, so we'll
+	// temporarily lock it while we work on this.
+	state := evalCtx.State().Lock()
+	defer evalCtx.State().Unlock()
+
+	// The concrete resource factory we'll use
+	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
+		var m *NodePlannableResourceInstance
+
+		// If we're in the `tofu import` CLI command, we only need
+		// to return the import node, not a plannable resource node.
+		for _, c := range commandLineImportTargets {
+			if c.Addr.Equal(a.Addr) {
+				return &graphNodeImportState{
+					Addr:             c.Addr,
+					ID:               c.ID,
+					ResolvedProvider: n.ResolvedProvider,
+					Schema:           n.Schema,
+					SchemaVersion:    n.SchemaVersion,
+					Config:           n.Config,
+				}
+			}
+		}
+
+		// Add the config and state since we don't do that via transforms
+		a.Config = n.Config
+		a.ResolvedProvider = n.ResolvedProvider
+		a.Schema = n.Schema
+		a.ProvisionerSchemas = n.ProvisionerSchemas
+		a.ProviderMetas = n.ProviderMetas
+		a.dependsOn = n.dependsOn
+		a.Dependencies = n.dependencies
+		a.preDestroyRefresh = n.preDestroyRefresh
+		a.generateConfigPath = n.generateConfigPath
+
+		m = &NodePlannableResourceInstance{
+			NodeAbstractResourceInstance: a,
+
+			// By the time we're walking, we've figured out whether we need
+			// to force on CreateBeforeDestroy due to dependencies on other
+			// nodes that have it.
+			ForceCreateBeforeDestroy: n.CreateBeforeDestroy(),
+			skipRefresh:              n.skipRefresh,
+			skipPlanChanges:          n.skipPlanChanges,
+			forceReplace:             n.forceReplace,
+		}
+
+		resolvedImportTarget := evalCtx.ImportResolver().GetImport(a.Addr)
+		if resolvedImportTarget != nil {
+			m.importTarget = *resolvedImportTarget
+		}
+		// When creating concrete instance nodes for the ephemeral resources we want to collect all the
+		// resourceCloser callbacks from the nodes to be able to close the resources at the end of the graph walk.
+		if a.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			n.closers = append(n.closers, m.Close)
+		}
+
+		return m
+	}
+
+	// The concrete resource factory we'll use for orphans
+	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
+		// Add the config and state since we don't do that via transforms
+		a.Config = n.Config
+		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey will be set during AttachResourceState
+		a.Schema = n.Schema
+		a.ProvisionerSchemas = n.ProvisionerSchemas
+		a.ProviderMetas = n.ProviderMetas
+
+		return &NodePlannableResourceInstanceOrphan{
+			NodeAbstractResourceInstance: a,
+			skipRefresh:                  n.skipRefresh,
+			skipPlanChanges:              n.skipPlanChanges,
+		}
+	}
+
+	// Start creating the steps
+	steps := []GraphTransformer{
+		// Expand the count or for_each (if present)
+		&ResourceCountTransformer{
+			Concrete:      concreteResource,
+			Schema:        n.Schema,
+			Addr:          n.ResourceAddr(),
+			InstanceAddrs: instanceAddrs,
+		},
+
+		// Add the count/for_each orphans
+		&OrphanResourceInstanceCountTransformer{
+			Concrete:      concreteResourceOrphan,
+			Addr:          addr,
+			InstanceAddrs: instanceAddrs,
+			State:         state,
+		},
+
+		// Attach the state
+		&AttachStateTransformer{State: state},
+
+		// Targeting
+		&TargetingTransformer{Targets: n.Targets, Excludes: n.Excludes},
+
+		// Connect references so ordering is correct
+		&ReferenceTransformer{},
+
+		// Make sure there is a single root
+		&RootTransformer{},
+	}
+
+	// Build the graph
+	b := &BasicGraphBuilder{
+		Steps: steps,
+		Name:  "nodeExpandPlannableResource",
+	}
+	graph, graphDiags := b.Build(ctx, addr.Module)
+	return graph, diags.Append(graphDiags).ErrWithWarnings()
+}
+
+// Close implements closableResource
+func (n *nodeExpandPlannableResource) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+
+	var wg sync.WaitGroup
+	diagsCh := make(chan tfdiags.Diagnostics, len(n.closers))
+	log.Printf("[TRACE] nodeExpandPlannableResource - scheduling %d closing operations for of ephemeral resource %s", len(n.closers), n.Addr.String())
+	// NOTE: since go v1.22 there is no need to copy the loop variable.
+	for _, cb := range n.closers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			diagsCh <- cb()
+		}()
+	}
+	wg.Wait()
+	close(diagsCh)
+	for d := range diagsCh {
+		diags = diags.Append(d)
+	}
+	return diags
+}
