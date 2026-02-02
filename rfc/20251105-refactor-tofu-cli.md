@@ -216,7 +216,7 @@ The most complex and sensitive part of the `Meta` structure is the [backend impl
 
 The implementation visible in [`meta_backend.go`](https://github.com/opentofu/opentofu/blob/d24b85fc685be224da93de546b5566429ca7b62f/internal/command/meta_backend.go)
 and in [`meta_backend_migrate.go`](https://github.com/opentofu/opentofu/blob/d24b85fc685be224da93de546b5566429ca7b62f/internal/command/meta_backend_migrate.go)
-tackles a lot of edge cases and legacy concerns that the reasons behing it is not that clear.
+tackles a lot of edge cases and legacy concerns that the reasons behind it is not that clear.
 Therefore, this RFC would want only to extract these 2 files in their own components (or just only one component),
 to make things clearer on what it depends on. Some clear dependencies are:
 * workspace information
