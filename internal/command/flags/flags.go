@@ -13,10 +13,6 @@ import (
 // FlagNameValueSlice is a flag.Value implementation that appends raw flag
 // names and values to a slice. This is used to collect a sequence of flags
 // with possibly different names, preserving the overall order.
-//
-// FIXME: this is a copy of rawFlags from command/meta_config.go, with the
-// eventual aim of replacing it altogether by gathering variables in the
-// arguments package.
 type FlagNameValueSlice struct {
 	FlagName string
 	Items    *[]FlagNameValue
