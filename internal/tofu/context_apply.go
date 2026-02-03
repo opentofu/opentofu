@@ -111,6 +111,20 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		}
 	}
 
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		variables, vDiags := c.mergePlanAndApplyVariables(config, plan, opts)
+		diags = diags.Append(vDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		newState, moreDiags := c.newEngineApply(ctx, config, plan, variables)
+
+		return newState, diags.Append(moreDiags)
+	}
+
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker, opts)

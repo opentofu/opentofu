@@ -110,7 +110,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 		// features are enabled. Refer to the file containing the following
 		// function for more information. This should be completely removed
 		// once the experiment is concluded.
-		backendLocal.SetExperimentalRuntimeAllowed(true)
+		tofu.SetExperimentalRuntimeAllowed(true)
 	}
 
 	// Initialize a backend from the config unless we're forcing a purely
@@ -328,7 +328,7 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		// features are enabled. Refer to the file containing the following
 		// function for more information. This should be completely removed
 		// once the experiment is concluded.
-		backendLocal.SetExperimentalRuntimeAllowed(true)
+		tofu.SetExperimentalRuntimeAllowed(true)
 	}
 
 	f, canonType := backendInit.Backend(settings.Type)
