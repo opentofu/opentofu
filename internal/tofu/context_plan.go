@@ -778,6 +778,14 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// strange problems that may lead to confusing error messages.
 		return nil, diags
 	}
+
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		plan, moreDiags := c.newEnginePlan(ctx, config, prevRunState, opts)
+		return plan, diags.Append(moreDiags)
+	}
+
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, providerFunctionTracker)
