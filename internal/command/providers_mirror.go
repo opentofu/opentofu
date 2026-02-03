@@ -14,6 +14,7 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -36,7 +37,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
 	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms FlagStringSlice
+	var optPlatforms flags.FlagStringSlice
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {

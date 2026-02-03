@@ -3,9 +3,10 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package command
+package flags
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 )
@@ -34,9 +35,12 @@ func (v *FlagStringKV) Set(raw string) error {
 	return nil
 }
 
-// FlagStringSlice is a flag.Value implementation for parsing targets from the
-// command line, e.g. -target=aws_instance.foo -target=aws_vpc.bar
+// FlagStringSlice is a flag.Value implementation which allows collecting
+// multiple instances of a single flag into a slice. This is used for flags
+// such as -target=aws_instance.foo and -var x=y.
 type FlagStringSlice []string
+
+var _ flag.Value = (*FlagStringSlice)(nil)
 
 func (v *FlagStringSlice) String() string {
 	return ""

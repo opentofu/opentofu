@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -460,7 +461,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 				},
 			},
 		}
-		flagConfigExtra := newRawFlags("-backend-config")
+		flagConfigExtra := flags.NewRawFlags("-backend-config")
 		_ = flagConfigExtra.Set("input.config")
 		_, diags := c.backendConfigOverrideBody(flagConfigExtra, schema)
 		if len(diags) != 0 {

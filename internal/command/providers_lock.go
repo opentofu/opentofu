@@ -11,6 +11,7 @@ import (
 	"os"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
@@ -48,7 +49,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers lock")
 	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms FlagStringSlice
+	var optPlatforms flags.FlagStringSlice
 	var fsMirrorDir string
 	var netMirrorURL string
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")

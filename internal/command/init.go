@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
@@ -52,8 +53,8 @@ func (c *InitCommand) Run(args []string) int {
 
 	var flagFromModule, flagLockfile, testsDirectory string
 	var flagBackend, flagCloud, flagGet, flagUpgrade bool
-	var flagPluginPath FlagStringSlice
-	flagConfigExtra := newRawFlags("-backend-config")
+	var flagPluginPath flags.FlagStringSlice
+	flagConfigExtra := flags.NewRawFlags("-backend-config")
 
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("init")
@@ -114,8 +115,8 @@ func (c *InitCommand) Run(args []string) int {
 		}
 	}
 
-	backendFlagSet := arguments.FlagIsSet(cmdFlags, "backend")
-	cloudFlagSet := arguments.FlagIsSet(cmdFlags, "cloud")
+	backendFlagSet := flags.FlagIsSet(cmdFlags, "backend")
+	cloudFlagSet := flags.FlagIsSet(cmdFlags, "cloud")
 
 	switch {
 	case backendFlagSet && cloudFlagSet:
@@ -470,7 +471,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	return true, installAbort, diags
 }
 
-func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Cloud backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -498,7 +499,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 	return back, true, diags
 }
 
-func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
@@ -1132,7 +1133,7 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 //
 // If the returned diagnostics contains errors then the returned body may be
 // incomplete or invalid.
-func (c *InitCommand) backendConfigOverrideBody(flags rawFlags, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
+func (c *InitCommand) backendConfigOverrideBody(flags flags.RawFlags, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
 	items := flags.AllItems()
 	if len(items) == 0 {
 		return nil, nil
