@@ -441,7 +441,7 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 func TestParseRefresh_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []flags.FlagNameValue
+		want []flags.RawFlag
 	}{
 		"no var flags by default": {
 			args: nil,
@@ -449,13 +449,13 @@ func TestParseRefresh_vars(t *testing.T) {
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []flags.FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []flags.FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -465,7 +465,7 @@ func TestParseRefresh_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []flags.FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},

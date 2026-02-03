@@ -5,14 +5,20 @@
 
 package flags
 
-import "fmt"
+import (
+	"flag"
+	"fmt"
+)
 
-// RawFlags is a flag.Value implementation that just appends raw flag
-// names and values to a slice.
+// RawFlags is a flag.Value implementation that appends raw flag
+// names and values to a slice. This is used to collect a sequence of flags
+// with possibly different names, preserving the overall order.
 type RawFlags struct {
 	FlagName string
 	Items    *[]RawFlag
 }
+
+var _ flag.Value = RawFlags{}
 
 func NewRawFlags(flagName string) RawFlags {
 	var items []RawFlag

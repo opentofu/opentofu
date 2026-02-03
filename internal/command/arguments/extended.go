@@ -289,11 +289,11 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 // desirable for the arguments package to handle the gathering of variables
 // directly, returning a map of variable values.
 type Vars struct {
-	vars     *flags.FlagNameValueSlice
-	varFiles *flags.FlagNameValueSlice
+	vars     *flags.RawFlags
+	varFiles *flags.RawFlags
 }
 
-func (v *Vars) All() []flags.FlagNameValue {
+func (v *Vars) All() []flags.RawFlag {
 	if v.vars == nil {
 		return nil
 	}
@@ -340,7 +340,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 	// Gather all -var and -var-file arguments into one heterogeneous structure
 	// to preserve the overall order.
 	if vars != nil {
-		varsFlags := flags.NewFlagNameValueSlice("-var")
+		varsFlags := flags.NewRawFlags("-var")
 		varFilesFlags := varsFlags.Alias("-var-file")
 		vars.vars = &varsFlags
 		vars.varFiles = &varFilesFlags
