@@ -74,7 +74,6 @@ func experimentalRuntimeEnabled() bool {
 
 func (c *Context) newEngineShim(ctx context.Context, config *configs.Config, inputValuesRaw InputValues) (*eval.ConfigInstance, plugins.Plugins, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	log.Println("[WARN] Using plan implementation from the experimental language runtime")
 
 	rawInput := map[string]cty.Value{}
 	for key, value := range inputValuesRaw {
