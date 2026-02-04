@@ -7,6 +7,7 @@ package addrs
 
 import (
 	"iter"
+	"maps"
 )
 
 // Set represents a set of addresses of types that implement UniqueKeyer.
@@ -40,6 +41,11 @@ func CollectSet[T UniqueKeyer](seq iter.Seq[T]) Set[T] {
 func (s Set[T]) Has(addr T) bool {
 	_, exists := s[addr.UniqueKey()]
 	return exists
+}
+
+// All returns a sequence of all addresses in the set in a pseudorandom order.
+func (s Set[T]) All() iter.Seq[T] {
+	return maps.Values(s)
 }
 
 // Add inserts the given address into the set, if not already present. If
