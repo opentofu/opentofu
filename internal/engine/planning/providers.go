@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // providerInstances is our central manager of active configured provider
@@ -66,8 +65,8 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 	planCtx := planGlue.planCtx
 	once := pi.active.Get(addr)
 	return once.Do(ctx, func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
-		configVal := oracle.ProviderInstanceConfig(ctx, addr)
-		if configVal == cty.NilVal {
+		config := oracle.ProviderInstanceConfig(ctx, addr)
+		if config == nil {
 			// This suggests that the provider instance has an invalid
 			// configuration. The main diagnostics for that get returned by
 			// another channel but also return an error, so we just return
@@ -76,6 +75,7 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 			// be performed.
 			return nil, nil
 		}
+		configVal := config.ConfigVal
 
 		// If _this_ call fails then unfortunately we'll end up duplicating
 		// its diagnostics for every resource instance that depends on this

@@ -202,9 +202,13 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 	}
 	gotProviderInstConfigs := logGlue.providerInstanceConfigs
 	wantProviderInstConfigs := addrs.MakeMap(
-		addrs.MakeMapElem(providerInstAddr, cty.ObjectVal(map[string]cty.Value{
-			"greeting": cty.StringVal("Hello"),
-		})),
+		addrs.MakeMapElem(providerInstAddr, &eval.ProviderInstanceConfig{
+			Addr: providerInstAddr,
+			ConfigVal: cty.ObjectVal(map[string]cty.Value{
+				"greeting": cty.StringVal("Hello"),
+			}),
+			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
+		}),
 	)
 	if diff := cmp.Diff(wantProviderInstConfigs, gotProviderInstConfigs, ctydebug.CmpOptions); diff != "" {
 		t.Error("wrong provider instance configs\n" + diff)
@@ -327,7 +331,7 @@ type planGlueCallLog struct {
 	providers eval.ProvidersSchema
 
 	resourceInstanceRequests addrs.Map[addrs.AbsResourceInstance, *eval.DesiredResourceInstance]
-	providerInstanceConfigs  addrs.Map[addrs.AbsProviderInstanceCorrect, cty.Value]
+	providerInstanceConfigs  addrs.Map[addrs.AbsProviderInstanceCorrect, *eval.ProviderInstanceConfig]
 	mu                       sync.Mutex
 }
 
@@ -345,7 +349,7 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 	p.resourceInstanceRequests.Put(inst.Addr, inst)
 	if inst.ProviderInstance != nil {
 		if p.providerInstanceConfigs.Len() == 0 {
-			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, cty.Value]()
+			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *eval.ProviderInstanceConfig]()
 		}
 		providerInstAddr := *inst.ProviderInstance
 		providerInstConfig := p.oracle.ProviderInstanceConfig(ctx, providerInstAddr)
