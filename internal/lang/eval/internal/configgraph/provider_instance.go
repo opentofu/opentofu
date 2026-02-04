@@ -85,7 +85,7 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 	// appear redundantly for every reference to the provider instance.
 	// Instead, [ProviderInstance.CheckAll] calls
 	// [ProviderInstance.ConfigValue] to expose its diagnostics directly.
-	config, diags := p.ConfigValue(ctx)
+	config, diags := p.configValue(ctx)
 	configVal := config.value
 	// diagsHandledElsewhere
 	if diags.HasErrors() {
@@ -113,7 +113,7 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 }
 
 func (p *ProviderInstance) Open(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
-	config, diags := p.ConfigValue(ctx)
+	config, diags := p.configValue(ctx)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -126,7 +126,15 @@ func (p *ProviderInstance) Open(ctx context.Context) (providers.Configured, tfdi
 // This value should not bt exposed for references from expressions elsewhere
 // in the configuration. The result is considered private to the provider
 // process that is configured with it.
-func (p *ProviderInstance) ConfigValue(ctx context.Context) (*providerData, tfdiags.Diagnostics) {
+func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+	val, diags := p.configValue(ctx)
+	if val != nil {
+		return val.value, diags
+	}
+	return cty.NilVal, diags
+
+}
+func (p *ProviderInstance) configValue(ctx context.Context) (*providerData, tfdiags.Diagnostics) {
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.

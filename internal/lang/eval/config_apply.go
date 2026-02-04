@@ -181,20 +181,17 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 // If this _does_ return cty.NilVal then that suggests a bug in the planning
 // engine, causing it to create an incorrect execution graph.
 func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
-	panic("TODO")
-	/*
-		inst := evalglue.ProviderInstance(ctx, o.root, addr)
-		if inst == nil {
-			// We should not get here because the apply phase should only ask for
-			// provider instances that were present during the planning phase, and
-			// we should be using exactly the same configuration source code now.
-			var diags tfdiags.Diagnostics
-			diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
-			return cty.DynamicVal, diags
-		}
-		v, diags := inst.ConfigValue(ctx)
-		return configgraph.PrepareOutgoingValue(v), diags
-	*/
+	inst := evalglue.ProviderInstance(ctx, o.root, addr)
+	if inst == nil {
+		// We should not get here because the apply phase should only ask for
+		// provider instances that were present during the planning phase, and
+		// we should be using exactly the same configuration source code now.
+		var diags tfdiags.Diagnostics
+		diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
+		return cty.DynamicVal, diags
+	}
+	v, diags := inst.ConfigValue(ctx)
+	return configgraph.PrepareOutgoingValue(v), diags
 }
 
 // AnnounceAllGraphevalRequests calls the given function once for each internal
