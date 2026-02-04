@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/engine/lifecycle"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
@@ -31,7 +30,7 @@ type planContext struct {
 	// an execution graph just to learn what's missing in that API in order
 	// for us to transition over to it properly.
 	plannedChanges   *plans.ChangesSync
-	execgraphBuilder *execgraph.Builder
+	execGraphBuilder *execGraphBuilder
 
 	// TODO: The following should probably track a reason why each resource
 	// instance was deferred, but since deferral is not the focus of this
@@ -66,12 +65,12 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 
 	completion := lifecycle.NewCompletionTracker[completionEvent]()
 
-	execgraphBuilder := execgraph.NewBuilder()
+	execGraphBuilder := newExecGraphBuilder()
 
 	return &planContext{
 		evalCtx:           evalCtx,
 		plannedChanges:    changes.SyncWrapper(),
-		execgraphBuilder:  execgraphBuilder,
+		execGraphBuilder:  execGraphBuilder,
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),
 		completion:        completion,
@@ -99,7 +98,7 @@ func (p *planContext) Close() *plans.Plan {
 	// We'll freeze the execution graph into a serialized form here, so that
 	// we can recover an equivalent execution graph again during the apply
 	// phase.
-	execGraph := p.execgraphBuilder.Finish()
+	execGraph := p.execGraphBuilder.Finish()
 	if logging.IsDebugOrHigher() {
 		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
 	}

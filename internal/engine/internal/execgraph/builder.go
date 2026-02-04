@@ -7,7 +7,6 @@ package execgraph
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -16,30 +15,29 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval"
 )
 
-// Builder is a helper for multiple codepaths to collaborate to build an
-// execution graph.
+// Builder is a helper for gradually constructing an execution graph.
 //
-// The methods of this type each cause something to be added to the graph
-// and then return an opaque reference to what was added which can then be
-// used as an argument to another method. The opaque reference values are
-// specific to the builder that returned them; using a reference returned by
-// some other builder will at best cause a nonsense graph and at worst could
+// Builder is not concurrency-safe, and so it's the caller's responsibility that
+// at most one method of this type is running at a time across all goroutines.
+//
+// The methods of this type each add exactly one item to the execution graph,
+// returning an opaque reference representing its resulting value which can
+// then be used as an argument to other methods. These opaque reference values
+// are specific to the builder that returned them; using a reference returned
+// by some other builder will at best cause a nonsense graph and at worse could
 // cause panics.
 type Builder struct {
-	// must hold mu when accessing any part of any other fields
-	mu sync.Mutex
+	graph          *Graph
+	emptyWaiterRef ResultRef[struct{}]
 
-	graph *Graph
-
-	// During construction we treat certain items as singletons so that
-	// we can do the associated work only once while providing it to
-	// multiple callers, and so these maps track those singletons but
-	// we throw these away after building is complete because the graph
-	// becomes immutable at that point.
-	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, ResultRef[addrs.AbsResourceInstance]]
-	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, ResultRef[addrs.AbsProviderInstanceCorrect]]
-	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[*exec.ProviderClient]]
-	emptyWaiterRef       ResultRef[struct{}]
+	// Note that we intentionally don't have any other singletons here beyond
+	// the simple emptyWaiterRef, because this builder is intentionally
+	// low-level with minimal "magic". The planning engine has its own
+	// higher-level wrapper around this type that deals with problems such as
+	// making sure that each provider instance only has one set of nodes in the
+	// execution graph, etc, because the planning engine has access to more
+	// context about how the various different higher-level objects relate to
+	// each other.
 }
 
 func NewBuilder() *Builder {
@@ -47,10 +45,7 @@ func NewBuilder() *Builder {
 		graph: &Graph{
 			resourceInstanceResults: addrs.MakeMap[addrs.AbsResourceInstance, ResourceInstanceResultRef](),
 		},
-		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, ResultRef[addrs.AbsResourceInstance]](),
-		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, ResultRef[addrs.AbsProviderInstanceCorrect]](),
-		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, resultWithCloseBlockers[*exec.ProviderClient]](),
-		emptyWaiterRef:       nil, // will be populated on first request for an empty waiter
+		emptyWaiterRef: nil, // will be populated on first request for an empty waiter
 	}
 }
 
@@ -59,22 +54,14 @@ func NewBuilder() *Builder {
 // After calling this function the Builder is invalid and must not be used
 // anymore.
 func (b *Builder) Finish() *Graph {
-	b.mu.Lock()
 	ret := b.graph
 	b.graph = nil
-	b.mu.Unlock()
 	return ret
 }
 
 // ConstantValue adds a constant [cty.Value] as a source node. The result
 // can be used as an operand to a subsequent operation.
-//
-// Each call to this method adds a new constant value to the graph, even if
-// a previously-registered value was equal to the given value.
 func (b *Builder) ConstantValue(v cty.Value) ResultRef[cty.Value] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	idx := appendIndex(&b.graph.constantVals, v)
 	return valueResultRef{idx}
 }
@@ -82,49 +69,24 @@ func (b *Builder) ConstantValue(v cty.Value) ResultRef[cty.Value] {
 // ConstantResourceInstAddr adds a constant [addrs.AbsResourceInstance]
 // address as a source node. The result can be used as an operand to a
 // subsequent operation.
-//
-// Multiple calls with the same address all return the same result, so in
-// practice each distinct address is stored only once.
 func (b *Builder) ConstantResourceInstAddr(addr addrs.AbsResourceInstance) ResultRef[addrs.AbsResourceInstance] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if existing, ok := b.resourceInstAddrRefs.GetOk(addr); ok {
-		return existing
-	}
 	idx := appendIndex(&b.graph.resourceInstAddrs, addr)
 	ret := resourceInstAddrResultRef{idx}
-	b.resourceInstAddrRefs.Put(addr, ret)
 	return ret
 }
 
 // ConstantProviderInstAddr adds a constant [addrs.AbsProviderInstanceCorrect]
 // address as a source node. The result can be used as an operand to a
 // subsequent operation.
-//
-// Multiple calls with the same address all return the same result, so in
-// practice each distinct address is stored only once.
 func (b *Builder) ConstantProviderInstAddr(addr addrs.AbsProviderInstanceCorrect) ResultRef[addrs.AbsProviderInstanceCorrect] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if existing, ok := b.providerInstAddrRefs.GetOk(addr); ok {
-		return existing
-	}
 	idx := appendIndex(&b.graph.providerInstAddrs, addr)
 	ret := providerInstAddrResultRef{idx}
-	b.providerInstAddrRefs.Put(addr, ret)
 	return ret
 }
 
+// ProviderInstanceConfig registers an operation for evaluating the
+// configuration for a provider instance.
 func (b *Builder) ProviderInstanceConfig(addrRef ResultRef[addrs.AbsProviderInstanceCorrect], waitFor AnyResultRef) ResultRef[*exec.ProviderInstanceConfig] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.providerInstanceConfigLocked(addrRef, waitFor)
-}
-
-func (b *Builder) providerInstanceConfigLocked(addrRef ResultRef[addrs.AbsProviderInstanceCorrect], waitFor AnyResultRef) ResultRef[*exec.ProviderInstanceConfig] {
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*exec.ProviderInstanceConfig](b, operationDesc{
 		opCode:   opProviderInstanceConfig,
@@ -134,21 +96,7 @@ func (b *Builder) providerInstanceConfigLocked(addrRef ResultRef[addrs.AbsProvid
 
 // ProviderInstanceOpen registers an operation for opening a client for a
 // particular provider instance.
-//
-// Direct callers should typically use [Builder.ProviderInstance] instead,
-// because it automatically deduplicates requests for the same provider
-// instance and registers the associated "close" operation for the provider
-// instance. This method is here primarily for the benefit of [UnmarshalGraph],
-// which needs to be able to work with the individual operation nodes when
-// reconstructing a previously-marshaled graph.
 func (b *Builder) ProviderInstanceOpen(config ResultRef[*exec.ProviderInstanceConfig]) ResultRef[*exec.ProviderClient] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.providerInstanceOpenLocked(config)
-}
-
-func (b *Builder) providerInstanceOpenLocked(config ResultRef[*exec.ProviderInstanceConfig]) ResultRef[*exec.ProviderClient] {
 	return operationRef[*exec.ProviderClient](b, operationDesc{
 		opCode:   opProviderInstanceOpen,
 		operands: []AnyResultRef{config},
@@ -157,73 +105,18 @@ func (b *Builder) providerInstanceOpenLocked(config ResultRef[*exec.ProviderInst
 
 // ProviderInstanceClose registers an operation for closing a provider client
 // that was previously opened through [Builder.OpenProviderInstance].
-//
-// Direct callers should typically use [Builder.ProviderInstance] instead,
-// because it deals with all of the ceremony of opening and closing provider
-// clients. This method is here primarily for the benefit of [UnmarshalGraph],
-// which needs to be able to work with the individual operation nodes when
-// reconstructing a previously-marshaled graph.
 func (b *Builder) ProviderInstanceClose(client ResultRef[*exec.ProviderClient], waitFor AnyResultRef) ResultRef[struct{}] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.providerInstanceCloseLocked(client, waitFor)
-}
-
-func (b *Builder) providerInstanceCloseLocked(clientResult ResultRef[*exec.ProviderClient], waitFor AnyResultRef) ResultRef[struct{}] {
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[struct{}](b, operationDesc{
 		opCode:   opProviderInstanceClose,
-		operands: []AnyResultRef{clientResult, waiter},
+		operands: []AnyResultRef{client, waiter},
 	})
-}
-
-// ProviderInstance encapsulates everything required to obtain a configured
-// client for a provider instance and ensure that the client stays open long
-// enough to handle one or more other operations registered afterwards.
-//
-// The returned [RegisterCloseBlockerFunc] MUST be called with a reference to
-// the result of the final operation in any linear chain of operations that
-// depends on the provider to ensure that the provider will stay open at least
-// long enough to perform those operations.
-//
-// This is a compound build action that adds a number of different items to
-// the graph at once, although each distinct provider instance address gets
-// only one set of nodes added and then subsequent calls get references to
-// the same operation results.
-func (b *Builder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFor AnyResultRef) (ResultRef[*exec.ProviderClient], RegisterCloseBlockerFunc) {
-	addrResult := b.ConstantProviderInstAddr(addr)
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// We only register one index for each distinct provider instance address.
-	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
-		return existing.Result, existing.CloseBlockerFunc
-	}
-	configResult := b.providerInstanceConfigLocked(addrResult, waitFor)
-	openResult := b.providerInstanceOpenLocked(configResult)
-	closeWait, registerCloseBlocker := b.makeCloseBlocker()
-	// Nothing actually depends on the result of the "close" operation, but
-	// eventual execution of the graph will still wait for it to complete
-	// because _all_ operations must complete before execution is considered
-	// to be finished.
-	_ = b.providerInstanceCloseLocked(openResult, closeWait)
-	b.openProviderRefs.Put(addr, resultWithCloseBlockers[*exec.ProviderClient]{
-		Result:             openResult,
-		CloseBlockerResult: closeWait,
-		CloseBlockerFunc:   registerCloseBlocker,
-	})
-	return openResult, registerCloseBlocker
 }
 
 func (b *Builder) ResourceInstanceDesired(
 	addr ResultRef[addrs.AbsResourceInstance],
 	waitFor AnyResultRef,
 ) ResultRef[*eval.DesiredResourceInstance] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[*eval.DesiredResourceInstance](b, operationDesc{
 		opCode:   opResourceInstanceDesired,
@@ -234,9 +127,6 @@ func (b *Builder) ResourceInstanceDesired(
 func (b *Builder) ResourceInstancePrior(
 	addr ResultRef[addrs.AbsResourceInstance],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opResourceInstancePrior,
 		operands: []AnyResultRef{addr},
@@ -265,9 +155,6 @@ func (b *Builder) ManagedFinalPlan(
 	plannedVal ResultRef[cty.Value],
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResultRef[*exec.ManagedResourceObjectFinalPlan] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ManagedResourceObjectFinalPlan](b, operationDesc{
 		opCode:   opManagedFinalPlan,
 		operands: []AnyResultRef{desiredInst, priorState, plannedVal, providerClient},
@@ -289,9 +176,6 @@ func (b *Builder) ManagedApply(
 	fallbackObj ResourceInstanceResultRef,
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
 		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient},
@@ -301,9 +185,6 @@ func (b *Builder) ManagedApply(
 func (b *Builder) ManagedDepose(
 	instAddr ResultRef[addrs.AbsResourceInstance],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedDepose,
 		operands: []AnyResultRef{instAddr},
@@ -313,9 +194,6 @@ func (b *Builder) ManagedDepose(
 func (b *Builder) ManagedAlreadyDeposed(
 	instAddr ResultRef[addrs.AbsResourceInstance],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedAlreadyDeposed,
 		operands: []AnyResultRef{instAddr},
@@ -327,9 +205,6 @@ func (b *Builder) DataRead(
 	plannedVal ResultRef[cty.Value],
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opDataRead,
 		operands: []AnyResultRef{desiredInst, plannedVal, providerClient},
@@ -340,9 +215,6 @@ func (b *Builder) EphemeralOpen(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	providerClient ResultRef[*exec.ProviderClient],
 ) ResourceInstanceResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opEphemeralOpen,
 		operands: []AnyResultRef{desiredInst, providerClient},
@@ -354,9 +226,6 @@ func (b *Builder) EphemeralClose(
 	providerClient ResultRef[*exec.ProviderClient],
 	waitFor AnyResultRef,
 ) ResultRef[struct{}] {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[struct{}](b, operationDesc{
 		opCode:   opEphemeralClose,
@@ -373,9 +242,6 @@ func (b *Builder) EphemeralClose(
 // two callers try to register for the same address then the second call will
 // panic.
 func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance, result ResourceInstanceResultRef) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	if b.graph.resourceInstanceResults.Has(addr) {
 		panic(fmt.Sprintf("duplicate registration for %s final state result", addr))
 	}
@@ -387,19 +253,17 @@ func (b *Builder) SetResourceInstanceFinalStateResult(addr addrs.AbsResourceInst
 // [Builder.SetResourceInstanceFinalStateResult].
 //
 // The return type is [AnyResultRef] because this is intended for use as
-// an argument to [Builder.Waiter] when explicitly representing the dependencies
-// between different resource instances. The actual final state result for
-// the source instance travels indirectly through the evaluator rather than
-// directly within the execution graph.
+// an argument to [Builder.Waiter] or to a function returned by
+// [Builder.MutableWaiter] when explicitly representing the dependencies
+// between different resource and provider instances. The actual final state
+// result for the source instance travels indirectly through the evaluator
+// rather than directly within the execution graph.
 //
 // This function panics if a result reference for the given resource instance
 // was not previously registered, because that suggests a bug elsewhere in the
 // system that caused the construction of subgraphs for different resource
 // instances to happen in the wrong order.
 func (b *Builder) ResourceInstanceFinalStateResult(addr addrs.AbsResourceInstance) AnyResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	ret, ok := b.graph.resourceInstanceResults.GetOk(addr)
 	if !ok {
 		panic(fmt.Sprintf("requested result for %s, which has not yet been registered", addr))
@@ -413,10 +277,27 @@ func (b *Builder) ResourceInstanceFinalStateResult(addr addrs.AbsResourceInstanc
 // The values produced by the dependencies are discarded; this only creates
 // a "must happen after" relationship with the given dependencies.
 func (b *Builder) Waiter(dependencies ...AnyResultRef) AnyResultRef {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	return b.makeWaiter(dependencies)
+}
+
+// MutableWaiter is like [Builder.Waiter] except that the returned waiter
+// initially has no dependencies and then dependencies can be added to it
+// separately by calling the returned function.
+//
+// This is intended for situations where an item with dependencies must be
+// added to the graph before its dependencies are known, and then the caller
+// gradually discovers all of the dependencies in later work.
+//
+// The registration function is not concurrency safe, so callers are responsible
+// for ensuring that there is only at most one call to each returned distinct
+// registration function across all goroutines.
+func (b *Builder) MutableWaiter() (AnyResultRef, func(AnyResultRef)) {
+	idx := appendIndex(&b.graph.waiters, []AnyResultRef{})
+	ref := waiterResultRef{idx}
+	registerFunc := func(ref AnyResultRef) {
+		b.graph.waiters[idx] = append(b.graph.waiters[idx], ref)
+	}
+	return ref, registerFunc
 }
 
 // operationRef is a helper used by all of the [Builder] methods that produce
@@ -431,21 +312,6 @@ func (b *Builder) Waiter(dependencies ...AnyResultRef) AnyResultRef {
 func operationRef[T any](builder *Builder, op operationDesc) ResultRef[T] {
 	idx := appendIndex(&builder.graph.ops, op)
 	return operationResultRef[T]{idx}
-}
-
-// makeCloseBlocker is a helper used by [Builder] methods that produce
-// open/close node pairs.
-//
-// Callers MUST hold a lock on b.mu throughout any call to this method.
-func (b *Builder) makeCloseBlocker() (ResultRef[struct{}], RegisterCloseBlockerFunc) {
-	idx := appendIndex(&b.graph.waiters, []AnyResultRef{})
-	ref := waiterResultRef{idx}
-	registerFunc := RegisterCloseBlockerFunc(func(ref AnyResultRef) {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		b.graph.waiters[idx] = append(b.graph.waiters[idx], ref)
-	})
-	return ref, registerFunc
 }
 
 // ensureWaiterRef exists to make it more convenient for callers of Builder
@@ -480,16 +346,3 @@ func (b *Builder) makeWaiter(waitFor []AnyResultRef) ResultRef[struct{}] {
 	idx := appendIndex(&b.graph.waiters, waitFor)
 	return waiterResultRef{idx}
 }
-
-type resultWithCloseBlockers[T any] struct {
-	Result             ResultRef[T]
-	CloseBlockerFunc   RegisterCloseBlockerFunc
-	CloseBlockerResult ResultRef[struct{}]
-}
-
-// RegisterCloseBlockerFunc is the signature of a function that adds a given
-// result references as a blocker for something to be "closed".
-//
-// Exactly what means to be a "close blocker" depends on context. Refer to the
-// documentation of whatever function is returning a value of this type.
-type RegisterCloseBlockerFunc func(AnyResultRef)
