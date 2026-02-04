@@ -23,8 +23,9 @@ type mockOperations struct {
 	Calls []mockOperationsCall
 
 	DataReadFunc                       func(ctx context.Context, desired *eval.DesiredResourceInstance, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
-	EphemeralCloseFunc                 func(ctx context.Context, object *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) tfdiags.Diagnostics
-	EphemeralOpenFunc                  func(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	EphemeralCloseFunc                 func(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) tfdiags.Diagnostics
+	EphemeralOpenFunc                  func(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.OpenEphemeralResourceInstance, tfdiags.Diagnostics)
+	EphemeralStateFunc                 func(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedDeposeFunc                  func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
@@ -53,23 +54,34 @@ func (m *mockOperations) DataRead(ctx context.Context, desired *eval.DesiredReso
 }
 
 // EphemeralClose implements [exec.Operations].
-func (m *mockOperations) EphemeralClose(ctx context.Context, object *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) tfdiags.Diagnostics {
+func (m *mockOperations) EphemeralClose(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if m.EphemeralCloseFunc != nil {
-		diags = m.EphemeralCloseFunc(ctx, object, providerClient)
+		diags = m.EphemeralCloseFunc(ctx, ephemeral)
 	}
-	m.appendLog("EphemeralClose", []any{object, providerClient}, struct{}{})
+	m.appendLog("EphemeralClose", []any{ephemeral}, struct{}{})
 	return diags
 }
 
 // EphemeralOpen implements [exec.Operations].
-func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (m *mockOperations) EphemeralOpen(ctx context.Context, desired *eval.DesiredResourceInstance, providerClient *exec.ProviderClient) (*exec.OpenEphemeralResourceInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var result *exec.ResourceInstanceObject
+	var result *exec.OpenEphemeralResourceInstance
 	if m.EphemeralOpenFunc != nil {
 		result, diags = m.EphemeralOpenFunc(ctx, desired, providerClient)
 	}
 	m.appendLog("EphemeralOpen", []any{desired, providerClient}, result)
+	return result, diags
+}
+
+// EphemeralState implements [exec.Operations].
+func (m *mockOperations) EphemeralState(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var result *exec.ResourceInstanceObject
+	if m.EphemeralStateFunc != nil {
+		result, diags = m.EphemeralStateFunc(ctx, ephemeral)
+	}
+	m.appendLog("EphemeralState", []any{ephemeral}, result)
 	return result, diags
 }
 

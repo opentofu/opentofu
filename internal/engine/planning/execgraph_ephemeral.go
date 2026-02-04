@@ -42,12 +42,13 @@ func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context
 
 	instAddrRef := b.lower.ConstantResourceInstAddr(desired.Addr)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, dependencyWaiter)
-	openRef := b.lower.EphemeralOpen(desiredInstRef, providerClientRef)
 
-	closeRef := b.lower.EphemeralClose(openRef, providerClientRef, closeWait)
+	openRef := b.lower.EphemeralOpen(desiredInstRef, providerClientRef)
+	stateRef := b.lower.EphemeralState(openRef)
+	closeRef := b.lower.EphemeralClose(openRef, closeWait)
 
 	closeDependencyAfter(closeRef)
 	closeProviderAfter(closeRef)
 
-	return openRef
+	return stateRef
 }

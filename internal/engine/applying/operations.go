@@ -55,9 +55,6 @@ type execOperations struct {
 	// plugins are the provider and provisioner plugins we have available for
 	// use during the apply phase.
 	plugins plugins.Plugins
-
-	// Store the "live" information about open ephemeral resources
-	ephemerals *ephemerals
 }
 
 // The main operation methods of execOperations are spread across the separate
@@ -100,7 +97,6 @@ func compileExecutionGraph(ctx context.Context, plan *plans.Plan, oracle *eval.A
 	ops.workingState = plan.PriorState.DeepCopy().SyncWrapper()
 	ops.configOracle = oracle
 	ops.plugins = plugins
-	ops.ephemerals = newEphemerals()
 
 	return execGraph, compiledGraph, ops, diags
 }

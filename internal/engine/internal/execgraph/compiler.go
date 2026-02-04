@@ -123,6 +123,8 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpDataRead
 		case opEphemeralOpen:
 			compileFunc = c.compileOpEphemeralOpen
+		case opEphemeralState:
+			compileFunc = c.compileOpEphemeralState
 		case opEphemeralClose:
 			compileFunc = c.compileOpEphemeralClose
 		default:
