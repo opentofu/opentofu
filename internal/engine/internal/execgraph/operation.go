@@ -40,6 +40,7 @@ const (
 	opDataRead
 
 	opEphemeralOpen
+	opEphemeralState
 	opEphemeralClose
 )
 

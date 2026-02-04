@@ -271,19 +271,25 @@ type Operations interface {
 	// detail of whatever is managing a provider's operation, with the execution
 	// graph just assuming that ephemeral objects remain valid _somehow_ for
 	// the full duration of their use.
+	EphemeralOpen(
+		ctx context.Context,
+		desired *eval.DesiredResourceInstance,
+		providerClient *ProviderClient,
+	) (*OpenEphemeralResourceInstance, tfdiags.Diagnostics)
+
+	// EphemeralState refines the open ephemeral resource instance into the
+	// required resource object state
 	//
 	// Execution graph processing automatically passes the result of this
 	// function to [Operations.ResourceInstancePostconditions] when appropriate,
 	// propagating any additional diagnostics it returns, and so implementers of
 	// this method should not attempt to handle postconditions themselves.
-	EphemeralOpen(
+	EphemeralState(
 		ctx context.Context,
-		desired *eval.DesiredResourceInstance,
-		providerClient *ProviderClient,
+		ephemeral *OpenEphemeralResourceInstance,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
-	// EphemeralClose uses the given provider client to "close" the given
-	// ephemeral object.
+	// EphemeralClose calls Close on the open ephemeral resource instance
 	//
 	// A valid execution graph ensures that this is called only after all other
 	// operations using the given object have either completed or have been
@@ -292,7 +298,6 @@ type Operations interface {
 	// after this method returns.
 	EphemeralClose(
 		ctx context.Context,
-		object *ResourceInstanceObject,
-		providerClient *ProviderClient,
+		ephemeral *OpenEphemeralResourceInstance,
 	) tfdiags.Diagnostics
 }

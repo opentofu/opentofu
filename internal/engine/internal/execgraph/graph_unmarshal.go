@@ -135,6 +135,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpDataRead(protoOp.GetOperands(), prevResults, builder)
 	case opEphemeralOpen:
 		return unmarshalOpEphemeralOpen(protoOp.GetOperands(), prevResults, builder)
+	case opEphemeralState:
+		return unmarshalOpEphemeralState(protoOp.GetOperands(), prevResults, builder)
 	case opEphemeralClose:
 		return unmarshalOpEphemeralClose(protoOp.GetOperands(), prevResults, builder)
 	default:
@@ -310,23 +312,30 @@ func unmarshalOpEphemeralOpen(rawOperands []uint64, prevResults []AnyResultRef, 
 	return builder.EphemeralOpen(desiredInst, providerClient), nil
 }
 
-func unmarshalOpEphemeralClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
+func unmarshalOpEphemeralState(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 1 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
-	obj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
+	ephemeralInst, err := unmarshalGetPrevResultOf[*exec.OpenEphemeralResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
 	}
-	providerClient, err := unmarshalGetPrevResultOf[*exec.ProviderClient](prevResults, rawOperands[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid opDataRead providerClient: %w", err)
+	return builder.EphemeralState(ephemeralInst), nil
+}
+
+func unmarshalOpEphemeralClose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opDataRead", len(rawOperands))
 	}
-	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[2])
+	ephemeralInst, err := unmarshalGetPrevResultOf[*exec.OpenEphemeralResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opDataRead desiredInst: %w", err)
+	}
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opDataRead waitFor: %w", err)
 	}
-	return builder.EphemeralClose(obj, providerClient, waitFor), nil
+	return builder.EphemeralClose(ephemeralInst, waitFor), nil
 }
 
 func unmarshalWaiterElem(protoWaiter *execgraphproto.Waiter, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

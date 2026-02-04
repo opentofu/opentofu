@@ -8,34 +8,35 @@ package planning
 import (
 	"context"
 
-	"github.com/zclconf/go-cty/cty"
-
-	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/zclconf/go-cty/cty"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
 // This file contains methods of [execGraphBuilder] that are related to the
 // parts of an execution graph that deal with resource instances of mode
-// [addrs.ManagedResourceMode] in particular.
+// [addrs.EphemeralResourceMode] in particular.
 ////////////////////////////////////////////////////////////////////////////////
 
-// ManagedResourceSubgraph adds graph nodes needed to apply changes for a
-// managed resource instance, and returns what should be used as its final
+// EphemeralResourceSubgraph adds graph nodes needed to apply changes for a
+// ephemeral resource instance, and returns what should be used as its final
 // result to propagate into to downstream references.
 //
 // TODO: This is definitely not sufficient for the full complexity of all of the
-// different ways managed resources can potentially need to be handled in an
+// different ways ephemeral resources can potentially need to be handled in an
 // execution graph. It's just a simple placeholder adapted from code that was
-// originally written inline in [planGlue.planDesiredManagedResourceInstance]
+// originally written inline in [planGlue.planDesiredEphemeralResourceInstance]
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
-func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
+func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
 	providerClientRef, closeProviderAfter := b.ProviderInstance(ctx, *desired.ProviderInstance, oracle)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	closeWait, registerCloseBlocker := b.makeCloseBlocker()
+	b.openEphemeralRefs.Put(desired.Addr, registerCloseBlocker)
 
 	// We need to explicitly model our dependency on any upstream resource
 	// instances in the resource instance graph. These don't naturally emerge
@@ -44,26 +45,15 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, 
 	// desiredInstRef result we'll build below.
 	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
 
-	// FIXME: If this is one of the "replace" actions then we need to generate
-	// a more complex graph that has two pairs of "final plan" and "apply".
 	instAddrRef := b.lower.ConstantResourceInstAddr(desired.Addr)
-	priorStateRef := b.lower.ResourceInstancePrior(instAddrRef)
-	plannedValRef := b.lower.ConstantValue(plannedValue)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, dependencyWaiter)
-	finalPlanRef := b.lower.ManagedFinalPlan(
-		desiredInstRef,
-		priorStateRef,
-		plannedValRef,
-		providerClientRef,
-	)
-	finalResultRef := b.lower.ManagedApply(
-		finalPlanRef,
-		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
-		providerClientRef,
-	)
 
-	closeProviderAfter(finalResultRef)
-	closeDependencyAfter(finalResultRef)
+	openRef := b.lower.EphemeralOpen(desiredInstRef, providerClientRef)
+	stateRef := b.lower.EphemeralState(openRef)
+	closeRef := b.lower.EphemeralClose(openRef, closeWait)
 
-	return finalResultRef
+	closeDependencyAfter(closeRef)
+	closeProviderAfter(closeRef)
+
+	return stateRef
 }

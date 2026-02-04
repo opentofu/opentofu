@@ -339,15 +339,12 @@ func (c *compiler) compileOpEphemeralOpen(operands *compilerOperands) nodeExecut
 
 		ret, moreDiags := ops.EphemeralOpen(ctx, desired, providerClient)
 		diags = diags.Append(moreDiags)
-		// TODO: Also call ops.ResourceInstancePostconditions
-		log.Printf("[WARN] opEphemeralOpen doesn't yet handle postconditions")
 		return ret, !diags.HasErrors(), diags
 	}
 }
 
-func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecuteRaw {
-	getObject := nextOperand[*exec.ResourceInstanceObject](operands)
-	getProviderClient := nextOperand[*exec.ProviderClient](operands)
+func (c *compiler) compileOpEphemeralState(operands *compilerOperands) nodeExecuteRaw {
+	getEphemeral := nextOperand[*exec.OpenEphemeralResourceInstance](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -356,18 +353,42 @@ func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecu
 	ops := c.ops
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
-		providerClient, ok, moreDiags := getProviderClient(ctx)
-		diags = diags.Append(moreDiags)
-		if !ok {
-			return nil, false, diags
-		}
-		object, ok, moreDiags := getObject(ctx)
+		ephemeral, ok, moreDiags := getEphemeral(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
 
-		moreDiags = ops.EphemeralClose(ctx, object, providerClient)
+		ret, moreDiags := ops.EphemeralState(ctx, ephemeral)
+		diags = diags.Append(moreDiags)
+		// TODO: Also call ops.ResourceInstancePostconditions
+		log.Printf("[WARN] opEphemeralState doesn't yet handle postconditions")
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
+func (c *compiler) compileOpEphemeralClose(operands *compilerOperands) nodeExecuteRaw {
+	getEphemeral := nextOperand[*exec.OpenEphemeralResourceInstance](operands)
+	waitForUsers := operands.OperandWaiter()
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+	ops := c.ops
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		// We intentionally ignore results here because we want to close the
+		// ephemeral even if one of its users fails.
+		waitForUsers(ctx)
+
+		ephemeral, ok, moreDiags := getEphemeral(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		moreDiags = ops.EphemeralClose(ctx, ephemeral)
 		diags = diags.Append(moreDiags)
 		return struct{}{}, !diags.HasErrors(), diags
 	}

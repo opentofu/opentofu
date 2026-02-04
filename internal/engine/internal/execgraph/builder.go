@@ -214,22 +214,30 @@ func (b *Builder) DataRead(
 func (b *Builder) EphemeralOpen(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	providerClient ResultRef[*exec.ProviderClient],
-) ResourceInstanceResultRef {
-	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+) ResultRef[*exec.OpenEphemeralResourceInstance] {
+	return operationRef[*exec.OpenEphemeralResourceInstance](b, operationDesc{
 		opCode:   opEphemeralOpen,
 		operands: []AnyResultRef{desiredInst, providerClient},
 	})
 }
 
+func (b *Builder) EphemeralState(
+	ephemeralInst ResultRef[*exec.OpenEphemeralResourceInstance],
+) ResourceInstanceResultRef {
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opEphemeralState,
+		operands: []AnyResultRef{ephemeralInst},
+	})
+}
+
 func (b *Builder) EphemeralClose(
-	obj ResourceInstanceResultRef,
-	providerClient ResultRef[*exec.ProviderClient],
+	ephemeralInst ResultRef[*exec.OpenEphemeralResourceInstance],
 	waitFor AnyResultRef,
 ) ResultRef[struct{}] {
 	waiter := b.ensureWaiterRef(waitFor)
 	return operationRef[struct{}](b, operationDesc{
 		opCode:   opEphemeralClose,
-		operands: []AnyResultRef{obj, providerClient, waiter},
+		operands: []AnyResultRef{ephemeralInst, waiter},
 	})
 }
 

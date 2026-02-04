@@ -6,9 +6,12 @@
 package planning
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
+	"github.com/opentofu/opentofu/internal/lang/eval"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,9 +32,16 @@ import (
 // the graph at once, although each distinct provider instance address gets
 // only one set of nodes added and then subsequent calls get references to
 // the same operation results.
-func (b *execGraphBuilder) ProviderInstance(addr addrs.AbsProviderInstanceCorrect, waitFor execgraph.AnyResultRef) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
+func (b *execGraphBuilder) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, oracle *eval.PlanningOracle) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	resourceDependencies := addrs.MakeSet[addrs.AbsResourceInstance]()
+	rawDependencies := oracle.ProviderInstanceResourceDependencies(ctx, addr)
+	for dep := range rawDependencies {
+		resourceDependencies.Add(dep.Addr)
+	}
+	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(resourceDependencies.All())
 
 	// FIXME: This is an adaptation of an earlier attempt at this where this
 	// helper was in the underlying execgraph.Builder type, built to work
@@ -58,14 +68,13 @@ func (b *execGraphBuilder) ProviderInstance(addr addrs.AbsProviderInstanceCorrec
 	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
 		return existing.Result, existing.CloseBlockerFunc
 	}
-	configResult := b.lower.ProviderInstanceConfig(addrResult, waitFor)
+	configResult := b.lower.ProviderInstanceConfig(addrResult, dependencyWaiter)
 	openResult := b.lower.ProviderInstanceOpen(configResult)
 	closeWait, registerCloseBlocker := b.makeCloseBlocker()
-	// Nothing actually depends on the result of the "close" operation, but
-	// eventual execution of the graph will still wait for it to complete
-	// because _all_ operations must complete before execution is considered
-	// to be finished.
-	_ = b.lower.ProviderInstanceClose(openResult, closeWait)
+
+	closeRef := b.lower.ProviderInstanceClose(openResult, closeWait)
+	closeDependencyAfter(closeRef)
+
 	b.openProviderRefs.Put(addr, execResultWithCloseBlockers[*exec.ProviderClient]{
 		Result:             openResult,
 		CloseBlockerResult: closeWait,

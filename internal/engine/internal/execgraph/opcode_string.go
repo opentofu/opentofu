@@ -19,12 +19,13 @@ func _() {
 	_ = x[opManagedAlreadyDeposed-9]
 	_ = x[opDataRead-10]
 	_ = x[opEphemeralOpen-11]
-	_ = x[opEphemeralClose-12]
+	_ = x[opEphemeralState-12]
+	_ = x[opEphemeralClose-13]
 }
 
-const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopDataReadopEphemeralOpenopEphemeralClose"
+const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopDataReadopEphemeralOpenopEphemeralStateopEphemeralClose"
 
-var _opCode_index = [...]uint8{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 197, 212, 228}
+var _opCode_index = [...]uint8{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 197, 212, 228, 244}
 
 func (i opCode) String() string {
 	idx := int(i) - 1

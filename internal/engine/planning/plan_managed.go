@@ -23,9 +23,6 @@ import (
 )
 
 func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (plannedVal cty.Value, applyResultRef execgraph.ResourceInstanceResultRef, diags tfdiags.Diagnostics) {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
-
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
@@ -262,24 +259,18 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// and reasonable. In particular, these subgraph-building methods should
 	// be easily unit-testable due to not depending on anything other than
 	// their input.
-	finalResultRef := egb.ManagedResourceInstanceSubgraph(inst, planResp.PlannedState)
+	finalResultRef := egb.ManagedResourceInstanceSubgraph(ctx, inst, planResp.PlannedState, p.oracle)
 
 	// Our result value for ongoing downstream planning is the planned new state.
 	return planResp.PlannedState, finalResultRef, diags
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
-
 	// TODO: Implement
 	panic("unimplemented")
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
-	// Regardless of outcome we'll always report that we completed planning.
-	defer p.planCtx.reportResourceInstanceDeposedPlanCompletion(addr, deposedKey)
-
 	// TODO: Implement
 	panic("unimplemented")
 }
