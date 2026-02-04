@@ -44,6 +44,7 @@ type execGraphBuilder struct {
 	// becomes immutable at that point.
 	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
 	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]]
+	openProviderDeps     addrs.Map[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]]
 	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]]
 	openEphemeralRefs    addrs.Map[addrs.AbsResourceInstance, registerExecCloseBlockerFunc]
 }
@@ -57,6 +58,7 @@ func newExecGraphBuilder() *execGraphBuilder {
 		lower:                execgraph.NewBuilder(),
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
 		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]](),
+		openProviderDeps:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]](),
 		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]](),
 		openEphemeralRefs:    addrs.MakeMap[addrs.AbsResourceInstance, registerExecCloseBlockerFunc](),
 	}
@@ -91,7 +93,8 @@ type registerExecCloseBlockerFunc func(execgraph.AnyResultRef)
 // makeCloseBlocker is a helper used by [execGraphBuilder] methods that produce
 // open/close node pairs.
 //
-// Callers MUST hold a lock on b.mu throughout any call to this method.
+// Callers MUST hold a lock on b.mu throughout any call to this method, AND
+// when calling the returned registerExecCloseBlockerFunc.
 func (b *execGraphBuilder) makeCloseBlocker() (execgraph.AnyResultRef, registerExecCloseBlockerFunc) {
 	waiter, lowerRegister := b.lower.MutableWaiter()
 	registerFunc := registerExecCloseBlockerFunc(func(ref execgraph.AnyResultRef) {

@@ -8,9 +8,10 @@ package planning
 import (
 	"context"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/zclconf/go-cty/cty"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,8 +31,6 @@ import (
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
 func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
-	providerClientRef, closeProviderAfter := b.ProviderInstance(ctx, *desired.ProviderInstance, oracle)
-
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -44,6 +43,8 @@ func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context
 	// evaluator, which indirectly incorporates the results into the
 	// desiredInstRef result we'll build below.
 	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
+
+	providerClientRef, closeProviderAfter := b.providerInstanceSubgraph(*desired.ProviderInstance)
 
 	instAddrRef := b.lower.ConstantResourceInstAddr(desired.Addr)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, dependencyWaiter)

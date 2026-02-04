@@ -29,4 +29,10 @@ type ProviderInstanceConfig struct {
 	// to reuse a previously-configured provider (and thus ignore ConfigVal)
 	// when the address matches.
 	ConfigVal cty.Value
+
+	// RequiredResourceInstances is a set of all of the resource instances
+	// that somehow contribute to the configuration of the resource instance,
+	// and so which must therefore have any changes applied before evaluating
+	// the configuration for this provider instance during the apply phase.
+	RequiredResourceInstances addrs.Set[addrs.AbsResourceInstance]
 }

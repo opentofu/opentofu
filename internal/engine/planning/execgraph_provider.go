@@ -6,12 +6,12 @@
 package planning
 
 import (
-	"context"
+	"fmt"
+	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,55 +19,59 @@ import (
 // parts of an execution graph that deal with provider instances.
 ////////////////////////////////////////////////////////////////////////////////
 
-// ProviderInstance encapsulates everything required to obtain a configured
-// client for a provider instance and ensure that the client stays open long
-// enough to handle one or more other operations registered afterwards.
+// SetProviderInstanceDependencies records the given set of resource instance
+// addresses as the dependencies of the specified provider instance.
 //
-// The returned [RegisterCloseBlockerFunc] MUST be called with a reference to
-// the result of the final operation in any linear chain of operations that
+// This must be called at most once per distinct provider instance address, with
+// the dependencies that were detected by the configuration evaluator. Duplicate
+// calls for the same provider will panic.
+func (b *execGraphBuilder) SetProviderInstanceDependencies(addr addrs.AbsProviderInstanceCorrect, deps addrs.Set[addrs.AbsResourceInstance]) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.openProviderDeps.Has(addr) {
+		panic(fmt.Sprintf("duplicate call to SetProviderInstanceDependencies for %s", addr))
+	}
+	log.Printf("[TRACE] %s depends on %#v", addr, deps)
+	b.openProviderDeps.Put(addr, deps)
+}
+
+// providerInstanceSubgraph generates the execution graph operations needed to
+// obtain a configured client for a provider instance and ensure that the client
+// stays open long enough to handle one or more other operations registered
+// afterwards.
+//
+// This must only be called while already holding a lock on
+// [execGraphBuilder.mu] from the reciever, and so is only for use as a helper
+// for the exported methods of this type rather than for direct use by external
+// callers.
+//
+// The given provider instance address must previously have been used in a call
+// to [execGraphBuilder.SetProviderInstanceDependencies], or this will panic.
+//
+// The returned [registerExecCloseBlockerFunc] MUST be called with a reference
+// to the result of the final operation in any linear chain of operations that
 // depends on the provider to ensure that the provider will stay open at least
 // long enough to perform those operations.
 //
-// This is a compound build action that adds a number of different items to
-// the graph at once, although each distinct provider instance address gets
-// only one set of nodes added and then subsequent calls get references to
-// the same operation results.
-func (b *execGraphBuilder) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, oracle *eval.PlanningOracle) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	resourceDependencies := addrs.MakeSet[addrs.AbsResourceInstance]()
-	rawDependencies := oracle.ProviderInstanceResourceDependencies(ctx, addr)
-	for dep := range rawDependencies {
-		resourceDependencies.Add(dep.Addr)
-	}
-	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(resourceDependencies.All())
-
-	// FIXME: This is an adaptation of an earlier attempt at this where this
-	// helper was in the underlying execgraph.Builder type, built to work
-	// without any help from the planning engine. But this design isn't
-	// really suitable because it makes the insertion of a provider instance
-	// be an implicit side-effect of planning whatever resource instance happens
-	// to use the provider first, and the planning code for a resource instance
-	// doesn't know information like which other resource instances the
-	// provider instance's configuration depends on, etc.
-	//
-	// In future commits we should rework things so that we have an explicit
-	// separate step in the planning process of preparing the provider instance
-	// based on its representation in the configuration, and then the planning
-	// of resource instances would just retrieve the result ref for the "open"
-	// operation that was already registered earlier, instead of implicitly
-	// causing that operation to be added. At that point this method would
-	// take only the provider instance address and not the "waitFor" reference,
-	// because it would only ever be returning a reference to something already
-	// in the graph and never adding any new operations itself.
-
-	addrResult := b.lower.ConstantProviderInstAddr(addr)
-
+// Each distinct provider instance address gets only one set of operations
+// added, so future calls with the same provider instance recieve references to
+// the same operations. This means that if the resource instance planning code
+// calls this only once it's definitely intending to add side-effects to the
+// execution graph then the resulting graph will refer to only the subset of
+// provider instances needed to perform planned changes.
+func (b *execGraphBuilder) providerInstanceSubgraph(addr addrs.AbsProviderInstanceCorrect) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
 	// We only register one index for each distinct provider instance address.
 	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
 		return existing.Result, existing.CloseBlockerFunc
 	}
+
+	resourceInstDeps, ok := b.openProviderDeps.GetOk(addr)
+	if !ok {
+		panic(fmt.Sprintf("ProviderInstanceSubgraph for %s without earlier call to SetProviderInstanceDependencies", addr))
+	}
+	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(resourceInstDeps.All())
+
+	addrResult := b.lower.ConstantProviderInstAddr(addr)
 	configResult := b.lower.ProviderInstanceConfig(addrResult, dependencyWaiter)
 	openResult := b.lower.ProviderInstanceOpen(configResult)
 	closeWait, registerCloseBlocker := b.makeCloseBlocker()

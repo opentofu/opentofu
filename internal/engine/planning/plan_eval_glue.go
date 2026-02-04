@@ -48,13 +48,17 @@ func (p *planGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Pr
 // active concurrently and so this function must take care to avoid races.
 func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] planContext: planning desired resource instance %s", inst.Addr)
+
 	// The details of how we plan vary considerably depending on the resource
-	// mode, so we'll dispatch each one to a separate function before we do
-	// anything else.
+	// mode, so we'll dispatch each one to a separate function after we've
+	// dealt with some common preparation work.
 	var plannedVal cty.Value
 	var resultRef execgraph.ResourceInstanceResultRef
 	var diags tfdiags.Diagnostics
 	egb := p.planCtx.execGraphBuilder
+	if inst.ProviderInstance != nil {
+		p.ensureProviderInstanceDependencies(ctx, *inst.ProviderInstance, egb)
+	}
 	switch mode := inst.Addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
 		plannedVal, resultRef, diags = p.planDesiredManagedResourceInstance(ctx, inst, egb)
@@ -80,11 +84,13 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
+	egb := p.planCtx.execGraphBuilder
+	p.ensureProviderInstanceDependencies(ctx, state.ProviderInstanceAddr, egb)
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		return p.planOrphanManagedResourceInstance(ctx, addr, state, p.planCtx.execGraphBuilder)
+		return p.planOrphanManagedResourceInstance(ctx, addr, state, egb)
 	case addrs.DataResourceMode:
-		return p.planOrphanDataResourceInstance(ctx, addr, state, p.planCtx.execGraphBuilder)
+		return p.planOrphanDataResourceInstance(ctx, addr, state, egb)
 	case addrs.EphemeralResourceMode:
 		// It should not be possible for an ephemeral resource to be an
 		// orphan because ephemeral resources should never be persisted
@@ -110,7 +116,9 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, p.planCtx.execGraphBuilder)
+	egb := p.planCtx.execGraphBuilder
+	p.ensureProviderInstanceDependencies(ctx, state.ProviderInstanceAddr, egb)
+	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, egb)
 }
 
 // PlanModuleCallInstanceOrphans implements eval.PlanGlue.

@@ -9,11 +9,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
@@ -64,6 +65,37 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	p.planCtx.closeStackMu.Lock()
 	p.planCtx.closeStack = append(p.planCtx.closeStack, closeFunc)
 	p.planCtx.closeStackMu.Unlock()
+
+	// FIXME: Unlike other resource modes, ephemeral resources can have a
+	// different set of instances in the plan phase vs. the apply phase whenever
+	// their count/for_each/enabled is derived from an ephemeral value, such
+	// as `terraform.applying` which _intentionally_ varies between phases.
+	// Therefore this current structure is subtly incorrect: it assumes that
+	// the apply phase will have exactly the same ephemeral resource instances
+	// as we have during the plan phase.
+	//
+	// To deal with that, instead of proactively execgraph-ing all of the
+	// instances we know at plan time we could instead insert them only once
+	// at least one non-ephemeral resource depends on them. We can assume that
+	// only that subset will actually be needed during the apply phase.
+	// That's similar to what we're doing with provider instances where we only
+	// add their open/close nodes to the execgraph once at least one resource
+	// instance refers to them, and any instances that aren't referred to from
+	// anything non-ephemeral won't be opened during the apply phase regardless
+	// of what the evaluator discovers.
+	//
+	// With that in mind, this planDesiredEphemeralResourceInstance function
+	// should probably just focus on calling
+	// [shared.OpenEphemeralResourceInstance] and not put anything in the
+	// execution graph, and then we can arrange for
+	// [execGraphBuilder.resourceInstanceFinalStateResult] to implicitly
+	// call EphemeralResourceInstanceSubgraph on the first request for each
+	// distinct ephemeral resource instance address so that the set of instances
+	// we put in the execution graph is completely independent of the set of
+	// instances we open during the planning phase. (At that point it's not
+	// really honest for this method to be named "plan" anymore, and should
+	// probably be called [planGlue.openDesiredEphemeralResourceInstance]
+	// instead and to no longer return an [execgraph.ResultRef] at all.
 
 	resRef := egb.EphemeralResourceInstanceSubgraph(ctx, inst, newVal, p.oracle)
 	return newVal, resRef, diags

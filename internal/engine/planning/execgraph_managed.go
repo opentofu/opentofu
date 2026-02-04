@@ -32,8 +32,6 @@ import (
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
 func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
-	providerClientRef, closeProviderAfter := b.ProviderInstance(ctx, *desired.ProviderInstance, oracle)
-
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -43,6 +41,12 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, 
 	// evaluator, which indirectly incorporates the results into the
 	// desiredInstRef result we'll build below.
 	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
+
+	// FIXME: Once this code is extended to support more than just "create"
+	// actions, we should skip calling this function if the action turns
+	// out to be no-op, so that completely-unneeded provider instances won't
+	// appear in the final execution graph at all.
+	providerClientRef, closeProviderAfter := b.providerInstanceSubgraph(*desired.ProviderInstance)
 
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
