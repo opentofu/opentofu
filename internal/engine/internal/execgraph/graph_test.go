@@ -73,16 +73,18 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				plannedVal := builder.ConstantValue(cty.ObjectVal(map[string]cty.Value{
 					"name": cty.StringVal("thingy"),
 				}))
-				providerClient, registerUser := builder.ProviderInstance(
-					addrs.AbsProviderInstanceCorrect{
-						Config: addrs.AbsProviderConfigCorrect{
-							Config: addrs.ProviderConfigCorrect{
-								Provider: addrs.NewBuiltInProvider("test"),
-							},
+				providerInstAddrRef := builder.ConstantProviderInstAddr(addrs.AbsProviderInstanceCorrect{
+					Config: addrs.AbsProviderConfigCorrect{
+						Config: addrs.ProviderConfigCorrect{
+							Provider: addrs.NewBuiltInProvider("test"),
 						},
 					},
-					nil,
-				)
+				})
+				providerInstConfig := builder.ProviderInstanceConfig(providerInstAddrRef, nil)
+				providerClient := builder.ProviderInstanceOpen(providerInstConfig)
+				providerCloseDeps, registerUser := builder.MutableWaiter()
+				_ = builder.ProviderInstanceClose(providerClient, providerCloseDeps)
+
 				finalPlan := builder.ManagedFinalPlan(desiredInst, priorState, plannedVal, providerClient)
 				newState := builder.ManagedApply(finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient)
 				registerUser(newState)
@@ -116,16 +118,19 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
 				instAddrResult := builder.ConstantResourceInstAddr(instAddr)
 				desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
-				providerClient, registerUser := builder.ProviderInstance(
-					addrs.AbsProviderInstanceCorrect{
-						Config: addrs.AbsProviderConfigCorrect{
-							Config: addrs.ProviderConfigCorrect{
-								Provider: addrs.NewBuiltInProvider("test"),
-							},
+
+				providerInstAddrRef := builder.ConstantProviderInstAddr(addrs.AbsProviderInstanceCorrect{
+					Config: addrs.AbsProviderConfigCorrect{
+						Config: addrs.ProviderConfigCorrect{
+							Provider: addrs.NewBuiltInProvider("test"),
 						},
 					},
-					nil,
-				)
+				})
+				providerInstConfig := builder.ProviderInstanceConfig(providerInstAddrRef, nil)
+				providerClient := builder.ProviderInstanceOpen(providerInstConfig)
+				providerCloseDeps, registerUser := builder.MutableWaiter()
+				_ = builder.ProviderInstanceClose(providerClient, providerCloseDeps)
+
 				plannedVal := builder.ConstantValue(cty.DynamicVal)
 				newState := builder.DataRead(desiredInst, plannedVal, providerClient)
 				registerUser(newState)
@@ -156,16 +161,19 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 					Type: "test",
 					Name: "example2",
 				}.Absolute(addrs.RootModuleInstance).Instance(addrs.NoKey)
-				providerClient, registerUser := builder.ProviderInstance(
-					addrs.AbsProviderInstanceCorrect{
-						Config: addrs.AbsProviderConfigCorrect{
-							Config: addrs.ProviderConfigCorrect{
-								Provider: addrs.NewBuiltInProvider("test"),
-							},
+
+				providerInstAddrRef := builder.ConstantProviderInstAddr(addrs.AbsProviderInstanceCorrect{
+					Config: addrs.AbsProviderConfigCorrect{
+						Config: addrs.ProviderConfigCorrect{
+							Provider: addrs.NewBuiltInProvider("test"),
 						},
 					},
-					nil,
-				)
+				})
+				providerInstConfig := builder.ProviderInstanceConfig(providerInstAddrRef, nil)
+				providerClient := builder.ProviderInstanceOpen(providerInstConfig)
+				providerCloseDeps, registerUser := builder.MutableWaiter()
+				_ = builder.ProviderInstanceClose(providerClient, providerCloseDeps)
+
 				plannedVal := builder.ConstantValue(cty.DynamicVal)
 				desiredInst1 := builder.ResourceInstanceDesired(builder.ConstantResourceInstAddr(instAddr1), nil)
 				newState1 := builder.DataRead(desiredInst1, plannedVal, providerClient)

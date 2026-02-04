@@ -53,7 +53,11 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 	initialPlannedValue := builder.ConstantValue(cty.ObjectVal(map[string]cty.Value{
 		"name": cty.StringVal("thingy"),
 	}))
-	providerClient, addProviderUser := builder.ProviderInstance(providerInstAddr, nil)
+	providerInstAddrRef := builder.ConstantProviderInstAddr(providerInstAddr)
+	providerInstConfig := builder.ProviderInstanceConfig(providerInstAddrRef, nil)
+	providerClient := builder.ProviderInstanceOpen(providerInstConfig)
+	providerCloseDeps, addProviderUser := builder.MutableWaiter()
+	_ = builder.ProviderInstanceClose(providerClient, providerCloseDeps)
 	instAddrResult := builder.ConstantResourceInstAddr(resourceInstAddr)
 	desiredInst := builder.ResourceInstanceDesired(instAddrResult, nil)
 	priorState := builder.ResourceInstancePrior(instAddrResult)

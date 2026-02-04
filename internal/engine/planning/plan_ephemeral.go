@@ -14,7 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics

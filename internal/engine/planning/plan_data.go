@@ -19,7 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execgraph.Builder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(inst.Addr)
 	var diags tfdiags.Diagnostics
@@ -90,7 +90,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	panic("unimplemented")
 }
 
-func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execgraph.Builder) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
 	// Regardless of outcome we'll always report that we completed planning.
 	defer p.planCtx.reportResourceInstancePlanCompletion(addr)
 	var diags tfdiags.Diagnostics

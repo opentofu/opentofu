@@ -54,7 +54,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	var plannedVal cty.Value
 	var resultRef execgraph.ResourceInstanceResultRef
 	var diags tfdiags.Diagnostics
-	egb := p.planCtx.execgraphBuilder
+	egb := p.planCtx.execGraphBuilder
 	switch mode := inst.Addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
 		plannedVal, resultRef, diags = p.planDesiredManagedResourceInstance(ctx, inst, egb)
@@ -74,7 +74,7 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 		return cty.DynamicVal, diags
 	}
 	log.Printf("[TRACE] planContext: final result for %s comes from %#v", inst.Addr, resultRef)
-	p.planCtx.execgraphBuilder.SetResourceInstanceFinalStateResult(inst.Addr, resultRef)
+	p.planCtx.execGraphBuilder.SetResourceInstanceFinalStateResult(inst.Addr, resultRef)
 	return plannedVal, diags
 }
 
@@ -82,9 +82,9 @@ func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.Ab
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
-		return p.planOrphanManagedResourceInstance(ctx, addr, state, p.planCtx.execgraphBuilder)
+		return p.planOrphanManagedResourceInstance(ctx, addr, state, p.planCtx.execGraphBuilder)
 	case addrs.DataResourceMode:
-		return p.planOrphanDataResourceInstance(ctx, addr, state, p.planCtx.execgraphBuilder)
+		return p.planOrphanDataResourceInstance(ctx, addr, state, p.planCtx.execGraphBuilder)
 	case addrs.EphemeralResourceMode:
 		// It should not be possible for an ephemeral resource to be an
 		// orphan because ephemeral resources should never be persisted
@@ -110,7 +110,7 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		diags = diags.Append(fmt.Errorf("deposed object for non-managed resource instance %s; this is a bug in OpenTofu", addr))
 		return diags
 	}
-	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, p.planCtx.execgraphBuilder)
+	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, p.planCtx.execGraphBuilder)
 }
 
 // PlanModuleCallInstanceOrphans implements eval.PlanGlue.
