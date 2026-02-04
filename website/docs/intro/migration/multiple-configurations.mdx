@@ -13,11 +13,10 @@ If you're migrating a single, standalone Terraform configuration, refer to the [
 
 ## When to use this guide
 
-Use this guide if:
+Use this guide if you meet any of the following criteria:
 
-    - **Multiple root modules** (separate Terraform Projects)
-    - **Data sharing between modules** using `terraform_remote_state`
-    - **Dependencies between modules** (one module consumes outputs from the other)
+    - **Data sharing between root modules** using `terraform_remote_state`
+    - **Dependencies between root modules** (one root module consumes outputs from the other)
 
 ## Understanding terraform_remote_state
 
