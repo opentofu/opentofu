@@ -118,12 +118,12 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		return proposedNewVal, nil, diags
 	}
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, moreDiags := inst.ProviderInstance.Open(ctx)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, inst.ProviderInstance.Addr),
 			nil,
 		))
 	}
@@ -218,9 +218,9 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 			// address representation, since our old models aren't yet updated
 			// to support the modern one. It cannot handle a provider config
 			// inside a module call that uses count or for_each.
-			Module:   (*inst.ProviderInstance).Config.Module.Module(),
-			Provider: (*inst.ProviderInstance).Config.Config.Provider,
-			Alias:    (*inst.ProviderInstance).Config.Config.Alias,
+			Module:   (*inst.ProviderInstance).Addr.Config.Module.Module(),
+			Provider: (*inst.ProviderInstance).Addr.Config.Config.Provider,
+			Alias:    (*inst.ProviderInstance).Addr.Config.Config.Alias,
 		},
 		RequiredReplace: cty.NewPathSet(planResp.RequiresReplace...),
 		Private:         planResp.PlannedPrivate,
@@ -259,7 +259,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// and reasonable. In particular, these subgraph-building methods should
 	// be easily unit-testable due to not depending on anything other than
 	// their input.
-	finalResultRef := egb.ManagedResourceInstanceSubgraph(ctx, inst, planResp.PlannedState, p.oracle)
+	finalResultRef := egb.ManagedResourceInstanceSubgraph(inst, planResp.PlannedState)
 
 	// Our result value for ongoing downstream planning is the planned new state.
 	return planResp.PlannedState, finalResultRef, diags

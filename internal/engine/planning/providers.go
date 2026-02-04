@@ -7,66 +7,21 @@ package planning
 
 import (
 	"context"
-	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/lang/grapheval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
-// providerInstances is our central manager of active configured provider
-// instances, responsible for executing new providers on request and for
-// keeping them running until all of their work is done.
-type providerInstances struct {
+func (p *planGlue) ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics), tfdiags.Diagnostics) {
+	egb := p.planCtx.execGraphBuilder
 
-	// active contains a grapheval.Once for each provider instance that
-	// has previously been requested, which resolve once the provider instance
-	// is configured and ready to use.
-	//
-	// callers must hold activeMu while accessing this map but should release it
-	// before waiting on an object retrieved from it.
-	active   addrs.Map[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providers.Configured]]
-	activeMu sync.Mutex
-}
+	diags := p.planCtx.providers.ValidateProviderConfig(ctx, addr.Config.Config.Provider, configVal)
 
-func newProviderInstances() *providerInstances {
-	return &providerInstances{
-		active: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, *grapheval.Once[providers.Configured]](),
-	}
-}
+	return func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
+		egb.ProviderInstanceSubgraph(addr, riDeps)
 
-// ProviderClient returns a client for the requested provider instance, using
-// information from the given planGlue to configure the provider if no caller has
-// previously requested a client for this instance.
-//
-// (It's better to enter through [planGlue.providerClient], which is a wrapper
-// that passes its receiver into the final argument here.)
-//
-// Returns nil if the configuration for the requested provider instance is too
-// invalid to actually configure it. The diagnostics for such a problem would
-// be reported by our main [ConfigInstance.DrivePlanning] call but the caller
-// of this function will probably want to return a more specialized error saying
-// that the corresponding resource cannot be planned because its associated
-// provider has an invalid configuration.
-func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, planGlue *planGlue) (providers.Configured, tfdiags.Diagnostics) {
-	// We hold this central lock only while we make sure there's an entry
-	// in the "active" map for this provider instance. We then use the
-	// more granular grapheval.Once inside to wait for the provider client
-	// to be available, so that requests for already-active provider instances
-	// will not block on the startup of other provider instances.
-	pi.activeMu.Lock()
-	if !pi.active.Has(addr) {
-		pi.active.Put(addr, &grapheval.Once[providers.Configured]{})
-	}
-	pi.activeMu.Unlock()
-
-	oracle := planGlue.oracle
-	planCtx := planGlue.planCtx
-	once := pi.active.Get(addr)
-	return once.Do(ctx, func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
-		configVal := oracle.ProviderInstanceConfig(ctx, addr)
 		if configVal == cty.NilVal {
 			// This suggests that the provider instance has an invalid
 			// configuration. The main diagnostics for that get returned by
@@ -88,17 +43,17 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		// then this should return "nil, nil" in the error case so that the
 		// caller will treat it the same as a "configuration not valid enough"
 		// problem.
-		ret, diags := planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
+		ret, diags := p.planCtx.providers.NewConfiguredProvider(ctx, addr.Config.Config.Provider, configVal)
 
 		closeCh := make(chan struct{})
 
-		planCtx.closeStackMu.Lock()
-		planCtx.closeStack = append(planCtx.closeStack, func(ctx context.Context) tfdiags.Diagnostics {
+		p.planCtx.closeStackMu.Lock()
+		p.planCtx.closeStack = append(p.planCtx.closeStack, func(ctx context.Context) tfdiags.Diagnostics {
 			println("CLOSING PROVIDER " + addr.String())
 			closeCh <- struct{}{}
 			return tfdiags.Diagnostics{}.Append(ret.Close(ctx))
 		})
-		planCtx.closeStackMu.Unlock()
+		p.planCtx.closeStackMu.Unlock()
 
 		// This background goroutine deals with closing the provider once it's
 		// no longer needed, and with asking it to gracefully stop if our
@@ -126,5 +81,5 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 		}()
 
 		return ret, diags
-	})
+	}, diags
 }

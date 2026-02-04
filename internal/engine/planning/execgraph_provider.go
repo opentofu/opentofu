@@ -6,12 +6,9 @@
 package planning
 
 import (
-	"context"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,16 +29,10 @@ import (
 // the graph at once, although each distinct provider instance address gets
 // only one set of nodes added and then subsequent calls get references to
 // the same operation results.
-func (b *execGraphBuilder) ProviderInstance(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, oracle *eval.PlanningOracle) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
+
+func (b *execGraphBuilder) ProviderInstanceSubgraph(addr addrs.AbsProviderInstanceCorrect, riDeps addrs.Set[addrs.AbsResourceInstance]) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	resourceDependencies := addrs.MakeSet[addrs.AbsResourceInstance]()
-	rawDependencies := oracle.ProviderInstanceResourceDependencies(ctx, addr)
-	for dep := range rawDependencies {
-		resourceDependencies.Add(dep.Addr)
-	}
-	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(resourceDependencies.All())
 
 	// FIXME: This is an adaptation of an earlier attempt at this where this
 	// helper was in the underlying execgraph.Builder type, built to work
@@ -62,12 +53,10 @@ func (b *execGraphBuilder) ProviderInstance(ctx context.Context, addr addrs.AbsP
 	// because it would only ever be returning a reference to something already
 	// in the graph and never adding any new operations itself.
 
+	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(riDeps.All())
+
 	addrResult := b.lower.ConstantProviderInstAddr(addr)
 
-	// We only register one index for each distinct provider instance address.
-	if existing, ok := b.openProviderRefs.GetOk(addr); ok {
-		return existing.Result, existing.CloseBlockerFunc
-	}
 	configResult := b.lower.ProviderInstanceConfig(addrResult, dependencyWaiter)
 	openResult := b.lower.ProviderInstanceOpen(configResult)
 	closeWait, registerCloseBlocker := b.makeCloseBlocker()
@@ -80,5 +69,9 @@ func (b *execGraphBuilder) ProviderInstance(ctx context.Context, addr addrs.AbsP
 		CloseBlockerResult: closeWait,
 		CloseBlockerFunc:   registerCloseBlocker,
 	})
-	return openResult, registerCloseBlocker
+}
+
+func (b *execGraphBuilder) providerInstanceReference(addr addrs.AbsProviderInstanceCorrect) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
+	ref := b.openProviderRefs.Get(addr)
+	return ref.Result, ref.CloseBlockerFunc
 }

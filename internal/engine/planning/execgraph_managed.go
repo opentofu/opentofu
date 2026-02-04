@@ -6,8 +6,6 @@
 package planning
 
 import (
-	"context"
-
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
@@ -31,8 +29,8 @@ import (
 // originally written inline in [planGlue.planDesiredManagedResourceInstance]
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
-func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
-	providerClientRef, closeProviderAfter := b.ProviderInstance(ctx, *desired.ProviderInstance, oracle)
+func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(desired *eval.DesiredResourceInstance, plannedValue cty.Value) execgraph.ResourceInstanceResultRef {
+	providerClientRef, closeProviderAfter := b.providerInstanceReference(desired.ProviderInstance.Addr)
 
 	b.mu.Lock()
 	defer b.mu.Unlock()

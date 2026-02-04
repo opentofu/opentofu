@@ -22,7 +22,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	schema, _ := p.planCtx.providers.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if schema == nil || schema.Block == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
-		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance, inst.Addr.Resource.Resource.Type))
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance.Addr, inst.Addr.Resource.Resource.Type))
 		return cty.NilVal, nil, diags
 	}
 
@@ -33,12 +33,12 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 		return cty.NilVal, nil, diags
 	}
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, moreDiags := inst.ProviderInstance.Open(ctx)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, inst.ProviderInstance.Addr),
 			nil,
 		))
 	}
@@ -51,7 +51,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 		ctx,
 		inst.Addr,
 		schema.Block,
-		*inst.ProviderInstance,
+		inst.ProviderInstance.Addr,
 		providerClient,
 		inst.ConfigVal,
 		shared.EphemeralResourceHooks{},
@@ -65,6 +65,6 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	p.planCtx.closeStack = append(p.planCtx.closeStack, closeFunc)
 	p.planCtx.closeStackMu.Unlock()
 
-	resRef := egb.EphemeralResourceInstanceSubgraph(ctx, inst, newVal, p.oracle)
+	resRef := egb.EphemeralResourceInstanceSubgraph(inst, newVal)
 	return newVal, resRef, diags
 }

@@ -14,9 +14,12 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/exprs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
+
+type OpenProviderFunc func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics)
 
 // ProviderInstance represents the configuration for an instance of a provider.
 //
@@ -42,9 +45,14 @@ type ProviderInstance struct {
 	// which takes the result of ConfigValuer and potentially returns additional
 	// diagnostics typically based on validation logic built in to the provider
 	// itself.
-	ValidateConfig func(context.Context, cty.Value) tfdiags.Diagnostics
+	ValidateConfig func(context.Context, cty.Value, addrs.Set[addrs.AbsResourceInstance]) (OpenProviderFunc, tfdiags.Diagnostics)
 
-	validatedConfig grapheval.Once[cty.Value]
+	validatedConfig grapheval.Once[*providerData]
+}
+
+type providerData struct {
+	value cty.Value
+	open  OpenProviderFunc
 }
 
 var _ exprs.Valuer = (*ProviderInstance)(nil)
@@ -77,7 +85,17 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 	// appear redundantly for every reference to the provider instance.
 	// Instead, [ProviderInstance.CheckAll] calls
 	// [ProviderInstance.ConfigValue] to expose its diagnostics directly.
-	configVal := diagsHandledElsewhere(p.ConfigValue(ctx))
+	config, diags := p.ConfigValue(ctx)
+	configVal := config.value
+	// diagsHandledElsewhere
+	if diags.HasErrors() {
+		// If the value was derived from a failing expression evaluation then
+		// this mark would probably already be present anyway, but we'll
+		// handle it again here just to help get consistent behavior when
+		// we're building values with hand-written logic instead of by
+		// normal expression evaluation.
+		configVal = configVal.Mark(exprs.EvalError)
+	}
 
 	// We copy over only the EvalError and resource-instance-reference-related
 	// marks because it would be too conservative to copy others. For example,
@@ -94,37 +112,59 @@ func (p *ProviderInstance) Value(ctx context.Context) (cty.Value, tfdiags.Diagno
 	return ret, nil
 }
 
+func (p *ProviderInstance) Open(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
+	config, diags := p.ConfigValue(ctx)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	return config.open(ctx)
+}
+
 // ConfigValue returns an object representing the configuration that should
 // be sent to a provider to make it behave as the configured provider instance.
 //
 // This value should not bt exposed for references from expressions elsewhere
 // in the configuration. The result is considered private to the provider
 // process that is configured with it.
-func (p *ProviderInstance) ConfigValue(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
+func (p *ProviderInstance) ConfigValue(ctx context.Context) (*providerData, tfdiags.Diagnostics) {
 	// We use a "Once" here to coalesce to just one ValidateConfig call per
 	// ProviderInstance object, even when multiple callers ask for the
 	// configuration for this instance.
-	return p.validatedConfig.Do(ctx, func(ctx context.Context) (cty.Value, tfdiags.Diagnostics) {
-		v, diags := p.ConfigValuer.Value(ctx)
-		if diags.HasErrors() {
-			return cty.DynamicVal, diags
+	return p.validatedConfig.Do(ctx, func(ctx context.Context) (*providerData, tfdiags.Diagnostics) {
+		ret := &providerData{
+			value: cty.DynamicVal,
+			open: func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics) {
+				panic("not sure what to do here")
+			},
 		}
-		moreDiags := p.ValidateConfig(ctx, v)
+		v, diags := p.ConfigValuer.Value(ctx)
+		ret.value = v
+		if diags.HasErrors() {
+			return ret, diags
+		}
+
+		riDeps := addrs.MakeSet[addrs.AbsResourceInstance]()
+		for dep := range p.resourceInstanceDependencies(v) {
+			riDeps.Add(dep.Addr)
+		}
+
+		open, moreDiags := p.ValidateConfig(ctx, v, riDeps)
 		diags = diags.Append(moreDiags)
 		if diags.HasErrors() {
-			return cty.DynamicVal, diags
+			return ret, diags
 		}
-		return v, diags
+		ret.open = open
+		return ret, diags
 	})
 }
 
-// ResourceInstanceDependencies returns a sequence of any resource instances
+// resourceInstanceDependencies returns a sequence of any resource instances
 // whose results the configuration of this provider instance depends on.
 //
 // The result of this is trustworthy only if [ProviderInstance.CheckAll]
 // returns without diagnostics. If errors are present then the result is
 // best-effort but likely to be incomplete.
-func (p *ProviderInstance) ResourceInstanceDependencies(ctx context.Context) iter.Seq[*ResourceInstance] {
+func (p *ProviderInstance) resourceInstanceDependencies(resultVal cty.Value) iter.Seq[*ResourceInstance] {
 	// FIXME: This should also take into account:
 	// - explicit dependencies in the depends_on argument
 	// - ....anything else?
@@ -137,7 +177,6 @@ func (p *ProviderInstance) ResourceInstanceDependencies(ctx context.Context) ite
 	// We ignore diagnostics here because callers should always perform a
 	// CheckAll tree walk, including a visit to this provider instance object,
 	// before trusting anything else that any configgraph nodes report.
-	resultVal := diagsHandledElsewhere(p.ConfigValue(ctx))
 	return ContributingResourceInstances(resultVal)
 }
 

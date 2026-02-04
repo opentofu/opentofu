@@ -26,7 +26,7 @@ import (
 // that are needed regardless of what overall operation we're currently driving.
 type Glue interface {
 	// I'm not sure that this belongs here
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+	ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics)
 
 	// ResourceInstanceValue returns the result value for the given resource
 	// instance.

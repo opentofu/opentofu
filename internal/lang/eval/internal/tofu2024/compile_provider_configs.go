@@ -29,7 +29,7 @@ func compileModuleInstanceProviderConfigs(
 	reqdProviders map[string]*configs.RequiredProvider,
 	moduleInstanceAddr addrs.ModuleInstance,
 	providers evalglue.ProvidersSchema,
-	validateProviderConfig func(context.Context, addrs.Provider, cty.Value) tfdiags.Diagnostics,
+	validateProviderConfig func(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics),
 ) map[addrs.LocalProviderConfig]*configgraph.ProviderConfig {
 	// FIXME: The following is just enough to make simple examples work, but
 	// doesn't closely match the rather complicated way that OpenTofu has
@@ -52,6 +52,13 @@ func compileModuleInstanceProviderConfigs(
 			LocalName: config.Name,
 			Alias:     config.Alias,
 		}
+		absAddr := addrs.AbsProviderConfigCorrect{
+			Module: moduleInstanceAddr,
+			Config: addrs.ProviderConfigCorrect{
+				Provider: providerAddr,
+				Alias:    config.Alias,
+			},
+		}
 
 		var configEvalable exprs.Evalable
 		configSchema, diags := providers.ProviderConfigSchema(ctx, providerAddr)
@@ -63,34 +70,19 @@ func compileModuleInstanceProviderConfigs(
 		}
 
 		ret[localAddr] = &configgraph.ProviderConfig{
-			Addr: addrs.AbsProviderConfigCorrect{
-				Module: moduleInstanceAddr,
-				Config: addrs.ProviderConfigCorrect{
-					Provider: providerAddr,
-					Alias:    config.Alias,
-				},
-			},
+			Addr:             absAddr,
 			ProviderAddr:     providerAddr,
 			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, nil, nil),
 			CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 				instanceScope := instanceLocalScope(declScope, repData)
 				return &configgraph.ProviderInstance{
-					Addr: addrs.AbsProviderInstanceCorrect{
-						Config: addrs.AbsProviderConfigCorrect{
-							Module: addrs.RootModuleInstance,
-							Config: addrs.ProviderConfigCorrect{
-								Provider: providerAddr,
-								Alias:    config.Alias,
-							},
-						},
-						Key: key,
-					},
+					Addr:         absAddr.Instance(key),
 					ProviderAddr: providerAddr,
 					ConfigValuer: configgraph.ValuerOnce(
 						exprs.NewClosure(configEvalable, instanceScope),
 					),
-					ValidateConfig: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
-						return validateProviderConfig(ctx, providerAddr, v)
+					ValidateConfig: func(ctx context.Context, v cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics) {
+						return validateProviderConfig(ctx, absAddr.Instance(key), v, riDeps)
 					},
 				}
 			},
@@ -109,6 +101,12 @@ func compileModuleInstanceProviderConfigs(
 			providerAddr := addrs.NewDefaultProvider(localAddr.LocalName)
 			if reqd, ok := reqdProviders[localAddr.LocalName]; ok {
 				providerAddr = reqd.Type
+			}
+			absAddr := addrs.AbsProviderConfigCorrect{
+				Module: moduleInstanceAddr,
+				Config: addrs.ProviderConfigCorrect{
+					Provider: providerAddr,
+				},
 			}
 
 			// For these implied ones there isn't actually any real provider
@@ -132,32 +130,19 @@ func compileModuleInstanceProviderConfigs(
 			}
 
 			ret[localAddr] = &configgraph.ProviderConfig{
-				Addr: addrs.AbsProviderConfigCorrect{
-					Module: moduleInstanceAddr,
-					Config: addrs.ProviderConfigCorrect{
-						Provider: providerAddr,
-					},
-				},
+				Addr:             absAddr,
 				ProviderAddr:     providerAddr,
 				InstanceSelector: compileInstanceSelector(ctx, declScope, nil, nil, nil),
 				CompileProviderInstance: func(ctx context.Context, key addrs.InstanceKey, repData instances.RepetitionData) *configgraph.ProviderInstance {
 					instanceScope := instanceLocalScope(declScope, repData)
 					return &configgraph.ProviderInstance{
-						Addr: addrs.AbsProviderInstanceCorrect{
-							Config: addrs.AbsProviderConfigCorrect{
-								Module: addrs.RootModuleInstance,
-								Config: addrs.ProviderConfigCorrect{
-									Provider: providerAddr,
-								},
-							},
-							Key: key,
-						},
+						Addr:         absAddr.Instance(key),
 						ProviderAddr: providerAddr,
 						ConfigValuer: configgraph.ValuerOnce(
 							exprs.NewClosure(configEvalable, instanceScope),
 						),
-						ValidateConfig: func(ctx context.Context, v cty.Value) tfdiags.Diagnostics {
-							return validateProviderConfig(ctx, providerAddr, v)
+						ValidateConfig: func(ctx context.Context, v cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics) {
+							return validateProviderConfig(ctx, absAddr.Instance(key), v, riDeps)
 						},
 					}
 				},

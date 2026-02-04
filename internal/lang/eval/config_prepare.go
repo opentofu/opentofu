@@ -56,10 +56,10 @@ type preparationGlue struct {
 }
 
 // ValidateProviderConfig implements evalglue.Glue.
-func (v *preparationGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
+func (v *preparationGlue) ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics) {
 	// TODO maybe this is why we create validation glue?
 	//return v.providers.ValidateProviderConfig(ctx, provider, configVal)
-	return nil
+	return nil, nil
 }
 
 // ResourceInstanceValue implements evaluationGlue.

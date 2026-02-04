@@ -46,19 +46,19 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	// FIXME: State is still using the weird old representation of provider
 	// instance addresses, so we can't actually populate the provider instance
 	// arguments properly here.
-	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, inst.ProviderInstance.Key)
+	p.planCtx.refreshedState.SetResourceInstanceCurrent(inst.Addr, nil, addrs.AbsProviderConfig{}, inst.ProviderInstance.Addr.Key)
 
 	// TODO: If the config value is not wholly known, or if any resource
 	// instance in inst.RequiredResourceInstances already has a planned change,
 	// then plan to read this during the apply phase and return a "proposed new
 	// value" for use during the planning phase.
 
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	providerClient, moreDiags := inst.ProviderInstance.Open(ctx)
 	if providerClient == nil {
 		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, inst.ProviderInstance.Addr),
 			nil,
 		))
 	}

@@ -177,13 +177,13 @@ func TestPlan_managedResourceSimple(t *testing.T) {
 				"name": cty.StringVal("foo bar name"),
 			}),
 			Provider: addrs.MustParseProviderSourceString("test/foo"),
-			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
+			ProviderInstance: &eval.ProviderInstance{Addr: addrs.AbsProviderInstanceCorrect{
 				Config: addrs.AbsProviderConfigCorrect{
 					Config: addrs.ProviderConfigCorrect{
 						Provider: addrs.MustParseProviderSourceString("test/foo"),
 					},
 				},
-			},
+			}},
 			ResourceMode:              addrs.ManagedResourceMode,
 			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
@@ -305,13 +305,13 @@ func TestPlan_managedResourceUnknownCount(t *testing.T) {
 				"name": cty.StringVal("foo bar name"),
 			}),
 			Provider: addrs.MustParseProviderSourceString("test/foo"),
-			ProviderInstance: &addrs.AbsProviderInstanceCorrect{
+			ProviderInstance: &eval.ProviderInstance{Addr: addrs.AbsProviderInstanceCorrect{
 				Config: addrs.AbsProviderConfigCorrect{
 					Config: addrs.ProviderConfigCorrect{
 						Provider: addrs.MustParseProviderSourceString("test/foo"),
 					},
 				},
-			},
+			}},
 			ResourceMode:              addrs.ManagedResourceMode,
 			ResourceType:              "foo",
 			RequiredResourceInstances: addrs.MakeSet[addrs.AbsResourceInstance](),
@@ -332,8 +332,14 @@ type planGlueCallLog struct {
 }
 
 // ValidateProviderConfig implements eval.PlanGlue
-func (p *planGlueCallLog) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return nil
+func (p *planGlueCallLog) ValidateProviderConfig(ctx context.Context, providerInstAddr addrs.AbsProviderInstanceCorrect, providerInstConfig cty.Value, refs addrs.Set[addrs.AbsResourceInstance]) (func(context.Context) (providers.Configured, tfdiags.Diagnostics), tfdiags.Diagnostics) {
+	return func(context.Context) (providers.Configured, tfdiags.Diagnostics) {
+		if p.providerInstanceConfigs.Len() == 0 {
+			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, cty.Value]()
+		}
+		p.providerInstanceConfigs.Put(providerInstAddr, providerInstConfig)
+		return nil, nil
+	}, nil
 }
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
@@ -344,12 +350,10 @@ func (p *planGlueCallLog) PlanDesiredResourceInstance(ctx context.Context, inst 
 	}
 	p.resourceInstanceRequests.Put(inst.Addr, inst)
 	if inst.ProviderInstance != nil {
-		if p.providerInstanceConfigs.Len() == 0 {
-			p.providerInstanceConfigs = addrs.MakeMap[addrs.AbsProviderInstanceCorrect, cty.Value]()
+		_, diags := inst.ProviderInstance.Open(ctx)
+		if diags.HasErrors() {
+			return cty.DynamicVal, diags
 		}
-		providerInstAddr := *inst.ProviderInstance
-		providerInstConfig := p.oracle.ProviderInstanceConfig(ctx, providerInstAddr)
-		p.providerInstanceConfigs.Put(providerInstAddr, providerInstConfig)
 	}
 	p.mu.Unlock()
 

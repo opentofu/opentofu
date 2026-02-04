@@ -50,8 +50,6 @@ type planContext struct {
 
 	providers plugins.Providers
 
-	providerInstances *providerInstances
-
 	// Stack of ephemeral and provider close functions
 	// Given the current state of the planning engine, we wait until
 	// the end of the run to close all of the "opened" items.  We
@@ -72,13 +70,12 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	execGraphBuilder := newExecGraphBuilder()
 
 	return &planContext{
-		evalCtx:           evalCtx,
-		plannedChanges:    changes.SyncWrapper(),
-		execGraphBuilder:  execGraphBuilder,
-		prevRoundState:    prevRoundState,
-		refreshedState:    refreshedState.SyncWrapper(),
-		providerInstances: newProviderInstances(),
-		providers:         providers,
+		evalCtx:          evalCtx,
+		plannedChanges:   changes.SyncWrapper(),
+		execGraphBuilder: execGraphBuilder,
+		prevRoundState:   prevRoundState,
+		refreshedState:   refreshedState.SyncWrapper(),
+		providers:        providers,
 	}
 }
 

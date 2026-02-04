@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/configgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval/internal/evalglue"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -27,7 +28,7 @@ import (
 // avoid data races between calls.
 type PlanGlue interface {
 	// I'm not sure that this belongs here
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+	ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (func(ctx context.Context) (providers.Configured, tfdiags.Diagnostics), tfdiags.Diagnostics)
 
 	// Creates planned action(s) for the given resource instance and return
 	// the planned new state that would result from those actions.
@@ -215,8 +216,8 @@ type planningEvalGlue struct {
 var _ evalglue.Glue = (*planningEvalGlue)(nil)
 
 // ValidateProviderConfig implements evalglue.Glue.
-func (p *planningEvalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return p.planEngineGlue.ValidateProviderConfig(ctx, provider, configVal)
+func (p *planningEvalGlue) ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics) {
+	return p.planEngineGlue.ValidateProviderConfig(ctx, addr, configVal, riDeps)
 }
 
 // ResourceInstanceValue implements evalglue.Glue.
@@ -230,7 +231,10 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		ResourceMode:              ri.Addr.Resource.Resource.Mode,
 	}
 	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
-		desired.ProviderInstance = &providerInst.Addr
+		desired.ProviderInstance = &ProviderInstance{
+			Addr: providerInst.Addr,
+			Open: providerInst.Open,
+		}
 	}
 	// TODO: Populate everything else in [DesiredResourceInstance], once
 	// package configgraph knows how to provide those answers.

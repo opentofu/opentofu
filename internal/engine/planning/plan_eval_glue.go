@@ -18,7 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -35,11 +34,6 @@ type planGlue struct {
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
-
-// I'm not sure that this belongs here
-func (p *planGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return p.planCtx.providers.ValidateProviderConfig(ctx, provider, configVal)
-}
 
 // PlanDesiredResourceInstance implements eval.PlanGlue.
 //
@@ -281,20 +275,6 @@ func (p *planGlue) PlanResourceOrphans(ctx context.Context, moduleInstAddr addrs
 		)
 	}
 	return diags
-}
-
-// ProviderClient returns a client for the requested provider instance, launching
-// and configuring the provider first if no caller has previously requested a
-// client for this instance.
-//
-// Returns nil if the configuration for the requested provider instance is too
-// invalid to actually configure it. The diagnostics for such a problem would
-// be reported by our main [ConfigInstance.DrivePlanning] call but the caller
-// of this function will probably want to return a more specialized error saying
-// that the corresponding resource cannot be planned because its associated
-// provider has an invalid configuration.
-func (p *planGlue) providerClient(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (providers.Configured, tfdiags.Diagnostics) {
-	return p.planCtx.providerInstances.ProviderClient(ctx, addr, p)
 }
 
 func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResourceInstance) bool {

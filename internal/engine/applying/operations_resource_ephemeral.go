@@ -30,7 +30,7 @@ func (ops *execOperations) EphemeralOpen(
 	schema, _ := ops.plugins.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if schema == nil || schema.Block == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
-		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance, inst.Addr.Resource.Resource.Type))
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance.Addr, inst.Addr.Resource.Resource.Type))
 		return nil, diags
 	}
 
@@ -38,7 +38,7 @@ func (ops *execOperations) EphemeralOpen(
 		ctx,
 		inst.Addr,
 		schema.Block,
-		*inst.ProviderInstance,
+		inst.ProviderInstance.Addr,
 		providerClient.Ops,
 		inst.ConfigVal,
 		shared.EphemeralResourceHooks{},

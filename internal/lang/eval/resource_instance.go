@@ -71,7 +71,7 @@ type DesiredResourceInstance struct {
 	// configuration value and the schema for this resource type, such as
 	// by using [objchange.ProposedNew], and should otherwise defer any
 	// actions for this resource instance until a future plan/apply round.
-	ProviderInstance *addrs.AbsProviderInstanceCorrect
+	ProviderInstance *ProviderInstance
 	// ResourceMode and ResourceType are the resource type identifiers
 	// as they would be understood by the provider specified in the Provider
 	// and ProviderInstance fields.

@@ -45,7 +45,7 @@ type ApplyGlue interface {
 	// ValidateProviderConfig asks the provider of the given address to validate
 	// the given value as being suitable to use when instantiating a configured
 	// instance of that provider.
-	ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
+	ValidateProviderConfig(ctx context.Context, addr addrs.Provider, configVal cty.Value) tfdiags.Diagnostics
 }
 
 // ApplyOracle creates an [ApplyOracle] object that can be used to support an
@@ -100,8 +100,8 @@ func (g *applyingEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 }
 
 // ValidateProviderConfig implements [evalglue.Glue].
-func (g *applyingEvalGlue) ValidateProviderConfig(ctx context.Context, provider addrs.Provider, configVal cty.Value) tfdiags.Diagnostics {
-	return g.applyEngineGlue.ValidateProviderConfig(ctx, provider, configVal)
+func (g *applyingEvalGlue) ValidateProviderConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect, configVal cty.Value, riDeps addrs.Set[addrs.AbsResourceInstance]) (configgraph.OpenProviderFunc, tfdiags.Diagnostics) {
+	return nil, g.applyEngineGlue.ValidateProviderConfig(ctx, addr.Config.Config.Provider, configVal)
 }
 
 // An ApplyOracle is returned by [ConfigInstance.ApplyOracle] to give the main
@@ -156,14 +156,17 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 	diags = diags.Append(moreDiags)
 	providerInst, _, moreDiags := inst.ProviderInstance(ctx)
 	diags = diags.Append(moreDiags)
-	providerInstAddr, _ := configgraph.GetKnown(configgraph.MapMaybe(providerInst, func(pi *configgraph.ProviderInstance) addrs.AbsProviderInstanceCorrect {
-		return pi.Addr
+	providerInstance, _ := configgraph.GetKnown(configgraph.MapMaybe(providerInst, func(pi *configgraph.ProviderInstance) ProviderInstance {
+		return ProviderInstance{
+			Addr: pi.Addr,
+			Open: pi.Open,
+		}
 	}))
 	return &DesiredResourceInstance{
 		Addr:             inst.Addr,
 		ConfigVal:        configVal,
 		Provider:         inst.Provider,
-		ProviderInstance: &providerInstAddr,
+		ProviderInstance: &providerInstance,
 		ResourceMode:     addr.Resource.Resource.Mode,
 		ResourceType:     addr.Resource.Resource.Type,
 	}, diags
@@ -178,17 +181,20 @@ func (o *ApplyOracle) DesiredResourceInstance(ctx context.Context, addr addrs.Ab
 // If this _does_ return cty.NilVal then that suggests a bug in the planning
 // engine, causing it to create an incorrect execution graph.
 func (o *ApplyOracle) ProviderInstanceConfig(ctx context.Context, addr addrs.AbsProviderInstanceCorrect) (cty.Value, tfdiags.Diagnostics) {
-	inst := evalglue.ProviderInstance(ctx, o.root, addr)
-	if inst == nil {
-		// We should not get here because the apply phase should only ask for
-		// provider instances that were present during the planning phase, and
-		// we should be using exactly the same configuration source code now.
-		var diags tfdiags.Diagnostics
-		diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
-		return cty.DynamicVal, diags
-	}
-	v, diags := inst.ConfigValue(ctx)
-	return configgraph.PrepareOutgoingValue(v), diags
+	panic("TODO")
+	/*
+		inst := evalglue.ProviderInstance(ctx, o.root, addr)
+		if inst == nil {
+			// We should not get here because the apply phase should only ask for
+			// provider instances that were present during the planning phase, and
+			// we should be using exactly the same configuration source code now.
+			var diags tfdiags.Diagnostics
+			diags = diags.Append(fmt.Errorf("missing configuration for %s", addr))
+			return cty.DynamicVal, diags
+		}
+		v, diags := inst.ConfigValue(ctx)
+		return configgraph.PrepareOutgoingValue(v), diags
+	*/
 }
 
 // AnnounceAllGraphevalRequests calls the given function once for each internal

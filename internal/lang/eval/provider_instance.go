@@ -6,9 +6,13 @@
 package eval
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // ProviderInstanceConfig provides the information needed to either instantiate
@@ -29,4 +33,9 @@ type ProviderInstanceConfig struct {
 	// to reuse a previously-configured provider (and thus ignore ConfigVal)
 	// when the address matches.
 	ConfigVal cty.Value
+}
+
+type ProviderInstance struct {
+	Addr addrs.AbsProviderInstanceCorrect
+	Open func(context.Context) (providers.Configured, tfdiags.Diagnostics)
 }
