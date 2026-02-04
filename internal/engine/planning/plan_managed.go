@@ -42,8 +42,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 		// planned changes for this resource instance.
 	}
 
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, schemaDiags := evalCtx.Providers.ResourceTypeSchema(ctx,
+	schema, schemaDiags := p.planCtx.providers.ResourceTypeSchema(ctx,
 		inst.Provider,
 		inst.Addr.Resource.Resource.Mode,
 		inst.Addr.Resource.Resource.Type,

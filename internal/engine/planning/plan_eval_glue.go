@@ -30,7 +30,6 @@ import (
 // each other, so they must use appropriate synchronization to avoid races.
 type planGlue struct {
 	planCtx *planContext
-	oracle  *eval.PlanningOracle
 }
 
 var _ eval.PlanGlue = (*planGlue)(nil)
@@ -285,8 +284,7 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 }
 
 func (p *planGlue) resourceInstancePlaceholderValue(ctx context.Context, providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string, priorVal, configVal cty.Value) cty.Value {
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, diags := evalCtx.Providers.ResourceTypeSchema(ctx, providerAddr, resourceMode, resourceType)
+	schema, diags := p.planCtx.providers.ResourceTypeSchema(ctx, providerAddr, resourceMode, resourceType)
 	if diags.HasErrors() {
 		// If we can't get any schema information then we'll just return
 		// a completely-unknown object as our placeholder. We should get here

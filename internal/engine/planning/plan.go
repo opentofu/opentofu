@@ -62,12 +62,7 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 	// a given prefix, which planGlue uses to notice when there are
 	// prevRoundState resource instances that are no longer in the desired
 	// state and so plan to delete or forget them.
-	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
-		return &planGlue{
-			planCtx: planCtx,
-			oracle:  oracle,
-		}
-	})
+	evalResult, moreDiags := configInst.DrivePlanning(ctx, &planGlue{planCtx: planCtx})
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		// If we encountered errors during the eval-based phase then we'll halt

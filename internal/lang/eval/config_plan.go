@@ -115,20 +115,12 @@ type PlanGlue interface {
 // tracked in the prior state and then presumably generate additional planned
 // actions to destroy any instances that are currently tracked but no longer
 // configured.
-func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*PlanningOracle) PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
+func (c *ConfigInstance) DrivePlanning(ctx context.Context, glue PlanGlue) (*PlanningResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// All of our work will be associated with a workgraph worker that serves
 	// as the initial worker node in the work graph.
 	ctx = grapheval.ContextWithNewWorker(ctx)
-
-	// We have a little chicken vs. egg problem here where we can't fully
-	// initialize the oracle until we've built the root module instance,
-	// so we initially pass an intentionally-invalid oracle to the build
-	// function and then make sure it's valid before we make any use
-	// of the PlanGlue object it returns.
-	oracle := &PlanningOracle{}
-	glue := buildGlue(oracle)
 
 	evalGlue := &planningEvalGlue{
 		planEngineGlue: glue,
@@ -140,8 +132,6 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	}
 	// We can now initialize the planning oracle, before we start evaluating
 	// anything that might cause calls to the evalGlue object.
-	oracle.rootModuleInstance = rootModuleInstance
-	oracle.evalContext = c.evalContext
 
 	// The plan phase is driven forward by us evaluating expressions during
 	// the "checkAll" process, and so we can just run that here and then
@@ -179,18 +169,12 @@ func (c *ConfigInstance) DrivePlanning(ctx context.Context, buildGlue func(*Plan
 	return &PlanningResult{
 		RootModuleOutputs: configgraph.PrepareOutgoingValue(outputsVal),
 		Glue:              glue,
-		Oracle:            oracle,
 	}, diags
 }
 
 // PlanningResult is the return value of [ConfigInstance.DrivePlanning],
 // describing the top-level outcomes of the planning process.
 type PlanningResult struct {
-	// Oracle is the same [PlanningOracle] that was offered when creating
-	// the [PlanGlue] during the [ConfigInstance.DrivePlanning] call, returned
-	// here so that it can be used in the planning engine's followup work.
-	Oracle *PlanningOracle
-
 	// Glue is the [PlanGlue] object that was constructed during the
 	// [ConfigInstance.DrivePlanning] call. This is guaranteed to be exactly
 	// the object that the buildPlan function returned, and so it's safe to
