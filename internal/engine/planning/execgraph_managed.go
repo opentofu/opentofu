@@ -6,11 +6,10 @@
 package planning
 
 import (
-	"github.com/zclconf/go-cty/cty"
-
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
-	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/plans"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +28,11 @@ import (
 // originally written inline in [planGlue.planDesiredManagedResourceInstance]
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
-func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(desired *eval.DesiredResourceInstance, plannedValue cty.Value, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
+	plannedChange *plans.ResourceInstanceChange,
+	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
+	requiredResourceInstances addrs.Set[addrs.AbsResourceInstance],
+) execgraph.ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -38,13 +41,13 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(desired *eval.Desired
 	// from the data flow because these results are intermediated through the
 	// evaluator, which indirectly incorporates the results into the
 	// desiredInstRef result we'll build below.
-	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
+	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(requiredResourceInstances.All())
 
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
-	instAddrRef := b.lower.ConstantResourceInstAddr(desired.Addr)
+	instAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
 	priorStateRef := b.lower.ResourceInstancePrior(instAddrRef)
-	plannedValRef := b.lower.ConstantValue(plannedValue)
+	plannedValRef := b.lower.ConstantValue(plannedChange.After)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, dependencyWaiter)
 	finalPlanRef := b.lower.ManagedFinalPlan(
 		desiredInstRef,
