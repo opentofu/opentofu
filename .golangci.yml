@@ -8,7 +8,13 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
 linters:
+  enable:
+    - cyclop
   settings:
+    cyclop:
+      # Lower cyclomatic complexity threshold after the max complexity is lowered
+      # Highest: TestEnsureProviderVersions (91) in internal/providercache/installer_test.go
+      max-complexity: 91
     staticcheck:
       # For now, we will disable some static checks to match golang-ci-lint@v1 functionality.
       # These should be addressed once the --new-from-rev work is taken care of.
