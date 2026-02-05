@@ -26,7 +26,6 @@ jobs:
           - { branch: v1.11 }
           - { branch: v1.10 }
           - { branch: v1.9 }
-          - { branch: v1.8 }
       fail-fast: false
     steps:
       - name: Checkout branch to be scanned
