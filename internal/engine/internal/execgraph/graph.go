@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/zclconf/go-cty-debug/ctydebug"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 type Graph struct {
@@ -35,6 +37,9 @@ type Graph struct {
 	// resourceInstAddrs is the table of resource instance addresses that are to
 	// be saved directly inside the execution graph.
 	resourceInstAddrs []addrs.AbsResourceInstance
+	// deposedKeys is the table of deposed keys that are to be saved directly
+	// inside the execution graph.
+	deposedKeys []states.DeposedKey
 	// providerInstAddrs is the table of provider instance addresses that are to
 	// be saved directly inside the execution graph.
 	providerInstAddrs []addrs.AbsProviderInstanceCorrect
@@ -192,6 +197,9 @@ func (g *Graph) resultDebugRepr(result AnyResultRef) string {
 	case resourceInstAddrResultRef:
 		resourceInstAddr := g.resourceInstAddrs[result.index]
 		return resourceInstAddr.String()
+	case deposedKeyResultRef:
+		deposedKey := g.deposedKeys[result.index]
+		return strconv.Quote(deposedKey.String())
 	case providerInstAddrResultRef:
 		providerInstAddr := g.providerInstAddrs[result.index]
 		return providerInstAddr.String()

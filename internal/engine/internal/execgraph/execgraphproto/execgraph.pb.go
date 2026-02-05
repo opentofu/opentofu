@@ -176,6 +176,15 @@ func (x *Element) GetConstantResourceInstAddr() string {
 	return ""
 }
 
+func (x *Element) GetDeposedKey() string {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Request.(*element_DeposedKey); ok {
+			return x.DeposedKey
+		}
+	}
+	return ""
+}
+
 func (x *Element) GetConstantProviderInstAddr() string {
 	if x != nil {
 		if x, ok := x.xxx_hidden_Request.(*element_ConstantProviderInstAddr); ok {
@@ -212,6 +221,10 @@ func (x *Element) SetConstantValue(v []byte) {
 
 func (x *Element) SetConstantResourceInstAddr(v string) {
 	x.xxx_hidden_Request = &element_ConstantResourceInstAddr{v}
+}
+
+func (x *Element) SetDeposedKey(v string) {
+	x.xxx_hidden_Request = &element_DeposedKey{v}
 }
 
 func (x *Element) SetConstantProviderInstAddr(v string) {
@@ -257,6 +270,14 @@ func (x *Element) HasConstantResourceInstAddr() bool {
 	return ok
 }
 
+func (x *Element) HasDeposedKey() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Request.(*element_DeposedKey)
+	return ok
+}
+
 func (x *Element) HasConstantProviderInstAddr() bool {
 	if x == nil {
 		return false
@@ -297,6 +318,12 @@ func (x *Element) ClearConstantResourceInstAddr() {
 	}
 }
 
+func (x *Element) ClearDeposedKey() {
+	if _, ok := x.xxx_hidden_Request.(*element_DeposedKey); ok {
+		x.xxx_hidden_Request = nil
+	}
+}
+
 func (x *Element) ClearConstantProviderInstAddr() {
 	if _, ok := x.xxx_hidden_Request.(*element_ConstantProviderInstAddr); ok {
 		x.xxx_hidden_Request = nil
@@ -318,6 +345,7 @@ func (x *Element) ClearWaiter() {
 const Element_Request_not_set_case case_Element_Request = 0
 const Element_ConstantValue_case case_Element_Request = 1
 const Element_ConstantResourceInstAddr_case case_Element_Request = 2
+const Element_DeposedKey_case case_Element_Request = 6
 const Element_ConstantProviderInstAddr_case case_Element_Request = 3
 const Element_Operation_case case_Element_Request = 4
 const Element_Waiter_case case_Element_Request = 5
@@ -331,6 +359,8 @@ func (x *Element) WhichRequest() case_Element_Request {
 		return Element_ConstantValue_case
 	case *element_ConstantResourceInstAddr:
 		return Element_ConstantResourceInstAddr_case
+	case *element_DeposedKey:
+		return Element_DeposedKey_case
 	case *element_ConstantProviderInstAddr:
 		return Element_ConstantProviderInstAddr_case
 	case *element_Operation:
@@ -379,6 +409,11 @@ type Element_builder struct {
 	// The value is a fully-qualified resource instance address in the
 	// usual syntax.
 	ConstantResourceInstAddr *string
+	// A constant "deposed key" for a resource instance object,
+	// corresponding to execgraph.Builder.ConstantDeposedKey.
+	//
+	// The value is a string that can be converted to states.DeposedKey.
+	DeposedKey *string
 	// A constant address for a provider instance, corresponding to
 	// execgraph.Builder.ConstantProviderInstAddr.
 	//
@@ -414,6 +449,9 @@ func (b0 Element_builder) Build() *Element {
 	}
 	if b.ConstantResourceInstAddr != nil {
 		x.xxx_hidden_Request = &element_ConstantResourceInstAddr{*b.ConstantResourceInstAddr}
+	}
+	if b.DeposedKey != nil {
+		x.xxx_hidden_Request = &element_DeposedKey{*b.DeposedKey}
 	}
 	if b.ConstantProviderInstAddr != nil {
 		x.xxx_hidden_Request = &element_ConstantProviderInstAddr{*b.ConstantProviderInstAddr}
@@ -459,6 +497,14 @@ type element_ConstantResourceInstAddr struct {
 	ConstantResourceInstAddr string `protobuf:"bytes,2,opt,name=constant_resource_inst_addr,json=constantResourceInstAddr,oneof"`
 }
 
+type element_DeposedKey struct {
+	// A constant "deposed key" for a resource instance object,
+	// corresponding to execgraph.Builder.ConstantDeposedKey.
+	//
+	// The value is a string that can be converted to states.DeposedKey.
+	DeposedKey string `protobuf:"bytes,6,opt,name=deposed_key,json=deposedKey,oneof"`
+}
+
 type element_ConstantProviderInstAddr struct {
 	// A constant address for a provider instance, corresponding to
 	// execgraph.Builder.ConstantProviderInstAddr.
@@ -494,6 +540,8 @@ type element_Waiter struct {
 func (*element_ConstantValue) isElement_Request() {}
 
 func (*element_ConstantResourceInstAddr) isElement_Request() {}
+
+func (*element_DeposedKey) isElement_Request() {}
 
 func (*element_ConstantProviderInstAddr) isElement_Request() {}
 
@@ -776,10 +824,12 @@ const file_execgraph_proto_rawDesc = "" +
 	"\x19resource_instance_results\x18\x02 \x03(\v2?.opentofu_execgraph.ExecutionGraph.ResourceInstanceResultsEntryR\x17resourceInstanceResults\x1aJ\n" +
 	"\x1cResourceInstanceResultsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xb4\x02\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value:\x028\x01\"\xd7\x02\n" +
 	"\aElement\x12'\n" +
 	"\x0econstant_value\x18\x01 \x01(\fH\x00R\rconstantValue\x12?\n" +
-	"\x1bconstant_resource_inst_addr\x18\x02 \x01(\tH\x00R\x18constantResourceInstAddr\x12?\n" +
+	"\x1bconstant_resource_inst_addr\x18\x02 \x01(\tH\x00R\x18constantResourceInstAddr\x12!\n" +
+	"\vdeposed_key\x18\x06 \x01(\tH\x00R\n" +
+	"deposedKey\x12?\n" +
 	"\x1bconstant_provider_inst_addr\x18\x03 \x01(\tH\x00R\x18constantProviderInstAddr\x12=\n" +
 	"\toperation\x18\x04 \x01(\v2\x1d.opentofu_execgraph.OperationH\x00R\toperation\x124\n" +
 	"\x06waiter\x18\x05 \x01(\v2\x1a.opentofu_execgraph.WaiterH\x00R\x06waiterB\t\n" +
@@ -823,6 +873,7 @@ func file_execgraph_proto_init() {
 	file_execgraph_proto_msgTypes[1].OneofWrappers = []any{
 		(*element_ConstantValue)(nil),
 		(*element_ConstantResourceInstAddr)(nil),
+		(*element_DeposedKey)(nil),
 		(*element_ConstantProviderInstAddr)(nil),
 		(*element_Operation)(nil),
 		(*element_Waiter)(nil),

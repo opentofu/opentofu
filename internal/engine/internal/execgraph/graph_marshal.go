@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // Marshal produces an opaque byte slice representing the given graph,
@@ -94,6 +95,8 @@ func (m *graphMarshaler) ensureRefTarget(ref AnyResultRef) uint64 {
 		return m.addConstantValue(ref, m.graph.constantVals[ref.index])
 	case resourceInstAddrResultRef:
 		return m.addResourceInstAddr(ref, m.graph.resourceInstAddrs[ref.index])
+	case deposedKeyResultRef:
+		return m.addDeposedKey(ref, m.graph.deposedKeys[ref.index])
 	case providerInstAddrResultRef:
 		return m.addProviderInstAddr(ref, m.graph.providerInstAddrs[ref.index])
 	case operationResultRef[struct{}]:
@@ -124,6 +127,13 @@ func (m *graphMarshaler) addResourceInstAddr(ref resourceInstAddrResultRef, addr
 	addrStr := addr.String()
 	return m.newElement(ref, func(elem *execgraphproto.Element) {
 		elem.SetConstantResourceInstAddr(addrStr)
+	})
+}
+
+func (m *graphMarshaler) addDeposedKey(ref deposedKeyResultRef, key states.DeposedKey) uint64 {
+	keyStr := key.String()
+	return m.newElement(ref, func(elem *execgraphproto.Element) {
+		elem.SetDeposedKey(keyStr)
 	})
 }
 
