@@ -44,7 +44,6 @@ type execGraphBuilder struct {
 	// becomes immutable at that point.
 	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
 	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]]
-	openProviderDeps     addrs.Map[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]]
 	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]]
 	openEphemeralRefs    addrs.Map[addrs.AbsResourceInstance, registerExecCloseBlockerFunc]
 }
@@ -58,7 +57,6 @@ func newExecGraphBuilder() *execGraphBuilder {
 		lower:                execgraph.NewBuilder(),
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
 		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]](),
-		openProviderDeps:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]](),
 		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]](),
 		openEphemeralRefs:    addrs.MakeMap[addrs.AbsResourceInstance, registerExecCloseBlockerFunc](),
 	}

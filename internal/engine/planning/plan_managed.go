@@ -259,7 +259,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// and reasonable. In particular, these subgraph-building methods should
 	// be easily unit-testable due to not depending on anything other than
 	// their input.
-	finalResultRef := egb.ManagedResourceInstanceSubgraph(ctx, inst, planResp.PlannedState, p.oracle)
+	finalResultRef := p.managedResourceInstanceExecSubgraph(ctx, inst, planResp.PlannedState, egb)
 
 	// Our result value for ongoing downstream planning is the planned new state.
 	return planResp.PlannedState, finalResultRef, diags
@@ -273,4 +273,20 @@ func (p *planGlue) planOrphanManagedResourceInstance(ctx context.Context, addr a
 func (p *planGlue) planDeposedManagedResourceInstanceObject(ctx context.Context, addr addrs.AbsResourceInstance, deposedKey states.DeposedKey, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
 	// TODO: Implement
 	panic("unimplemented")
+}
+
+// managedResourceInstanceExecSubgraph prepares what's needed to include
+// changes for a managed resource instance in an execution graph and then
+// adds the relevant nodes, returning a result reference referring to the
+// final result of the apply steps.
+//
+// This is a small wrapper around [execGraphBuilder.ManagedResourceInstanceSubgraph]
+// which implicitly adds execgraph items needed for the resource instance's
+// provider instance, which requires some information that an [execGraphBuilder]
+// instance cannot access directly itself.
+func (p *planGlue) managedResourceInstanceExecSubgraph(ctx context.Context, inst *eval.DesiredResourceInstance, plannedValue cty.Value, egb *execGraphBuilder) execgraph.ResourceInstanceResultRef {
+	providerClientRef, registerProviderCloseBlocker := p.ensureProviderInstanceExecgraph(ctx, inst.ProviderInstance, egb)
+	finalResultRef := egb.ManagedResourceInstanceSubgraph(inst, plannedValue, providerClientRef)
+	registerProviderCloseBlocker(finalResultRef)
+	return finalResultRef
 }

@@ -56,9 +56,6 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 	var resultRef execgraph.ResourceInstanceResultRef
 	var diags tfdiags.Diagnostics
 	egb := p.planCtx.execGraphBuilder
-	if inst.ProviderInstance != nil {
-		p.ensureProviderInstanceDependencies(ctx, *inst.ProviderInstance, egb)
-	}
 	switch mode := inst.Addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
 		plannedVal, resultRef, diags = p.planDesiredManagedResourceInstance(ctx, inst, egb)
@@ -85,7 +82,6 @@ func (p *planGlue) PlanDesiredResourceInstance(ctx context.Context, inst *eval.D
 func (p *planGlue) planOrphanResourceInstance(ctx context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) tfdiags.Diagnostics {
 	log.Printf("[TRACE] planContext: planning orphan resource instance %s", addr)
 	egb := p.planCtx.execGraphBuilder
-	p.ensureProviderInstanceDependencies(ctx, state.ProviderInstanceAddr, egb)
 	switch mode := addr.Resource.Resource.Mode; mode {
 	case addrs.ManagedResourceMode:
 		return p.planOrphanManagedResourceInstance(ctx, addr, state, egb)
@@ -117,7 +113,6 @@ func (p *planGlue) planDeposedResourceInstanceObject(ctx context.Context, addr a
 		return diags
 	}
 	egb := p.planCtx.execGraphBuilder
-	p.ensureProviderInstanceDependencies(ctx, state.ProviderInstanceAddr, egb)
 	return p.planDeposedManagedResourceInstanceObject(ctx, addr, deposedKey, state, egb)
 }
 

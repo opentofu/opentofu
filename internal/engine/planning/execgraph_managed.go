@@ -6,8 +6,6 @@
 package planning
 
 import (
-	"context"
-
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
@@ -31,7 +29,7 @@ import (
 // originally written inline in [planGlue.planDesiredManagedResourceInstance]
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
-func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
+func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(desired *eval.DesiredResourceInstance, plannedValue cty.Value, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -41,12 +39,6 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, 
 	// evaluator, which indirectly incorporates the results into the
 	// desiredInstRef result we'll build below.
 	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
-
-	// FIXME: Once this code is extended to support more than just "create"
-	// actions, we should skip calling this function if the action turns
-	// out to be no-op, so that completely-unneeded provider instances won't
-	// appear in the final execution graph at all.
-	providerClientRef, closeProviderAfter := b.providerInstanceSubgraph(*desired.ProviderInstance)
 
 	// FIXME: If this is one of the "replace" actions then we need to generate
 	// a more complex graph that has two pairs of "final plan" and "apply".
@@ -66,7 +58,6 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(ctx context.Context, 
 		providerClientRef,
 	)
 
-	closeProviderAfter(finalResultRef)
 	closeDependencyAfter(finalResultRef)
 
 	return finalResultRef

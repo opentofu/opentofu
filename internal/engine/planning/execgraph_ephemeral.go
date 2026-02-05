@@ -6,10 +6,9 @@
 package planning
 
 import (
-	"context"
-
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 )
@@ -30,7 +29,7 @@ import (
 // originally written inline in [planGlue.planDesiredEphemeralResourceInstance]
 // just to preserve the existing functionality for now until we design a more
 // complete approach in later work.
-func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context, desired *eval.DesiredResourceInstance, plannedValue cty.Value, oracle *eval.PlanningOracle) execgraph.ResourceInstanceResultRef {
+func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(desired *eval.DesiredResourceInstance, plannedValue cty.Value, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -44,8 +43,6 @@ func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context
 	// desiredInstRef result we'll build below.
 	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(desired.RequiredResourceInstances.All())
 
-	providerClientRef, closeProviderAfter := b.providerInstanceSubgraph(*desired.ProviderInstance)
-
 	instAddrRef := b.lower.ConstantResourceInstAddr(desired.Addr)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, dependencyWaiter)
 
@@ -54,7 +51,6 @@ func (b *execGraphBuilder) EphemeralResourceInstanceSubgraph(ctx context.Context
 	closeRef := b.lower.EphemeralClose(openRef, closeWait)
 
 	closeDependencyAfter(closeRef)
-	closeProviderAfter(closeRef)
 
 	return stateRef
 }
