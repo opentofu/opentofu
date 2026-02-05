@@ -96,7 +96,22 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	// really honest for this method to be named "plan" anymore, and should
 	// probably be called [planGlue.openDesiredEphemeralResourceInstance]
 	// instead and to no longer return an [execgraph.ResultRef] at all.
+	resultRef := p.ephemeralResourceInstanceExecSubgraph(ctx, inst, newVal, egb)
+	return newVal, resultRef, diags
+}
 
-	resRef := egb.EphemeralResourceInstanceSubgraph(ctx, inst, newVal, p.oracle)
-	return newVal, resRef, diags
+// ephemeralResourceInstanceExecSubgraph prepares what's needed to deal with
+// an ephemeral resource instance in an execution graph and then adds the
+// relevant nodes, returning a result reference referring to the final result of
+// the apply steps.
+//
+// This is a small wrapper around [execGraphBuilder.ManagedResourceInstanceSubgraph]
+// which implicitly adds execgraph items needed for the resource instance's
+// provider instance, which requires some information that an [execGraphBuilder]
+// instance cannot access directly itself.
+func (p *planGlue) ephemeralResourceInstanceExecSubgraph(ctx context.Context, inst *eval.DesiredResourceInstance, plannedValue cty.Value, egb *execGraphBuilder) execgraph.ResourceInstanceResultRef {
+	providerClientRef, registerProviderCloseBlocker := p.ensureProviderInstanceExecgraph(ctx, inst.ProviderInstance, egb)
+	finalResultRef := egb.EphemeralResourceInstanceSubgraph(inst, plannedValue, providerClientRef)
+	registerProviderCloseBlocker(finalResultRef)
+	return finalResultRef
 }
