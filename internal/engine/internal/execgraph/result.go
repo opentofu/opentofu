@@ -10,6 +10,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // ResultRef represents a result of type T that will be produced by
@@ -62,6 +63,20 @@ func (v resourceInstAddrResultRef) anyResultPlaceholderSigil() {}
 
 // resultPlaceholderSigil implements ResultPlaceholder.
 func (v resourceInstAddrResultRef) resultPlaceholderSigil(addrs.AbsResourceInstance) {}
+
+// deposedKeyResultRef is a [ResultRef] referring to an item in the a
+// graph's table of constant "deposed keys".
+type deposedKeyResultRef struct {
+	index int
+}
+
+var _ ResultRef[states.DeposedKey] = deposedKeyResultRef{}
+
+// anyResultPlaceholderSigil implements ResultPlaceholder.
+func (v deposedKeyResultRef) anyResultPlaceholderSigil() {}
+
+// resultPlaceholderSigil implements ResultPlaceholder.
+func (v deposedKeyResultRef) resultPlaceholderSigil(states.DeposedKey) {}
 
 // providerInstAddrResultRef is a [ResultRef] referring to an item in the a
 // graph's table of constant provider instance addresses.

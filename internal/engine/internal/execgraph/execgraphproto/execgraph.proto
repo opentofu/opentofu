@@ -80,6 +80,12 @@ message Element {
         // usual syntax.
         string constant_resource_inst_addr = 2;
 
+        // A constant "deposed key" for a resource instance object,
+        // corresponding to execgraph.Builder.ConstantDeposedKey.
+        //
+        // The value is a string that can be converted to states.DeposedKey.
+        string deposed_key = 6;
+
         // A constant address for a provider instance, corresponding to
         // execgraph.Builder.ConstantProviderInstAddr.
         //

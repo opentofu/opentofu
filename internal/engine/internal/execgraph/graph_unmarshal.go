@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph/execgraphproto"
 	"github.com/opentofu/opentofu/internal/lang/eval"
+	"github.com/opentofu/opentofu/internal/states"
 )
 
 // UnmarshalGraph takes some bytes previously returned by [Graph.Marshal] and
@@ -79,6 +80,13 @@ func UnmarshalGraph(src []byte) (*Graph, error) {
 				return nil, fmt.Errorf("invalid resource instance address in element %d: %w", idx, err)
 			}
 			results[idx] = builder.ConstantResourceInstAddr(addr)
+
+		case execgraphproto.Element_DeposedKey_case:
+			key, err := unmarshalConstantDeposedKey(elem.GetDeposedKey())
+			if err != nil {
+				return nil, fmt.Errorf("invalid deposed key in element %d: %w", idx, err)
+			}
+			results[idx] = builder.ConstantDeposedKey(key)
 
 		case execgraphproto.Element_ConstantProviderInstAddr_case:
 			addr, err := unmarshalConstantProviderInstAddr(elem.GetConstantProviderInstAddr())
@@ -268,14 +276,18 @@ func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, 
 }
 
 func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 1 {
+	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedAlreadyDeposed", len(rawOperands))
 	}
 	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedAlreadyDeposed instAddr: %w", err)
 	}
-	return builder.ManagedAlreadyDeposed(instAddr), nil
+	deposedKey, err := unmarshalGetPrevResultOf[states.DeposedKey](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedAlreadyDeposed deposedKey: %w", err)
+	}
+	return builder.ManagedAlreadyDeposed(instAddr, deposedKey), nil
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -365,6 +377,12 @@ func unmarshalConstantResourceInstAddr(addrStr string) (addrs.AbsResourceInstanc
 	// which is inconvenient. :(
 	ret, diags := addrs.ParseAbsResourceInstanceStr(addrStr)
 	return ret, diags.Err()
+}
+
+func unmarshalConstantDeposedKey(keyStr string) (states.DeposedKey, error) {
+	// We currently don't have a parser for "deposed keys", and they are just
+	// opaque strings without any constituent parts anyway, so this cannot fail.
+	return states.DeposedKey(keyStr), nil
 }
 
 func unmarshalConstantProviderInstAddr(addrStr string) (addrs.AbsProviderInstanceCorrect, error) {
