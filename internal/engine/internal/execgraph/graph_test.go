@@ -85,8 +85,18 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				providerCloseDeps, registerUser := builder.MutableWaiter()
 				_ = builder.ProviderInstanceClose(providerClient, providerCloseDeps)
 
-				finalPlan := builder.ManagedFinalPlan(desiredInst, priorState, plannedVal, providerClient)
-				newState := builder.ManagedApply(finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient)
+				finalPlan := builder.ManagedFinalPlan(
+					desiredInst,
+					priorState,
+					plannedVal,
+					providerClient,
+				)
+				newState := builder.ManagedApply(
+					finalPlan,
+					NilResultRef[*exec.ResourceInstanceObject](),
+					providerClient,
+					builder.Waiter(),
+				)
 				registerUser(newState)
 				builder.SetResourceInstanceFinalStateResult(instAddr, newState)
 				return builder.Finish()
@@ -101,7 +111,7 @@ func TestGraphMarshalUnmarshalValid(t *testing.T) {
 				r[2] = ProviderInstanceConfig(provider["terraform.io/builtin/test"], await());
 				r[3] = ProviderInstanceOpen(r[2]);
 				r[4] = ManagedFinalPlan(r[0], r[1], v[0], r[3]);
-				r[5] = ManagedApply(r[4], nil, r[3]);
+				r[5] = ManagedApply(r[4], nil, r[3], await());
 				r[6] = ProviderInstanceClose(r[3], await(r[5]));
 
 				test.example = r[5];

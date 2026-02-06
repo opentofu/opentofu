@@ -162,6 +162,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
 		finalPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
+		b.lower.Waiter(), // nothing to wait for
 	)
 }
 
