@@ -28,6 +28,7 @@ type mockOperations struct {
 	EphemeralStateFunc                 func(ctx context.Context, ephemeral *exec.OpenEphemeralResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedAlreadyDeposedFunc          func(ctx context.Context, instAddr addrs.AbsResourceInstance, deposedKey states.DeposedKey) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedApplyFunc                   func(ctx context.Context, plan *exec.ManagedResourceObjectFinalPlan, fallback *exec.ResourceInstanceObject, providerClient *exec.ProviderClient) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
+	ManagedChangeAddrFunc              func(ctx context.Context, currentInstAddr, newInstAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedDeposeFunc                  func(ctx context.Context, instAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics)
 	ManagedFinalPlanFunc               func(ctx context.Context, desired *eval.DesiredResourceInstance, prior *exec.ResourceInstanceObject, plannedVal cty.Value, providerClient *exec.ProviderClient) (*exec.ManagedResourceObjectFinalPlan, tfdiags.Diagnostics)
 	ProviderInstanceCloseFunc          func(ctx context.Context, client *exec.ProviderClient) tfdiags.Diagnostics
@@ -104,6 +105,17 @@ func (m *mockOperations) ManagedApply(ctx context.Context, plan *exec.ManagedRes
 		result, diags = m.ManagedApplyFunc(ctx, plan, fallback, providerClient)
 	}
 	m.appendLog("ManagedApply", []any{plan, fallback, providerClient}, result)
+	return result, diags
+}
+
+// ManagedChangeAddr implements [exec.Operations].
+func (m *mockOperations) ManagedChangeAddr(ctx context.Context, currentInstAddr, newInstAddr addrs.AbsResourceInstance) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var result *exec.ResourceInstanceObject
+	if m.ManagedChangeAddrFunc != nil {
+		result, diags = m.ManagedChangeAddrFunc(ctx, currentInstAddr, newInstAddr)
+	}
+	m.appendLog("ManagedChangeAddr", []any{currentInstAddr, newInstAddr}, result)
 	return result, diags
 }
 

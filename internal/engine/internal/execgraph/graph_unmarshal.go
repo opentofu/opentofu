@@ -139,6 +139,8 @@ func unmarshalOperationElem(protoOp *execgraphproto.Operation, prevResults []Any
 		return unmarshalOpManagedDepose(protoOp.GetOperands(), prevResults, builder)
 	case opManagedAlreadyDeposed:
 		return unmarshalOpManagedAlreadyDeposed(protoOp.GetOperands(), prevResults, builder)
+	case opManagedChangeAddr:
+		return unmarshalOpManagedChangeAddr(protoOp.GetOperands(), prevResults, builder)
 	case opDataRead:
 		return unmarshalOpDataRead(protoOp.GetOperands(), prevResults, builder)
 	case opEphemeralOpen:
@@ -288,6 +290,21 @@ func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyRes
 		return nil, fmt.Errorf("invalid opManagedAlreadyDeposed deposedKey: %w", err)
 	}
 	return builder.ManagedAlreadyDeposed(instAddr, deposedKey), nil
+}
+
+func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
+	if len(rawOperands) != 2 {
+		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedChangeAddr", len(rawOperands))
+	}
+	currentInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedChangeAddr currentInstAddr: %w", err)
+	}
+	newInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedChangeAddr newInstAddr: %w", err)
+	}
+	return builder.ManagedChangeAddr(currentInstAddr, newInstAddr), nil
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

@@ -210,6 +210,16 @@ func (b *Builder) ManagedAlreadyDeposed(
 	})
 }
 
+func (b *Builder) ManagedChangeAddr(
+	currentInstAddr ResultRef[addrs.AbsResourceInstance],
+	newInstAddr ResultRef[addrs.AbsResourceInstance],
+) ResourceInstanceResultRef {
+	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
+		opCode:   opManagedChangeAddr,
+		operands: []AnyResultRef{currentInstAddr, newInstAddr},
+	})
+}
+
 func (b *Builder) DataRead(
 	desiredInst ResultRef[*eval.DesiredResourceInstance],
 	plannedVal ResultRef[cty.Value],

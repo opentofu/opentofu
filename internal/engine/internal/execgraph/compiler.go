@@ -119,6 +119,8 @@ func (c *compiler) Compile() (*CompiledGraph, tfdiags.Diagnostics) {
 			compileFunc = c.compileOpManagedDepose
 		case opManagedAlreadyDeposed:
 			compileFunc = c.compileOpManagedAlreadyDeposed
+		case opManagedChangeAddr:
+			compileFunc = c.compileOpManagedChangeAddr
 		case opDataRead:
 			compileFunc = c.compileOpDataRead
 		case opEphemeralOpen:
