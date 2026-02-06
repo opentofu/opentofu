@@ -17,15 +17,16 @@ func _() {
 	_ = x[opManagedApply-7]
 	_ = x[opManagedDepose-8]
 	_ = x[opManagedAlreadyDeposed-9]
-	_ = x[opDataRead-10]
-	_ = x[opEphemeralOpen-11]
-	_ = x[opEphemeralState-12]
-	_ = x[opEphemeralClose-13]
+	_ = x[opManagedChangeAddr-10]
+	_ = x[opDataRead-11]
+	_ = x[opEphemeralOpen-12]
+	_ = x[opEphemeralState-13]
+	_ = x[opEphemeralClose-14]
 }
 
-const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopDataReadopEphemeralOpenopEphemeralStateopEphemeralClose"
+const _opCode_name = "opProviderInstanceConfigopProviderInstanceOpenopProviderInstanceCloseopResourceInstanceDesiredopResourceInstancePrioropManagedFinalPlanopManagedApplyopManagedDeposeopManagedAlreadyDeposedopManagedChangeAddropDataReadopEphemeralOpenopEphemeralStateopEphemeralClose"
 
-var _opCode_index = [...]uint8{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 197, 212, 228, 244}
+var _opCode_index = [...]uint16{0, 24, 46, 69, 94, 117, 135, 149, 164, 187, 206, 216, 231, 247, 263}
 
 func (i opCode) String() string {
 	idx := int(i) - 1

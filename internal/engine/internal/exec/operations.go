@@ -227,6 +227,27 @@ type Operations interface {
 		deposedKey states.DeposedKey,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
+	// ManageChangeAddr rebinds the current object associated with
+	// currentInstAddr to be associated with newInstAddr instead, and then
+	// returns that object with its updated address.
+	//
+	// This is used in place of [Operations.ResourceInstancePrior] whenever a
+	// resource instance address is being moved to a new address. The move
+	// and the read from the state are combined into a single action so that
+	// we can treat this as an atomic operation where there's no intermediate
+	// state where the relevant object is associated with either neither or both
+	// of the two addresses.
+	//
+	// If there is no current object associated with currentInstAddr when
+	// this operation executes then it does nothing and returns a nil object
+	// with no errors, though in practice the planning engine should not include
+	// this operation unless it found an existing object that needed to be
+	// moved.
+	ManagedChangeAddr(
+		ctx context.Context,
+		currentInstAddr, newInstAddr addrs.AbsResourceInstance,
+	) (*ResourceInstanceObject, tfdiags.Diagnostics)
+
 	//////////////////////////////////////////////////////////////////////////////
 	/// Resource-related operations that are relevant only for data resources.
 	//////////////////////////////////////////////////////////////////////////////

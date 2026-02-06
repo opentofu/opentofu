@@ -279,6 +279,36 @@ func (c *compiler) compileOpManagedAlreadyDeposed(operands *compilerOperands) no
 	}
 }
 
+func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeExecuteRaw {
+	ops := c.ops
+	getCurrentInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	getNewInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	diags := operands.Finish()
+	c.diags = c.diags.Append(diags)
+	if diags.HasErrors() {
+		return nil
+	}
+
+	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+
+		currentInstAddr, ok, moreDiags := getCurrentInstAddr(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+		newInstAddr, ok, moreDiags := getNewInstAddr(ctx)
+		diags = diags.Append(moreDiags)
+		if !ok {
+			return nil, false, diags
+		}
+
+		ret, moreDiags := ops.ManagedChangeAddr(ctx, currentInstAddr, newInstAddr)
+		diags = diags.Append(moreDiags)
+		return ret, !diags.HasErrors(), diags
+	}
+}
+
 func (c *compiler) compileOpDataRead(operands *compilerOperands) nodeExecuteRaw {
 	getDesired := nextOperand[*eval.DesiredResourceInstance](operands)
 	getInitialPlanned := nextOperand[cty.Value](operands)

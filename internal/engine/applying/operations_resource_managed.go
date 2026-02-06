@@ -337,3 +337,13 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 	// implementation between these two.
 	return ops.resourceInstanceStateObject(ctx, ops.priorState, instAddr, deposedKey)
 }
+
+// ManagedChangeAddr implements [exec.Operations].
+func (ops *execOperations) ManagedChangeAddr(
+	ctx context.Context,
+	currentInstAddr, newInstAddr addrs.AbsResourceInstance,
+) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
+	log.Printf("[TRACE] apply phase: ManagedChangeAddr from %s to %s", currentInstAddr, newInstAddr)
+	// TODO: Implement
+	panic("ManagedChangeAddr not yet implemented")
+}

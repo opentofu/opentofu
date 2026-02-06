@@ -36,6 +36,7 @@ const (
 	opManagedApply
 	opManagedDepose
 	opManagedAlreadyDeposed
+	opManagedChangeAddr
 
 	opDataRead
 
