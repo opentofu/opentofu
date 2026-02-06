@@ -174,8 +174,16 @@ Then, there are some bits that depend mostly (if not solely) on flags and defaul
   * this is mainly dependent on the 2 components that we described above: UI and Workdir. Once those will be extracted,
     this can be extracted too.
 
-So starting with the least dependent bits will allow walking down the chain and extract everything in separate
+Therefore, starting with the least dependent bits will allow walking down the chain and extract everything in separate
 components that can be instantiated inside the `Run` method of the commands.
+
+> [!NOTE]
+> About the `ui/view`. After did some work proposed by this RFC, became clearer that we can continue without
+> the migration of all commands to the Views concept from the old UI, but in doing so will add more shim
+> code to make things work properly.
+> 
+> Therefore, as part of this RFC, we can carry on the migration of all the commands to the Views abstraction,
+> which will make any subsequent work way easier.
 
 During this work, all logically grouped flags should be moved to these structs and allow the struct logic to
 record these on a particular FlagSet or parse the values for those directly.
