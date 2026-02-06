@@ -14,17 +14,17 @@ import (
 // names and values to a slice. This is used to collect a sequence of flags
 // with possibly different names, preserving the overall order.
 type RawFlags struct {
-	FlagName string
-	Items    *[]RawFlag
+	Name  string
+	Items *[]RawFlag
 }
 
 var _ flag.Value = RawFlags{}
 
-func NewRawFlags(flagName string) RawFlags {
+func NewRawFlags(name string) RawFlags {
 	var items []RawFlag
 	return RawFlags{
-		FlagName: flagName,
-		Items:    &items,
+		Name:  name,
+		Items: &items,
 	}
 }
 
@@ -44,8 +44,8 @@ func (f RawFlags) AllItems() []RawFlag {
 
 func (f RawFlags) Alias(flagName string) RawFlags {
 	return RawFlags{
-		FlagName: flagName,
-		Items:    f.Items,
+		Name:  flagName,
+		Items: f.Items,
 	}
 }
 
@@ -55,7 +55,7 @@ func (f RawFlags) String() string {
 
 func (f RawFlags) Set(str string) error {
 	*f.Items = append(*f.Items, RawFlag{
-		Name:  f.FlagName,
+		Name:  f.Name,
 		Value: str,
 	})
 	return nil
