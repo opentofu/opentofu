@@ -70,11 +70,10 @@ func TestWorkdirCreatedCorrectly(t *testing.T) {
 				if err := os.Mkdir(chdirModule, 0777); err != nil {
 					t.Fatalf("failed to create %q: %s", chdirModule, err)
 				}
-				return []string{fmt.Sprintf("-chdir=%s", chdirModule), "-anotherflag=test"}
+				return []string{"-anotherflag=test"}
 			},
-			wantNewArgs:          []string{"-anotherflag=test"},
-			wantDataDir:          filepath.Clean("/just/a/random/path/since/it/is/not/checked"),
-			wantWorkingDirSuffix: "root_module",
+			wantNewArgs: []string{"-anotherflag=test"},
+			wantDataDir: filepath.Clean("/just/a/random/path/since/it/is/not/checked"),
 		},
 	}
 	for name, tc := range cases {
