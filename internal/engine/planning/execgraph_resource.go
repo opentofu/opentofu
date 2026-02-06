@@ -45,6 +45,10 @@ func (b *execGraphBuilder) SetResourceInstanceFinalStateResult(addr addrs.AbsRes
 // system that caused the construction of subgraphs for different resource
 // instances to happen in the wrong order.
 func (b *execGraphBuilder) resourceInstanceFinalStateResult(addr addrs.AbsResourceInstance) execgraph.AnyResultRef {
+	// TODO: If a caller asks for a resource instance that doesn't yet have
+	// a "final result" then we should implicitly insert one that refers
+	// to a ResourceInstancePrior result, under the assumption that the upstream
+	// thing was a no-op but its state value is still used by something else.
 	return b.lower.ResourceInstanceFinalStateResult(addr)
 }
 

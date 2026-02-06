@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -197,6 +198,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(ctx context.Context, inst 
 	// return the planned new state as a placeholder for downstream planning in
 	// that case, but we would need to mark it as deferred and _not_ record a
 	// proposed change for it.
+
+	if eq, _ := planResp.PlannedState.Equals(refreshedVal).Unmark(); !eq.IsKnown() || eq.True() {
+		// There is no change to make, so we can return early without adding
+		// anything to the graph at all. There will be items in the execgraph
+		// for this node only if some other resource instance or provider
+		// instance depends on our result, in which case an op to read the
+		// prior state should get implicitly added to the graph during the
+		// handling of that downstream thing.
+		return refreshedVal, execgraph.NilResultRef[*exec.ResourceInstanceObject](), diags
+	}
 
 	plannedAction := plans.Update
 	if prevRoundState == nil {
