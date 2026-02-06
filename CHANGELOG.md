@@ -5,6 +5,7 @@ The v1.11.x release series is supported until **August 1 2026**.
 BUG FIXES:
 
 * The `azurerm` backend's MSI authentication method will now respect the provided client ID ([#3586](https://github.com/opentofu/opentofu/issues/3586))
+* Using a network mirror for the providers source does not print debug logs without being asked for ([#3736](https://github.com/opentofu/opentofu/issues/3736))
 
 ## 1.11.4
 
