@@ -1,5 +1,9 @@
 ## 1.10.9 (unreleased)
 
+BUG FIXES:
+
+* Using a network mirror for the providers source does not print debug logs without being asked for ([#3736](https://github.com/opentofu/opentofu/issues/3736))
+
 ## 1.10.8
 
 SECURITY ADVISORIES:
