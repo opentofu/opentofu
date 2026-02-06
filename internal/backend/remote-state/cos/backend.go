@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +39,7 @@ const (
 	PROVIDER_SHARED_CREDENTIALS_DIR       = "TENCENTCLOUD_SHARED_CREDENTIALS_DIR"
 	PROVIDER_PROFILE                      = "TENCENTCLOUD_PROFILE"
 
+	// Defaults configured the same with the Tencent provider: https://github.com/tencentcloudstack/terraform-provider-tencentcloud/blob/2fad0e7d76f8fcd05658ca5d98cdf6791018d59a/tencentcloud/provider.go#L162
 	DEFAULT_REGION  = "ap-guangzhou"
 	DEFAULT_PROFILE = "default"
 )
@@ -86,7 +86,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Description: "TencentCloud Security Token of temporary access credentials. It can be sourced from the `TENCENTCLOUD_SECURITY_TOKEN` environment variable. Notice: for supported products, please refer to: [temporary key supported products](https://intl.cloud.tencent.com/document/product/598/10588).",
 				Sensitive:   true,
 			},
-			// copied from https://github.com/tencentcloudstack/terraform-provider-tencentcloud/
+			// `shared_credentials_dir` and `profile` are copied from https://github.com/tencentcloudstack/terraform-provider-tencentcloud/
 			"shared_credentials_dir": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -267,7 +267,6 @@ func (b *Backend) configure(ctx context.Context) error {
 			if b.region == "" && config.Region != nil {
 				b.region = *config.Region
 			}
-
 		}
 	}
 
@@ -341,10 +340,11 @@ func loadCLIConfig(d *schema.ResourceData) (*CLIConfig, error) {
 	}
 
 	if tmpSharedCredentialsDir == "" {
-		tmpSharedCredentialsDir = fmt.Sprintf("%s/.tccli", os.Getenv("HOME"))
-		if runtime.GOOS == "windows" {
-			tmpSharedCredentialsDir = fmt.Sprintf("%s/.tccli", os.Getenv("USERPROFILE"))
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
 		}
+		tmpSharedCredentialsDir = fmt.Sprintf("%s/.tccli", homeDir)
 	}
 
 	credentialPath = fmt.Sprintf("%s/%s.credential", tmpSharedCredentialsDir, profile)
