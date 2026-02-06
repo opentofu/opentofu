@@ -194,9 +194,44 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
 
-	// TODO: Actually implement this
-	_, _, _ = priorStateRef, plannedValRef, desiredInstRef
-	panic("execgraph for simple replace actions not yet implemented")
+	// We plan both the create and destroy parts of this process before we
+	// make any real changes, to reduce the risk that we'll be left in a
+	// partially-applied state where neither object exists. (Though of course
+	// that's always possible, if the "create" step fails at apply.)
+	createPlanRef := b.lower.ManagedFinalPlan(
+		desiredInstRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		plannedValRef,
+		providerClientRef,
+	)
+	destroyPlanRef := b.lower.ManagedFinalPlan(
+		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
+		priorStateRef,
+		b.lower.ConstantValue(cty.NullVal(
+			// TODO: is this okay or do we need to use the type constraint derived from the schema?
+			// The two could differ for resource types that have cty.DynamicPseudoType
+			// attributes, like in kubernetes_manifest from the hashicorp/kubernetes provider,
+			// where here we'd capture the type of the current manifest instead of recording
+			// that the manifest's type is unknown. However, we don't typically fuss too much
+			// about the exact type of a null, so this is probably fine.
+			plannedChange.After.Type(),
+		)),
+		providerClientRef,
+	)
+	destroyResultRef := b.lower.ManagedApply(
+		destroyPlanRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		providerClientRef,
+		b.lower.Waiter(createPlanRef), // wait for successful planning of the create step
+	)
+	createResultRef := b.lower.ManagedApply(
+		createPlanRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		providerClientRef,
+		b.lower.Waiter(destroyResultRef),
+	)
+
+	return createResultRef
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
