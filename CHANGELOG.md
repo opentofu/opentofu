@@ -1,5 +1,18 @@
 ## 1.10.9 (unreleased)
 
+SECURITY ADVISORIES:
+
+This release contains fixes for some security advisories related to previous releases in this series.
+
+- No limit on number of query string arguments in `net/url's` `ParseQuery`
+
+    This release incorporates the upstream fixes for [GO-2026-4341](https://pkg.go.dev/vuln/GO-2026-4341).
+
+- `crypto/tls` handling of multiple messages that span across encryption level boundaries
+
+    This release incorporates the upstream fixes for [GO-2026-4340](https://pkg.go.dev/vuln/GO-2026-4340).
+
+
 BUG FIXES:
 
 * Using a network mirror for the providers source does not print debug logs without being asked for ([#3736](https://github.com/opentofu/opentofu/issues/3736))
