@@ -192,6 +192,7 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 	getFinalPlan := nextOperand[*exec.ManagedResourceObjectFinalPlan](operands)
 	getFallback := nextOperand[*exec.ResourceInstanceObject](operands)
 	getProviderClient := nextOperand[*exec.ProviderClient](operands)
+	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -201,6 +202,9 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
 		providerClient, ok, moreDiags := getProviderClient(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {

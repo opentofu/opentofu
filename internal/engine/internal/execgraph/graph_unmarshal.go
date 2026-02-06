@@ -248,7 +248,7 @@ func unmarshalOpManagedFinalPlan(rawOperands []uint64, prevResults []AnyResultRe
 }
 
 func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 3 {
+	if len(rawOperands) != 4 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedApplyChanges", len(rawOperands))
 	}
 	finalPlan, err := unmarshalGetPrevResultOf[*exec.ManagedResourceObjectFinalPlan](prevResults, rawOperands[0])
@@ -263,7 +263,11 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedApplyChanges providerClient: %w", err)
 	}
-	return builder.ManagedApply(finalPlan, fallbackObj, providerClient), nil
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[3])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedApplyChanges waitFor: %w", err)
+	}
+	return builder.ManagedApply(finalPlan, fallbackObj, providerClient, waitFor), nil
 }
 
 func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {

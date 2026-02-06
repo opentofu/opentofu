@@ -184,10 +184,11 @@ func (b *Builder) ManagedApply(
 	finalPlan ResultRef[*exec.ManagedResourceObjectFinalPlan],
 	fallbackObj ResourceInstanceResultRef,
 	providerClient ResultRef[*exec.ProviderClient],
+	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedApply,
-		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient},
+		operands: []AnyResultRef{finalPlan, fallbackObj, providerClient, waitFor},
 	})
 }
 

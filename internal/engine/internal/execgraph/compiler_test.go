@@ -68,7 +68,10 @@ func TestCompiler_resourceInstanceBasics(t *testing.T) {
 		providerClient,
 	)
 	newState := builder.ManagedApply(
-		finalPlan, NilResultRef[*exec.ResourceInstanceObject](), providerClient,
+		finalPlan,
+		NilResultRef[*exec.ResourceInstanceObject](),
+		providerClient,
+		nil,
 	)
 	addProviderUser(newState)
 	builder.SetResourceInstanceFinalStateResult(resourceInstAddr, newState)
