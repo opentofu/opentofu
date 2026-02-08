@@ -29,6 +29,12 @@ type NodePlannableResourceInstanceOrphan struct {
 	// skipRefresh indicates that we should skip refreshing individual instances
 	skipRefresh bool
 
+	// refreshMode specifies how refresh should be handled (all, none, or config).
+	refreshMode RefreshMode
+
+	// refreshStats tracks refresh decisions during planning.
+	refreshStats *RefreshStats
+
 	// skipPlanChanges indicates we should skip trying to plan change actions
 	// for any instances.
 	skipPlanChanges bool
@@ -153,7 +159,27 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context
 		return diags
 	}
 
-	if !n.skipRefresh {
+	shouldRefresh := !n.skipRefresh
+	if shouldRefresh && n.refreshMode == RefreshConfig {
+		configChanged := true
+		if n.Config != nil {
+			var detectDiags tfdiags.Diagnostics
+			configChanged, detectDiags = n.detectConfigChange(ctx, evalCtx)
+			diags = diags.Append(detectDiags)
+			if detectDiags.HasErrors() {
+				configChanged = true
+			}
+		}
+		if !configChanged {
+			log.Printf("[TRACE] orphanResourceExecute: %s configuration unchanged, skipping refresh", addr)
+			shouldRefresh = false
+		}
+	}
+	if n.refreshStats != nil {
+		n.refreshStats.RecordManaged(shouldRefresh)
+	}
+
+	if shouldRefresh {
 		// Refresh this instance even though it is going to be destroyed, in
 		// order to catch missing resources. If this is a normal plan,
 		// providers expect a Read request to remove missing resources from the

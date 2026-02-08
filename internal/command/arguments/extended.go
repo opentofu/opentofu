@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -19,11 +20,63 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // DefaultParallelism is the limit OpenTofu places on total parallel
 // operations as it walks the dependency graph.
 const DefaultParallelism = 10
+
+// RefreshFlagValue is a custom flag value type that accepts "true", "false",
+// or "config" for the -refresh flag. This enables selective refresh mode where
+// only resources with configuration changes are refreshed.
+type RefreshFlagValue struct {
+	Mode tofu.RefreshMode
+}
+
+// String returns the string representation of the refresh mode.
+func (r *RefreshFlagValue) String() string {
+	switch r.Mode {
+	case tofu.RefreshNone:
+		return "false"
+	case tofu.RefreshConfig:
+		return "config"
+	default:
+		return "true"
+	}
+}
+
+// Set parses the flag value and sets the appropriate refresh mode.
+func (r *RefreshFlagValue) Set(s string) error {
+	switch strings.ToLower(s) {
+	case "true", "":
+		r.Mode = tofu.RefreshAll
+	case "false":
+		r.Mode = tofu.RefreshNone
+	case "config":
+		r.Mode = tofu.RefreshConfig
+	default:
+		return fmt.Errorf("invalid value %q for -refresh flag; must be true, false, or config", s)
+	}
+	return nil
+}
+
+// IsBoolFlag returns true so that bare -refresh (without a value) is treated
+// as -refresh=true by Go's flag package, preserving backward compatibility.
+// The extended values (like "config") are still accepted via -refresh=config.
+func (r *RefreshFlagValue) IsBoolFlag() bool {
+	return true
+}
+
+// Get returns the value as an interface{}.
+func (r *RefreshFlagValue) Get() interface{} {
+	return r.Mode
+}
+
+// RefreshEnabled returns true if refresh is enabled (not RefreshNone).
+func (r *RefreshFlagValue) RefreshEnabled() bool {
+	return r.Mode != tofu.RefreshNone
+}
 
 // State describes arguments which are used to define how OpenTofu interacts
 // with state.
@@ -65,8 +118,9 @@ type Operation struct {
 	Parallelism int
 
 	// Refresh controls whether or not the operation should refresh existing
-	// state before proceeding. Default is true.
-	Refresh bool
+	// state before proceeding, and in which mode. Default is RefreshAll (true).
+	// Possible values: true (RefreshAll), false (RefreshNone), config (RefreshConfig).
+	Refresh RefreshFlagValue
 
 	// Targets allow limiting an operation to a set of resource addresses and
 	// their dependencies.
@@ -268,11 +322,18 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 		o.PlanMode = plans.DestroyMode
 	case o.refreshOnlyRaw:
 		o.PlanMode = plans.RefreshOnlyMode
-		if !o.Refresh {
+		if !o.Refresh.RefreshEnabled() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Incompatible refresh options",
 				"It doesn't make sense to use -refresh-only at the same time as -refresh=false, because OpenTofu would have nothing to do.",
+			))
+		}
+		if o.Refresh.Mode == tofu.RefreshConfig {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Incompatible refresh options",
+				"Cannot use -refresh=config in refresh-only mode.",
 			))
 		}
 	default:
@@ -326,7 +387,8 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 
 	if operation != nil {
 		f.IntVar(&operation.Parallelism, "parallelism", DefaultParallelism, "parallelism")
-		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
+		operation.Refresh.Mode = tofu.RefreshAll
+		f.Var(&operation.Refresh, "refresh", "refresh mode: true, false, or config")
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")

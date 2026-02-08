@@ -275,7 +275,8 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.PlanMode = applyArgs.Operation.PlanMode
 	opReq.Hooks = view.Hooks()
 	opReq.PlanFile = planFile
-	opReq.PlanRefresh = applyArgs.Operation.Refresh
+	opReq.PlanRefresh = applyArgs.Operation.Refresh.RefreshEnabled()
+	opReq.PlanRefreshMode = applyArgs.Operation.Refresh.Mode
 	opReq.Targets = applyArgs.Operation.Targets
 	opReq.Excludes = applyArgs.Operation.Excludes
 	opReq.ForceReplace = applyArgs.Operation.ForceReplace

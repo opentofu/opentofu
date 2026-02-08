@@ -209,6 +209,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 		ForceReplace:       op.ForceReplace,
 		SetVariables:       variables,
 		SkipRefresh:        op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,
+		RefreshMode:        op.PlanRefreshMode,
 		GenerateConfigPath: op.GenerateConfigOut,
 	}
 	run.PlanOpts = planOpts

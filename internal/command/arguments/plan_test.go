@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -37,7 +38,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -55,7 +56,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -73,7 +74,7 @@ func TestParsePlan_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},

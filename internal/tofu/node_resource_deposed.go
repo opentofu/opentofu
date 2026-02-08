@@ -46,6 +46,12 @@ type NodePlanDeposedResourceInstanceObject struct {
 	// skipRefresh indicates that we should skip refreshing individual instances
 	skipRefresh bool
 
+	// refreshMode specifies how refresh should be handled (all, none, or config).
+	refreshMode RefreshMode
+
+	// refreshStats tracks refresh decisions during planning.
+	refreshStats *RefreshStats
+
 	// skipPlanChanges indicates we should skip trying to plan change actions
 	// for any instances.
 	skipPlanChanges bool
@@ -135,7 +141,26 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 	// at this point. The other nodes use separate types for plan and destroy,
 	// while deposed instances are always a destroy operation, so the logic
 	// here is a bit overloaded.
-	if !n.skipRefresh && op != walkPlanDestroy {
+	shouldRefresh := !n.skipRefresh && op != walkPlanDestroy
+	if shouldRefresh && n.refreshMode == RefreshConfig {
+		configChanged := true
+		if n.Config != nil {
+			var detectDiags tfdiags.Diagnostics
+			configChanged, detectDiags = n.detectConfigChange(ctx, evalCtx)
+			diags = diags.Append(detectDiags)
+			if detectDiags.HasErrors() {
+				configChanged = true
+			}
+		}
+		if !configChanged {
+			log.Printf("[TRACE] deposedResourceExecute: %s configuration unchanged, skipping refresh", n.Addr)
+			shouldRefresh = false
+		}
+	}
+	if n.refreshStats != nil {
+		n.refreshStats.RecordManaged(shouldRefresh)
+	}
+	if shouldRefresh {
 		// Refresh this object even though it is going to be destroyed, in
 		// case it's already been deleted outside OpenTofu. If this is a
 		// normal plan, providers expect a Read request to remove missing

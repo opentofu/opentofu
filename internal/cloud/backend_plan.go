@@ -30,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/genconfig"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 var planConfigurationVersionsPollInterval = 500 * time.Millisecond
@@ -89,6 +90,14 @@ func (b *Cloud) opPlan(ctx, stopCtx, cancelCtx context.Context, op *backend.Oper
 
 	if len(op.GenerateConfigOut) > 0 {
 		diags = diags.Append(genconfig.ValidateTargetFile(op.GenerateConfigOut))
+	}
+
+	if op.PlanRefreshMode == tofu.RefreshConfig {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"-refresh=config is not supported by cloud backend",
+			"The cloud backend does not support selective refresh mode. The plan will use standard refresh behavior instead. Selective refresh is only available when running plans locally.",
+		))
 	}
 
 	// Return if there are any errors.

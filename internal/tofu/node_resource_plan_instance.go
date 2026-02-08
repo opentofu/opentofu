@@ -39,6 +39,12 @@ type NodePlannableResourceInstance struct {
 	// skipRefresh indicates that we should skip refreshing individual instances
 	skipRefresh bool
 
+	// refreshMode specifies how refresh should be handled (all, none, or config).
+	refreshMode RefreshMode
+
+	// refreshStats tracks refresh decisions during planning.
+	refreshStats *RefreshStats
+
 	// skipPlanChanges indicates we should skip trying to plan change actions
 	// for any instances.
 	skipPlanChanges bool
@@ -131,6 +137,16 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 }
 
 func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+	if n.refreshMode == RefreshConfig && n.Config != nil && !n.shouldExecuteDataSource(ctx, evalCtx) {
+		log.Printf("[TRACE] dataResourceExecute: %s skipped by refresh=config", n.ResourceInstanceAddr())
+		if n.refreshStats != nil {
+			n.refreshStats.RecordDataSource(false)
+		}
+		return nil
+	}
+	if n.refreshStats != nil {
+		n.refreshStats.RecordDataSource(true)
+	}
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
@@ -185,6 +201,29 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 	diags = diags.Append(checkDiags)
 
 	return diags
+}
+
+func (n *NodePlannableResourceInstance) shouldExecuteDataSource(ctx context.Context, evalCtx EvalContext) bool {
+	if n.Config == nil {
+		return true
+	}
+	if n.hasManagedResourceDependencies() {
+		return true
+	}
+	changed, diags := n.detectConfigChange(ctx, evalCtx)
+	if diags.HasErrors() {
+		return true
+	}
+	return changed
+}
+
+func (n *NodePlannableResourceInstance) hasManagedResourceDependencies() bool {
+	for _, dep := range n.Dependencies {
+		if dep.Resource.Mode == addrs.ManagedResourceMode {
+			return true
+		}
+	}
+	return false
 }
 
 func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
@@ -349,7 +388,23 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 
 	// Refresh, maybe
 	// The import process handles its own refresh
-	if !n.skipRefresh && !importing {
+	shouldRefresh := !n.skipRefresh && !importing
+	if shouldRefresh && n.refreshMode == RefreshConfig {
+		configChanged, detectDiags := n.detectConfigChange(ctx, evalCtx)
+		diags = diags.Append(detectDiags)
+		if detectDiags.HasErrors() {
+			configChanged = true
+		}
+		if !configChanged {
+			log.Printf("[TRACE] managedResourceExecute: %s configuration unchanged, skipping refresh", addr)
+			shouldRefresh = false
+		}
+	}
+	if n.refreshStats != nil {
+		n.refreshStats.RecordManaged(shouldRefresh)
+	}
+
+	if shouldRefresh {
 		s, refreshDiags := n.refresh(ctx, evalCtx, states.NotDeposed, instanceRefreshState)
 		diags = diags.Append(refreshDiags)
 		if diags.HasErrors() {

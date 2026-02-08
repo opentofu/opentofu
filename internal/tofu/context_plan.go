@@ -44,6 +44,15 @@ type PlanOpts struct {
 	// instance using its corresponding provider.
 	SkipRefresh bool
 
+	// RefreshMode specifies how resources should be refreshed during planning.
+	// RefreshAll (default) refreshes all resources, RefreshNone skips all refresh,
+	// and RefreshConfig only refreshes resources whose configuration changed.
+	RefreshMode RefreshMode
+
+	// RefreshStats tracks refresh decisions during the plan walk when
+	// RefreshMode is RefreshConfig.
+	RefreshStats *RefreshStats
+
 	// PreDestroyRefresh indicated that this is being passed to a plan used to
 	// refresh the state immediately before a destroy plan.
 	// FIXME: This is a temporary fix to allow the pre-destroy refresh to
@@ -145,6 +154,16 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 		}
 	}
 
+	if opts.SkipRefresh {
+		opts.RefreshMode = RefreshNone
+	}
+	if opts.RefreshMode == RefreshAll && opts.RefreshStats != nil {
+		opts.RefreshStats = nil
+	}
+	if opts.RefreshMode == RefreshConfig && opts.RefreshStats == nil {
+		opts.RefreshStats = NewRefreshStats()
+	}
+
 	ctx, span := tracing.Tracer().Start(
 		ctx, "Plan phase",
 	)
@@ -173,13 +192,21 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 	case plans.NormalMode, plans.DestroyMode:
 		// OK
 	case plans.RefreshOnlyMode:
-		if opts.SkipRefresh {
+		if opts.SkipRefresh || opts.RefreshMode == RefreshNone {
 			// The CLI layer (and other similar callers) should prevent this
 			// combination of options.
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Incompatible plan options",
 				"Cannot skip refreshing in refresh-only mode. This is a bug in OpenTofu.",
+			))
+			return nil, diags
+		}
+		if opts.RefreshMode == RefreshConfig {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Incompatible plan options",
+				"Cannot use -refresh=config in refresh-only mode. The refresh-only mode is designed to refresh all resources.",
 			))
 			return nil, diags
 		}
@@ -298,6 +325,26 @@ The -target and -exclude options are not for routine use, and are provided only 
 
 	diags = diags.Append(c.checkApplyGraph(ctx, plan, config))
 
+	if opts.RefreshMode == RefreshConfig && opts.RefreshStats != nil {
+		managedTotal, managedRefreshed, managedSkipped := opts.RefreshStats.ManagedCounts()
+		dataTotal, dataExecuted, dataSkipped := opts.RefreshStats.DataSourceCounts()
+		if managedTotal > 0 || dataTotal > 0 {
+			detail := fmt.Sprintf(
+				"Selective refresh mode (-refresh=config) is enabled.\n\n"+
+					"Managed resources: refreshed %d, skipped %d (out of %d).\n"+
+					"Data sources: executed %d, skipped %d (out of %d).\n\n"+
+					"Skipped objects will not detect external changes (drift). Use -refresh=true for complete drift detection.",
+				managedRefreshed, managedSkipped, managedTotal,
+				dataExecuted, dataSkipped, dataTotal,
+			)
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Selective refresh is in effect",
+				detail,
+			))
+		}
+	}
+
 	return plan, diags
 }
 
@@ -316,7 +363,8 @@ func (c *Context) checkApplyGraph(ctx context.Context, plan *plans.Plan, config 
 }
 
 var DefaultPlanOpts = &PlanOpts{
-	Mode: plans.NormalMode,
+	Mode:        plans.NormalMode,
+	RefreshMode: RefreshAll,
 }
 
 // SimplePlanOpts is a constructor to help with creating "simple" values of
@@ -435,6 +483,10 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		refreshOpts := *opts
 		refreshOpts.Mode = plans.NormalMode
 		refreshOpts.PreDestroyRefresh = true
+		if refreshOpts.RefreshMode == RefreshConfig {
+			refreshOpts.RefreshMode = RefreshAll
+			refreshOpts.RefreshStats = nil
+		}
 
 		// FIXME: A normal plan is required here to refresh the state, because
 		// the state and configuration may not match during a destroy, and a
@@ -880,7 +932,9 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
 			ForceReplace:            opts.ForceReplace,
-			skipRefresh:             opts.SkipRefresh,
+			skipRefresh:             opts.SkipRefresh || opts.RefreshMode == RefreshNone,
+			refreshMode:             opts.RefreshMode,
+			refreshStats:            opts.RefreshStats,
 			preDestroyRefresh:       opts.PreDestroyRefresh,
 			Operation:               walkPlan,
 			ExternalReferences:      opts.ExternalReferences,
@@ -898,7 +952,9 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
+			skipRefresh:             opts.SkipRefresh || opts.RefreshMode == RefreshNone,
+			refreshMode:             opts.RefreshMode,
+			refreshStats:            opts.RefreshStats,
 			skipPlanChanges:         true, // this activates "refresh only" mode.
 			Operation:               walkPlan,
 			ExternalReferences:      opts.ExternalReferences,
@@ -913,7 +969,9 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
+			skipRefresh:             opts.SkipRefresh || opts.RefreshMode == RefreshNone,
+			refreshMode:             opts.RefreshMode,
+			refreshStats:            opts.RefreshStats,
 			Operation:               walkPlanDestroy,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(ctx, addrs.RootModuleInstance)

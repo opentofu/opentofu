@@ -32,6 +32,12 @@ type nodeExpandPlannableResource struct {
 	// skipRefresh indicates that we should skip refreshing individual instances
 	skipRefresh bool
 
+	// refreshMode specifies how refresh should be handled (all, none, or config).
+	refreshMode RefreshMode
+
+	// refreshStats tracks refresh decisions during planning.
+	refreshStats *RefreshStats
+
 	preDestroyRefresh bool
 
 	// skipPlanChanges indicates we should skip trying to plan change actions
@@ -147,6 +153,8 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		return &NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  n.skipRefresh,
+			refreshMode:                  n.refreshMode,
+			refreshStats:                 n.refreshStats,
 			skipPlanChanges:              n.skipPlanChanges,
 		}
 	}
@@ -385,6 +393,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 			// nodes that have it.
 			ForceCreateBeforeDestroy: n.CreateBeforeDestroy(),
 			skipRefresh:              n.skipRefresh,
+			refreshMode:              n.refreshMode,
+			refreshStats:             n.refreshStats,
 			skipPlanChanges:          n.skipPlanChanges,
 			forceReplace:             n.forceReplace,
 		}
@@ -415,6 +425,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 		return &NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  n.skipRefresh,
+			refreshMode:                  n.refreshMode,
+			refreshStats:                 n.refreshStats,
 			skipPlanChanges:              n.skipPlanChanges,
 		}
 	}

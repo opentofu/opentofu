@@ -13,8 +13,10 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -24,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -34,6 +37,358 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// detectConfigChange determines whether the resource configuration has changed
+// compared to the current state, while treating references to other resources
+// and data sources as unknown. This avoids forcing refresh due to upstream
+// values that can vary independently of this resource's configuration.
+func (n *NodeAbstractResourceInstance) detectConfigChange(ctx context.Context, evalCtx EvalContext) (bool, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if n.Config == nil {
+		log.Printf("[TRACE] detectConfigChange: %s has no config, marking as changed", n.Addr)
+		return true, diags
+	}
+
+	state, stateDiags := n.readResourceInstanceState(ctx, evalCtx, n.Addr)
+	diags = diags.Append(stateDiags)
+	if stateDiags.HasErrors() {
+		return true, diags
+	}
+	if state == nil {
+		log.Printf("[TRACE] detectConfigChange: %s has no state, marking as changed", n.Addr)
+		return true, diags
+	}
+
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
+	if err != nil {
+		return true, diags.Append(err)
+	}
+
+	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.Resource.ContainingResource())
+	if schema == nil {
+		diags = diags.Append(fmt.Errorf("provider does not support resource type %q", n.Addr.Resource.Resource.Type))
+		return true, diags
+	}
+
+	forEach, _ := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr.ContainingResource().Config())
+	keyData := EvalDataForInstanceKey(n.Addr.Resource.Key, forEach)
+
+	origConfigVal, _, configDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+	diags = diags.Append(configDiags.InConfigBody(n.Config.Config, n.Addr.String()))
+	if configDiags.HasErrors() {
+		return true, diags
+	}
+
+	maskedConfigVal, maskDiags := maskDynamicReferences(ctx, evalCtx, n.Addr.Resource.Resource.Mode, origConfigVal, n.Config.Config, schema, keyData)
+	diags = diags.Append(maskDiags)
+	if maskDiags.HasErrors() {
+		return true, diags
+	}
+
+	priorVal := state.Value
+	if priorVal == cty.NilVal {
+		priorVal = cty.NullVal(schema.ImpliedType())
+	}
+
+	configValForComparison := maskedConfigVal
+	// processIgnoreChanges only applies to managed resources (which have a Managed config).
+	// Data sources don't have ignore_changes, so we skip this for them.
+	if n.Config.Managed != nil {
+		var ignoreDiags tfdiags.Diagnostics
+		configValForComparison, ignoreDiags = n.processIgnoreChanges(priorVal, maskedConfigVal, schema)
+		diags = diags.Append(ignoreDiags)
+		if ignoreDiags.HasErrors() {
+			return true, diags
+		}
+	}
+
+	unmarkedConfigVal, _ := configValForComparison.UnmarkDeep()
+	unmarkedPriorVal, _ := priorVal.UnmarkDeep()
+
+	proposedNewVal := objchange.ProposedNew(schema, unmarkedPriorVal, unmarkedConfigVal)
+	configChanged := !valuesEqualIgnoringNulls(unmarkedPriorVal, proposedNewVal, schema)
+
+	if configChanged {
+		log.Printf("[TRACE] detectConfigChange: %s configuration has changed", n.Addr)
+	} else {
+		log.Printf("[TRACE] detectConfigChange: %s configuration unchanged", n.Addr)
+	}
+
+	return configChanged, diags
+}
+
+func maskDynamicReferences(
+	ctx context.Context,
+	evalCtx EvalContext,
+	mode addrs.ResourceMode,
+	configVal cty.Value,
+	body hcl.Body,
+	schema *configschema.Block,
+	keyData InstanceKeyEvalData,
+) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if schema == nil || body == nil {
+		return configVal, diags
+	}
+
+	refs, refDiags := lang.ReferencesInBlock(addrs.ParseRef, body, schema)
+	diags = diags.Append(refDiags)
+	if refDiags.HasErrors() {
+		return configVal, diags
+	}
+
+	if len(refs) == 0 {
+		return configVal, diags
+	}
+
+	scope := evalCtx.EvaluationScope(nil, nil, keyData)
+	hclCtx, ctxDiags := scope.EvalContext(ctx, refs)
+	diags = diags.Append(ctxDiags)
+	if ctxDiags.HasErrors() {
+		return configVal, diags
+	}
+
+	for _, ref := range refs {
+		switch subj := ref.Subject.(type) {
+		case addrs.Resource:
+			if subj.Mode == addrs.ManagedResourceMode || subj.Mode == addrs.DataResourceMode {
+				maskResourceReference(hclCtx, subj)
+			}
+		case addrs.ResourceInstance:
+			resource := subj.ContainingResource()
+			if resource.Mode == addrs.ManagedResourceMode || resource.Mode == addrs.DataResourceMode {
+				maskResourceReference(hclCtx, resource)
+			}
+		case addrs.ModuleCall, addrs.ModuleCallInstance, addrs.ModuleCallInstanceOutput:
+			maskModuleReference(hclCtx)
+		case addrs.OutputValue:
+			maskOutputReference(hclCtx, subj.Name)
+		case addrs.ProviderFunction:
+			maskProviderFunction(hclCtx, subj.String())
+		}
+	}
+
+	val, evalDiags := evalBlockWithContext(ctx, body, schema, hclCtx)
+	diags = diags.Append(evalDiags)
+	return val, diags
+}
+
+func evalBlockWithContext(ctx context.Context, body hcl.Body, schema *configschema.Block, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if schema == nil {
+		return cty.DynamicVal, diags
+	}
+
+	spec := schema.DecoderSpec()
+	body = blocktoattr.FixUpBlockAttrs(body, schema)
+
+	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
+	diags = diags.Append(evalDiags)
+
+	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
+	diags = diags.Append(depDiags)
+
+	return val, diags
+}
+
+func maskProviderFunction(hclCtx *hcl.EvalContext, name string) {
+	if hclCtx.Functions == nil {
+		hclCtx.Functions = make(map[string]function.Function)
+	}
+	if _, exists := hclCtx.Functions[name]; exists {
+		return
+	}
+
+	hclCtx.Functions[name] = function.New(&function.Spec{
+		Params: []function.Parameter{
+			{
+				Name:             "arg",
+				Type:             cty.DynamicPseudoType,
+				AllowNull:        true,
+				AllowUnknown:     true,
+				AllowDynamicType: true,
+				AllowMarked:      true,
+			},
+		},
+		VarParam: &function.Parameter{
+			Name:             "rest",
+			Type:             cty.DynamicPseudoType,
+			AllowNull:        true,
+			AllowUnknown:     true,
+			AllowDynamicType: true,
+			AllowMarked:      true,
+		},
+		Type: function.StaticReturnType(cty.DynamicPseudoType),
+		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			return cty.DynamicVal, nil
+		},
+	})
+}
+
+func maskModuleReference(hclCtx *hcl.EvalContext) {
+	if hclCtx.Variables == nil {
+		hclCtx.Variables = make(map[string]cty.Value)
+	}
+
+	if _, exists := hclCtx.Variables["module"]; exists {
+		return
+	}
+
+	hclCtx.Variables["module"] = cty.DynamicVal
+}
+
+func maskOutputReference(hclCtx *hcl.EvalContext, name string) {
+	if hclCtx.Variables == nil {
+		hclCtx.Variables = make(map[string]cty.Value)
+	}
+
+	outputVal, exists := hclCtx.Variables["output"]
+	if !exists || !outputVal.Type().IsObjectType() {
+		outputVal = cty.ObjectVal(map[string]cty.Value{})
+	}
+
+	// AsValueMap returns nil for empty objects, so initialize a new map in that case.
+	outputMap := outputVal.AsValueMap()
+	if outputMap == nil {
+		outputMap = make(map[string]cty.Value)
+	}
+	if _, exists := outputMap[name]; !exists {
+		outputMap[name] = cty.DynamicVal
+	}
+
+	hclCtx.Variables["output"] = cty.ObjectVal(outputMap)
+}
+
+func maskResourceReference(hclCtx *hcl.EvalContext, res addrs.Resource) {
+	if hclCtx.Variables == nil {
+		hclCtx.Variables = make(map[string]cty.Value)
+	}
+
+	if res.Mode == addrs.DataResourceMode {
+		ensureTopLevelResourceType(hclCtx, "data")
+	}
+	if res.Mode == addrs.ManagedResourceMode {
+		ensureTopLevelResourceType(hclCtx, "resource")
+	}
+
+	topName := res.Type
+	if res.Mode == addrs.DataResourceMode {
+		setResourceObject(hclCtx, "data", res)
+	}
+	setResourceObject(hclCtx, topName, res)
+}
+
+func ensureTopLevelResourceType(hclCtx *hcl.EvalContext, name string) {
+	if _, exists := hclCtx.Variables[name]; exists {
+		return
+	}
+
+	hclCtx.Variables[name] = cty.ObjectVal(map[string]cty.Value{})
+}
+
+func setResourceObject(hclCtx *hcl.EvalContext, root string, res addrs.Resource) {
+	rootVal, exists := hclCtx.Variables[root]
+	if !exists || !rootVal.Type().IsObjectType() {
+		rootVal = cty.ObjectVal(map[string]cty.Value{})
+	}
+
+	// AsValueMap returns nil for empty objects, so initialize a new map in that case.
+	rootMap := rootVal.AsValueMap()
+	if rootMap == nil {
+		rootMap = make(map[string]cty.Value)
+	}
+	typeVal, ok := rootMap[res.Type]
+	if !ok || !typeVal.Type().IsObjectType() {
+		typeVal = cty.ObjectVal(map[string]cty.Value{})
+	}
+
+	// AsValueMap returns nil for empty objects, so initialize a new map in that case.
+	typeMap := typeVal.AsValueMap()
+	if typeMap == nil {
+		typeMap = make(map[string]cty.Value)
+	}
+	if _, exists := typeMap[res.Name]; !exists {
+		typeMap[res.Name] = cty.DynamicVal
+	}
+	rootMap[res.Type] = cty.ObjectVal(typeMap)
+	hclCtx.Variables[root] = cty.ObjectVal(rootMap)
+}
+
+func valuesEqualIgnoringNulls(a, b cty.Value, schema *configschema.Block) bool {
+	if a.IsNull() && b.IsNull() {
+		return true
+	}
+	if a.IsNull() || b.IsNull() {
+		nonNull := a
+		if a.IsNull() {
+			nonNull = b
+		}
+		if nonNull.Type().IsObjectType() || nonNull.Type().IsMapType() {
+			if nonNull.LengthInt() == 0 {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !a.Type().Equals(b.Type()) {
+		return false
+	}
+
+	if a.Type().IsObjectType() {
+		for name := range a.Type().AttributeTypes() {
+			attrA := a.GetAttr(name)
+			attrB := b.GetAttr(name)
+
+			var attrSchema *configschema.Block
+			if schema != nil {
+				if block, ok := schema.BlockTypes[name]; ok {
+					attrSchema = &block.Block
+				}
+			}
+
+			if !valuesEqualIgnoringNulls(attrA, attrB, attrSchema) {
+				return false
+			}
+		}
+		return true
+	}
+
+	if a.Type().IsListType() || a.Type().IsTupleType() || a.Type().IsSetType() {
+		if a.LengthInt() != b.LengthInt() {
+			return false
+		}
+		aSlice := a.AsValueSlice()
+		bSlice := b.AsValueSlice()
+		for i := range aSlice {
+			if !valuesEqualIgnoringNulls(aSlice[i], bSlice[i], nil) {
+				return false
+			}
+		}
+		return true
+	}
+
+	if a.Type().IsMapType() {
+		aMap := a.AsValueMap()
+		bMap := b.AsValueMap()
+		if len(aMap) != len(bMap) {
+			return false
+		}
+		for k, aVal := range aMap {
+			bVal, ok := bMap[k]
+			if !ok {
+				return false
+			}
+			if !valuesEqualIgnoringNulls(aVal, bVal, nil) {
+				return false
+			}
+		}
+		return true
+	}
+
+	return a.RawEquals(b)
+}
 
 // traceNamePlanResourceInstance is a standardize trace span name we use for the
 // overall execution of all graph nodes that somehow represent the planning

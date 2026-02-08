@@ -167,7 +167,8 @@ func (c *PlanCommand) OperationRequest(
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()
-	opReq.PlanRefresh = args.Refresh
+	opReq.PlanRefresh = args.Refresh.RefreshEnabled()
+	opReq.PlanRefreshMode = args.Refresh.Mode
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
 	opReq.Targets = args.Targets
@@ -234,6 +235,11 @@ Plan Customization Options:
                           planning faster, but at the expense of possibly
                           planning against a stale record of the remote system
                           state.
+
+  -refresh=config         Only refresh resources whose configuration has changed
+                          (literals, variables, locals). This mode does not
+                          detect drift or changes propagated through resource
+                          dependencies.
 
   -replace=resource       Force replacement of a particular resource instance
                           using its resource address. If the plan would've

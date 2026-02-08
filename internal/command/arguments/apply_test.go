@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -37,7 +38,7 @@ func TestParseApply_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -55,7 +56,7 @@ func TestParseApply_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -73,7 +74,7 @@ func TestParseApply_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -91,7 +92,7 @@ func TestParseApply_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -778,7 +779,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
@@ -795,7 +796,7 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
-					Refresh:     true,
+					Refresh:     RefreshFlagValue{Mode: tofu.RefreshAll},
 				},
 			},
 		},
