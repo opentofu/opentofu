@@ -311,18 +311,27 @@ func (ops *execOperations) ManagedApply(
 // ManagedDepose implements [exec.Operations].
 func (ops *execOperations) ManagedDepose(
 	ctx context.Context,
-	instAddr addrs.AbsResourceInstance,
+	currentObj *exec.ResourceInstanceObject,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] apply phase: ManagedDepose %s", instAddr)
 	var diags tfdiags.Diagnostics
-
-	deposedKey := ops.workingState.DeposeResourceInstanceObject(instAddr)
-	if deposedKey == states.NotDeposed {
-		// This means that there was no "current" object to depose, and
-		// so we'll return nil to represent that there's nothing here.
+	if currentObj == nil {
+		log.Println("[TRACE] apply phase: ManagedDepose with nil object (ignored)")
 		return nil, diags
 	}
-	return ops.resourceInstanceStateObject(ctx, ops.workingState, instAddr, deposedKey)
+	log.Printf("[TRACE] apply phase: ManagedDepose %s", currentObj.InstanceAddr)
+
+	deposedKey := ops.workingState.DeposeResourceInstanceObject(currentObj.InstanceAddr)
+	if deposedKey == states.NotDeposed {
+		// We should not get here with a correctly-constructed execution graph
+		// because currentObj being non-nil means that there should definitely
+		// be something to depose.
+		diags = diags.Append(fmt.Errorf(
+			"failed to depose the current object for %s; this is a bug in OpenTofu",
+			currentObj.InstanceAddr,
+		))
+		return nil, diags
+	}
+	return currentObj.IntoDeposed(deposedKey), diags
 }
 
 // ManagedAlreadyDeposed implements [exec.Operations].
@@ -341,9 +350,24 @@ func (ops *execOperations) ManagedAlreadyDeposed(
 // ManagedChangeAddr implements [exec.Operations].
 func (ops *execOperations) ManagedChangeAddr(
 	ctx context.Context,
-	currentInstAddr, newInstAddr addrs.AbsResourceInstance,
+	currentObj *exec.ResourceInstanceObject,
+	newAddr addrs.AbsResourceInstance,
 ) (*exec.ResourceInstanceObject, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] apply phase: ManagedChangeAddr from %s to %s", currentInstAddr, newInstAddr)
-	// TODO: Implement
-	panic("ManagedChangeAddr not yet implemented")
+	var diags tfdiags.Diagnostics
+	if currentObj == nil {
+		log.Println("[TRACE] apply phase: ManagedChangeAddr with nil object (ignored)")
+		return nil, diags
+	}
+	log.Printf("[TRACE] apply phase: ManagedChangeAddr from %s to %s", currentObj.InstanceAddr, newAddr)
+	if !ops.workingState.MaybeMoveResourceInstance(currentObj.InstanceAddr, newAddr) {
+		// We should not get here with a correctly-constructed execution graph
+		// because currentObj being non-nil means that there should definitely
+		// be something to move.
+		diags = diags.Append(fmt.Errorf(
+			"failed to move %s to %s; this is a bug in OpenTofu",
+			currentObj.InstanceAddr, newAddr,
+		))
+		return nil, diags
+	}
+	return currentObj.WithNewAddr(newAddr), diags
 }

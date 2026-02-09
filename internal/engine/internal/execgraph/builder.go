@@ -193,11 +193,12 @@ func (b *Builder) ManagedApply(
 }
 
 func (b *Builder) ManagedDepose(
-	instAddr ResultRef[addrs.AbsResourceInstance],
+	currentObj ResourceInstanceResultRef,
+	waitFor AnyResultRef,
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedDepose,
-		operands: []AnyResultRef{instAddr},
+		operands: []AnyResultRef{currentObj, waitFor},
 	})
 }
 
@@ -212,12 +213,12 @@ func (b *Builder) ManagedAlreadyDeposed(
 }
 
 func (b *Builder) ManagedChangeAddr(
-	currentInstAddr ResultRef[addrs.AbsResourceInstance],
-	newInstAddr ResultRef[addrs.AbsResourceInstance],
+	currentObj ResourceInstanceResultRef,
+	newAddr ResultRef[addrs.AbsResourceInstance],
 ) ResourceInstanceResultRef {
 	return operationRef[*exec.ResourceInstanceObject](b, operationDesc{
 		opCode:   opManagedChangeAddr,
-		operands: []AnyResultRef{currentInstAddr, newInstAddr},
+		operands: []AnyResultRef{currentObj, newAddr},
 	})
 }
 

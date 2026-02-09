@@ -92,6 +92,39 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				test.placeholder = r[3];
 			`,
 		},
+		"update with move": {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+				oldInstAddr := addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test",
+					Name: "old",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+				return b.ManagedResourceInstanceSubgraph(
+					&plans.ResourceInstanceChange{
+						Addr:        instAddr,
+						PrevRunAddr: oldInstAddr,
+						Change: plans.Change{
+							Action: plans.Update,
+							Before: cty.StringVal("before"),
+							After:  cty.StringVal("after"),
+						},
+					},
+					providerClientRef,
+					addrs.MakeSet[addrs.AbsResourceInstance](),
+				)
+			},
+			`
+				v[0] = cty.StringVal("after");
+
+				r[0] = ResourceInstancePrior(test.old);
+				r[1] = ManagedChangeAddr(r[0], test.placeholder);
+				r[2] = ResourceInstanceDesired(test.placeholder, await());
+				r[3] = ManagedFinalPlan(r[2], r[1], v[0], nil);
+				r[4] = ManagedApply(r[3], nil, nil, await());
+
+				test.placeholder = r[4];
+			`,
+		},
 		"delete": {
 			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
 				return b.ManagedResourceInstanceSubgraph(

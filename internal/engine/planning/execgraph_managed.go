@@ -255,7 +255,6 @@ func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
 		newAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
 		return newAddrRef, execgraph.NilResultRef[*exec.ResourceInstanceObject]()
 	}
-	prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
 	if plannedChange.DeposedKey != states.NotDeposed {
 		// We need to use a different operation to access deposed objects.
 		prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
@@ -263,15 +262,16 @@ func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
 		stateRef := b.lower.ManagedAlreadyDeposed(prevAddrRef, dkRef)
 		return execgraph.NilResultRef[addrs.AbsResourceInstance](), stateRef
 	}
-	newAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.Addr)
+	prevAddrRef := b.lower.ConstantResourceInstAddr(plannedChange.PrevRunAddr)
+	priorStateRef := b.lower.ResourceInstancePrior(prevAddrRef)
+	retAddrRef := prevAddrRef
+	retStateRef := priorStateRef
 	if !plannedChange.PrevRunAddr.Equal(plannedChange.Addr) {
-		// If the address is changing then we need to use the "change address"
-		// operation instead of just reading te prior state.
-		stateRef := b.lower.ManagedChangeAddr(prevAddrRef, newAddrRef)
-		return newAddrRef, stateRef
+		// If the address is changing then we'll also include the
+		// "change address" operation so that the object will get rebound
+		// to its new address before we do any other work.
+		retAddrRef = b.lower.ConstantResourceInstAddr(plannedChange.Addr)
+		retStateRef = b.lower.ManagedChangeAddr(retStateRef, retAddrRef)
 	}
-	// In all other cases we just take the prior state directly out of the
-	// prior state, without any special behavior.
-	stateRef := b.lower.ResourceInstancePrior(prevAddrRef)
-	return newAddrRef, stateRef
+	return retAddrRef, retStateRef
 }

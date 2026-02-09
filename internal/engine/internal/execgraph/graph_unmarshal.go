@@ -271,14 +271,18 @@ func unmarshalOpManagedApply(rawOperands []uint64, prevResults []AnyResultRef, b
 }
 
 func unmarshalOpManagedDepose(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
-	if len(rawOperands) != 1 {
+	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedDepose", len(rawOperands))
 	}
-	instAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	currentObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedDepose instAddr: %w", err)
+		return nil, fmt.Errorf("invalid opManagedDepose currentObj: %w", err)
 	}
-	return builder.ManagedDepose(instAddr), nil
+	waitFor, err := unmarshalGetPrevResultWaiter(prevResults, rawOperands[1])
+	if err != nil {
+		return nil, fmt.Errorf("invalid opManagedDepose waitFor: %w", err)
+	}
+	return builder.ManagedDepose(currentObj, waitFor), nil
 }
 
 func unmarshalOpManagedAlreadyDeposed(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
@@ -300,15 +304,15 @@ func unmarshalOpManagedChangeAddr(rawOperands []uint64, prevResults []AnyResultR
 	if len(rawOperands) != 2 {
 		return nil, fmt.Errorf("wrong number of operands (%d) for opManagedChangeAddr", len(rawOperands))
 	}
-	currentInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[0])
+	currentObj, err := unmarshalGetPrevResultOf[*exec.ResourceInstanceObject](prevResults, rawOperands[0])
 	if err != nil {
-		return nil, fmt.Errorf("invalid opManagedChangeAddr currentInstAddr: %w", err)
+		return nil, fmt.Errorf("invalid opManagedChangeAddr currentObj: %w", err)
 	}
-	newInstAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[1])
+	newAddr, err := unmarshalGetPrevResultOf[addrs.AbsResourceInstance](prevResults, rawOperands[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid opManagedChangeAddr newInstAddr: %w", err)
 	}
-	return builder.ManagedChangeAddr(currentInstAddr, newInstAddr), nil
+	return builder.ManagedChangeAddr(currentObj, newAddr), nil
 }
 
 func unmarshalOpDataRead(rawOperands []uint64, prevResults []AnyResultRef, builder *Builder) (AnyResultRef, error) {
