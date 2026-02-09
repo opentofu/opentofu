@@ -95,7 +95,11 @@ func (v *View) RunningInAutomation() bool {
 
 // Configure applies the global view configuration flags.
 func (v *View) Configure(view *arguments.View) {
+	colors := maps.Clone(colorstring.DefaultColors)
+	colors["purple"] = "38;5;57" // Add also purple to the colorise colors set
+
 	v.colorize.Disable = view.NoColor
+	v.colorize.Colors = colors
 	v.compactWarnings = view.CompactWarnings
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
