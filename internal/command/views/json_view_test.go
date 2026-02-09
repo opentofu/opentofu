@@ -458,7 +458,12 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 			break
 		}
 		wantStruct := want[i]
-
+		// When the json content generated is empty, there will be an empty one liner that can be matched
+		// by a "want" slice with one empty element
+		if len(gotLines[i]) == 0 && len(wantStruct) == 0 {
+			t.Logf("json output empty and that matches the requirements")
+			continue
+		}
 		if err := json.Unmarshal([]byte(gotLines[i]), &gotStruct); err != nil {
 			t.Fatal(err)
 		}
