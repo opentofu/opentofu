@@ -73,6 +73,17 @@ func (pi *providerInstances) ProviderClient(ctx context.Context, addr addrs.AbsP
 			// nil to prompt the caller to generate its own error saying that
 			// whatever operation the provider was going to be used for cannot
 			// be performed.
+			//
+			// FIXME: This currently doesn't handle the case where there's
+			// an orphan or deposed resource instance object in the previous
+			// run state referring to a provider instance whose configuration
+			// was originally just implied to be empty by the existence of
+			// some resource elsewhere in the configuration. Removing all
+			// desired resource instances for such an implied provider when
+			// there's still at least one object tracked in the state causes
+			// us to return nil, here, whereas we ought to somehow attempt
+			// to perform the implicit empty configuration behavior in that
+			// case too.
 			return nil, nil
 		}
 		configVal := config.ConfigVal
