@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command"
 )
 
 func TestMain_cliArgsFromEnv(t *testing.T) {
@@ -291,7 +292,7 @@ func (c *testCommandCLI) Help() string     { return "" }
 
 func TestWarnOutput(t *testing.T) {
 	mock := cli.NewMockUi()
-	wrapped := &ui{mock}
+	wrapped := command.NewWrappedUi(mock)
 	wrapped.Warn("WARNING")
 
 	stderr := mock.ErrorWriter.String()
