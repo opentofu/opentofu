@@ -231,7 +231,8 @@ func (c *compiler) compileOpManagedApply(operands *compilerOperands) nodeExecute
 
 func (c *compiler) compileOpManagedDepose(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
-	getInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	getCurrentObj := nextOperand[*exec.ResourceInstanceObject](operands)
+	waitForDeps := operands.OperandWaiter()
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -240,14 +241,17 @@ func (c *compiler) compileOpManagedDepose(operands *compilerOperands) nodeExecut
 
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
+		if !waitForDeps(ctx) {
+			return nil, false, diags
+		}
 
-		instAddr, ok, moreDiags := getInstAddr(ctx)
+		currentObj, ok, moreDiags := getCurrentObj(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedDepose(ctx, instAddr)
+		ret, moreDiags := ops.ManagedDepose(ctx, currentObj)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}
@@ -285,8 +289,8 @@ func (c *compiler) compileOpManagedAlreadyDeposed(operands *compilerOperands) no
 
 func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeExecuteRaw {
 	ops := c.ops
-	getCurrentInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
-	getNewInstAddr := nextOperand[addrs.AbsResourceInstance](operands)
+	getCurrentObj := nextOperand[*exec.ResourceInstanceObject](operands)
+	getNewAddr := nextOperand[addrs.AbsResourceInstance](operands)
 	diags := operands.Finish()
 	c.diags = c.diags.Append(diags)
 	if diags.HasErrors() {
@@ -296,18 +300,18 @@ func (c *compiler) compileOpManagedChangeAddr(operands *compilerOperands) nodeEx
 	return func(ctx context.Context) (any, bool, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 
-		currentInstAddr, ok, moreDiags := getCurrentInstAddr(ctx)
+		currentObj, ok, moreDiags := getCurrentObj(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
-		newInstAddr, ok, moreDiags := getNewInstAddr(ctx)
+		newAddr, ok, moreDiags := getNewAddr(ctx)
 		diags = diags.Append(moreDiags)
 		if !ok {
 			return nil, false, diags
 		}
 
-		ret, moreDiags := ops.ManagedChangeAddr(ctx, currentInstAddr, newInstAddr)
+		ret, moreDiags := ops.ManagedChangeAddr(ctx, currentObj, newAddr)
 		diags = diags.Append(moreDiags)
 		return ret, !diags.HasErrors(), diags
 	}

@@ -117,6 +117,16 @@ func (o *ResourceInstanceObject) IntoDeposed(key states.DeposedKey) *ResourceIns
 	}
 }
 
+// WithNewAddr returns a new [ResourceInstanceObject] that has the same
+// State as the receiver but has InstanceAddr set to the given address.
+func (o *ResourceInstanceObject) WithNewAddr(addr addrs.AbsResourceInstance) *ResourceInstanceObject {
+	return &ResourceInstanceObject{
+		InstanceAddr: addr,
+		DeposedKey:   o.DeposedKey,
+		State:        o.State,
+	}
+}
+
 // IntoCurrent returns a new [ResourceInstanceObject] that has the same
 // address information as the receiver but has State set to the given object.
 //

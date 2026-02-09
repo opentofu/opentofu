@@ -191,21 +191,26 @@ type Operations interface {
 		providerClient *ProviderClient,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
-	// ManagedDepose transforms the "current" object associated with the given
-	// resource instance address into a "deposed" object for the same resource
-	// instance, and then returns the description of the now-deposed object.
-	//
-	// If there is no current object associated with that resource instance,
-	// this returns nil without changing anything.
+	// ManagedDepose takes a "current" object for some resource instance and
+	// changes it to be a "deposed" object for the same resource instance,
+	// returning a new representation of the object with its
+	// pseudorandomly-chosen unique DeposedKey.
 	//
 	// When using this as part of a "create then destroy" replace operation,
 	// a correct execution graph arranges for the result to be propagated into
 	// the "fallback" argument of a subsequent [Operations.ManagedApply] call,
 	// so that the deposed object can be restored back to current if the
 	// apply operation fails to the extent that no new object is created at all.
+	//
+	// The given object must not already have "DeposedKey" set, because that
+	// would make it a deposed object instead of a current object.
+	// If the given object is nil then this returns nil without changing
+	// anything. In practice though the planning engine should not include
+	// this operation unless it found an existing current object that needs to
+	// be deposed as part of a create-then-destroy "replace" change.
 	ManagedDepose(
 		ctx context.Context,
-		instAddr addrs.AbsResourceInstance,
+		object *ResourceInstanceObject,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	// ManagedAlreadyDeposed returns a deposed object from the prior state,
@@ -217,6 +222,9 @@ type Operations interface {
 	// That occurs only when a previous plan/apply round encountered an error
 	// partway through a "create then destroy" replace operation where both
 	// the newly-created object and the previously-existing object still exist.
+	// In that case, this operation serves a similar purpose to
+	// [Operations.ResourceInstancePrior] but returns a deposed object rather
+	// than a current object.
 	//
 	// [Operations.ManagedDepose] deals with the more common case where a
 	// previously-"current" object becomes deposed during the apply phase as
@@ -227,25 +235,28 @@ type Operations interface {
 		deposedKey states.DeposedKey,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
-	// ManageChangeAddr rebinds the current object associated with
-	// currentInstAddr to be associated with newInstAddr instead, and then
-	// returns that object with its updated address.
+	// ManageChangeAddr rebinds the given object to be associated with
+	// newInstAddr instead, and then returns a new representation of that object
+	// with its updated address.
 	//
-	// This is used in place of [Operations.ResourceInstancePrior] whenever a
-	// resource instance address is being moved to a new address. The move
-	// and the read from the state are combined into a single action so that
-	// we can treat this as an atomic operation where there's no intermediate
-	// state where the relevant object is associated with either neither or both
-	// of the two addresses.
+	// This is used between [Operations.ResourceInstancePrior] and
+	// [Operations.ManagedFinalPlan] whenever an existing resource instance
+	// object is being moved to a new address using "moved" blocks. The move
+	// is modelled as a separate action because it's okay for the final state
+	// to reflect the address change even if subsequent plan/apply actions
+	// fail.
 	//
-	// If there is no current object associated with currentInstAddr when
-	// this operation executes then it does nothing and returns a nil object
-	// with no errors, though in practice the planning engine should not include
-	// this operation unless it found an existing object that needed to be
-	// moved.
+	// If the incoming object is nil then this also returns nil without making
+	// any change and no errors. In practice though the planning engine should
+	// not include this operation unless it found an existing object that needed
+	// to be moved.
+	//
+	// This is for use with "current" resource instance objects only, so
+	// implementers can assume that the given object will have no DeposedKey.
 	ManagedChangeAddr(
 		ctx context.Context,
-		currentInstAddr, newInstAddr addrs.AbsResourceInstance,
+		object *ResourceInstanceObject,
+		newAddr addrs.AbsResourceInstance,
 	) (*ResourceInstanceObject, tfdiags.Diagnostics)
 
 	//////////////////////////////////////////////////////////////////////////////
