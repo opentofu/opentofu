@@ -34,6 +34,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
+	clistate "github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -44,7 +45,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/initwd"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	_ "github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -450,7 +450,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 
 // testStateFileRemote writes the state out to the remote statefile
 // in the cwd. Use `testCwd` to change into a temp cwd.
-func testStateFileRemote(t *testing.T, s *legacy.State) string {
+func testStateFileRemote(t *testing.T, s *clistate.CLIState) string {
 	t.Helper()
 
 	path := filepath.Join(DefaultDataDir, DefaultStateFilename)
@@ -464,7 +464,7 @@ func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	}
 	defer f.Close()
 
-	if err := legacy.WriteState(s, f); err != nil {
+	if err := clistate.WriteState(s, f); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -492,9 +492,9 @@ func testStateRead(t *testing.T, path string) *states.State {
 // testDataStateRead reads a "data state", which is a file format resembling
 // our state format v3 that is used only to track current backend settings.
 //
-// This old format still uses *legacy.State, but should be replaced with
-// a more specialized type in a later release.
-func testDataStateRead(t *testing.T, path string) *legacy.State {
+// This uses *clistate.CLIState which is the specialized type for
+// tracking backend configuration.
+func testDataStateRead(t *testing.T, path string) *clistate.CLIState {
 	t.Helper()
 
 	f, err := os.Open(path)
@@ -503,7 +503,7 @@ func testDataStateRead(t *testing.T, path string) *legacy.State {
 	}
 	defer f.Close()
 
-	s, err := legacy.ReadState(f)
+	s, err := clistate.ReadState(f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -713,7 +713,7 @@ func testInputMap(t *testing.T, answers map[string]string) func() {
 // be returned about the backend configuration having changed and that
 // "tofu init" must be run, since the test backend config cache created
 // by this function contains the hash for an empty configuration.
-func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *httptest.Server) {
+func testBackendState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
 	t.Helper()
 
 	var b64md5 string
@@ -757,8 +757,8 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	configSchema := b.ConfigSchema()
 	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 
-	state := legacy.NewState()
-	state.Backend = &legacy.BackendState{
+	state := clistate.NewState()
+	state.Backend = &clistate.BackendState{
 		Type:      "http",
 		ConfigRaw: json.RawMessage(fmt.Sprintf(`{"address":%q}`, srv.URL)),
 		Hash:      uint64(hash),
@@ -768,12 +768,12 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 }
 
 // testRemoteState is used to make a test HTTP server to return a given
-// state file that can be used for testing legacy remote state.
+// state file that can be used for testing remote backend state.
 //
-// The return values are a *legacy.State instance that should be written
+// The return values are a *clistate.CLIState instance that should be written
 // as the "data state" (really: backend state) and the server that the
 // returned data state refers to.
-func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *httptest.Server) {
+func testRemoteState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
 	t.Helper()
 
 	var b64md5 string
@@ -795,10 +795,10 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 	}
 
-	retState := legacy.NewState()
+	retState := clistate.NewState()
 
 	srv := httptest.NewServer(http.HandlerFunc(cb))
-	b := &legacy.BackendState{
+	b := &clistate.BackendState{
 		Type: "http",
 	}
 	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
