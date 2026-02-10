@@ -81,7 +81,6 @@ func (c *InitCommand) Run(rawArgs []string) int {
 		view.HelpPrompt()
 		return 1
 	}
-	c.View.SetShowSensitive(args.ShowSensitive)
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
 	// operation, but there is no clear path to pass this value down, so we

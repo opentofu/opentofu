@@ -50,9 +50,6 @@ type Init struct {
 	// Backend holds and providers information for the flags related to the backend operations, like locking
 	// locking timeout, force migration, etc.
 	Backend *Backend
-
-	// ShowSensitive is used to display the value of variables marked as sensitive.
-	ShowSensitive bool
 }
 
 // ParseInit processes CLI arguments, returning an Init value, a closer function, and errors.
