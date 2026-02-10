@@ -20,6 +20,7 @@ ENHANCEMENTS:
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
 - New CLI argument `-json-into=<outfile>` has been added to support emitting both human readable and machine readable logs ([#3606](https://github.com/opentofu/opentofu/pull/3606))
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
+- Add a clarifying section on how to use Tab-completion with aliases to documentation as tofu don't allow the usual methods. ([#3659](https://github.com/opentofu/opentofu/pull/3659))
 
 BUG FIXES:
 
