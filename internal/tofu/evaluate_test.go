@@ -865,8 +865,9 @@ func TestEvaluatorGetModule(t *testing.T) {
 	// Changes should override the state value
 	changesSync := plans.NewChanges().SyncWrapper()
 	change := &plans.OutputChange{
-		Addr:      addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
-		Sensitive: true,
+		Addr:            addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+		AfterSensitive:  true,
+		BeforeSensitive: true,
 		Change: plans.Change{
 			After: cty.StringVal("baz"),
 		},

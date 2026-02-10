@@ -542,8 +542,9 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveBefore,
+			Addr:            n.Addr,
+			BeforeSensitive: sensitiveBefore,
+			AfterSensitive:  false,
 			Change: plans.Change{
 				Action: plans.Delete,
 				Before: before,
@@ -601,11 +602,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 			}
 		}
 
-		// We will not show the value if either the before or after are marked
-		// as sensitive. We can show the value again once sensitivity is
-		// removed from both the config and the state.
-		sensitiveChange := sensitiveBefore || n.Config.Sensitive
-
 		// strip any marks here just to be sure we don't panic on the True comparison
 		unmarkedVal, _ := val.UnmarkDeep()
 
@@ -635,8 +631,9 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		}
 
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveChange,
+			Addr:            n.Addr,
+			BeforeSensitive: sensitiveBefore,
+			AfterSensitive:  n.Config.Sensitive,
 			Change: plans.Change{
 				Action: action,
 				Before: before,

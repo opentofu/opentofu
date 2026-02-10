@@ -42,7 +42,6 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Action: plans.Create,
 						After:  mustDynamicOutputValue("bar value"),
 					},
-					Sensitive: false,
 				},
 				{
 					Addr: addrs.OutputValue{Name: "baz"}.Absolute(addrs.RootModuleInstance),
@@ -51,7 +50,6 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Before: mustDynamicOutputValue("baz value"),
 						After:  mustDynamicOutputValue("baz value"),
 					},
-					Sensitive: false,
 				},
 				{
 					Addr: addrs.OutputValue{Name: "secret"}.Absolute(addrs.RootModuleInstance),
@@ -60,7 +58,8 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Before: mustDynamicOutputValue("old secret value"),
 						After:  mustDynamicOutputValue("new secret value"),
 					},
-					Sensitive: true,
+					BeforeSensitive: true,
+					AfterSensitive:  true,
 				},
 			},
 			Resources: []*plans.ResourceInstanceChangeSrc{

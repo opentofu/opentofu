@@ -20,6 +20,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
+- Output sensitivity changes are now tracked separately as `BeforeSensitive` and `AfterSensitive`, allowing plan output and JSON plan to correctly display when an output's sensitivity transitions without the value changing. ([#2680](https://github.com/opentofu/opentofu/issues/2680))
 - Modules containing local provider configurations now also reject the `enabled` argument, matching existing behavior for `count`, `for_each`, and `depends_on`. ([#3680](https://github.com/opentofu/opentofu/pull/3680))
 - Fixed state lock not being released when `tofu apply` is interrupted with Ctrl+C while using the HTTP backend. ([#3624](https://github.com/opentofu/opentofu/issues/3624))
 - Fixed dependency cycle error when a module with check blocks is referenced via `depends_on` by another module. ([#3060](https://github.com/opentofu/opentofu/issues/3060))

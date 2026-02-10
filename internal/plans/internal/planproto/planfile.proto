@@ -269,8 +269,16 @@ message OutputChange {
 
     // Sensitive, if true, indicates that one or more of the values given
     // in "change" is sensitive and should not be shown directly in any
-    // rendered plan.
+    // rendered plan. Kept for backward compatibility with older readers.
     bool sensitive = 3;
+
+    // BeforeSensitive indicates whether the output value was sensitive
+    // in the prior state.
+    bool before_sensitive = 4;
+
+    // AfterSensitive indicates whether the output value is sensitive
+    // in the current configuration.
+    bool after_sensitive = 5;
 }
 
 message CheckResults {

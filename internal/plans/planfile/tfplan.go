@@ -88,13 +88,23 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 			return nil, fmt.Errorf("invalid plan for output %q: %w", name, err)
 		}
 
+		// Old plans use the old sensitive field still
+		// New plans use the before vs after sensitive
+		beforeSensitive := rawOC.BeforeSensitive
+		afterSensitive := rawOC.AfterSensitive
+		if rawOC.Sensitive && !rawOC.BeforeSensitive && !rawOC.AfterSensitive {
+			beforeSensitive = true
+			afterSensitive = true
+		}
+
 		plan.Changes.Outputs = append(plan.Changes.Outputs, &plans.OutputChangeSrc{
 			// All output values saved in the plan file are root module outputs,
 			// since we don't retain others. (They can be easily recomputed
 			// during apply).
-			Addr:      addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
-			ChangeSrc: *change,
-			Sensitive: rawOC.Sensitive,
+			Addr:            addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
+			ChangeSrc:       *change,
+			BeforeSensitive: beforeSensitive,
+			AfterSensitive:  afterSensitive,
 		})
 	}
 
@@ -551,9 +561,11 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		}
 
 		rawPlan.OutputChanges = append(rawPlan.OutputChanges, &planproto.OutputChange{
-			Name:      name,
-			Change:    protoChange,
-			Sensitive: oc.Sensitive,
+			Name:            name,
+			Change:          protoChange,
+			Sensitive:       oc.BeforeSensitive || oc.AfterSensitive, // for old readers
+			BeforeSensitive: oc.BeforeSensitive,
+			AfterSensitive:  oc.AfterSensitive,
 		})
 	}
 

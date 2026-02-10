@@ -326,6 +326,84 @@ func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
 	}
 }
 
+func TestNodeApplyableOutputExecute_sensitivityOnlyChange(t *testing.T) {
+	// When only the sensitive attribute changes (value stays the same), the
+	// planner should produce an Update change with correct BeforeSensitive
+	// and AfterSensitive values.
+	tests := []struct {
+		name            string
+		sensitiveBefore bool
+		sensitiveAfter  bool
+		wantAction      plans.Action
+		wantBefore      bool
+		wantAfter       bool
+	}{
+		{
+			name:            "becoming sensitive",
+			sensitiveBefore: false,
+			sensitiveAfter:  true,
+			wantAction:      plans.Update,
+			wantBefore:      false,
+			wantAfter:       true,
+		},
+		{
+			name:            "becoming non-sensitive",
+			sensitiveBefore: true,
+			sensitiveAfter:  false,
+			wantAction:      plans.Update,
+			wantBefore:      true,
+			wantAfter:       false,
+		},
+		{
+			name:            "no change",
+			sensitiveBefore: false,
+			sensitiveAfter:  false,
+			wantAction:      plans.NoOp,
+			wantBefore:      false,
+			wantAfter:       false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			state := states.NewState()
+			addr := addrs.OutputValue{Name: "test"}.Absolute(addrs.RootModuleInstance)
+			state.Module(addrs.RootModuleInstance).SetOutputValue("test", cty.StringVal("value"), tc.sensitiveBefore, "")
+
+			changes := plans.NewChanges()
+
+			node := &NodeApplyableOutput{
+				Addr: addr,
+				Config: &configs.Output{
+					Name:      "test",
+					Sensitive: tc.sensitiveAfter,
+				},
+				Planning: true,
+			}
+
+			node.setValue(state.SyncWrapper(), changes.SyncWrapper(), cty.StringVal("value"))
+
+			// Find the output change
+			oc := changes.OutputValue(addr)
+			if oc == nil {
+				t.Fatal("expected output change to be recorded")
+			}
+
+			if oc.Action != tc.wantAction {
+				t.Errorf("wrong action: got %s, want %s", oc.Action, tc.wantAction)
+			}
+
+			if oc.BeforeSensitive != tc.wantBefore {
+				t.Errorf("wrong BeforeSensitive: got %v, want %v", oc.BeforeSensitive, tc.wantBefore)
+			}
+
+			if oc.AfterSensitive != tc.wantAfter {
+				t.Errorf("wrong AfterSensitive: got %v, want %v", oc.AfterSensitive, tc.wantAfter)
+			}
+		})
+	}
+}
+
 func TestNodeDestroyableOutputExecute(t *testing.T) {
 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 

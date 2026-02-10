@@ -7493,6 +7493,30 @@ func TestOutputChanges(t *testing.T) {
   ~ b = (sensitive value)
   ~ c = false -> true`,
 		},
+		"sensitivity becoming sensitive": {
+			[]*plans.OutputChangeSrc{
+				outputChangeWithSensitivity(
+					"foo",
+					cty.StringVal("bar"),
+					cty.StringVal("bar"),
+					false,
+					true,
+				),
+			},
+			`  ~ foo = (sensitive value)`,
+		},
+		"sensitivity becoming non-sensitive": {
+			[]*plans.OutputChangeSrc{
+				outputChangeWithSensitivity(
+					"foo",
+					cty.StringVal("bar"),
+					cty.StringVal("bar"),
+					true,
+					false,
+				),
+			},
+			`  ~ foo = (sensitive value)`,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -7520,6 +7544,10 @@ func TestOutputChanges(t *testing.T) {
 }
 
 func outputChange(name string, before, after cty.Value, sensitive bool) *plans.OutputChangeSrc {
+	return outputChangeWithSensitivity(name, before, after, sensitive, sensitive)
+}
+
+func outputChangeWithSensitivity(name string, before, after cty.Value, beforeSensitive, afterSensitive bool) *plans.OutputChangeSrc {
 	addr := addrs.AbsOutputValue{
 		OutputValue: addrs.OutputValue{Name: name},
 	}
@@ -7529,7 +7557,8 @@ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.O
 			Before: before,
 			After:  after,
 		},
-		Sensitive: sensitive,
+		BeforeSensitive: beforeSensitive,
+		AfterSensitive:  afterSensitive,
 	}
 
 	changeSrc, err := change.Encode()

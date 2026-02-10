@@ -146,11 +146,13 @@ type OutputChangeSrc struct {
 	// instances is always cty.DynamicPseudoType.
 	ChangeSrc
 
-	// Sensitive, if true, indicates that either the old or new value in the
-	// change is sensitive and so a rendered version of the plan in the UI
-	// should elide the actual values while still indicating the action of the
-	// change.
-	Sensitive bool
+	// BeforeSensitive, if true, indicates that the old value of the output
+	// was marked as sensitive in the prior state.
+	BeforeSensitive bool
+
+	// AfterSensitive, if true, indicates that the new value of the output
+	// is marked as sensitive in the current configuration.
+	AfterSensitive bool
 }
 
 // Decode unmarshals the raw representation of the output value being
@@ -161,9 +163,10 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
 		return nil, err
 	}
 	return &OutputChange{
-		Addr:      ocs.Addr,
-		Change:    *change,
-		Sensitive: ocs.Sensitive,
+		Addr:            ocs.Addr,
+		Change:          *change,
+		BeforeSensitive: ocs.BeforeSensitive,
+		AfterSensitive:  ocs.AfterSensitive,
 	}, nil
 }
 

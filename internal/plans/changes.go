@@ -513,11 +513,13 @@ type OutputChange struct {
 	// instances is always cty.DynamicPseudoType.
 	Change
 
-	// Sensitive, if true, indicates that either the old or new value in the
-	// change is sensitive and so a rendered version of the plan in the UI
-	// should elide the actual values while still indicating the action of the
-	// change.
-	Sensitive bool
+	// BeforeSensitive, if true, indicates that the old value of the output
+	// was marked as sensitive in the prior state.
+	BeforeSensitive bool
+
+	// AfterSensitive, if true, indicates that the new value of the output
+	// is marked as sensitive in the current configuration.
+	AfterSensitive bool
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -528,9 +530,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 		return nil, err
 	}
 	return &OutputChangeSrc{
-		Addr:      oc.Addr,
-		ChangeSrc: *cs,
-		Sensitive: oc.Sensitive,
+		Addr:            oc.Addr,
+		ChangeSrc:       *cs,
+		BeforeSensitive: oc.BeforeSensitive,
+		AfterSensitive:  oc.AfterSensitive,
 	}, err
 }
 

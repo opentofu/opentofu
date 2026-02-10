@@ -107,8 +107,7 @@ func TestOutputsFromChanges(t *testing.T) {
 				Before: num,
 				After:  num,
 			},
-			Sensitive: false,
-		},
+			},
 		// New output "beep", value 1234
 		{
 			Addr: root.OutputValue("beep"),
@@ -117,8 +116,7 @@ func TestOutputsFromChanges(t *testing.T) {
 				Before: nil,
 				After:  num,
 			},
-			Sensitive: false,
-		},
+			},
 		// Deleted output "blorp", prior value 1234
 		{
 			Addr: root.OutputValue("blorp"),
@@ -127,8 +125,7 @@ func TestOutputsFromChanges(t *testing.T) {
 				Before: num,
 				After:  nil,
 			},
-			Sensitive: false,
-		},
+			},
 		// Updated output "honk", prior value 1234, new value "1234"
 		{
 			Addr: root.OutputValue("honk"),
@@ -137,8 +134,7 @@ func TestOutputsFromChanges(t *testing.T) {
 				Before: num,
 				After:  str,
 			},
-			Sensitive: false,
-		},
+			},
 		// New sensitive output "secret", value "1234"
 		{
 			Addr: root.OutputValue("secret"),
@@ -147,27 +143,23 @@ func TestOutputsFromChanges(t *testing.T) {
 				Before: nil,
 				After:  str,
 			},
-			Sensitive: true,
+			AfterSensitive: true,
 		},
 	})
 
 	want := jsonentities.Outputs{
 		"boop": {
 			Action:    "noop",
-			Sensitive: false,
-		},
+			},
 		"beep": {
 			Action:    "create",
-			Sensitive: false,
-		},
+			},
 		"blorp": {
 			Action:    "delete",
-			Sensitive: false,
-		},
+			},
 		"honk": {
 			Action:    "update",
-			Sensitive: false,
-		},
+			},
 		"secret": {
 			Action:    "create",
 			Sensitive: true,
