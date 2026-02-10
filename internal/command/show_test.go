@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -586,21 +585,23 @@ func TestShow_json_output(t *testing.T) {
 			p := showFixtureProvider()
 
 			// init
-			ui := new(cli.MockUi)
+			view, done := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
-					Ui:               ui,
+					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}
-			if code := ic.Run([]string{}); code != 0 {
+			code := ic.Run([]string{})
+			output := done(t)
+			if code != 0 {
 				if expectError {
 					// this should error, but not panic.
 					return
 				}
-				t.Fatalf("init failed\n%s", ui.ErrorWriter)
+				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
 			// read expected output
@@ -634,7 +635,7 @@ func TestShow_json_output(t *testing.T) {
 				"-out=tofu.plan",
 			}
 
-			code := pc.Run(args)
+			code = pc.Run(args)
 			planOutput := planDone(t)
 
 			var wantedCode int
@@ -701,17 +702,19 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	p := showFixtureSensitiveProvider()
 
 	// init
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	output := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", output.Stderr())
 	}
 
 	// plan
@@ -728,7 +731,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	args := []string{
 		"-out=tofu.plan",
 	}
-	code := pc.Run(args)
+	code = pc.Run(args)
 	planOutput := planDone(t)
 
 	if code != 0 {
@@ -801,17 +804,19 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	p := showFixtureSensitiveProvider()
 
 	// init
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			ProviderSource:   providerSource,
+			View:             initView,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	output := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", output.Stderr())
 	}
 
 	// plan
@@ -917,17 +922,19 @@ func TestShow_json_output_state(t *testing.T) {
 			p := showFixtureProvider()
 
 			// init
-			ui := new(cli.MockUi)
+			initView, initDone := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
 					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
-					Ui:               ui,
+					View:             initView,
 					ProviderSource:   providerSource,
 				},
 			}
-			if code := ic.Run([]string{}); code != 0 {
-				t.Fatalf("init failed\n%s", ui.ErrorWriter)
+			initCode := ic.Run([]string{})
+			output := initDone(t)
+			if initCode != 0 {
+				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
 			// show
@@ -1365,17 +1372,19 @@ func TestShow_config(t *testing.T) {
 	defer close()
 
 	// Initialize the module
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	initOutput := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
@@ -1470,17 +1479,19 @@ func TestShow_config_withModule(t *testing.T) {
 	defer close()
 
 	// Initialize the module
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	initOutput := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
