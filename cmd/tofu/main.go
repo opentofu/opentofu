@@ -223,7 +223,9 @@ func realMain() int {
 	// Initialize the backends.
 	backendInit.Init(services)
 
-	binName, args := binNameAndArgs()
+	// Get the command line args.
+	binName := filepath.Base(os.Args[0])
+	args := os.Args[1:]
 
 	// Create the workdir and apply the -chdir options.
 	// The logic inside [NewWorkdir] handles the TF_DATA_DIR env var too.
@@ -498,8 +500,4 @@ func mkConfigDir(configDir string) error {
 	}
 
 	return err
-}
-
-func binNameAndArgs() (string, []string) {
-	return filepath.Base(os.Args[0]), os.Args[1:]
 }
