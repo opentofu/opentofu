@@ -181,6 +181,110 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 				test.placeholder = r[5];
 			`,
 		},
+		"delete then create with move": {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+				oldInstAddr := addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test",
+					Name: "old",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+				return b.ManagedResourceInstanceSubgraph(
+					&plans.ResourceInstanceChange{
+						Addr:        instAddr,
+						PrevRunAddr: oldInstAddr,
+						Change: plans.Change{
+							Action: plans.DeleteThenCreate,
+							Before: cty.StringVal("before"),
+							After:  cty.StringVal("after"),
+						},
+					},
+					providerClientRef,
+					addrs.MakeSet[addrs.AbsResourceInstance](),
+				)
+			},
+			`
+				v[0] = cty.StringVal("after");
+				v[1] = cty.NullVal(cty.String);
+
+				r[0] = ResourceInstancePrior(test.old);
+				r[1] = ManagedChangeAddr(r[0], test.placeholder);
+				r[2] = ResourceInstanceDesired(test.placeholder, await());
+				r[3] = ManagedFinalPlan(r[2], nil, v[0], nil);
+				r[4] = ManagedFinalPlan(nil, r[1], v[1], nil);
+				r[5] = ManagedApply(r[4], nil, nil, await(r[3]));
+				r[6] = ManagedApply(r[3], nil, nil, await(r[5]));
+
+				test.placeholder = r[6];
+			`,
+		},
+		"create then delete": {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+				return b.ManagedResourceInstanceSubgraph(
+					&plans.ResourceInstanceChange{
+						Addr:        instAddr,
+						PrevRunAddr: instAddr,
+						Change: plans.Change{
+							Action: plans.CreateThenDelete,
+							Before: cty.StringVal("before"),
+							After:  cty.StringVal("after"),
+						},
+					},
+					providerClientRef,
+					addrs.MakeSet[addrs.AbsResourceInstance](),
+				)
+			},
+			`
+				v[0] = cty.StringVal("after");
+				v[1] = cty.NullVal(cty.String);
+
+				r[0] = ResourceInstancePrior(test.placeholder);
+				r[1] = ResourceInstanceDesired(test.placeholder, await());
+				r[2] = ManagedFinalPlan(r[1], nil, v[0], nil);
+				r[3] = ManagedFinalPlan(nil, r[0], v[1], nil);
+				r[4] = ManagedDepose(r[0], await(r[2], r[3]));
+				r[5] = ManagedApply(r[2], r[4], nil, await());
+				r[6] = ManagedApply(r[3], nil, nil, await(r[5]));
+
+				test.placeholder = r[5];
+			`,
+		},
+		"create then delete with move": {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+				oldInstAddr := addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test",
+					Name: "old",
+				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+				return b.ManagedResourceInstanceSubgraph(
+					&plans.ResourceInstanceChange{
+						Addr:        instAddr,
+						PrevRunAddr: oldInstAddr,
+						Change: plans.Change{
+							Action: plans.CreateThenDelete,
+							Before: cty.StringVal("before"),
+							After:  cty.StringVal("after"),
+						},
+					},
+					providerClientRef,
+					addrs.MakeSet[addrs.AbsResourceInstance](),
+				)
+			},
+			`
+				v[0] = cty.StringVal("after");
+				v[1] = cty.NullVal(cty.String);
+
+				r[0] = ResourceInstancePrior(test.old);
+				r[1] = ManagedChangeAddr(r[0], test.placeholder);
+				r[2] = ResourceInstanceDesired(test.placeholder, await());
+				r[3] = ManagedFinalPlan(r[2], nil, v[0], nil);
+				r[4] = ManagedFinalPlan(nil, r[1], v[1], nil);
+				r[5] = ManagedDepose(r[1], await(r[3], r[4]));
+				r[6] = ManagedApply(r[3], r[5], nil, await());
+				r[7] = ManagedApply(r[4], nil, nil, await(r[6]));
+
+				test.placeholder = r[6];
+			`,
+		},
 	}
 
 	for name, test := range tests {
