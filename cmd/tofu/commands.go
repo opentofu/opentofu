@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -57,7 +58,7 @@ var Ui cli.Ui
 
 func initCommands(
 	ctx context.Context,
-	originalWorkingDir string,
+	wd *workdir.Dir,
 	streams *terminal.Streams,
 	config *cliconfig.Config,
 	services *disco.Disco,
@@ -85,8 +86,6 @@ func initCommands(
 	if err != nil {
 		configDir = "" // No config dir available (e.g. looking up a home directory failed)
 	}
-
-	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
 
 	meta := command.Meta{
 		WorkingDir: wd,

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -30,7 +31,8 @@ func TestProvidersLock(t *testing.T) {
 		ui := new(cli.MockUi)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
 			},
 		}
 		code := c.Run([]string{})
@@ -92,6 +94,7 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 	ui := new(cli.MockUi)
 	c := &ProvidersLockCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			Ui:               ui,
 			testingOverrides: metaOverridesForProvider(p),
 		},
@@ -119,7 +122,8 @@ func TestProvidersLock_args(t *testing.T) {
 		ui := new(cli.MockUi)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
 			},
 		}
 
@@ -143,7 +147,8 @@ func TestProvidersLock_args(t *testing.T) {
 		ui := new(cli.MockUi)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
 			},
 		}
 
@@ -164,7 +169,8 @@ func TestProvidersLock_args(t *testing.T) {
 		ui := new(cli.MockUi)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
 			},
 		}
 

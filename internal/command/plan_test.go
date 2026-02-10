@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -43,6 +44,7 @@ func TestPlan(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -64,6 +66,7 @@ func TestPlan_conditionalSensitive(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -96,6 +99,7 @@ func TestPlan_lockedState(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -122,6 +126,7 @@ func TestPlan_plan(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -165,6 +170,7 @@ func TestPlan_destroy(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -198,6 +204,7 @@ func TestPlan_noState(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -232,6 +239,7 @@ func TestPlan_noTestVars(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -268,6 +276,7 @@ func TestPlan_generatedConfigPath(t *testing.T) {
 
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -308,6 +317,7 @@ func TestPlan_outPath(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -363,6 +373,7 @@ func TestPlan_outPathNoChange(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -395,6 +406,7 @@ func TestPlan_outPathWithError(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -491,6 +503,7 @@ func TestPlan_outBackend(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -545,6 +558,7 @@ func TestPlan_refreshFalse(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -574,6 +588,7 @@ func TestPlan_refreshTrue(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -609,6 +624,7 @@ func TestPlan_refreshFalseRefreshTrue(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -642,6 +658,7 @@ func TestPlan_state(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -688,6 +705,7 @@ func TestPlan_stateDefault(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -744,6 +762,7 @@ func TestPlan_validate(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -775,6 +794,7 @@ func TestPlan_vars(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -827,6 +847,7 @@ func TestPlan_varsInvalid(t *testing.T) {
 			view, done := testView(t)
 			c := &PlanCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             view,
 				},
@@ -866,6 +887,7 @@ func TestPlan_varsUnset(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -946,6 +968,7 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -981,6 +1004,7 @@ func TestPlan_resource_variable_inputs(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1133,6 +1157,7 @@ func TestPlan_withInvalidReferencesInTry(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider),
 			View:             view,
 		},
@@ -1253,6 +1278,7 @@ func TestPlan_providerConfigMerge(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1308,6 +1334,7 @@ func TestPlan_varFile(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1349,6 +1376,7 @@ func TestPlan_varFileDefault(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1388,6 +1416,7 @@ func TestPlan_varFileWithDecls(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1417,6 +1446,7 @@ func TestPlan_detailedExitcode(t *testing.T) {
 		view, done := testView(t)
 		c := &PlanCommand{
 			Meta: Meta{
+				WorkingDir: workdir.NewDir("."),
 				// Running plan without setting testingOverrides is similar to plan without init
 				View: view,
 			},
@@ -1433,6 +1463,7 @@ func TestPlan_detailedExitcode(t *testing.T) {
 		view, done := testView(t)
 		c := &PlanCommand{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
 			},
@@ -1455,6 +1486,7 @@ func TestPlan_detailedExitcode_emptyDiff(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1481,6 +1513,7 @@ func TestPlan_shutdown(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 			ShutdownCh:       shutdownCh,
@@ -1546,6 +1579,7 @@ func TestPlan_init_required(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
 			// Running plan without setting testingOverrides is similar to plan without init
 			View: view,
 		},
@@ -1590,6 +1624,7 @@ func TestPlan_targeted(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1626,7 +1661,8 @@ func TestPlan_targetFlagsDiags(t *testing.T) {
 			view, done := testView(t)
 			c := &PlanCommand{
 				Meta: Meta{
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					View:       view,
 				},
 			}
 
@@ -1677,6 +1713,7 @@ func TestPlan_excluded(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1712,7 +1749,8 @@ func TestPlan_excludeFlagsDiags(t *testing.T) {
 			view, done := testView(t)
 			c := &PlanCommand{
 				Meta: Meta{
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					View:       view,
 				},
 			}
 
@@ -1782,6 +1820,7 @@ func TestPlan_replace(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -1878,6 +1917,7 @@ func TestPlan_parallelism(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: testingOverrides,
 			View:             view,
 		},
@@ -1904,6 +1944,7 @@ func TestPlan_warnings(t *testing.T) {
 		view, done := testView(t)
 		c := &PlanCommand{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
 			},
@@ -1931,6 +1972,7 @@ func TestPlan_warnings(t *testing.T) {
 		view, done := testView(t)
 		c := &PlanCommand{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				View:             view,
 			},
@@ -1966,6 +2008,7 @@ func TestPlan_jsonGoldenReference(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -2037,6 +2080,7 @@ func TestPlan_showSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -2065,6 +2109,7 @@ func TestPlan_withoutShowSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -2091,6 +2136,7 @@ func TestPlan_concise(t *testing.T) {
 	view, done := testView(t)
 	c := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},

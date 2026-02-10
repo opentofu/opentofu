@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -60,6 +61,7 @@ func TestStateRm(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -132,6 +134,7 @@ func TestStateRmNotChildModule(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -222,6 +225,7 @@ func TestStateRmNoArgs(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -285,6 +289,7 @@ func TestStateRmNonExist(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -345,6 +350,7 @@ func TestStateRm_backupExplicit(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -377,6 +383,7 @@ func TestStateRm_noState(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -401,6 +408,7 @@ func TestStateRm_needsInit(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -478,6 +486,7 @@ func TestStateRm_backendState(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,
@@ -548,6 +557,7 @@ func TestStateRm_checkRequiredVersion(t *testing.T) {
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				View:             view,

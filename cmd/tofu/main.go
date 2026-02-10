@@ -23,6 +23,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -208,13 +209,6 @@ func realMain() int {
 
 	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
-	// Get the original working directory before any -chdir processing
-	originalWd, err := os.Getwd()
-	if err != nil {
-		// It would be very strange to end up here
-		Ui.Error(fmt.Sprintf("Failed to determine current working directory: %s", err))
-		return 1
-	}
 	providerDevOverrides := providerDevOverrides(config.ProviderInstallation)
 
 	// The user can declare that certain providers are being managed on
@@ -233,28 +227,24 @@ func realMain() int {
 	binName := filepath.Base(os.Args[0])
 	args := os.Args[1:]
 
-	// The arguments can begin with a -chdir option to ask OpenTofu to switch
-	// to a different working directory for the rest of its work. If that
-	// option is present then extractChdirOption returns a trimmed args with that option removed.
-	overrideWd, args, err := extractChdirOption(args)
+	// Create the workdir and apply the -chdir options.
+	// The logic inside [NewWorkdir] handles the TF_DATA_DIR env var too.
+	wd, newArgs, err := workdir.NewWorkdir(args)
 	if err != nil {
-		Ui.Error(fmt.Sprintf("Invalid -chdir option: %s", err))
+		Ui.Error(err.Error())
 		return 1
 	}
-	if overrideWd != "" {
-		err := os.Chdir(overrideWd)
-		if err != nil {
-			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
-			return 1
-		}
-	}
+	// TODO meta-refactor - this is temporary because chdir logic strips away the -chdir flag from the args.
+	// Once we move to a different CLI lib, this will be handled by that, where flags defined on a parent
+	// command will be excluded from the args given to child commands.
+	args = newArgs
 
 	providerSrc, diags := providerSource(ctx,
 		config.ProviderInstallation,
 		config.RegistryProtocols,
 		services,
 		config.OCICredentialsPolicy,
-		originalWd,
+		wd.RootModuleDir(), // this has to be the directory that tofu has been executed from, not the one after -chdir
 	)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
@@ -278,7 +268,7 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, wd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
 	// Attempt to ensure the config directory exists.
@@ -491,52 +481,6 @@ func parseReattachProviders(in string) (map[addrs.Provider]*plugin.ReattachConfi
 		}
 	}
 	return unmanagedProviders, nil
-}
-
-func extractChdirOption(args []string) (string, []string, error) {
-	if len(args) == 0 {
-		return "", args, nil
-	}
-
-	const argName = "-chdir"
-	const argPrefix = argName + "="
-	var argValue string
-	var argPos int
-
-	for i, arg := range args {
-		if !strings.HasPrefix(arg, "-") {
-			// Because the chdir option is a subcommand-agnostic one, we require
-			// it to appear before any subcommand argument, so if we find a
-			// non-option before we find -chdir then we are finished.
-			break
-		}
-		if arg == argName || arg == argPrefix {
-			return "", args, fmt.Errorf("must include an equals sign followed by a directory path, like -chdir=example")
-		}
-		if strings.HasPrefix(arg, argPrefix) {
-			argPos = i
-			argValue = arg[len(argPrefix):]
-		}
-	}
-
-	// When we fall out here, we'll have populated argValue with a non-empty
-	// string if the -chdir=... option was present and valid, or left it
-	// empty if it wasn't present.
-	if argValue == "" {
-		return "", args, nil
-	}
-
-	// If we did find the option then we'll need to produce a new args that
-	// doesn't include it anymore.
-	if argPos == 0 {
-		// Easy case: we can just slice off the front
-		return argValue, args[1:], nil
-	}
-	// Otherwise we need to construct a new array and copy to it.
-	newArgs := make([]string, len(args)-1)
-	copy(newArgs, args[:argPos])
-	copy(newArgs[argPos:], args[argPos+1:])
-	return argValue, newArgs, nil
 }
 
 // Creates the configuration directory.

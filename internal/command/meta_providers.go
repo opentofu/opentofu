@@ -42,12 +42,12 @@ var enableProviderAutoMTLS = os.Getenv("TF_DISABLE_PLUGIN_TLS") == ""
 // how to recover the selections from a prior installation process.
 //
 // The resulting provider installer is constructed from the results of
-// the other methods providerLocalCacheDir, providerGlobalCacheDir, and
-// providerInstallSource.
+// the other methods like providerGlobalCacheDir,
+// providerInstallSource and workdir.Dir#ProviderLocalCacheDir
 //
 // Only one object returned from this method should be live at any time,
 // because objects inside contain caches that must be maintained properly.
-// Because this method wraps a result from providerLocalCacheDir, that
+// Because this method wraps a result from workdir.Dir#ProviderLocalCacheDir, that
 // limitation applies also to results from that method.
 func (m *Meta) providerInstaller() *providercache.Installer {
 	return m.providerInstallerCustomSource(m.providerInstallSource())
@@ -66,7 +66,7 @@ func (m *Meta) providerInstaller() *providercache.Installer {
 // EnsureProviderVersions (anything other than "tofu init") can safely
 // just use the providerInstaller method unconditionally.
 func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *providercache.Installer {
-	targetDir := m.providerLocalCacheDir()
+	targetDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 	globalCacheDir := m.providerGlobalCacheDir()
 	inst := providercache.NewInstaller(targetDir, source)
 	if globalCacheDir != nil {
@@ -103,23 +103,6 @@ func (m *Meta) providerCustomLocalDirectorySource(ctx context.Context, dirs []st
 		})
 	}
 	return ret
-}
-
-// providerLocalCacheDir returns an object representing the
-// configuration-specific local cache directory. This is the
-// only location consulted for provider plugin packages for OpenTofu
-// operations other than provider installation.
-//
-// Only the provider installer (in "tofu init") is permitted to make
-// modifications to this cache directory. All other commands must treat it
-// as read-only.
-//
-// Only one object returned from this method should be live at any time,
-// because objects inside contain caches that must be maintained properly.
-func (m *Meta) providerLocalCacheDir() *providercache.Dir {
-	m.fixupMissingWorkingDir()
-	dir := m.WorkingDir.ProviderLocalCacheDir()
-	return providercache.NewDir(dir)
 }
 
 // providerGlobalCacheDir returns an object representing the shared global
@@ -224,7 +207,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 }
 
 // providerFactories uses the selections made previously by an installer in
-// the local cache directory (m.providerLocalCacheDir) to produce a map
+// the local cache directory (workdir.Dir#ProviderLocalCacheDir) to produce a map
 // from provider addresses to factory functions to create instances of
 // those providers.
 //
@@ -251,7 +234,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	// available in the provider cache because "tofu init" should already
 	// have put them there.
 	providerLocks := locks.AllProviders()
-	cacheDir := m.providerLocalCacheDir()
+	cacheDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 
 	// The internal providers are _always_ available, even if the configuration
 	// doesn't request them, because they don't need any special installation

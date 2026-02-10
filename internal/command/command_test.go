@@ -453,7 +453,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	t.Helper()
 
-	path := filepath.Join(DefaultDataDir, DefaultStateFilename)
+	path := filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}

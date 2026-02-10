@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 
@@ -102,6 +103,7 @@ func TestLogin(t *testing.T) {
 
 			c := &LoginCommand{
 				Meta: Meta{
+					WorkingDir:      workdir.NewDir("."),
 					Ui:              ui,
 					BrowserLauncher: browserLauncher,
 					Services:        svcs,

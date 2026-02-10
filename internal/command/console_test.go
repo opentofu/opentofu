@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -35,6 +36,7 @@ func TestConsole_basic(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -87,6 +89,7 @@ func TestConsole_tfvars(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -141,6 +144,7 @@ func TestConsole_unsetRequiredVars(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -176,6 +180,7 @@ func TestConsole_variables(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -220,6 +225,7 @@ func TestConsole_modules(t *testing.T) {
 	streams, _ := terminal.StreamsForTesting(t)
 	c := &ConsoleCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			View:             view,
@@ -333,6 +339,7 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			view, _ := testView(t)
 			c := &ConsoleCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					View:             view,

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -57,6 +58,7 @@ func TestStateShow(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},
@@ -136,6 +138,7 @@ func TestStateShow_multi(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},
@@ -166,6 +169,7 @@ func TestStateShow_noState(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},
@@ -191,6 +195,7 @@ func TestStateShow_emptyState(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},
@@ -248,6 +253,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
 			testingOverrides: &testingOverrides{
 				Providers: map[addrs.Provider]providers.Factory{
 					addrs.NewDefaultProvider("test-beta"): providers.FactoryFixed(p),
@@ -285,6 +291,7 @@ func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},
@@ -322,6 +329,7 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	c := &StateShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
 		},

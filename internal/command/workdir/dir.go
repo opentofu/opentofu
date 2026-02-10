@@ -11,6 +11,17 @@ import (
 	"path/filepath"
 )
 
+const (
+	workingDirEnvVarKey = "TF_DATA_DIR"
+
+	// DefaultDataDir is the default directory for storing local data.
+	DefaultDataDir = ".terraform"
+
+	// modulesDir is the name of the directory inside [Dir.DataDir] that is used to store the configuration
+	// used modules.
+	modulesDir = "modules"
+)
+
 // Dir represents a single OpenTofu working directory.
 //
 // "Working directory" is unfortunately a slight misnomer, because non-default
@@ -57,6 +68,34 @@ type Dir struct {
 	dataDir string
 }
 
+// NewWorkdir returns a [*Dir] instance configured with the following:
+//   - mainDir that is the current working directory or the directory indicated by -chdir flag.
+//   - originalDir that is the directory that the program was executed from. If no -chdir value provided, this equals mainDir.
+//   - dataDir is the directory where tofu stores it's per-run-configuration, generally .terraform. This can be configured
+//     by using the TF_DATA_DIR env var.
+//
+// It gets the args that the program has been executed with, extracts the -chdir flag from it and applies it if
+// specified, returning back the args without that -chdir flag.
+// TODO meta-refactor: the args should be removed from here once the CLI library has been replaced.
+func NewWorkdir(args []string) (*Dir, []string, error) {
+	originalWd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to determine current working directory: %s", err)
+	}
+
+	args, err = runChdir(args)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ret := NewDir(".") // caller should already have used os.Chdir in "-chdir=..." mode
+	ret.OverrideOriginalWorkingDir(originalWd)
+	if overrideWd := os.Getenv(workingDirEnvVarKey); overrideWd != "" {
+		ret.OverrideDataDir(overrideWd)
+	}
+	return ret, args, nil
+}
+
 // NewDir constructs a new working directory, anchored at the given path.
 //
 // In normal use, mainPath should be "." to reflect the current working
@@ -79,7 +118,7 @@ func NewDir(mainPath string) *Dir {
 	return &Dir{
 		mainDir:     mainPath,
 		originalDir: mainPath,
-		dataDir:     filepath.Join(mainPath, ".terraform"),
+		dataDir:     filepath.Join(mainPath, DefaultDataDir),
 	}
 }
 
@@ -135,6 +174,12 @@ func (d *Dir) OriginalWorkingDir() string {
 // this method. Avoid using this method for new use-cases.
 func (d *Dir) DataDir() string {
 	return d.dataDir
+}
+
+// ModulesDir returns the directory in the [Dir.DataDir] that is used to store
+// the cached modules.
+func (d *Dir) ModulesDir() string {
+	return filepath.Join(d.DataDir(), modulesDir)
 }
 
 // ensureDataDir creates the data directory and all of the necessary parent
