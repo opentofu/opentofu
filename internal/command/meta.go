@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -226,7 +227,7 @@ type Meta struct {
 	backendState *legacy.BackendState
 
 	// Variables for the context (private)
-	variableArgs rawFlags
+	variableArgs flags.RawFlags
 	input        bool
 
 	// Targets for this context (private)
@@ -613,8 +614,8 @@ func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 }
 
 func (m *Meta) varFlagSet(f *flag.FlagSet) {
-	if m.variableArgs.items == nil {
-		m.variableArgs = newRawFlags("-var")
+	if m.variableArgs.Items == nil {
+		m.variableArgs = flags.NewRawFlags("-var")
 	}
 	varValues := m.variableArgs.Alias("-var")
 	varFiles := m.variableArgs.Alias("-var-file")
@@ -628,8 +629,8 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
 	f.BoolVar(&m.input, "input", true, "input")
-	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
-	f.Var((*FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
+	f.Var((*flags.FlagStringSlice)(&m.targetFlags), "target", "resource to target")
+	f.Var((*flags.FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
 	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")

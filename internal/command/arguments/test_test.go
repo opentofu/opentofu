@@ -12,6 +12,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -19,7 +20,7 @@ import (
 func TestParseTest_Vars(t *testing.T) {
 	tcs := map[string]struct {
 		args []string
-		want []FlagNameValue
+		want []flags.RawFlag
 	}{
 		"no var flags by default": {
 			args: nil,
@@ -27,13 +28,13 @@ func TestParseTest_Vars(t *testing.T) {
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -43,7 +44,7 @@ func TestParseTest_Vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},

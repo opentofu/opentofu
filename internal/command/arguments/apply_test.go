@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -712,7 +713,7 @@ func TestParseApply_replace(t *testing.T) {
 func TestParseApply_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []FlagNameValue
+		want []flags.RawFlag
 	}{
 		"no var flags by default": {
 			args: nil,
@@ -720,13 +721,13 @@ func TestParseApply_vars(t *testing.T) {
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -736,7 +737,7 @@ func TestParseApply_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},

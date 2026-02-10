@@ -6,6 +6,7 @@
 package arguments
 
 import (
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -42,7 +43,7 @@ func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 	}
 
 	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
-	cmdFlags.Var((*flagStringSlice)(&test.Filter), "filter", "filter")
+	cmdFlags.Var((*flags.FlagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
 
