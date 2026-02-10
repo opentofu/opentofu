@@ -392,7 +392,7 @@ func (v *InitHuman) ProviderInstalled(provider string, version string, authResul
 }
 
 func (v *InitHuman) ProviderInstalledSkippedSignature(provider string, version string) {
-	_, _ = v.view.streams.Eprintln(fmt.Sprintf("- Installed %s v%s. Signature validation was skipped due to the registry not containing GPG keys for this provider", provider, version))
+	_, _ = v.view.streams.Println(fmt.Sprintf("- Installed %s v%s. Signature validation was skipped due to the registry not containing GPG keys for this provider", provider, version))
 }
 
 func (v *InitHuman) WaitingForCacheLock(cacheDir string) {

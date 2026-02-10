@@ -408,8 +408,8 @@ func TestInitViews(t *testing.T) {
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStdout: "",
-			wantStderr: withNewline("- Installed hashicorp/random v3.0.0. Signature validation was skipped due to the registry not containing GPG keys for this provider"),
+			wantStdout: withNewline("- Installed hashicorp/random v3.0.0. Signature validation was skipped due to the registry not containing GPG keys for this provider"),
+			wantStderr: "",
 		},
 		"providerUpgradeLockfileConflict": {
 			viewCall: func(init Init) {
