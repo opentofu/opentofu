@@ -35,10 +35,9 @@ func TestReadState_NilFile(t *testing.T) {
 
 func TestReadState_ValidState(t *testing.T) {
 	state := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.0.0",
-		Serial:    1,
-		Lineage:   "test-lineage",
+		Version: StateVersion,
+		Serial:  1,
+		Lineage: "test-lineage",
 	}
 
 	buf := &bytes.Buffer{}
@@ -53,9 +52,6 @@ func TestReadState_ValidState(t *testing.T) {
 
 	if result.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, result.Version)
-	}
-	if result.TFVersion != "1.0.0" {
-		t.Errorf("expected TFVersion '1.0.0', got '%s'", result.TFVersion)
 	}
 	if result.Serial != 1 {
 		t.Errorf("expected serial 1, got %d", result.Serial)
@@ -111,10 +107,9 @@ func TestWriteState_NilState(t *testing.T) {
 
 func TestWriteState_ValidState(t *testing.T) {
 	state := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.0.0",
-		Serial:    42,
-		Lineage:   "test-lineage",
+		Version: StateVersion,
+		Serial:  42,
+		Lineage: "test-lineage",
 	}
 
 	buf := &bytes.Buffer{}
@@ -186,10 +181,9 @@ func TestCLIState_Init(t *testing.T) {
 
 func TestCLIState_DeepCopy(t *testing.T) {
 	original := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.0.0",
-		Serial:    5,
-		Lineage:   "original-lineage",
+		Version: StateVersion,
+		Serial:  5,
+		Lineage: "original-lineage",
 	}
 
 	copied := original.DeepCopy()
@@ -224,17 +218,15 @@ func TestCLIState_DeepCopy_Nil(t *testing.T) {
 
 func TestCLIState_MarshalEqual(t *testing.T) {
 	state1 := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.0.0",
-		Serial:    1,
-		Lineage:   "test",
+		Version: StateVersion,
+		Serial:  1,
+		Lineage: "test",
 	}
 
 	state2 := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.0.0",
-		Serial:    1,
-		Lineage:   "test",
+		Version: StateVersion,
+		Serial:  1,
+		Lineage: "test",
 	}
 
 	if !state1.MarshalEqual(state2) {
@@ -413,10 +405,9 @@ func TestBackendState_ForPlanNil(t *testing.T) {
 
 func TestReadWriteRoundTrip(t *testing.T) {
 	original := &CLIState{
-		Version:   StateVersion,
-		TFVersion: "1.8.0",
-		Serial:    100,
-		Lineage:   "test-lineage-456",
+		Version: StateVersion,
+		Serial:  100,
+		Lineage: "test-lineage-456",
 		Backend: &BackendState{
 			Type: "s3",
 			Hash: 12345,
@@ -439,12 +430,6 @@ func TestReadWriteRoundTrip(t *testing.T) {
 		t.Fatalf("ReadState failed: %v", err)
 	}
 
-	if result.Version != original.Version {
-		t.Errorf("version mismatch: got %d, want %d", result.Version, original.Version)
-	}
-	if result.TFVersion != original.TFVersion {
-		t.Errorf("TFVersion mismatch: got %q, want %q", result.TFVersion, original.TFVersion)
-	}
 	if result.Serial != original.Serial {
 		t.Errorf("serial mismatch: got %d, want %d", result.Serial, original.Serial)
 	}
