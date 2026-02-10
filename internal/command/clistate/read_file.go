@@ -31,9 +31,6 @@ type CLIState struct {
 	// Version is the state file protocol version.
 	Version int `json:"version"`
 
-	// TFVersion is the version of OpenTofu that wrote this state.
-	TFVersion string `json:"terraform_version,omitempty"`
-
 	// Serial is incremented on any operation that modifies the state file.
 	Serial int64 `json:"serial"`
 
@@ -120,16 +117,21 @@ func (s *CLIState) MarshalEqual(other *CLIState) bool {
 // state store that we push/pull state to.
 type RemoteState struct {
 	// Type controls the client we use for the remote state
-	Type   string            `json:"type"`
-	Config map[string]string `json:"config"`
+	Type string `json:"type"`
 	// Config is used to store arbitrary configuration that
 	// is type specific
+	Config map[string]string `json:"config"`
+
 	mu sync.Mutex
 }
 
-func (r *RemoteState) Lock()   { r.mu.Lock() }
+// Lock acquires the remote state mutex.
+func (r *RemoteState) Lock() { r.mu.Lock() }
+
+// Unlock releases the remote state mutex.
 func (r *RemoteState) Unlock() { r.mu.Unlock() }
 
+// Empty returns true if the remote state is not configured.
 func (r *RemoteState) Empty() bool {
 	if r == nil {
 		return true
