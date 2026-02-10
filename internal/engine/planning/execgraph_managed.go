@@ -117,6 +117,10 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
 ) execgraph.ResourceInstanceResultRef {
 	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
+	// FIXME: The ManagedApply operation in what we generate here should depend
+	// on any other destroy operations we plan for resource instances that
+	// depend on this one, so that we can preserve the guarantee that when
+	// B depends on A we'll always destroy B before we destroy A.
 	return b.managedResourceInstanceSubgraphPlanAndApply(
 		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
 		priorStateRef,
@@ -222,6 +226,14 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		destroyPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
+		// FIXME: This should also depend on the destroy of any dependents that
+		// are also being destroyed in this execution graph, to ensure the
+		// expected "inside out" destroy order, but we're not currently keeping
+		// track of destroy results anywhere and even if we were we would not
+		// actually learn about them until after this function had returned,
+		// so we need to introduce a way to add new dependencies here while
+		// planning subsequent resource instances, and to make sure we're not
+		// creating a dependency cycle each time we do so.
 		b.lower.Waiter(createPlanRef), // wait for successful planning of the create step
 	)
 	createResultRef := b.lower.ManagedApply(
@@ -239,8 +251,73 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 	waitFor execgraph.AnyResultRef,
 ) execgraph.ResourceInstanceResultRef {
-	// TODO: Add a new execgraph opcode ManagedForget and use that here.
-	panic("execgraph for cbd replace actions not yet implemented")
+	// This has much the same effect as the separate delete and create
+	// actions chained together, but we arrange the operations in such a
+	// way that we don't make any changes unless we can produce valid final
+	// plans for both changes.
+	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
+	plannedValRef := b.lower.ConstantValue(plannedChange.After)
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
+
+	// We plan both the create and destroy parts of this process before we
+	// make any real changes, to reduce the risk that we'll be left in a
+	// partially-applied state where we're left with a deposed object present
+	// in the final state.
+	createPlanRef := b.lower.ManagedFinalPlan(
+		desiredInstRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		plannedValRef,
+		providerClientRef,
+	)
+	destroyPlanRef := b.lower.ManagedFinalPlan(
+		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
+		priorStateRef,
+		b.lower.ConstantValue(cty.NullVal(
+			// TODO: is this okay or do we need to use the type constraint derived from the schema?
+			// The two could differ for resource types that have cty.DynamicPseudoType
+			// attributes, like in kubernetes_manifest from the hashicorp/kubernetes provider,
+			// where here we'd capture the type of the current manifest instead of recording
+			// that the manifest's type is unknown. However, we don't typically fuss too much
+			// about the exact type of a null, so this is probably fine.
+			plannedChange.After.Type(),
+		)),
+		providerClientRef,
+	)
+	deposedObjRef := b.lower.ManagedDepose(
+		priorStateRef,
+		b.lower.Waiter(createPlanRef, destroyPlanRef),
+	)
+	createResultRef := b.lower.ManagedApply(
+		createPlanRef,
+		deposedObjRef, // will be restored as current if creation completely fails
+		providerClientRef,
+		b.lower.Waiter(),
+	)
+	// Nothing depends on the value from the destroy result, so if the destroy
+	// fails after the create succeeded then we can proceed with applying any
+	// downstream changes that refer to what we created and then we'll end with
+	// the deposed object still in the state and error diagnostics explaining
+	// why destroying it didn't work.
+	// FIXME: the closer for the provider client ought to depend on this result
+	// in its waitFor argument, because otherwise we're saying it's okay to
+	// close the provider client concurrently with this operation, which will
+	// not work.
+	b.lower.ManagedApply(
+		destroyPlanRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		providerClientRef,
+		// FIXME: This should also depend on the destroy of any dependents that
+		// are also being destroyed in this execution graph, to ensure the
+		// expected "inside out" destroy order, but we're not currently keeping
+		// track of destroy results anywhere and even if we were we would not
+		// actually learn about them until after this function had returned,
+		// so we need to introduce a way to add new dependencies here while
+		// planning subsequent resource instances, and to make sure we're not
+		// creating a dependency cycle each time we do so.
+		b.lower.Waiter(createResultRef), // wait for successful applying of the create step
+	)
+
+	return createResultRef
 }
 
 func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(

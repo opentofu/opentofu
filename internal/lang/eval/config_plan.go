@@ -228,6 +228,31 @@ func (p *planningEvalGlue) ResourceInstanceValue(ctx context.Context, ri *config
 		RequiredResourceInstances: riDeps,
 		ResourceType:              ri.Addr.Resource.Resource.Type,
 		ResourceMode:              ri.Addr.Resource.Resource.Mode,
+
+		// FIXME: all resource instances in a dependency chain must agree on
+		// one value of CreateBeforeDestroy to use if more than one replace
+		// planned in the chain, because otherwise there is no valid order to
+		// use.
+		//
+		// For example, if subnet depends on vpc and both need to be replaced,
+		// there are only two valid orders:
+		//  - destroy subnet, destroy vpc, create vpc, create subnet
+		//  - create vpc, create subnet, destroy subnet, destroy vpc
+		//
+		// We need to figure out what part of the system is responsible for
+		// making this decision. The evaluator's configgraph package is probably
+		// the only part of the system that has enough information to answer
+		// this question, because answering it in the planning engine would
+		// require us to know about other resource instances that depend on
+		// the current one, which therefore haven't been planned yet. When
+		// we make this decision we should think about the feature request in
+		// https://github.com/opentofu/opentofu/issues/2523 , which implies
+		// that create_before_destroy would permit arbitrary expression
+		// evaluation.
+		//
+		// For now, we just don't support create_before_destroy at all in this
+		// new implementation.
+		CreateBeforeDestroy: false,
 	}
 	if providerInst, ok := configgraph.GetKnown(providerInst); ok {
 		desired.ProviderInstance = &providerInst.Addr
