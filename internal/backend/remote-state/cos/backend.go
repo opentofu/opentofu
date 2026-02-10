@@ -267,7 +267,13 @@ func (b *Backend) configure(ctx context.Context) error {
 			if b.region == "" && config.Region != nil {
 				b.region = *config.Region
 			}
+		} else {
+			return fmt.Errorf("no secret id, key, or token provided, and could not load CLI credentials: %w", err)
 		}
+	}
+
+	if b.region == "" {
+		b.region = DEFAULT_REGION
 	}
 
 	// init credential by AKSK & TOKEN
