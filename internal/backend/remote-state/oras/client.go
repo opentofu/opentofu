@@ -637,7 +637,9 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 
 	// Post-write verification with generation check: Re-read the lock to ensure we actually hold it.
 	// This guards against a race condition where two processes both try to write their locks
-	// concurrently. We verify that the generation in the manifest matches what we just wrote.
+	// concurrently. We verify that both the generation and the holder ID in the manifest match
+	// what we just wrote. Checking HolderID is critical because two processes that read the same
+	// base generation would both increment to the same value.
 	verified, verifyErr := c.getLockManifestData(ctx)
 	if verifyErr != nil {
 		// Could not verify - attempt to clean up our lock attempt
@@ -646,8 +648,8 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		}
 		return "", &statemgr.LockError{InconsistentRead: true, Err: fmt.Errorf("failed to verify lock acquisition: %w", verifyErr)}
 	}
-	if verified == nil || verified.Generation != newGeneration {
-		// Another process won the race - they now hold the lock with a different generation
+	if verified == nil || verified.Generation != newGeneration || verified.HolderID != info.ID {
+		// Another process won the race - they now hold the lock with a different generation or holder
 		existing, _ := c.getLockInfo(ctx)
 		return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked (lost race)")}
 	}

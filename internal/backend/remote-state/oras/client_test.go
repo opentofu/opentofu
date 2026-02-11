@@ -601,6 +601,107 @@ func TestRemoteClient_Lock_RaceConditionDetection(t *testing.T) {
 		t.Fatalf("expected error message to mention 'lost race', got: %v", err)
 	}
 }
+
+// sameGenRaceRepo simulates a race where the winner writes a lock with the
+// same generation as the loser (both read the same base generation before the
+// lock existed). The only distinguishing field is HolderID.
+type sameGenRaceRepo struct {
+	inner        *fakeORASRepo
+	interceptTag string
+	tagCount     int
+	winnerDesc   ocispec.Descriptor
+	winnerBlob   []byte
+}
+
+func newSameGenRaceRepo(inner *fakeORASRepo, interceptTag string, winnerGeneration int64, winnerHolderID string) *sameGenRaceRepo {
+	lockData := LockManifestData{Generation: winnerGeneration, HolderID: winnerHolderID}
+	lockDataJSON, _ := json.Marshal(lockData)
+	lockInfoJSON, _ := json.Marshal(map[string]string{"ID": winnerHolderID})
+
+	annotations := map[string]string{
+		"org.terraform.lock.id":         winnerHolderID,
+		"org.terraform.lock.info":       string(lockInfoJSON),
+		"org.terraform.lock.generation": string(lockDataJSON),
+	}
+	winnerManifest, _ := json.Marshal(map[string]interface{}{
+		"artifactType": "application/vnd.terraform.lock.v1",
+		"mediaType":    "application/vnd.oci.image.manifest.v1+json",
+		"annotations":  annotations,
+	})
+	dgst := digest.FromBytes(winnerManifest)
+	return &sameGenRaceRepo{
+		inner:        inner,
+		interceptTag: interceptTag,
+		winnerBlob:   winnerManifest,
+		winnerDesc: ocispec.Descriptor{
+			MediaType: "application/vnd.oci.image.manifest.v1+json",
+			Digest:    dgst,
+			Size:      int64(len(winnerManifest)),
+		},
+	}
+}
+
+func (r *sameGenRaceRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
+	return r.inner.Push(ctx, expected, content)
+}
+func (r *sameGenRaceRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	if target.Digest == r.winnerDesc.Digest {
+		return io.NopCloser(bytes.NewReader(r.winnerBlob)), nil
+	}
+	return r.inner.Fetch(ctx, target)
+}
+func (r *sameGenRaceRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	return r.inner.Resolve(ctx, reference)
+}
+func (r *sameGenRaceRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
+	err := r.inner.Tag(ctx, desc, reference)
+	if err != nil {
+		return err
+	}
+	if reference == r.interceptTag {
+		r.tagCount++
+		if r.tagCount == 1 {
+			_ = r.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerBlob))
+			_ = r.inner.Tag(ctx, r.winnerDesc, reference)
+		}
+	}
+	return nil
+}
+func (r *sameGenRaceRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+	return r.inner.Delete(ctx, target)
+}
+func (r *sameGenRaceRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+	return r.inner.Exists(ctx, target)
+}
+func (r *sameGenRaceRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
+	return r.inner.Tags(ctx, last, fn)
+}
+
+func TestRemoteClient_Lock_SameGenerationRaceDetectedByHolderID(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+
+	// Both processes read gen=0 (no prior lock), both will write gen=1.
+	// The winner overwrites the lock tag with the same generation but different HolderID.
+	racingRepo := newSameGenRaceRepo(fake, "locked-default", 1, "winner-process")
+	repo := &orasRepositoryClient{inner: racingRepo}
+
+	client := newRemoteClient(repo, "default")
+
+	_, err := client.Lock(ctx, &statemgr.LockInfo{ID: "loser-process", Operation: "test"})
+	if err == nil {
+		t.Fatalf("expected lock to fail due to same-generation race, but it succeeded")
+	}
+
+	lockErr, ok := err.(*statemgr.LockError)
+	if !ok {
+		t.Fatalf("expected LockError, got %T: %v", err, err)
+	}
+	if !strings.Contains(lockErr.Err.Error(), "lost race") {
+		t.Fatalf("expected 'lost race' error, got: %v", lockErr.Err)
+	}
+}
+
 func TestLockWithGenerationDetection(t *testing.T) {
 	ctx := context.Background()
 	fake := newFakeORASRepo()
