@@ -10,11 +10,11 @@ The `tofu plan` command creates an execution plan, which lets you preview
 the changes that OpenTofu plans to make to your infrastructure. By default,
 when OpenTofu creates a plan it:
 
-* Reads the current state of any already-existing remote objects to make sure
+- Reads the current state of any already-existing remote objects to make sure
   that the OpenTofu state is up-to-date.
-* Compares the current configuration to the prior state and noting any
+- Compares the current configuration to the prior state and noting any
   differences.
-* Proposes a set of change actions that should, if applied, make the remote
+- Proposes a set of change actions that should, if applied, make the remote
   objects match the configuration.
 
 The `plan` command alone does not actually carry out the proposed changes You can use this command to check whether the proposed changes match what
@@ -63,30 +63,30 @@ additional options for routine work.
 
 The remaining sections on this page describe the various options:
 
-* **[Planning Modes](#planning-modes)**: There are some special alternative
+- **[Planning Modes](#planning-modes)**: There are some special alternative
   planning modes that you can use for some special situations where your goal
   is not just to change the remote system to match your configuration.
-* **[Planning Options](#planning-options)**: Alongside the special planning
+- **[Planning Options](#planning-options)**: Alongside the special planning
   modes, there are also some options you can set in order to customize the
   planning process for unusual needs.
-  * **[Resource Targeting](#resource-targeting)** is one particular
+  - **[Resource Targeting](#resource-targeting)** is one particular
     special planning option that has some important caveats associated
     with it.
-* **[Other Options](#other-options)**: These change the behavior of the planning
+- **[Other Options](#other-options)**: These change the behavior of the planning
   command itself, rather than customizing the content of the generated plan.
 
 ## Planning Modes
 
 The previous section describes OpenTofu's default planning behavior, which
 changes the remote system to match the changes you make to
-your configuration. OpenTofu has two alternative planning modes, each of which creates a plan with a different intended outcome. These options are available for  both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
+your configuration. OpenTofu has two alternative planning modes, each of which creates a plan with a different intended outcome. These options are available for both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
 
-* **Destroy mode:** creates a plan whose goal is to destroy all remote objects
+- **Destroy mode:** creates a plan whose goal is to destroy all remote objects
   that currently exist, leaving an empty OpenTofu state. It is the same as running [`tofu destroy`](../../cli/commands/destroy.mdx). Destroy mode can be useful for situations like transient development environments, where the managed objects cease to be useful once the development task is complete.
 
   Activate destroy mode using the `-destroy` command line option.
 
-* **Refresh-only mode:** creates a plan whose goal is only to update the
+- **Refresh-only mode:** creates a plan whose goal is only to update the
   OpenTofu state and any root module output values to match changes made to
   remote objects outside of OpenTofu. This can be useful if you've
   intentionally changed one or more remote objects outside of the usual
@@ -107,7 +107,7 @@ one alternative mode at the same time.
 
 ## Planning Options
 
-In addition to alternate [planning modes](#planning-modes), there are several options that can modify planning behavior. These options are available for  both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
+In addition to alternate [planning modes](#planning-modes), there are several options that can modify planning behavior. These options are available for both `tofu plan` and [`tofu apply`](../../cli/commands/apply.mdx).
 
 - `-refresh=false` - Disables the default behavior of synchronizing the
   OpenTofu state with remote objects before checking for configuration changes. This can make the planning operation faster by reducing the number of remote API requests. However, setting `refresh=false` causes OpenTofu to ignore external changes, which could result in an incomplete or incorrect plan. You cannot use `refresh=false` in refresh-only planning mode because it would effectively disable the entirety of the planning operation.
@@ -257,7 +257,7 @@ For `-target-file` and `-exclude-file`, refer to
 OpenTofu matches resource instances with the given resource addresses as
 follows:
 
-* If the given address identifies one specific resource instance, OpenTofu
+- If the given address identifies one specific resource instance, OpenTofu
   will select that instance alone.
 
   For resources with either `count` or `for_each` set, a resource instance
@@ -270,14 +270,14 @@ follows:
   described in
   [Resource Addresses on the Command Line](../../cli/state/resource-addressing.mdx#resource-addresses-on-the-command-line).
 
-* If the given address identifies a resource as a whole, OpenTofu will select
+- If the given address identifies a resource as a whole, OpenTofu will select
   all of the instances of that resource. For resources with either `count`
   or `for_each` set, this means selecting _all_ instance indexes currently
   associated with that resource. For single-instance resources (without
   either `count` or `for_each`), the resource address and the resource instance
   address are identical, so this possibility does not apply.
 
-* If the given address identifies an entire module instance, OpenTofu will
+- If the given address identifies an entire module instance, OpenTofu will
   select all instances of all resources that belong to that module instance
   and all of its child module instances.
 
@@ -312,57 +312,56 @@ for that command.
 
 The available options are:
 
-* `-compact-warnings` - Shows any warning messages in a compact form which
+- `-compact-warnings` - Shows any warning messages in a compact form which
   includes only the summary messages, unless the warnings are accompanied by
   at least one error and thus the warning text might be useful context for
   the errors.
 
-* `-consolidate-warnings=false` - If OpenTofu produces any warnings, no
+- `-consolidate-warnings=false` - If OpenTofu produces any warnings, no
   consolidation will be performed. All locations, for all warnings will
   be listed. Enabled by default.
 
-* `-consolidate-errors` - If OpenTofu produces any errors, attempt to
+- `-consolidate-errors` - If OpenTofu produces any errors, attempt to
   consolidate similar messages into a single item.
 
-* `-detailed-exitcode` - Returns a detailed exit code when the command exits.
+- `-detailed-exitcode` - Returns a detailed exit code when the command exits.
   When provided, this argument changes the exit codes and their meanings to
   provide more granular information about what the resulting plan contains:
-  * 0 = Succeeded with empty diff (no changes)
-  * 1 = Error
-  * 2 = Succeeded with non-empty diff (changes present)
+  - 0 = Succeeded with empty diff (no changes)
+  - 1 = Error
+  - 2 = Succeeded with non-empty diff (changes present)
 
-- `-generate-config-out=PATH` - (Experimental) If `import` blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist, or OpenTofu will error. If the plan fails for another reason, OpenTofu may still attempt to write configuration.
+* `-generate-config-out=PATH` - (Experimental) If `import` blocks are present in configuration, instructs OpenTofu to generate HCL for any imported resources not already present. The configuration is written to a new file at PATH, which must not already exist, or OpenTofu will error. If the plan fails for another reason, OpenTofu may still attempt to write configuration.
 
-* `-input=false` - Disables OpenTofu's default behavior of prompting for
+- `-input=false` - Disables OpenTofu's default behavior of prompting for
   input for root module input variables that have not otherwise been assigned
   a value. This option is particularly useful when running OpenTofu in
   non-interactive automation systems.
 
-* `-json` - Enables the [machine readable JSON UI][machine-readable-ui] output.
+- `-json` - Enables the [machine readable JSON UI][machine-readable-ui] output.
   This implies `-input=false`, so the configuration must have no unassigned
   variable values to continue.
 
   [machine-readable-ui]: /docs/internals/machine-readable-ui
 
-* `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
+- `-json-into=out.json` - Produces the same output as -json, but redirected to a file. This allows
   for simultaneous capture of both human readable and machine readable logs.
 
-* `-lock=false` - Don't hold a state lock during the operation. This is
+- `-lock=false` - Don't hold a state lock during the operation. This is
   dangerous if others might concurrently run commands against the same
   workspace.
 
-* `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
+- `-lock-timeout=DURATION` - Unless locking is disabled with `-lock=false`,
   instructs OpenTofu to retry acquiring a lock for a period of time before
   returning an error. The duration syntax is a number followed by a time
   unit letter, such as "3s" for three seconds.
 
-* `-no-color` - Disables terminal formatting sequences in the output. Use this
+- `-no-color` - Disables terminal formatting sequences in the output. Use this
   if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
-  
-* `-concise` - Disables progress-related messages in the output.
+- `-concise` - Disables progress-related messages in the output.
 
-* `-out=FILENAME` - Writes the generated plan to the given filename in an
+- `-out=FILENAME` - Writes the generated plan to the given filename in an
   opaque file format that you can later pass to `tofu apply` to execute
   the planned changes, and to some other OpenTofu commands that can work with
   saved plan files.
@@ -380,22 +379,22 @@ The available options are:
   options including the input variables. If your plan includes any sort of
   sensitive data, even if obscured in OpenTofu's terminal output, it will
   be saved in cleartext in the plan file. You should therefore treat any
-  saved plan files as potentially-sensitive artifacts.
+  saved plan files as potentially-sensitive artifacts, or enable [plan file encryption](../../language/state/encryption.mdx).
 
-* `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
+- `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
   to 10.
 
-* `-state=statefile` - A legacy option used for the local backend only.
+- `-state=statefile` - A legacy option used for the local backend only.
   Refer to the local backend's documentation for more information.
 
-* `-show-sensitive` - If specified, sensitive values will not be
+- `-show-sensitive` - If specified, sensitive values will not be
   redacted in te UI output.
 
-* `-json` - Produce output in a machine-readable JSON format, suitable for
+- `-json` - Produce output in a machine-readable JSON format, suitable for
   use in text editor integrations and other automated systems.
 
-* `-deprecation` - Specify what type of warnings are shown.
+- `-deprecation` - Specify what type of warnings are shown.
   Accepted values: "module:all", "module:local", "module:none". Default: "module:all". When "module:all" is selected,
   OpenTofu will show the deprecation warnings for all modules. When "module:local" is selected,
   the warnings will be shown only for the modules that are imported with a relative
