@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -935,22 +936,8 @@ func splitStateVersionTag(tag string) (base string, version int, ok bool) {
 		return "", 0, false
 	}
 	s := tag[idx+len(stateVersionTagSeparator):]
-	if s == "" || len(s) > 10 {
-		return "", 0, false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return "", 0, false
-		}
-	}
-	v := 0
-	for i := 0; i < len(s); i++ {
-		v = v*10 + int(s[i]-'0')
-		if v > 1<<30 {
-			return "", 0, false
-		}
-	}
-	if v <= 0 {
+	v, err := strconv.Atoi(s)
+	if err != nil || v <= 0 || v > 1<<30 {
 		return "", 0, false
 	}
 	return base, v, true
