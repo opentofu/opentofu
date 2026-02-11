@@ -1,6 +1,6 @@
 module github.com/opentofu/opentofu
 
-go 1.25.6
+go 1.26
 
 // At the time of adding this configuration, the new Go feature introduced here https://github.com/golang/go/issues/67061,
 // was having a good amount of issues linked to, affecting AWS Firewall, GCP various services and a lot more.
