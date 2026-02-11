@@ -325,6 +325,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		return nil, err
 	}
 
+	// MD5 is required by remote.Payload for ETag-like change detection, not for security.
 	md5sum := md5.Sum(data)
 	return &remote.Payload{MD5: md5sum[:], Data: data}, nil
 }
