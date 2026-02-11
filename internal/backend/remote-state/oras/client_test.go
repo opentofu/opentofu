@@ -624,6 +624,31 @@ func TestRemoteClient_StateCompression_AutoDetectOnRead(t *testing.T) {
 	}
 }
 
+func TestRemoteClient_StateCompression_GzipEmptyState(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	c := newRemoteClient(repo, "default")
+	c.stateCompression = "gzip"
+
+	// An empty state is a valid edge case (e.g. freshly initialized workspace).
+	if err := c.Put(ctx, []byte{}); err != nil {
+		t.Fatalf("put empty: %v", err)
+	}
+
+	p, err := c.Get(ctx)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if p == nil {
+		t.Fatalf("expected payload for empty state, got nil")
+	}
+	if len(p.Data) != 0 {
+		t.Fatalf("expected empty data, got %d bytes", len(p.Data))
+	}
+}
+
 // raceSimulatingRepo wraps fakeORASRepo to simulate a race condition where
 // another process writes a lock between our Tag call and our verification read.
 // It intercepts the second Resolve call (the verification) and swaps in a winner's lock.
