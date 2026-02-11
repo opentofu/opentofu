@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/opencontainers/go-digest"
@@ -28,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"golang.org/x/sync/errgroup"
 	oras "oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/errdef"
 	orasRegistry "oras.land/oras-go/v2/registry"
@@ -288,13 +290,14 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
-	m, err := c.fetchManifest(ctx, c.stateTag)
+	fm, err := c.fetchManifestWithDesc(ctx, c.stateTag)
 	if err != nil {
 		if isNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
+	m := fm.m
 	if m.ArtifactType != "" && m.ArtifactType != artifactTypeState {
 		return nil, fmt.Errorf("unexpected state manifest artifactType %q for %q", m.ArtifactType, c.stateTag)
 	}
@@ -437,10 +440,11 @@ func (c *RemoteClient) versionTagFor(version int) string {
 // (backward compat with pre-annotation manifests). Falls back to a full tag
 // scan only when the manifest exists but has no version annotation.
 func (c *RemoteClient) currentStateVersion(ctx context.Context) int {
-	m, err := c.fetchManifest(ctx, c.stateTag)
+	fm, err := c.fetchManifestWithDesc(ctx, c.stateTag)
 	if err != nil {
 		return 0 // No existing state — first version
 	}
+	m := fm.m
 	if v, ok := m.Annotations[annotationStateVersion]; ok {
 		n, parseErr := strconv.Atoi(v)
 		if parseErr == nil && n > 0 {
@@ -565,10 +569,11 @@ func (c *RemoteClient) retagToNewManifest(ctx context.Context, tags []string, lo
 	}
 	logger.Debug("retention: detaching keep tags from digest", "tags", tags)
 
-	m, err := c.fetchManifest(ctx, tags[0])
+	fm, err := c.fetchManifestWithDesc(ctx, tags[0])
 	if err != nil {
 		return err
 	}
+	m := fm.m
 	if len(m.Layers) == 0 {
 		return nil
 	}
@@ -869,19 +874,19 @@ func parseLockManifestData(m *manifest) (*LockManifestData, error) {
 }
 
 func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
-	m, err := c.fetchManifest(ctx, c.lockTag)
+	fm, err := c.fetchManifestWithDesc(ctx, c.lockTag)
 	if err != nil {
 		return nil, err
 	}
-	return parseLockInfo(m, c.stateTag)
+	return parseLockInfo(fm.m, c.stateTag)
 }
 
 func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestData, error) {
-	m, err := c.fetchManifest(ctx, c.lockTag)
+	fm, err := c.fetchManifestWithDesc(ctx, c.lockTag)
 	if err != nil {
 		return nil, err
 	}
-	return parseLockManifestData(m)
+	return parseLockManifestData(fm.m)
 }
 
 type manifest struct {
@@ -896,14 +901,6 @@ type manifest struct {
 type fetchedManifest struct {
 	m    *manifest
 	desc ocispec.Descriptor
-}
-
-func (c *RemoteClient) fetchManifest(ctx context.Context, reference string) (*manifest, error) {
-	r, err := c.fetchManifestWithDesc(ctx, reference)
-	if err != nil {
-		return nil, err
-	}
-	return r.m, nil
 }
 
 func (c *RemoteClient) fetchManifestWithDesc(ctx context.Context, reference string) (fetchedManifest, error) {
@@ -963,8 +960,7 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 		tagSet[t] = struct{}{}
 	}
 
-	seen := map[string]bool{}
-	var out []string
+	var relevantTags []string
 	for _, tag := range tags {
 		if !strings.HasPrefix(tag, stateTagPrefix) {
 			continue
@@ -974,17 +970,48 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 				continue
 			}
 		}
-		name, err := workspaceNameFromTag(ctx, repo, tag)
-		if err != nil {
-			return nil, err
-		}
-		if name != "" && !seen[name] {
-			seen[name] = true
-			out = append(out, name)
+		relevantTags = append(relevantTags, tag)
+	}
+
+	// Process tags in parallel to resolve hashed names faster
+	var mu sync.Mutex
+	var out []string
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(10) // Limit concurrency to avoid registry rate limits
+
+	for _, tag := range relevantTags {
+		tag := tag
+		g.Go(func() error {
+			name, err := workspaceNameFromTag(ctx, repo, tag)
+			if err != nil {
+				return err
+			}
+			if name != "" {
+				mu.Lock()
+				out = append(out, name)
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	sort.Strings(out)
+	if len(out) == 0 {
+		return out, nil
+	}
+
+	// Dedup sorted list
+	dedup := out[:1]
+	for i := 1; i < len(out); i++ {
+		if out[i] != out[i-1] {
+			dedup = append(dedup, out[i])
 		}
 	}
-	sort.Strings(out)
-	return out, nil
+	return dedup, nil
 }
 
 func splitStateVersionTag(tag string) (base string, version int, ok bool) {

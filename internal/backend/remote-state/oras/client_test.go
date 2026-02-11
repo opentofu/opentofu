@@ -578,10 +578,11 @@ func TestRemoteClient_StateCompression_GzipRoundTrip(t *testing.T) {
 		t.Fatalf("expected roundtrip to match")
 	}
 
-	m, err := c.fetchManifest(ctx, c.stateTag)
+	fm, err := c.fetchManifestWithDesc(ctx, c.stateTag)
 	if err != nil {
 		t.Fatalf("fetch manifest: %v", err)
 	}
+	m := fm.m
 	if len(m.Layers) != 1 {
 		t.Fatalf("expected 1 layer, got %d", len(m.Layers))
 	}
