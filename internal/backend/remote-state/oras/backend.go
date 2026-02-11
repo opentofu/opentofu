@@ -376,7 +376,7 @@ func newORASRepositoryClient(ctx context.Context, repository string, insecure bo
 		return nil, fmt.Errorf("invalid OCI repository %q: %w", repository, err)
 	}
 
-	httpClient, err := newORASHTTPClient(ctx, insecure, caFile, rateLimit, rateBurst)
+	httpClient, err := newORASHTTPClient(insecure, caFile, rateLimit, rateBurst)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func newORASRepositoryClient(ctx context.Context, repository string, insecure bo
 	return repoClient, nil
 }
 
-func newORASHTTPClient(ctx context.Context, insecure bool, caFile string, rateLimit int, rateBurst int) (*http.Client, error) {
+func newORASHTTPClient(insecure bool, caFile string, rateLimit int, rateBurst int) (*http.Client, error) {
 	client := cleanhttp.DefaultPooledClient()
 
 	if t, ok := client.Transport.(*http.Transport); ok {
