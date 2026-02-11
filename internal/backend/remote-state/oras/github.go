@@ -79,20 +79,20 @@ func deleteGitHubPackageVersionByTag(ctx context.Context, baseURL, owner, packag
 	baseURL = strings.TrimRight(baseURL, "/")
 	pkgEscaped := url.PathEscape(packageName)
 	ownerEscaped := url.PathEscape(owner)
+	client := cleanhttp.DefaultClient()
 
 	orgBase := fmt.Sprintf("%s/orgs/%s/packages/container/%s", baseURL, ownerEscaped, pkgEscaped)
-	if err := deleteFromGitHubPackagesEndpoint(ctx, orgBase, tag, token); err == nil {
+	if err := deleteFromGitHubPackagesEndpoint(ctx, client, orgBase, tag, token); err == nil {
 		return nil
 	} else if !isHTTPStatus(err, http.StatusNotFound) {
 		return err
 	}
 
 	userBase := fmt.Sprintf("%s/users/%s/packages/container/%s", baseURL, ownerEscaped, pkgEscaped)
-	return deleteFromGitHubPackagesEndpoint(ctx, userBase, tag, token)
+	return deleteFromGitHubPackagesEndpoint(ctx, client, userBase, tag, token)
 }
 
-func deleteFromGitHubPackagesEndpoint(ctx context.Context, baseURL, tag, token string) error {
-	client := cleanhttp.DefaultClient()
+func deleteFromGitHubPackagesEndpoint(ctx context.Context, client *http.Client, baseURL, tag, token string) error {
 
 	versionID, err := findGitHubVersionIDByTag(ctx, client, baseURL, tag, token)
 	if err != nil {
