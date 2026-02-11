@@ -69,6 +69,8 @@ type RetryConfig struct {
 	BackoffMultiplier float64
 }
 
+// DefaultRetryConfig returns a RetryConfig with sensible defaults:
+// 3 attempts, 1s initial backoff, 30s max backoff, 2x multiplier.
 func DefaultRetryConfig() RetryConfig {
 	return RetryConfig{
 		MaxAttempts:       3,

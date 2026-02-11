@@ -50,6 +50,9 @@ const (
 	envVarRateBurst    = "TF_BACKEND_ORAS_RATE_LIMIT_BURST"
 )
 
+// Backend implements the OpenTofu backend interface for OCI registries
+// using the ORAS (OCI Registry As Storage) protocol. It stores state as
+// OCI artifacts and supports workspace management via manifest tags.
 type Backend struct {
 	*schema.Backend
 	encryption encryption.StateEncryption
@@ -69,6 +72,7 @@ type Backend struct {
 	repoClient      *orasRepositoryClient
 }
 
+// New creates a new ORAS backend instance with the given state encryption.
 func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
 		Schema: map[string]*schema.Schema{
