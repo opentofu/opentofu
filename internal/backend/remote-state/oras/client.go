@@ -40,11 +40,12 @@ const (
 	artifactTypeState       = "application/vnd.terraform.state.v1"
 	artifactTypeLock        = "application/vnd.terraform.lock.v1"
 
-	annotationWorkspace = "org.terraform.workspace"
-	annotationUpdatedAt = "org.terraform.state.updated_at"
-	annotationLockID    = "org.terraform.lock.id"
-	annotationLockInfo  = "org.terraform.lock.info"
-	annotationLockGen   = "org.terraform.lock.generation"
+	annotationWorkspace    = "org.terraform.workspace"
+	annotationUpdatedAt    = "org.terraform.state.updated_at"
+	annotationStateVersion = "org.terraform.state.version"
+	annotationLockID       = "org.terraform.lock.id"
+	annotationLockInfo     = "org.terraform.lock.info"
+	annotationLockGen      = "org.terraform.lock.generation"
 )
 
 // Tag naming scheme:
@@ -245,13 +246,17 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 	}
 }
 
-func (c *RemoteClient) packStateManifest(ctx context.Context, layers []ocispec.Descriptor) (ocispec.Descriptor, error) {
+func (c *RemoteClient) packStateManifest(ctx context.Context, layers []ocispec.Descriptor, stateVersion int) (ocispec.Descriptor, error) {
+	annotations := map[string]string{
+		annotationWorkspace: c.workspaceName,
+		annotationUpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if stateVersion > 0 {
+		annotations[annotationStateVersion] = strconv.Itoa(stateVersion)
+	}
 	return oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeState, oras.PackManifestOptions{
-		Layers: layers,
-		ManifestAnnotations: map[string]string{
-			annotationWorkspace: c.workspaceName,
-			annotationUpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
-		},
+		Layers:              layers,
+		ManifestAnnotations: annotations,
 	})
 }
 
@@ -358,12 +363,20 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		layerMediaType = mediaTypeStateLayerGzip
 	}
 
+	// If versioning is enabled, determine the next version number from the
+	// current state manifest's annotation. This is a single Resolve+Fetch,
+	// much faster than listing all tags (which is deferred to async retention).
+	var nextVersion int
+	if c.versioningMaxVersions > 0 {
+		nextVersion = c.currentStateVersion(ctx) + 1
+	}
+
 	layerDesc, err := oras.PushBytes(ctx, c.repo.inner, layerMediaType, stateToPush)
 	if err != nil {
 		return err
 	}
 
-	manifestDesc, err := c.packStateManifest(ctx, []ocispec.Descriptor{layerDesc})
+	manifestDesc, err := c.packStateManifest(ctx, []ocispec.Descriptor{layerDesc}, nextVersion)
 	if err != nil {
 		return err
 	}
@@ -377,21 +390,15 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 		return nil
 	}
 
-	nextVersion, existing, err := c.nextStateVersion(ctx)
-	if err != nil {
-		return err
-	}
-
 	newVersionTag := c.versionTagFor(nextVersion)
 	if err := c.repo.inner.Tag(ctx, manifestDesc, newVersionTag); err != nil {
 		return err
 	}
 
-	existing = append(existing, nextVersion)
-
 	// Async retention with semaphore to limit concurrent goroutines.
-	// Derive from the caller's context so that shutdown is propagated,
-	// but add a timeout to prevent goroutines from running indefinitely.
+	// The expensive tag listing is deferred to this goroutine so that Put()
+	// returns quickly. Derive from the caller's context so that shutdown
+	// is propagated, but add a timeout to prevent indefinite runs.
 	sem := c.retentionSem
 	if sem == nil {
 		sem = defaultRetentionSem
@@ -402,6 +409,23 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 			defer func() { <-sem }()
 			asyncCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
+			existing, listErr := c.listExistingVersions(asyncCtx)
+			if listErr != nil {
+				logging.HCLogger().Trace("async retention: failed to list versions", "error", listErr.Error())
+				return
+			}
+			// Ensure the version we just created is included even if the
+			// registry listing hasn't caught up yet (eventual consistency).
+			found := false
+			for _, v := range existing {
+				if v == nextVersion {
+					found = true
+					break
+				}
+			}
+			if !found {
+				existing = append(existing, nextVersion)
+			}
 			if err := c.enforceVersionRetention(asyncCtx, manifestDesc, existing); err != nil {
 				logging.HCLogger().Trace("async retention cleanup failed", "error", err.Error())
 			}
@@ -418,28 +442,56 @@ func (c *RemoteClient) versionTagFor(version int) string {
 	return fmt.Sprintf("%s%s%d", c.stateTag, stateVersionTagSeparator, version)
 }
 
-func (c *RemoteClient) nextStateVersion(ctx context.Context) (next int, existing []int, err error) {
+// currentStateVersion reads the version number from the current state manifest's
+// annotation. Returns 0 if no manifest exists or if the annotation is absent
+// (backward compat with pre-annotation manifests). Falls back to a full tag
+// scan only when the manifest exists but has no version annotation.
+func (c *RemoteClient) currentStateVersion(ctx context.Context) int {
+	m, err := c.fetchManifest(ctx, c.stateTag)
+	if err != nil {
+		return 0 // No existing state — first version
+	}
+	if v, ok := m.Annotations[annotationStateVersion]; ok {
+		n, parseErr := strconv.Atoi(v)
+		if parseErr == nil && n > 0 {
+			return n
+		}
+	}
+	// Backward compat: manifest exists but has no version annotation.
+	// Fall back to scanning tags (only happens once per manifest upgrade).
+	existing, listErr := c.listExistingVersions(ctx)
+	if listErr != nil || len(existing) == 0 {
+		return 0
+	}
+	max := 0
+	for _, v := range existing {
+		if v > max {
+			max = v
+		}
+	}
+	return max
+}
+
+// listExistingVersions scans all tags and returns the version numbers that
+// match the state-<workspace>-v<N> pattern for this client's workspace.
+func (c *RemoteClient) listExistingVersions(ctx context.Context) ([]int, error) {
 	var tags []string
 	if err := c.repo.inner.Tags(ctx, "", func(page []string) error {
 		tags = append(tags, page...)
 		return nil
 	}); err != nil {
-		return 0, nil, err
+		return nil, err
 	}
 
-	max := 0
+	var existing []int
 	for _, t := range tags {
 		base, v, ok := splitStateVersionTag(t)
 		if !ok || base != c.stateTag {
 			continue
 		}
 		existing = append(existing, v)
-		if v > max {
-			max = v
-		}
 	}
-
-	return max + 1, existing, nil
+	return existing, nil
 }
 
 func (c *RemoteClient) enforceVersionRetention(ctx context.Context, current ocispec.Descriptor, versions []int) error {
@@ -531,7 +583,7 @@ func (c *RemoteClient) retagToNewManifest(ctx context.Context, tags []string, lo
 		return nil
 	}
 
-	newDesc, err := c.packStateManifest(ctx, m.Layers)
+	newDesc, err := c.packStateManifest(ctx, m.Layers, 0)
 	if err != nil {
 		return err
 	}
