@@ -260,16 +260,6 @@ func (c *RemoteClient) packStateManifest(ctx context.Context, layers []ocispec.D
 	})
 }
 
-func (c *RemoteClient) packLockManifest(ctx context.Context, id, infoJSON string) (ocispec.Descriptor, error) {
-	return oras.PackManifest(ctx, c.repo.inner, oras.PackManifestVersion1_1, artifactTypeLock, oras.PackManifestOptions{
-		ManifestAnnotations: map[string]string{
-			annotationWorkspace: c.workspaceName,
-			annotationLockID:    id,
-			annotationLockInfo:  infoJSON,
-		},
-	})
-}
-
 func (c *RemoteClient) packLockManifestWithGeneration(ctx context.Context, id, infoJSON string, generation int64, leaseExpiry int64, holderID string) (ocispec.Descriptor, error) {
 	lockData := LockManifestData{
 		Generation:  generation,
@@ -678,11 +668,7 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 
 	leaseExpiry := int64(0)
 	if c.lockTTL > 0 {
-		nowFn := c.now
-		if nowFn == nil {
-			nowFn = time.Now
-		}
-		leaseExpiry = nowFn().UTC().Add(c.lockTTL).UnixNano()
+		leaseExpiry = c.nowUTC().Add(c.lockTTL).UnixNano()
 	}
 
 	info.Path = c.stateTag
@@ -731,6 +717,14 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	return info.ID, nil
 }
 
+// nowUTC returns the current time in UTC, using the injectable now func.
+func (c *RemoteClient) nowUTC() time.Time {
+	if c.now != nil {
+		return c.now().UTC()
+	}
+	return time.Now().UTC()
+}
+
 // isLockStale checks if a lock has expired based on its LeaseExpiry.
 // This is more reliable than using Created + TTL because:
 // 1. The expiry time is calculated when the lock is created
@@ -745,11 +739,7 @@ func (c *RemoteClient) isLockStale(data *LockManifestData) bool {
 	if data == nil || data.LeaseExpiry <= 0 {
 		return false
 	}
-	nowFn := c.now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-	return nowFn().UTC().UnixNano() > data.LeaseExpiry
+	return c.nowUTC().UnixNano() > data.LeaseExpiry
 }
 
 func (c *RemoteClient) clearLock(ctx context.Context, desc ocispec.Descriptor) error {
@@ -818,7 +808,7 @@ func (c *RemoteClient) retagToUnlocked(ctx context.Context) error {
 		return c.repo.inner.Resolve(ctx, c.unlockedTag)
 	})
 	if isNotFound(err) {
-		desc, err = c.packLockManifest(ctx, "", "")
+		desc, err = c.packLockManifestWithGeneration(ctx, "", "", 0, 0, "")
 		if err != nil {
 			return err
 		}

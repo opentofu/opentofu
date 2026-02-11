@@ -109,32 +109,43 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 	}
 }
 
+// delegatingRepo is a base type that delegates all orasRepository methods to an
+// inner *fakeORASRepo. Test doubles embed this and override only the methods
+// they need, eliminating repetitive pass-through boilerplate.
+type delegatingRepo struct {
+	inner *fakeORASRepo
+}
+
+func (d delegatingRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
+	return d.inner.Push(ctx, expected, content)
+}
+func (d delegatingRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	return d.inner.Fetch(ctx, target)
+}
+func (d delegatingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	return d.inner.Resolve(ctx, reference)
+}
+func (d delegatingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
+	return d.inner.Tag(ctx, desc, reference)
+}
+func (d delegatingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+	return d.inner.Delete(ctx, target)
+}
+func (d delegatingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+	return d.inner.Exists(ctx, target)
+}
+func (d delegatingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
+	return d.inner.Tags(ctx, last, fn)
+}
+
 // deleteFailingRepo wraps fakeORASRepo and returns a non-transient error on Delete.
 type deleteFailingRepo struct {
-	inner     *fakeORASRepo
+	delegatingRepo
 	deleteErr error
 }
 
-func (r *deleteFailingRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
-	return r.inner.Push(ctx, expected, content)
-}
-func (r *deleteFailingRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
-	return r.inner.Fetch(ctx, target)
-}
-func (r *deleteFailingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
-	return r.inner.Resolve(ctx, reference)
-}
-func (r *deleteFailingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
-	return r.inner.Tag(ctx, desc, reference)
-}
-func (r *deleteFailingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+func (r *deleteFailingRepo) Delete(_ context.Context, _ ocispec.Descriptor) error {
 	return r.deleteErr
-}
-func (r *deleteFailingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	return r.inner.Exists(ctx, target)
-}
-func (r *deleteFailingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
-	return r.inner.Tags(ctx, last, fn)
 }
 
 func TestDeleteWorkspace_ReturnsErrorOnDeleteFailure(t *testing.T) {
@@ -150,8 +161,8 @@ func TestDeleteWorkspace_ReturnsErrorOnDeleteFailure(t *testing.T) {
 
 	// Now wrap with a failing repo that returns 500 on Delete.
 	failRepo := &deleteFailingRepo{
-		inner:     fake,
-		deleteErr: &orasErrcode.ErrorResponse{StatusCode: http.StatusInternalServerError},
+		delegatingRepo: delegatingRepo{inner: fake},
+		deleteErr:      &orasErrcode.ErrorResponse{StatusCode: http.StatusInternalServerError},
 	}
 	b := &Backend{
 		Backend:    nil,
@@ -211,7 +222,7 @@ func TestDeleteWorkspace_ToleratesDeleteUnsupported(t *testing.T) {
 	}
 
 	// Wrap with a repo that returns 405 (Method Not Allowed) on Delete.
-	unsupportedRepo := deleteUnsupportedRepo{inner: fake}
+	unsupportedRepo := deleteUnsupportedRepo{delegatingRepo: delegatingRepo{inner: fake}}
 	b := &Backend{
 		Backend:    nil,
 		repoClient: &orasRepositoryClient{inner: unsupportedRepo, repository: "example.com/test/repo"},
@@ -296,37 +307,17 @@ func TestWorkspaceTagFor_HashesInvalidWorkspaceNames(t *testing.T) {
 }
 
 type deleteUnsupportedRepo struct {
-	inner *fakeORASRepo
+	delegatingRepo
 }
 
-func (r deleteUnsupportedRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
-	return r.inner.Push(ctx, expected, content)
-}
-func (r deleteUnsupportedRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
-	return r.inner.Fetch(ctx, target)
-}
-func (r deleteUnsupportedRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
-	return r.inner.Resolve(ctx, reference)
-}
-func (r deleteUnsupportedRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
-	return r.inner.Tag(ctx, desc, reference)
-}
-func (r deleteUnsupportedRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
-	_ = ctx
-	_ = target
+func (r deleteUnsupportedRepo) Delete(_ context.Context, _ ocispec.Descriptor) error {
 	return &orasErrcode.ErrorResponse{StatusCode: 405}
-}
-func (r deleteUnsupportedRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	return r.inner.Exists(ctx, target)
-}
-func (r deleteUnsupportedRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
-	return r.inner.Tags(ctx, last, fn)
 }
 
 func TestRemoteClient_UnlockFallbackWhenDeleteUnsupported(t *testing.T) {
 	ctx := context.Background()
 	fake := newFakeORASRepo()
-	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
+	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{delegatingRepo: delegatingRepo{inner: fake}}}
 
 	client := newRemoteClient(repo, "default")
 
@@ -538,7 +529,7 @@ func TestRemoteClient_LockTTL_ClearsStaleLock(t *testing.T) {
 func TestRemoteClient_LockTTL_ClearsStaleLock_DeleteUnsupportedFallback(t *testing.T) {
 	ctx := context.Background()
 	fake := newFakeORASRepo()
-	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{inner: fake}}
+	repo := &orasRepositoryClient{inner: deleteUnsupportedRepo{delegatingRepo: delegatingRepo{inner: fake}}}
 
 	// client1 creates a lock with TTL that will be stale when client2 checks
 	baseTime := time.Unix(1_000, 0).UTC()
@@ -653,7 +644,7 @@ func TestRemoteClient_StateCompression_GzipEmptyState(t *testing.T) {
 // another process writes a lock between our Tag call and our verification read.
 // It intercepts the second Resolve call (the verification) and swaps in a winner's lock.
 type raceSimulatingRepo struct {
-	inner          *fakeORASRepo
+	delegatingRepo
 	interceptTag   string
 	winnerLockID   string
 	tagCount       int
@@ -667,7 +658,7 @@ func newRaceSimulatingRepo(inner *fakeORASRepo, interceptTag, winnerLockID strin
 		winnerLockID, winnerLockID))
 	dgst := digest.FromBytes(winnerManifest)
 	return &raceSimulatingRepo{
-		inner:          inner,
+		delegatingRepo: delegatingRepo{inner: inner},
 		interceptTag:   interceptTag,
 		winnerLockID:   winnerLockID,
 		winnerManifest: winnerManifest,
@@ -679,21 +670,15 @@ func newRaceSimulatingRepo(inner *fakeORASRepo, interceptTag, winnerLockID strin
 	}
 }
 
-func (r *raceSimulatingRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
-	return r.inner.Push(ctx, expected, content)
-}
 func (r *raceSimulatingRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
 	// If fetching the winner's manifest, return it
 	if target.Digest == r.winnerDesc.Digest {
 		return io.NopCloser(bytes.NewReader(r.winnerManifest)), nil
 	}
-	return r.inner.Fetch(ctx, target)
-}
-func (r *raceSimulatingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
-	return r.inner.Resolve(ctx, reference)
+	return r.delegatingRepo.Fetch(ctx, target)
 }
 func (r *raceSimulatingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
-	err := r.inner.Tag(ctx, desc, reference)
+	err := r.delegatingRepo.Tag(ctx, desc, reference)
 	if err != nil {
 		return err
 	}
@@ -702,21 +687,12 @@ func (r *raceSimulatingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, r
 		r.tagCount++
 		if r.tagCount == 1 {
 			// Store the winner's manifest so Fetch can return it
-			_ = r.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerManifest))
+			_ = r.delegatingRepo.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerManifest))
 			// Winner overwrites the tag
-			_ = r.inner.Tag(ctx, r.winnerDesc, reference)
+			_ = r.delegatingRepo.inner.Tag(ctx, r.winnerDesc, reference)
 		}
 	}
 	return nil
-}
-func (r *raceSimulatingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
-	return r.inner.Delete(ctx, target)
-}
-func (r *raceSimulatingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	return r.inner.Exists(ctx, target)
-}
-func (r *raceSimulatingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
-	return r.inner.Tags(ctx, last, fn)
 }
 
 func TestRemoteClient_Lock_RaceConditionDetection(t *testing.T) {
@@ -755,7 +731,7 @@ func TestRemoteClient_Lock_RaceConditionDetection(t *testing.T) {
 // same generation as the loser (both read the same base generation before the
 // lock existed). The only distinguishing field is HolderID.
 type sameGenRaceRepo struct {
-	inner        *fakeORASRepo
+	delegatingRepo
 	interceptTag string
 	tagCount     int
 	winnerDesc   ocispec.Descriptor
@@ -779,9 +755,9 @@ func newSameGenRaceRepo(inner *fakeORASRepo, interceptTag string, winnerGenerati
 	})
 	dgst := digest.FromBytes(winnerManifest)
 	return &sameGenRaceRepo{
-		inner:        inner,
-		interceptTag: interceptTag,
-		winnerBlob:   winnerManifest,
+		delegatingRepo: delegatingRepo{inner: inner},
+		interceptTag:   interceptTag,
+		winnerBlob:     winnerManifest,
 		winnerDesc: ocispec.Descriptor{
 			MediaType: "application/vnd.oci.image.manifest.v1+json",
 			Digest:    dgst,
@@ -790,40 +766,25 @@ func newSameGenRaceRepo(inner *fakeORASRepo, interceptTag string, winnerGenerati
 	}
 }
 
-func (r *sameGenRaceRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
-	return r.inner.Push(ctx, expected, content)
-}
 func (r *sameGenRaceRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
 	if target.Digest == r.winnerDesc.Digest {
 		return io.NopCloser(bytes.NewReader(r.winnerBlob)), nil
 	}
-	return r.inner.Fetch(ctx, target)
-}
-func (r *sameGenRaceRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
-	return r.inner.Resolve(ctx, reference)
+	return r.delegatingRepo.Fetch(ctx, target)
 }
 func (r *sameGenRaceRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
-	err := r.inner.Tag(ctx, desc, reference)
+	err := r.delegatingRepo.Tag(ctx, desc, reference)
 	if err != nil {
 		return err
 	}
 	if reference == r.interceptTag {
 		r.tagCount++
 		if r.tagCount == 1 {
-			_ = r.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerBlob))
-			_ = r.inner.Tag(ctx, r.winnerDesc, reference)
+			_ = r.delegatingRepo.inner.Push(ctx, r.winnerDesc, bytes.NewReader(r.winnerBlob))
+			_ = r.delegatingRepo.inner.Tag(ctx, r.winnerDesc, reference)
 		}
 	}
 	return nil
-}
-func (r *sameGenRaceRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
-	return r.inner.Delete(ctx, target)
-}
-func (r *sameGenRaceRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	return r.inner.Exists(ctx, target)
-}
-func (r *sameGenRaceRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
-	return r.inner.Tags(ctx, last, fn)
 }
 
 func TestRemoteClient_Lock_SameGenerationRaceDetectedByHolderID(t *testing.T) {
