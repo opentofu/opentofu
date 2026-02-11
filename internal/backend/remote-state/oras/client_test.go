@@ -109,6 +109,120 @@ func TestRemoteClient_WorkspacesFromTags_TagSafeAndHashed(t *testing.T) {
 	}
 }
 
+// deleteFailingRepo wraps fakeORASRepo and returns a non-transient error on Delete.
+type deleteFailingRepo struct {
+	inner     *fakeORASRepo
+	deleteErr error
+}
+
+func (r *deleteFailingRepo) Push(ctx context.Context, expected ocispec.Descriptor, content io.Reader) error {
+	return r.inner.Push(ctx, expected, content)
+}
+func (r *deleteFailingRepo) Fetch(ctx context.Context, target ocispec.Descriptor) (io.ReadCloser, error) {
+	return r.inner.Fetch(ctx, target)
+}
+func (r *deleteFailingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	return r.inner.Resolve(ctx, reference)
+}
+func (r *deleteFailingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error {
+	return r.inner.Tag(ctx, desc, reference)
+}
+func (r *deleteFailingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
+	return r.deleteErr
+}
+func (r *deleteFailingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
+	return r.inner.Exists(ctx, target)
+}
+func (r *deleteFailingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
+	return r.inner.Tags(ctx, last, fn)
+}
+
+func TestDeleteWorkspace_ReturnsErrorOnDeleteFailure(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+
+	// First, create a workspace state so there's something to delete.
+	normalRepo := &orasRepositoryClient{inner: fake}
+	c := newRemoteClient(normalRepo, "staging")
+	if err := c.Put(ctx, []byte("some-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	// Now wrap with a failing repo that returns 500 on Delete.
+	failRepo := &deleteFailingRepo{
+		inner:     fake,
+		deleteErr: &orasErrcode.ErrorResponse{StatusCode: http.StatusInternalServerError},
+	}
+	b := &Backend{
+		Backend:    nil,
+		repoClient: &orasRepositoryClient{inner: failRepo, repository: "example.com/test/repo"},
+	}
+
+	err := b.DeleteWorkspace(ctx, "staging", false)
+	if err == nil {
+		t.Fatalf("expected DeleteWorkspace to return error when Delete fails, got nil")
+	}
+	if !strings.Contains(err.Error(), "deleting state for workspace") {
+		t.Fatalf("expected error about deleting state, got: %v", err)
+	}
+}
+
+func TestDeleteWorkspace_SucceedsNormally(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	// Create state and lock for a workspace.
+	c := newRemoteClient(repo, "staging")
+	if err := c.Put(ctx, []byte("some-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	if _, err := c.Lock(ctx, &statemgr.LockInfo{ID: "lock-1", Operation: "test"}); err != nil {
+		t.Fatalf("lock: %v", err)
+	}
+
+	b := &Backend{
+		Backend:    nil,
+		repoClient: repo,
+	}
+
+	if err := b.DeleteWorkspace(ctx, "staging", false); err != nil {
+		t.Fatalf("expected DeleteWorkspace to succeed, got: %v", err)
+	}
+
+	// State and lock should be gone.
+	if _, err := fake.Resolve(ctx, c.stateTag); err == nil {
+		t.Fatalf("expected state tag to be deleted")
+	}
+	if _, err := fake.Resolve(ctx, c.lockTag); err == nil {
+		t.Fatalf("expected lock tag to be deleted")
+	}
+}
+
+func TestDeleteWorkspace_ToleratesDeleteUnsupported(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+
+	// Create state so there's something to delete.
+	normalRepo := &orasRepositoryClient{inner: fake}
+	c := newRemoteClient(normalRepo, "staging")
+	if err := c.Put(ctx, []byte("some-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	// Wrap with a repo that returns 405 (Method Not Allowed) on Delete.
+	unsupportedRepo := deleteUnsupportedRepo{inner: fake}
+	b := &Backend{
+		Backend:    nil,
+		repoClient: &orasRepositoryClient{inner: unsupportedRepo, repository: "example.com/test/repo"},
+	}
+
+	// Should succeed without error since 405 is tolerated.
+	if err := b.DeleteWorkspace(ctx, "staging", false); err != nil {
+		t.Fatalf("expected DeleteWorkspace to tolerate 405, got: %v", err)
+	}
+}
+
 func TestRemoteClient_Put_VersioningTagsAndRetention(t *testing.T) {
 	// Drain the global retention semaphore to ensure slots are available.
 	// Other tests may leave goroutines that hold semaphore slots.

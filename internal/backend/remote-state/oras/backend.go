@@ -292,22 +292,35 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	lockRef := lockTagPrefix + wsTag
 	stateVersionPrefix := stateRef + stateVersionTagSeparator
 
+	// Delete the main state manifest.
 	if desc, err := repo.inner.Resolve(ctx, stateRef); err == nil {
-		_ = repo.inner.Delete(ctx, desc)
+		if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
+			return fmt.Errorf("deleting state for workspace %q: %w", name, err)
+		}
 	}
-	_ = repo.inner.Tags(ctx, "", func(page []string) error {
+
+	// Delete versioned state manifests.
+	if err := repo.inner.Tags(ctx, "", func(page []string) error {
 		for _, tag := range page {
 			if !strings.HasPrefix(tag, stateVersionPrefix) {
 				continue
 			}
 			if desc, err := repo.inner.Resolve(ctx, tag); err == nil {
-				_ = repo.inner.Delete(ctx, desc)
+				if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
+					return fmt.Errorf("deleting state version %q for workspace %q: %w", tag, name, err)
+				}
 			}
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Delete the lock manifest.
 	if desc, err := repo.inner.Resolve(ctx, lockRef); err == nil {
-		_ = repo.inner.Delete(ctx, desc)
+		if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
+			return fmt.Errorf("deleting lock for workspace %q: %w", name, err)
+		}
 	}
 	return nil
 }
