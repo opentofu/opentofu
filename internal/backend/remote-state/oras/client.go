@@ -155,19 +155,25 @@ func isTransientError(err error) bool {
 	}
 
 	// Fallback to string matching to catch transient errors after wrapping.
+	// Use specific substrings to avoid false positives (e.g. "eof" matching "thereof").
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "connection reset"):
 		return true
 	case strings.Contains(msg, "connection refused"):
 		return true
-	case strings.Contains(msg, "timeout"):
+	case strings.Contains(msg, "i/o timeout"),
+		strings.Contains(msg, "connection timeout"),
+		strings.Contains(msg, "tls handshake timeout"),
+		strings.Contains(msg, "context deadline exceeded"):
 		return true
-	case strings.Contains(msg, "temporary failure"):
+	case strings.Contains(msg, "temporary failure in name resolution"):
 		return true
 	case strings.Contains(msg, "no such host"):
 		return true
-	case strings.Contains(msg, "eof"):
+	case strings.Contains(msg, "unexpected eof"),
+		strings.Contains(msg, "read: eof"),
+		msg == "eof":
 		return true
 	default:
 		return false

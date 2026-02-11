@@ -365,8 +365,18 @@ func TestIsTransientError(t *testing.T) {
 		{name: "401 Unauthorized", err: &orasErrcode.ErrorResponse{StatusCode: http.StatusUnauthorized}, expected: false},
 		{name: "connection reset", err: errors.New("read tcp: connection reset by peer"), expected: true},
 		{name: "connection refused", err: errors.New("dial tcp: connection refused"), expected: true},
-		{name: "timeout", err: errors.New("connection timeout occurred"), expected: true},
-		{name: "EOF", err: errors.New("unexpected EOF"), expected: true},
+		{name: "connection timeout", err: errors.New("connection timeout occurred"), expected: true},
+		{name: "i/o timeout", err: errors.New("read tcp 10.0.0.1:443: i/o timeout"), expected: true},
+		{name: "tls handshake timeout", err: errors.New("net/http: TLS handshake timeout"), expected: true},
+		{name: "context deadline exceeded", err: errors.New("context deadline exceeded"), expected: true},
+		{name: "unexpected EOF", err: errors.New("unexpected EOF"), expected: true},
+		{name: "read: eof", err: errors.New("http: read: eof"), expected: true},
+		{name: "bare eof", err: errors.New("EOF"), expected: true},
+		{name: "no such host", err: errors.New("dial tcp: lookup example.com: no such host"), expected: true},
+		{name: "temporary failure in name resolution", err: errors.New("temporary failure in name resolution"), expected: true},
+		// Must NOT match words that happen to contain "eof" or "timeout" substrings
+		{name: "word containing eof - thereof", err: errors.New("thereof the value is invalid"), expected: false},
+		{name: "generic timeout word excluded", err: errors.New("the server returned a permanent error"), expected: false},
 	}
 
 	for _, tt := range tests {
