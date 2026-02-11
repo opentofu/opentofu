@@ -586,25 +586,25 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", fmt.Errorf("lock info is required")
 	}
 
-	// Read current generation FIRST (before any modifications).
-	// This is critical for race detection: even if we clear a stale lock,
-	// we use the generation we read here to compute the next one.
-	currentGen, err := c.getLockManifestData(ctx)
+	// Single fetch to read current lock state (generation + lock info + descriptor).
+	// This replaces three separate round-trips (getLockManifestData, Resolve, getLockInfo)
+	// with one Resolve + one Fetch.
+	var currentGen *LockManifestData
+	var existingDesc ocispec.Descriptor
+	lockFetched, err := c.fetchManifestWithDesc(ctx, c.lockTag)
 	if err != nil && !isNotFound(err) {
-		return "", fmt.Errorf("failed to read current lock generation: %w", err)
+		return "", fmt.Errorf("failed to read current lock state: %w", err)
 	}
-
-	// Check for existing lock (with retry for transient network errors)
-	existingDesc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
-		return c.repo.inner.Resolve(ctx, c.lockTag)
-	})
 	if err == nil {
-		existing, err := c.getLockInfo(ctx)
-		if err != nil {
-			return "", &statemgr.LockError{InconsistentRead: true, Err: err}
+		// Lock manifest exists — extract generation data and lock info.
+		currentGen, _ = parseLockManifestData(lockFetched.m)
+		existingDesc = lockFetched.desc
+
+		existing, parseErr := parseLockInfo(lockFetched.m, c.stateTag)
+		if parseErr != nil {
+			return "", &statemgr.LockError{InconsistentRead: true, Err: parseErr}
 		}
 		if existing != nil && existing.ID != "" {
-			// Use LeaseExpiry from manifest data (more reliable than Created + TTL)
 			if c.isLockStale(currentGen) {
 				if err := c.clearLock(ctx, existingDesc); err != nil {
 					return "", err
@@ -616,8 +616,6 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 				return "", &statemgr.LockError{Info: existing, Err: fmt.Errorf("state is locked")}
 			}
 		}
-	} else if !isNotFound(err) {
-		return "", err
 	}
 
 	// Increment from the generation we read at the start
@@ -787,15 +785,11 @@ func (c *RemoteClient) retagToUnlocked(ctx context.Context) error {
 	})
 }
 
-func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
-	m, err := c.fetchManifest(ctx, c.lockTag)
-	if err != nil {
-		return nil, err
-	}
+// parseLockInfo extracts lock holder information from a pre-fetched lock manifest.
+func parseLockInfo(m *manifest, stateTag string) (*statemgr.LockInfo, error) {
 	if m.ArtifactType != "" && m.ArtifactType != artifactTypeLock {
-		return nil, fmt.Errorf("unexpected lock manifest artifactType %q for %q", m.ArtifactType, c.lockTag)
+		return nil, fmt.Errorf("unexpected lock manifest artifactType %q", m.ArtifactType)
 	}
-
 	if raw, ok := m.Annotations[annotationLockInfo]; ok && raw != "" {
 		var info statemgr.LockInfo
 		if err := json.Unmarshal([]byte(raw), &info); err != nil {
@@ -805,27 +799,22 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 			info.ID = m.Annotations[annotationLockID]
 		}
 		if info.Path == "" {
-			info.Path = c.stateTag
+			info.Path = stateTag
 		}
 		return &info, nil
 	}
-
 	id := m.Annotations[annotationLockID]
 	if id == "" {
 		return &statemgr.LockInfo{}, nil
 	}
-	return &statemgr.LockInfo{ID: id, Path: c.stateTag}, nil
+	return &statemgr.LockInfo{ID: id, Path: stateTag}, nil
 }
 
-func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestData, error) {
-	m, err := c.fetchManifest(ctx, c.lockTag)
-	if err != nil {
-		return nil, err
-	}
+// parseLockManifestData extracts generation metadata from a pre-fetched lock manifest.
+func parseLockManifestData(m *manifest) (*LockManifestData, error) {
 	if m.ArtifactType != "" && m.ArtifactType != artifactTypeLock {
-		return nil, fmt.Errorf("unexpected lock manifest artifactType %q for %q", m.ArtifactType, c.lockTag)
+		return nil, fmt.Errorf("unexpected lock manifest artifactType %q", m.ArtifactType)
 	}
-
 	if raw, ok := m.Annotations[annotationLockGen]; ok && raw != "" {
 		var data LockManifestData
 		if err := json.Unmarshal([]byte(raw), &data); err != nil {
@@ -833,9 +822,24 @@ func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestDa
 		}
 		return &data, nil
 	}
-
 	// No generation data (legacy lock or manually created)
 	return &LockManifestData{Generation: 0}, nil
+}
+
+func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+	m, err := c.fetchManifest(ctx, c.lockTag)
+	if err != nil {
+		return nil, err
+	}
+	return parseLockInfo(m, c.stateTag)
+}
+
+func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestData, error) {
+	m, err := c.fetchManifest(ctx, c.lockTag)
+	if err != nil {
+		return nil, err
+	}
+	return parseLockManifestData(m)
 }
 
 type manifest struct {
@@ -845,36 +849,51 @@ type manifest struct {
 	Layers       []ocispec.Descriptor `json:"layers"`
 }
 
+// fetchedManifest bundles a parsed manifest with its OCI descriptor,
+// allowing callers to reuse the descriptor without an additional Resolve.
+type fetchedManifest struct {
+	m    *manifest
+	desc ocispec.Descriptor
+}
+
 func (c *RemoteClient) fetchManifest(ctx context.Context, reference string) (*manifest, error) {
-	return withRetry(ctx, c.retryConfig, func(ctx context.Context) (*manifest, error) {
+	r, err := c.fetchManifestWithDesc(ctx, reference)
+	if err != nil {
+		return nil, err
+	}
+	return r.m, nil
+}
+
+func (c *RemoteClient) fetchManifestWithDesc(ctx context.Context, reference string) (fetchedManifest, error) {
+	return withRetry(ctx, c.retryConfig, func(ctx context.Context) (fetchedManifest, error) {
 		return c.fetchManifestInternal(ctx, reference)
 	})
 }
 
-func (c *RemoteClient) fetchManifestInternal(ctx context.Context, reference string) (*manifest, error) {
+func (c *RemoteClient) fetchManifestInternal(ctx context.Context, reference string) (fetchedManifest, error) {
 	desc, err := c.repo.inner.Resolve(ctx, reference)
 	if err != nil {
-		return nil, err
+		return fetchedManifest{}, err
 	}
 	rc, err := c.repo.inner.Fetch(ctx, desc)
 	if err != nil {
-		return nil, err
+		return fetchedManifest{}, err
 	}
 	defer rc.Close()
 
 	data, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, err
+		return fetchedManifest{}, err
 	}
 
 	var m manifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("decoding manifest %q: %w", reference, err)
+		return fetchedManifest{}, fmt.Errorf("decoding manifest %q: %w", reference, err)
 	}
 	if m.Annotations == nil {
 		m.Annotations = map[string]string{}
 	}
-	return &m, nil
+	return fetchedManifest{m: &m, desc: desc}, nil
 }
 
 // Workspace tag helpers
