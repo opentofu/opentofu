@@ -7,6 +7,7 @@ package oras
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -350,4 +351,89 @@ func TestCachedDockerCredentialHelperEnv_CachesNotFoundErrorWithinTTL(t *testing
 	if got, want := inner.Calls(), 1; got != want {
 		t.Fatalf("inner calls = %d, want %d", got, want)
 	}
+}
+
+func TestCachedDockerCredentialHelperEnv_UnexpectedErrorUsesShortTTL(t *testing.T) {
+	// Unexpected errors (not "credentials not found") should be cached with
+	// a short TTL so that transient failures recover quickly.
+	transientErr := fmt.Errorf("connection refused")
+	inner := &countingLookupEnv{err: transientErr}
+	env := newCachedDockerCredentialHelperEnv(inner, time.Minute)
+	base := time.Unix(100, 0)
+	now := base
+	env.now = func() time.Time { return now }
+
+	ctx := context.Background()
+	_, err := env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	// Same time: should be cached.
+	_, _ = env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if got, want := inner.Calls(), 1; got != want {
+		t.Fatalf("expected 1 inner call (cached), got %d", got)
+	}
+
+	// Advance past the short error TTL (errorCacheTTL = 10s) but not the full TTL (60s).
+	now = base.Add(11 * time.Second)
+	_, err = env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if got, want := inner.Calls(), 2; got != want {
+		t.Fatalf("expected 2 inner calls after short TTL expired, got %d", got)
+	}
+}
+
+func TestCachedDockerCredentialHelperEnv_SingleflightDeduplication(t *testing.T) {
+	// Verify that concurrent calls for the same key are deduplicated.
+	gate := make(chan struct{})
+	inner := &countingLookupEnv{
+		result: ociauthconfig.DockerCredentialHelperGetResult{
+			ServerURL: "https://example.com",
+			Username:  "u",
+			Secret:    "s",
+		},
+	}
+	// Wrap inner to block until gate is released.
+	blocking := &blockingLookupEnv{inner: inner, gate: gate}
+	env := newCachedDockerCredentialHelperEnv(blocking, time.Minute)
+	env.now = func() time.Time { return time.Unix(100, 0) }
+
+	ctx := context.Background()
+	const concurrency = 5
+	results := make(chan error, concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			_, err := env.QueryDockerCredentialHelper(ctx, "example", "https://example.com")
+			results <- err
+		}()
+	}
+
+	// Let all goroutines reach the singleflight barrier, then release.
+	time.Sleep(50 * time.Millisecond)
+	close(gate)
+
+	for i := 0; i < concurrency; i++ {
+		if err := <-results; err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+
+	// Despite 5 concurrent callers, only 1 actual helper invocation should have occurred.
+	if got := inner.Calls(); got != 1 {
+		t.Fatalf("expected 1 inner call (singleflight), got %d", got)
+	}
+}
+
+// blockingLookupEnv wraps a countingLookupEnv and blocks until gate is closed.
+type blockingLookupEnv struct {
+	inner *countingLookupEnv
+	gate  <-chan struct{}
+}
+
+func (e *blockingLookupEnv) QueryDockerCredentialHelper(ctx context.Context, helperName string, serverURL string) (ociauthconfig.DockerCredentialHelperGetResult, error) {
+	<-e.gate
+	return e.inner.QueryDockerCredentialHelper(ctx, helperName, serverURL)
 }

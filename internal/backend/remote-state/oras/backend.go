@@ -28,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/version"
@@ -410,6 +411,9 @@ func newORASHTTPClient(ctx context.Context, insecure bool, caFile string, rateLi
 			t.TLSClientConfig = &tls.Config{}
 		}
 		t.TLSClientConfig.InsecureSkipVerify = insecure
+		if insecure {
+			logging.HCLogger().Warn("ORAS backend: TLS certificate verification is disabled (insecure=true)")
+		}
 		if caFile != "" {
 			pem, err := os.ReadFile(caFile)
 			if err != nil {
@@ -485,7 +489,13 @@ func (rt *rateLimitedRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 
 // Credentials
 
-const defaultDockerCredentialHelperCacheTTL = 5 * time.Minute
+const (
+	defaultDockerCredentialHelperCacheTTL = 5 * time.Minute
+	// errorCacheTTL is a short TTL for caching unexpected credential helper errors.
+	// Only "not found" errors use the full TTL; transient failures expire quickly
+	// so retries happen sooner.
+	errorCacheTTL = 10 * time.Second
+)
 
 type dockerCredentialHelperCacheKey struct {
 	helperName string
@@ -504,18 +514,29 @@ type cachedDockerCredentialHelperEnv struct {
 	ttl   time.Duration
 	now   func() time.Time
 
-	mu    sync.Mutex
-	cache map[dockerCredentialHelperCacheKey]dockerCredentialHelperCacheEntry
+	mu       sync.Mutex
+	cache    map[dockerCredentialHelperCacheKey]dockerCredentialHelperCacheEntry
+	inflight map[dockerCredentialHelperCacheKey]*singleflightCall
+}
+
+// singleflightCall deduplicates concurrent credential helper invocations
+// for the same key so expensive helpers (e.g., STS AssumeRole) aren't
+// called N times in parallel.
+type singleflightCall struct {
+	wg     sync.WaitGroup
+	result ociauthconfig.DockerCredentialHelperGetResult
+	err    error
 }
 
 var _ ociauthconfig.CredentialsLookupEnvironment = (*cachedDockerCredentialHelperEnv)(nil)
 
 func newCachedDockerCredentialHelperEnv(inner ociauthconfig.CredentialsLookupEnvironment, ttl time.Duration) *cachedDockerCredentialHelperEnv {
 	return &cachedDockerCredentialHelperEnv{
-		inner: inner,
-		ttl:   ttl,
-		now:   time.Now,
-		cache: make(map[dockerCredentialHelperCacheKey]dockerCredentialHelperCacheEntry),
+		inner:    inner,
+		ttl:      ttl,
+		now:      time.Now,
+		cache:    make(map[dockerCredentialHelperCacheKey]dockerCredentialHelperCacheEntry),
+		inflight: make(map[dockerCredentialHelperCacheKey]*singleflightCall),
 	}
 }
 
@@ -533,22 +554,45 @@ func (e *cachedDockerCredentialHelperEnv) QueryDockerCredentialHelper(ctx contex
 	key := dockerCredentialHelperCacheKey{helperName: helperName, serverURL: serverURL}
 	now := e.now()
 
+	// Fast path: return cached entry if still valid.
 	e.mu.Lock()
 	if entry, ok := e.cache[key]; ok && entry.hasValue && now.Before(entry.expires) {
 		e.mu.Unlock()
 		return entry.result, entry.err
 	}
+
+	// Deduplicate concurrent calls for the same key (singleflight).
+	if call, ok := e.inflight[key]; ok {
+		e.mu.Unlock()
+		call.wg.Wait()
+		return call.result, call.err
+	}
+	call := &singleflightCall{}
+	call.wg.Add(1)
+	e.inflight[key] = call
 	e.mu.Unlock()
 
 	result, err := e.inner.QueryDockerCredentialHelper(ctx, helperName, serverURL)
+
+	call.result = result
+	call.err = err
+	call.wg.Done()
+
+	// Determine cache TTL: full TTL for success and "not found" errors,
+	// short TTL for unexpected errors so transient failures recover quickly.
+	cacheTTL := e.ttl
+	if err != nil && !ociauthconfig.IsCredentialsNotFoundError(err) {
+		cacheTTL = errorCacheTTL
+	}
 
 	e.mu.Lock()
 	e.cache[key] = dockerCredentialHelperCacheEntry{
 		result:   result,
 		err:      err,
-		expires:  now.Add(e.ttl),
+		expires:  now.Add(cacheTTL),
 		hasValue: true,
 	}
+	delete(e.inflight, key)
 	e.mu.Unlock()
 
 	return result, err
