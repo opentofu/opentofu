@@ -7,6 +7,7 @@ package command
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
@@ -53,4 +54,30 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 	}
 
 	return u.Colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
+}
+
+// ui wraps the primary output [cli.Ui], and redirects Warn calls to Output
+// calls. This ensures that warnings are sent to stdout, and are properly
+// serialized within the stdout stream.
+type ui struct {
+	cli.Ui
+}
+
+func (u *ui) Warn(msg string) {
+	u.Ui.Output(msg)
+}
+
+// NewBasicUI returns a preconfigured [cli.Ui] that is meant to be used
+// as the primary Ui for OpenTofu.
+// TODO meta-refactor: this will have to be removed once everything is moved to views.
+func NewBasicUI() cli.Ui {
+	return NewWrappedUi(&cli.BasicUi{
+		Writer:      os.Stdout,
+		ErrorWriter: os.Stderr,
+		Reader:      os.Stdin,
+	})
+}
+
+func NewWrappedUi(u cli.Ui) cli.Ui {
+	return &ui{u}
 }

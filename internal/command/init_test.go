@@ -21,7 +21,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-version"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -44,20 +43,20 @@ func TestInit_empty(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	var args []string
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 }
 
@@ -66,13 +65,11 @@ func TestInit_multipleArgs(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -81,8 +78,10 @@ func TestInit_multipleArgs(t *testing.T) {
 		"bad",
 		"bad",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: \n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad: \n%s", output.Stdout())
 	}
 }
 
@@ -91,13 +90,11 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 
 			// This test relies on the module installer's legacy support for
@@ -111,8 +108,10 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 	args := []string{
 		"-from-module=" + testFixturePath("init"),
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("unexpected error\n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("unexpected error\n%s", output.Stderr())
 	}
 
 	if _, err := os.Stat(filepath.Join(td, "hello.tf")); err != nil {
@@ -140,13 +139,11 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 	}
 	t.Chdir("foo")
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 
 			// This test relies on the module installer's legacy support for
@@ -160,8 +157,10 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 	args := []string{
 		"-from-module=./..",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	if _, err := os.Stat(filepath.Join(dir, "foo", "issue518.tf")); err != nil {
@@ -175,26 +174,26 @@ func TestInit_get(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-get"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Check output
-	output := ui.OutputWriter.String()
-	if !strings.Contains(output, "foo in foo") {
-		t.Fatalf("doesn't look like we installed module 'foo': %s", output)
+	stdout := output.Stdout()
+	if !strings.Contains(stdout, "foo in foo") {
+		t.Fatalf("doesn't look like we installed module 'foo': %s", stdout)
 	}
 }
 
@@ -204,13 +203,11 @@ func TestInit_getUpgradeModules(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-get"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -219,14 +216,15 @@ func TestInit_getUpgradeModules(t *testing.T) {
 		"-get=true",
 		"-upgrade",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("command did not complete successfully:\n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("command did not complete successfully:\n%s", output.Stderr())
 	}
 
 	// Check output
-	output := ui.OutputWriter.String()
-	if !strings.Contains(output, "Upgrading modules...") {
-		t.Fatalf("doesn't look like get upgrade: %s", output)
+	if !strings.Contains(output.Stdout(), "Upgrading modules...") {
+		t.Fatalf("doesn't look like get upgrade: %s", output.Stdout())
 	}
 }
 
@@ -236,20 +234,20 @@ func TestInit_backend(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)); err != nil {
@@ -266,25 +264,25 @@ func TestInit_backendUnset(t *testing.T) {
 	{
 		log.Printf("[TRACE] TestInit_backendUnset: beginning first init")
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 
 		// Init
 		args := []string{}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("bad: \n%s", output.Stderr())
 		}
 		log.Printf("[TRACE] TestInit_backendUnset: first init complete")
-		t.Logf("First run output:\n%s", ui.OutputWriter.String())
-		t.Logf("First run errors:\n%s", ui.ErrorWriter.String())
+		t.Logf("First run output:\n%s", output.Stdout())
+		t.Logf("First run errors:\n%s", output.Stderr())
 
 		if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)); err != nil {
 			t.Fatalf("err: %s", err)
@@ -299,24 +297,24 @@ func TestInit_backendUnset(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 
 		args := []string{"-force-copy"}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("bad: \n%s", output.Stderr())
 		}
 		log.Printf("[TRACE] TestInit_backendUnset: second init complete")
-		t.Logf("Second run output:\n%s", ui.OutputWriter.String())
-		t.Logf("Second run errors:\n%s", ui.ErrorWriter.String())
+		t.Logf("Second run output:\n%s", output.Stdout())
+		t.Logf("Second run errors:\n%s", output.Stderr())
 
 		s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
 		if !s.Backend.Empty() {
@@ -332,19 +330,19 @@ func TestInit_backendConfigFile(t *testing.T) {
 	t.Chdir(td)
 
 	t.Run("good-config-file", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 		args := []string{"-backend-config", "input.config"}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("bad: \n%s", output.All())
 		}
 
 		// Read our saved backend config and verify we have our settings
@@ -356,13 +354,11 @@ func TestInit_backendConfigFile(t *testing.T) {
 
 	// the backend config file must not be a full tofu block
 	t.Run("full-backend-config-file", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
@@ -370,68 +366,69 @@ func TestInit_backendConfigFile(t *testing.T) {
 		if code := c.Run(args); code != 1 {
 			t.Fatalf("expected error, got success\n")
 		}
-		if !strings.Contains(ui.ErrorWriter.String(), "Unsupported block type") {
-			t.Fatalf("wrong error: %s", ui.ErrorWriter)
+		output := done(t)
+		if !strings.Contains(output.Stderr(), "Unsupported block type") {
+			t.Fatalf("wrong error: %s", output.Stderr())
 		}
 	})
 
 	// the backend config file must match the schema for the backend
 	t.Run("invalid-config-file", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 		args := []string{"-backend-config", "invalid.config"}
-		if code := c.Run(args); code != 1 {
+		code := c.Run(args)
+		output := done(t)
+		if code != 1 {
 			t.Fatalf("expected error, got success\n")
 		}
-		if !strings.Contains(ui.ErrorWriter.String(), "Unsupported argument") {
-			t.Fatalf("wrong error: %s", ui.ErrorWriter)
+		if !strings.Contains(output.Stderr(), "Unsupported argument") {
+			t.Fatalf("wrong error: %s", output.Stderr())
 		}
 	})
 
 	// missing file is an error
 	t.Run("missing-config-file", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 		args := []string{"-backend-config", "missing.config"}
-		if code := c.Run(args); code != 1 {
+		code := c.Run(args)
+		output := done(t)
+		if code != 1 {
 			t.Fatalf("expected error, got success\n")
 		}
-		if !strings.Contains(ui.ErrorWriter.String(), "Failed to read file") {
-			t.Fatalf("wrong error: %s", ui.ErrorWriter)
+		if !strings.Contains(output.Stderr(), "Failed to read file") {
+			t.Fatalf("wrong error: %s", output.Stderr())
 		}
 	})
 
 	// blank filename clears the backend config
 	t.Run("blank-config-file", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 		args := []string{"-backend-config=", "-migrate-state"}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("bad: \n%s", output.Stderr())
 		}
 
 		// Read our saved backend config and verify the backend config is empty
@@ -476,13 +473,11 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-config-file"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -496,12 +491,14 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	// result in an early exit with a diagnostic that the provided
 	// configuration file is not a directory.
 	args := []string{"-backend-config=", "./input.config"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
-	output := ui.ErrorWriter.String()
-	if got, want := output, `Too many command line arguments`; !strings.Contains(got, want) {
+	stderr := output.Stderr()
+	if got, want := stderr, `Too many command line arguments`; !strings.Contains(got, want) {
 		t.Fatalf("wrong output\ngot:\n%s\n\nwant: message containing %q", got, want)
 	}
 }
@@ -517,14 +514,12 @@ func TestInit_backendReconfigure(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			ProviderSource:   providerSource,
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -540,17 +535,18 @@ func TestInit_backendReconfigure(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// now run init again, changing the path.
 	// The -reconfigure flag prevents init from migrating
 	// Without -reconfigure, the test fails since the backend asks for input on migrating state
-	args = []string{"-reconfigure", "-backend-config", "path=changed"}
+	args := []string{"-reconfigure", "-backend-config", "path=changed"}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 }
 
@@ -560,20 +556,20 @@ func TestInit_backendConfigFileChange(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-config-file-change"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-backend-config", "input.config", "-migrate-state"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Read our saved backend config and verify we have our settings
@@ -594,14 +590,12 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			ProviderSource:   providerSource,
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -623,9 +617,11 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Attempt to migrate
-	args := []string{"-backend-config", "input.config", "-migrate-state", "-force-copy"}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("expected nonzero exit code: %s", ui.OutputWriter.String())
+	args := []string{"-no-color", "-backend-config", "input.config", "-migrate-state", "-force-copy"}
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("expected nonzero exit code: %s", output.Stdout())
 	}
 
 	// Unlock before trying to migrate again
@@ -633,7 +629,7 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 
 	args = []string{"-backend-config", "input.config", "-migrate-state", "-force-copy", "-lock=false"}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("expected zero exit code, got %d: %s", code, ui.ErrorWriter.String())
+		t.Fatalf("expected zero exit code, got %d: %s", code, output.Stderr())
 	}
 }
 
@@ -643,12 +639,12 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-config-file-change-migrate-existing"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -656,8 +652,13 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 
 	// we deliberately do not provide the answer for backend-migrate-copy-to-empty to trigger error
 	args := []string{"-migrate-state", "-backend-config", "input.config", "-input=true"}
-	if code := c.Run(args); code == 0 {
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
 		t.Fatal("expected error")
+	}
+	if !strings.Contains(output.Stderr(), "input is disabled") {
+		t.Fatalf("the reason of failure is not the one expected: %s", output.Stderr())
 	}
 
 	// Read our backend config and verify new settings are not saved
@@ -678,20 +679,20 @@ func TestInit_backendConfigKV(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-config-kv"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-backend-config", "path=hello"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Read our saved backend config and verify we have our settings
@@ -707,28 +708,26 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-config-kv"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-backend-config", "path=test"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	ui = new(cli.MockUi)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -736,7 +735,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	// a second init should require no changes, nor should it change the backend.
 	args = []string{"-input=false"}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// make sure the backend is configured how we expect
@@ -752,7 +751,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	// override the -backend-config options by settings
 	args = []string{"-input=false", "-backend-config", "", "-migrate-state"}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// make sure the backend is configured how we expect
@@ -772,28 +771,27 @@ func TestInit_backendConfigKVReInitWithConfigDiff(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-input=false"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	ui = new(cli.MockUi)
+	view, done = testView(t)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -801,8 +799,10 @@ func TestInit_backendConfigKVReInitWithConfigDiff(t *testing.T) {
 	// a second init with identical config should require no changes, nor
 	// should it change the backend.
 	args = []string{"-input=false", "-backend-config", "path=foo"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code = c.Run(args)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// make sure the backend is configured how we expect
@@ -822,23 +822,29 @@ func TestInit_backendCli_no_config_block(t *testing.T) {
 	testCopyDir(t, testFixturePath("init"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
-	args := []string{"-backend-config", "path=test"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	args := []string{"-no-color", "-backend-config", "path=test"}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
-	errMsg := ui.ErrorWriter.String()
+	// The previous used output here was the stderr. That was correct in terms of the MockUi (and cli.BasicUi) implementation.
+	// The was not correct in terms of OpenTofu configuration. The Ui configured for OpenTofu, sends the warning diagnostics
+	// to stdout and not stderr. (see https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/cmd/tofu/main.go#L49-L51)
+	// This change from stderr to stdout has been done while we migrated the init command to use views, which the underlying
+	// logic, writes the warnings to stdout.
+	// Before the change, the MockUi used in this test was not considering this particularity of OpenTofu.
+	errMsg := output.Stdout()
 	if !strings.Contains(errMsg, "Warning: Missing backend configuration") {
 		t.Fatal("expected missing backend block warning, got", errMsg)
 	}
@@ -862,20 +868,20 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-backend-config", "path=hello"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Read our saved backend config and verify we have our settings
@@ -890,7 +896,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 
 	// init again and make sure nothing changes
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
@@ -907,19 +913,19 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
-	if code := c.Run([]string{"-input=false"}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run([]string{"-input=false"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Read our saved backend config and verify we have our settings
@@ -938,18 +944,20 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 
 	// We need a fresh InitCommand here because the old one now has our configuration
 	// file cached inside it, so it won't re-read the modification we just made.
+	view, done = testView(t)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-input=false", "-backend-config=path=foo"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code = c.Run(args)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"foo","workspace_dir":null}`; got != want {
@@ -1018,21 +1026,21 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 		// operations and state work in that case, and so the Cloud
 		// configuration is only about which workspaces we'll be working
 		// with.
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-backend-config=anything"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-backend-config=anything"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1058,21 +1066,21 @@ Cloud configuration block in the root module.
 		// steps to take care of more details automatically, and so
 		// -reconfigure doesn't really make sense in that context, particularly
 		// with its design bug with the handling of the implicit local backend.
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-reconfigure"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-reconfigure"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1098,21 +1106,21 @@ Cloud configuration settings.
 			t.Fatal(err)
 		}
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-reconfigure"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-reconfigure"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1130,21 +1138,21 @@ because activating cloud backend involves some additional steps.
 		// In Cloud mode, migrating in or out always proposes migrating state
 		// and changing configuration while staying in cloud mode never migrates
 		// state, so this special option isn't relevant.
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-migrate-state"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-migrate-state"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1170,21 +1178,21 @@ storage location is not configurable.
 			t.Fatal(err)
 		}
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-migrate-state"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-migrate-state"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1205,21 +1213,21 @@ prompts.
 		// In Cloud mode, migrating in or out always proposes migrating state
 		// and changing configuration while staying in cloud mode never migrates
 		// state, so this special option isn't relevant.
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-force-copy"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-force-copy"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1245,21 +1253,21 @@ storage location is not configurable.
 			t.Fatal(err)
 		}
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
-		args := []string{"-force-copy"}
-		if code := c.Run(args); code == 0 {
-			t.Fatalf("unexpected success\n%s", ui.OutputWriter.String())
+		args := []string{"-no-color", "-force-copy"}
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
+			t.Fatalf("unexpected success\n%s", output.Stdout())
 		}
 
-		gotStderr := ui.ErrorWriter.String()
+		gotStderr := output.Stderr()
 		wantStderr := `
 Error: Invalid command-line option
 
@@ -1283,20 +1291,20 @@ func TestInit_inputFalse(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend"), td)
 	t.Chdir(td)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-input=false", "-backend-config=path=foo"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter)
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// write different states for foo and bar
@@ -1323,40 +1331,42 @@ func TestInit_inputFalse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ui = new(cli.MockUi)
+	view, done = testView(t)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args = []string{"-input=false", "-backend-config=path=bar", "-migrate-state"}
-	if code := c.Run(args); code == 0 {
-		t.Fatal("init should have failed", ui.OutputWriter)
+	code = c.Run(args)
+	output = done(t)
+	if code == 0 {
+		t.Fatal("init should have failed", output.Stdout())
 	}
 
-	errMsg := ui.ErrorWriter.String()
+	errMsg := output.Stderr()
 	if !strings.Contains(errMsg, "interactive input is disabled") {
 		t.Fatal("expected input disabled error, got", errMsg)
 	}
 
-	ui = new(cli.MockUi)
+	view, done = testView(t)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	// A missing input=false should abort rather than loop infinitely
 	args = []string{"-backend-config=path=baz"}
-	if code := c.Run(args); code == 0 {
-		t.Fatal("init should have failed", ui.OutputWriter)
+	code = c.Run(args)
+	output = done(t)
+	if code == 0 {
+		t.Fatal("init should have failed", output.Stdout())
 	}
 }
 
@@ -1367,8 +1377,7 @@ func TestInit_getProvider(t *testing.T) {
 	t.Chdir(td)
 
 	overrides := metaOverridesForProvider(testProvider())
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		// looking for an exact version
 		"exact": {"1.2.3"},
@@ -1381,7 +1390,6 @@ func TestInit_getProvider(t *testing.T) {
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: overrides,
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -1393,8 +1401,10 @@ func TestInit_getProvider(t *testing.T) {
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// check that we got the providers for our config
@@ -1447,19 +1457,18 @@ func TestInit_getProvider(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
-		m.Ui = ui
+		view, done := testView(t)
 		m.View = view
 		c := &InitCommand{
 			Meta: m,
 		}
-
-		if code := c.Run(nil); code == 0 {
-			t.Fatal("expected error, got:", ui.OutputWriter)
+		code := c.Run(nil)
+		output := done(t)
+		if code == 0 {
+			t.Fatal("expected error, got:", output.Stdout())
 		}
 
-		errMsg := ui.ErrorWriter.String()
+		errMsg := output.Stderr()
 		if !strings.Contains(errMsg, "Unsupported state file format") {
 			t.Fatal("unexpected error:", errMsg)
 		}
@@ -1473,8 +1482,7 @@ func TestInit_getProviderSource(t *testing.T) {
 	t.Chdir(td)
 
 	overrides := metaOverridesForProvider(testProvider())
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		// looking for an exact version
 		"acme/alpha": {"1.2.3"},
@@ -1486,7 +1494,6 @@ func TestInit_getProviderSource(t *testing.T) {
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: overrides,
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -1498,8 +1505,10 @@ func TestInit_getProviderSource(t *testing.T) {
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// check that we got the providers for our config
@@ -1524,8 +1533,7 @@ func TestInit_getProviderLegacyFromState(t *testing.T) {
 	t.Chdir(td)
 
 	overrides := metaOverridesForProvider(testProvider())
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		"acme/alpha": {"1.2.3"},
 	})
@@ -1533,7 +1541,6 @@ func TestInit_getProviderLegacyFromState(t *testing.T) {
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: overrides,
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -1542,8 +1549,10 @@ func TestInit_getProviderLegacyFromState(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// Expect this diagnostic output
@@ -1551,7 +1560,7 @@ func TestInit_getProviderLegacyFromState(t *testing.T) {
 		"Invalid legacy provider address",
 		"You must complete the Terraform 0.13 upgrade process",
 	}
-	got := ui.ErrorWriter.String()
+	got := output.Stderr()
 	for _, want := range wants {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected output to contain %q, got:\n\n%s", want, got)
@@ -1566,8 +1575,7 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 	t.Chdir(td)
 
 	overrides := metaOverridesForProvider(testProvider())
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 
 	// create a provider source which allows installing an invalid package
 	addr := addrs.MustParseProviderSourceString("invalid/package")
@@ -1588,7 +1596,6 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: overrides,
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -1600,8 +1607,10 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// invalid provider should be installed
@@ -1614,7 +1623,7 @@ func TestInit_getProviderInvalidPackage(t *testing.T) {
 		"Failed to install provider",
 		"could not find executable file starting with terraform-provider-package",
 	}
-	got := ui.ErrorWriter.String()
+	got := output.Stderr()
 	for _, wantError := range wantErrors {
 		if !strings.Contains(got, wantError) {
 			t.Fatalf("missing error:\nwant: %q\ngot:\n%s", wantError, got)
@@ -1644,11 +1653,9 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 		{Source: registrySource},
 	}
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:     workdir.NewDir("."),
-		Ui:             ui,
 		View:           view,
 		ProviderSource: multiSource,
 	}
@@ -1660,8 +1667,10 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	args := []string{
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("expected error, got output: \n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("expected error, got output: \n%s", output.Stdout())
 	}
 
 	// foo should be installed
@@ -1676,7 +1685,7 @@ func TestInit_getProviderDetectedLegacy(t *testing.T) {
 	}
 
 	// error output is the main focus of this test
-	errOutput := ui.ErrorWriter.String()
+	errOutput := output.Stderr()
 	errors := []string{
 		"Failed to query available provider packages",
 		"Could not retrieve the list of available versions",
@@ -1713,11 +1722,9 @@ func TestInit_getProviderDetectedDuplicate(t *testing.T) {
 		{Source: registrySource},
 	}
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:     workdir.NewDir("."),
-		Ui:             ui,
 		View:           view,
 		ProviderSource: multiSource,
 	}
@@ -1727,15 +1734,25 @@ func TestInit_getProviderDetectedDuplicate(t *testing.T) {
 	}
 
 	args := []string{
+		"-no-color",
 		"-backend=false", // should be possible to install plugins without backend init
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("expected error, got output: \n%s\n%s", ui.OutputWriter.String(), ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected error, got output: \n%s\n%s", output.Stdout(), output.Stderr())
 	}
 
 	// error output is the main focus of this test
-	errOutput := ui.ErrorWriter.String()
-	errors := []string{
+	//
+	// The previous used output here was the stderr. That was correct in terms of the MockUi (and cli.BasicUi) implementation.
+	// The was not correct in terms of OpenTofu configuration. The Ui configured for OpenTofu, sends the warning diagnostics
+	// to stdout and not stderr. (see https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/cmd/tofu/main.go#L49-L51)
+	// This change from stderr to stdout has been done while we migrated the init command to use views, which the underlying
+	// logic, writes the warnings to stdout.
+	// Before the change, the MockUi used in this test was not considering this particularity of OpenTofu.
+	stdOutput := output.Stdout()
+	warnings := []string{
 		"Warning: Potential provider misconfiguration",
 		"OpenTofu has detected multiple providers of type foo",
 		"If this is intentional you can ignore this warning",
@@ -1743,14 +1760,14 @@ func TestInit_getProviderDetectedDuplicate(t *testing.T) {
 	unexpected := []string{
 		"OpenTofu has detected multiple providers of type bar",
 	}
-	for _, want := range errors {
-		if !strings.Contains(errOutput, want) {
-			t.Fatalf("expected error %q: %s", want, errOutput)
+	for _, want := range warnings {
+		if !strings.Contains(stdOutput, want) {
+			t.Fatalf("expected error %q: %s", want, stdOutput)
 		}
 	}
 	for _, unwanted := range unexpected {
-		if strings.Contains(errOutput, unwanted) {
-			t.Fatalf("unexpected error %q: %s", unwanted, errOutput)
+		if strings.Contains(stdOutput, unwanted) {
+			t.Fatalf("unexpected error %q: %s", unwanted, stdOutput)
 		}
 	}
 
@@ -1769,12 +1786,10 @@ func TestInit_providerSource(t *testing.T) {
 	})
 	defer close()
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -1783,12 +1798,14 @@ func TestInit_providerSource(t *testing.T) {
 		Meta: m,
 	}
 
-	args := []string{}
+	args := []string{"-no-color"}
 
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
-	if strings.Contains(ui.OutputWriter.String(), "OpenTofu has initialized, but configuration upgrades may be needed") {
+	if strings.Contains(output.Stdout(), "OpenTofu has initialized, but configuration upgrades may be needed") {
 		t.Fatalf("unexpected \"configuration upgrade\" warning in output")
 	}
 
@@ -1860,14 +1877,21 @@ func TestInit_providerSource(t *testing.T) {
 		t.Errorf("wrong version selections after upgrade\n%s", diff)
 	}
 
-	if got, want := ui.OutputWriter.String(), "Installed hashicorp/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
+	if got, want := output.Stdout(), "Installed hashicorp/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
 		t.Fatalf("unexpected output: %s\nexpected to include %q", got, want)
 	}
-	// On stderr we should've written a warning about the dependency lock file
+	// On stdout we should've written a warning about the dependency lock file
 	// entry being incomplete for these three providers, because we installed
 	// from a non-origin-registry source and so registry-promised hashes
 	// are not available.
-	if got, want := ui.ErrorWriter.String(), "\n  - hashicorp/source\n  - hashicorp/test\n  - hashicorp/test-beta"; !strings.Contains(got, want) {
+	//
+	// The previous used output here was the stderr. That was correct in terms of the MockUi (and cli.BasicUi) implementation.
+	// The was not correct in terms of OpenTofu configuration. The Ui configured for OpenTofu, sends the warning diagnostics
+	// to stdout and not stderr. (seehttps://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/cmd/tofu/main.go#L49-L51)
+	// This change from stderr to stdout has been done while we migrated the init command to use views, which the underlying
+	// logic, writes the warnings to stdout.
+	// Before the change, the MockUi used in this test was not considering this particularity of OpenTofu.
+	if got, want := output.Stdout(), "\n  - hashicorp/source\n  - hashicorp/test\n  - hashicorp/test-beta"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
@@ -1909,12 +1933,10 @@ func TestInit_cancelModules(t *testing.T) {
 		server.CloseClientConnections() // force any active client request to fail
 	}()
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ShutdownCh:       shutdownCh,
 
@@ -1934,13 +1956,14 @@ func TestInit_cancelModules(t *testing.T) {
 	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
 	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
 	code := c.Run(args)
+	output := done(t)
 	if err := ctx.Err(); err != nil {
 		t.Errorf("context error: %s", err) // probably reporting a timeout
 	}
 	if code == 0 {
-		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
+		t.Fatalf("succeeded; wanted error\n%s", output.Stdout())
 	}
-	if got, want := ui.ErrorWriter.String(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
+	if got, want := output.Stderr(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
@@ -1963,12 +1986,10 @@ func TestInit_cancelProviders(t *testing.T) {
 	shutdownCh := make(chan struct{})
 	close(shutdownCh)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 		ShutdownCh:       shutdownCh,
@@ -1980,14 +2001,16 @@ func TestInit_cancelProviders(t *testing.T) {
 
 	args := []string{}
 
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded; wanted error\n%s", output.Stdout())
 	}
 	// Currently the first operation that is cancelable is provider
 	// installation, so our error message comes from there. If we
 	// make the earlier steps cancelable in future then it'd be
 	// expected for this particular message to change.
-	if got, want := ui.ErrorWriter.String(), `Provider installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
+	if got, want := output.Stderr(), `Provider installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
@@ -2008,12 +2031,10 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2030,8 +2051,10 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 	args := []string{
 		"-upgrade=true",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("command did not complete successfully:\n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("command did not complete successfully:\n%s", output.Stderr())
 	}
 
 	cacheDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
@@ -2137,12 +2160,10 @@ func TestInit_getProviderMissing(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2152,12 +2173,14 @@ func TestInit_getProviderMissing(t *testing.T) {
 	}
 
 	args := []string{}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("expected error, got output: \n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("expected error, got output: \n%s", output.Stdout())
 	}
 
-	if !strings.Contains(ui.ErrorWriter.String(), "no available releases match") {
-		t.Fatalf("unexpected error output: %s", ui.ErrorWriter)
+	if !strings.Contains(output.Stderr(), "no available releases match") {
+		t.Fatalf("unexpected error output: %s", output.Stderr())
 	}
 }
 
@@ -2167,22 +2190,22 @@ func TestInit_checkRequiredVersion(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-check-required-version"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}
@@ -2199,22 +2222,21 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-check-required-version-first"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 
-		args := []string{}
-		if code := c.Run(args); code != 1 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(nil)
+		output := done(t)
+		if code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
-		errStr := ui.ErrorWriter.String()
+		errStr := output.Stderr()
 		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
@@ -2224,22 +2246,21 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-check-required-version-first-module"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
 				View:             view,
 			},
 		}
 
-		args := []string{}
-		if code := c.Run(args); code != 1 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(nil)
+		output := done(t)
+		if code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
-		errStr := ui.ErrorWriter.String()
+		errStr := output.Stderr()
 		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
@@ -2263,12 +2284,10 @@ func TestInit_providerLockFile(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2277,9 +2296,10 @@ func TestInit_providerLockFile(t *testing.T) {
 		Meta: m,
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	lockFile := ".terraform.lock.hcl"
@@ -2312,8 +2332,12 @@ provider "registry.opentofu.org/hashicorp/test" {
 	if err := os.Chmod(".", 0555); err != nil {
 		t.Fatal(err)
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	view, done = testView(t)
+	c.Meta.View = view
+	code = c.Run(nil)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 }
 
@@ -2448,15 +2472,14 @@ provider "registry.opentofu.org/hashicorp/test" {
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(tc.fixture), td)
 			t.Chdir(td)
-
+			view, done := testView(t)
 			providerSource, close := newMockProviderSource(t, tc.providers)
 			defer close()
 
-			ui := new(cli.MockUi)
 			m := Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(testProvider()),
-				Ui:               ui,
+				View:             view,
 				ProviderSource:   providerSource,
 			}
 
@@ -2471,11 +2494,12 @@ provider "registry.opentofu.org/hashicorp/test" {
 			}
 
 			code := c.Run(tc.args)
+			output := done(t)
 			if tc.ok && code != 0 {
-				t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+				t.Fatalf("bad: \n%s", output.Stderr())
 			}
 			if !tc.ok && code == 0 {
-				t.Fatalf("expected error, got output: \n%s", ui.OutputWriter.String())
+				t.Fatalf("expected error, got output: \n%s", output.Stdout())
 			}
 
 			buf, err := os.ReadFile(lockFile)
@@ -2499,13 +2523,11 @@ func TestInit_pluginDirReset(t *testing.T) {
 	providerSource, close := newMockProviderSource(t, nil)
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		},
@@ -2521,8 +2543,10 @@ func TestInit_pluginDirReset(t *testing.T) {
 
 	// run once and save the -plugin-dir
 	args := []string{"-plugin-dir", "a"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter)
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	pluginDirs, err := c.loadPluginPath()
@@ -2534,12 +2558,11 @@ func TestInit_pluginDirReset(t *testing.T) {
 		t.Fatalf(`expected plugin dir ["a"], got %q`, pluginDirs)
 	}
 
-	ui = new(cli.MockUi)
+	view, done = testView(t)
 	c = &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource, // still empty
 		},
@@ -2547,8 +2570,10 @@ func TestInit_pluginDirReset(t *testing.T) {
 
 	// make sure we remove the plugin-dir record
 	args = []string{"-plugin-dir="}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter)
+	code = c.Run(args)
+	output = done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	pluginDirs, err = c.loadPluginPath()
@@ -2571,12 +2596,10 @@ func TestInit_pluginDirProviders(t *testing.T) {
 	providerSource, close := newMockProviderSource(t, nil)
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2613,8 +2636,10 @@ func TestInit_pluginDirProviders(t *testing.T) {
 		"-plugin-dir", "b",
 		"-plugin-dir", "c",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter)
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	locks, err := m.lockedDependencies()
@@ -2673,12 +2698,10 @@ func TestInit_pluginDirProvidersDoesNotGet(t *testing.T) {
 	})
 	defer close()
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2713,15 +2736,17 @@ func TestInit_pluginDirProvidersDoesNotGet(t *testing.T) {
 		"-plugin-dir", "a",
 		"-plugin-dir", "b",
 	}
-	if code := c.Run(args); code == 0 {
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
 		// should have been an error
-		t.Fatalf("succeeded; want error\nstdout:\n%s\nstderr\n%s", ui.OutputWriter, ui.ErrorWriter)
+		t.Fatalf("succeeded; want error\nstdout:\n%s\nstderr\n%s", output.Stdout(), output.Stderr())
 	}
 
 	// The error output should mention the "between" provider but should not
 	// mention either the "exact" or "greater-than" provider, because the
 	// latter two are available via the -plugin-dir directories.
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "hashicorp/between"; !strings.Contains(errStr, subStr) {
 		t.Errorf("error output should mention the 'between' provider\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2747,12 +2772,10 @@ func TestInit_pluginDirWithBuiltIn(t *testing.T) {
 	providerSource, close := newMockProviderSource(t, nil)
 	defer close()
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2762,11 +2785,13 @@ func TestInit_pluginDirWithBuiltIn(t *testing.T) {
 	}
 
 	args := []string{"-plugin-dir", "./"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("error: %s", ui.ErrorWriter)
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("error: %s", output.Stderr())
 	}
 
-	outputStr := ui.OutputWriter.String()
+	outputStr := output.Stdout()
 	if subStr := "terraform.io/builtin/terraform is built in to OpenTofu"; !strings.Contains(outputStr, subStr) {
 		t.Errorf("output should mention the tofu provider\nwant substr: %s\ngot:\n%s", subStr, outputStr)
 	}
@@ -2786,12 +2811,10 @@ func TestInit_invalidBuiltInProviders(t *testing.T) {
 	providerSource, close := newMockProviderSource(t, nil)
 	defer close()
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
 		View:             view,
 		ProviderSource:   providerSource,
 	}
@@ -2800,11 +2823,13 @@ func TestInit_invalidBuiltInProviders(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run(nil)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "Cannot use terraform.io/builtin/terraform: built-in"; !strings.Contains(errStr, subStr) {
 		t.Errorf("error output should mention the terraform provider\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2818,11 +2843,9 @@ func TestInit_invalidSyntaxNoBackend(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-syntax-invalid-no-backend"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 
@@ -2830,11 +2853,13 @@ func TestInit_invalidSyntaxNoBackend(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2848,11 +2873,9 @@ func TestInit_invalidSyntaxWithBackend(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-syntax-invalid-with-backend"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 
@@ -2860,11 +2883,13 @@ func TestInit_invalidSyntaxWithBackend(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2878,11 +2903,9 @@ func TestInit_invalidSyntaxInvalidBackend(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-syntax-invalid-backend-invalid"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 
@@ -2890,11 +2913,13 @@ func TestInit_invalidSyntaxInvalidBackend(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2911,11 +2936,9 @@ func TestInit_invalidSyntaxBackendAttribute(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-syntax-invalid-backend-attribute-invalid"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 
@@ -2923,11 +2946,13 @@ func TestInit_invalidSyntaxBackendAttribute(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
@@ -2952,21 +2977,21 @@ func TestInit_tests(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider),
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 }
 
@@ -2983,24 +3008,24 @@ func TestInit_testsWithProvider(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider),
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("expected failure but got: \n%s", ui.OutputWriter.String())
+	args := []string{"-no-color"}
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("expected failure but got: \n%s", output.Stdout())
 	}
 
-	got := ui.ErrorWriter.String()
+	got := output.Stderr()
 	want := `
 Error: Failed to resolve provider packages
 
@@ -3026,27 +3051,25 @@ func TestInit_testsWithModule(t *testing.T) {
 	})
 	defer close()
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider),
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
 	// Check output
-	output := ui.OutputWriter.String()
-	if !strings.Contains(output, "test.main.setup in setup") {
-		t.Fatalf("doesn't look like we installed the test module': %s", output)
+	if !strings.Contains(output.Stdout(), "test.main.setup in setup") {
+		t.Fatalf("doesn't look like we installed the test module': %s", output.Stdout())
 	}
 }
 
@@ -3057,20 +3080,20 @@ func TestInit_moduleSource(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{"./mod"})
 		defer closeInput()
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
 
-		if code := c.Run(nil); code != 0 {
-			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(nil)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 	})
 
@@ -3079,20 +3102,20 @@ func TestInit_moduleSource(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-module-variable-source-multiple"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{"./mod"})
 		defer closeInput()
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
 
-		if code := c.Run(nil); code != 0 {
-			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(nil)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 	})
 
@@ -3101,14 +3124,12 @@ func TestInit_moduleSource(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		closeInput := testInteractiveInput(t, []string{})
 		defer closeInput()
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
@@ -3117,8 +3138,10 @@ func TestInit_moduleSource(t *testing.T) {
 			"-input=false",
 		}
 
-		if code := c.Run(args); code != 1 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 	})
 
@@ -3127,19 +3150,19 @@ func TestInit_moduleSource(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
 
 		args := []string{"-var", "src=./mod"}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 	})
 }
@@ -3155,19 +3178,19 @@ func TestInit_moduleVersion(t *testing.T) {
 		testCopyDir(t, testFixturePath("init-module-variable-version"), td)
 		t.Chdir(td)
 
-		ui := cli.NewMockUi()
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &InitCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		}
 
 		args := []string{"-var", "modver=0.0.1"}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 	})
 }
@@ -3177,11 +3200,9 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-syntax-invalid-extra-label"), td)
 	t.Chdir(td)
 
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	m := Meta{
 		WorkingDir: workdir.NewDir("."),
-		Ui:         ui,
 		View:       view,
 	}
 
@@ -3189,14 +3210,16 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 		Meta: m,
 	}
 
-	if code := c.Run(nil); code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	code := c.Run([]string{"-no-color"})
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
 	}
 
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	splitted := strings.Split(errStr, "Error: Unsupported block type")
 	if len(splitted) != 2 {
-		t.Fatalf("want exactly one unsupported block type errors but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
+		t.Fatalf("want exactly one unsupported block type errors but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, output.Stdout())
 	}
 }
 
@@ -3208,8 +3231,7 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		t.Chdir(td)
 
 		overrides := metaOverridesForProvider(testProvider())
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
 			// mock aws provider
 			"hashicorp/aws": {"5.0", "5.8"},
@@ -3218,7 +3240,6 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		m := Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: overrides,
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		}
@@ -3230,8 +3251,10 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		args := []string{
 			"-backend=false", // should disable reading encryption key run init successfully
 		}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", output.Stderr())
 		}
 	})
 
@@ -3242,8 +3265,7 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		t.Chdir(td)
 
 		overrides := metaOverridesForProvider(testProvider())
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
 			// mock aws provider
 			"hashicorp/aws": {"5.0", "5.8"},
@@ -3252,7 +3274,6 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		m := Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: overrides,
-			Ui:               ui,
 			View:             view,
 			ProviderSource:   providerSource,
 		}
@@ -3260,13 +3281,14 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		c := &InitCommand{
 			Meta: m,
 		}
-
 		var args []string
 		// Check error is generated from trying to read encryption key or fail test
-		if code := c.Run(args); code == 0 {
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
 			t.Fatalf("init should not run successfully\n")
-		} else if !strings.Contains(ui.ErrorWriter.String(), "key_provider.aws_kms.key failed with error:") {
-			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", ui.ErrorWriter.String())
+		} else if !strings.Contains(output.Stderr(), "key_provider.aws_kms.key failed with error:") {
+			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", output.Stderr())
 		}
 	})
 }

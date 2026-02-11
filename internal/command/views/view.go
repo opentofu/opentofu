@@ -6,6 +6,8 @@
 package views
 
 import (
+	"maps"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -43,6 +45,10 @@ type View struct {
 	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
 
+	// Because some commands used before the UI to print diagnostics, those were printed using an [*ln] function, so
+	// we want to be able to configure this for some of the commands to be able to keep the behavior consistent.
+	diagsPrinter func(severity tfdiags.Severity, msg string)
+
 	// This unfortunate wart is required to enable rendering of diagnostics which
 	// have associated source code in the configuration. This function pointer
 	// will be dereferenced as late as possible when rendering diagnostics in
@@ -61,6 +67,13 @@ func NewView(streams *terminal.Streams) *View {
 			Reset:   true,
 		},
 		configSources: func() map[string]*hcl.File { return nil },
+		diagsPrinter: func(severity tfdiags.Severity, msg string) {
+			if severity == tfdiags.Error {
+				_, _ = streams.Eprint(msg)
+			} else {
+				_, _ = streams.Print(msg)
+			}
+		},
 	}
 }
 
@@ -82,12 +95,26 @@ func (v *View) RunningInAutomation() bool {
 
 // Configure applies the global view configuration flags.
 func (v *View) Configure(view *arguments.View) {
+	colors := maps.Clone(colorstring.DefaultColors)
+	colors["purple"] = "38;5;57" // Add also purple to the colorise colors set
+
 	v.colorize.Disable = view.NoColor
+	v.colorize.Colors = colors
 	v.compactWarnings = view.CompactWarnings
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
 	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
+}
+
+func (v *View) DiagsWithNewline() {
+	v.diagsPrinter = func(severity tfdiags.Severity, msg string) {
+		if severity == tfdiags.Error {
+			_, _ = v.streams.Eprintln(msg)
+		} else {
+			_, _ = v.streams.Println(msg)
+		}
+	}
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -159,6 +186,12 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			msg = format.Diagnostic(diag, v.configSources(), v.colorize, v.streams.Stderr.Columns())
 		}
 
+		// TODO meta-refactor: once we are done with migrating all the commands to views, we should get rid
+		// of the check and just allow the diagsPrinter to be called directly.
+		if v.diagsPrinter != nil {
+			v.diagsPrinter(diag.Severity(), msg)
+			continue
+		}
 		if diag.Severity() == tfdiags.Error {
 			v.streams.Eprint(msg)
 		} else {

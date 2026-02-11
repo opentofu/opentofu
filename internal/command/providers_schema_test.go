@@ -61,11 +61,11 @@ func TestProvidersSchema_output(t *testing.T) {
 			defer close()
 
 			p := providersSchemaFixtureProvider()
-			ui := new(cli.MockUi)
+			view, done := testView(t)
 			m := Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
+				View:             view,
 				ProviderSource:   providerSource,
 			}
 
@@ -73,16 +73,23 @@ func TestProvidersSchema_output(t *testing.T) {
 			ic := &InitCommand{
 				Meta: m,
 			}
-			if code := ic.Run([]string{}); code != 0 {
-				t.Fatalf("init failed\n%s", ui.ErrorWriter)
+			code := ic.Run([]string{})
+			output := done(t)
+			if code != 0 {
+				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
-			// flush the init output from the mock ui
-			ui.OutputWriter.Reset()
-
 			// `tofu provider schemas` command
-			pc := &ProvidersSchemaCommand{Meta: m}
-			if code := pc.Run([]string{"-json"}); code != 0 {
+			// TODO meta-refactor-views: we need the ui here because the provider schema command is not yet migrated to views
+			// Once the command is migrated, remove this part and use the testView
+			ui := new(cli.MockUi)
+			m.Ui = ui
+			m.View = nil
+			pc := &ProvidersSchemaCommand{
+				Meta: m,
+			}
+			code = pc.Run([]string{"-json"})
+			if code != 0 {
 				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())
 			}
 			var got, want providerSchemas

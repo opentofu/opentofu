@@ -694,6 +694,39 @@ func (m *Meta) process(args []string) []string {
 	return args
 }
 
+// configureUiFromView is a shim method between now and the moment when
+// the remote backend and cloud package use the new View abstraction.
+// This method does several things:
+//   - creates a new [NewBasicUI] if [Meta.Ui] is nil (needed for testing, see below)
+//   - wraps the existing [Meta.Ui] into a new layer that uses the [views.View]
+//     to print information and the existing [Meta.Ui] to ask for use input
+func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
+	// We do this so that we retain the ability to technically call
+	// process multiple times, even if we have no plans to do so
+	if m.oldUi != nil {
+		m.Ui = m.oldUi
+	}
+	// This is a workaround to be able to get rid of the [Meta.Ui] slow and steady.
+	// For the moment, this builds the Ui in the same way it's built in the main.go, but we want
+	// it added here to remove the requirement of having the Ui initialised during tests.
+	// The highlight here is that the "printing" is done through the [Meta.View] and
+	// this Ui instance is used only to ask for user input.
+	// Therefore, tests can initialise only the View and check the output from there.
+	if m.Ui == nil {
+		m.Ui = NewBasicUI()
+	}
+
+	// Backup the current Ui to be used later
+	m.oldUi = m.Ui
+
+	// Createa new ViewUi that wraps the View for printing and oldUi for user input
+	m.Ui = &cli.ConcurrentUi{
+		Ui: views.NewViewUI(options, m.View, m.oldUi),
+	}
+	// compared with Meta.process, this method does not configure the Meta.View, since that is the
+	// responsibility of the caller of this method.
+}
+
 // uiHook returns the UiHook to use with the context.
 func (m *Meta) uiHook() *views.UiHook {
 	return views.NewUiHook(m.View)

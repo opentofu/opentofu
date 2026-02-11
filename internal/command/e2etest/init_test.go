@@ -253,7 +253,7 @@ func TestInitProvidersLocalOnly(t *testing.T) {
 			t.Errorf("success message is missing from output:\n%s", stdout)
 		}
 
-		if !strings.Contains(stdout, `{"@level":"info","@message":"- Installing example.com/awesomecorp/happycloud v1.2.0...","@module":"tofu.ui"`) {
+		if !strings.Contains(stdout, `{"@level":"info","@message":"Installing example.com/awesomecorp/happycloud v1.2.0...","@module":"tofu.ui"`) {
 			t.Errorf("provider download message is missing from output:\n%s", stdout)
 			t.Logf("(this can happen if you have a conflicting copy of the plugin in one of the global plugin search dirs)")
 		}
@@ -577,7 +577,7 @@ Initializing provider plugins...
 
 // The following test is temporarily removed until the OpenTofu registry returns a deprecation warning
 // https://github.com/opentofu/registry/issues/108
-//func TestInitProviderWarnings(t *testing.T) {
+// func TestInitProviderWarnings(t *testing.T) {
 //	t.Parallel()
 //
 //  // This test will reach out to registry.terraform.io as one of the possible
@@ -596,7 +596,7 @@ Initializing provider plugins...
 //		t.Errorf("expected warning message is missing from output:\n%s", stdout)
 //	}
 //
-//}
+// }
 
 func escapeStringJSON(v string) string {
 	b := &strings.Builder{}

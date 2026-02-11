@@ -23,6 +23,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -47,23 +48,8 @@ const (
 	EnvCPUProfile = "TOFU_CPU_PROFILE"
 )
 
-// ui wraps the primary output cli.Ui, and redirects Warn calls to Output
-// calls. This ensures that warnings are sent to stdout, and are properly
-// serialized within the stdout stream.
-type ui struct {
-	cli.Ui
-}
-
-func (u *ui) Warn(msg string) {
-	u.Ui.Output(msg)
-}
-
 func init() {
-	Ui = &ui{&cli.BasicUi{
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-		Reader:      os.Stdin,
-	}}
+	Ui = command.NewBasicUI()
 }
 
 func main() {
