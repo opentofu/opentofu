@@ -75,7 +75,8 @@ func (u *ViewUiHuman) Error(message string) {
 }
 
 func (u *ViewUiHuman) Warn(message string) {
-	_, _ = u.view.streams.Eprintln(u.colorize(message, u.warnColor))
+	// Warning messages are meant to go to stdout as pointed out here: https://github.com/opentofu/opentofu/commit/0c3bb316ea56aacf5108883d1a269a53744fdd43
+	_, _ = u.view.streams.Println(u.colorize(message, u.warnColor))
 }
 
 func (u *ViewUiHuman) colorize(message string, color string) string {
