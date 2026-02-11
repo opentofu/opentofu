@@ -30,7 +30,6 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/time/rate"
@@ -440,9 +439,10 @@ func newORASHTTPClient(ctx context.Context, insecure bool, caFile string, rateLi
 	if limiter != nil {
 		rt = &rateLimitedRoundTripper{limiter: limiter, inner: rt}
 	}
-	if span := tracing.SpanFromContext(ctx); span != nil && span.IsRecording() {
-		rt = otelhttp.NewTransport(rt)
-	}
+	// Always wrap with otelhttp so that spans created by later operations
+	// are captured. otelhttp is a no-op when there is no active span,
+	// so there is no overhead when tracing is disabled.
+	rt = otelhttp.NewTransport(rt)
 	client.Transport = rt
 
 	return client, nil
