@@ -19,24 +19,24 @@ import (
 	"oras.land/oras-go/v2/errdef"
 )
 
-// drainRetentionSem waits for all slots in the global retentionSem to become
-// available. This is used in tests to ensure no lingering goroutines from
-// previous tests are holding semaphore slots.
+// drainRetentionSem waits for all slots in the global defaultRetentionSem to
+// become available. This is used in tests to ensure no lingering goroutines
+// from previous tests are holding semaphore slots.
 func drainRetentionSem() {
 	// Wait a bit for any in-flight goroutines to release
 	time.Sleep(100 * time.Millisecond)
 	// Acquire all slots to ensure they're free
-	for i := 0; i < cap(retentionSem); i++ {
+	for i := 0; i < cap(defaultRetentionSem); i++ {
 		select {
-		case retentionSem <- struct{}{}:
+		case defaultRetentionSem <- struct{}{}:
 		default:
 			// Slot was already empty (filled by us in this loop)
 		}
 	}
 	// Release all slots
-	for i := 0; i < cap(retentionSem); i++ {
+	for i := 0; i < cap(defaultRetentionSem); i++ {
 		select {
-		case <-retentionSem:
+		case <-defaultRetentionSem:
 		default:
 		}
 	}

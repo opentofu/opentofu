@@ -183,10 +183,14 @@ type LockManifestData struct {
 	HolderID    string `json:"holder_id,omitempty"`
 }
 
-// retentionSem limits concurrent async retention goroutines to prevent
-// goroutine accumulation when Put() is called rapidly.
-var retentionSem = make(chan struct{}, 3)
+// defaultRetentionSem is the default semaphore used to limit concurrent async
+// retention goroutines. It prevents goroutine accumulation when Put() is called
+// rapidly. Tests may inject a custom semaphore via the retentionSem field.
+var defaultRetentionSem = make(chan struct{}, 3)
 
+// RemoteClient implements remote.Client and remote.ClientLocker for OCI
+// registries using the ORAS library. It stores state as OCI artifacts and
+// uses manifest tags for workspace locking.
 type RemoteClient struct {
 	repo             *orasRepositoryClient
 	workspaceName    string
@@ -202,6 +206,10 @@ type RemoteClient struct {
 	// - 0: versioning disabled (no version tags created)
 	// - >0: versioning enabled with retention limit
 	versioningMaxVersions int
+
+	// retentionSem limits concurrent async retention goroutines.
+	// If nil, defaultRetentionSem is used.
+	retentionSem chan struct{}
 }
 
 type digestGroup struct {
@@ -371,12 +379,18 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 
 	existing = append(existing, nextVersion)
 
-	// Async retention with semaphore to limit concurrent goroutines
+	// Async retention with semaphore to limit concurrent goroutines.
+	// Derive from the caller's context so that shutdown is propagated,
+	// but add a timeout to prevent goroutines from running indefinitely.
+	sem := c.retentionSem
+	if sem == nil {
+		sem = defaultRetentionSem
+	}
 	select {
-	case retentionSem <- struct{}{}:
+	case sem <- struct{}{}:
 		go func() {
-			defer func() { <-retentionSem }()
-			asyncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer func() { <-sem }()
+			asyncCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 			if err := c.enforceVersionRetention(asyncCtx, manifestDesc, existing); err != nil {
 				logging.HCLogger().Trace("async retention cleanup failed", "error", err.Error())
