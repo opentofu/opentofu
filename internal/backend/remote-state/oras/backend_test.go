@@ -186,6 +186,72 @@ func TestRateLimitedRoundTripper_WaitsBeforeRequest(t *testing.T) {
 	}
 }
 
+func TestUserAgentRoundTripper_DoesNotMutateOriginalRequest(t *testing.T) {
+	inner := &countingRoundTripper{}
+	rt := &userAgentRoundTripper{userAgent: "TestAgent/1.0", inner: inner}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+
+	// Ensure the original request has no User-Agent set
+	if req.Header.Get("User-Agent") != "" {
+		t.Fatalf("expected no User-Agent on original request")
+	}
+
+	_, err = rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("roundtrip: %v", err)
+	}
+
+	// The original request must remain unmodified (RoundTripper contract)
+	if got := req.Header.Get("User-Agent"); got != "" {
+		t.Fatalf("original request was mutated: User-Agent = %q, want empty", got)
+	}
+
+	if inner.Calls() != 1 {
+		t.Fatalf("expected 1 inner call, got %d", inner.Calls())
+	}
+}
+
+func TestUserAgentRoundTripper_PreservesExistingUserAgent(t *testing.T) {
+	var capturedUA string
+	inner := &headerCapturingRoundTripper{capture: func(h http.Header) { capturedUA = h.Get("User-Agent") }}
+	rt := &userAgentRoundTripper{userAgent: "TestAgent/1.0", inner: inner}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("User-Agent", "CustomAgent/2.0")
+
+	_, err = rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("roundtrip: %v", err)
+	}
+
+	if capturedUA != "CustomAgent/2.0" {
+		t.Fatalf("expected existing User-Agent to be preserved, got %q", capturedUA)
+	}
+}
+
+type headerCapturingRoundTripper struct {
+	capture func(http.Header)
+}
+
+func (rt *headerCapturingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if rt.capture != nil {
+		rt.capture(req.Header)
+	}
+	return &http.Response{
+		StatusCode: 200,
+		Body:       io.NopCloser(strings.NewReader("ok")),
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
 type countingLookupEnv struct {
 	mu    sync.Mutex
 	calls int

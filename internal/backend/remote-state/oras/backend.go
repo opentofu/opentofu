@@ -436,9 +436,14 @@ type userAgentRoundTripper struct {
 	inner     http.RoundTripper
 }
 
+// RoundTrip sets the User-Agent header if not already present.
+// Per the http.RoundTripper contract, the original request is not mutated;
+// a shallow clone is created when the header needs to be added.
 func (rt *userAgentRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", rt.userAgent)
+		r2 := req.Clone(req.Context())
+		r2.Header.Set("User-Agent", rt.userAgent)
+		return rt.inner.RoundTrip(r2)
 	}
 	return rt.inner.RoundTrip(req)
 }
