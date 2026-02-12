@@ -1,6 +1,7 @@
 The v1.11.x release series is supported until **August 1 2026**.
+## 1.11.6 (Unreleased)
 
-## 1.11.5 (Unreleased)
+## 1.11.5
 
 BUG FIXES:
 
