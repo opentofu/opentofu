@@ -10,6 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -23,27 +26,46 @@ type LogoutCommand struct {
 }
 
 // Run implements cli.Command.
-func (c *LogoutCommand) Run(args []string) int {
+func (c *LogoutCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Logout")
+	defer span.End()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("logout")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseLogout(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewLogout(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		view.HelpPrompt(c.credentialsFileForHelp())
 		return 1
 	}
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(
-			"The logout command expects exactly one argument: the host to log out of.")
-		cmdFlags.Usage()
-		return 1
-	}
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
 
-	var diags tfdiags.Diagnostics
-
-	givenHostname := args[0]
+	givenHostname := args.Host
 
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
@@ -52,7 +74,7 @@ func (c *LogoutCommand) Run(args []string) int {
 			"Invalid hostname",
 			fmt.Sprintf("The given hostname %q is not valid: %s.", givenHostname, err.Error()),
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -79,18 +101,18 @@ func (c *LogoutCommand) Run(args []string) int {
 	}
 
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	switch credsCtx.Location {
 	case cliconfig.CredentialsNotAvailable:
-		c.Ui.Output(fmt.Sprintf("No credentials for %s are stored.\n", dispHostname))
+		view.NoCredentialsStored(dispHostname)
 		return 0
 	case cliconfig.CredentialsViaHelper:
-		c.Ui.Output(fmt.Sprintf("Removing the stored credentials for %s from the configured\n%q credentials helper.\n", dispHostname, credsCtx.HelperType))
+		view.RemovingCredentialsFromHelper(dispHostname, credsCtx.HelperType)
 	case cliconfig.CredentialsInPrimaryFile:
-		c.Ui.Output(fmt.Sprintf("Removing the stored credentials for %s from the following file:\n    %s\n", dispHostname, credsCtx.LocalFilename))
+		view.RemovingCredentialsFromFile(dispHostname, credsCtx.LocalFilename)
 	}
 
 	err = creds.ForgetForHost(ctx, hostname)
@@ -102,35 +124,19 @@ func (c *LogoutCommand) Run(args []string) int {
 		))
 	}
 
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
 
-	c.Ui.Output(
-		fmt.Sprintf(
-			c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]OpenTofu has removed the stored API token for %s.[reset]
-`)),
-			dispHostname,
-		) + "\n",
-	)
+	view.LogoutSuccess(dispHostname)
 
 	return 0
 }
 
 // Help implements cli.Command.
 func (c *LogoutCommand) Help() string {
-	defaultFile := c.defaultOutputFile()
-	if defaultFile == "" {
-		// Because this is just for the help message and it's very unlikely
-		// that a user wouldn't have a functioning home directory anyway,
-		// we'll just use a placeholder here. The real command has some
-		// more complex behavior for this case. This result is not correct
-		// on all platforms, but given how unlikely we are to hit this case
-		// that seems okay.
-		defaultFile = "~/.terraform/credentials.tfrc.json"
-	}
+	defaultFile := c.credentialsFileForHelp()
 
 	helpText := fmt.Sprintf(`
 Usage: tofu [global options] logout [hostname]
@@ -154,4 +160,18 @@ func (c *LogoutCommand) defaultOutputFile() string {
 		return "" // no default available
 	}
 	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
+}
+
+func (c *LogoutCommand) credentialsFileForHelp() string {
+	defaultFile := c.defaultOutputFile()
+	if defaultFile == "" {
+		// Because this is just for the help message and it's very unlikely
+		// that a user wouldn't have a functioning home directory anyway,
+		// we'll just use a placeholder here. The real command has some
+		// more complex behavior for this case. This result is not correct
+		// on all platforms, but given how unlikely we are to hit this case
+		// that seems okay.
+		defaultFile = "~/.terraform/credentials.tfrc.json"
+	}
+	return defaultFile
 }
