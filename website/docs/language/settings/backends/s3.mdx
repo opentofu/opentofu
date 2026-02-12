@@ -158,10 +158,42 @@ data.terraform_remote_state.network:
 
 This backend requires the configuration of the AWS Region and S3 state storage. Other configuration, such as enabling DynamoDB state locking, is optional.
 
+### Authentication Options
+
+We recommend using the following approaches to authentication unless you have specialized needs:
+
+- For interactive use at a shell prompt, we recommend using the AWS CLI command [`aws login`](https://docs.aws.amazon.com/cli/latest/reference/login/) to obtain credentials using OAuth.
+
+    Support for credentials from `aws login` was added in OpenTofu v1.12. To use credentials issued by this command, ensure that none of the credentials-related settings are included in your backend configuration and that no other ambient credentials are configured in your environment.
+
+    For more information on this approach, refer to the upstream documentation [Login for AWS local development using console credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html). If your organization uses IAM Identity Center, refer to [Configuring IAM Identity Center authentication with the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html) instead.
+
+- When running OpenTofu in a temporary execution environment, such as the ephemeral worker environments used by general-purpose CI systems and [TACOS](../../../../intro/tacos/), we recommend using the host system's support for JSON Web Tokens (sometimes instead called "OpenID Connect" or "OIDC") to create an explicit trust relationship between your chosen execution environment and a suitable role in your AWS account.
+
+    For example, in GitHub Actions you can configure your workflow as described in [Configuring OpenID Connect in cloud providers](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-cloud-providers). All modern CI systems and TACOS should provide equivalent functionality, but you will need to refer to the documentation for your chosen execution platform to learn how to use it.
+
+    Some execution platforms automatically create AWS CLI configuration that includes a valid JSON web token, which OpenTofu can then use without any special backend configuration settings. Alternatively, your platform might provide only the JSON web token itself, in which case your pipeline must create suitable configuration itself as described in [Assume role with web identity](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-role.html#cli-configure-role-oidc).
+
+    If you cannot use the standard AWS CLI settings to configure your JSON web token, refer to [Assume Role With Web Identity Configuration](#assume-role-with-web-identity-configuration) for an inline alternative, but we recommend using AWS CLI configuration settings instead of S3-backend-specific authentication settings whenever possible.
+
+- If you cannot use the other two strategies described above, then a last-resort alternative is to configure static credentials in either [AWS CLI credentials files](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html) or [environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
+
+    These two approaches are relatively simple to configure, but because they involve longer-lived credentials there is more risk of the credentials being compromised and misused. The previous two options both rely on using external information to issue short-lived session tokens that expire shortly after use.
+
+The `s3` backend is designed to be compatible with all of AWS CLI's various authentication options, and so you can learn about a number of other possibilities in the upstream documentation [Authentication and access credentials for the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html).
+
+If your AWS CLI configuration includes multiple authentication profiles, you can use the `AWS_PROFILE` environment variable or the `profile` argument in the backend configuration to specify which profile OpenTofu should use.
+
+OpenTofu relies on the AWS SDK rather than on AWS CLI directly, and so if a new authentication method was recently added to AWS CLI then it may not yet be supported in OpenTofu, but should typically become supported in the next minor release of OpenTofu.
+
 ### Credentials and Shared Configuration
 
-:::danger Warning
-We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+:::warning Warning
+Whenever possible we recommend keeping all settings related to authentication in the standard AWS CLI configuration files used by AWS CLI and other AWS-integrated tools, instead of using the `s3` backend arguments directly.
+
+A `backend "s3"` block should ideally contain only the `region`, `bucket`, and `key` arguments, focusing on specifying just where state snapshots will be stored rather than specifying how to authenticate when making API requests.
+
+Note that any settings you provide via the `-backend-config` option when using `tofu init` will be saved to disk in a tracking file OpenTofu creates under the `.terraform` directory, so that OpenTofu can use those settings when you run other commands later.
 :::
 
 The following configuration is required:
@@ -170,8 +202,6 @@ The following configuration is required:
 
 The following configuration is optional:
 
-* `access_key` - (Optional) AWS access key. If configured, must also configure `secret_key`. This can also be sourced from the `AWS_ACCESS_KEY_ID` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
-* `secret_key` - (Optional) AWS access key. If configured, must also configure `access_key`. This can also be sourced from the `AWS_SECRET_ACCESS_KEY` environment variable, AWS shared credentials file (e.g. `~/.aws/credentials`), or AWS shared configuration file (e.g. `~/.aws/config`).
 * `iam_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the `AWS_IAM_ENDPOINT` environment variable.
 * `max_retries` - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5.
 * `retry_mode` - (Optional) Specifies how retries are attempted. Valid values are `standard` and `adaptive`. This can also be sourced from the `AWS_RETRY_MODE` environment variable.
@@ -187,7 +217,6 @@ The following configuration is optional:
 * `skip_requesting_account_id` - (Optional) Skip requesting the account ID. Useful for AWS API implementations that do not have the IAM, STS API, or metadata API.
 * `sts_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the `AWS_STS_ENDPOINT` environment variable.
 * `sts_region` - (Optional) AWS region for STS. If unset, AWS will use the same region for STS as other non-STS operations.
-* `token` - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the `AWS_SESSION_TOKEN` environment variable.
 * `allowed_account_ids` (Optional): A list of permitted AWS account IDs to safeguard against accidental disruption of a live environment. This option conflicts with `forbidden_account_ids`.
 * `forbidden_account_ids` (Optional): A list of prohibited AWS account IDs to prevent unintentional disruption of a live environment. This option conflicts with `allowed_account_ids`.
 * `custom_ca_bundle` - File containing custom root and intermediate certificates. Can also be configured using the `AWS_CA_BUNDLE` environment variable.
@@ -199,6 +228,14 @@ The following configuration is optional:
 * `insecure` - (Optional) Explicitly allow the backend to perform "insecure" SSL requests; default is `false`.
 * `use_dualstack_endpoint` - (Optional) Resolve an endpoint with DualStack capability.
 * `use_fips_endpoint` - (Optional) Resolve an endpoint with FIPS capability.
+
+The following options are available as an absolute last resort for inline credentials configuration, **but we do not recommend using them in any situation**:
+
+* `access_key` - (Optional) Explicitly-configured AWS access key ID. When present, the value of this setting is treated similar to the `AWS_ACCESS_KEY_ID` environment variable, and `secret_key` must also be set.
+* `secret_key` - (Optional) Explicitly-configured AWS access key secret. When present, the value of this setting is treated similar to the `AWS_SECRET_ACCESS_KEY` environment variable. This option is valid only when `access_key` is also set.
+* `token` - (Optional) AWS session token. When present, this is treated like the `AWS_SESSION_TOKEN` environment variable.
+
+To learn about other, better approaches to AWS authentication, refer to [Authentication Options](#authentication-options) above.
 
 #### Customizing AWS API Endpoints
 
