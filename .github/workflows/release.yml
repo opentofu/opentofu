@@ -209,9 +209,8 @@ jobs:
             "${{ matrix.latest_tag }}"
           )
           for tag in "${TAGS[@]}"; do
-            DIGEST=$(docker buildx imagetools inspect "${{ env.REGISTRY }}:${tag}" --format '{{.Manifest.Digest}}')
             cosign sign --oidc-issuer=https://token.actions.githubusercontent.com \
-              "${{ env.REGISTRY }}@${DIGEST}" --yes
+              "${{ env.REGISTRY }}:${tag}" --yes
           done
 
   # ──────────────────────────────────────────
