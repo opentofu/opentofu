@@ -1,4 +1,6 @@
-## 1.10.9 (unreleased)
+## 1.10.10 (unreleased)
+
+## 1.10.9
 
 SECURITY ADVISORIES:
 
