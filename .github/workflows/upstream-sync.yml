@@ -126,7 +126,7 @@ jobs:
       - name: Push sync branch
         if: steps.check.outputs.exists == 'false'
         run: |
-          git push origin "${{ steps.tag.outputs.sync_branch }}"
+          git push --no-follow-tags origin "${{ steps.tag.outputs.sync_branch }}"
 
       - name: Create draft PR
         if: steps.check.outputs.exists == 'false'
