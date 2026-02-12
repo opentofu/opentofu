@@ -632,17 +632,6 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		}
 	}()
 
-	if !s.Remote.Empty() {
-		// Legacy remote state is no longer supported. User must first
-		// migrate with Terraform 0.11 or earlier.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Legacy remote state not supported",
-			"This working directory is configured for legacy remote state, which is no longer supported from Terraform v0.12 onwards, and thus not supported by OpenTofu, either. To migrate this environment, first run \"terraform init\" under a Terraform 0.11 release, and then upgrade to OpenTofu.",
-		))
-		return nil, diags
-	}
-
 	// This switch statement covers all the different combinations of
 	// configuring new backends, updating previously-configured backends, etc.
 	switch {
