@@ -5,8 +5,9 @@
 
 FROM scratch
 
-LABEL maintainer="OpenTofu Core Team <core@opentofu.org>"
+LABEL maintainer="Ghoten <https://github.com/vmvarela/opentofu>"
 
-COPY tofu /usr/local/bin/tofu
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM}/ghoten /usr/local/bin/ghoten
 
-ENTRYPOINT ["/usr/local/bin/tofu"]
+ENTRYPOINT ["/usr/local/bin/ghoten"]

@@ -1,0 +1,153 @@
+name: upstream-sync
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Upstream tag to sync (e.g. v1.12.0). Leave empty to auto-detect latest."
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Sync upstream release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/opentofu/opentofu.git || true
+          git fetch upstream --tags
+          git fetch upstream 'refs/heads/v*:refs/remotes/upstream/v*'
+
+      - name: Determine target tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ -n "${INPUT_TAG}" ]]; then
+            TAG="${INPUT_TAG}"
+          else
+            TAG=$(gh api repos/opentofu/opentofu/releases/latest --jq '.tag_name')
+          fi
+
+          if [[ -z "${TAG}" ]]; then
+            echo "::error::No upstream stable tag found"
+            exit 1
+          fi
+
+          # Extract vMAJOR.MINOR (e.g. v1.11.5 -> v1.11, 1.11)
+          V_BRANCH=$(echo "${TAG}" | sed -E 's/^(v[0-9]+\.[0-9]+)\..*/\1/')
+          MAJOR_MINOR=$(echo "${V_BRANCH}" | sed 's/^v//')
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "sync_branch=upstream/${TAG}" >> "$GITHUB_OUTPUT"
+          echo "release_branch=${V_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "major_minor=${MAJOR_MINOR}" >> "$GITHUB_OUTPUT"
+          echo "Selected upstream tag: ${TAG} (release branch: ${V_BRANCH})"
+
+      - name: Check if sync branch already exists
+        id: check
+        run: |
+          if git rev-parse --verify "refs/remotes/origin/${{ steps.tag.outputs.sync_branch }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Branch ${{ steps.tag.outputs.sync_branch }} already exists, skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure release branch vX.Y exists
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          RELEASE_BRANCH="${{ steps.tag.outputs.release_branch }}"
+          if git rev-parse --verify "refs/remotes/origin/${RELEASE_BRANCH}" >/dev/null 2>&1; then
+            echo "Release branch ${RELEASE_BRANCH} already exists."
+          else
+            echo "Creating ${RELEASE_BRANCH} from upstream/${RELEASE_BRANCH}..."
+            if git rev-parse --verify "refs/remotes/upstream/${RELEASE_BRANCH}" >/dev/null 2>&1; then
+              git branch "${RELEASE_BRANCH}" "upstream/${RELEASE_BRANCH}"
+            else
+              echo "Upstream branch ${RELEASE_BRANCH} not found, creating from main..."
+              git branch "${RELEASE_BRANCH}" origin/main
+            fi
+            git push origin "${RELEASE_BRANCH}"
+          fi
+
+      - name: Create sync branch and merge upstream tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git checkout -b "${{ steps.tag.outputs.sync_branch }}" "origin/${{ steps.tag.outputs.release_branch }}"
+          git merge "${{ steps.tag.outputs.tag }}" --no-edit || true
+          echo "Merge complete (conflicts, if any, will be resolved during PR review)."
+
+      - name: Update .semrelrc with maintainedVersion
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          MAINTAINED="${{ steps.tag.outputs.major_minor }}"
+
+          if [[ -f .semrelrc ]]; then
+            jq --arg mv "${MAINTAINED}" '.maintainedVersion = $mv' .semrelrc > .semrelrc.tmp \
+              && mv .semrelrc.tmp .semrelrc
+          else
+            cat > .semrelrc <<EOFRC
+          {
+            "maintainedVersion": "${MAINTAINED}",
+            "plugins": {
+              "commit-analyzer": { "name": "default" },
+              "ci-condition": { "name": "default" },
+              "changelog-generator": { "name": "default", "options": { "emojis": "true" } },
+              "provider": { "name": "github" },
+              "files-updater": { "name": "default" }
+            }
+          }
+          EOFRC
+          fi
+
+          echo "maintainedVersion set to: ${MAINTAINED}"
+          git add .semrelrc
+          git diff --cached --quiet || git commit -m "chore: set maintainedVersion to ${MAINTAINED}"
+
+      - name: Push sync branch
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git push origin "${{ steps.tag.outputs.sync_branch }}"
+
+      - name: Create draft PR
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          RELEASE_BRANCH="${{ steps.tag.outputs.release_branch }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          gh api repos/${{ github.repository }}/pulls \
+            --method POST \
+            -f title="fix: patch ${TAG}" \
+            -f head="${{ steps.tag.outputs.sync_branch }}" \
+            -f base="${RELEASE_BRANCH}" \
+            -F draft=true \
+            -f body="Automated PR to merge upstream release **${TAG}** into \`${RELEASE_BRANCH}\`.
+
+          Once merged, a new release will be published automatically from \`${RELEASE_BRANCH}\`.
+
+          ## Checklist
+          - [ ] Review upstream changes
+          - [ ] Resolve merge conflicts
+          - [ ] Verify ORAS backend still works
+          - [ ] Run tests"

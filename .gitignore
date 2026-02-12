@@ -19,9 +19,13 @@ website/node_modules
 *.iml
 
 /tofu
+/ghoten
 
 website/vendor
 vendor/
+
+# "make golangci-lint" places its temprary golangci-lint executable here
+tools/golangci-lint*
 
 # VSCode debugging configurations
 .vscode/launch.json

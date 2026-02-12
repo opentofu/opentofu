@@ -17,10 +17,14 @@ import (
 	version "github.com/hashicorp/go-version"
 )
 
-// rawVersion is the current version as a string, as read from the VERSION
+// embeddedVersion is the current version as a string, as read from the VERSION
 // file. This must be a valid semantic version.
 //
 //go:embed VERSION
+var embeddedVersion string
+
+// rawVersion can be overridden via linker flags (e.g. -X ...version.rawVersion=1.12.0-ghoten.1)
+// to inject the release version at build time. When empty, falls back to the embedded VERSION file.
 var rawVersion string
 
 // dev determines whether the -dev prerelease marker will
@@ -40,7 +44,12 @@ var Prerelease string
 var SemVer *version.Version
 
 func init() {
-	semVerFull := version.Must(version.NewVersion(strings.TrimSpace(rawVersion)))
+	// Use rawVersion if set via ldflags, otherwise fall back to the embedded VERSION file.
+	ver := rawVersion
+	if ver == "" {
+		ver = embeddedVersion
+	}
+	semVerFull := version.Must(version.NewVersion(strings.TrimSpace(ver)))
 	SemVer = semVerFull.Core()
 	Version = SemVer.String()
 
