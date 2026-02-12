@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -442,7 +443,7 @@ func TestApply_defaultState(t *testing.T) {
 	testCopyDir(t, testFixturePath("apply"), td)
 	t.Chdir(td)
 
-	statePath := filepath.Join(td, DefaultStateFilename)
+	statePath := filepath.Join(td, arguments.DefaultStateFilename)
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -821,7 +822,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 	tmp := testCwdTemp(t)
-	remoteStatePath := filepath.Join(tmp, workdir.DefaultDataDir, DefaultStateFilename)
+	remoteStatePath := filepath.Join(tmp, workdir.DefaultDataDir, arguments.DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(remoteStatePath), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -886,8 +887,8 @@ func TestApply_plan_remoteState(t *testing.T) {
 	}
 
 	// State file should be not be installed
-	if _, err := os.Stat(filepath.Join(tmp, DefaultStateFilename)); err == nil {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if _, err := os.Stat(filepath.Join(tmp, arguments.DefaultStateFilename)); err == nil {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 		t.Fatalf("State path should not exist: %s", string(data))
 	}
 

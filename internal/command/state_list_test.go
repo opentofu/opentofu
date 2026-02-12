@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
@@ -182,7 +183,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	// is a user defined state file that will then override the
 	// one configured in the backend. As this file does not exist
 	// it should exit with a no state found error.
-	args := []string{"-state=" + DefaultStateFilename}
+	args := []string{"-state=" + arguments.DefaultStateFilename}
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("bad: %d", code)
 	}

@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -412,7 +413,7 @@ func testStateFile(t *testing.T, s *states.State) string {
 func testStateFileDefault(t *testing.T, s *states.State) {
 	t.Helper()
 
-	f, err := os.Create(DefaultStateFilename)
+	f, err := os.Create(arguments.DefaultStateFilename)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -434,7 +435,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 		t.Fatalf("err: %s", err)
 	}
 
-	path := filepath.Join(workspaceDir, DefaultStateFilename)
+	path := filepath.Join(workspaceDir, arguments.DefaultStateFilename)
 	f, err := os.Create(path)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -453,7 +454,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	t.Helper()
 
-	path := filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)
+	path := filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
