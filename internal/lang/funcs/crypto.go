@@ -272,8 +272,9 @@ func makeFileHashFunction(baseDir string, hf func() hash.Hash, enc func([]byte) 
 	})
 }
 
-// UUID generates and returns a Type-4 UUID in the standard hexadecimal string
-// format.
+// UUID generates and returns 16 random bytes formatted as a UUID string.
+// Note: the underlying library (hashicorp/go-uuid) does not set the RFC 4122
+// version or variant bits, so the result is not a standards-compliant v4 UUID.
 //
 // This is not a pure function: it will generate a different result for each
 // call. It must therefore be registered as an impure function in the function
