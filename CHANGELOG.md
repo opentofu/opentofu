@@ -19,6 +19,7 @@ ENHANCEMENTS:
 - `tofu init` now fetches providers and their metadata in parallel. Depending on provider size and network properties, this can reduce provider installation and checking time. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
 - The `yamldecode` function now supports the "merge" tag, most commonly written as `<<` where a map key would be expected, with sequences of mappings rather than just individual mappings. ([#3607](https://github.com/opentofu/opentofu/pull/3607))
 - New CLI argument `-json-into=<outfile>` has been added to support emitting both human readable and machine readable logs ([#3606](https://github.com/opentofu/opentofu/pull/3606))
+- The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 
 BUG FIXES:
 
