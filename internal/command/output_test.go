@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -297,7 +298,7 @@ func TestOutput_stateDefault(t *testing.T) {
 	// Write the state file in a temporary directory with the
 	// default filename.
 	td := testTempDirRealpath(t)
-	statePath := filepath.Join(td, DefaultStateFilename)
+	statePath := filepath.Join(td, arguments.DefaultStateFilename)
 
 	f, err := os.Create(statePath)
 	if err != nil {
