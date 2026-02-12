@@ -64,6 +64,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 		ctx, traceNamePlanResourceInstance,
 		tracing.SpanAttributes(
 			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.String(traceAttrResourceType, addr.Resource.Resource.Type),
 			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
 			traceattrs.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
 		),
