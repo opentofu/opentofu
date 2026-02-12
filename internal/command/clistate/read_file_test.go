@@ -36,8 +36,6 @@ func TestReadState_NilFile(t *testing.T) {
 func TestReadState_ValidState(t *testing.T) {
 	state := &CLIState{
 		Version: StateVersion,
-		Serial:  1,
-		Lineage: "test-lineage",
 	}
 
 	buf := &bytes.Buffer{}
@@ -52,12 +50,6 @@ func TestReadState_ValidState(t *testing.T) {
 
 	if result.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, result.Version)
-	}
-	if result.Serial != 1 {
-		t.Errorf("expected serial 1, got %d", result.Serial)
-	}
-	if result.Lineage != "test-lineage" {
-		t.Errorf("expected lineage 'test-lineage', got '%s'", result.Lineage)
 	}
 }
 
@@ -108,8 +100,6 @@ func TestWriteState_NilState(t *testing.T) {
 func TestWriteState_ValidState(t *testing.T) {
 	state := &CLIState{
 		Version: StateVersion,
-		Serial:  42,
-		Lineage: "test-lineage",
 	}
 
 	buf := &bytes.Buffer{}
@@ -126,16 +116,11 @@ func TestWriteState_ValidState(t *testing.T) {
 	if parsed.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, parsed.Version)
 	}
-	if parsed.Serial != 42 {
-		t.Errorf("expected serial 42, got %d", parsed.Serial)
-	}
 }
 
 func TestWriteState_SetsVersion(t *testing.T) {
 	state := &CLIState{
-		Version: 99, // Wrong version intentionally
-		Serial:  1,
-		Lineage: "test",
+		Version: 99, // Invalid version
 	}
 
 	buf := &bytes.Buffer{}
@@ -162,9 +147,6 @@ func TestNewState(t *testing.T) {
 	if state.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, state.Version)
 	}
-	if state.Lineage == "" {
-		t.Error("expected non-empty lineage")
-	}
 }
 
 func TestCLIState_Init(t *testing.T) {
@@ -174,16 +156,11 @@ func TestCLIState_Init(t *testing.T) {
 	if state.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, state.Version)
 	}
-	if state.Lineage == "" {
-		t.Error("expected non-empty lineage after init")
-	}
 }
 
 func TestCLIState_DeepCopy(t *testing.T) {
 	original := &CLIState{
 		Version: StateVersion,
-		Serial:  5,
-		Lineage: "original-lineage",
 	}
 
 	copied := original.DeepCopy()
@@ -191,20 +168,8 @@ func TestCLIState_DeepCopy(t *testing.T) {
 		t.Fatal("DeepCopy returned nil")
 	}
 
-	// Verify values match
 	if copied.Version != original.Version {
 		t.Errorf("version mismatch: %d != %d", copied.Version, original.Version)
-	}
-	if copied.Serial != original.Serial {
-		t.Errorf("serial mismatch: %d != %d", copied.Serial, original.Serial)
-	}
-	if copied.Lineage != original.Lineage {
-		t.Errorf("lineage mismatch: %s != %s", copied.Lineage, original.Lineage)
-	}
-
-	copied.Serial = 999
-	if original.Serial == 999 {
-		t.Error("modifying copy affected original")
 	}
 }
 
@@ -216,67 +181,6 @@ func TestCLIState_DeepCopy_Nil(t *testing.T) {
 	}
 }
 
-func TestCLIState_MarshalEqual(t *testing.T) {
-	state1 := &CLIState{
-		Version: StateVersion,
-		Serial:  1,
-		Lineage: "test",
-	}
-
-	state2 := &CLIState{
-		Version: StateVersion,
-		Serial:  1,
-		Lineage: "test",
-	}
-
-	if !state1.MarshalEqual(state2) {
-		t.Error("expected identical states to be marshal equal")
-	}
-
-	state2.Serial = 2
-	if state1.MarshalEqual(state2) {
-		t.Error("expected different states to not be marshal equal")
-	}
-}
-
-func TestCLIState_MarshalEqual_BothNil(t *testing.T) {
-	var s1, s2 *CLIState
-	if !s1.MarshalEqual(s2) {
-		t.Error("expected two nil states to be equal")
-	}
-}
-
-func TestCLIState_MarshalEqual_OneNil(t *testing.T) {
-	state := NewState()
-	var nilState *CLIState
-
-	if state.MarshalEqual(nilState) {
-		t.Error("expected non-nil and nil state to not be equal")
-	}
-	if nilState.MarshalEqual(state) {
-		t.Error("expected nil and non-nil state to not be equal")
-	}
-}
-
-func TestRemoteState_Empty(t *testing.T) {
-	tests := []struct {
-		name     string
-		remote   *RemoteState
-		expected bool
-	}{
-		{"nil remote", nil, true},
-		{"empty type", &RemoteState{Type: ""}, true},
-		{"with type", &RemoteState{Type: "s3"}, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.remote.Empty(); got != tt.expected {
-				t.Errorf("Empty() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
 
 func TestBackendState_Empty(t *testing.T) {
 	tests := []struct {
@@ -406,17 +310,9 @@ func TestBackendState_ForPlanNil(t *testing.T) {
 func TestReadWriteRoundTrip(t *testing.T) {
 	original := &CLIState{
 		Version: StateVersion,
-		Serial:  100,
-		Lineage: "test-lineage-456",
 		Backend: &BackendState{
 			Type: "s3",
 			Hash: 12345,
-		},
-		Remote: &RemoteState{
-			Type: "consul",
-			Config: map[string]string{
-				"address": "localhost:8500",
-			},
 		},
 	}
 
@@ -430,24 +326,11 @@ func TestReadWriteRoundTrip(t *testing.T) {
 		t.Fatalf("ReadState failed: %v", err)
 	}
 
-	if result.Serial != original.Serial {
-		t.Errorf("serial mismatch: got %d, want %d", result.Serial, original.Serial)
-	}
-	if result.Lineage != original.Lineage {
-		t.Errorf("lineage mismatch: got %q, want %q", result.Lineage, original.Lineage)
-	}
 	if result.Backend == nil || result.Backend.Type != "s3" {
 		if result.Backend == nil {
 			t.Errorf("backend mismatch: got nil, want type %q", "s3")
 		} else {
 			t.Errorf("backend mismatch: got type %q, want %q", result.Backend.Type, "s3")
-		}
-	}
-	if result.Remote == nil || result.Remote.Type != "consul" {
-		if result.Remote == nil {
-			t.Errorf("remote mismatch: got nil, want type %q", "consul")
-		} else {
-			t.Errorf("remote mismatch: got type %q, want %q", result.Remote.Type, "consul")
 		}
 	}
 }
