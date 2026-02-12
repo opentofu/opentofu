@@ -119,6 +119,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 					"GOOGLE_STORAGE_CUSTOM_ENDPOINT",
 				}, nil),
 			},
+			"universe_domain": {
+				Type:     schema.TypeString,
+				Optional: true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"GOOGLE_BACKEND_UNIVERSE_DOMAIN",
+				}, nil),
+			},
 		},
 	}
 
@@ -211,6 +218,11 @@ func (b *Backend) configure(ctx context.Context) error {
 	if storageEndpoint, ok := data.GetOk("storage_custom_endpoint"); ok {
 		endpoint := option.WithEndpoint(storageEndpoint.(string))
 		opts = append(opts, endpoint)
+	}
+	// Custom universe domain for sovereign cloud authentication
+	if universeDomain, ok := data.GetOk("universe_domain"); ok {
+		domain := option.WithUniverseDomain(universeDomain.(string))
+		opts = append(opts, domain)
 	}
 	client, err := storage.NewClient(ctx, opts...)
 	if err != nil {

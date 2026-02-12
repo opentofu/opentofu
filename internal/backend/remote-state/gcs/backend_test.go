@@ -47,6 +47,22 @@ const (
 
 var keyRingLocation = os.Getenv("GOOGLE_REGION")
 
+// TestBackendConfig checks that the fields provided in the config works well with the schema configured
+// in the backend.
+func TestBackendConfig(t *testing.T) {
+	expectedBucketName := bucketName(t)
+	config := map[string]interface{}{
+		"bucket":                  expectedBucketName,
+		"access_token":            "dummy token",
+		"storage_custom_endpoint": "https://storage.s3nsapis.fr/storage/v1/",
+		"universe_domain":         "s3nsapis.fr",
+	}
+
+	// This is meant only to parse the configuration and ensure that the configuration given matches the schema configured
+	// in the backend
+	_ = backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
+}
+
 func TestStateFile(t *testing.T) {
 	t.Parallel()
 
