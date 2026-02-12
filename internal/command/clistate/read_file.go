@@ -15,7 +15,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/copystructure"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -30,16 +29,6 @@ const StateVersion = 3
 type CLIState struct {
 	// Version is the state file protocol version.
 	Version int `json:"version"`
-
-	// Serial is incremented on any operation that modifies the state file.
-	Serial int64 `json:"serial"`
-
-	// Lineage is set when a new, blank state is created and then never updated.
-	Lineage string `json:"lineage"`
-
-	// Remote is used to track the metadata required to
-	// pull and push state files from a remote storage endpoint.
-	Remote *RemoteState `json:"remote,omitempty"`
 
 	// Backend tracks the configuration for the backend in use with
 	// this state. This is used to track any changes in the backend
@@ -66,13 +55,6 @@ func (s *CLIState) Init() {
 
 func (s *CLIState) init() {
 	s.Version = StateVersion
-	if s.Lineage == "" {
-		lineage, err := uuid.GenerateUUID()
-		if err != nil {
-			panic(fmt.Errorf("failed to generate lineage: %w", err))
-		}
-		s.Lineage = lineage
-	}
 }
 
 // DeepCopy performs a deep copy of the CLI state structure and returns
@@ -88,57 +70,6 @@ func (s *CLIState) DeepCopy() *CLIState {
 	}
 
 	return cpy.(*CLIState)
-}
-
-// MarshalEqual checks if two states would serialize to identical JSON.
-func (s *CLIState) MarshalEqual(other *CLIState) bool {
-	if s == nil && other == nil {
-		return true
-	} else if s == nil || other == nil {
-		return false
-	}
-
-	sBuf := &bytes.Buffer{}
-	otherBuf := &bytes.Buffer{}
-
-	if err := WriteState(s, sBuf); err != nil {
-		// should never happen, since we're writing to a buffer
-		panic(err)
-	}
-	if err := WriteState(other, otherBuf); err != nil {
-		// should never happen, since we're writing to a buffer
-		panic(err)
-	}
-
-	return bytes.Equal(sBuf.Bytes(), otherBuf.Bytes())
-}
-
-// RemoteState is used to track the information about a remote
-// state store that we push/pull state to.
-type RemoteState struct {
-	// Type controls the client we use for the remote state
-	Type string `json:"type"`
-	// Config is used to store arbitrary configuration that
-	// is type specific
-	Config map[string]string `json:"config"`
-
-	mu sync.Mutex
-}
-
-// Lock acquires the remote state mutex.
-func (r *RemoteState) Lock() { r.mu.Lock() }
-
-// Unlock releases the remote state mutex.
-func (r *RemoteState) Unlock() { r.mu.Unlock() }
-
-// Empty returns true if the remote state is not configured.
-func (r *RemoteState) Empty() bool {
-	if r == nil {
-		return true
-	}
-	r.Lock()
-	defer r.Unlock()
-	return r.Type == ""
 }
 
 // BackendState stores the configuration to connect to a backend.
