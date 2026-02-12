@@ -1,6 +1,13 @@
 The v1.11.x release series is supported until **August 1 2026**.
+## 1.11.6 (Unreleased)
 
-## 1.11.5 (Unreleased)
+## 1.11.5
+
+BUG FIXES:
+
+* Add `universe_domain` option in the `gcs` backend to support sovereign GCP services ([#3758](https://github.com/opentofu/opentofu/issues/3758))
+* The `azurerm` backend's MSI authentication method will now respect the provided client ID ([#3586](https://github.com/opentofu/opentofu/issues/3586))
+* Using a network mirror for the providers source does not print debug logs without being asked for ([#3736](https://github.com/opentofu/opentofu/issues/3736))
 
 ## 1.11.4
 

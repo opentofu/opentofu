@@ -1,10 +1,23 @@
 {
   "maintainedVersion": "1.11",
   "plugins": {
-    "commit-analyzer": { "name": "default" },
-    "ci-condition": { "name": "default" },
-    "changelog-generator": { "name": "default", "options": { "emojis": "true" } },
-    "provider": { "name": "github" },
-    "files-updater": { "name": "default" }
+    "commit-analyzer": {
+      "name": "default"
+    },
+    "ci-condition": {
+      "name": "default"
+    },
+    "changelog-generator": {
+      "name": "default",
+      "options": {
+        "emojis": "true"
+      }
+    },
+    "provider": {
+      "name": "github"
+    },
+    "files-updater": {
+      "name": "default"
+    }
   }
 }
