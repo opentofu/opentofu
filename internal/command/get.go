@@ -7,12 +7,13 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // GetCommand is a Command implementation that takes a OpenTofu
@@ -21,74 +22,75 @@ type GetCommand struct {
 	Meta
 }
 
-func (c *GetCommand) Run(args []string) int {
-	var update bool
-	var testsDirectory string
+func (c *GetCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Get")
+	defer span.End()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("get")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&update, "update", false, "update")
-	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
-	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
-	cmdFlags.StringVar(&c.outputJSONInto, "json-into", "", "json-into")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseGet(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewGet(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		view.HelpPrompt()
 		return 1
 	}
-	if c.outputInJSON {
-		c.Meta.color = false
-		c.Meta.Color = false
-		c.oldUi = c.Ui
-		c.Ui = &WrappedUi{
-			cliUi:            c.oldUi,
-			jsonView:         views.NewJSONView(c.View, nil),
-			onlyOutputInJSON: true,
-		}
-	}
-
-	if c.outputJSONInto != "" {
-		if c.outputInJSON {
-			// Not a valid combination
-			c.Ui.Error("The -json and -json-into options are mutually-exclusive in their use")
-			return 1
-		}
-
-		out, closer, diags := arguments.OpenJSONIntoFile(c.outputJSONInto)
-		defer closer()
-		if diags.HasErrors() {
-			c.Ui.Error(diags.Err().Error())
-			return 1
-		}
-
-		c.oldUi = c.Ui
-		c.Ui = &WrappedUi{
-			cliUi:            c.oldUi,
-			jsonView:         views.NewJSONView(c.View, out),
-			onlyOutputInJSON: false,
-		}
-	}
+	c.GatherVariables(args.Vars)
 
 	// Initialization can be aborted by interruption signals
-	ctx, done := c.InterruptibleContext(c.CommandContext())
+	ctx, done := c.InterruptibleContext(ctx)
 	defer done()
 
-	path, err := modulePath(cmdFlags.Args())
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	// This gets the current directory as full path.
+	path := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
-	path = c.Meta.WorkingDir.NormalizePath(path)
-
-	abort, diags := getModules(ctx, &c.Meta, path, testsDirectory, update)
-	c.showDiagnostics(diags)
+	abort, diags := getModules(ctx, &c.Meta, path, args.TestsDirectory, args.Update, view)
+	view.Diagnostics(diags)
 	if abort || diags.HasErrors() {
 		return 1
 	}
 
 	return 0
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *GetCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *GetCommand) Help() string {
@@ -144,10 +146,7 @@ func (c *GetCommand) Synopsis() string {
 	return "Install or upgrade remote OpenTofu modules"
 }
 
-func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool) (abort bool, diags tfdiags.Diagnostics) {
-	hooks := uiModuleInstallHooks{
-		Ui:             m.Ui,
-		ShowLocalPaths: true,
-	}
+func getModules(ctx context.Context, m *Meta, path string, testsDir string, upgrade bool, view views.Get) (abort bool, diags tfdiags.Diagnostics) {
+	hooks := view.Hooks(true)
 	return m.installModules(ctx, path, testsDir, upgrade, true, hooks)
 }
