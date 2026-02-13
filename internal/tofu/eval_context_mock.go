@@ -46,18 +46,10 @@ type MockEvalContext struct {
 	InitProviderProvider providers.Interface
 	InitProviderError    error
 
-	ProviderCalled   bool
-	ProviderAddr     addrs.AbsProviderConfig
-	ProviderProvider providers.Interface
-
 	ProviderSchemaCalled bool
 	ProviderSchemaAddr   addrs.AbsProviderConfig
 	ProviderSchemaSchema providers.ProviderSchema
 	ProviderSchemaError  error
-
-	CloseProviderCalled   bool
-	CloseProviderAddr     addrs.AbsProviderConfig
-	CloseProviderProvider providers.Interface
 
 	ProviderInputCalled bool
 	ProviderInputAddr   addrs.AbsProviderConfig
@@ -66,14 +58,6 @@ type MockEvalContext struct {
 	SetProviderInputCalled bool
 	SetProviderInputAddr   addrs.AbsProviderConfig
 	SetProviderInputValues map[string]cty.Value
-
-	ConfigureProviderFn func(
-		addr addrs.AbsProviderConfig,
-		cfg cty.Value) tfdiags.Diagnostics // overrides the other values below, if set
-	ConfigureProviderCalled bool
-	ConfigureProviderAddr   addrs.AbsProviderConfig
-	ConfigureProviderConfig cty.Value
-	ConfigureProviderDiags  tfdiags.Diagnostics
 
 	ProvisionerCalled      bool
 	ProvisionerName        string
@@ -193,32 +177,10 @@ func (c *MockEvalContext) InitProvider(_ context.Context, addr addrs.AbsProvider
 	return c.InitProviderProvider, c.InitProviderError
 }
 
-func (c *MockEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey) providers.Interface {
-	c.ProviderCalled = true
-	c.ProviderAddr = addr
-	return c.ProviderProvider
-}
-
 func (c *MockEvalContext) ProviderSchema(_ context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
 	c.ProviderSchemaCalled = true
 	c.ProviderSchemaAddr = addr
 	return c.ProviderSchemaSchema, c.ProviderSchemaError
-}
-
-func (c *MockEvalContext) CloseProvider(_ context.Context, addr addrs.AbsProviderConfig) error {
-	c.CloseProviderCalled = true
-	c.CloseProviderAddr = addr
-	return nil
-}
-
-func (c *MockEvalContext) ConfigureProvider(_ context.Context, addr addrs.AbsProviderConfig, _ addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-	c.ConfigureProviderCalled = true
-	c.ConfigureProviderAddr = addr
-	c.ConfigureProviderConfig = cfg
-	if c.ConfigureProviderFn != nil {
-		return c.ConfigureProviderFn(addr, cfg)
-	}
-	return c.ConfigureProviderDiags
 }
 
 func (c *MockEvalContext) ProviderInput(_ context.Context, addr addrs.AbsProviderConfig) map[string]cty.Value {

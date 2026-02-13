@@ -49,36 +49,12 @@ type EvalContext interface {
 	// configuration does not match the Path() of the EvalContext.
 	InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) (providers.Interface, error)
 
-	// Provider gets the provider instance with the given address (already
-	// initialized) or returns nil if the provider isn't initialized.
-	//
-	// This method expects an _absolute_ provider configuration address, since
-	// resources in one module are able to use providers from other modules.
-	// InitProvider must've been called on the EvalContext of the module
-	// that owns the given provider before calling this method.
-	Provider(context.Context, addrs.AbsProviderConfig, addrs.InstanceKey) providers.Interface
-
 	// ProviderSchema retrieves the schema for a particular provider, which
 	// must have already been initialized with InitProvider.
 	//
 	// This method expects an _absolute_ provider configuration address, since
 	// resources in one module are able to use providers from other modules.
 	ProviderSchema(context.Context, addrs.AbsProviderConfig) (providers.ProviderSchema, error)
-
-	// CloseProvider closes provider connections that aren't needed anymore.
-	//
-	// This method will panic if the module instance address of the given
-	// provider configuration does not match the Path() of the EvalContext.
-	CloseProvider(context.Context, addrs.AbsProviderConfig) error
-
-	// ConfigureProvider configures the provider with the given
-	// configuration. This is a separate context call because this call
-	// is used to store the provider configuration for inheritance lookups
-	// with ParentProviderConfig().
-	//
-	// This method will panic if the module instance address of the given
-	// provider configuration does not match the Path() of the EvalContext.
-	ConfigureProvider(context.Context, addrs.AbsProviderConfig, addrs.InstanceKey, cty.Value) tfdiags.Diagnostics
 
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
