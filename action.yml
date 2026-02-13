@@ -1,0 +1,177 @@
+name: 'Setup Ghoten'
+description: 'Install Ghoten (OpenTofu fork with ORAS backend) in GitHub Actions'
+author: 'Victor M. Varela'
+
+branding:
+  icon: 'terminal'
+  color: 'purple'
+
+inputs:
+  ghoten_version:
+    description: |
+      The version of Ghoten to install. Accepts:
+      - Empty (default): Auto-detect from action ref (@vX.Y.Z) or install latest
+      - 'latest': Install the latest release
+      - Specific version: e.g., '1.11.3' or 'v1.11.3'
+    required: false
+    default: ''
+  
+  ghoten_version_file:
+    description: |
+      Path to a file containing the version to install.
+      Supports:
+      - .ghoten-version: Plain version string (e.g., '1.11.5')
+      - .tool-versions (asdf format): 'ghoten 1.11.5'
+      Takes precedence over ghoten_version if both are set.
+    required: false
+    default: ''
+  
+  github_token:
+    description: |
+      GitHub token for API requests to avoid rate limiting.
+      Defaults to the automatic GITHUB_TOKEN.
+    required: false
+    default: ${{ github.token }}
+  
+  alias:
+    description: |
+      Create an alias for the ghoten command.
+      Useful for substituting terraform with ghoten (e.g., 'alias: terraform').
+    required: false
+    default: ''
+  
+  cache:
+    description: |
+      Enable caching of the Ghoten binary to speed up subsequent runs.
+      Set to 'false' to disable caching.
+    required: false
+    default: 'true'
+
+outputs:
+  version:
+    description: 'The version of Ghoten that was installed (without v prefix)'
+    value: ${{ steps.setup.outputs.version }}
+  cache-hit:
+    description: 'Whether the Ghoten binary was restored from cache (false if cache disabled)'
+    value: ${{ steps.cache-restore.outputs.cache-hit || 'false' }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve Ghoten version
+      id: resolve-version
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_VERSION: ${{ inputs.ghoten_version }}
+        INPUT_VERSION_FILE: ${{ inputs.ghoten_version_file }}
+        INPUT_ACTION_REF: ${{ github.action_ref }}
+      run: |
+        version=""
+        explicit_latest=false
+        
+        # 1. Check version file first (highest precedence)
+        if [[ -n "$INPUT_VERSION_FILE" ]] && [[ -f "$INPUT_VERSION_FILE" ]]; then
+          filename=$(basename "$INPUT_VERSION_FILE")
+          case "$filename" in
+            .tool-versions)
+              version=$(grep -E '^ghoten[[:space:]]' "$INPUT_VERSION_FILE" | awk '{print $2}' | tr -d '[:space:]')
+              ;;
+            *)
+              version=$(tr -d '[:space:]' < "$INPUT_VERSION_FILE")
+              ;;
+          esac
+        fi
+        
+        # 2. Fall back to explicit version input
+        if [[ -z "$version" ]] && [[ -n "$INPUT_VERSION" ]]; then
+          version="$INPUT_VERSION"
+          # Mark if user explicitly requested 'latest'
+          if [[ "$version" = "latest" ]]; then
+            explicit_latest=true
+          fi
+        fi
+        
+        # 3. Fall back to action ref (auto-detect from uses: @vX.Y.Z)
+        # Skip if user explicitly requested 'latest'
+        if [[ -z "$version" ]] && [[ "$explicit_latest" = "false" ]]; then
+          # Only match full semver (v1.2.3 or v1.2.3-beta.1), not major/minor only
+          if [[ "$INPUT_ACTION_REF" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            version="$INPUT_ACTION_REF"
+            echo "Auto-detected version from action ref: ${INPUT_ACTION_REF}"
+          fi
+        fi
+        
+        # 4. Fall back to 'latest'
+        if [[ -z "$version" ]] || [[ "$version" = "latest" ]]; then
+          api_url="https://api.github.com/repos/vmvarela/opentofu/releases/latest"
+          curl_opts=(-fsSL)
+          if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+            curl_opts+=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+          fi
+          if ! response=$(curl "${curl_opts[@]}" "$api_url" 2>&1); then
+            echo "::error::Failed to fetch latest Ghoten release from GitHub API: $response"
+            exit 1
+          fi
+          
+          version=$(echo "$response" | grep '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          if [[ -z "$version" ]]; then
+            echo "::error::Unable to determine latest Ghoten version from GitHub API response"
+            exit 1
+          fi
+        fi
+        
+        # Normalize: remove 'v' prefix for clean version
+        version_clean="${version#v}"
+        
+        if [[ -z "$version_clean" ]]; then
+          echo "::error::Failed to resolve Ghoten version"
+          exit 1
+        fi
+        
+        echo "Resolved version: v${version_clean}"
+        echo "version=${version_clean}" >> "${GITHUB_OUTPUT}"
+
+    - name: Normalize architecture
+      id: normalize-arch
+      shell: bash
+      run: |
+        arch="${{ runner.arch }}"
+        case "$(echo "$arch" | tr '[:upper:]' '[:lower:]')" in
+          x64)   echo "arch=amd64" >> "${GITHUB_OUTPUT}" ;;
+          x86)   echo "arch=386" >> "${GITHUB_OUTPUT}" ;;
+          arm64) echo "arch=arm64" >> "${GITHUB_OUTPUT}" ;;
+          arm)   echo "arch=arm" >> "${GITHUB_OUTPUT}" ;;
+          *)
+            echo "::error::Unsupported architecture: $arch"
+            exit 1
+            ;;
+        esac
+
+    - name: Restore cached Ghoten binary
+      if: inputs.cache == 'true'
+      id: cache-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.tool_cache }}/ghoten/${{ steps.resolve-version.outputs.version }}/${{ steps.normalize-arch.outputs.arch }}
+        key: ghoten-${{ runner.os }}-${{ steps.normalize-arch.outputs.arch }}-${{ steps.resolve-version.outputs.version }}
+
+    - name: Setup Ghoten
+      id: setup
+      shell: bash
+      env:
+        INPUT_GHOTEN_VERSION: ${{ steps.resolve-version.outputs.version }}
+        INPUT_ALIAS: ${{ inputs.alias }}
+        CACHE_HIT: ${{ steps.cache-restore.outputs.cache-hit }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
+      run: |
+        "${GITHUB_ACTION_PATH}/scripts/gh-action-install.sh"
+
+    - name: Save Ghoten binary to cache
+      if: inputs.cache == 'true' && steps.cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.tool_cache }}/ghoten/${{ steps.resolve-version.outputs.version }}/${{ steps.normalize-arch.outputs.arch }}
+        key: ghoten-${{ runner.os }}-${{ steps.normalize-arch.outputs.arch }}-${{ steps.resolve-version.outputs.version }}

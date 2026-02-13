@@ -43,3 +43,6 @@ dist/
 
 # Development temp folder
 tmp
+
+# nektos/act folder
+.act
