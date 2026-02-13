@@ -39,6 +39,7 @@ func Provider() providers.Interface {
 		},
 		IdentitySchemaVersion: 1,
 		IdentitySchema: &configschema.Object{
+			Nesting: configschema.NestingSingle,
 			Attributes: map[string]*configschema.Attribute{
 				"id": {
 					Type:     cty.String,
