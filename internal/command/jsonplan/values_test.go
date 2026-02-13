@@ -138,7 +138,6 @@ func TestMarshalPlannedOutputs(t *testing.T) {
 							Action: plans.Create,
 							After:  after,
 						},
-						Sensitive: false,
 					},
 				},
 			},
@@ -159,7 +158,6 @@ func TestMarshalPlannedOutputs(t *testing.T) {
 						ChangeSrc: plans.ChangeSrc{
 							Action: plans.Delete,
 						},
-						Sensitive: false,
 					},
 				},
 			},

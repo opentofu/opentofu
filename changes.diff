@@ -1,0 +1,683 @@
+diff --git a/internal/backend/local/backend_plan_test.go b/internal/backend/local/backend_plan_test.go
+index 59db2c0b5e..a377f07682 100644
+--- a/internal/backend/local/backend_plan_test.go
++++ b/internal/backend/local/backend_plan_test.go
+@@ -172,6 +172,14 @@ func TestLocal_planOutputsChanged(t *testing.T) {
+ 			Module:      addrs.RootModuleInstance,
+ 			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
+ 		}, cty.StringVal("before"), false, "")
++		ss.SetOutputValue(addrs.AbsOutputValue{
++			Module:      addrs.RootModuleInstance,
++			OutputValue: addrs.OutputValue{Name: "sensitive_only_before"},
++		}, cty.StringVal("before"), true, "") // sensitive in prior state, not in config
++		ss.SetOutputValue(addrs.AbsOutputValue{
++			Module:      addrs.RootModuleInstance,
++			OutputValue: addrs.OutputValue{Name: "sensitive_only_after"},
++		}, cty.StringVal("before"), false, "") // not sensitive in prior state, sensitive in config
+ 		ss.SetOutputValue(addrs.AbsOutputValue{
+ 			Module:      addrs.RootModuleInstance,
+ 			OutputValue: addrs.OutputValue{Name: "removed"}, // not present in the config fixture
+@@ -221,11 +229,13 @@ func TestLocal_planOutputsChanged(t *testing.T) {
+ 
+ 	expectedOutput := strings.TrimSpace(`
+ Changes to Outputs:
+-  + added            = "after"
+-  ~ changed          = "before" -> "after"
+-  - removed          = "before" -> null
+-  ~ sensitive_after  = (sensitive value)
+-  ~ sensitive_before = (sensitive value)
++  + added                 = "after"
++  ~ changed               = "before" -> "after"
++  - removed               = "before" -> null
++  ~ sensitive_after       = (sensitive value)
++  ~ sensitive_before      = (sensitive value)
++  ~ sensitive_only_after  = (sensitive value)
++  ~ sensitive_only_before = (sensitive value)
+ 
+ You can apply this plan to save these new output values to the OpenTofu
+ state, without changing any real infrastructure.
+diff --git a/internal/backend/local/testdata/plan-outputs-changed/main.tf b/internal/backend/local/testdata/plan-outputs-changed/main.tf
+index 1df236ff43..1913a6372f 100644
+--- a/internal/backend/local/testdata/plan-outputs-changed/main.tf
++++ b/internal/backend/local/testdata/plan-outputs-changed/main.tf
+@@ -23,6 +23,20 @@ output "added" { // not present in the prior state
+   value = "after"
+ }
+ 
++output "sensitive_only_before" {
++  value = "before"
++  # no sensitive = true here, but the prior state is marked as sensitive in the test code.
++  # The value is unchanged — only the sensitivity transitions from true to false.
++}
++
++output "sensitive_only_after" {
++  value = "before"
++
++  # This one is _not_ sensitive in the prior state, but is transitioning to
++  # being sensitive in our new plan. The value is unchanged.
++  sensitive = true
++}
++
+ output "unchanged" {
+   value = "before"
+ }
+diff --git a/internal/command/jsonformat/plan_test.go b/internal/command/jsonformat/plan_test.go
+index 163677a66d..c34927a10b 100644
+--- a/internal/command/jsonformat/plan_test.go
++++ b/internal/command/jsonformat/plan_test.go
+@@ -7493,6 +7493,30 @@ func TestOutputChanges(t *testing.T) {
+   ~ b = (sensitive value)
+   ~ c = false -> true`,
+ 		},
++		"sensitivity becoming sensitive": {
++			[]*plans.OutputChangeSrc{
++				outputChangeWithSensitivity(
++					"foo",
++					cty.StringVal("bar"),
++					cty.StringVal("bar"),
++					false,
++					true,
++				),
++			},
++			`  ~ foo = (sensitive value)`,
++		},
++		"sensitivity becoming non-sensitive": {
++			[]*plans.OutputChangeSrc{
++				outputChangeWithSensitivity(
++					"foo",
++					cty.StringVal("bar"),
++					cty.StringVal("bar"),
++					true,
++					false,
++				),
++			},
++			`  ~ foo = (sensitive value)`,
++		},
+ 	}
+ 
+ 	for name, tc := range testCases {
+@@ -7520,6 +7544,10 @@ func TestOutputChanges(t *testing.T) {
+ }
+ 
+ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.OutputChangeSrc {
++	return outputChangeWithSensitivity(name, before, after, sensitive, sensitive)
++}
++
++func outputChangeWithSensitivity(name string, before, after cty.Value, beforeSensitive, afterSensitive bool) *plans.OutputChangeSrc {
+ 	addr := addrs.AbsOutputValue{
+ 		OutputValue: addrs.OutputValue{Name: name},
+ 	}
+@@ -7529,7 +7557,8 @@ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.O
+ 			Before: before,
+ 			After:  after,
+ 		},
+-		Sensitive: sensitive,
++		BeforeSensitive: beforeSensitive,
++		AfterSensitive:  afterSensitive,
+ 	}
+ 
+ 	changeSrc, err := change.Encode()
+diff --git a/internal/command/jsonplan/plan.go b/internal/command/jsonplan/plan.go
+index 1567b88b26..49292fd4ce 100644
+--- a/internal/command/jsonplan/plan.go
++++ b/internal/command/jsonplan/plan.go
+@@ -693,15 +693,11 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
+ 			return nil, err
+ 		}
+ 
+-		// The only information we have in the plan about output sensitivity is
+-		// a boolean which is true if the output was or is marked sensitive. As
+-		// a result, BeforeSensitive and AfterSensitive will be identical, and
+-		// either false or true.
+-		outputSensitive := cty.False
+-		if oc.Sensitive {
+-			outputSensitive = cty.True
+-		}
+-		sensitive, err := ctyjson.Marshal(outputSensitive, outputSensitive.Type())
++		beforeSensitive, err := ctyjson.Marshal(cty.BoolVal(oc.BeforeSensitive), cty.Bool)
++		if err != nil {
++			return nil, err
++		}
++		afterSensitive, err := ctyjson.Marshal(cty.BoolVal(oc.AfterSensitive), cty.Bool)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -712,8 +708,8 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
+ 		}
+ 
+ 		change.Actions = actionString(oc.Action.String())
+-		change.BeforeSensitive = json.RawMessage(sensitive)
+-		change.AfterSensitive = json.RawMessage(sensitive)
++		change.BeforeSensitive = json.RawMessage(beforeSensitive)
++		change.AfterSensitive = json.RawMessage(afterSensitive)
+ 
+ 		outputChanges[oc.Addr.OutputValue.Name] = *change
+ 	}
+diff --git a/internal/command/jsonplan/values.go b/internal/command/jsonplan/values.go
+index 9ce759b1a8..f7eb9eb928 100644
+--- a/internal/command/jsonplan/values.go
++++ b/internal/command/jsonplan/values.go
+@@ -87,7 +87,7 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
+ 		ret[oc.Addr.OutputValue.Name] = Output{
+ 			Value:     json.RawMessage(after),
+ 			Type:      json.RawMessage(afterType),
+-			Sensitive: oc.Sensitive,
++			Sensitive: oc.AfterSensitive,
+ 		}
+ 	}
+ 
+diff --git a/internal/command/jsonplan/values_test.go b/internal/command/jsonplan/values_test.go
+index f739dbb2b8..387b966d2d 100644
+--- a/internal/command/jsonplan/values_test.go
++++ b/internal/command/jsonplan/values_test.go
+@@ -138,7 +138,6 @@ func TestMarshalPlannedOutputs(t *testing.T) {
+ 							Action: plans.Create,
+ 							After:  after,
+ 						},
+-						Sensitive: false,
+ 					},
+ 				},
+ 			},
+@@ -159,7 +158,6 @@ func TestMarshalPlannedOutputs(t *testing.T) {
+ 						ChangeSrc: plans.ChangeSrc{
+ 							Action: plans.Delete,
+ 						},
+-						Sensitive: false,
+ 					},
+ 				},
+ 			},
+diff --git a/internal/command/views/json/output.go b/internal/command/views/json/output.go
+index 60b94232cd..1d6b74b2fa 100644
+--- a/internal/command/views/json/output.go
++++ b/internal/command/views/json/output.go
+@@ -60,7 +60,7 @@ func OutputsFromChanges(changes []*plans.OutputChangeSrc) jsonentities.Outputs {
+ 
+ 	for _, change := range changes {
+ 		outputs[change.Addr.OutputValue.Name] = jsonentities.Output{
+-			Sensitive: change.Sensitive,
++			Sensitive: change.BeforeSensitive || change.AfterSensitive,
+ 			Action:    jsonentities.ParseChangeAction(change.Action),
+ 		}
+ 	}
+diff --git a/internal/command/views/json/output_test.go b/internal/command/views/json/output_test.go
+index d8fa932a8c..df597853a1 100644
+--- a/internal/command/views/json/output_test.go
++++ b/internal/command/views/json/output_test.go
+@@ -107,8 +107,7 @@ func TestOutputsFromChanges(t *testing.T) {
+ 				Before: num,
+ 				After:  num,
+ 			},
+-			Sensitive: false,
+-		},
++			},
+ 		// New output "beep", value 1234
+ 		{
+ 			Addr: root.OutputValue("beep"),
+@@ -117,8 +116,7 @@ func TestOutputsFromChanges(t *testing.T) {
+ 				Before: nil,
+ 				After:  num,
+ 			},
+-			Sensitive: false,
+-		},
++			},
+ 		// Deleted output "blorp", prior value 1234
+ 		{
+ 			Addr: root.OutputValue("blorp"),
+@@ -127,8 +125,7 @@ func TestOutputsFromChanges(t *testing.T) {
+ 				Before: num,
+ 				After:  nil,
+ 			},
+-			Sensitive: false,
+-		},
++			},
+ 		// Updated output "honk", prior value 1234, new value "1234"
+ 		{
+ 			Addr: root.OutputValue("honk"),
+@@ -137,8 +134,7 @@ func TestOutputsFromChanges(t *testing.T) {
+ 				Before: num,
+ 				After:  str,
+ 			},
+-			Sensitive: false,
+-		},
++			},
+ 		// New sensitive output "secret", value "1234"
+ 		{
+ 			Addr: root.OutputValue("secret"),
+@@ -147,27 +143,23 @@ func TestOutputsFromChanges(t *testing.T) {
+ 				Before: nil,
+ 				After:  str,
+ 			},
+-			Sensitive: true,
++			AfterSensitive: true,
+ 		},
+ 	})
+ 
+ 	want := jsonentities.Outputs{
+ 		"boop": {
+ 			Action:    "noop",
+-			Sensitive: false,
+-		},
++			},
+ 		"beep": {
+ 			Action:    "create",
+-			Sensitive: false,
+-		},
++			},
+ 		"blorp": {
+ 			Action:    "delete",
+-			Sensitive: false,
+-		},
++			},
+ 		"honk": {
+ 			Action:    "update",
+-			Sensitive: false,
+-		},
++			},
+ 		"secret": {
+ 			Action:    "create",
+ 			Sensitive: true,
+diff --git a/internal/command/views/operation_test.go b/internal/command/views/operation_test.go
+index 92e77ef031..f70510af44 100644
+--- a/internal/command/views/operation_test.go
++++ b/internal/command/views/operation_test.go
+@@ -1248,7 +1248,8 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
+ 					ChangeSrc: plans.ChangeSrc{
+ 						Action: plans.Update,
+ 					},
+-					Sensitive: true,
++					BeforeSensitive: true,
++					AfterSensitive:  true,
+ 				},
+ 			},
+ 		},
+diff --git a/internal/plans/changes.go b/internal/plans/changes.go
+index a8f89b923b..0c1ca0991f 100644
+--- a/internal/plans/changes.go
++++ b/internal/plans/changes.go
+@@ -513,11 +513,13 @@ type OutputChange struct {
+ 	// instances is always cty.DynamicPseudoType.
+ 	Change
+ 
+-	// Sensitive, if true, indicates that either the old or new value in the
+-	// change is sensitive and so a rendered version of the plan in the UI
+-	// should elide the actual values while still indicating the action of the
+-	// change.
+-	Sensitive bool
++	// BeforeSensitive, if true, indicates that the old value of the output
++	// was marked as sensitive in the prior state.
++	BeforeSensitive bool
++
++	// AfterSensitive, if true, indicates that the new value of the output
++	// is marked as sensitive in the current configuration.
++	AfterSensitive bool
+ }
+ 
+ // Encode produces a variant of the receiver that has its change values
+@@ -528,9 +530,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
+ 		return nil, err
+ 	}
+ 	return &OutputChangeSrc{
+-		Addr:      oc.Addr,
+-		ChangeSrc: *cs,
+-		Sensitive: oc.Sensitive,
++		Addr:            oc.Addr,
++		ChangeSrc:       *cs,
++		BeforeSensitive: oc.BeforeSensitive,
++		AfterSensitive:  oc.AfterSensitive,
+ 	}, err
+ }
+ 
+diff --git a/internal/plans/changes_src.go b/internal/plans/changes_src.go
+index 6ce5071fc2..03b9854452 100644
+--- a/internal/plans/changes_src.go
++++ b/internal/plans/changes_src.go
+@@ -146,11 +146,13 @@ type OutputChangeSrc struct {
+ 	// instances is always cty.DynamicPseudoType.
+ 	ChangeSrc
+ 
+-	// Sensitive, if true, indicates that either the old or new value in the
+-	// change is sensitive and so a rendered version of the plan in the UI
+-	// should elide the actual values while still indicating the action of the
+-	// change.
+-	Sensitive bool
++	// BeforeSensitive, if true, indicates that the old value of the output
++	// was marked as sensitive in the prior state.
++	BeforeSensitive bool
++
++	// AfterSensitive, if true, indicates that the new value of the output
++	// is marked as sensitive in the current configuration.
++	AfterSensitive bool
+ }
+ 
+ // Decode unmarshals the raw representation of the output value being
+@@ -161,9 +163,10 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
+ 		return nil, err
+ 	}
+ 	return &OutputChange{
+-		Addr:      ocs.Addr,
+-		Change:    *change,
+-		Sensitive: ocs.Sensitive,
++		Addr:            ocs.Addr,
++		Change:          *change,
++		BeforeSensitive: ocs.BeforeSensitive,
++		AfterSensitive:  ocs.AfterSensitive,
+ 	}, nil
+ }
+ 
+diff --git a/internal/plans/internal/planproto/planfile.pb.go b/internal/plans/internal/planproto/planfile.pb.go
+index ef502630f5..f66091f2a3 100644
+--- a/internal/plans/internal/planproto/planfile.pb.go
++++ b/internal/plans/internal/planproto/planfile.pb.go
+@@ -895,10 +895,16 @@ type OutputChange struct {
+ 	Change *Change `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
+ 	// Sensitive, if true, indicates that one or more of the values given
+ 	// in "change" is sensitive and should not be shown directly in any
+-	// rendered plan.
+-	Sensitive     bool `protobuf:"varint,3,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+-	unknownFields protoimpl.UnknownFields
+-	sizeCache     protoimpl.SizeCache
++	// rendered plan. Kept for backward compatibility with older readers.
++	Sensitive bool `protobuf:"varint,3,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
++	// BeforeSensitive indicates whether the output value was sensitive
++	// in the prior state.
++	BeforeSensitive bool `protobuf:"varint,4,opt,name=before_sensitive,json=beforeSensitive,proto3" json:"before_sensitive,omitempty"`
++	// AfterSensitive indicates whether the output value is sensitive
++	// in the current configuration.
++	AfterSensitive bool `protobuf:"varint,5,opt,name=after_sensitive,json=afterSensitive,proto3" json:"after_sensitive,omitempty"`
++	unknownFields  protoimpl.UnknownFields
++	sizeCache      protoimpl.SizeCache
+ }
+ 
+ func (x *OutputChange) Reset() {
+@@ -952,6 +958,20 @@ func (x *OutputChange) GetSensitive() bool {
+ 	return false
+ }
+ 
++func (x *OutputChange) GetBeforeSensitive() bool {
++	if x != nil {
++		return x.BeforeSensitive
++	}
++	return false
++}
++
++func (x *OutputChange) GetAfterSensitive() bool {
++	if x != nil {
++		return x.AfterSensitive
++	}
++	return false
++}
++
+ type CheckResults struct {
+ 	state protoimpl.MessageState  `protogen:"open.v1"`
+ 	Kind  CheckResults_ObjectKind `protobuf:"varint,1,opt,name=kind,proto3,enum=tfplan.CheckResults_ObjectKind" json:"kind,omitempty"`
+@@ -1423,11 +1443,13 @@ const file_planfile_proto_rawDesc = "" +
+ 	"\aprivate\x18\n" +
+ 	" \x01(\fR\aprivate\x127\n" +
+ 	"\x10required_replace\x18\v \x03(\v2\f.tfplan.PathR\x0frequiredReplace\x12I\n" +
+-	"\raction_reason\x18\f \x01(\x0e2$.tfplan.ResourceInstanceActionReasonR\factionReason\"h\n" +
++	"\raction_reason\x18\f \x01(\x0e2$.tfplan.ResourceInstanceActionReasonR\factionReason\"\xbc\x01\n" +
+ 	"\fOutputChange\x12\x12\n" +
+ 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
+ 	"\x06change\x18\x02 \x01(\v2\x0e.tfplan.ChangeR\x06change\x12\x1c\n" +
+-	"\tsensitive\x18\x03 \x01(\bR\tsensitive\"\xfc\x03\n" +
++	"\tsensitive\x18\x03 \x01(\bR\tsensitive\x12)\n" +
++	"\x10before_sensitive\x18\x04 \x01(\bR\x0fbeforeSensitive\x12'\n" +
++	"\x0fafter_sensitive\x18\x05 \x01(\bR\x0eafterSensitive\"\xfc\x03\n" +
+ 	"\fCheckResults\x123\n" +
+ 	"\x04kind\x18\x01 \x01(\x0e2\x1f.tfplan.CheckResults.ObjectKindR\x04kind\x12\x1f\n" +
+ 	"\vconfig_addr\x18\x02 \x01(\tR\n" +
+diff --git a/internal/plans/internal/planproto/planfile.proto b/internal/plans/internal/planproto/planfile.proto
+index 7bee11671e..d630ddcb51 100644
+--- a/internal/plans/internal/planproto/planfile.proto
++++ b/internal/plans/internal/planproto/planfile.proto
+@@ -269,8 +269,16 @@ message OutputChange {
+ 
+     // Sensitive, if true, indicates that one or more of the values given
+     // in "change" is sensitive and should not be shown directly in any
+-    // rendered plan.
++    // rendered plan. Kept for backward compatibility with older readers.
+     bool sensitive = 3;
++
++    // BeforeSensitive indicates whether the output value was sensitive
++    // in the prior state.
++    bool before_sensitive = 4;
++
++    // AfterSensitive indicates whether the output value is sensitive
++    // in the current configuration.
++    bool after_sensitive = 5;
+ }
+ 
+ message CheckResults {
+diff --git a/internal/plans/planfile/tfplan.go b/internal/plans/planfile/tfplan.go
+index dc60c892f3..44518b9e50 100644
+--- a/internal/plans/planfile/tfplan.go
++++ b/internal/plans/planfile/tfplan.go
+@@ -88,13 +88,22 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
+ 			return nil, fmt.Errorf("invalid plan for output %q: %w", name, err)
+ 		}
+ 
++		// Old plans only have Sensitive set; new plans have BeforeSensitive/AfterSensitive.
++		beforeSensitive := rawOC.BeforeSensitive
++		afterSensitive := rawOC.AfterSensitive
++		if rawOC.Sensitive && !rawOC.BeforeSensitive && !rawOC.AfterSensitive {
++			beforeSensitive = true
++			afterSensitive = true
++		}
++
+ 		plan.Changes.Outputs = append(plan.Changes.Outputs, &plans.OutputChangeSrc{
+ 			// All output values saved in the plan file are root module outputs,
+ 			// since we don't retain others. (They can be easily recomputed
+ 			// during apply).
+-			Addr:      addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
+-			ChangeSrc: *change,
+-			Sensitive: rawOC.Sensitive,
++			Addr:            addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
++			ChangeSrc:       *change,
++			BeforeSensitive: beforeSensitive,
++			AfterSensitive:  afterSensitive,
+ 		})
+ 	}
+ 
+@@ -551,9 +560,11 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
+ 		}
+ 
+ 		rawPlan.OutputChanges = append(rawPlan.OutputChanges, &planproto.OutputChange{
+-			Name:      name,
+-			Change:    protoChange,
+-			Sensitive: oc.Sensitive,
++			Name:            name,
++			Change:          protoChange,
++			Sensitive:       oc.BeforeSensitive || oc.AfterSensitive, // for old readers
++			BeforeSensitive: oc.BeforeSensitive,
++			AfterSensitive:  oc.AfterSensitive,
+ 		})
+ 	}
+ 
+diff --git a/internal/plans/planfile/tfplan_test.go b/internal/plans/planfile/tfplan_test.go
+index 9ae7ce0eef..df166334a2 100644
+--- a/internal/plans/planfile/tfplan_test.go
++++ b/internal/plans/planfile/tfplan_test.go
+@@ -42,7 +42,6 @@ func TestTFPlanRoundTrip(t *testing.T) {
+ 						Action: plans.Create,
+ 						After:  mustDynamicOutputValue("bar value"),
+ 					},
+-					Sensitive: false,
+ 				},
+ 				{
+ 					Addr: addrs.OutputValue{Name: "baz"}.Absolute(addrs.RootModuleInstance),
+@@ -51,7 +50,6 @@ func TestTFPlanRoundTrip(t *testing.T) {
+ 						Before: mustDynamicOutputValue("baz value"),
+ 						After:  mustDynamicOutputValue("baz value"),
+ 					},
+-					Sensitive: false,
+ 				},
+ 				{
+ 					Addr: addrs.OutputValue{Name: "secret"}.Absolute(addrs.RootModuleInstance),
+@@ -60,7 +58,8 @@ func TestTFPlanRoundTrip(t *testing.T) {
+ 						Before: mustDynamicOutputValue("old secret value"),
+ 						After:  mustDynamicOutputValue("new secret value"),
+ 					},
+-					Sensitive: true,
++					BeforeSensitive: true,
++					AfterSensitive:  true,
+ 				},
+ 			},
+ 			Resources: []*plans.ResourceInstanceChangeSrc{
+diff --git a/internal/tofu/evaluate.go b/internal/tofu/evaluate.go
+index db18ea7b45..d7ff8a4104 100644
+--- a/internal/tofu/evaluate.go
++++ b/internal/tofu/evaluate.go
+@@ -512,7 +512,7 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
+ 
+ 			instance[cfg.Name] = change.After
+ 
+-			if change.Sensitive {
++			if change.AfterSensitive {
+ 				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
+ 			}
+ 			// This is necessary for cases where the change of the output is not generated by evaluation
+diff --git a/internal/tofu/evaluate_test.go b/internal/tofu/evaluate_test.go
+index 323e23ecde..cd6083f488 100644
+--- a/internal/tofu/evaluate_test.go
++++ b/internal/tofu/evaluate_test.go
+@@ -865,8 +865,9 @@ func TestEvaluatorGetModule(t *testing.T) {
+ 	// Changes should override the state value
+ 	changesSync := plans.NewChanges().SyncWrapper()
+ 	change := &plans.OutputChange{
+-		Addr:      addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
+-		Sensitive: true,
++		Addr:            addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
++		AfterSensitive:  true,
++		BeforeSensitive: true,
+ 		Change: plans.Change{
+ 			After: cty.StringVal("baz"),
+ 		},
+diff --git a/internal/tofu/node_output.go b/internal/tofu/node_output.go
+index a27145aef6..1260558423 100644
+--- a/internal/tofu/node_output.go
++++ b/internal/tofu/node_output.go
+@@ -542,8 +542,9 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext,
+ 	changes := evalCtx.Changes()
+ 	if changes != nil && n.Planning {
+ 		change := &plans.OutputChange{
+-			Addr:      n.Addr,
+-			Sensitive: sensitiveBefore,
++			Addr:            n.Addr,
++			BeforeSensitive: sensitiveBefore,
++			AfterSensitive:  false,
+ 			Change: plans.Change{
+ 				Action: plans.Delete,
+ 				Before: before,
+@@ -601,11 +602,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
+ 			}
+ 		}
+ 
+-		// We will not show the value if either the before or after are marked
+-		// as sensitive. We can show the value again once sensitivity is
+-		// removed from both the config and the state.
+-		sensitiveChange := sensitiveBefore || n.Config.Sensitive
+-
+ 		// strip any marks here just to be sure we don't panic on the True comparison
+ 		unmarkedVal, _ := val.UnmarkDeep()
+ 
+@@ -635,8 +631,9 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
+ 		}
+ 
+ 		change := &plans.OutputChange{
+-			Addr:      n.Addr,
+-			Sensitive: sensitiveChange,
++			Addr:            n.Addr,
++			BeforeSensitive: sensitiveBefore,
++			AfterSensitive:  n.Config.Sensitive,
+ 			Change: plans.Change{
+ 				Action: action,
+ 				Before: before,
+diff --git a/internal/tofu/node_output_test.go b/internal/tofu/node_output_test.go
+index 38508cd7d0..d747930e09 100644
+--- a/internal/tofu/node_output_test.go
++++ b/internal/tofu/node_output_test.go
+@@ -326,6 +326,84 @@ func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
+ 	}
+ }
+ 
++func TestNodeApplyableOutputExecute_sensitivityOnlyChange(t *testing.T) {
++	// When only the sensitive attribute changes (value stays the same), the
++	// planner should produce an Update change with correct BeforeSensitive
++	// and AfterSensitive values.
++	tests := []struct {
++		name            string
++		sensitiveBefore bool
++		sensitiveAfter  bool
++		wantAction      plans.Action
++		wantBefore      bool
++		wantAfter       bool
++	}{
++		{
++			name:            "becoming sensitive",
++			sensitiveBefore: false,
++			sensitiveAfter:  true,
++			wantAction:      plans.Update,
++			wantBefore:      false,
++			wantAfter:       true,
++		},
++		{
++			name:            "becoming non-sensitive",
++			sensitiveBefore: true,
++			sensitiveAfter:  false,
++			wantAction:      plans.Update,
++			wantBefore:      true,
++			wantAfter:       false,
++		},
++		{
++			name:            "no change",
++			sensitiveBefore: false,
++			sensitiveAfter:  false,
++			wantAction:      plans.NoOp,
++			wantBefore:      false,
++			wantAfter:       false,
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			state := states.NewState()
++			addr := addrs.OutputValue{Name: "test"}.Absolute(addrs.RootModuleInstance)
++			state.Module(addrs.RootModuleInstance).SetOutputValue("test", cty.StringVal("value"), tc.sensitiveBefore, "")
++
++			changes := plans.NewChanges()
++
++			node := &NodeApplyableOutput{
++				Addr: addr,
++				Config: &configs.Output{
++					Name:      "test",
++					Sensitive: tc.sensitiveAfter,
++				},
++				Planning: true,
++			}
++
++			node.setValue(state.SyncWrapper(), changes.SyncWrapper(), cty.StringVal("value"))
++
++			// Find the output change
++			oc := changes.OutputValue(addr)
++			if oc == nil {
++				t.Fatal("expected output change to be recorded")
++			}
++
++			if oc.Action != tc.wantAction {
++				t.Errorf("wrong action: got %s, want %s", oc.Action, tc.wantAction)
++			}
++
++			if oc.BeforeSensitive != tc.wantBefore {
++				t.Errorf("wrong BeforeSensitive: got %v, want %v", oc.BeforeSensitive, tc.wantBefore)
++			}
++
++			if oc.AfterSensitive != tc.wantAfter {
++				t.Errorf("wrong AfterSensitive: got %v, want %v", oc.AfterSensitive, tc.wantAfter)
++			}
++		})
++	}
++}
++
+ func TestNodeDestroyableOutputExecute(t *testing.T) {
+ 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+ 

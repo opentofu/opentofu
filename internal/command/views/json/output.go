@@ -60,7 +60,7 @@ func OutputsFromChanges(changes []*plans.OutputChangeSrc) jsonentities.Outputs {
 
 	for _, change := range changes {
 		outputs[change.Addr.OutputValue.Name] = jsonentities.Output{
-			Sensitive: change.Sensitive,
+			Sensitive: change.BeforeSensitive || change.AfterSensitive,
 			Action:    jsonentities.ParseChangeAction(change.Action),
 		}
 	}

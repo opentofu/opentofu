@@ -895,10 +895,16 @@ type OutputChange struct {
 	Change *Change `protobuf:"bytes,2,opt,name=change,proto3" json:"change,omitempty"`
 	// Sensitive, if true, indicates that one or more of the values given
 	// in "change" is sensitive and should not be shown directly in any
-	// rendered plan.
-	Sensitive     bool `protobuf:"varint,3,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// rendered plan. Kept for backward compatibility with older readers.
+	Sensitive bool `protobuf:"varint,3,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	// BeforeSensitive indicates whether the output value was sensitive
+	// in the prior state.
+	BeforeSensitive bool `protobuf:"varint,4,opt,name=before_sensitive,json=beforeSensitive,proto3" json:"before_sensitive,omitempty"`
+	// AfterSensitive indicates whether the output value is sensitive
+	// in the current configuration.
+	AfterSensitive bool `protobuf:"varint,5,opt,name=after_sensitive,json=afterSensitive,proto3" json:"after_sensitive,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OutputChange) Reset() {
@@ -948,6 +954,20 @@ func (x *OutputChange) GetChange() *Change {
 func (x *OutputChange) GetSensitive() bool {
 	if x != nil {
 		return x.Sensitive
+	}
+	return false
+}
+
+func (x *OutputChange) GetBeforeSensitive() bool {
+	if x != nil {
+		return x.BeforeSensitive
+	}
+	return false
+}
+
+func (x *OutputChange) GetAfterSensitive() bool {
+	if x != nil {
+		return x.AfterSensitive
 	}
 	return false
 }
@@ -1423,11 +1443,13 @@ const file_planfile_proto_rawDesc = "" +
 	"\aprivate\x18\n" +
 	" \x01(\fR\aprivate\x127\n" +
 	"\x10required_replace\x18\v \x03(\v2\f.tfplan.PathR\x0frequiredReplace\x12I\n" +
-	"\raction_reason\x18\f \x01(\x0e2$.tfplan.ResourceInstanceActionReasonR\factionReason\"h\n" +
+	"\raction_reason\x18\f \x01(\x0e2$.tfplan.ResourceInstanceActionReasonR\factionReason\"\xbc\x01\n" +
 	"\fOutputChange\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x06change\x18\x02 \x01(\v2\x0e.tfplan.ChangeR\x06change\x12\x1c\n" +
-	"\tsensitive\x18\x03 \x01(\bR\tsensitive\"\xfc\x03\n" +
+	"\tsensitive\x18\x03 \x01(\bR\tsensitive\x12)\n" +
+	"\x10before_sensitive\x18\x04 \x01(\bR\x0fbeforeSensitive\x12'\n" +
+	"\x0fafter_sensitive\x18\x05 \x01(\bR\x0eafterSensitive\"\xfc\x03\n" +
 	"\fCheckResults\x123\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1f.tfplan.CheckResults.ObjectKindR\x04kind\x12\x1f\n" +
 	"\vconfig_addr\x18\x02 \x01(\tR\n" +

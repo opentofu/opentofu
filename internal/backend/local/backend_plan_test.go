@@ -174,6 +174,14 @@ func TestLocal_planOutputsChanged(t *testing.T) {
 		}, cty.StringVal("before"), false, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "sensitive_only_before"},
+		}, cty.StringVal("before"), true, "")
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "sensitive_only_after"},
+		}, cty.StringVal("before"), false, "")
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "removed"}, // not present in the config fixture
 		}, cty.StringVal("before"), false, "")
 		ss.SetOutputValue(addrs.AbsOutputValue{
@@ -221,11 +229,13 @@ func TestLocal_planOutputsChanged(t *testing.T) {
 
 	expectedOutput := strings.TrimSpace(`
 Changes to Outputs:
-  + added            = "after"
-  ~ changed          = "before" -> "after"
-  - removed          = "before" -> null
-  ~ sensitive_after  = (sensitive value)
-  ~ sensitive_before = (sensitive value)
+  + added                 = "after"
+  ~ changed               = "before" -> "after"
+  - removed               = "before" -> null
+  ~ sensitive_after       = (sensitive value)
+  ~ sensitive_before      = (sensitive value)
+  ~ sensitive_only_after  = (sensitive value)
+  ~ sensitive_only_before = (sensitive value)
 
 You can apply this plan to save these new output values to the OpenTofu
 state, without changing any real infrastructure.

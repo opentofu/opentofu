@@ -1248,7 +1248,8 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.Update,
 					},
-					Sensitive: true,
+					BeforeSensitive: true,
+					AfterSensitive:  true,
 				},
 			},
 		},
