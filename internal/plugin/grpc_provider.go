@@ -203,14 +203,19 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 
 	identitySchemas := p.GetResourceIdentitySchemas(ctx)
 	if identitySchemas.Diagnostics.HasErrors() {
-		resp.Diagnostics = resp.Diagnostics.Append(identitySchemas.Diagnostics)
-		return resp
-	}
-	for name, idSchema := range identitySchemas.IdentitySchemas {
-		if resSchema, ok := resp.ResourceTypes[name]; ok {
-			resSchema.IdentitySchema = idSchema.Body
-			resSchema.IdentitySchemaVersion = idSchema.Version
-			resp.ResourceTypes[name] = resSchema
+		// Identity schemas are an optional enhancement. A provider bug in
+		// identity schemas should not prevent the provider from being used
+		// for all other operations, so we log the error and continue
+		// without identity schema support.
+		logger.Warn("failed to fetch resource identity schemas, identity-based features will be unavailable",
+			"err", identitySchemas.Diagnostics.Err())
+	} else {
+		for name, idSchema := range identitySchemas.IdentitySchemas {
+			if resSchema, ok := resp.ResourceTypes[name]; ok {
+				resSchema.IdentitySchema = idSchema.Body
+				resSchema.IdentitySchemaVersion = idSchema.Version
+				resp.ResourceTypes[name] = resSchema
+			}
 		}
 	}
 
