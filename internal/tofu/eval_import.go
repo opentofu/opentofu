@@ -59,7 +59,7 @@ func evaluateImportExpression(
 		})
 	}
 
-	if !val.IsKnown() {
+	if !val.IsWhollyKnown() {
 		if allowUnknown {
 			return cty.NilVal, diags
 		}
