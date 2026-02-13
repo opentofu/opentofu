@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 // ResourceInstanceChangeSrc is a not-yet-decoded ResourceInstanceChange.
@@ -236,7 +237,12 @@ func (i ImportingSrc) String() string {
 	if err != nil {
 		return "<identity>"
 	}
-	return val.GoString()
+
+	jsonBytes, err := ctyjson.Marshal(val, ty)
+	if err != nil {
+		return "<identity>"
+	}
+	return string(jsonBytes)
 }
 
 // ChangeSrc is a not-yet-decoded Change.
