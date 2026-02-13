@@ -592,16 +592,9 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
-	// Convert identity JSON to map for state file
-	var identity map[string]interface{}
-	if len(obj.IdentityJSON) > 0 {
-		if err := json.Unmarshal(obj.IdentityJSON, &identity); err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to serialize resource identity in state",
-				fmt.Sprintf("Instance %s has an invalid identity: %s.", rs.Addr.Instance(key), err),
-			))
-		}
+	var identity json.RawMessage
+	if obj.IdentityJSON != nil {
+		identity = obj.IdentityJSON
 	}
 
 	return append(isV4s, instanceObjectStateV4{

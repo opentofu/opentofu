@@ -72,7 +72,7 @@ func evaluateImportExpression(
 		})
 	}
 
-	if val.HasMark(marks.Sensitive) {
+	if marks.Contains(val, marks.Sensitive) {
 		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),
@@ -81,7 +81,7 @@ func evaluateImportExpression(
 		})
 	}
 
-	if val.HasMark(marks.Ephemeral) {
+	if marks.Contains(val, marks.Ephemeral) {
 		return cty.NilVal, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  fmt.Sprintf("Invalid import %s argument", fieldName),

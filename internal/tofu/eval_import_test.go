@@ -76,3 +76,77 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 		})
 	}
 }
+
+// TestEvaluateImportIdentityExpression_NestedMarks verifies that sensitive and
+// ephemeral marks are detected on nested attributes inside identity objects,
+// not just on the top-level value.
+//
+// Without deep mark checking, an identity like:
+//
+//	import {
+//	  identity = { id = var.secret_id }  // var.secret_id is sensitive
+//	  to       = aws_instance.example
+//	}
+//
+// would pass validation because the outer object is not marked -- only the
+// nested "id" attribute carries the sensitive mark. This would leak the
+// sensitive value into import state without any warning.
+// This is mainly intended to ensure that we do not regress on this behaviour
+func TestEvaluateImportIdentityExpression_NestedMarks(t *testing.T) {
+	ctx := &MockEvalContext{}
+	ctx.installSimpleEval()
+	ctx.EvaluationScopeScope = &lang.Scope{}
+
+	testCases := []struct {
+		name    string
+		expr    hcl.Expression
+		wantErr string
+	}{
+		{
+			name: "nested_sensitive_attribute",
+			expr: hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("secret").Mark(marks.Sensitive),
+			})),
+			wantErr: "Invalid import identity argument: The import identity cannot be sensitive.",
+		},
+		{
+			name: "nested_ephemeral_attribute",
+			expr: hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("temp").Mark(marks.Ephemeral),
+			})),
+			wantErr: "Invalid import identity argument: The import identity cannot be ephemeral.",
+		},
+		{
+			name: "top_level_sensitive_object",
+			expr: hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("value"),
+			}).Mark(marks.Sensitive)),
+			wantErr: "Invalid import identity argument: The import identity cannot be sensitive.",
+		},
+		{
+			name: "valid_identity",
+			expr: hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("value"),
+			})),
+			wantErr: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, diags := evaluateImportIdentityExpression(t.Context(), tc.expr, ctx, EvalDataForNoInstanceKey, cty.DynamicPseudoType)
+
+			if tc.wantErr != "" {
+				if len(diags) != 1 {
+					t.Errorf("expected diagnostics, got %s", spew.Sdump(diags))
+				} else if diags.Err().Error() != tc.wantErr {
+					t.Errorf("unexpected error diagnostic. wanted %q got %q", tc.wantErr, diags.Err().Error())
+				}
+			} else {
+				if len(diags) != 0 {
+					t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+				}
+			}
+		})
+	}
+}
