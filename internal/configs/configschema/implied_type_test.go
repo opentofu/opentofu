@@ -56,7 +56,7 @@ func TestBlockImpliedType(t *testing.T) {
 		"blocks": {
 			&Block{
 				BlockTypes: map[string]*NestedBlock{
-					"single": &NestedBlock{
+					"single": {
 						Nesting: NestingSingle,
 						Block: Block{
 							Attributes: map[string]*Attribute{
@@ -67,13 +67,13 @@ func TestBlockImpliedType(t *testing.T) {
 							},
 						},
 					},
-					"list": &NestedBlock{
+					"list": {
 						Nesting: NestingList,
 					},
-					"set": &NestedBlock{
+					"set": {
 						Nesting: NestingSet,
 					},
-					"map": &NestedBlock{
+					"map": {
 						Nesting: NestingMap,
 					},
 				},
@@ -90,15 +90,15 @@ func TestBlockImpliedType(t *testing.T) {
 		"deep block nesting": {
 			&Block{
 				BlockTypes: map[string]*NestedBlock{
-					"single": &NestedBlock{
+					"single": {
 						Nesting: NestingSingle,
 						Block: Block{
 							BlockTypes: map[string]*NestedBlock{
-								"list": &NestedBlock{
+								"list": {
 									Nesting: NestingList,
 									Block: Block{
 										BlockTypes: map[string]*NestedBlock{
-											"set": &NestedBlock{
+											"set": {
 												Nesting: NestingSet,
 											},
 										},
@@ -220,7 +220,6 @@ func TestBlockContainsSensitive(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestObjectImpliedType(t *testing.T) {
@@ -463,7 +462,6 @@ func TestObjectContainsSensitive(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 // Nested attribute should return optional object attributes for decoding.
@@ -600,7 +598,7 @@ func TestObjectSpecType(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := test.Schema.specType()
+			got := test.Schema.SpecType()
 			if !got.Equals(test.Want) {
 				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
 			}

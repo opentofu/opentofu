@@ -146,7 +146,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			return cty.DynamicPseudoType
 		}
 
-		return identitySchema.Body.ImpliedType()
+		return identitySchema.Body.SpecType()
 	}
 
 	// The import block expressions are declared within the root module.
@@ -318,7 +318,7 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 			})
 		}
 
-		resourceIdentityType := identitySchema.Body.ImpliedType()
+		resourceIdentityType := identitySchema.Body.SpecType()
 
 		importIdentity, evalDiags = evaluateImportIdentityExpression(ctx, importTarget.Config.Identity, evalCtx, keyData, resourceIdentityType)
 		diags = diags.Append(evalDiags)

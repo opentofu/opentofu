@@ -424,7 +424,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
 	}
-	plannedChangeSrc, err := plannedChange.Encode(schema.Block.ImpliedType())
+	plannedChangeSrc, err := plannedChange.Encode(schema)
 	if err != nil {
 		// TODO: Make a proper error diagnostic for this, like the original
 		// runtime does.

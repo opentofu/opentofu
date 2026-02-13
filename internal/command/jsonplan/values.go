@@ -252,6 +252,16 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 		}
 		resource.SensitiveValues = v
 
+		if changeV.PlannedIdentity != cty.NilVal && !changeV.PlannedIdentity.IsNull() {
+			identityJSON, err := ctyjson.Marshal(changeV.PlannedIdentity, changeV.PlannedIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
+			resource.Identity = identityJSON
+			idSchemaVersion := uint64(schema.IdentitySchemaVersion)
+			resource.IdentitySchemaVersion = &idSchemaVersion
+		}
+
 		ret = append(ret, resource)
 	}
 

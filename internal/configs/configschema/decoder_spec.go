@@ -196,7 +196,7 @@ func (a *Attribute) decoderSpec(name string) hcldec.Spec {
 			panic("Invalid attribute schema: NestedType and Type cannot both be set. This is a bug in the provider.")
 		}
 
-		ty := a.NestedType.specType()
+		ty := a.NestedType.SpecType()
 		ret.Type = ty
 		ret.Required = a.Required
 		return ret

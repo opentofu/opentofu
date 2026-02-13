@@ -113,6 +113,14 @@ type Resource struct {
 
 	// Deposed is set if the resource is deposed in tofu state.
 	DeposedKey string `json:"deposed_key,omitempty"`
+
+	// Identity is the JSON representation of the resource's identity attributes,
+	// if the provider supports resource identity for this type.
+	Identity json.RawMessage `json:"identity,omitempty"`
+
+	// IdentitySchemaVersion indicates which version of the resource identity
+	// schema the "identity" property conforms to.
+	IdentitySchemaVersion *uint64 `json:"identity_schema_version,omitempty"`
 }
 
 // AttributeValues is the JSON representation of the attribute values of the
@@ -419,6 +427,11 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 
 				current.AttributeValues = marshalAttributeValues(riObj.Value)
 
+				if len(ri.Current.IdentityJSON) > 0 {
+					current.Identity = json.RawMessage(ri.Current.IdentityJSON)
+					current.IdentitySchemaVersion = ri.Current.IdentitySchemaVersion
+				}
+
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
 				if schema.Block.ContainsMarks() {
 					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil)...)
@@ -476,6 +489,11 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				}
 
 				deposed.AttributeValues = marshalAttributeValues(riObj.Value)
+
+				if len(rios.IdentityJSON) > 0 {
+					deposed.Identity = json.RawMessage(rios.IdentityJSON)
+					deposed.IdentitySchemaVersion = rios.IdentitySchemaVersion
+				}
 
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
 				if schema.Block.ContainsMarks() {

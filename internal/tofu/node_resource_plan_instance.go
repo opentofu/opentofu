@@ -669,8 +669,8 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			"Cannot import non-existent remote object",
 			fmt.Sprintf(
 				"While attempting to import an existing object to %q, "+
-					"the provider detected that no object exists with the given id. "+
-					"Only pre-existing objects can be imported; check that the id "+
+					"the provider detected that no object exists with the given id or identity. "+
+					"Only pre-existing objects can be imported; check that the id or identity "+
 					"is correct and that it is associated with the provider's "+
 					"configured region or endpoint, or use \"tofu apply\" to "+
 					"create a new remote object for this resource.",
