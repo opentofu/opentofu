@@ -838,9 +838,8 @@ type instanceObjectStateV4 struct {
 	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
 	SkipDestroy         bool `json:"skip_destroy,omitempty"`
 
-	// TODO: godoc
-	Identity              map[string]interface{} `json:"identity,omitempty"`
-	IdentitySchemaVersion *uint64                `json:"identity_schema_version,omitempty"`
+	Identity              json.RawMessage `json:"identity,omitempty"`
+	IdentitySchemaVersion *uint64         `json:"identity_schema_version,omitempty"`
 }
 
 type checkResultsV4 struct {
