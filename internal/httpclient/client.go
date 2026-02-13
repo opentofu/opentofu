@@ -59,7 +59,12 @@ func New(ctx context.Context) *http.Client {
 		// cause a separate trace to begin, containing only that HTTP request,
 		// which would create confusing noise for whoever is consuming the
 		// traces.
-		cli.Transport = otelhttp.NewTransport(cli.Transport)
+		//
+		// We wrap otelhttp with our own transport to augment the traces
+		// (otelhttp only sends some information to metrics).
+		cli.Transport = &tracingTransport{
+			inner: otelhttp.NewTransport(cli.Transport),
+		}
 	}
 
 	return cli
