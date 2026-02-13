@@ -126,6 +126,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		ctx, traceNameApplyResourceInstance,
 		tracing.SpanAttributes(
 			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.String(traceAttrResourceType, addr.Resource.Resource.Type),
 		),
 	)
 	defer span.End()
@@ -447,7 +448,6 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 }
 
 func (n *NodeApplyableResourceInstance) managedResourcePostconditions(ctx context.Context, evalCtx EvalContext, repeatData instances.RepetitionData) (diags tfdiags.Diagnostics) {
-
 	checkDiags := evalCheckRules(
 		ctx,
 		addrs.ResourcePostcondition,
