@@ -59,7 +59,7 @@ const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
 //
 // The value of this should be populated from the Type field of the
 // [addrs.Resource] embedded in the relevant [addrs.AbsResourceInstance].
-const traceAttrResourceType = "opentofu.resource_instance.type"
+const traceAttrResourceType = "opentofu.resource.type"
 
 // traceAttrPlanRefresh is a standardized trace span attribute name that we use
 // for a boolean attribute describing whether the refresh step is enabled
