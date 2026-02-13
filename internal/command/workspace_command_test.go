@@ -19,9 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 
 func TestWorkspace_createAndChange(t *testing.T) {
@@ -380,28 +379,35 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// create a non-empty state
-	originalState := &legacy.State{
-		Modules: []*legacy.ModuleState{
-			{
-				Path: []string{"root"},
-				Resources: map[string]*legacy.ResourceState{
-					"test_instance.foo": {
-						Type: "test_instance",
-						Primary: &legacy.InstanceState{
-							ID: "bar",
-						},
-					},
-				},
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "foo",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"id":"bar"}`),
+				Status:    states.ObjectReady,
 			},
-		},
-	}
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
 
 	f, err := os.Create(filepath.Join(local.DefaultWorkspaceDir, "test", "terraform.tfstate"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := legacy.WriteState(originalState, f); err != nil {
+	err = statefile.Write(&statefile.File{
+		Serial:  0,
+		Lineage: "test-lineage",
+		State:   originalState,
+	}, f, encryption.StateEncryptionDisabled())
+	if err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
