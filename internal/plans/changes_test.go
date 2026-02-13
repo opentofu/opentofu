@@ -184,12 +184,12 @@ func TestChangeEncodeSensitive(t *testing.T) {
 				After:  v,
 			}
 
-			encoded, err := change.Encode(v.Type())
+			encoded, err := change.Encode(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			decoded, err := encoded.Decode(v.Type())
+			decoded, err := encoded.Decode(nil)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -68,10 +68,14 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 			return resp
 		}
 
-		rSchema, _ := schema.SchemaForResourceType(addrs.ManagedResourceMode, req.TypeName)
-		if rSchema == nil {
-			rSchema = &configschema.Block{} // default schema is empty
+		var rSchema configschema.Block
+		rSchemaForType, _ := schema.SchemaForResourceType(addrs.ManagedResourceMode, req.TypeName)
+		if rSchemaForType == nil {
+			rSchema = configschema.Block{} // default schema is empty
+		} else {
+			rSchema = *rSchemaForType.Block
 		}
+
 		plannedVals := map[string]cty.Value{}
 		for name, attrS := range rSchema.Attributes {
 			val := req.ProposedNewState.GetAttr(name)
@@ -110,7 +114,6 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 	}
 
 	return p
-
 }
 
 // TestLocalSingleState is a backend implementation that wraps Local

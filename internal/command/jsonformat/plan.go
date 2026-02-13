@@ -587,9 +587,9 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		// as an empty string
 		if len(resource.Change.Importing.ID) > 0 {
 			buf.WriteString(fmt.Sprintf("  # [reset](imported from \"%s\")\n", resource.Change.Importing.ID))
+		} else if len(resource.Change.Importing.Identity) > 0 {
+			buf.WriteString(fmt.Sprintf("  # [reset](imported via identity %s)\n", string(resource.Change.Importing.Identity)))
 		} else {
-			// This means we're trying to render a plan from a future version
-			// and we didn't get given the ID. So we'll do our best.
 			buf.WriteString("  # [reset](will be imported first)\n")
 		}
 	}

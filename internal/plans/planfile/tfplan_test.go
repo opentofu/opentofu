@@ -16,9 +16,11 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -452,8 +454,15 @@ func TestTFPlanRoundTripDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	objSchema := &providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {Type: cty.String, Optional: true},
+			},
+		},
+	}
 	for _, rics := range newPlan.Changes.Resources {
-		ric, err := rics.Decode(objTy)
+		ric, err := rics.Decode(objSchema)
 		if err != nil {
 			t.Fatal(err)
 		}

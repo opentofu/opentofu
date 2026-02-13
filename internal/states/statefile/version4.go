@@ -241,6 +241,21 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				obj.Private = raw
 			}
 
+			// Read identity from state file
+			if isV4.Identity != nil {
+				identityJSON, err := json.Marshal(isV4.Identity)
+				if err != nil {
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Invalid resource identity in state",
+						fmt.Sprintf("Instance %s has an invalid identity: %s.", instAddr.Absolute(moduleAddr), err),
+					))
+				} else {
+					obj.IdentityJSON = identityJSON
+					obj.IdentitySchemaVersion = isV4.IdentitySchemaVersion
+				}
+			}
+
 			{
 				depsRaw := isV4.Dependencies
 				deps := make([]addrs.ConfigResource, 0, len(depsRaw))
@@ -577,6 +592,11 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
+	var identity json.RawMessage
+	if obj.IdentityJSON != nil {
+		identity = obj.IdentityJSON
+	}
+
 	return append(isV4s, instanceObjectStateV4{
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
@@ -590,6 +610,8 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		Dependencies:            deps,
 		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
 		SkipDestroy:             obj.SkipDestroy,
+		Identity:                identity,
+		IdentitySchemaVersion:   obj.IdentitySchemaVersion,
 	}), diags
 }
 
@@ -808,6 +830,9 @@ type instanceObjectStateV4 struct {
 
 	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
 	SkipDestroy         bool `json:"skip_destroy,omitempty"`
+
+	Identity              json.RawMessage `json:"identity,omitempty"`
+	IdentitySchemaVersion *uint64         `json:"identity_schema_version,omitempty"`
 }
 
 type checkResultsV4 struct {

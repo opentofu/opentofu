@@ -23,8 +23,10 @@ import (
 	"github.com/opentofu/opentofu/version"
 )
 
-const tfplanFormatVersion = 3
-const tfplanFilename = "tfplan"
+const (
+	tfplanFormatVersion = 3
+	tfplanFilename      = "tfplan"
+)
 
 // ---------------------------------------------------------------------------
 // This file deals with the internal structure of the "tfplan" sub-file within
@@ -468,8 +470,24 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 		ret.Importing = &plans.ImportingSrc{
 			ID: rawChange.Importing.Id,
 		}
+
+		if rawChange.Importing.Identity != nil {
+			identity, err := valueFromTfplan(rawChange.Importing.Identity)
+			if err != nil {
+				return nil, fmt.Errorf("invalid importing identity value: %w", err)
+			}
+			ret.Importing.Identity = identity
+		}
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
+
+	if rawChange.PlannedIdentity != nil {
+		plannedIdentity, err := valueFromTfplan(rawChange.PlannedIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid planned identity value: %w", err)
+		}
+		ret.PlannedIdentity = plannedIdentity
+	}
 
 	sensitive := cty.NewValueMarks(marks.Sensitive)
 	beforeValMarks, err := pathValueMarksFromTfplan(rawChange.BeforeSensitivePaths, sensitive)
@@ -834,8 +852,15 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 			Id: change.Importing.ID,
 		}
 
+		if len(change.Importing.Identity) > 0 {
+			ret.Importing.Identity = valueToTfplan(change.Importing.Identity)
+		}
 	}
 	ret.GeneratedConfig = change.GeneratedConfig
+
+	if len(change.PlannedIdentity) > 0 {
+		ret.PlannedIdentity = valueToTfplan(change.PlannedIdentity)
+	}
 
 	switch change.Action {
 	case plans.NoOp:

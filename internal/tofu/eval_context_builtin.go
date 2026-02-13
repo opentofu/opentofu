@@ -304,7 +304,6 @@ func (c *BuiltinEvalContext) EvaluateExpr(ctx context.Context, expr hcl.Expressi
 }
 
 func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
-
 	// get the reference to lookup changes in the plan
 	ref, diags := evalReplaceTriggeredByExpr(expr, repData)
 	if diags.HasErrors() {
@@ -389,7 +388,15 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 
 	resAddr := change.Addr.ContainingResource().Resource
 	resSchema, _ := schema.SchemaForResourceType(resAddr.Mode, resAddr.Type)
-	ty := resSchema.ImpliedType()
+	var ty cty.Type
+	if resSchema == nil {
+		// The logic for an implied type of an empty configschema.Block
+		// is different to that of a nil block. So, for this reason we construct
+		// a new empty block here.
+		ty = (&configschema.Block{}).ImpliedType()
+	} else {
+		ty = resSchema.Block.ImpliedType()
+	}
 
 	before, err := change.ChangeSrc.Before.Decode(ty)
 	if err != nil {
