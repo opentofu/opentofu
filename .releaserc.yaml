@@ -6,7 +6,7 @@ tagFormat: "v${version}"
 branches:
   - name: master
   - name: next
-    prerelease: true
+    prerelease: rc
     channel: next
   - name: beta
     prerelease: beta
