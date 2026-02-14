@@ -20,15 +20,5 @@ plugins:
   - - "@semantic-release/release-notes-generator"
     - preset: conventionalcommits
 
-  # 3. Create/update CHANGELOG.md
-  - - "@semantic-release/changelog"
-    - changelogFile: CHANGELOG.md
-
-  # 4. Publish GitHub release
+  # 3. Publish GitHub release
   - - "@semantic-release/github"
-
-  # 5. Commit updated CHANGELOG back to the repo
-  - - "@semantic-release/git"
-    - assets:
-        - CHANGELOG.md
-      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
