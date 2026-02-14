@@ -42,9 +42,9 @@ func (b *StrictBool) UnmarshalJSON(src []byte) error {
 
 	// There are only two possible valid JSON boolean tokens, so we'll just
 	// handle them directly here for simplicity's sake.
-	if bytes.Equal(src, []byte{'t', 'r', 'u', 'e'}) {
+	if bytes.Equal(src, []byte("true")) {
 		*b = true
-	} else if bytes.Equal(src, []byte{'f', 'a', 'l', 's', 'e'}) {
+	} else if bytes.Equal(src, []byte("false")) {
 		*b = false
 	} else {
 		return fmt.Errorf("must be either true or false")
