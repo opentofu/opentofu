@@ -23,3 +23,5 @@ plugins:
 
   # 3. Publish GitHub release
   - - "@semantic-release/github"
+    - successComment: false
+      failComment: false
