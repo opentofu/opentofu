@@ -1,0 +1,34 @@
+# semantic-release configuration
+# https://semantic-release.gitbook.io/semantic-release/usage/configuration
+
+tagFormat: "v${version}"
+
+branches:
+  - name: "v1.+([0-9]).x"
+    range: "${name.replace(/^v(.+)\\.x$/, '$1')}"
+  - name: "v1.+([0-9])"
+    range: "${name.replace(/^v/, '')}"
+  - name: main
+    prerelease: beta
+
+plugins:
+  # 1. Analyze commits (conventional commits)
+  - - "@semantic-release/commit-analyzer"
+    - preset: conventionalcommits
+
+  # 2. Generate release notes
+  - - "@semantic-release/release-notes-generator"
+    - preset: conventionalcommits
+
+  # 3. Create/update CHANGELOG.md
+  - - "@semantic-release/changelog"
+    - changelogFile: CHANGELOG.md
+
+  # 4. Publish GitHub release
+  - - "@semantic-release/github"
+
+  # 5. Commit updated CHANGELOG back to the repo
+  - - "@semantic-release/git"
+    - assets:
+        - CHANGELOG.md
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

@@ -28,25 +28,43 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Run go-semantic-release
-        id: semantic
-        uses: go-semantic-release/action@2e9dc4247a6004f8377781bef4cb9dad273a741f # v1.24.1
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          allow-initial-development-versions: true
-          force-bump-patch-version: true
-          changelog-generator-opt: "emojis=true"
+          node-version: 22
+
+      - name: Install semantic-release
+        run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git conventional-changelog-conventionalcommits
+
+      - name: Run semantic-release
+        id: semantic
+        run: |
+          OUTPUT=$(npx semantic-release --dry-run 2>&1) || true
+          VERSION=$(echo "$OUTPUT" | grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?' || true)
+          if [ -n "$VERSION" ]; then
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Next version: ${VERSION}"
+            npx semantic-release
+          else
+            echo "::notice::No new version to release"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
 
       - name: Parse version components
         id: version
         if: steps.semantic.outputs.version != ''
         run: |
           VERSION="${{ steps.semantic.outputs.version }}"
-          echo "major=${VERSION%%.*}" >> "$GITHUB_OUTPUT"
-          echo "minor=${VERSION%.*}" >> "$GITHUB_OUTPUT"
+          CLEAN="${VERSION%%-*}"
+          echo "major=${CLEAN%%.*}" >> "$GITHUB_OUTPUT"
+          echo "minor=${CLEAN%.*}" >> "$GITHUB_OUTPUT"
 
   # ─────────────────────────────────────────────
   # 2. Build — one parallel job per OS/arch combo
