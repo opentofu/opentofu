@@ -4,12 +4,13 @@
 tagFormat: "v${version}"
 
 branches:
-  - name: "v1.+([0-9]).x"
-    range: "${name.replace(/^v(.+)\\.x$/, '$1')}"
-  - name: "v1.+([0-9])"
-    range: "${name.replace(/^v/, '')}"
-  - name: main
+  - name: master
+  - name: next
+    prerelease: true
+    channel: next
+  - name: beta
     prerelease: beta
+    channel: beta
 
 plugins:
   # 1. Analyze commits (conventional commits)
