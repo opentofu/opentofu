@@ -1850,30 +1850,34 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := newCmd.Run([]string{"test"}); code != 0 {
-			t.Fatal("error creating workspace")
+		code := newCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error creating workspace: %s", output.All())
 		}
 	}
 
 	// Switch to it
 	{
 		args := []string{"test"}
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := selCmd.Run(args); code != 0 {
-			t.Fatal("error switching workspace")
+		code := selCmd.Run(args)
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error switching workspace: %s", output.All())
 		}
 	}
 
@@ -1915,30 +1919,33 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 
 	// Create new env
 	{
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := newCmd.Run([]string{"test"}); code != 0 {
-			t.Fatal("error creating workspace")
+		code := newCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error creating workspace: %s", output.All())
 		}
 	}
 
 	// Switch to it
 	{
-		args := []string{"test"}
-		ui := new(cli.MockUi)
+		wsView, wsDone := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
+				View:       wsView,
 			},
 		}
-		if code := selCmd.Run(args); code != 0 {
-			t.Fatal("error switching workspace")
+		code := selCmd.Run([]string{"test"})
+		output := wsDone(t)
+		if code != 0 {
+			t.Fatalf("error switching workspace: %s", output.All())
 		}
 	}
 
