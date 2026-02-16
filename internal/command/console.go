@@ -67,6 +67,13 @@ func (c *ConsoleCommand) Run(rawArgs []string) int {
 	// operation, but there is no clear path to pass this value down, so we
 	// continue to mutate the Meta object state for now.
 	c.Meta.input = args.ViewOptions.InputEnabled
+
+	// TODO meta-refactor: when the stateLock and stateLockTimeout are extracted to be configured separately, remove
+	// these and use a common way to configure this
+	// The stateLock=true is here this way because this command used before meta.extendedFlagSet which did the same
+	// and left for the command to configure flags for this if needed.
+	c.Meta.stateLock = true
+
 	c.GatherVariables(args.Vars)
 
 	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
