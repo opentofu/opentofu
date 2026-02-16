@@ -22,6 +22,9 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -50,25 +53,50 @@ type LoginCommand struct {
 }
 
 // Run implements cli.Command.
-func (c *LoginCommand) Run(args []string) int {
+func (c *LoginCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Login")
+	defer span.End()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("login")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseLogin(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewLogin(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		view.HelpPrompt(c.credentialsFileForHelp())
 		return 1
 	}
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error(
-			"The login command expects exactly one argument: the host to log in to.")
-		cmdFlags.Usage()
-		return 1
-	}
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
 
-	var diags tfdiags.Diagnostics
+	// TODO meta-refactor: when the stateLock and stateLockTimeout are extracted to be configured separately, remove
+	// these and use a common way to configure this
+	// The stateLock=true is here this way because this command used before meta.extendedFlagSet which did the same
+	// and left for the command to configure flags for this if needed.
+	c.Meta.stateLock = true
 
 	if !c.input {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -76,11 +104,11 @@ func (c *LoginCommand) Run(args []string) int {
 			"Login is an interactive command",
 			"The \"tofu login\" command uses interactive prompts to obtain and record credentials, so it can't be run with input disabled.\n\nTo configure credentials in a non-interactive context, write existing credentials directly to a CLI configuration file.",
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	givenHostname := args[0]
+	givenHostname := args.Host
 
 	hostname, err := svchost.ForComparison(givenHostname)
 	if err != nil {
@@ -89,7 +117,7 @@ func (c *LoginCommand) Run(args []string) int {
 			"Invalid hostname",
 			fmt.Sprintf("The given hostname %q is not valid: %s.", givenHostname, err.Error()),
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -112,7 +140,7 @@ func (c *LoginCommand) Run(args []string) int {
 			// with our usual error reporting standards.
 			err.Error()+".",
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -181,7 +209,7 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -195,12 +223,12 @@ func (c *LoginCommand) Run(args []string) int {
 		switch {
 		case clientConfig.SupportedGrantTypes.Has(disco.OAuthAuthzCodeGrant):
 			// We prefer an OAuth code grant if the server supports it.
-			oauthToken, tokenDiags = c.interactiveGetTokenByCode(ctx, hostname, credsCtx, clientConfig)
+			oauthToken, tokenDiags = c.interactiveGetTokenByCode(ctx, hostname, credsCtx, clientConfig, view)
 		case clientConfig.SupportedGrantTypes.Has(disco.OAuthOwnerPasswordGrant) && hostname == svchost.Hostname(hcpTerraformHost):
 			// The password grant type is allowed only for Terraform Cloud SaaS.
 			// Note this case is purely theoretical at this point, as TFC currently uses
 			// its own bespoke login protocol (tfe)
-			oauthToken, tokenDiags = c.interactiveGetTokenByPassword(ctx, hostname, credsCtx, clientConfig)
+			oauthToken, tokenDiags = c.interactiveGetTokenByPassword(ctx, hostname, credsCtx, clientConfig, view)
 		default:
 			tokenDiags = tokenDiags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -212,12 +240,12 @@ func (c *LoginCommand) Run(args []string) int {
 			token = svcauth.HostCredentialsToken(oauthToken.AccessToken)
 		}
 	} else if tfeservice != nil {
-		token, tokenDiags = c.interactiveGetTokenByUI(ctx, hostname, credsCtx, tfeservice)
+		token, tokenDiags = c.interactiveGetTokenByUI(ctx, hostname, credsCtx, tfeservice, view)
 	}
 
 	diags = diags.Append(tokenDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -230,12 +258,12 @@ func (c *LoginCommand) Run(args []string) int {
 		))
 	}
 
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
 
-	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
+	view.UiSeparator()
 	if hostname == hcpTerraformHost { // HCP Terraform
 		var motd struct {
 			Message string        `json:"msg"`
@@ -250,14 +278,14 @@ func (c *LoginCommand) Run(args []string) int {
 		motdServiceURL, err := host.ServiceURL("motd.v1")
 		if err != nil {
 			c.logMOTDError(err)
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 
 		req, err := http.NewRequest("GET", motdServiceURL.String(), nil)
 		if err != nil {
 			c.logMOTDError(err)
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 
@@ -266,21 +294,21 @@ func (c *LoginCommand) Run(args []string) int {
 		resp, err := httpclient.New(ctx).Do(req)
 		if err != nil {
 			c.logMOTDError(err)
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			c.logMOTDError(err)
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 
 		defer resp.Body.Close()
 		if err := json.Unmarshal(body, &motd); err != nil {
 			c.logMOTDError(fmt.Errorf("platform responded with invalid motd payload: %w", err))
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 
@@ -294,51 +322,22 @@ func (c *LoginCommand) Run(args []string) int {
 			// before calling c.Colorize, so the service cannot use any
 			// control sequences aside from the ones introduced by the
 			// colorstring library.
-			c.Ui.Output(
-				c.Colorize().Color(format.ReplaceControlChars(motd.Message)),
-			)
+			view.MOTDMessage(format.ReplaceControlChars(motd.Message))
 			return 0
 		} else {
 			c.logMOTDError(fmt.Errorf("platform responded with errors or an empty message"))
-			c.outputDefaultTFCLoginSuccess()
+			view.DefaultTFCLoginSuccess()
 			return 0
 		}
 	}
 
 	if tfeservice != nil { // Terraform Enterprise
-		c.outputDefaultTFELoginSuccess(dispHostname)
+		view.DefaultTFELoginSuccess(dispHostname)
 	} else {
-		c.Ui.Output(
-			fmt.Sprintf(
-				c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]OpenTofu has obtained and saved an API token.[reset]
-
-The new API token will be used for any future OpenTofu command that must make
-authenticated requests to %s.
-`)),
-				dispHostname,
-			) + "\n",
-		)
+		view.TokenObtainedConfirmation(dispHostname)
 	}
 
 	return 0
-}
-
-func (c *LoginCommand) outputDefaultTFELoginSuccess(dispHostname string) {
-	c.Ui.Output(
-		fmt.Sprintf(
-			c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]Logged in to the cloud backend (%s)[reset]
-`)),
-			dispHostname,
-		) + "\n",
-	)
-}
-
-func (c *LoginCommand) outputDefaultTFCLoginSuccess() {
-	c.Ui.Output(c.Colorize().Color(strings.TrimSpace(`
-[green][bold]Success![reset] [bold]Logged in to cloud backend[reset]
-` + "\n")))
 }
 
 func (c *LoginCommand) logMOTDError(err error) {
@@ -347,16 +346,7 @@ func (c *LoginCommand) logMOTDError(err error) {
 
 // Help implements cli.Command.
 func (c *LoginCommand) Help() string {
-	defaultFile := c.defaultOutputFile()
-	if defaultFile == "" {
-		// Because this is just for the help message and it's very unlikely
-		// that a user wouldn't have a functioning home directory anyway,
-		// we'll just use a placeholder here. The real command has some
-		// more complex behavior for this case. This result is not correct
-		// on all platforms, but given how unlikely we are to hit this case
-		// that seems okay.
-		defaultFile = "~/.terraform/credentials.tfrc.json"
-	}
+	defaultFile := c.credentialsFileForHelp()
 
 	helpText := fmt.Sprintf(`
 Usage: tofu [global options] login [hostname]
@@ -383,9 +373,9 @@ func (c *LoginCommand) defaultOutputFile() string {
 	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
 }
 
-func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient, view views.Login) (*oauth2.Token, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthAuthzCodeGrant, credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthAuthzCodeGrant, credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
@@ -507,8 +497,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	if c.BrowserLauncher != nil {
 		err = c.BrowserLauncher.OpenURL(authCodeURL)
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("OpenTofu must now open a web browser to the login page for %s.\n", hostname.ForDisplay()))
-			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", authCodeURL))
+			view.OpeningBrowserForOAuth(hostname.ForDisplay(), authCodeURL)
 		} else {
 			// Assume we're on a platform where opening a browser isn't possible.
 			launchBrowserManually = true
@@ -518,10 +507,10 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	}
 
 	if launchBrowserManually {
-		c.Ui.Output(fmt.Sprintf("Open the following URL to access the login page for %s:\n    %s\n", hostname.ForDisplay(), authCodeURL))
+		view.ManualBrowserLaunch(hostname.ForDisplay(), authCodeURL)
 	}
 
-	c.Ui.Output("OpenTofu will now wait for the host to signal that login was successful.\n")
+	view.WaitingForHostSignal()
 
 	var code string
 	var ok bool
@@ -574,18 +563,18 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 	return token, diags
 }
 
-func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient, view views.Login) (*oauth2.Token, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthOwnerPasswordGrant, credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthOwnerPasswordGrant, credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
 		return nil, diags
 	}
 
-	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	c.Ui.Output("OpenTofu must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
+	view.UiSeparator()
+	view.PasswordRequestHeader()
 
 	username, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:    "username",
@@ -626,17 +615,17 @@ func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostna
 	return token, diags
 }
 
-func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, service *url.URL) (svcauth.HostCredentialsToken, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, service *url.URL, view views.Login) (svcauth.HostCredentialsToken, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthGrantType(""), credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthGrantType(""), credsCtx, view)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
 		return "", diags
 	}
 
-	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
+	view.UiSeparator()
 
 	tokensURL := url.URL{
 		Scheme:   "https",
@@ -649,8 +638,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 	if c.BrowserLauncher != nil {
 		err := c.BrowserLauncher.OpenURL(tokensURL.String())
 		if err == nil {
-			c.Ui.Output(fmt.Sprintf("OpenTofu must now open a web browser to the tokens page for %s.\n", hostname.ForDisplay()))
-			c.Ui.Output(fmt.Sprintf("If a browser does not open this automatically, open the following URL to proceed:\n    %s\n", tokensURL.String()))
+			view.OpeningBrowserForTokens(hostname.ForDisplay(), tokensURL.String())
 		} else {
 			log.Printf("[DEBUG] error opening web browser: %s", err)
 			// Assume we're on a platform where opening a browser isn't possible.
@@ -661,20 +649,20 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 	}
 
 	if launchBrowserManually {
-		c.Ui.Output(fmt.Sprintf("Open the following URL to access the tokens page for %s:\n    %s\n", hostname.ForDisplay(), tokensURL.String()))
+		view.ManualBrowserLaunchForTokens(hostname.ForDisplay(), tokensURL.String())
 	}
 
-	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
-	c.Ui.Output("Generate a token using your browser, and copy-paste it into this prompt.\n")
+	view.UiSeparator()
+	view.GenerateTokenInstruction()
 
 	// credsCtx might not be set if we're using a mock credentials source
 	// in a test, but it should always be set in normal use.
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("OpenTofu will store the token in the configured %q credentials helper\nfor use by subsequent commands.\n", credsCtx.HelperType))
+			view.TokenStorageInHelper(credsCtx.HelperType)
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("OpenTofu will store the token in plain text in the following file\nfor use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			view.TokenStorageInFile(credsCtx.LocalFilename)
 		}
 	}
 
@@ -712,24 +700,22 @@ func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svc
 		diags = diags.Append(fmt.Errorf("Failed to retrieve user account details: %w", err))
 		return "", diags
 	}
-	c.Ui.Output(fmt.Sprintf(c.Colorize().Color("\nRetrieved token for user [bold]%s[reset]\n"), user.Username))
+	view.RetrievedTokenForUser(user.Username)
 
 	return svcauth.HostCredentialsToken(token), nil
 }
 
-func (c *LoginCommand) interactiveContextConsent(ctx context.Context, hostname svchost.Hostname, grantType disco.OAuthGrantType, credsCtx *loginCredentialsContext) (bool, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveContextConsent(ctx context.Context, hostname svchost.Hostname, grantType disco.OAuthGrantType, credsCtx *loginCredentialsContext, view views.Login) (bool, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	mechanism := "OAuth"
 	if grantType == "" {
 		mechanism = "your browser"
 	}
 
-	c.Ui.Output(fmt.Sprintf("OpenTofu will request an API token for %s using %s.\n", hostname.ForDisplay(), mechanism))
+	view.RequestAPITokenMessage(hostname.ForDisplay(), mechanism)
 
 	if grantType.UsesAuthorizationEndpoint() {
-		c.Ui.Output(
-			"This will work only if you are able to use a web browser on this computer to\ncomplete a login process. If not, you must obtain an API token by another\nmeans and configure it in the CLI configuration manually.\n",
-		)
+		view.BrowserBasedLoginInstruction()
 	}
 
 	// credsCtx might not be set if we're using a mock credentials source
@@ -737,9 +723,9 @@ func (c *LoginCommand) interactiveContextConsent(ctx context.Context, hostname s
 	if credsCtx != nil {
 		switch credsCtx.Location {
 		case cliconfig.CredentialsViaHelper:
-			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTofu will store the token in the configured\n%q credentials helper for use by subsequent commands.\n", credsCtx.HelperType))
+			view.StorageLocationConsentInHelper(credsCtx.HelperType)
 		case cliconfig.CredentialsInPrimaryFile, cliconfig.CredentialsNotAvailable:
-			c.Ui.Output(fmt.Sprintf("If login is successful, OpenTofu will store the token in plain text in\nthe following file for use by subsequent commands:\n    %s\n", credsCtx.LocalFilename))
+			view.StorageLocationConsentInFile(credsCtx.LocalFilename)
 		}
 	}
 
@@ -818,6 +804,20 @@ func (c *LoginCommand) proofKey() (key, challenge string, err error) {
 	challenge = base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
 	return key, challenge, nil
+}
+
+func (c *LoginCommand) credentialsFileForHelp() string {
+	defaultFile := c.defaultOutputFile()
+	if defaultFile == "" {
+		// Because this is just for the help message and it's very unlikely
+		// that a user wouldn't have a functioning home directory anyway,
+		// we'll just use a placeholder here. The real command has some
+		// more complex behavior for this case. This result is not correct
+		// on all platforms, but given how unlikely we are to hit this case
+		// that seems okay.
+		defaultFile = "~/.terraform/credentials.tfrc.json"
+	}
+	return defaultFile
 }
 
 type loginCredentialsContext struct {
