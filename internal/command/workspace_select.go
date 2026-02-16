@@ -10,6 +10,9 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -20,45 +23,55 @@ type WorkspaceSelectCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceSelectCommand) Run(args []string) int {
+func (c *WorkspaceSelectCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
 
-	var orCreate bool
-	cmdFlags := c.Meta.defaultFlagSet("workspace select")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&orCreate, "or-create", false, "create workspace if it does not exist")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("Expected a single argument: NAME.\n")
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseWorkspaceSelect(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewWorkspace(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
+	c.GatherVariables(args.Vars)
 
-	configPath, err := modulePath(args[1:])
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
-	var diags tfdiags.Diagnostics
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	current, isOverridden := c.WorkspaceOverridden(ctx)
 	if isOverridden {
-		c.Ui.Error(envIsOverriddenSelectError)
+		view.WorkspaceIsOverriddenSelectError()
 		return 1
 	}
 
@@ -66,7 +79,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -76,22 +89,26 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	name := args[0]
+	name := args.WorkspaceName
 	if !validWorkspaceName(name) {
-		c.Ui.Error(fmt.Sprintf(envInvalidName, name))
+		view.WorkspaceInvalidName(name)
 		return 1
 	}
 
 	states, err := b.Workspaces(ctx)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading workspaces",
+			fmt.Sprintf("Listing workspaces failed: %s", err),
+		)})
 		return 1
 	}
 
@@ -111,34 +128,37 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	var newState bool
 
 	if !found {
-		if orCreate {
+		if args.CreateIfMissing {
 			_, err = b.StateMgr(ctx, name)
 			if err != nil {
-				c.Ui.Error(err.Error())
+				view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+					tfdiags.Error,
+					"Error getting the state manager",
+					fmt.Sprintf("Failed getting state manager for workspace %s: %s", name, err),
+				)})
 				return 1
 			}
 			newState = true
 		} else {
-			c.Ui.Error(fmt.Sprintf(envDoesNotExist, name))
+			view.WorkspaceDoesNotExist(name)
 			return 1
 		}
 	}
 
 	err = c.SetWorkspace(name)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error setting workspace",
+			fmt.Sprintf("Could not set the requested workspace: %s", err),
+		)})
 		return 1
 	}
 
 	if newState {
-		c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-			strings.TrimSpace(envCreated), name)))
+		view.WorkspaceCreated(name)
 	} else {
-		c.Ui.Output(
-			c.Colorize().Color(
-				fmt.Sprintf(envChanged, name),
-			),
-		)
+		view.WorkspaceChanged(name)
 	}
 
 	return 0
@@ -165,18 +185,43 @@ Options:
 
     -or-create=false    Create the OpenTofu workspace if it doesn't exist.
 
-    -var 'foo=bar'      Set a value for one of the input variables in the root
-                        module of the configuration. Use this option more than
-                        once to set more than one variable.
+    -var 'foo=bar'       Set a value for one of the input variables in the root
+                         module of the configuration. Use this option more than
+                         once to set more than one variable.
 
-    -var-file=filename  Load variable values from the given file, in addition
-                        to the default files terraform.tfvars and *.auto.tfvars.
-                        Use this option more than once to include more than one
-                        variables file.
+    -var-file=filename   Load variable values from the given file, in addition
+                         to the default files terraform.tfvars and *.auto.tfvars.
+                         Use this option more than once to include more than one
+                         variables file.
+    
+    -json                The output of the command is printed in json format.
+
+    -json-into=out.json  Produce the same output as -json, but sent directly
+                         to the given file. This allows automation to preserve
+                         the original human-readable output streams, while
+                         capturing more detailed logs for machine analysis.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *WorkspaceSelectCommand) Synopsis() string {
 	return "Select a workspace"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *WorkspaceSelectCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
