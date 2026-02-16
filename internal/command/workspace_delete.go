@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -26,43 +26,49 @@ type WorkspaceDeleteCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceDeleteCommand) Run(args []string) int {
+func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
 
-	var force bool
-	var stateLock bool
-	var stateLockTimeout time.Duration
-	cmdFlags := c.Meta.defaultFlagSet("workspace delete")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&force, "force", false, "force removal of a non-empty workspace")
-	cmdFlags.BoolVar(&stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("Expected a single argument: NAME.\n")
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseWorkspaceDelete(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewWorkspace(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
 		return cli.RunResultHelp
 	}
+	c.GatherVariables(args.Vars)
 
-	configPath, err := modulePath(args[1:])
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
-	var diags tfdiags.Diagnostics
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -70,7 +76,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -80,7 +86,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -89,11 +95,15 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 
 	workspaces, err := b.Workspaces(ctx)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading workspaces",
+			fmt.Sprintf("Listing workspaces failed: %s", err),
+		)})
 		return 1
 	}
 
-	workspace := args[0]
+	workspace := args.WorkspaceName
 	exists := false
 	for _, ws := range workspaces {
 		if workspace == ws {
@@ -103,32 +113,40 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	if !exists {
-		c.Ui.Error(fmt.Sprintf(strings.TrimSpace(envDoesNotExist), workspace))
+		view.WorkspaceDoesNotExist(workspace)
 		return 1
 	}
 
 	currentWorkspace, err := c.Workspace(ctx)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error getting the current workspace",
+			fmt.Sprintf("Failed getting the current workspace: %s", err),
+		)})
 		return 1
 	}
 	if workspace == currentWorkspace {
-		c.Ui.Error(fmt.Sprintf(strings.TrimSpace(envDelCurrent), workspace))
+		view.CannotDeleteCurrentWorkspace(workspace)
 		return 1
 	}
 
 	// we need the actual state to see if it's empty
 	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to fetch the state",
+			fmt.Sprintf("Fetching state failed: %s", err),
+		)})
 		return 1
 	}
 
 	var stateLocker clistate.Locker
-	if stateLock {
-		stateLocker = clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
+	if args.StateLock {
+		stateLocker = clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	} else {
@@ -138,13 +156,17 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		// We need to release the lock before exit
 		stateLocker.Unlock()
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to refresh state",
+			fmt.Sprintf("State refresh failed: %s", err),
+		)})
 		return 1
 	}
 
 	hasResources := stateMgr.State().HasManagedResourceInstanceObjects()
 
-	if hasResources && !force {
+	if hasResources && !args.Force {
 		// We'll collect a list of what's being managed here as extra context
 		// for the message.
 		var buf strings.Builder
@@ -167,7 +189,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 				workspace, buf.String(),
 			),
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -182,24 +204,20 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	// be delegated from the Backend to the State itself.
 	stateLocker.Unlock()
 
-	err = b.DeleteWorkspace(ctx, workspace, force)
+	err = b.DeleteWorkspace(ctx, workspace, args.Force)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Workspace deletion failed",
+			fmt.Sprintf("Failed to delete the given workspace: %s", err),
+		)})
 		return 1
 	}
 
-	c.Ui.Output(
-		c.Colorize().Color(
-			fmt.Sprintf(envDeleted, workspace),
-		),
-	)
+	view.WorkspaceDeleted(workspace)
 
 	if hasResources {
-		c.Ui.Output(
-			c.Colorize().Color(
-				fmt.Sprintf(envWarnNotEmpty, workspace),
-			),
-		)
+		view.DeletedWorkspaceNotEmpty(workspace)
 	}
 
 	return 0
@@ -227,24 +245,31 @@ Usage: tofu [global options] workspace delete [options] NAME
 
 Options:
 
-  -force             Remove a workspace even if it is managing resources.
-                     OpenTofu can no longer track or manage the workspace's
-                     infrastructure.
+  -force               Remove a workspace even if it is managing resources.
+                       OpenTofu can no longer track or manage the workspace's
+                       infrastructure.
 
-  -lock=false        Don't hold a state lock during the operation. This is
-                     dangerous if others might concurrently run commands
-                     against the same workspace.
+  -lock=false          Don't hold a state lock during the operation. This is
+                       dangerous if others might concurrently run commands
+                       against the same workspace.
 
-  -lock-timeout=0s   Duration to retry a state lock.
+  -lock-timeout=0s     Duration to retry a state lock.
 
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
+  -var 'foo=bar'       Set a value for one of the input variables in the root
+                       module of the configuration. Use this option more than
+                       once to set more than one variable.
 
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
+  -var-file=filename   Load variable values from the given file, in addition
+                       to the default files terraform.tfvars and *.auto.tfvars.
+                       Use this option more than once to include more than one
+                       variables file.
+    
+  -json                The output of the command is printed in json format.
+
+  -json-into=out.json  Produce the same output as -json, but sent directly
+                       to the given file. This allows automation to preserve
+                       the original human-readable output streams, while
+                       capturing more detailed logs for machine analysis.
 
 `
 	return strings.TrimSpace(helpText)
@@ -252,4 +277,22 @@ Options:
 
 func (c *WorkspaceDeleteCommand) Synopsis() string {
 	return "Delete a workspace"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *WorkspaceDeleteCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
