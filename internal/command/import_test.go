@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -29,13 +28,11 @@ func TestImport(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -68,8 +65,10 @@ func TestImport(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	if !p.ImportResourceStateCalled {
@@ -85,13 +84,11 @@ func TestImport_providerConfig(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -150,8 +147,10 @@ func TestImport_providerConfig(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Verify that we were called
@@ -180,13 +179,11 @@ func TestImport_remoteState(t *testing.T) {
 	defer close()
 
 	// init our backend
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
@@ -196,18 +193,19 @@ func TestImport_remoteState(t *testing.T) {
 
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
 	log.Print("[TRACE] TestImport_remoteState running: tofu init")
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	p := testProvider()
-	ui = new(cli.MockUi)
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 
@@ -258,9 +256,11 @@ func TestImport_remoteState(t *testing.T) {
 		"bar",
 	}
 	log.Printf("[TRACE] TestImport_remoteState running: tofu import %s %s", args[0], args[1])
-	if code := c.Run(args); code != 0 {
-		fmt.Println(ui.OutputWriter)
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code = c.Run(args)
+	importOutput := importDone(t)
+	if code != 0 {
+		fmt.Println(importOutput.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, importOutput.Stderr())
 	}
 
 	// verify that the local state was unlocked after import
@@ -294,13 +294,11 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	defer close()
 
 	// init our backend
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
@@ -310,8 +308,10 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 
 	// (Using log here rather than t.Log so that these messages interleave with other trace logs)
 	log.Print("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu init")
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// overwrite the config with one including a resource from an invalid provider
@@ -320,13 +320,12 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	}
 
 	p := testProvider()
-	ui = new(cli.MockUi)
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 
@@ -337,13 +336,15 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	log.Printf("[TRACE] TestImport_initializationErrorShouldUnlock running: tofu import %s %s", args[0], args[1])
 
 	// this should fail
-	if code := c.Run(args); code != 1 {
-		fmt.Println(ui.OutputWriter)
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code = c.Run(args)
+	importOutput := importDone(t)
+	if code != 1 {
+		fmt.Println(importOutput.Stdout())
+		t.Fatalf("bad: %d\n\n%s", code, importOutput.Stderr())
 	}
 
 	// specifically, it should fail due to a missing provider
-	msg := strings.ReplaceAll(ui.ErrorWriter.String(), "\n", " ")
+	msg := strings.ReplaceAll(importOutput.Stderr(), "\n", " ")
 	if want := `provider registry.opentofu.org/hashicorp/unknown: required by this configuration but no version is selected`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -360,13 +361,11 @@ func TestImport_providerConfigWithVar(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -419,8 +418,10 @@ func TestImport_providerConfigWithVar(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Verify that we were called
@@ -441,13 +442,11 @@ func TestImport_providerConfigWithDataSource(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -496,8 +495,10 @@ func TestImport_providerConfigWithDataSource(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad, wanted error: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad, wanted error: %d\n\n%s", code, output.Stderr())
 	}
 }
 
@@ -507,13 +508,11 @@ func TestImport_providerConfigWithVarDefault(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -565,8 +564,10 @@ func TestImport_providerConfigWithVarDefault(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Verify that we were called
@@ -587,13 +588,11 @@ func TestImport_providerConfigWithVarFile(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -646,8 +645,10 @@ func TestImport_providerConfigWithVarFile(t *testing.T) {
 		"test_instance.foo",
 		"bar",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Verify that we were called
@@ -668,13 +669,11 @@ func TestImport_emptyConfig(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -685,11 +684,12 @@ func TestImport_emptyConfig(t *testing.T) {
 		"bar",
 	}
 	code := c.Run(args)
+	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
 	}
 
-	msg := ui.ErrorWriter.String()
+	msg := output.Stderr()
 	if want := `No OpenTofu configuration files`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -701,13 +701,11 @@ func TestImport_missingResourceConfig(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -718,11 +716,12 @@ func TestImport_missingResourceConfig(t *testing.T) {
 		"bar",
 	}
 	code := c.Run(args)
+	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
 	}
 
-	msg := ui.ErrorWriter.String()
+	msg := output.Stderr()
 	if want := `resource address "test_instance.foo" does not exist`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -734,13 +733,11 @@ func TestImport_missingModuleConfig(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -751,11 +748,12 @@ func TestImport_missingModuleConfig(t *testing.T) {
 		"bar",
 	}
 	code := c.Run(args)
+	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
 	}
 
-	msg := ui.ErrorWriter.String()
+	msg := output.Stderr()
 	if want := `module.baz is not defined in the configuration`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -787,31 +785,30 @@ func TestImportModuleVarFile(t *testing.T) {
 	defer close()
 
 	// init to install the module
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
 	ic := &InitCommand{
 		Meta: m,
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// import
-	ui = new(cli.MockUi)
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 	args := []string{
@@ -819,9 +816,10 @@ func TestImportModuleVarFile(t *testing.T) {
 		"module.child.test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code = c.Run(args)
+	importOutput := importDone(t)
 	if code != 0 {
-		t.Fatalf("import failed; expected success")
+		t.Fatalf("import failed; expected success. %s", importOutput.All())
 	}
 }
 
@@ -863,31 +861,30 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 	defer close()
 
 	// init to install the module
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
 	ic := &InitCommand{
 		Meta: m,
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// import
-	ui = new(cli.MockUi)
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 	args := []string{
@@ -895,9 +892,10 @@ func TestImportModuleInputVariableEvaluation(t *testing.T) {
 		"module.child.test_instance.foo",
 		"bar",
 	}
-	code := c.Run(args)
+	code = c.Run(args)
+	importOutput := importDone(t)
 	if code != 0 {
-		t.Fatalf("import failed; expected success")
+		t.Fatalf("import failed; expected success: %s", importOutput.All())
 	}
 }
 
@@ -907,16 +905,6 @@ func TestImport_nonManagedResource(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
-	c := &ImportCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
-		},
-	}
 
 	cases := []struct {
 		resAddr        string
@@ -933,17 +921,27 @@ func TestImport_nonManagedResource(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.resAddr, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ImportCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
+				},
+			}
+
 			args := []string{
 				"-state", statePath,
 				tt.resAddr,
 				"bar",
 			}
 			code := c.Run(args)
+			output := done(t)
 			if code != 1 {
-				t.Fatalf("import succeeded; expected failure")
+				t.Fatalf("import succeeded; expected failure: %s", output.All())
 			}
 
-			msg := ui.ErrorWriter.String()
+			msg := output.Stderr()
 			if want := tt.expectedErrMsg; !strings.Contains(msg, want) {
 				t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 			}
@@ -957,28 +955,28 @@ func TestImport_invalidResourceAddr(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{
+		"-no-color",
 		"-state", statePath,
 		"bananas",
 		"bar",
 	}
 	code := c.Run(args)
+	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
 	}
 
-	msg := ui.ErrorWriter.String()
+	msg := output.Stderr()
 	if want := `Error: Invalid address`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -990,28 +988,28 @@ func TestImport_targetIsModule(t *testing.T) {
 	statePath := testTempFile(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{
+		"-no-color",
 		"-state", statePath,
 		"module.foo",
 		"bar",
 	}
 	code := c.Run(args)
+	output := done(t)
 	if code != 1 {
 		t.Fatalf("import succeeded; expected failure")
 	}
 
-	msg := ui.ErrorWriter.String()
+	msg := output.Stderr()
 	if want := `Error: Invalid address`; !strings.Contains(msg, want) {
 		t.Errorf("incorrect message\nwant substring: %s\ngot:\n%s", want, msg)
 	}
@@ -1022,13 +1020,11 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 
 	statePath := testTempFile(t)
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -1049,8 +1045,10 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 		"test_instance.this[\"a\"]",
 		"aa",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("import failed; expected success for existing resource: %s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("import failed; expected success for existing resource: %s", output.Stderr())
 	}
 	// Non-existent key should fail
 	args = []string{
@@ -1058,8 +1056,12 @@ func TestImport_ForEachKeyInTargetResourceAddr(t *testing.T) {
 		"test_instance.this[\"f\"]",
 		"ff",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("import succeeded; expected failure when the resource instance doesn't exist with the given key")
+	view, done = testView(t)
+	c.Meta.View = view
+	code = c.Run(args)
+	output = done(t)
+	if code == 0 {
+		t.Fatalf("import succeeded; expected failure when the resource instance doesn't exist with the given key: %s", output.All())
 	}
 
 }
@@ -1090,30 +1092,30 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 	defer closeCallback()
 
 	// init to install the module
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
 	ic := &InitCommand{
 		Meta: m,
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// Import
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 	// Importing into an existing module should succeed
@@ -1122,8 +1124,10 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 		"module.child[\"a\"].test_instance.this",
 		"aa",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("import failed for a valid scenario\n%s", ui.ErrorWriter.String())
+	code = c.Run(args)
+	importOutput := importDone(t)
+	if code != 0 {
+		t.Fatalf("import failed for a valid scenario\n%s", importOutput.Stderr())
 	}
 
 	// Importing into a non-existent module should fail
@@ -1132,10 +1136,15 @@ func TestImport_ForEachKeyInModuleAddr(t *testing.T) {
 		"module.child[\"f\"].test_instance.this",
 		"ff",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("import succeeded; expected failure for non-existant module\n%s", ui.OutputWriter.String())
+	importView, importDone = testView(t)
+	c.Meta.View = importView
+	code = c.Run(args)
+	importOutput = importDone(t)
+	if code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existant module\n%s", importOutput.Stdout())
 	}
 }
+
 func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 	td := t.TempDir()
 	// We have the "child" module with keys "a" and "b"
@@ -1164,30 +1173,30 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 	defer closeCallback()
 
 	// init to install the module
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	m := Meta{
 		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               ui,
-		View:             view,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 
 	ic := &InitCommand{
 		Meta: m,
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	// Import
+	importView, importDone := testView(t)
 	c := &ImportCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
+			View:             importView,
 		},
 	}
 
@@ -1197,8 +1206,10 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"module.child[\"a\"].test_instance.this[\"a\"]",
 		"aa",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("import failed for a valid scenario\n%s", ui.ErrorWriter.String())
+	code = c.Run(args)
+	importOutput := importDone(t)
+	if code != 0 {
+		t.Fatalf("import failed for a valid scenario\n%s", importOutput.Stderr())
 	}
 
 	// All following combinations should fail
@@ -1208,8 +1219,12 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"module.child[\"a\"].test_instance.this[\"f\"]",
 		"af",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("import succeeded; expected failure for non-existent resource instance\n%s", ui.OutputWriter.String())
+	importView, importDone = testView(t)
+	c.Meta.View = importView
+	code = c.Run(args)
+	importOutput = importDone(t)
+	if code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent resource instance\n%s", importOutput.Stdout())
 	}
 
 	// Invalid Module + Valid Resource
@@ -1218,8 +1233,12 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"module.child[\"f\"].test_instance.this[\"a\"]",
 		"fa",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("import succeeded; expected failure for non-existent module\n%s", ui.OutputWriter.String())
+	importView, importDone = testView(t)
+	c.Meta.View = importView
+	code = c.Run(args)
+	importOutput = importDone(t)
+	if code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent module\n%s", importOutput.Stdout())
 	}
 
 	// Invalid Module + Invalid Resource
@@ -1228,8 +1247,12 @@ func TestImport_ForEachKeyInModuleAndResourceAddr(t *testing.T) {
 		"module.child[\"f\"].test_instance.this[\"f\"]",
 		"ff",
 	}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("import succeeded; expected failure for non-existent module and resource instance\n%s", ui.OutputWriter.String())
+	importView, importDone = testView(t)
+	c.Meta.View = importView
+	code = c.Run(args)
+	importOutput = importDone(t)
+	if code == 0 {
+		t.Fatalf("import succeeded; expected failure for non-existent module and resource instance\n%s", importOutput.Stdout())
 	}
 }
 
