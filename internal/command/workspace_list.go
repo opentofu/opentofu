@@ -6,10 +6,12 @@
 package command
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/posener/complete"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -20,39 +22,53 @@ type WorkspaceListCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceListCommand) Run(args []string) int {
+func (c *WorkspaceListCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
 
-	cmdFlags := c.Meta.defaultFlagSet("workspace list")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseWorkspaceList(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewWorkspace(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
 		return 1
 	}
+	c.GatherVariables(args.Vars)
 
-	args = cmdFlags.Args()
-	configPath, err := modulePath(args)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
+
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -62,35 +78,28 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	states, err := b.Workspaces(ctx)
+	workspaces, err := b.Workspaces(ctx)
 	if err != nil {
-		c.Ui.Error(err.Error())
+		view.Diagnostics(tfdiags.Diagnostics{tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading workspaces",
+			fmt.Sprintf("Listing workspaces failed: %s", err),
+		)})
 		return 1
 	}
 
 	env, isOverridden := c.WorkspaceOverridden(ctx)
-
-	var out bytes.Buffer
-	for _, s := range states {
-		if s == env {
-			out.WriteString("* ")
-		} else {
-			out.WriteString("  ")
-		}
-		out.WriteString(s + "\n")
-	}
-
-	c.Ui.Output(out.String())
+	view.ListWorkspaces(workspaces, env)
 
 	if isOverridden {
-		c.Ui.Output(envIsOverriddenNote)
+		view.WorkspaceOverwrittenByEnvVarWarn()
 	}
 
 	return 0
@@ -112,18 +121,43 @@ Usage: tofu [global options] workspace list [options]
 
 Options:
 
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
+  -var 'foo=bar'       Set a value for one of the input variables in the root
+                       module of the configuration. Use this option more than
+                       once to set more than one variable.
 
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
+  -var-file=filename   Load variable values from the given file, in addition
+                       to the default files terraform.tfvars and *.auto.tfvars.
+                       Use this option more than once to include more than one
+                       variables file.
+    
+  -json                The output of the command is printed in json format.
+
+  -json-into=out.json  Produce the same output as -json, but sent directly
+                       to the given file. This allows automation to preserve
+                       the original human-readable output streams, while
+                       capturing more detailed logs for machine analysis.
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *WorkspaceListCommand) Synopsis() string {
 	return "List Workspaces"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *WorkspaceListCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
