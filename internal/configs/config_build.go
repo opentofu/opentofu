@@ -99,7 +99,7 @@ func buildTestModules(ctx context.Context, root *Config, walker ModuleWalker) hc
 						return v.Default, nil
 					}
 					return cty.DynamicVal, nil
-				}, root.Module.SourceDir, ""), // what should the workspace be here? im so confused...
+				}, root.Module.SourceDir, root.Module.StaticEvaluator.call.workspace),
 
 				CallRange: run.Module.DeclRange,
 			}
