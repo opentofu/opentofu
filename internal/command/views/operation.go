@@ -120,7 +120,7 @@ type OperationHuman struct {
 	// run a follow-up command, perhaps because OpenTofu is running in
 	// some sort of workflow automation tool that abstracts away the
 	// exact commands that are being run.
-	inAutomation bool
+	inAutomation bool // TODO meta-refactor - remove this attribute and use the v.view.runningInAutomation instead, everywhere
 }
 
 var _ Operation = (*OperationHuman)(nil)
