@@ -9,11 +9,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/tracing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -30,58 +32,65 @@ type ImportCommand struct {
 	Meta
 }
 
-func (c *ImportCommand) Run(args []string) int {
+func (c *ImportCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Import")
+	defer span.End()
 
-	// Get the pwd since its our default -config flag value
-	pwd, err := os.Getwd()
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error getting pwd: %s", err))
-		return 1
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseImport(rawArgs, c.WorkingDir)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewImport(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
+		return cli.RunResultHelp
 	}
-
-	var configPath string
-	args = c.Meta.process(args)
-
-	cmdFlags := c.Meta.extendedFlagSet("import")
-	cmdFlags.BoolVar(&c.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
-	cmdFlags.IntVar(&c.Meta.parallelism, "parallelism", DefaultParallelism, "parallelism")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
-	cmdFlags.StringVar(&c.Meta.stateOutPath, "state-out", "", "path")
-	cmdFlags.StringVar(&c.Meta.backupPath, "backup", "", "path")
-	cmdFlags.StringVar(&configPath, "config", pwd, "path")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		return 1
-	}
-
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		c.Ui.Error("The import command expects two arguments.")
-		cmdFlags.Usage()
-		return 1
-	}
-
-	var diags tfdiags.Diagnostics
+	c.configureBackendFlags(args)
+	c.GatherVariables(args.Vars)
 
 	// Parse the provided resource address.
-	traversalSrc := []byte(args[0])
+	traversalSrc := []byte(args.ResourceAddress)
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
 	if travDiags.HasErrors() {
+		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
-		c.showDiagnostics(diags)
-		c.Ui.Info(importCommandInvalidAddressReference)
+		view.Diagnostics(diags)
+		view.InvalidAddressReference()
 		return 1
 	}
 	addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 	diags = diags.Append(addrDiags)
 	if addrDiags.HasErrors() {
+		// NOTE: The call to registerSynthConfigSource works well with the view.Diagnostics too since the view is
+		// configured in [Meta.initConfigLoader] with a callback to get the sources when it prints the diagnostics.
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
-		c.showDiagnostics(diags)
-		c.Ui.Info(importCommandInvalidAddressReference)
+		view.Diagnostics(diags)
+		view.InvalidAddressReference()
 		return 1
 	}
 
@@ -96,37 +105,37 @@ func (c *ImportCommand) Run(args []string) int {
 			what = "a resource type"
 		}
 		diags = diags.Append(fmt.Errorf("A managed resource address is required. Importing into %s is not allowed.", what))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	if !c.dirIsConfigPath(configPath) {
+	if !c.dirIsConfigPath(args.ConfigPath) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "No OpenTofu configuration files",
 			Detail: fmt.Sprintf(
 				"The directory %s does not contain any OpenTofu configuration files (.tf or .tf.json). To specify a different configuration directory, use the -config=\"...\" command line option.",
-				configPath,
+				args.ConfigPath,
 			),
 		})
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Load the full config, so we can verify that the target resource is
 	// already configured.
-	config, configDiags := c.loadConfig(ctx, configPath)
+	config, configDiags := c.loadConfig(ctx, args.ConfigPath)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, args.ConfigPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -145,7 +154,7 @@ func (c *ImportCommand) Run(args []string) int {
 				modulePath,
 			),
 		})
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 	targetMod := targetConfig.Module
@@ -164,23 +173,15 @@ func (c *ImportCommand) Run(args []string) int {
 			modulePath = "the root module"
 		}
 
-		c.showDiagnostics(diags)
-
-		// This is not a diagnostic because currently our diagnostics printer
-		// doesn't support having a code example in the detail, and there's
-		// a code example in this message.
-		// TODO: Improve the diagnostics printer so we can use it for this
-		// message.
-		c.Ui.Error(fmt.Sprintf(
-			importCommandMissingResourceFmt,
-			addr, modulePath, resourceRelAddr.Type, resourceRelAddr.Name,
-		))
+		view.Diagnostics(diags)
+		view.MissingResourceConfiguration(addr, modulePath, resourceRelAddr.Type, resourceRelAddr.Name)
 		return 1
 	}
 
 	// Check for user-supplied plugin path
+	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error loading plugin path: %s", err))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error loading plugin path: %s", err)))
 		return 1
 	}
 
@@ -190,7 +191,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -201,20 +202,20 @@ func (c *ImportCommand) Run(args []string) int {
 	// that may be delegated to a "remotestate.Backend".
 	local, ok := b.(backend.Local)
 	if !ok {
-		c.Ui.Error(ErrUnsupportedLocalOp)
+		view.UnsupportedLocalOp()
 		return 1
 	}
 
 	// Build the operation
-	opReq := c.Operation(ctx, b, arguments.ViewOptions{ViewType: arguments.ViewHuman}, enc)
-	opReq.ConfigDir = configPath
+	opReq := c.Operation(ctx, b, args.ViewOptions, enc)
+	opReq.ConfigDir = args.ConfigPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
 		diags = diags.Append(err)
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
-	opReq.Hooks = []tofu.Hook{c.uiHook()}
+	opReq.Hooks = view.Hooks()
 	{
 		// Setup required variables/call for operation (usually done in Meta.RunOperation)
 		var moreDiags, callDiags tfdiags.Diagnostics
@@ -222,16 +223,16 @@ func (c *ImportCommand) Run(args []string) int {
 		opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
 		if moreDiags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	}
-	opReq.View = views.NewOperation(arguments.ViewHuman, c.RunningInAutomation, c.View)
+	opReq.View = view.Operation()
 
 	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, opReq.Workspace)
 	diags = diags.Append(remoteVersionDiags)
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
@@ -240,7 +241,7 @@ func (c *ImportCommand) Run(args []string) int {
 	lr, state, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -248,7 +249,7 @@ func (c *ImportCommand) Run(args []string) int {
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
 		if diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 		}
 	}()
 
@@ -260,7 +261,7 @@ func (c *ImportCommand) Run(args []string) int {
 			{
 				CommandLineImportTarget: &tofu.CommandLineImportTarget{
 					Addr: addr,
-					ID:   args[1],
+					ID:   args.ResourceID,
 				},
 			},
 		},
@@ -272,7 +273,7 @@ func (c *ImportCommand) Run(args []string) int {
 	})
 	diags = diags.Append(importDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -287,22 +288,63 @@ func (c *ImportCommand) Run(args []string) int {
 	// Persist the final state
 	log.Printf("[INFO] Writing state output to: %s", c.Meta.StateOutPath())
 	if err := state.WriteState(newState); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error writing state file: %s", err)))
 		return 1
 	}
 	if err := state.PersistState(context.TODO(), schemas); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(fmt.Errorf("Error writing state file: %s", err)))
 		return 1
 	}
 
-	c.Ui.Output(c.Colorize().Color("[reset][green]\n" + importCommandSuccessMsg))
-
-	c.showDiagnostics(diags)
+	view.Success()
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
 
 	return 0
+}
+
+// configureBackendFlags is a temporary shim until we move the flags for state management to a better placce
+//
+// TODO meta-refactor: remove this when the Meta fields configured here will be removed and replaced
+// with proper arguments for the backend.
+func (c *ImportCommand) configureBackendFlags(args *arguments.Import) {
+	c.Meta.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+	// TODO meta-refactor: unify these 2 args attributes with the state flags in arguments.extendedFlagSet
+	//  https://github.com/opentofu/opentofu/blob/db8c872defd8666618649ef7e29fa2b809adfd5e/internal/command/arguments/extended.go#L320-L321
+	c.Meta.stateLock = args.State.Lock
+	c.Meta.stateLockTimeout = args.State.LockTimeout
+
+	// TODO meta-refactor: remove this only when there is clear path of passing these from the "arguments" package to
+	// the place where these needs to be used
+	c.Meta.parallelism = args.Parallelism
+	c.Meta.statePath = args.State.StatePath
+	c.Meta.stateOutPath = args.State.StateOutPath
+	c.Meta.backupPath = args.State.BackupPath
+
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *ImportCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *ImportCommand) Help() string {
@@ -366,6 +408,14 @@ Options:
   -ignore-remote-version  A rare option used for the remote backend only. See
                           the remote backend documentation for more information.
 
+    
+  -json                   The output of the command is printed in json format.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 
@@ -376,21 +426,3 @@ Options:
 func (c *ImportCommand) Synopsis() string {
 	return "Associate existing infrastructure with a OpenTofu resource"
 }
-
-const importCommandInvalidAddressReference = `For information on valid syntax, see:
-https://opentofu.org/docs/cli/state/resource-addressing/`
-
-const importCommandMissingResourceFmt = `[reset][bold][red]Error:[reset][bold] resource address %q does not exist in the configuration.[reset]
-
-Before importing this resource, please create its configuration in %s. For example:
-
-resource %q %q {
-  # (resource arguments)
-}
-`
-
-const importCommandSuccessMsg = `Import successful!
-
-The resources that were imported are shown above. These resources are now in
-your OpenTofu state and will henceforth be managed by OpenTofu.
-`
