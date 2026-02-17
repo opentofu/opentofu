@@ -312,7 +312,9 @@ func renderHumanDiffOutputs(renderer Renderer, outputs map[string]computed.Diff)
 	for _, key := range keys {
 		output := outputs[key]
 		if output.Action != plans.NoOp {
-			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(renderers.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive))))
+			opts := computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive)
+			rendered = append(rendered, output.WarningsHuman(0, opts)...)
+			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(renderers.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, opts)))
 		}
 	}
 	return strings.Join(rendered, "\n")

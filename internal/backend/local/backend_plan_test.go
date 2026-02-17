@@ -225,6 +225,8 @@ Changes to Outputs:
   ~ changed          = "before" -> "after"
   - removed          = "before" -> null
   ~ sensitive_after  = (sensitive value)
+  # Warning: this attribute value will no longer be marked as sensitive
+  # after applying this change.
   ~ sensitive_before = (sensitive value)
 
 You can apply this plan to save these new output values to the OpenTofu

@@ -518,6 +518,12 @@ type OutputChange struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// BeforeSensitive and AfterSensitive track the output's sensitivity
+	// in the prior state and the current configuration. Not persisted to
+	// the plan file; used only by the plan renderer.
+	BeforeSensitive bool
+	AfterSensitive  bool
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -528,9 +534,11 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 		return nil, err
 	}
 	return &OutputChangeSrc{
-		Addr:      oc.Addr,
-		ChangeSrc: *cs,
-		Sensitive: oc.Sensitive,
+		Addr:            oc.Addr,
+		ChangeSrc:       *cs,
+		Sensitive:       oc.Sensitive,
+		BeforeSensitive: oc.BeforeSensitive,
+		AfterSensitive:  oc.AfterSensitive,
 	}, err
 }
 
