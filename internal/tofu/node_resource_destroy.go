@@ -157,6 +157,7 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 		ctx, traceNameApplyResourceInstance,
 		tracing.SpanAttributes(
 			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.String(traceAttrResourceType, addr.Resource.Resource.Type),
 		),
 	)
 	defer span.End()

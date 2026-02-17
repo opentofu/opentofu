@@ -97,6 +97,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx context.Context, eva
 		ctx, traceNamePlanResourceInstance,
 		tracing.SpanAttributes(
 			traceattrs.String(traceAttrResourceInstanceAddr, n.Addr.String()),
+			traceattrs.String(traceAttrResourceType, n.Addr.Resource.Resource.Type),
 			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
 		),
 	)

@@ -53,6 +53,14 @@ const traceNameApplyResourceInstance = "Apply resource instance changes"
 // a value of type [addrs.AbsResourceInstance].
 const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
 
+// traceAttrResourceType is a standardized trace span attribute name that we
+// use for recording the type of the resource that a particular span is
+// concerned with, such as "aws_instance" or "google_compute_disk".
+//
+// The value of this should be populated from the Type field of the
+// [addrs.Resource] embedded in the relevant [addrs.AbsResourceInstance].
+const traceAttrResourceType = "opentofu.resource.type"
+
 // traceAttrPlanRefresh is a standardized trace span attribute name that we use
 // for a boolean attribute describing whether the refresh step is enabled
 // for the main resource instance associated with the span during the planning
@@ -2822,7 +2830,6 @@ func (n *NodeAbstractResourceInstance) apply(
 	keyData instances.RepetitionData,
 	createBeforeDestroy bool,
 ) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
-
 	var diags tfdiags.Diagnostics
 	if state == nil {
 		state = &states.ResourceInstanceObject{}
@@ -3389,7 +3396,6 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 	plannedNewState *states.ResourceInstanceObject,
 	diags tfdiags.Diagnostics,
 ) {
-
 	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
 	proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
