@@ -347,6 +347,10 @@ func (c *Client) InstallModulePackage(ctx context.Context, location PackageLocat
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("failed to download module package: server returned %s", resp.Status)
+	}
+
 	n, err := io.Copy(f, resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("copying module package to temporary file: %w", err)
