@@ -37,7 +37,7 @@ func TestConfig_asAWSBase(t *testing.T) {
 				region = "magic-mountain"`,
 			expected: awsbase.Config{
 				Region:                 "magic-mountain",
-				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
+				CallerDocumentationURL: "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 				CallerName:             "KMS Key Provider",
 				MaxRetries:             5,
 				APNInfo: &awsbase.APNInfo{
@@ -105,7 +105,7 @@ func TestConfig_asAWSBase(t *testing.T) {
 				retry_mode = "adaptive"
 				`,
 			expected: awsbase.Config{
-				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
+				CallerDocumentationURL: "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 				CallerName:             "KMS Key Provider",
 				APNInfo: &awsbase.APNInfo{
 					PartnerName: "OpenTofu-AWS-KMS",

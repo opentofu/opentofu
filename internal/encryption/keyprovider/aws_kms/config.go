@@ -137,7 +137,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 
 	return &awsbase.Config{
 		AccessKey:               c.AccessKey,
-		CallerDocumentationURL:  "https://opentofu.org/docs/language/settings/backends/s3", // TODO
+		CallerDocumentationURL:  "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 		CallerName:              "KMS Key Provider",
 		IamEndpoint:             stringAttrEnvFallback(endpoints.IAM, "AWS_ENDPOINT_URL_IAM"),
 		MaxRetries:              c.MaxRetries,
