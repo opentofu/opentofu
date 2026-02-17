@@ -188,6 +188,23 @@ func MarshalForRenderer(
 		return nil, nil, nil, nil, err
 	}
 
+	// For the human-readable renderer, override the sensitivity markers on
+	// outputs that are transitioning from sensitive to non-sensitive so that
+	// the renderer can emit a warning about the value becoming visible.
+	for _, oc := range p.Changes.Outputs {
+		if !oc.Addr.Module.IsRoot() {
+			continue
+		}
+		if oc.BeforeSensitive && !oc.AfterSensitive {
+			name := oc.Addr.OutputValue.Name
+			if c, ok := output.OutputChanges[name]; ok {
+				c.BeforeSensitive = json.RawMessage("true")
+				c.AfterSensitive = json.RawMessage("false")
+				output.OutputChanges[name] = c
+			}
+		}
+	}
+
 	if output.ResourceChanges, err = MarshalResourceChanges(p.Changes.Resources, schemas); err != nil {
 		return nil, nil, nil, nil, err
 	}

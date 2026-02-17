@@ -542,8 +542,10 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveBefore,
+			Addr:            n.Addr,
+			Sensitive:       sensitiveBefore,
+			BeforeSensitive: sensitiveBefore,
+			AfterSensitive:  false,
 			Change: plans.Change{
 				Action: plans.Delete,
 				Before: before,
@@ -635,8 +637,10 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		}
 
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveChange,
+			Addr:            n.Addr,
+			Sensitive:       sensitiveChange,
+			BeforeSensitive: sensitiveBefore,
+			AfterSensitive:  n.Config.Sensitive,
 			Change: plans.Change{
 				Action: action,
 				Before: before,

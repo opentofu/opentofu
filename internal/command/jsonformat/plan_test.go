@@ -7519,6 +7519,90 @@ func TestOutputChanges(t *testing.T) {
 	}
 }
 
+func TestOutputChanges_sensitivityWarning(t *testing.T) {
+	color := &colorstring.Colorize{Colors: colorstring.DefaultColors, Disable: true}
+
+	tests := map[string]struct {
+		before          cty.Value
+		after           cty.Value
+		beforeSensitive bool
+		afterSensitive  bool
+		want            string
+	}{
+		"sensitive to non-sensitive, value unchanged": {
+			before:          cty.StringVal("secret"),
+			after:           cty.StringVal("secret"),
+			beforeSensitive: true,
+			afterSensitive:  false,
+			want: `  # Warning: this attribute value will no longer be marked as sensitive
+  # after applying this change. The value is unchanged.
+  ~ foo = (sensitive value)`,
+		},
+		"sensitive to non-sensitive, value also changed": {
+			before:          cty.StringVal("old"),
+			after:           cty.StringVal("new"),
+			beforeSensitive: true,
+			afterSensitive:  false,
+			want: `  # Warning: this attribute value will no longer be marked as sensitive
+  # after applying this change.
+  ~ foo = (sensitive value)`,
+		},
+		"stays sensitive, no warning": {
+			before:          cty.StringVal("old"),
+			after:           cty.StringVal("new"),
+			beforeSensitive: true,
+			afterSensitive:  true,
+			want:            `  ~ foo = (sensitive value)`,
+		},
+		"non-sensitive to sensitive, no warning": {
+			before:          cty.StringVal("val"),
+			after:           cty.StringVal("new-val"),
+			beforeSensitive: false,
+			afterSensitive:  true,
+			want:            `  ~ foo = (sensitive value)`,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			addr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+			change := &plans.OutputChange{
+				Addr:            addr,
+				Sensitive:       tc.beforeSensitive || tc.afterSensitive,
+				BeforeSensitive: tc.beforeSensitive,
+				AfterSensitive:  tc.afterSensitive,
+				Change: plans.Change{
+					Before: tc.before,
+					After:  tc.after,
+				},
+			}
+			changeSrc, err := change.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p := &plans.Plan{
+				Changes: &plans.Changes{
+					Outputs: []*plans.OutputChangeSrc{changeSrc},
+				},
+			}
+
+			outputs, _, _, _, err := jsonplan.MarshalForRenderer(p, &tofu.Schemas{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			renderer := Renderer{Colorize: color}
+			diffs := precomputeDiffs(Plan{OutputChanges: outputs}, plans.NormalMode)
+			got := renderHumanDiffOutputs(renderer, diffs.outputs)
+
+			if got != tc.want {
+				t.Errorf("wrong output\ngot:\n%s\nwant:\n%s\n", got, tc.want)
+			}
+		})
+	}
+}
+
 func outputChange(name string, before, after cty.Value, sensitive bool) *plans.OutputChangeSrc {
 	addr := addrs.AbsOutputValue{
 		OutputValue: addrs.OutputValue{Name: name},
