@@ -11,27 +11,46 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	ret := &resourceInstanceObject{
+		Addr:         inst.Addr.CurrentObject(),
+		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:     inst.Provider,
+
+		// We'll start off with a completely-unknown placeholder value, but
+		// we might refine this to be more specific as we learn more below.
+		PlaceholderValue: cty.DynamicVal,
+
+		// NOTE: PlannedChange remains nil until we actually produce a plan,
+		// so early returns with errors are not guaranteed to have a valid
+		// change object. Evaluation falls back on using PlaceholderValue
+		// when no planned change is present.
+	}
+	for dep := range inst.RequiredResourceInstances.All() {
+		ret.Dependencies.Add(dep.CurrentObject())
+	}
 
 	schema, _ := p.planCtx.providers.ResourceTypeSchema(ctx, inst.Provider, inst.Addr.Resource.Resource.Mode, inst.Addr.Resource.Resource.Type)
 	if schema == nil || schema.Block == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", inst.ProviderInstance, inst.Addr.Resource.Resource.Type))
-		return cty.NilVal, nil, diags
+		return ret, diags
 	}
 
 	if inst.ProviderInstance == nil {
 		// If we don't even know which provider instance we're supposed to be
 		// talking to then we'll just return a placeholder value, because
 		// we don't have any way to generate a speculative plan.
-		return cty.NilVal, nil, diags
+		return ret, diags
 	}
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
@@ -45,7 +64,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return cty.NilVal, nil, diags
+		return ret, diags
 	}
 
 	newVal, closeFunc, openDiags := shared.OpenEphemeralResourceInstance(
@@ -59,7 +78,7 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	)
 	diags = diags.Append(openDiags)
 	if openDiags.HasErrors() {
-		return cty.NilVal, nil, diags
+		return ret, diags
 	}
 
 	p.planCtx.closeStackMu.Lock()
@@ -96,8 +115,8 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	// really honest for this method to be named "plan" anymore, and should
 	// probably be called [planGlue.openDesiredEphemeralResourceInstance]
 	// instead and to no longer return an [execgraph.ResultRef] at all.
-	resultRef := p.ephemeralResourceInstanceExecSubgraph(ctx, inst, newVal, egb)
-	return newVal, resultRef, diags
+	ret.PlaceholderValue = newVal
+	return ret, diags
 }
 
 // ephemeralResourceInstanceExecSubgraph prepares what's needed to deal with

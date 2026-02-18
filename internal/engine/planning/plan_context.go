@@ -33,6 +33,7 @@ type planContext struct {
 	// an execution graph just to learn what's missing in that API in order
 	// for us to transition over to it properly.
 	plannedChanges   *plans.ChangesSync
+	resourceInstObjs *resourceInstanceObjects
 	execGraphBuilder *execGraphBuilder
 
 	// TODO: The following should probably track a reason why each resource
@@ -74,6 +75,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	return &planContext{
 		evalCtx:           evalCtx,
 		plannedChanges:    changes.SyncWrapper(),
+		resourceInstObjs:  newResourceInstanceObjects(),
 		execGraphBuilder:  execGraphBuilder,
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),

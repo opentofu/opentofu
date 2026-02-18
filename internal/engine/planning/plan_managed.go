@@ -13,7 +13,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -26,8 +25,8 @@ import (
 func (p *planGlue) planDesiredManagedResourceInstance(
 	ctx context.Context,
 	inst *eval.DesiredResourceInstance,
-	egb *execGraphBuilder,
-) (plannedVal cty.Value, applyResultRef execgraph.ResourceInstanceResultRef, diags tfdiags.Diagnostics) {
+) (ret *resourceInstanceObject, diags tfdiags.Diagnostics) {
+
 	// There are various reasons why we might need to defer final planning
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
@@ -36,8 +35,8 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		defer func() {
 			// Our result must be marked as deferred, whichever return path
 			// we leave through.
-			if plannedVal != cty.NilVal {
-				plannedVal = deferredVal(plannedVal)
+			if ret != nil && ret.PlannedChange.After != cty.NilVal {
+				ret.PlannedChange.After = deferredVal(ret.PlannedChange.After)
 			}
 		}()
 		// We intentionally continue anyway, because we'll make a best effort
@@ -45,6 +44,27 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// in case that allows us to detect a problem sooner. The important
 		// thing is that in the deferred case we won't actually propose any
 		// planned changes for this resource instance.
+	}
+
+	ret = &resourceInstanceObject{
+		Addr:         inst.Addr.CurrentObject(),
+		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:     inst.Provider,
+
+		// We'll start off with a completely-unknown placeholder value, but
+		// we might refine this to be more specific as we learn more below.
+		PlaceholderValue: cty.DynamicVal,
+
+		// NOTE: PlannedChange remains nil until we actually produce a plan,
+		// so early returns with errors are not guaranteed to have a valid
+		// change object. Evaluation falls back on using PlaceholderValue
+		// when no planned change is present.
+	}
+	for dep := range inst.RequiredResourceInstances.All() {
+		ret.Dependencies.Add(dep.CurrentObject())
+	}
+	if inst.CreateBeforeDestroy {
+		ret.ReplaceOrder = replaceCreateThenDestroy
 	}
 
 	evalCtx := p.oracle.EvalContext(ctx)
@@ -67,13 +87,13 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			),
 			nil, // this error belongs to the whole resource config
 		))
-		return cty.DynamicVal, nil, diags
+		return ret, diags
 	}
 
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
-		return cty.DynamicVal, nil, diags
+		return ret, diags
 	}
 
 	var prevRoundVal cty.Value
@@ -91,7 +111,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 				),
 				nil, // this error belongs to the whole resource config
 			))
-			return cty.DynamicVal, nil, diags
+			return ret, diags
 		}
 		prevRoundVal = obj.Value
 		prevRoundPrivate = obj.Private
@@ -118,9 +138,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	if inst.ProviderInstance == nil {
 		// If we don't even know which provider instance we're supposed to be
-		// talking to then we'll just return a placeholder value, because
-		// we don't have any way to generate a speculative plan.
-		return proposedNewVal, nil, diags
+		// talking to then we can't proceed any further, but we can at least
+		// improve our placeholder value based on what we learned from the
+		// configuration and prior state.
+		ret.PlaceholderValue = proposedNewVal
+		return ret, diags
 	}
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
@@ -134,7 +156,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return proposedNewVal, nil, diags
+		return ret, diags
 	}
 
 	// TODO: If inst.IgnoreChangesPaths has any entries then we need to
@@ -194,7 +216,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 	diags = diags.Append(planResp.Diagnostics)
 	if planResp.Diagnostics.HasErrors() {
-		return proposedNewVal, nil, diags
+		return ret, diags
 	}
 
 	// TODO: Check for resp.Deferred once we've updated package providers to
@@ -205,13 +227,16 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// proposed change for it.
 
 	if eq, _ := planResp.PlannedState.Equals(refreshedVal).Unmark(); !eq.IsKnown() || eq.True() {
-		// There is no change to make, so we can return early without adding
-		// anything to the graph at all. There will be items in the execgraph
-		// for this node only if some other resource instance or provider
-		// instance depends on our result, in which case an op to read the
-		// prior state should get implicitly added to the graph during the
-		// handling of that downstream thing.
-		return refreshedVal, execgraph.NilResultRef[*exec.ResourceInstanceObject](), diags
+		// There is no change to make, so we'll return early without actually
+		// recording any change. In this case our resource instance will be
+		// included in the execution graph only if some other resource instance
+		// depends on it, and even then only as a "read prior state" operation
+		// and no actual changes, so we'll set our placeholder to be the
+		// refreshed value to match what the prior state would contain during
+		// apply.
+		ret.PlaceholderValue = refreshedVal
+		ret.PlannedChange = nil
+		return ret, diags
 	}
 
 	plannedAction := plans.Update
@@ -226,7 +251,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	}
 	// (a "desired" object cannot have a Delete action; we handle those cases
 	// in planOrphanManagedResourceInstance and planDeposedManagedResourceInstanceObject below.)
-	plannedChange := &plans.ResourceInstanceChange{
+	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        inst.Addr,
 		PrevRunAddr: inst.Addr, // TODO: If we add "moved" support above then this must record the original address
 		ProviderAddr: addrs.AbsProviderConfig{
@@ -251,33 +276,15 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
 	}
-	plannedChangeSrc, err := plannedChange.Encode(schema.Block.ImpliedType())
-	if err != nil {
-		// TODO: Make a proper error diagnostic for this, like the original
-		// runtime does.
-		diags = diags.Append(err)
-		return planResp.PlannedState, nil, diags
-	}
-	p.planCtx.plannedChanges.AppendResourceInstanceChange(plannedChangeSrc)
 
-	finalResultRef := p.managedResourceInstanceExecSubgraph(
-		ctx,
-		plannedChange,
-		inst.ProviderInstance,
-		inst.RequiredResourceInstances,
-		egb,
-	)
-
-	// Our result value for ongoing downstream planning is the planned new state.
-	return planResp.PlannedState, finalResultRef, diags
+	return ret, diags
 }
 
 func (p *planGlue) planOrphanManagedResourceInstance(
 	ctx context.Context,
 	addr addrs.AbsResourceInstance,
 	stateSrc *states.ResourceInstanceObjectFullSrc,
-	egb *execGraphBuilder,
-) tfdiags.Diagnostics {
+) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// TODO: This currently has a lot of inline logic that's quite similar to
@@ -285,6 +292,25 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	// satisfied that this set of methods is feature-complete we should consider
 	// how to factor out as much of this logic as possible into shared functions
 	// so that this'll be easier to maintain in future as requirements change.
+
+	ret := &resourceInstanceObject{
+		Addr:         addr.CurrentObject(),
+		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:     stateSrc.ProviderInstanceAddr.Config.Config.Provider,
+
+		// Orphan objects are always planned for deletion, so we can assume
+		// the result will be always be some kind of null.
+		PlaceholderValue: cty.NullVal(cty.DynamicPseudoType),
+
+		// NOTE: PlannedChange remains nil until we actually produce a plan,
+		// so early returns with errors are not guaranteed to have a valid
+		// change object. Evaluation falls back on using PlaceholderValue
+		// when no planned change is present.
+	}
+	// TODO: Populate ret.Dependencies based on the dependencies in the state,
+	// but to do that we'll need to correlate the [addrs.ConfigResource]-based
+	// dependencies with the actual resource instance objects in the prior state
+	// to get a comprehensive set of everything we ought to depend on.
 
 	// TODO: Ask the planning oracle whether there are any "moved" blocks
 	// that begin at inst.Addr, and if so check whether the chain of moves
@@ -316,7 +342,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 			),
 			nil, // this error belongs to the whole resource config
 		))
-		return diags
+		return ret, diags
 	}
 
 	var prevRoundVal cty.Value
@@ -332,7 +358,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 			),
 			nil, // this error belongs to the whole resource config
 		))
-		return diags
+		return ret, diags
 	}
 	prevRoundVal = prevRoundState.Value
 	prevRoundPrivate = prevRoundState.Private
@@ -358,7 +384,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return diags
+		return ret, diags
 	}
 
 	// TODO: Call providerClient.ReadResource and update the "refreshed state"
@@ -369,7 +395,8 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	if refreshedVal.IsNull() {
 		// The orphan object seems to have already been deleted outside of
 		// OpenTofu, so we've got nothing more to do here.
-		return diags
+		ret.PlaceholderValue = refreshedVal
+		return ret, diags
 	}
 
 	newVal := cty.NullVal(schema.Block.ImpliedType())
@@ -396,7 +423,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	// we sent in Config, which was a null value and therefore the planned
 	// value must also be null.
 
-	plannedChange := &plans.ResourceInstanceChange{
+	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        addr,
 		PrevRunAddr: addr,
 		ProviderAddr: addrs.AbsProviderConfig{
@@ -424,34 +451,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
 	}
-	plannedChangeSrc, err := plannedChange.Encode(schema.Block.ImpliedType())
-	if err != nil {
-		// TODO: Make a proper error diagnostic for this, like the original
-		// runtime does.
-		diags = diags.Append(err)
-		return diags
-	}
-	p.planCtx.plannedChanges.AppendResourceInstanceChange(plannedChangeSrc)
-
-	// FIXME: Our state model currently tracks dependencies between whole
-	// resources rather than between individual instances of resources, so
-	// we can't actually populate the requiredResourceInstances argument
-	// correctly right now. To do that we'll need to update the state model
-	// to be able to track individual resource instances and introduce some
-	// shim behavior in the state decoder so that it'll automatically translate
-	// whole-resource dependencies into per-instance dependencies based on
-	// which instances are present for each resource in the whole previous run
-	// state snapshot.
-	var requiredResourceInstances addrs.Set[addrs.AbsResourceInstance]
-	p.managedResourceInstanceExecSubgraph(
-		ctx,
-		plannedChange,
-		&prevRoundState.ProviderInstanceAddr,
-		requiredResourceInstances,
-		egb,
-	)
-
-	return diags
+	return ret, diags
 }
 
 func (p *planGlue) planDeposedManagedResourceInstanceObject(
@@ -459,8 +459,7 @@ func (p *planGlue) planDeposedManagedResourceInstanceObject(
 	addr addrs.AbsResourceInstance,
 	deposedKey states.DeposedKey,
 	state *states.ResourceInstanceObjectFullSrc,
-	egb *execGraphBuilder,
-) tfdiags.Diagnostics {
+) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	// TODO: Implement
 	panic("unimplemented")
 }

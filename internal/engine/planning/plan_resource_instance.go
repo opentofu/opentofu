@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -40,9 +42,53 @@ type resourceInstanceObject struct {
 	// PlannedChange is the change that the planning engine has decided for
 	// this resource instance object.
 	//
-	// If no actual change is needed then this object should still be present
-	// but should have its change action set to [plans.NoOp].
+	// If no actual change is needed then this object should not be present,
+	// and the effective result value should be placed in the PlaceholderValue
+	// field. Objects without a planned change are included in the execution
+	// graph only if a planned change for another object refers to them, and
+	// in that case only as a read from the prior state, and so PlaceholderValue
+	// should represent what would be read from the prior state during apply.
+	//
+	// If the planned action is to "replace" (for managed resource instance
+	// objects) and the ReplaceOrder field is set to [replaceAnyOrder] then
+	// the planned action can be set to either [plans.DestroyThenCreate] or
+	// [plans.CreateThenDestroy] and then will be overridden once the
+	// replace order has been finalized in subsequent analysis. If ReplaceOrder
+	// is set to a specific value then the planned change's action must
+	// immediately agree with the selected order.
+	// TODO: As we consider adjusting the plan model to better suit this new
+	// runtime, hopefully we can have the plan action initially set to just
+	// a generic "replace" and then let ReplaceOrder alone specify which order
+	// to use, so that we can avoid this redundancy.
 	PlannedChange *plans.ResourceInstanceChange
+
+	// PlaceholderValue is the value that should be used to satisfy references
+	// to this object in expressions elsewhere in the configuration when
+	// the PlannedChange field contains a nil change.
+	//
+	// This MUST Be set to a valid value unless the PlannedChange field is
+	// populated. If PlannedChange is populated then this field is completely
+	// ignored.
+	//
+	// The placeholder value is a conservative approximation of what we know
+	// should definitely match a hypothetical successful plan for this object,
+	// so that downstream references can still be typechecked even when
+	// their upstreams could not complete planning. This allows us to give as
+	// much information as possible about an invalid configuration, but that
+	// relies on the placeholder having unknown values in any position where
+	// we cannot predict the final result. If we don't know anything at all
+	// about the final result then it's valid to use [cty.DynamicVal] here.
+	PlaceholderValue cty.Value
+
+	// Provider is the address of the provider the resource type of this
+	// object belongs to, and thus the provider whose schema we must use
+	// when interpreting the old, new, or placeholder values for this object.
+	//
+	// This must always be populated, even if we don't know exactly which
+	// instance of this provider is responsible for it. If PlannedChange is
+	// also populated then the provider instance recorded as being responsible
+	// for the change must belong to the same provider recorded here.
+	Provider addrs.Provider
 
 	// ReplaceOrder specifies what order the create and destroy steps of a
 	// "replace" must happen in for this object.
@@ -81,6 +127,26 @@ type resourceInstanceObject struct {
 	// the configuration. We assume that the dependencies recorded in the state
 	// match what was declared in an earlier version of the configuration.
 	Dependencies addrs.Set[addrs.AbsResourceInstanceObject]
+}
+
+// ResultValue returns the value that should be sent to the evaluator for
+// use in resolving downstream expressions that refer to this resource instance
+// object.
+//
+// If the PlannedChange field is populated then this returns its "After" value.
+//
+// Otherwise, this returns PlaceholderValue so that downstream planning can
+// potentially still proceed based on partial information.
+func (rio *resourceInstanceObject) ResultValue() cty.Value {
+	if rio.PlannedChange != nil {
+		return rio.PlannedChange.After
+	}
+	if rio.PlaceholderValue != cty.NilVal {
+		return rio.PlaceholderValue
+	}
+	// We should not get here for correctly-constructed objects, but for
+	// robustness we'll use cty.DynamicVal as the ultimate placeholder.
+	return cty.DynamicVal
 }
 
 // resourceInstanceObjects is conceptually a map from
