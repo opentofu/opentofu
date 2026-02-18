@@ -688,12 +688,12 @@ type Change struct {
 	// before the plan is executed.
 	// Only relevant for managed resources, not outputs.
 	BeforeIdentity *DynamicValue `protobuf:"bytes,7,opt,name=before_identity,json=beforeIdentity,proto3" json:"before_identity,omitempty"`
-	// PlannedIdentity is the identity value returned by the provider during
+	// AfterIdentity is the identity value returned by the provider during
 	// planning. This is used to pass identity data through to the apply phase.
 	// Only relevant for managed resources, not outputs.
-	PlannedIdentity *DynamicValue `protobuf:"bytes,8,opt,name=planned_identity,json=plannedIdentity,proto3" json:"planned_identity,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	AfterIdentity *DynamicValue `protobuf:"bytes,8,opt,name=after_identity,json=afterIdentity,proto3" json:"after_identity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Change) Reset() {
@@ -775,9 +775,9 @@ func (x *Change) GetBeforeIdentity() *DynamicValue {
 	return nil
 }
 
-func (x *Change) GetPlannedIdentity() *DynamicValue {
+func (x *Change) GetAfterIdentity() *DynamicValue {
 	if x != nil {
-		return x.PlannedIdentity
+		return x.AfterIdentity
 	}
 	return nil
 }
@@ -1436,7 +1436,7 @@ const file_planfile_proto_rawDesc = "" +
 	"\aBackend\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12,\n" +
 	"\x06config\x18\x02 \x01(\v2\x14.tfplan.DynamicValueR\x06config\x12\x1c\n" +
-	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\xc0\x03\n" +
+	"\tworkspace\x18\x03 \x01(\tR\tworkspace\"\xbc\x03\n" +
 	"\x06Change\x12&\n" +
 	"\x06action\x18\x01 \x01(\x0e2\x0e.tfplan.ActionR\x06action\x12,\n" +
 	"\x06values\x18\x02 \x03(\v2\x14.tfplan.DynamicValueR\x06values\x12B\n" +
@@ -1444,8 +1444,8 @@ const file_planfile_proto_rawDesc = "" +
 	"\x15after_sensitive_paths\x18\x04 \x03(\v2\f.tfplan.PathR\x13afterSensitivePaths\x12/\n" +
 	"\timporting\x18\x05 \x01(\v2\x11.tfplan.ImportingR\timporting\x12)\n" +
 	"\x10generated_config\x18\x06 \x01(\tR\x0fgeneratedConfig\x12=\n" +
-	"\x0fbefore_identity\x18\a \x01(\v2\x14.tfplan.DynamicValueR\x0ebeforeIdentity\x12?\n" +
-	"\x10planned_identity\x18\b \x01(\v2\x14.tfplan.DynamicValueR\x0fplannedIdentity\"\xd3\x02\n" +
+	"\x0fbefore_identity\x18\a \x01(\v2\x14.tfplan.DynamicValueR\x0ebeforeIdentity\x12;\n" +
+	"\x0eafter_identity\x18\b \x01(\v2\x14.tfplan.DynamicValueR\rafterIdentity\"\xd3\x02\n" +
 	"\x16ResourceInstanceChange\x12\x12\n" +
 	"\x04addr\x18\r \x01(\tR\x04addr\x12\"\n" +
 	"\rprev_run_addr\x18\x0e \x01(\tR\vprevRunAddr\x12\x1f\n" +
@@ -1588,7 +1588,7 @@ var file_planfile_proto_depIdxs = []int32{
 	12, // 12: tfplan.Change.after_sensitive_paths:type_name -> tfplan.Path
 	13, // 13: tfplan.Change.importing:type_name -> tfplan.Importing
 	11, // 14: tfplan.Change.before_identity:type_name -> tfplan.DynamicValue
-	11, // 15: tfplan.Change.planned_identity:type_name -> tfplan.DynamicValue
+	11, // 15: tfplan.Change.after_identity:type_name -> tfplan.DynamicValue
 	7,  // 16: tfplan.ResourceInstanceChange.change:type_name -> tfplan.Change
 	12, // 17: tfplan.ResourceInstanceChange.required_replace:type_name -> tfplan.Path
 	2,  // 18: tfplan.ResourceInstanceChange.action_reason:type_name -> tfplan.ResourceInstanceActionReason

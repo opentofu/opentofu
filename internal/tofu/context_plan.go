@@ -1056,11 +1056,11 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 					PrevRunAddr:  prevRunAddr,
 					ProviderAddr: rs.ProviderConfig,
 					Change: plans.Change{
-						Action:          action,
-						Before:          oldVal,
-						After:           newVal,
-						BeforeIdentity:  oldObj.Identity,
-						PlannedIdentity: newObjIdentity,
+						Action:         action,
+						Before:         oldVal,
+						After:          newVal,
+						BeforeIdentity: oldObj.Identity,
+						AfterIdentity:  newObjIdentity,
 					},
 				}
 

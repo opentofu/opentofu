@@ -130,7 +130,7 @@ func (rcs *ResourceInstanceChangeSrc) DeepCopy() *ResourceInstanceChangeSrc {
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
 	ret.ChangeSrc.BeforeIdentity = ret.ChangeSrc.BeforeIdentity.Copy()
-	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
+	ret.ChangeSrc.AfterIdentity = ret.ChangeSrc.AfterIdentity.Copy()
 
 	if ret.ChangeSrc.Importing != nil {
 		importing := *ret.ChangeSrc.Importing
@@ -195,7 +195,7 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
 	ret.ChangeSrc.BeforeIdentity = ret.ChangeSrc.BeforeIdentity.Copy()
-	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
+	ret.ChangeSrc.AfterIdentity = ret.ChangeSrc.AfterIdentity.Copy()
 
 	if ret.ChangeSrc.Importing != nil {
 		importing := *ret.ChangeSrc.Importing
@@ -281,9 +281,9 @@ type ChangeSrc struct {
 	// before the plan is executed.
 	BeforeIdentity DynamicValue
 
-	// PlannedIdentity is the serialized identity value returned by the provider
+	// AfterIdentity is the serialized identity value returned by the provider
 	// during planning. Only relevant for managed resources, not outputs.
-	PlannedIdentity DynamicValue
+	AfterIdentity DynamicValue
 }
 
 // Decode unmarshals the raw representations of the before and after values
@@ -346,17 +346,17 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 	}
 
 	plannedIdentity := cty.NullVal(cty.DynamicPseudoType)
-	if len(cs.PlannedIdentity) > 0 {
+	if len(cs.AfterIdentity) > 0 {
 		var identityTy cty.Type
 		if schema != nil && schema.IdentitySchema != nil {
 			identityTy = schema.IdentitySchema.ImpliedType()
 		} else {
-			identityTy, err = cs.PlannedIdentity.ImpliedType()
+			identityTy, err = cs.AfterIdentity.ImpliedType()
 			if err != nil {
 				return nil, fmt.Errorf("error determining planned identity type: %w", err)
 			}
 		}
-		plannedIdentity, err = cs.PlannedIdentity.Decode(identityTy)
+		plannedIdentity, err = cs.AfterIdentity.Decode(identityTy)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding planned identity value: %w", err)
 		}
@@ -386,6 +386,6 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 		Importing:       importing,
 		GeneratedConfig: cs.GeneratedConfig,
 		BeforeIdentity:  beforeIdentity,
-		PlannedIdentity: plannedIdentity,
+		AfterIdentity:   plannedIdentity,
 	}, nil
 }

@@ -335,7 +335,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
 					BeforeIdentity:  rc.BeforeIdentity,
-					PlannedIdentity: cty.NullVal(rc.PlannedIdentity.Type()),
+					AfterIdentity:   cty.NullVal(rc.AfterIdentity.Type()),
 				},
 			}
 		default:
@@ -351,7 +351,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
 					BeforeIdentity:  rc.BeforeIdentity,
-					PlannedIdentity: rc.PlannedIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -370,7 +370,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
 					BeforeIdentity:  rc.BeforeIdentity,
-					PlannedIdentity: rc.PlannedIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
@@ -386,7 +386,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
 					BeforeIdentity:  cty.NullVal(rc.BeforeIdentity.Type()),
-					PlannedIdentity: rc.PlannedIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -598,10 +598,10 @@ type Change struct {
 	// Only relevant for managed resources, not outputs.
 	BeforeIdentity cty.Value
 
-	// PlannedIdentity is the identity value returned by the provider during
+	// AfterIdentity is the identity value returned by the provider during
 	// planning. This is used to pass identity data through to the apply phase.
 	// Only relevant for managed resources, not outputs.
-	PlannedIdentity cty.Value
+	AfterIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -676,13 +676,13 @@ func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
 		}
 	}
 
-	var plannedIdentityDV DynamicValue
-	if c.PlannedIdentity != cty.NilVal && !c.PlannedIdentity.IsNull() {
-		identityTy := c.PlannedIdentity.Type()
+	var afterIdentityDV DynamicValue
+	if c.AfterIdentity != cty.NilVal && !c.AfterIdentity.IsNull() {
+		identityTy := c.AfterIdentity.Type()
 		if schema != nil && schema.IdentitySchema != nil {
 			identityTy = schema.IdentitySchema.ImpliedType()
 		}
-		plannedIdentityDV, err = NewDynamicValue(c.PlannedIdentity, identityTy)
+		afterIdentityDV, err = NewDynamicValue(c.AfterIdentity, identityTy)
 		if err != nil {
 			return nil, err
 		}
@@ -697,6 +697,6 @@ func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
 		Importing:       importing,
 		GeneratedConfig: c.GeneratedConfig,
 		BeforeIdentity:  beforeIdentityDV,
-		PlannedIdentity: plannedIdentityDV,
+		AfterIdentity:   afterIdentityDV,
 	}, nil
 }
