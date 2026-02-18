@@ -481,6 +481,14 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
 
+	if rawChange.BeforeIdentity != nil {
+		beforeIdentity, err := valueFromTfplan(rawChange.BeforeIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid before identity value: %w", err)
+		}
+		ret.BeforeIdentity = beforeIdentity
+	}
+
 	if rawChange.PlannedIdentity != nil {
 		plannedIdentity, err := valueFromTfplan(rawChange.PlannedIdentity)
 		if err != nil {
@@ -857,6 +865,10 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 		}
 	}
 	ret.GeneratedConfig = change.GeneratedConfig
+
+	if len(change.BeforeIdentity) > 0 {
+		ret.BeforeIdentity = valueToTfplan(change.BeforeIdentity)
+	}
 
 	if len(change.PlannedIdentity) > 0 {
 		ret.PlannedIdentity = valueToTfplan(change.PlannedIdentity)

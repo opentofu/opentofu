@@ -129,6 +129,7 @@ func (rcs *ResourceInstanceChangeSrc) DeepCopy() *ResourceInstanceChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.BeforeIdentity = ret.ChangeSrc.BeforeIdentity.Copy()
 	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
 
 	if ret.ChangeSrc.Importing != nil {
@@ -193,6 +194,7 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.BeforeIdentity = ret.ChangeSrc.BeforeIdentity.Copy()
 	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
 
 	if ret.ChangeSrc.Importing != nil {
@@ -275,6 +277,10 @@ type ChangeSrc struct {
 	// config.
 	GeneratedConfig string
 
+	// BeforeIdentity is the identity value from the known state of the resource instance
+	// before the plan is executed.
+	BeforeIdentity DynamicValue
+
 	// PlannedIdentity is the serialized identity value returned by the provider
 	// during planning. Only relevant for managed resources, not outputs.
 	PlannedIdentity DynamicValue
@@ -356,12 +362,30 @@ func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
 		}
 	}
 
+	beforeIdentity := cty.NullVal(cty.DynamicPseudoType)
+	if len(cs.BeforeIdentity) > 0 {
+		var identityTy cty.Type
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		} else {
+			identityTy, err = cs.BeforeIdentity.ImpliedType()
+			if err != nil {
+				return nil, fmt.Errorf("error determining before identity type: %w", err)
+			}
+		}
+		beforeIdentity, err = cs.BeforeIdentity.Decode(identityTy)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding before identity value: %w", err)
+		}
+	}
+
 	return &Change{
 		Action:          cs.Action,
 		Before:          before.MarkWithPaths(cs.BeforeValMarks),
 		After:           after.MarkWithPaths(cs.AfterValMarks),
 		Importing:       importing,
 		GeneratedConfig: cs.GeneratedConfig,
+		BeforeIdentity:  beforeIdentity,
 		PlannedIdentity: plannedIdentity,
 	}, nil
 }

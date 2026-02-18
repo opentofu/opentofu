@@ -184,10 +184,15 @@ message Change {
     // the change, as an HCL string.
     string generated_config = 6;
 
+    // BeforeIdentity is the identity value from the known state of the resource instance
+    // before the plan is executed.
+    // Only relevant for managed resources, not outputs.
+    DynamicValue before_identity = 7;
+
     // PlannedIdentity is the identity value returned by the provider during
     // planning. This is used to pass identity data through to the apply phase.
     // Only relevant for managed resources, not outputs.
-    DynamicValue planned_identity = 7;
+    DynamicValue planned_identity = 8;
 }
 
 // ResourceInstanceActionReason sometimes provides some additional user-facing

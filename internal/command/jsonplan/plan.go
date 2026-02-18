@@ -149,6 +149,9 @@ type Change struct {
 	// might change in the future. However, not all Importing changes will
 	// contain generated config.
 	GeneratedConfig string `json:"generated_config,omitempty"`
+
+	BeforeIdentity json.RawMessage `json:"before_identity,omitempty"`
+	AfterIdentity  json.RawMessage `json:"after_identity,omitempty"`
 }
 
 // Importing is a nested object for the resource import metadata.
@@ -520,7 +523,20 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 				}
 				importing.Identity = identityJSON
 			}
+		}
 
+		var beforeIdentity, afterIdentity []byte
+		if changeV.BeforeIdentity != cty.NilVal && !changeV.BeforeIdentity.IsNull() {
+			beforeIdentity, err = ctyjson.Marshal(changeV.BeforeIdentity, changeV.BeforeIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
+		}
+		if changeV.PlannedIdentity != cty.NilVal && !changeV.PlannedIdentity.IsNull() {
+			afterIdentity, err = ctyjson.Marshal(changeV.PlannedIdentity, changeV.PlannedIdentity.Type())
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		r.Change = Change{
@@ -533,6 +549,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			ReplacePaths:    replacePaths,
 			Importing:       importing,
 			GeneratedConfig: rc.GeneratedConfig,
+			BeforeIdentity:  json.RawMessage(beforeIdentity),
+			AfterIdentity:   json.RawMessage(afterIdentity),
 		}
 
 		if rc.DeposedKey != states.NotDeposed {

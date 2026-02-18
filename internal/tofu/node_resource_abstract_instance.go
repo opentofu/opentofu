@@ -786,9 +786,10 @@ func (n *NodeAbstractResourceInstance) planForget(_ context.Context, evalCtx Eva
 		PrevRunAddr: n.prevRunAddr(evalCtx),
 		DeposedKey:  deposedKey,
 		Change: plans.Change{
-			Action: plans.Forget,
-			Before: currentState.Value,
-			After:  nullVal,
+			Action:         plans.Forget,
+			Before:         currentState.Value,
+			After:          nullVal,
+			BeforeIdentity: currentState.Identity,
 		},
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 	}
@@ -895,6 +896,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 			Before:          currentState.Value,
 			After:           nullVal,
 			PlannedIdentity: resp.PlannedIdentity,
+			BeforeIdentity:  currentState.Identity,
 		},
 		Private:      resp.PlannedPrivate,
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
@@ -1581,6 +1583,7 @@ func (n *NodeAbstractResourceInstance) plan(
 			action = plans.DeleteThenCreate
 		}
 		priorVal = priorValTainted
+		priorIdentity = currentState.Identity
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
@@ -1643,6 +1646,7 @@ func (n *NodeAbstractResourceInstance) plan(
 			// Marks will be removed when encoding.
 			After:           plannedNewVal,
 			GeneratedConfig: n.generatedConfigHCL,
+			BeforeIdentity:  priorIdentity,
 			PlannedIdentity: plannedIdentity,
 		},
 		ActionReason:    actionReason,
