@@ -2683,6 +2683,86 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
+	addr := mustResourceInstanceAddr("ephemeral.test_object.a")
+
+	// The configuration, the prior state, and the refresh result intentionally
+	// have different values for "test_string" so we can observe that the
+	// refresh took effect but the configuration change wasn't considered.
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			ephemeral "test_object" "a" {
+				arg = "after"
+			}
+		`,
+	})
+	state := states.NewState()
+
+	p := simpleMockProvider()
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{Block: simpleTestSchema()},
+		EphemeralResources: map[string]providers.Schema{
+			"test_object": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"arg": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
+	}
+	p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+		newVal, err := cty.Transform(req.Config, func(path cty.Path, v cty.Value) (cty.Value, error) {
+			if len(path) == 1 && path[0] == (cty.GetAttrStep{Name: "arg"}) {
+				return cty.StringVal("current"), nil
+			}
+			return v, nil
+		})
+		if err != nil {
+			// shouldn't get here
+			t.Fatalf("OpenResourceFn transform failed")
+			return providers.OpenEphemeralResourceResponse{}
+		}
+		return providers.OpenEphemeralResourceResponse{
+			Result: newVal,
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.RefreshOnlyMode,
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+
+	if !p.OpenEphemeralResourceCalled {
+		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
+	}
+
+	if got, want := len(plan.Changes.Resources), 1; got != want {
+		t.Fatalf("expected to have exactly %d resource but got %d", want, got)
+	}
+	if gotResAddr := plan.Changes.Resources[0].Addr; !gotResAddr.Equal(addr) {
+		t.Errorf("plan contains one resource and that's NOT an ephemeral as expected; instead, got %s", gotResAddr)
+	}
+
+	if instState := plan.PlannedState.ResourceInstance(addr); instState == nil {
+		t.Errorf("%s has no planned state, but it should have since it's needed to build the apply graph correctly", addr)
+	} else {
+		want := `{"arg":"current"}`
+		got := string(instState.Current.AttrsJSON)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected attributes for the planned ephemeral:\n%s", diff)
+		}
+	}
+}
+
 func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	deposedKey := states.DeposedKey("byebye")
