@@ -165,18 +165,16 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 			detail.String(),
 		))
 	}
-	// TODO: Use effectiveReplaceOrders as part of building the execution graph
-	// and planned changes.
-	_ = effectiveReplaceOrders
 
-	changes := plans.NewChanges().SyncWrapper()
+	changes, moreDiags := buildPlanChanges(ctx,
+		intermediate.ResourceInstanceObjects,
+		effectiveReplaceOrders,
+		providers,
+	)
+	diags = diags.Append(moreDiags)
+
 	egb := newExecGraphBuilder()
-
-	// TODO: Actually populate the changes and execution graph.
-
-	// TODO: Use the reverse dependency information in the resource instance
-	// object graph to add correct waiter information to any ManagedApply
-	// operations that perform delete actions.
+	// TODO: Actually populate the execution graph.
 
 	execGraph := egb.Finish()
 	if logging.IsDebugOrHigher() {
@@ -188,7 +186,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 
 	return &plans.Plan{
 		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
-		Changes:      changes.Close(),
+		Changes:      changes,
 		PrevRunState: intermediate.PrevRoundState,
 		PriorState:   intermediate.RefreshedState,
 		// TODO: various other fields that we need to actually make use
@@ -202,4 +200,53 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		// the CLI layer is still working in terms of [plans.Plan].
 		ExecutionGraph: execGraph.Marshal(),
 	}, diags
+}
+
+func buildPlanChanges(
+	ctx context.Context,
+	objs *resourceInstanceObjects,
+	effectiveReplaceOrders addrs.Map[addrs.AbsResourceInstanceObject, resourceInstanceReplaceOrder],
+	providers plugins.Providers,
+) (*plans.Changes, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	changes := plans.NewChanges().SyncWrapper()
+
+	for addr, obj := range objs.All() {
+		change := obj.PlannedChange
+		if change == nil {
+			// We're only interested in the subset of objects that actually
+			// have planned changes.
+			continue
+		}
+
+		schema, moreDiags := providers.ResourceTypeSchema(ctx,
+			obj.Provider,
+			obj.Addr.InstanceAddr.Resource.Resource.Mode,
+			obj.Addr.InstanceAddr.Resource.Resource.Type,
+		)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			continue // can't encode a change without a schema
+		}
+
+		changeSrc, err := change.Encode(schema.Block.ImpliedType())
+		if err != nil {
+			// TODO: Make this a proper diagnostic, since this can potentially
+			// be user-facing if the provider returned something that's somehow
+			// invalid. (That can only happen for built-in providers, because
+			// for plugin-based providers we would already have used the schema
+			// to decode the wire representation of this object.)
+			diags = diags.Append(err)
+			continue
+		}
+		if changeSrc.Action.IsReplace() {
+			// We substitute the final effective change action now, to describe
+			// the change accurately to the end-user.
+			changeSrc.Action = effectiveReplaceOrders.Get(addr).ChangeAction()
+		}
+
+		changes.AppendResourceInstanceChange(changeSrc)
+	}
+
+	return changes.Close(), diags
 }
