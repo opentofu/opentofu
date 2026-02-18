@@ -384,23 +384,32 @@ func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, p
 
 	// If the graph builder and graph nodes correctly obeyed our directive
 	// to refresh only, the set of resource changes should always be empty.
+	// The only exception is Open action which will always be present for
+	// ephemeral resources and can be safely ignored here.
 	// We'll safety-check that here so we can return a clear message about it,
 	// rather than probably just generating confusing output at the UI layer.
-	if len(plan.Changes.Resources) != 0 {
-		// Some extra context in the logs in case the user reports this message
-		// as a bug, as a starting point for debugging.
+	if pendingChanges := len(plan.Changes.Resources) ; pendingChanges != 0 {
 		for _, rc := range plan.Changes.Resources {
-			if depKey := rc.DeposedKey; depKey == states.NotDeposed {
+			// We ignore Open actions which are specific to ephemeral resources.
+			// A configuration containing ephemeral resources will always have changes planned,
+			// but if there is no other change recorded, there is no need to report them.
+			if rc.Action == plans.Open {
+				pendingChanges--
+			} else if depKey := rc.DeposedKey; depKey == states.NotDeposed {
+			// Some extra context in the logs in case the user reports this message
+			// as a bug, as a starting point for debugging.
 				log.Printf("[DEBUG] Refresh-only plan includes %s change for %s", rc.Action, rc.Addr)
 			} else {
 				log.Printf("[DEBUG] Refresh-only plan includes %s change for %s deposed object %s", rc.Action, rc.Addr, depKey)
 			}
 		}
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid refresh-only plan",
-			"OpenTofu generated planned resource changes in a refresh-only plan. This is a bug in OpenTofu.",
-		))
+		if pendingChanges != 0 {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid refresh-only plan",
+				"OpenTofu generated planned resource changes in a refresh-only plan. This is a bug in OpenTofu.",
+			))
+		}
 	}
 
 	// We don't populate RelevantResources for a refresh-only plan, because
