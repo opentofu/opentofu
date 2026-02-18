@@ -8,10 +8,12 @@ package planning
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -21,31 +23,6 @@ import (
 // of the previous plan/apply round and an instantiated configuration (bound
 // to some input variable definitions) and returning a plan containing a set of
 // proposed actions.
-//
-// This is currently really just a placeholder to demonstrate the role that the
-// functionality in lang/eval might play in a planning process and what other
-// work would need to happen in a planning engine that is beyond the scope
-// of lang/eval. For now then it's just using our existing models of state
-// and plan, but our larger ambitions also involve some other changes that
-// would likely cause the signature here to change significantly:
-//
-//   - We're considering changing the apply phase implementation to just be a
-//     walk of an execution graph calculated during the planning phase, which
-//     implies that the "plan" model would need to change significantly to
-//     be able to directly represent that graph, whereas the current model only
-//     _implies_ that graph at a high level while expecting the apply phase
-//     itself to construct the finalized graph.
-//   - We're considering switching from a "state snapshot" model to a more
-//     granular model where we request individual objects from the state storage
-//     as needed, in which case we'd likely change our usage pattern so that
-//     the planning phase is able to create a "provider-like" live object that
-//     offers an API for fetching items from the state as needed, rather than
-//     the current pure-data snapshot representation.
-//
-// Therefore readers of this code should focus mainly on the inner
-// implementation of how it decides what to plan and how to plan it, and less
-// on where it gets the information to make those decisions and how it
-// represents those decisions in its return value.
 func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *eval.ConfigInstance, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -66,8 +43,7 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 	// If this completes without returning any error diagnostics then
 	// planCtx.resourceInstObjs should accurately represent the relationships
 	// between all of the "current" resource instance objects we found, but
-	// the planned changes and execution graph will be populated only later when
-	// we've performed a little more analysis based on that collection.
+	// we won't discover any deposed objects until the next step below.
 	evalResult, moreDiags := configInst.DrivePlanning(ctx, func(oracle *eval.PlanningOracle) eval.PlanGlue {
 		return &planGlue{
 			planCtx: planCtx,
@@ -80,9 +56,12 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		// here but we'll still produce a best-effort [plans.Plan] describing
 		// the situation because that often gives useful information for debugging
 		// what caused the errors.
-		plan, moreDiags := planCtx.Close(ctx)
+		intermediate, moreDiags := planCtx.Close(ctx)
+		diags = diags.Append(moreDiags)
+		plan, moreDiags := finalizePlan(ctx, intermediate, providers)
+		diags = diags.Append(moreDiags)
 		plan.Errored = true
-		return plan, diags.Append(moreDiags)
+		return plan, diags
 	}
 	if evalResult == nil {
 		// This should not happen: we should always have an evalResult if
@@ -134,14 +113,59 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 		}
 	}
 
-	// TODO: Use the information in planCtx.resourceInstObjs to produce the
-	// execution graph and the final set of planned changes to report to the
-	// end-user.
-
-	plan, moreDiags := planCtx.Close(ctx)
+	// TODO: Consider factoring most of the work we've done here into a single
+	// function that directly returns the "intermediate" object. Exposing
+	// planCtx as a mutable object in this function doesn't seem necessary
+	// anymore since we only actually care about the results from Close here.
+	intermediate, moreDiags := planCtx.Close(ctx)
+	diags = diags.Append(moreDiags)
+	plan, moreDiags := finalizePlan(ctx, intermediate, providers)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		plan.Errored = true
 	}
 	return plan, diags
+}
+
+func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// TODO: Calculate the effective [resourceInstanceReplaceOrder] for each
+	// resource instance object based on its neighbors in the graph, and
+	// then use that to decide what replace order to use for each resource
+	// instance.
+
+	changes := plans.NewChanges().SyncWrapper()
+	egb := newExecGraphBuilder()
+
+	// TODO: Actually populate the changes and execution graph.
+
+	// TODO: Use the reverse dependency information in the resource instance
+	// object graph to add correct waiter information to any ManagedApply
+	// operations that perform delete actions.
+
+	execGraph := egb.Finish()
+	if logging.IsDebugOrHigher() {
+		// FIXME: This can potentially contain sensitive values from the
+		// configuration, so we should either remove this or change the
+		// value representation to include sensitive value redactions.
+		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
+	}
+
+	return &plans.Plan{
+		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
+		Changes:      changes.Close(),
+		PrevRunState: intermediate.PrevRoundState,
+		PriorState:   intermediate.RefreshedState,
+		// TODO: various other fields that we need to actually make use
+		// of this plan result. But this is intentionally just a partial
+		// result for now because it's not clear that we'd even be using
+		// plans.Plan in a final version of this new approach.
+
+		// This is a special extra field used only by this new runtime,
+		// as a probably-temporary place to keep the serialized execution
+		// graph so we can round-trip it through saved plan files while
+		// the CLI layer is still working in terms of [plans.Plan].
+		ExecutionGraph: execGraph.Marshal(),
+	}, diags
 }
