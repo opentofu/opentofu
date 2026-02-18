@@ -4,6 +4,7 @@ The v1.11.x release series is supported until **August 1 2026**.
 BUG FIXES:
 
 * Running `tofu apply -refresh-only` with a configuration that contains ephemeral resources does not fail anymore because the refresh produced changes ([#3776](https://github.com/opentofu/opentofu/issues/3776))
+* Fixed `tofu init` crashing when a module `version` uses a variable and the module is referenced from a test file. ([#3686](https://github.com/opentofu/opentofu/issues/3686))
 
 ## 1.11.5
 
