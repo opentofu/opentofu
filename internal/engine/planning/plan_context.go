@@ -7,15 +7,12 @@ package planning
 
 import (
 	"context"
-	"log"
 	"slices"
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -27,14 +24,13 @@ import (
 type planContext struct {
 	evalCtx *eval.EvalContext
 
-	// Currently we have an odd blend of old and new here as we start to
-	// introduce the new "execgraph" concept. So far we're still _mainly_
-	// using the plannedChanges field but we're also experimentally populating
-	// an execution graph just to learn what's missing in that API in order
-	// for us to transition over to it properly.
-	plannedChanges   *plans.ChangesSync
+	// resourceInstObjs is where we gradually construct our intermediate
+	// representation of the graph of resource instance objects.
+	//
+	// This gets modified by methods of [planGlue] gradually as we learn of
+	// new resource instance objects. Use [planContext.Close] after the
+	// work is complete to obtain the finalized object.
 	resourceInstObjs *resourceInstanceObjects
-	execGraphBuilder *execGraphBuilder
 
 	// TODO: The following should probably track a reason why each resource
 	// instance was deferred, but since deferral is not the focus of this
@@ -67,16 +63,11 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 	if prevRoundState == nil {
 		prevRoundState = states.NewState()
 	}
-	changes := plans.NewChanges()
 	refreshedState := prevRoundState.DeepCopy()
-
-	execGraphBuilder := newExecGraphBuilder()
 
 	return &planContext{
 		evalCtx:           evalCtx,
-		plannedChanges:    changes.SyncWrapper(),
 		resourceInstObjs:  newResourceInstanceObjects(),
-		execGraphBuilder:  execGraphBuilder,
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),
 		providerInstances: newProviderInstances(),
@@ -89,41 +80,28 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 //
 // After calling this function the [planContext] object is invalid and must
 // not be used anymore.
-func (p *planContext) Close(ctx context.Context) (*plans.Plan, tfdiags.Diagnostics) {
+func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// We'll freeze the execution graph into a serialized form here, so that
-	// we can recover an equivalent execution graph again during the apply
-	// phase.
-	execGraph := p.execGraphBuilder.Finish()
-	if logging.IsDebugOrHigher() {
-		log.Println("[DEBUG] Planned execution graph:\n" + logging.Indent(execGraph.DebugRepr()))
-	}
-
 	p.closeStackMu.Lock()
-	defer p.closeStackMu.Unlock()
-
 	slices.Reverse(p.closeStack)
 	for _, closer := range p.closeStack {
 		diags = diags.Append(closer(ctx))
 	}
+	p.closeStackMu.Unlock()
 
-	execGraphOpaque := execGraph.Marshal()
-
-	return &plans.Plan{
-		UIMode:       plans.NormalMode, // TODO: [PlanChanges] needs something analogous to [tofu.PlanOpts] for planning mode/options
-		Changes:      p.plannedChanges.Close(),
-		PrevRunState: p.prevRoundState,
-		PriorState:   p.refreshedState.Close(),
-		// TODO: various other fields that we need to actually make use
-		// of this plan result. But this is intentionally just a partial
-		// result for now because it's not clear that we'd even be using
-		// plans.Plan in a final version of this new approach.
-
-		// This is a special extra field used only by this new runtime,
-		// as a probably-temporary place to keep the serialized execution
-		// graph so we can round-trip it through saved plan files while
-		// the CLI layer is still working in terms of [plans.Plan].
-		ExecutionGraph: execGraphOpaque,
+	return &planContextResult{
+		ResourceInstanceObjects: p.resourceInstObjs,
+		PrevRoundState:          p.prevRoundState,
+		RefreshedState:          p.refreshedState.Close(),
 	}, diags
+}
+
+// planContextResult collects together the intermediate results produced by
+// [planContext], ready to be used by the next pass of the planning engine
+// to produce the finalized changes and execution graph.
+type planContextResult struct {
+	ResourceInstanceObjects *resourceInstanceObjects
+	PrevRoundState          *states.State
+	RefreshedState          *states.State
 }
