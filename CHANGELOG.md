@@ -35,6 +35,7 @@ BUG FIXES:
 - OpenTofu consistently sends "null" to external `key_provider` programs when only encryption key is requested ([#3672](https://github.com/opentofu/opentofu/pull/3672))
 - The `azurerm` backend's MSI authentication method will now respect the provided client ID ([#3586](https://github.com/opentofu/opentofu/issues/3586))
 - Add `universe_domain` option in the `gcs` backend to support sovereign GCP services ([#3758](https://github.com/opentofu/opentofu/issues/3758))
+- Fixed `tofu init` crashing when a module `version` uses a variable and the module is referenced from a test file. ([#3686](https://github.com/opentofu/opentofu/issues/3686))
 
 ## Previous Releases
 
