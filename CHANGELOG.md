@@ -1,6 +1,10 @@
 The v1.11.x release series is supported until **August 1 2026**.
 ## 1.11.6 (Unreleased)
 
+BUG FIXES:
+
+* Running `tofu apply -refresh-only` with a configuration that contains ephemeral resources does not fail anymore because the refresh produced changes ([#3776](https://github.com/opentofu/opentofu/issues/3776))
+
 ## 1.11.5
 
 BUG FIXES:
