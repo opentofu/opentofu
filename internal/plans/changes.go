@@ -334,7 +334,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           cty.NullVal(rc.Before.Type()),
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
-					PlannedIdentity: rc.PlannedIdentity,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   cty.NullVal(rc.AfterIdentity.Type()),
 				},
 			}
 		default:
@@ -349,7 +350,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
-					PlannedIdentity: rc.PlannedIdentity,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -367,7 +369,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.Before,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
-					PlannedIdentity: rc.PlannedIdentity,
+					BeforeIdentity:  rc.BeforeIdentity,
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
@@ -382,7 +385,8 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					After:           rc.After,
 					Importing:       rc.Importing,
 					GeneratedConfig: rc.GeneratedConfig,
-					PlannedIdentity: rc.PlannedIdentity,
+					BeforeIdentity:  cty.NullVal(rc.BeforeIdentity.Type()),
+					AfterIdentity:   rc.AfterIdentity,
 				},
 			}
 		}
@@ -589,10 +593,15 @@ type Change struct {
 	// config.
 	GeneratedConfig string
 
-	// PlannedIdentity is the identity value returned by the provider during
+	// BeforeIdentity is the identity value from the known state of the resource instance
+	// before the plan is executed.
+	// Only relevant for managed resources, not outputs.
+	BeforeIdentity cty.Value
+
+	// AfterIdentity is the identity value returned by the provider during
 	// planning. This is used to pass identity data through to the apply phase.
 	// Only relevant for managed resources, not outputs.
-	PlannedIdentity cty.Value
+	AfterIdentity cty.Value
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -655,13 +664,25 @@ func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
 		}
 	}
 
-	var plannedIdentityDV DynamicValue
-	if c.PlannedIdentity != cty.NilVal && !c.PlannedIdentity.IsNull() {
-		identityTy := c.PlannedIdentity.Type()
+	var beforeIdentityDV DynamicValue
+	if c.BeforeIdentity != cty.NilVal && !c.BeforeIdentity.IsNull() {
+		identityTy := c.BeforeIdentity.Type()
 		if schema != nil && schema.IdentitySchema != nil {
 			identityTy = schema.IdentitySchema.ImpliedType()
 		}
-		plannedIdentityDV, err = NewDynamicValue(c.PlannedIdentity, identityTy)
+		beforeIdentityDV, err = NewDynamicValue(c.BeforeIdentity, identityTy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var afterIdentityDV DynamicValue
+	if c.AfterIdentity != cty.NilVal && !c.AfterIdentity.IsNull() {
+		identityTy := c.AfterIdentity.Type()
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		}
+		afterIdentityDV, err = NewDynamicValue(c.AfterIdentity, identityTy)
 		if err != nil {
 			return nil, err
 		}
@@ -675,6 +696,7 @@ func (c *Change) Encode(schema *providers.Schema) (*ChangeSrc, error) {
 		AfterValMarks:   afterVM,
 		Importing:       importing,
 		GeneratedConfig: c.GeneratedConfig,
-		PlannedIdentity: plannedIdentityDV,
+		BeforeIdentity:  beforeIdentityDV,
+		AfterIdentity:   afterIdentityDV,
 	}, nil
 }

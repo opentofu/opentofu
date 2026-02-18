@@ -481,12 +481,20 @@ func changeFromTfplan(rawChange *planproto.Change) (*plans.ChangeSrc, error) {
 	}
 	ret.GeneratedConfig = rawChange.GeneratedConfig
 
-	if rawChange.PlannedIdentity != nil {
-		plannedIdentity, err := valueFromTfplan(rawChange.PlannedIdentity)
+	if rawChange.BeforeIdentity != nil {
+		beforeIdentity, err := valueFromTfplan(rawChange.BeforeIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid before identity value: %w", err)
+		}
+		ret.BeforeIdentity = beforeIdentity
+	}
+
+	if rawChange.AfterIdentity != nil {
+		plannedIdentity, err := valueFromTfplan(rawChange.AfterIdentity)
 		if err != nil {
 			return nil, fmt.Errorf("invalid planned identity value: %w", err)
 		}
-		ret.PlannedIdentity = plannedIdentity
+		ret.AfterIdentity = plannedIdentity
 	}
 
 	sensitive := cty.NewValueMarks(marks.Sensitive)
@@ -858,8 +866,12 @@ func changeToTfplan(change *plans.ChangeSrc) (*planproto.Change, error) {
 	}
 	ret.GeneratedConfig = change.GeneratedConfig
 
-	if len(change.PlannedIdentity) > 0 {
-		ret.PlannedIdentity = valueToTfplan(change.PlannedIdentity)
+	if len(change.BeforeIdentity) > 0 {
+		ret.BeforeIdentity = valueToTfplan(change.BeforeIdentity)
+	}
+
+	if len(change.AfterIdentity) > 0 {
+		ret.AfterIdentity = valueToTfplan(change.AfterIdentity)
 	}
 
 	switch change.Action {
