@@ -223,6 +223,25 @@ func (rios *resourceInstanceObjects) Dependendents(of addrs.AbsResourceInstanceO
 	return rios.reverseDeps.Get(of).All()
 }
 
+// DependenciesAndDependents is a convenience helper that concatenates together
+// the results of both [resourceInstanceObjects.Dependencies] and
+// [resourceInstanceObjects.Dependents] into a single flat sequence. It does
+// not transform those sequences in any other way.
+func (rios *resourceInstanceObjects) DependenciesAndDependents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return func(yield func(addrs.AbsResourceInstanceObject) bool) {
+		for addr := range rios.Dependencies(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+		for addr := range rios.Dependendents(of) {
+			if !yield(addr) {
+				return
+			}
+		}
+	}
+}
+
 // resourceInstanceObjectsBuilder is a wrapper around a
 // [resourceInstanceObjects] that allows new objects to be inserted in a
 // concurrency-safe way.
@@ -275,34 +294,3 @@ func (b *resourceInstanceObjectsBuilder) Close() *resourceInstanceObjects {
 	b.mu.Unlock()
 	return ret
 }
-
-// resourceInstanceReplaceOrder represents the constraint, if any, for what
-// order the create and destroy steps of a "replace" action must happen in.
-type resourceInstanceReplaceOrder int
-
-const (
-	// replaceAnyOrder means that it's okay to use either order, in which
-	// case the associated resource instance will just follow the prevailing
-	// order chosen by its upstream and downstream dependencies.
-	//
-	// It isn't possible for conflicting replace orders to coexist in the
-	// same chain of dependent resource instances because that would mean there
-	// is no valid order to perform the steps in, and so we rely on the
-	// assumption that most resource instances begin without any constraint
-	// and then just follow whatever order is required to satisfy the needs
-	// of their neighbors.
-	replaceAnyOrder resourceInstanceReplaceOrder = iota
-
-	// replaceCreateThenDestroy represents that a replacement object must be
-	// created before destroying the previous object.
-	replaceCreateThenDestroy
-
-	// replaceDestroyThenCreate represents that the previous object must be
-	// destroyed before creating its replacement, such as if both objects
-	// would try to occupy the same unique object name and so cannot coexist
-	// at the same time.
-	//
-	// This is the default resolution if all dependencies in a chain start
-	// off as [replaceAnyOrder].
-	replaceDestroyThenCreate
-)

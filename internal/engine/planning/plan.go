@@ -9,7 +9,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
+	"strings"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/plugins"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/lang/grapheval"
@@ -130,10 +133,41 @@ func PlanChanges(ctx context.Context, prevRoundState *states.State, configInst *
 func finalizePlan(ctx context.Context, intermediate *planContextResult, providers plugins.Providers) (*plans.Plan, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	// TODO: Calculate the effective [resourceInstanceReplaceOrder] for each
-	// resource instance object based on its neighbors in the graph, and
-	// then use that to decide what replace order to use for each resource
-	// instance.
+	effectiveReplaceOrders, selfDeps := findEffectiveReplaceOrders(intermediate.ResourceInstanceObjects)
+	if len(selfDeps) != 0 {
+		// TODO: _Should_ we return this error here? In principle we should only
+		// get here if the evaluator failed to detect a self-reference, but in
+		// theory that should be impossible and so maybe this is a "should never
+		// happen" case, rather than a normal user-facing error?
+		selfDeps := slices.Collect(selfDeps.All())
+		slices.SortFunc(selfDeps, func(a, b addrs.AbsResourceInstanceObject) int {
+			// The types in package addrs were written in a time when
+			// sort.Interface was idiomatic and therefore have "Less" rather
+			// than "Equal", and so we'll adapt that to the modern Compare
+			// interface for now, which unfortunately means we need two
+			// comparisons.
+			if a.Less(b) {
+				return -1
+			}
+			if b.Less(a) {
+				return 1
+			}
+			return 0
+		})
+		var detail strings.Builder
+		detail.WriteString("The following objects depend on themselves either directly or indirectly:")
+		for _, addr := range selfDeps {
+			fmt.Fprintf(&detail, "\n  - %s", addr)
+		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Self-referencing resource instances",
+			detail.String(),
+		))
+	}
+	// TODO: Use effectiveReplaceOrders as part of building the execution graph
+	// and planned changes.
+	_ = effectiveReplaceOrders
 
 	changes := plans.NewChanges().SyncWrapper()
 	egb := newExecGraphBuilder()
