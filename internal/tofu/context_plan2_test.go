@@ -2751,6 +2751,14 @@ func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
 	if gotResAddr := plan.Changes.Resources[0].Addr; !gotResAddr.Equal(addr) {
 		t.Errorf("plan contains one resource and that's NOT an ephemeral as expected; instead, got %s", gotResAddr)
 	}
+	if got, want := len(plan.Changes.ActionableResources()), 0; got != want {
+		t.Errorf(
+			"changes.ActionableResources() returned more than %d resources, meaning that didn't exclude ephemeral resources. Instead returned %d\nChanges:\n%s",
+			want,
+			got,
+			spew.Sdump(plan.Changes.Resources),
+		)
+	}
 
 	if instState := plan.PlannedState.ResourceInstance(addr); instState == nil {
 		t.Errorf("%s has no planned state, but it should have since it's needed to build the apply graph correctly", addr)
