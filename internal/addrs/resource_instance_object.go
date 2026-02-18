@@ -71,6 +71,16 @@ func (o AbsResourceInstanceObject) Equal(other AbsResourceInstanceObject) bool {
 	return o.DeposedKey == other.DeposedKey && o.InstanceAddr.Equal(other.InstanceAddr)
 }
 
+func (o AbsResourceInstanceObject) Less(other AbsResourceInstanceObject) bool {
+	if o.InstanceAddr.Less(other.InstanceAddr) {
+		return true
+	}
+	if o.DeposedKey < other.DeposedKey {
+		return true
+	}
+	return false
+}
+
 func (o AbsResourceInstanceObject) UniqueKey() UniqueKey {
 	return absResourceInstanceObjectKey{
 		InstanceAddr: o.InstanceAddr.String(),
