@@ -7,6 +7,7 @@ package planning
 
 import (
 	"fmt"
+	"iter"
 	"sync"
 
 	"github.com/zclconf/go-cty/cty"
@@ -153,10 +154,13 @@ func (rio *resourceInstanceObject) ResultValue() cty.Value {
 // [addrs.AbsResourceInstanceObject] to [*resourceInstanceObject], but
 // it supports concurrent writes and also allows querying the dependency
 // relationships between objects in both directions.
+//
+// Collections of this type and everything inside them should be treated as
+// immutable. Use [newResourceInstanceObjectsBuilder] to obtain a temporary
+// object for constructing a new objects collection, and then call
+// [resourceInstanceObjectsBuilder.Close] to derive the final immutable
+// collection from it.
 type resourceInstanceObjects struct {
-	// Must always hold mu while accessing any other fields.
-	mu sync.Mutex
-
 	// objects are the resource instance objects that have been added so far.
 	objects addrs.Map[addrs.AbsResourceInstanceObject, *resourceInstanceObject]
 
@@ -170,59 +174,24 @@ type resourceInstanceObjects struct {
 	reverseDeps addrs.Map[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]]
 }
 
-func newResourceInstanceObjects() *resourceInstanceObjects {
-	return &resourceInstanceObjects{
-		objects:     addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
-		reverseDeps: addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
-	}
-}
-
-// Put inserts the given resource instance object into the collection.
-//
-// Resource instance objects are uniquely identified by the addresses
-// in [resourceInstanceObject.Addr]. Attempting to add an object with the same
-// address as a previously-added object causes a panic, because it suggests a
-// bug in the caller.
-//
-// A [resourceInstanceObject] value must not be modified once it has been passed
-// to this method.
-func (rios *resourceInstanceObjects) Put(obj *resourceInstanceObject) {
-	rios.mu.Lock()
-	defer rios.mu.Unlock()
-
-	if rios.objects.Has(obj.Addr) {
-		panic(fmt.Sprintf("%s is already tracked in this resourceInstanceObjects collection", obj.Addr))
-	}
-	rios.objects.Put(obj.Addr, obj)
-
-	// We also update the reverseDeps structure here to ensure that our
-	// records of the graph edges are always consistent across both directions.
-	for depAddr := range obj.Dependencies.All() {
-		if !rios.reverseDeps.Has(depAddr) {
-			rios.reverseDeps.Put(depAddr, addrs.MakeSet[addrs.AbsResourceInstanceObject]())
-		}
-		rios.reverseDeps.Get(depAddr).Add(obj.Addr)
-	}
-}
-
 // Get returns the resource instance object with the given address, or nil if
 // no such object has been added.
 //
 // The caller must not mutate anything accessible through the returned pointer.
 func (rios *resourceInstanceObjects) Get(addr addrs.AbsResourceInstanceObject) *resourceInstanceObject {
-	rios.mu.Lock()
-	ret := rios.objects.Get(addr)
-	rios.mu.Unlock()
-	return ret
+	return rios.objects.Get(addr)
 }
 
-// AllAddrs returns a set of all of the resource instance object addresses known
+// AllAddrs returns a sequence over all of the resource instance objects known
 // to this collection.
-func (rios *resourceInstanceObjects) AllAddrs() addrs.Set[addrs.AbsResourceInstanceObject] {
-	rios.mu.Lock()
-	ret := rios.objects.Keys()
-	rios.mu.Unlock()
-	return ret
+func (rios *resourceInstanceObjects) All() iter.Seq2[addrs.AbsResourceInstanceObject, *resourceInstanceObject] {
+	return func(yield func(addrs.AbsResourceInstanceObject, *resourceInstanceObject) bool) {
+		for _, elem := range rios.objects.Elems {
+			if !yield(elem.Key, elem.Value) {
+				return
+			}
+		}
+	}
 }
 
 // Dependencies returns the addresses of all resource instance objects that the
@@ -230,15 +199,12 @@ func (rios *resourceInstanceObjects) AllAddrs() addrs.Set[addrs.AbsResourceInsta
 //
 // The caller must not modify the result and must not access it concurrently
 // with other calls to methods on the same object.
-func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceObject) addrs.Set[addrs.AbsResourceInstanceObject] {
-	rios.mu.Lock()
-	defer rios.mu.Unlock()
-
-	obj, ok := rios.objects.GetOk(of)
-	if !ok {
-		return nil
+func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	obj := rios.objects.Get(of)
+	if obj == nil {
+		return func(yield func(addrs.AbsResourceInstanceObject) bool) {}
 	}
-	return obj.Dependencies
+	return obj.Dependencies.All()
 }
 
 // Dependents returns the addresses of all resource instance objects that have
@@ -253,14 +219,60 @@ func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceOb
 // of resource instance objects is populated in a "forward dependency" order,
 // and so dependencies are added before their dependents and the dependents
 // might not be added at all if the planning process failed partway through.
-func (rios *resourceInstanceObjects) Dependendents(of addrs.AbsResourceInstanceObject) addrs.Set[addrs.AbsResourceInstanceObject] {
-	rios.mu.Lock()
-	defer rios.mu.Unlock()
+func (rios *resourceInstanceObjects) Dependendents(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
+	return rios.reverseDeps.Get(of).All()
+}
 
-	ret, ok := rios.reverseDeps.GetOk(of)
-	if !ok {
-		return nil
+// resourceInstanceObjectsBuilder is a wrapper around a
+// [resourceInstanceObjects] that allows new objects to be inserted in a
+// concurrency-safe way.
+type resourceInstanceObjectsBuilder struct {
+	mu     sync.Mutex
+	result *resourceInstanceObjects
+}
+
+func newResourceInstanceObjectsBuilder() *resourceInstanceObjectsBuilder {
+	return &resourceInstanceObjectsBuilder{
+		result: &resourceInstanceObjects{
+			objects:     addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
+			reverseDeps: addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
+		},
 	}
+}
+
+// Put inserts the given resource instance object into the collection.
+//
+// Resource instance objects are uniquely identified by the addresses
+// in [resourceInstanceObject.Addr]. Attempting to add an object with the same
+// address as a previously-added object causes a panic, because it suggests a
+// bug in the caller.
+//
+// A [resourceInstanceObject] value must not be modified once it has been passed
+// to this method.
+func (b *resourceInstanceObjectsBuilder) Put(obj *resourceInstanceObject) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.result.objects.Has(obj.Addr) {
+		panic(fmt.Sprintf("%s is already tracked in this resourceInstanceObjects collection", obj.Addr))
+	}
+	b.result.objects.Put(obj.Addr, obj)
+
+	// We also update the reverseDeps structure here to ensure that our
+	// records of the graph edges are always consistent across both directions.
+	for depAddr := range obj.Dependencies.All() {
+		if !b.result.reverseDeps.Has(depAddr) {
+			b.result.reverseDeps.Put(depAddr, addrs.MakeSet[addrs.AbsResourceInstanceObject]())
+		}
+		b.result.reverseDeps.Get(depAddr).Add(obj.Addr)
+	}
+}
+
+func (b *resourceInstanceObjectsBuilder) Close() *resourceInstanceObjects {
+	b.mu.Lock()
+	ret := b.result
+	b.result = nil // this builder can't be used anymore
+	b.mu.Unlock()
 	return ret
 }
 
