@@ -30,7 +30,7 @@ type planContext struct {
 	// This gets modified by methods of [planGlue] gradually as we learn of
 	// new resource instance objects. Use [planContext.Close] after the
 	// work is complete to obtain the finalized object.
-	resourceInstObjs *resourceInstanceObjects
+	resourceInstObjs *resourceInstanceObjectsBuilder
 
 	// TODO: The following should probably track a reason why each resource
 	// instance was deferred, but since deferral is not the focus of this
@@ -67,7 +67,7 @@ func newPlanContext(evalCtx *eval.EvalContext, prevRoundState *states.State, pro
 
 	return &planContext{
 		evalCtx:           evalCtx,
-		resourceInstObjs:  newResourceInstanceObjects(),
+		resourceInstObjs:  newResourceInstanceObjectsBuilder(),
 		prevRoundState:    prevRoundState,
 		refreshedState:    refreshedState.SyncWrapper(),
 		providerInstances: newProviderInstances(),
@@ -91,7 +91,7 @@ func (p *planContext) Close(ctx context.Context) (*planContextResult, tfdiags.Di
 	p.closeStackMu.Unlock()
 
 	return &planContextResult{
-		ResourceInstanceObjects: p.resourceInstObjs,
+		ResourceInstanceObjects: p.resourceInstObjs.Close(),
 		PrevRoundState:          p.prevRoundState,
 		RefreshedState:          p.refreshedState.Close(),
 	}, diags
