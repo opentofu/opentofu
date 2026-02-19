@@ -12,7 +12,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -117,20 +116,4 @@ func (p *planGlue) planDesiredEphemeralResourceInstance(ctx context.Context, ins
 	// instead and to no longer return an [execgraph.ResultRef] at all.
 	ret.PlaceholderValue = newVal
 	return ret, diags
-}
-
-// ephemeralResourceInstanceExecSubgraph prepares what's needed to deal with
-// an ephemeral resource instance in an execution graph and then adds the
-// relevant nodes, returning a result reference referring to the final result of
-// the apply steps.
-//
-// This is a small wrapper around [execGraphBuilder.ManagedResourceInstanceSubgraph]
-// which implicitly adds execgraph items needed for the resource instance's
-// provider instance, which requires some information that an [execGraphBuilder]
-// instance cannot access directly itself.
-func (p *planGlue) ephemeralResourceInstanceExecSubgraph(ctx context.Context, inst *eval.DesiredResourceInstance, plannedValue cty.Value, egb *execGraphBuilder) execgraph.ResourceInstanceResultRef {
-	providerClientRef, registerProviderCloseBlocker := p.ensureProviderInstanceExecgraph(ctx, inst.ProviderInstance, egb)
-	finalResultRef := egb.EphemeralResourceInstanceSubgraph(inst, plannedValue, providerClientRef)
-	registerProviderCloseBlocker(finalResultRef)
-	return finalResultRef
 }

@@ -91,6 +91,20 @@ type resourceInstanceObject struct {
 	// for the change must belong to the same provider recorded here.
 	Provider addrs.Provider
 
+	// ProviderInst is a substitute for the ProviderAddr field of the object
+	// in the PlannedChange field, compensating for the fact that our old plan
+	// models use an incorrect and incomplete model of provider instance
+	// addresses.
+	//
+	// This must be valid whenever PlannedChange is non-nil. It's invalid and
+	// ignored otherwise, because conceptually this is a field of PlannedChange
+	// that's out here only so we can delay updating the plan model that the
+	// traditional runtime is also relying on.
+	//
+	// TODO: Remove this once our plan model is updated to use the "correct"
+	// representation of provider instance addresses.
+	ProviderInst addrs.AbsProviderInstanceCorrect
+
 	// ReplaceOrder specifies what order the create and destroy steps of a
 	// "replace" must happen in for this object.
 	//

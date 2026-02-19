@@ -13,7 +13,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -276,6 +275,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// configuration-related and so would need to be driven by stuff in
 		// [eval.DesiredResourceInstance].
 	}
+	ret.ProviderInst = *inst.ProviderInstance
 
 	return ret, diags
 }
@@ -451,6 +451,7 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		// function, since it presumably already knows how it concluded that
 		// this address is "orphaned".
 	}
+	ret.ProviderInst = prevRoundState.ProviderInstanceAddr
 	return ret, diags
 }
 
@@ -462,40 +463,4 @@ func (p *planGlue) planDeposedManagedResourceInstanceObject(
 ) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	// TODO: Implement
 	panic("unimplemented")
-}
-
-// managedResourceInstanceExecSubgraph prepares what's needed to include
-// changes for a managed resource instance in an execution graph and then
-// adds the relevant nodes, returning a result reference referring to the
-// final result of the apply steps.
-//
-// This is a small wrapper around [execGraphBuilder.ManagedResourceInstanceSubgraph]
-// which implicitly adds execgraph items needed for the resource instance's
-// provider instance, which requires some information that an [execGraphBuilder]
-// instance cannot access directly itself.
-//
-// Note that a nil pointer for providerInstAddr is currently how we represent
-// that we don't know which provider instance address to use. We'll hopefully
-// do something clearer than that in future; refer to related FIXME comments in
-// [planGlue.ensureProviderInstanceExecgraph] for more information.
-// TODO: remove this paragraph once we've switched to a better representation.
-//
-// FIXME: Because we're currently still using our old model for describing
-// planned changes, we need to bring a little extra baggage alongside the
-// change object in our arguments here. As we start to design a new model
-// for describing planned changes in future we should aspire for this function
-// to take only (ctx, plannedChange, egb) as arguments and have the
-// plannedChange object be a self-contained representation of everything needed
-// to make the graph-building decisions.
-func (p *planGlue) managedResourceInstanceExecSubgraph(
-	ctx context.Context,
-	plannedChange *plans.ResourceInstanceChange,
-	providerInstAddr *addrs.AbsProviderInstanceCorrect,
-	requiredResourceInstances addrs.Set[addrs.AbsResourceInstance],
-	egb *execGraphBuilder,
-) execgraph.ResourceInstanceResultRef {
-	providerClientRef, registerProviderCloseBlocker := p.ensureProviderInstanceExecgraph(ctx, providerInstAddr, egb)
-	finalResultRef := egb.ManagedResourceInstanceSubgraph(plannedChange, providerClientRef, requiredResourceInstances)
-	registerProviderCloseBlocker(finalResultRef)
-	return finalResultRef
 }
