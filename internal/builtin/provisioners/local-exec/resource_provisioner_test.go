@@ -15,8 +15,9 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 func TestResourceProvider_Apply(t *testing.T) {
@@ -250,6 +251,47 @@ func TestResourceProvisioner_StopClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.Close()
+}
+
+func TestResourceProvider_ValidateNullCommand(t *testing.T) {
+	p := New()
+	schema := p.GetSchema().Provisioner
+
+	cfg, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
+		"command": cty.NullVal(cty.String),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := p.ValidateProvisionerConfig(provisioners.ValidateProvisionerConfigRequest{
+		Config: cfg,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null command, got none")
+	}
+}
+
+func TestResourceProvider_ApplyNullCommand(t *testing.T) {
+	output := cli.NewMockUi()
+	p := New()
+	cfg := cty.ObjectVal(map[string]cty.Value{
+		"command":     cty.NullVal(cty.String),
+		"interpreter": cty.NullVal(cty.List(cty.String)),
+		"working_dir": cty.NullVal(cty.String),
+		"environment": cty.NullVal(cty.Map(cty.String)),
+		"quiet":       cty.NullVal(cty.Bool),
+	})
+
+	resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
+		Config:   cfg,
+		UIOutput: output,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null command, got none")
+	}
 }
 
 func TestResourceProvisioner_nullsInOptionals(t *testing.T) {
