@@ -8,6 +8,7 @@ package planning
 import (
 	"fmt"
 	"iter"
+	"slices"
 	"sync"
 
 	"github.com/zclconf/go-cty/cty"
@@ -307,4 +308,42 @@ func (b *resourceInstanceObjectsBuilder) Close() *resourceInstanceObjects {
 	b.result = nil // this builder can't be used anymore
 	b.mu.Unlock()
 	return ret
+}
+
+// sortedResourceInstanceObjectAddrs consumes all items from the given sequence
+// and then sorts them into an unspecified but deterministic order.
+func sortedResourceInstanceObjectAddrs(seq iter.Seq[addrs.AbsResourceInstanceObject]) []addrs.AbsResourceInstanceObject {
+	sorted := slices.Collect(seq)
+	slices.SortFunc(sorted, func(a, b addrs.AbsResourceInstanceObject) int {
+		// The types in package addrs were written in a time when
+		// sort.Interface was idiomatic and therefore have "Less" rather
+		// than "Equal", and so we'll adapt that to the modern Compare
+		// interface for now, which unfortunately means we need two
+		// comparisons.
+		// TODO: Add Compare-style methods to the address types that already
+		// implement Less, reimplement their Less methods in terms of compare,
+		// and then change this to just directly use
+		// addrs.AbsResourceInstanceObject.Compare .
+		if a.Less(b) {
+			return -1
+		}
+		if b.Less(a) {
+			return 1
+		}
+		return 0
+	})
+	return sorted
+}
+
+// sortedResourceInstanceObjectAddrs consumes all items from the given sequence
+// and then sorts them into an unspecified but deterministic order.
+func sortedResourceInstanceObjectAddrKeys[T any](seq iter.Seq2[addrs.AbsResourceInstanceObject, T]) []addrs.AbsResourceInstanceObject {
+	keys := func(yield func(addrs.AbsResourceInstanceObject) bool) {
+		for k := range seq {
+			if !yield(k) {
+				return
+			}
+		}
+	}
+	return sortedResourceInstanceObjectAddrs(keys)
 }

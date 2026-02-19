@@ -46,6 +46,10 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// resultRefs tracks the execgraph result reference for each resource
 	// instance object, populated gradually as we build it out.
 	resultRefs := addrs.MakeMap[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef]()
+	// deletionRefs is like resultRefs except that it tracks the result of
+	// a deletion step for each object. There's only an entry in this table
+	// for objects whose subgraphs involve a deletion.
+	deletionRefs := addrs.MakeMap[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef]()
 
 	// addConfigDeps and addDeleteDeps both track functions we can use to add
 	// additional dependencies to operations in the execution subgraphs of
@@ -74,6 +78,11 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	addProviderConfigDeps := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(execgraph.AnyResultRef)]()
 	addProviderCloseDeps := addrs.MakeMap[addrs.AbsProviderInstanceCorrect, func(execgraph.AnyResultRef)]()
 
+	// We pre-sort the keys here because that causes our execution graph
+	// operations to be in a deterministic order, for easier unit testing and
+	// easier reading of debug output.
+	objAddrs := sortedResourceInstanceObjectAddrKeys(objs.All())
+
 	// First we'll insert separate subgraphs for each resource instance object
 	// that has a planned action, without putting any explicit dependency
 	// edges between them yet. This loop also ensures that we have the
@@ -83,7 +92,8 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// We'll insert the explicit dependency edges between the subgraphs in a
 	// separate loop afterwards, along with any needed prior state operations
 	// for objects that aren't changing.
-	for addr, obj := range objs.All() {
+	for _, addr := range objAddrs {
+		obj := objs.Get(addr)
 		plannedChange := obj.PlannedChange
 		if plannedChange == nil {
 			// For this first loop we only care about objects that have planned
@@ -111,7 +121,7 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 			addProviderCloseDep = addProviderCloseDeps.Get(providerInstAddr)
 		}
 
-		valueRef, completionRef, addConfigDep, addDeleteDep := b.resourceInstanceChangeSubgraph(
+		valueRef, deletionRef, addConfigDep, addDeleteDep := b.resourceInstanceChangeSubgraph(
 			plannedChange,
 			effectiveReplaceOrders.Get(addr),
 			providerClientRef,
@@ -121,23 +131,41 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		// we fill in all of the explicit dependencies caused by expressions
 		// in the configuration.
 		if addConfigDep != nil {
+			resultRefs.Put(addr, valueRef)
 			addConfigDeps.Put(addr, addConfigDep)
+			addProviderCloseDep(valueRef)
 		}
 		if addDeleteDep != nil {
+			deletionRefs.Put(addr, deletionRef)
 			addDeleteDeps.Put(addr, addDeleteDep)
+			addProviderCloseDep(deletionRef)
 		}
 
-		// The provider client must remain open until completionRef is resolved
-		addProviderCloseDep(completionRef)
-
-		resultRefs.Put(addr, valueRef)
 		if addr.IsCurrent() {
 			b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, valueRef)
 		}
 	}
 
-	// TODO: Add the explicit dependencies between resource instance object
-	// subgraphs using addConfigDeps and addDeleteDeps.
+	// Now we'll add explicit dependencies between the subgraphs we just created
+	// for the resource instance object changes. Any object that has a planned
+	// change should already have entries in addConfigDeps/addDeleteDeps where
+	// appropriate, but we will need to add prior-state-reading stubs for
+	// any object that isn't being changed but is a dependency for something
+	// that is changing.
+	for _, addr := range objAddrs {
+		if addConfigDep, ok := addConfigDeps.GetOk(addr); ok {
+			for dependency := range objs.Dependencies(addr) {
+				addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+			}
+		}
+		if addDeleteDep, ok := addDeleteDeps.GetOk(addr); ok {
+			for dependent := range objs.Dependendents(addr) {
+				if ref, ok := deletionRefs.GetOk(dependent); ok {
+					addDeleteDep(ref)
+				}
+			}
+		}
+	}
 
 	// FIXME: We also need a loop to add in all of the explicit dependencies
 	// from provider instance to resource instances, using the callbacks in
@@ -145,13 +173,29 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 	// [resourceInstanceObjects] type to capture those dependencies.
 }
 
+func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject, knownResults addrs.Map[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef], b *execGraphBuilder) execgraph.ResourceInstanceResultRef {
+	if existing, ok := knownResults.GetOk(addr); ok {
+		return existing
+	}
+	// If we don't already have an existing result then this is an object
+	// that doesn't have any planned changes, so and we'll just provide
+	// a minimum subgraph for it that only involves reading its prior state.
+	var resultRef execgraph.ResourceInstanceResultRef
+	if addr.IsCurrent() {
+		resultRef = b.lower.ResourceInstancePrior(b.lower.ConstantResourceInstAddr(addr.InstanceAddr))
+	} else {
+		resultRef = b.lower.ManagedAlreadyDeposed(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), b.lower.ConstantDeposedKey(addr.DeposedKey))
+	}
+	knownResults.Put(addr, resultRef)
+	return resultRef
+}
+
 func (b *execGraphBuilder) resourceInstanceChangeSubgraph(
 	change *plans.ResourceInstanceChange,
 	effectiveReplaceOrder resourceInstanceReplaceOrder,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
 ) (
-	valueRef execgraph.ResourceInstanceResultRef, // reference to the result that provides the final new value
-	completionRef execgraph.AnyResultRef, // reference whose completion should block closing the given provider client
+	valueRef, deletionRef execgraph.ResourceInstanceResultRef, // reference to the final new value and, if addDeleteDep is not nil, the deletion result
 	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
 ) {
 	resourceMode := change.Addr.Resource.Resource.Mode
@@ -182,25 +226,4 @@ func (b *execGraphBuilder) SetResourceInstanceFinalStateResult(addr addrs.AbsRes
 	b.mu.Lock()
 	b.lower.SetResourceInstanceFinalStateResult(addr, result)
 	b.mu.Unlock()
-}
-
-// resourceInstanceFinalStateResult returns the result reference for the given
-// resource instance that should previously have been registered using
-// [execGraphBuilder.SetResourceInstanceFinalStateResult].
-//
-// The return type is [execgraph.AnyResultRef] because this is intended for use
-// with a general-purpose dependency aggregation node in the graph. The actual
-// final state result for the source instance travels indirectly through the
-// evaluator rather than directly within the execution graph.
-//
-// This function panics if a result reference for the given resource instance
-// was not previously registered, because that suggests a bug elsewhere in the
-// system that caused the construction of subgraphs for different resource
-// instances to happen in the wrong order.
-func (b *execGraphBuilder) resourceInstanceFinalStateResult(addr addrs.AbsResourceInstance) execgraph.AnyResultRef {
-	// TODO: If a caller asks for a resource instance that doesn't yet have
-	// a "final result" then we should implicitly insert one that refers
-	// to a ResourceInstancePrior result, under the assumption that the upstream
-	// thing was a no-op but its state value is still used by something else.
-	return b.lower.ResourceInstanceFinalStateResult(addr)
 }

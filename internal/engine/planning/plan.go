@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"slices"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -139,21 +138,7 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 		// get here if the evaluator failed to detect a self-reference, but in
 		// theory that should be impossible and so maybe this is a "should never
 		// happen" case, rather than a normal user-facing error?
-		selfDeps := slices.Collect(selfDeps.All())
-		slices.SortFunc(selfDeps, func(a, b addrs.AbsResourceInstanceObject) int {
-			// The types in package addrs were written in a time when
-			// sort.Interface was idiomatic and therefore have "Less" rather
-			// than "Equal", and so we'll adapt that to the modern Compare
-			// interface for now, which unfortunately means we need two
-			// comparisons.
-			if a.Less(b) {
-				return -1
-			}
-			if b.Less(a) {
-				return 1
-			}
-			return 0
-		})
+		selfDeps := sortedResourceInstanceObjectAddrs(selfDeps.All())
 		var detail strings.Builder
 		detail.WriteString("The following objects depend on themselves either directly or indirectly:")
 		for _, addr := range selfDeps {
