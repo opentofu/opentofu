@@ -36,11 +36,25 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
 	tests := map[string]struct {
-		Build    func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef
+		// Build has an awkward signature because this test was written for
+		// an older prototype design of ManagedResourceInstanceSubgraph that
+		// didn't return as many results.
+		// TODO: Find a different way to structure this test so that we can
+		// confine this complexity only to the testing loop below and not
+		// to each individual test case.
+		Build func(
+			b *execGraphBuilder,
+			providerClientRef execgraph.ResultRef[*exec.ProviderClient],
+		) (
+			execgraph.ResourceInstanceResultRef,
+			execgraph.AnyResultRef,
+			func(execgraph.AnyResultRef),
+			func(execgraph.AnyResultRef),
+		)
 		WantRepr string
 	}{
 		"create": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -51,8 +65,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.EmptyObjectVal,
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -66,7 +80,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"update": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -77,8 +91,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -93,7 +107,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"update with move": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -109,8 +123,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -126,7 +140,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"delete": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -137,8 +151,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.NullVal(cty.EmptyObject),
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -152,7 +166,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"delete then create": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -163,8 +177,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -182,7 +196,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"delete then create with move": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -198,8 +212,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceDestroyThenCreate,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -218,7 +232,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"create then delete": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				return b.ManagedResourceInstanceSubgraph(
 					&plans.ResourceInstanceChange{
 						Addr:        instAddr,
@@ -229,8 +243,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceCreateThenDestroy,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -249,7 +263,7 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			`,
 		},
 		"create then delete with move": {
-			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) execgraph.ResourceInstanceResultRef {
+			func(b *execGraphBuilder, providerClientRef execgraph.ResultRef[*exec.ProviderClient]) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 				oldInstAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
 					Type: "test",
@@ -265,8 +279,8 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 							After:  cty.StringVal("after"),
 						},
 					},
+					replaceCreateThenDestroy,
 					providerClientRef,
-					addrs.MakeSet[addrs.AbsResourceInstance](),
 				)
 			},
 			`
@@ -293,7 +307,12 @@ func TestExecGraphBuilder_ManagedResourceInstanceSubgraph(t *testing.T) {
 			// This test is focused only on the resource instance subgraphs,
 			// so we just use a placeholder nil result for the provider client.
 			providerClientRef := execgraph.NilResultRef[*exec.ProviderClient]()
-			resultRef := test.Build(builder, providerClientRef)
+			// FIXME: We're currently ignoring all but the first result
+			// because this test was originally written for an older variant
+			// of this function which only had one result. We should find a
+			// nice way to restructure this test so that it can check whether
+			// _all_ of the return values are correct.
+			resultRef, _, _, _ := test.Build(builder, providerClientRef)
 			builder.lower.SetResourceInstanceFinalStateResult(instAddr, resultRef)
 
 			graph := builder.Finish()

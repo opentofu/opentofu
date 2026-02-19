@@ -174,8 +174,10 @@ func finalizePlan(ctx context.Context, intermediate *planContextResult, provider
 	diags = diags.Append(moreDiags)
 
 	egb := newExecGraphBuilder()
-	// TODO: Actually populate the execution graph.
-
+	egb.AddResourceInstanceObjectSubgraphs(
+		intermediate.ResourceInstanceObjects,
+		effectiveReplaceOrders,
+	)
 	execGraph := egb.Finish()
 	if logging.IsDebugOrHigher() {
 		// FIXME: This can potentially contain sensitive values from the

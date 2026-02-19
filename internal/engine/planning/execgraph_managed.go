@@ -36,18 +36,15 @@ import (
 // complete approach in later work.
 func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 	plannedChange *plans.ResourceInstanceChange,
+	effectiveReplaceOrder resourceInstanceReplaceOrder,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-	requiredResourceInstances addrs.Set[addrs.AbsResourceInstance],
-) execgraph.ResourceInstanceResultRef {
+) (
+	valueRef execgraph.ResourceInstanceResultRef, // reference to the result that provides the final new value
+	completionRef execgraph.AnyResultRef, // reference whose completion should block closing the given provider client
+	addConfigDep, addDeleteDep func(execgraph.AnyResultRef), // callbacks to register explicit dependencies, or nil when not relevant
+) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-
-	// We need to explicitly model our dependency on any upstream resource
-	// instances in the resource instance graph. These don't naturally emerge
-	// from the data flow because these results are intermediated through the
-	// evaluator, which indirectly incorporates the results into the
-	// desiredInstRef result we'll build below.
-	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(requiredResourceInstances.All())
 
 	// Before we go any further we'll just make sure what we've been given
 	// is sensible, so that the remaining code can assume the following
@@ -68,88 +65,84 @@ func (b *execGraphBuilder) ManagedResourceInstanceSubgraph(
 		panic(fmt.Sprintf("change for %s has action %s but does not have both a before and after value", plannedChange.PrevRunAddr, plannedChange.Action))
 	}
 
+	changeAction := plannedChange.Action
+	if changeAction.IsReplace() {
+		// The effective replace order finalizes which of the two replace
+		// actions we will actually use.
+		changeAction = effectiveReplaceOrder.ChangeAction()
+	}
+
 	// The shape of execution subgraph we generate here varies depending on
 	// which change action was planned.
-	var finalResultRef execgraph.ResourceInstanceResultRef
-	switch plannedChange.Action {
+	switch changeAction {
 	case plans.Create:
-		finalResultRef = b.managedResourceInstanceSubgraphCreate(plannedChange, providerClientRef, dependencyWaiter)
-	case plans.Delete:
-		finalResultRef = b.managedResourceInstanceSubgraphDelete(plannedChange, providerClientRef)
+		valueRef, addConfigDep = b.managedResourceInstanceSubgraphCreate(plannedChange, providerClientRef)
 	case plans.Update:
-		finalResultRef = b.managedResourceInstanceSubgraphUpdate(plannedChange, providerClientRef, dependencyWaiter)
+		valueRef, addConfigDep = b.managedResourceInstanceSubgraphUpdate(plannedChange, providerClientRef)
+	case plans.Delete:
+		valueRef, addDeleteDep = b.managedResourceInstanceSubgraphDelete(plannedChange, providerClientRef)
 	case plans.Forget:
-		finalResultRef = b.managedResourceInstanceSubgraphForget(plannedChange, providerClientRef)
+		valueRef = b.managedResourceInstanceSubgraphForget(plannedChange, providerClientRef)
 	case plans.DeleteThenCreate, plans.ForgetThenCreate:
-		finalResultRef = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange, providerClientRef, dependencyWaiter)
+		valueRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphDeleteOrForgetThenCreate(plannedChange, providerClientRef)
 	case plans.CreateThenDelete:
-		finalResultRef = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange, providerClientRef, dependencyWaiter)
+		valueRef, completionRef, addConfigDep, addDeleteDep = b.managedResourceInstanceSubgraphCreateThenDelete(plannedChange, providerClientRef)
 	default:
+		// FIXME: We need to handle plans.NoOp too because that can occur if
+		// the configuration hasn't changed but the object will move to a
+		// new resource instance address during the apply phase.
+
 		// We should not get here: the cases above should cover every action
 		// that [planGlue.planDesiredManagedResourceInstance] can possibly
 		// produce.
 		panic(fmt.Sprintf("unsupported change action %s for %s", plannedChange.Action, plannedChange.Addr))
 	}
+	if completionRef == nil {
+		// For any subgraph that doesn't explicitly have a "completion"
+		// operation, we'll use its value operation also for this signal.
+		completionRef = valueRef
+	}
 
-	closeDependencyAfter(finalResultRef)
-	return finalResultRef
+	return valueRef, completionRef, addConfigDep, addDeleteDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreate(
 	plannedChange *plans.ResourceInstanceChange,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-	waitFor execgraph.AnyResultRef,
-) execgraph.ResourceInstanceResultRef {
+) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	instAddrRef, _ := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
+	waitFor, addConfigDep := b.lower.MutableWaiter()
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
 	return b.managedResourceInstanceSubgraphPlanAndApply(
 		desiredInstRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		plannedValRef,
 		providerClientRef,
-	)
-}
-
-func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
-	plannedChange *plans.ResourceInstanceChange,
-	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-) execgraph.ResourceInstanceResultRef {
-	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
-	plannedValRef := b.lower.ConstantValue(plannedChange.After)
-	// FIXME: The ManagedApply operation in what we generate here should depend
-	// on any other destroy operations we plan for resource instances that
-	// depend on this one, so that we can preserve the guarantee that when
-	// B depends on A we'll always destroy B before we destroy A.
-	return b.managedResourceInstanceSubgraphPlanAndApply(
-		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
-		priorStateRef,
-		plannedValRef,
-		providerClientRef,
-	)
+	), addConfigDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphUpdate(
 	plannedChange *plans.ResourceInstanceChange,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-	waitFor execgraph.AnyResultRef,
-) execgraph.ResourceInstanceResultRef {
+) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
 	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
+	waitFor, addConfigDep := b.lower.MutableWaiter()
 	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
 	return b.managedResourceInstanceSubgraphPlanAndApply(
 		desiredInstRef,
 		priorStateRef,
 		plannedValRef,
 		providerClientRef,
-	)
+	), addConfigDep
 }
 
 // managedResourceInstanceSubgraphPlanAndApply deals with the simple case
-// of "create a final plan and then apply it" that is shared across all of the
-// "straightforward" change actions create, update, and delete, but not for
-// the more complicated ones involving multiple primitive actions that need
-// to be carefully coordinated with each other.
+// of "create a final plan and then apply it" that is shared between "create"
+// and "update", but not for deleting or for the more complicated ones involving
+// multiple primitive actions that need to be carefully coordinated with each
+// other.
 func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
 	desiredInstRef execgraph.ResultRef[*eval.DesiredResourceInstance],
 	priorStateRef execgraph.ResourceInstanceResultRef,
@@ -166,8 +159,29 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphPlanAndApply(
 		finalPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
-		b.lower.Waiter(), // nothing to wait for
+		b.lower.Waiter(), // nothing to wait for: desiredInstRef should have the relevant dependencies itself
 	)
+}
+
+func (b *execGraphBuilder) managedResourceInstanceSubgraphDelete(
+	plannedChange *plans.ResourceInstanceChange,
+	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
+) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef)) {
+	_, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
+	plannedValRef := b.lower.ConstantValue(plannedChange.After)
+	waitFor, addDeleteDep := b.lower.MutableWaiter()
+	finalPlanRef := b.lower.ManagedFinalPlan(
+		execgraph.NilResultRef[*eval.DesiredResourceInstance](),
+		priorStateRef,
+		plannedValRef,
+		providerClientRef,
+	)
+	return b.lower.ManagedApply(
+		finalPlanRef,
+		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
+		providerClientRef,
+		waitFor,
+	), addDeleteDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphForget(
@@ -181,8 +195,7 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphForget(
 func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCreate(
 	plannedChange *plans.ResourceInstanceChange,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-	waitFor execgraph.AnyResultRef,
-) execgraph.ResourceInstanceResultRef {
+) (execgraph.ResourceInstanceResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
 	if plannedChange.Action == plans.ForgetThenCreate {
 		// TODO: Implement this action too, which is similar but with the
 		// "delete" let replaced with something like what
@@ -190,13 +203,16 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		panic("execgraph for ForgetThenCreate not yet implemented")
 	}
 
+	desiredWaitFor, addConfigDep := b.lower.MutableWaiter()
+	deleteWaitFor, addDeleteDep := b.lower.MutableWaiter()
+
 	// This has much the same _effect_ as the separate delete and create
 	// actions chained together, but we arrange the operations in such a
 	// way that the delete leg can't start unless the desired state is
 	// successfully evaluated.
 	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, desiredWaitFor)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
@@ -222,19 +238,12 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		)),
 		providerClientRef,
 	)
+	addDeleteDep(createPlanRef) // deletion can't start unless creation was successfully planned
 	destroyResultRef := b.lower.ManagedApply(
 		destroyPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
-		// FIXME: This should also depend on the destroy of any dependents that
-		// are also being destroyed in this execution graph, to ensure the
-		// expected "inside out" destroy order, but we're not currently keeping
-		// track of destroy results anywhere and even if we were we would not
-		// actually learn about them until after this function had returned,
-		// so we need to introduce a way to add new dependencies here while
-		// planning subsequent resource instances, and to make sure we're not
-		// creating a dependency cycle each time we do so.
-		b.lower.Waiter(createPlanRef), // wait for successful planning of the create step
+		deleteWaitFor,
 	)
 	createResultRef := b.lower.ManagedApply(
 		createPlanRef,
@@ -243,21 +252,23 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphDeleteOrForgetThenCrea
 		b.lower.Waiter(destroyResultRef),
 	)
 
-	return createResultRef
+	return createResultRef, addConfigDep, addDeleteDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 	plannedChange *plans.ResourceInstanceChange,
 	providerClientRef execgraph.ResultRef[*exec.ProviderClient],
-	waitFor execgraph.AnyResultRef,
-) execgraph.ResourceInstanceResultRef {
+) (execgraph.ResourceInstanceResultRef, execgraph.AnyResultRef, func(execgraph.AnyResultRef), func(execgraph.AnyResultRef)) {
+	desiredWaitFor, addConfigDep := b.lower.MutableWaiter()
+	deleteWaitFor, addDeleteDep := b.lower.MutableWaiter()
+
 	// This has much the same effect as the separate delete and create
 	// actions chained together, but we arrange the operations in such a
 	// way that we don't make any changes unless we can produce valid final
 	// plans for both changes.
 	instAddrRef, priorStateRef := b.managedResourceInstanceChangeAddrAndPriorStateRefs(plannedChange)
 	plannedValRef := b.lower.ConstantValue(plannedChange.After)
-	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, waitFor)
+	desiredInstRef := b.lower.ResourceInstanceDesired(instAddrRef, desiredWaitFor)
 
 	// We plan both the create and destroy parts of this process before we
 	// make any real changes, to reduce the risk that we'll be left in a
@@ -293,31 +304,20 @@ func (b *execGraphBuilder) managedResourceInstanceSubgraphCreateThenDelete(
 		providerClientRef,
 		b.lower.Waiter(),
 	)
-	// Nothing depends on the value from the destroy result, so if the destroy
-	// fails after the create succeeded then we can proceed with applying any
-	// downstream changes that refer to what we created and then we'll end with
-	// the deposed object still in the state and error diagnostics explaining
-	// why destroying it didn't work.
-	// FIXME: the closer for the provider client ought to depend on this result
-	// in its waitFor argument, because otherwise we're saying it's okay to
-	// close the provider client concurrently with this operation, which will
-	// not work.
-	b.lower.ManagedApply(
+	// No other resource instances can depend on the value from the destroy
+	// result, so if the destroy fails after the create succeeded then we can
+	// proceed with applying any downstream changes that refer to what we
+	// created and then we'll end with the deposed object still in the state and
+	// error diagnostics explaining why destroying it didn't work.
+	addDeleteDep(createResultRef) // delete must not begin until creation has succeeded
+	completionRef := b.lower.ManagedApply(
 		destroyPlanRef,
 		execgraph.NilResultRef[*exec.ResourceInstanceObject](),
 		providerClientRef,
-		// FIXME: This should also depend on the destroy of any dependents that
-		// are also being destroyed in this execution graph, to ensure the
-		// expected "inside out" destroy order, but we're not currently keeping
-		// track of destroy results anywhere and even if we were we would not
-		// actually learn about them until after this function had returned,
-		// so we need to introduce a way to add new dependencies here while
-		// planning subsequent resource instances, and to make sure we're not
-		// creating a dependency cycle each time we do so.
-		b.lower.Waiter(createResultRef), // wait for successful applying of the create step
+		deleteWaitFor,
 	)
 
-	return createResultRef
+	return createResultRef, completionRef, addConfigDep, addDeleteDep
 }
 
 func (b *execGraphBuilder) managedResourceInstanceChangeAddrAndPriorStateRefs(
