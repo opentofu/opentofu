@@ -83,43 +83,49 @@ func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
 func (ot *OverrideTrie) Set(addr *addrs.AbsResourceInstance, val map[string]cty.Value) {
 	current := ot
 	for _, mod := range addr.Module {
-		next, ok := current.trie[mod.InstanceKey]
-		if !ok {
-			current.trie[mod.InstanceKey] = NewOverrideTrie(ot.defaults)
-			next = current.trie[mod.InstanceKey]
-		}
-		current = next
+		current = ot.subSet(current, mod.InstanceKey)
 	}
-	last, ok := current.trie[addr.Resource.Key]
-	if !ok {
-		current.trie[addr.Resource.Key] = NewOverrideTrie(ot.defaults)
-		last = current.trie[addr.Resource.Key]
-	}
+	last := ot.subSet(current, addr.Resource.Key)
 	last.value = val
+}
+
+func (ot *OverrideTrie) subSet(current *OverrideTrie, key addrs.InstanceKey) *OverrideTrie {
+	if key == addrs.NoKey {
+		key = addrs.WildcardKey{addrs.UnknownKeyType}
+	}
+	next, ok := current.trie[key]
+	if !ok {
+		current.trie[key] = NewOverrideTrie(ot.defaults)
+		next = current.trie[key]
+	}
+	return next
 }
 
 func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) map[string]cty.Value {
 	current := ot
 	for _, mod := range addr.Module {
-		next, ok := current.trie[mod.InstanceKey]
-		if !ok {
-			// TODO splat vs no key
-			next, ok = current.trie[addrs.NoKey]
-			if !ok {
-				return ot.defaults
-			}
-		}
-		current = next
-	}
-	last, ok := current.trie[addr.Resource.Key]
-	if !ok {
-		// TODO splat vs nokey
-		last, ok = current.trie[addrs.NoKey]
+		var ok bool
+		current, ok = subGet(current, mod.InstanceKey)
 		if !ok {
 			return ot.defaults
 		}
 	}
+	last, ok := subGet(current, addr.Resource.Key)
+	if !ok {
+		return ot.defaults
+	}
 	return last.value
+}
+
+func subGet(current *OverrideTrie, key addrs.InstanceKey) (*OverrideTrie, bool) {
+	next, ok := current.trie[key]
+	if !ok {
+		next, ok = current.trie[addrs.WildcardKey{addrs.UnknownKeyType}]
+		if !ok {
+			return nil, false
+		}
+	}
+	return next, true
 }
 
 // ManagedResource represents a "resource" block in a module or file.

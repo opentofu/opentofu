@@ -1689,6 +1689,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expected: "3 passed, 0 failed.",
 			code:     0,
 		},
+		"default_instance_wildcard": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
 		"default_instance_mixed_provider": {
 			expected: "3 passed, 0 failed.",
 			code:     0,
