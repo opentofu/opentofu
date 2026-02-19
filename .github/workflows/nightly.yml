@@ -63,7 +63,7 @@ jobs:
           # Get today's date in YYYYMMDD format
           DATE=$(date +%Y%m%d)
           VERSION=$(grep -E '"version":' dist/metadata.json | cut -d'"' -f4)
-          COMMIT=$(git rev-parse --short HEAD)
+          COMMIT=$(git rev-parse --short=12 HEAD)
 
           # Create a staging directory for upload
           mkdir -p ./upload/nightlies/${DATE}
