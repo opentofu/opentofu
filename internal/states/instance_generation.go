@@ -5,6 +5,8 @@
 
 package states
 
+import "github.com/opentofu/opentofu/internal/addrs"
+
 // Generation is used to represent multiple objects in a succession of objects
 // represented by a single resource instance address. A resource instance can
 // have multiple generations over its lifetime due to object replacement
@@ -16,10 +18,8 @@ package states
 // a value of type DeposedKey. Generation values can be compared for equality
 // using "==" and used as map keys. The zero value of Generation (nil) is not
 // a valid generation and must not be used.
-type Generation interface {
-	generation()
-}
+type Generation = addrs.ResourceInstanceObjectGeneration
 
 // CurrentGen is the Generation representing the currently-active object for
 // a resource instance.
-var CurrentGen Generation
+var CurrentGen = addrs.CurrentResourceInstanceObjectGeneration

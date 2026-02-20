@@ -12,30 +12,44 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance, egb *execGraphBuilder) (cty.Value, execgraph.ResourceInstanceResultRef, tfdiags.Diagnostics) {
+func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *eval.DesiredResourceInstance) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	ret := &resourceInstanceObject{
+		Addr:         inst.Addr.CurrentObject(),
+		Dependencies: addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:     inst.Provider,
+
+		// We'll start off with a completely-unknown placeholder value, but
+		// we might refine this to be more specific as we learn more below.
+		PlaceholderValue: cty.DynamicVal,
+
+		// NOTE: PlannedChange remains nil until we actually produce a plan,
+		// so early returns with errors are not guaranteed to have a valid
+		// change object. Evaluation falls back on using PlaceholderValue
+		// when no planned change is present.
+	}
+	for dep := range inst.RequiredResourceInstances.All() {
+		ret.Dependencies.Add(dep.CurrentObject())
+	}
 
 	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
-		return cty.DynamicVal, nil, diags
+		return ret, diags
 	}
 
 	if inst.ProviderInstance == nil {
 		// TODO: Record that this was deferred because we don't yet know which
 		// provider instance it belongs to.
-		return deferredVal(cty.DynamicVal), nil, diags
+		return ret, diags
 	}
-
-	// TODO: There are various other reasons why we might need to defer planning
-	// this until a future plan/apply round.
 
 	// The equivalent of "refreshing" a data resource is just to discard it
 	// completely, because we only retain the previous result in state snapshots
@@ -50,8 +64,9 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 
 	// TODO: If the config value is not wholly known, or if any resource
 	// instance in inst.RequiredResourceInstances already has a planned change,
-	// then plan to read this during the apply phase and return a "proposed new
-	// value" for use during the planning phase.
+	// then plan to read this during the apply phase and set ret.PlannedChange
+	// to an object using the [plans.Read] action, without writing a new
+	// object into the refreshed state yet.
 
 	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
 	if providerClient == nil {
@@ -64,7 +79,7 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	}
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
-		return cty.DynamicVal, nil, diags
+		return ret, diags
 	}
 
 	resp := providerClient.ReadDataSource(ctx, providers.ReadDataSourceRequest{
@@ -81,14 +96,22 @@ func (p *planGlue) planDesiredDataResourceInstance(ctx context.Context, inst *ev
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if resp.Diagnostics.HasErrors() {
-		return cty.DynamicVal, nil, diags
+		return ret, diags
 	}
+	// TODO: Verify that the object the provider returned is a valid completion
+	// of the configuration value.
 
-	// TODO: Implement
-	panic("unimplemented")
+	// TODO: Update the refreshed state to match what we've just read.
+
+	// Since we've already read the data source during the planning phase,
+	// we don't need a PlannedChange here and can instead just use the result
+	// as the PlaceholderValue.
+	ret.PlaceholderValue = resp.State
+
+	return ret, diags
 }
 
-func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc, egb *execGraphBuilder) tfdiags.Diagnostics {
+func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.AbsResourceInstance, state *states.ResourceInstanceObjectFullSrc) (*resourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// An orphan data object is always just discarded completely, because
@@ -96,5 +119,10 @@ func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.
 	// command: they are not actually expected to persist between rounds.
 	p.planCtx.refreshedState.SetResourceInstanceObjectFull(addr, states.NotDeposed, nil)
 
-	return diags
+	return &resourceInstanceObject{
+		Addr:             addr.CurrentObject(),
+		Dependencies:     addrs.MakeSet[addrs.AbsResourceInstanceObject](),
+		Provider:         state.ProviderInstanceAddr.Config.Config.Provider,
+		PlaceholderValue: cty.NullVal(cty.DynamicPseudoType),
+	}, diags
 }

@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
 )
 
@@ -43,9 +42,6 @@ type execGraphBuilder struct {
 	// we throw these away after building is complete because the graph
 	// becomes immutable at that point.
 	resourceInstAddrRefs addrs.Map[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]]
-	providerInstAddrRefs addrs.Map[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]]
-	openProviderRefs     addrs.Map[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]]
-	openEphemeralRefs    addrs.Map[addrs.AbsResourceInstance, registerExecCloseBlockerFunc]
 }
 
 // NOTE: There are additional methods for [execGraphBuilder] declared in
@@ -56,9 +52,6 @@ func newExecGraphBuilder() *execGraphBuilder {
 	return &execGraphBuilder{
 		lower:                execgraph.NewBuilder(),
 		resourceInstAddrRefs: addrs.MakeMap[addrs.AbsResourceInstance, execgraph.ResultRef[addrs.AbsResourceInstance]](),
-		providerInstAddrRefs: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execgraph.ResultRef[addrs.AbsProviderInstanceCorrect]](),
-		openProviderRefs:     addrs.MakeMap[addrs.AbsProviderInstanceCorrect, execResultWithCloseBlockers[*exec.ProviderClient]](),
-		openEphemeralRefs:    addrs.MakeMap[addrs.AbsResourceInstance, registerExecCloseBlockerFunc](),
 	}
 }
 
@@ -72,31 +65,15 @@ func (b *execGraphBuilder) Finish() *execgraph.Graph {
 	return b.lower.Finish()
 }
 
-// execResultWithCloseBlockers associates a result for some object type that
-// needs to be closed once other operations have finished using it with the
-// operation that performs that close operation.
-type execResultWithCloseBlockers[T any] struct {
-	Result             execgraph.ResultRef[T]
-	CloseBlockerFunc   registerExecCloseBlockerFunc
-	CloseBlockerResult execgraph.AnyResultRef
-}
-
-// registerExecCloseBlockerFunc is the signature of a function that adds a given
-// result references as a blocker for something to be "closed".
-//
-// Exactly what means to be a "close blocker" depends on context. Refer to the
-// documentation of whatever function is returning a value of this type.
-type registerExecCloseBlockerFunc func(execgraph.AnyResultRef)
-
 // makeCloseBlocker is a helper used by [execGraphBuilder] methods that produce
 // open/close node pairs.
 //
 // Callers MUST hold a lock on b.mu throughout any call to this method, AND
-// when calling the returned registerExecCloseBlockerFunc.
-func (b *execGraphBuilder) makeCloseBlocker() (execgraph.AnyResultRef, registerExecCloseBlockerFunc) {
+// when calling the returned callback.
+func (b *execGraphBuilder) makeCloseBlocker() (execgraph.AnyResultRef, func(execgraph.AnyResultRef)) {
 	waiter, lowerRegister := b.lower.MutableWaiter()
-	registerFunc := registerExecCloseBlockerFunc(func(ref execgraph.AnyResultRef) {
+	registerFunc := func(ref execgraph.AnyResultRef) {
 		lowerRegister(ref)
-	})
+	}
 	return waiter, registerFunc
 }

@@ -6,9 +6,9 @@
 package planning
 
 import (
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/engine/internal/exec"
 	"github.com/opentofu/opentofu/internal/engine/internal/execgraph"
-	"github.com/opentofu/opentofu/internal/lang/eval"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -21,37 +21,22 @@ import (
 // stays open long enough to handle one or more other operations registered
 // afterwards.
 //
-// This should be called ONLY by [planGlue.ensureProviderInstanceExecgraph],
-// which therefore ensures that all calls will consistently pass the same config
-// for each distinct provider instance address.
-//
-// Each distinct provider instance address gets only one set of operations
-// added, so future calls with the same provider instance recieve references to
-// the same operations. This means that the resource instance planning code must
-// call this only once it's definitely intending to add side-effects to the
-// execution graph then the resulting graph will refer to only the subset of
-// provider instances needed to perform planned changes.
-func (b *execGraphBuilder) ProviderInstanceSubgraph(config *eval.ProviderInstanceConfig) (execgraph.ResultRef[*exec.ProviderClient], registerExecCloseBlockerFunc) {
-	// We only register one index for each distinct provider instance address.
-	if existing, ok := b.openProviderRefs.GetOk(config.Addr); ok {
-		return existing.Result, existing.CloseBlockerFunc
-	}
-
-	resourceInstDeps := config.RequiredResourceInstances
-	dependencyWaiter, closeDependencyAfter := b.waiterForResourceInstances(resourceInstDeps.All())
-
-	addrResult := b.lower.ConstantProviderInstAddr(config.Addr)
-	configResult := b.lower.ProviderInstanceConfig(addrResult, dependencyWaiter)
+// Each call to this method adds a new set of operations to the graph. It's
+// the caller's responsibility to call this function only once per distinct
+// provider instance address.
+func (b *execGraphBuilder) ProviderInstanceSubgraph(
+	addr addrs.AbsProviderInstanceCorrect,
+) (
+	clientRef execgraph.ResultRef[*exec.ProviderClient],
+	addConfigDep, addCloseDep func(execgraph.AnyResultRef),
+) {
+	addrResult := b.lower.ConstantProviderInstAddr(addr)
+	waitFor, addConfigDep := b.lower.MutableWaiter()
+	configResult := b.lower.ProviderInstanceConfig(addrResult, waitFor)
 	openResult := b.lower.ProviderInstanceOpen(configResult)
-	closeWait, registerCloseBlocker := b.makeCloseBlocker()
 
-	closeRef := b.lower.ProviderInstanceClose(openResult, closeWait)
-	closeDependencyAfter(closeRef)
+	closeWait, addCloseDep := b.makeCloseBlocker()
+	b.lower.ProviderInstanceClose(openResult, closeWait)
 
-	b.openProviderRefs.Put(config.Addr, execResultWithCloseBlockers[*exec.ProviderClient]{
-		Result:             openResult,
-		CloseBlockerResult: closeWait,
-		CloseBlockerFunc:   registerCloseBlocker,
-	})
-	return openResult, registerCloseBlocker
+	return openResult, addConfigDep, addCloseDep
 }
