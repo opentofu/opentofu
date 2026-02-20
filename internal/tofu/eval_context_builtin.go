@@ -22,8 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -66,11 +65,7 @@ type BuiltinEvalContext struct {
 	InputValue UIInput
 
 	ProviderLock        *sync.Mutex
-	ProviderCache       map[string]map[addrs.InstanceKey]providers.Interface
 	ProviderInputConfig map[string]map[string]cty.Value
-
-	ProvisionerLock  *sync.Mutex
-	ProvisionerCache map[string]provisioners.Interface
 
 	ChangesValue            *plans.ChangesSync
 	StateValue              *states.SyncState
@@ -127,36 +122,6 @@ func (c *BuiltinEvalContext) Input() UIInput {
 	return c.InputValue
 }
 
-func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerInstanceKey addrs.InstanceKey) (providers.Interface, error) {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	providerAddrKey := addr.String()
-
-	if c.ProviderCache[providerAddrKey] == nil {
-		c.ProviderCache[providerAddrKey] = make(map[addrs.InstanceKey]providers.Interface)
-	}
-
-	// If we have already initialized, it is an error
-	if _, ok := c.ProviderCache[providerAddrKey][providerInstanceKey]; ok {
-		return nil, fmt.Errorf("%s is already initialized", addr)
-	}
-
-	p, err := c.Plugins.NewProviderInstance(addr.Provider)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerInstanceKey, addr)
-	c.ProviderCache[providerAddrKey][providerInstanceKey] = p
-
-	return p, nil
-}
-
-func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return c.Plugins.ProviderSchema(ctx, addr.Provider)
-}
-
 func (c *BuiltinEvalContext) ProviderInput(_ context.Context, pc addrs.AbsProviderConfig) map[string]cty.Value {
 	c.ProviderLock.Lock()
 	defer c.ProviderLock.Unlock()
@@ -189,41 +154,12 @@ func (c *BuiltinEvalContext) SetProviderInput(_ context.Context, pc addrs.AbsPro
 	c.ProviderLock.Unlock()
 }
 
-func (c *BuiltinEvalContext) Provisioner(n string) (provisioners.Interface, error) {
-	c.ProvisionerLock.Lock()
-	defer c.ProvisionerLock.Unlock()
-
-	p, ok := c.ProvisionerCache[n]
-	if !ok {
-		var err error
-		p, err = c.Plugins.NewProvisionerInstance(n)
-		if err != nil {
-			return nil, err
-		}
-
-		c.ProvisionerCache[n] = p
-	}
-
-	return p, nil
+func (c *BuiltinEvalContext) Providers() plugins.ProviderManager {
+	return c.Plugins.providers
 }
 
-func (c *BuiltinEvalContext) ProvisionerSchema(n string) (*configschema.Block, error) {
-	return c.Plugins.ProvisionerSchema(n)
-}
-
-func (c *BuiltinEvalContext) CloseProvisioners() error {
-	var diags tfdiags.Diagnostics
-	c.ProvisionerLock.Lock()
-	defer c.ProvisionerLock.Unlock()
-
-	for name, prov := range c.ProvisionerCache {
-		err := prov.Close()
-		if err != nil {
-			diags = diags.Append(fmt.Errorf("provisioner.Close %s: %w", name, err))
-		}
-	}
-
-	return diags.Err()
+func (c *BuiltinEvalContext) Provisioners() plugins.ProvisionerManager {
+	return c.Plugins.provisioners
 }
 
 func (c *BuiltinEvalContext) EvaluateBlock(ctx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
@@ -319,9 +255,9 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, exp
 	// Since we have a traversal after the resource reference, we will need to
 	// decode the changes, which means we need a schema.
 	providerAddr := change.ProviderAddr
-	schema, err := c.ProviderSchema(ctx, providerAddr)
-	if err != nil {
-		diags = diags.Append(err)
+	schema, schemaDiags := c.Providers().GetProviderSchema(ctx, providerAddr.Provider)
+	if schemaDiags.HasErrors() {
+		diags = diags.Append(schemaDiags)
 		return nil, false, diags
 	}
 

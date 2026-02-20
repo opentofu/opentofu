@@ -267,7 +267,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 			},
 		},
 	})
-	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
+	evalCtx.installProvider(addrs.NewDefaultProvider("aws"), mockProvider)
 
 	obj := &states.ResourceInstanceObject{
 		Value: cty.ObjectVal(map[string]cty.Value{
@@ -300,10 +300,10 @@ aws_instance.foo: (1 deposed)
 func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing.T) {
 	p := simpleMockProvider()
 	evalCtx := &MockEvalContext{
-		StateState:           states.NewState().SyncWrapper(),
-		ProviderSchemaSchema: p.GetProviderSchema(t.Context()),
-		ChangesChanges:       plans.NewChanges().SyncWrapper(),
+		StateState:     states.NewState().SyncWrapper(),
+		ChangesChanges: plans.NewChanges().SyncWrapper(),
 	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
@@ -391,13 +391,15 @@ func initMockEvalContext(ctx context.Context, resourceAddrs string, deposedKey s
 			"id": cty.StringVal("bar"),
 		}),
 	}
-	return &MockEvalContext{
-		PrevRunStateState:    state.DeepCopy().SyncWrapper(),
-		RefreshStateState:    state.DeepCopy().SyncWrapper(),
-		StateState:           state.SyncWrapper(),
-		ProviderSchemaSchema: schema,
-		ChangesChanges:       plans.NewChanges().SyncWrapper(),
-	}, p
+	evalCtx := &MockEvalContext{
+		PrevRunStateState: state.DeepCopy().SyncWrapper(),
+		RefreshStateState: state.DeepCopy().SyncWrapper(),
+		StateState:        state.SyncWrapper(),
+		ChangesChanges:    plans.NewChanges().SyncWrapper(),
+	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("test"), p)
+
+	return evalCtx, p
 }
 
 func assertDiags(t *testing.T, got, want tfdiags.Diagnostics) {
