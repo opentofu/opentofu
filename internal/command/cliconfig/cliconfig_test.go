@@ -33,7 +33,7 @@ func TestLoadConfig_ignore_providers_provisioners(t *testing.T) {
 	expected := &Config{
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "https://example.com/",
 				},
 			},
@@ -213,7 +213,7 @@ func TestLoadConfig_hosts(t *testing.T) {
 	want := &Config{
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "https://example.com/",
 				},
 			},
@@ -232,11 +232,11 @@ func TestLoadConfig_credentials(t *testing.T) {
 	}
 
 	want := &Config{
-		Credentials: map[string]map[string]interface{}{
-			"example.com": map[string]interface{}{
+		Credentials: map[string]map[string]any{
+			"example.com": map[string]any{
 				"token": "foo the bar baz",
 			},
-			"example.net": map[string]interface{}{
+			"example.net": map[string]any{
 				"username": "foo",
 				"password": "baz",
 			},
@@ -284,8 +284,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		"credentials good": {
 			&Config{
-				Credentials: map[string]map[string]interface{}{
-					"example.com": map[string]interface{}{
+				Credentials: map[string]map[string]any{
+					"example.com": map[string]any{
 						"token": "foo",
 					},
 				},
@@ -294,8 +294,8 @@ func TestConfigValidate(t *testing.T) {
 		},
 		"credentials with bad hostname": {
 			&Config{
-				Credentials: map[string]map[string]interface{}{
-					"example..com": map[string]interface{}{
+				Credentials: map[string]map[string]any{
+					"example..com": map[string]any{
 						"token": "foo",
 					},
 				},
@@ -367,12 +367,12 @@ func TestConfig_Merge(t *testing.T) {
 	c1 := &Config{
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "http://example.com/",
 				},
 			},
 		},
-		Credentials: map[string]map[string]interface{}{
+		Credentials: map[string]map[string]any{
 			"foo": {
 				"bar": "baz",
 			},
@@ -409,12 +409,12 @@ func TestConfig_Merge(t *testing.T) {
 	c2 := &Config{
 		Hosts: map[string]*ConfigHost{
 			"example.net": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "https://example.net/",
 				},
 			},
 		},
-		Credentials: map[string]map[string]interface{}{
+		Credentials: map[string]map[string]any{
 			"fee": {
 				"bur": "bez",
 			},
@@ -446,17 +446,17 @@ func TestConfig_Merge(t *testing.T) {
 	expected := &Config{
 		Hosts: map[string]*ConfigHost{
 			"example.com": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "http://example.com/",
 				},
 			},
 			"example.net": {
-				Services: map[string]interface{}{
+				Services: map[string]any{
 					"modules.v1": "https://example.net/",
 				},
 			},
 		},
-		Credentials: map[string]map[string]interface{}{
+		Credentials: map[string]map[string]any{
 			"foo": {
 				"bar": "baz",
 			},

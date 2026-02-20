@@ -683,7 +683,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 	// state we will not prompt the user for a new name because empty workspaces
 	// do not get migrated.
 	defaultNewName := map[string]string{}
-	for i := 0; i < len(sourceWorkspaces); i++ {
+	for i := range sourceWorkspaces {
 		if sourceWorkspaces[i] == backend.DefaultStateName {
 			// For the default workspace we want to look to see if there is any state
 			// before we ask for a workspace name to migrate the default workspace into.

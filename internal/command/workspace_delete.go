@@ -8,6 +8,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -109,13 +110,7 @@ func (c *WorkspaceDeleteCommand) Run(rawArgs []string) int {
 	}
 
 	workspace := args.WorkspaceName
-	exists := false
-	for _, ws := range workspaces {
-		if workspace == ws {
-			exists = true
-			break
-		}
-	}
+	exists := slices.Contains(workspaces, workspace)
 
 	if !exists {
 		view.WorkspaceDoesNotExist(workspace)

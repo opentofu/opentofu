@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -956,9 +956,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		if len(incompleteProviders) > 0 {
 			// We don't really care about the order here, we just want the
 			// output to be deterministic.
-			sort.Slice(incompleteProviders, func(i, j int) bool {
-				return incompleteProviders[i] < incompleteProviders[j]
-			})
+			slices.Sort(incompleteProviders)
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Warning,
 				incompleteLockFileInformationHeader,

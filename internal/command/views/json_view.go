@@ -78,12 +78,12 @@ func (v *JSONView) StateDump(state string) {
 	)
 }
 
-func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
+func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...any) {
 	sources := v.view.configSources()
 	for _, diag := range diags {
 		diagnostic := jsonentities.NewDiagnostic(diag, sources)
 
-		args := []interface{}{"type", json.MessageDiagnostic, "diagnostic", diagnostic}
+		args := []any{"type", json.MessageDiagnostic, "diagnostic", diagnostic}
 		args = append(args, metadata...)
 
 		switch diag.Severity() {

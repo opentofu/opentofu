@@ -375,7 +375,7 @@ func testLoginHuman(t *testing.T, call func(login Login), wantStdout, wantStderr
 	}
 }
 
-func testLoginJson(t *testing.T, call func(login Login), want []map[string]interface{}) {
+func testLoginJson(t *testing.T, call func(login Login), want []map[string]any) {
 	view, done := testView(t)
 	loginView := NewLogin(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
 	call(loginView)
@@ -387,7 +387,7 @@ func testLoginJson(t *testing.T, call func(login Login), want []map[string]inter
 	testJSONViewOutputEquals(t, output.Stdout(), want)
 }
 
-func testLoginMulti(t *testing.T, call func(login Login), wantStdout string, wantStderr string, want []map[string]interface{}) {
+func testLoginMulti(t *testing.T, call func(login Login), wantStdout string, wantStderr string, want []map[string]any) {
 	jsonInto, err := os.CreateTemp(t.TempDir(), "json-into-*")
 	if err != nil {
 		t.Fatalf("failed to create the file to write json content into: %s", err)
