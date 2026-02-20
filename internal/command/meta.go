@@ -300,9 +300,6 @@ type Meta struct {
 	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
 
-	outputInJSON   bool
-	outputJSONInto string
-
 	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
@@ -771,21 +768,6 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	diags.Sort()
 
 	if len(diags) == 0 {
-		return
-	}
-
-	if m.outputJSONInto != "" {
-		// This is a weird workaround for init and get using the legacy view wrappers mixed with the new view system
-		wrapped, ok := m.Ui.(*WrappedUi)
-		if wrapped == nil || !ok {
-			panic("BUG: incorrect initialization of meta command structure")
-		}
-		wrapped.jsonView.Diagnostics(diags)
-		return
-	}
-	if m.outputInJSON {
-		jsonView := views.NewJSONView(m.View, nil)
-		jsonView.Diagnostics(diags)
 		return
 	}
 
