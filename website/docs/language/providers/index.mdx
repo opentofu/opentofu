@@ -106,3 +106,55 @@ TF_ACC_TERRAFORM_PATH="/path/to/opentofu"
 TF_ACC_PROVIDER_NAMESPACE="hashicorp"
 TF_ACC_PROVIDER_HOST="registry.opentofu.org"
 ```
+
+#### Known Divergences
+
+##### Ephemeral Resources in Plan Output
+
+OpenTofu includes [ephemeral resources](../../language/ephemerality/ephemeral-resources.mdx) with an `open` action in the JSON plan output's `resource_changes`. This is needed internally for building the apply execution graph when running `tofu apply <planfile>`.
+
+OpenTofu's internal plan emptiness check correctly ignores `open` actions — so the CLI output will say "No changes" and `-detailed-exitcode` returns `0`. However, the [`terraform-plugin-testing`](https://github.com/hashicorp/terraform-plugin-testing) framework interprets any entry in `resource_changes` as a non-empty plan, which can cause acceptance test failures when ephemeral resources are present.
+
+The recommended workaround is to conditionally set `ExpectNonEmptyPlan` when running against OpenTofu. First, add a helper to detect OpenTofu:
+
+```go
+// UsingOpenTofu reports whether the acceptance test binary is OpenTofu.
+// OpenTofu includes ephemeral resource "open" actions in the JSON plan's
+// resource_changes, which causes terraform-plugin-testing to consider the
+// plan non-empty. See: https://github.com/opentofu/opentofu/issues/3781
+func UsingOpenTofu() bool {
+	return strings.HasSuffix(os.Getenv("TF_ACC_TERRAFORM_PATH"), "tofu")
+}
+```
+
+Then on any test step that includes ephemeral resources:
+
+```go
+{
+	Config:             testConfig,
+	ExpectNonEmptyPlan: UsingOpenTofu(),
+},
+```
+
+If you run acceptance tests against both OpenTofu and Terraform, you can use `SkipFunc` to define separate steps for each:
+
+```go
+isTofu := UsingOpenTofu()
+
+// Step for OpenTofu
+{
+	Config:             testConfig,
+	ExpectNonEmptyPlan: true,
+	SkipFunc: func() (bool, error) {
+		return !isTofu, nil
+	},
+},
+// Step for Terraform
+{
+	Config:             testConfig,
+	ExpectNonEmptyPlan: false,
+	SkipFunc: func() (bool, error) {
+		return isTofu, nil
+	},
+},
+```
