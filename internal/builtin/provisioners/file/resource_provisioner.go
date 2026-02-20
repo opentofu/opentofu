@@ -13,11 +13,12 @@ import (
 	"os"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/communicator"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 func New() provisioners.Interface {
@@ -63,6 +64,17 @@ func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisi
 	cfg, err := p.GetSchema().Provisioner.CoerceValue(req.Config)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	// ensure that the destination is not set to a null value or an empty string
+	dst := cfg.GetAttr("destination")
+	if dst.IsKnown() && (dst.IsNull() || dst.AsString() == "") {
+		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			"Invalid file provisioner configuration",
+			"The destination must be a non-empty string.",
+		))
 	}
 
 	source := cfg.GetAttr("source")
@@ -115,7 +127,16 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 	}
 
 	// Begin the file copy
-	dst := req.Config.GetAttr("destination").AsString()
+	dstVal := req.Config.GetAttr("destination")
+	if dstVal.IsNull() || dstVal.AsString() == "" {
+		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			"Invalid file provisioner configuration",
+			"The destination must be a non-empty string.",
+		))
+		return resp
+	}
+	dst := dstVal.AsString()
 	if err := copyFiles(p.ctx, comm, src, dst); err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
 			tfdiags.Error,

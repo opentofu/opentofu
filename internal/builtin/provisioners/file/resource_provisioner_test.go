@@ -124,6 +124,47 @@ func TestResourceProvisioner_connectionRequired(t *testing.T) {
 	}
 }
 
+func TestResourceProvider_ValidateNullDestination(t *testing.T) {
+	p := New()
+
+	cfg := cty.ObjectVal(map[string]cty.Value{
+		"source":      cty.StringVal("/tmp/foo"),
+		"destination": cty.NullVal(cty.String),
+	})
+
+	resp := p.ValidateProvisionerConfig(provisioners.ValidateProvisionerConfigRequest{
+		Config: cfg,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null destination, got none")
+	}
+}
+
+func TestResourceProvider_ApplyNullDestination(t *testing.T) {
+	p := New()
+
+	cfg := cty.ObjectVal(map[string]cty.Value{
+		"source":      cty.StringVal("/tmp/foo"),
+		"content":     cty.NullVal(cty.String),
+		"destination": cty.NullVal(cty.String),
+	})
+
+	conn := cty.ObjectVal(map[string]cty.Value{
+		"type": cty.StringVal(""),
+		"host": cty.StringVal("localhost"),
+	})
+
+	resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
+		Config:     cfg,
+		Connection: conn,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null destination, got none")
+	}
+}
+
 func TestResourceProvisioner_nullSrcVars(t *testing.T) {
 	conn := cty.ObjectVal(map[string]cty.Value{
 		"type": cty.StringVal(""),
