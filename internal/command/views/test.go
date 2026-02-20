@@ -544,7 +544,7 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 }
 
 func (t *TestJSON) Diagnostics(run *moduletest.Run, file *moduletest.File, diags tfdiags.Diagnostics) {
-	var metadata []interface{}
+	var metadata []any
 	if file != nil {
 		metadata = append(metadata, "@testfile", file.Name)
 	}

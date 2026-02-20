@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -55,7 +56,7 @@ type Config struct {
 
 	Hosts map[string]*ConfigHost `hcl:"host"`
 
-	Credentials        map[string]map[string]interface{}   `hcl:"credentials"`
+	Credentials        map[string]map[string]any           `hcl:"credentials"`
 	CredentialsHelpers map[string]*ConfigCredentialsHelper `hcl:"credentials_helper"`
 
 	// RegistryProtocols contains some settings for tailoring the request
@@ -88,7 +89,7 @@ type Config struct {
 // configuration, which can be used to override the default service host
 // discovery behavior for a particular hostname.
 type ConfigHost struct {
-	Services map[string]interface{} `hcl:"services"`
+	Services map[string]any `hcl:"services"`
 }
 
 // ConfigCredentialsHelper is the structure of the "credentials_helper"
@@ -318,11 +319,11 @@ func makeEnvMap(environ []string) map[string]string {
 
 	ret := make(map[string]string, len(environ))
 	for _, entry := range environ {
-		eq := strings.IndexByte(entry, '=')
-		if eq == -1 {
+		before, after, ok := strings.Cut(entry, "=")
+		if !ok {
 			continue
 		}
-		ret[entry[:eq]] = entry[eq+1:]
+		ret[before] = after
 	}
 	return ret
 }
@@ -429,35 +430,23 @@ func (c *Config) Merge(c2 *Config) *Config {
 
 	if (len(c.Hosts) + len(c2.Hosts)) > 0 {
 		result.Hosts = make(map[string]*ConfigHost)
-		for name, host := range c.Hosts {
-			result.Hosts[name] = host
-		}
-		for name, host := range c2.Hosts {
-			result.Hosts[name] = host
-		}
+		maps.Copy(result.Hosts, c.Hosts)
+		maps.Copy(result.Hosts, c2.Hosts)
 	}
 
 	if (len(c.Credentials) + len(c2.Credentials)) > 0 {
-		result.Credentials = make(map[string]map[string]interface{})
-		for host, creds := range c.Credentials {
-			result.Credentials[host] = creds
-		}
-		for host, creds := range c2.Credentials {
-			// We just clobber an entry from the other file right now. Will
-			// improve on this later using the more-robust merging behavior
-			// built in to HCL2.
-			result.Credentials[host] = creds
-		}
+		result.Credentials = make(map[string]map[string]any)
+		maps.Copy(result.Credentials, c.Credentials)
+		// We just clobber an entry from the other file right now. Will
+		// improve on this later using the more-robust merging behavior
+		// built in to HCL2.
+		maps.Copy(result.Credentials, c2.Credentials)
 	}
 
 	if (len(c.CredentialsHelpers) + len(c2.CredentialsHelpers)) > 0 {
 		result.CredentialsHelpers = make(map[string]*ConfigCredentialsHelper)
-		for name, helper := range c.CredentialsHelpers {
-			result.CredentialsHelpers[name] = helper
-		}
-		for name, helper := range c2.CredentialsHelpers {
-			result.CredentialsHelpers[name] = helper
-		}
+		maps.Copy(result.CredentialsHelpers, c.CredentialsHelpers)
+		maps.Copy(result.CredentialsHelpers, c2.CredentialsHelpers)
 	}
 
 	result.RegistryProtocols = mergeRegistryProtocolConfigs(c2.RegistryProtocols, c.RegistryProtocols)

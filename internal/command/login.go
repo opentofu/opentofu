@@ -266,8 +266,8 @@ func (c *LoginCommand) Run(rawArgs []string) int {
 	view.UiSeparator()
 	if hostname == hcpTerraformHost { // HCP Terraform
 		var motd struct {
-			Message string        `json:"msg"`
-			Errors  []interface{} `json:"errors"`
+			Message string `json:"msg"`
+			Errors  []any  `json:"errors"`
 		}
 
 		// Throughout the entire process of fetching a MOTD from TFC, use a default
@@ -767,7 +767,7 @@ func (c *LoginCommand) listenerForCallback(minPort, maxPort uint16) (net.Listene
 	// another.
 	maxTries := availCount + (availCount / 2)
 
-	for tries := 0; tries < maxTries; tries++ {
+	for range maxTries {
 		port := rand.Intn(availCount) + int(minPort)
 		addr := fmt.Sprintf("127.0.0.1:%d", port)
 		log.Printf("[TRACE] login: trying %s as a listen address for temporary OAuth callback server", addr)

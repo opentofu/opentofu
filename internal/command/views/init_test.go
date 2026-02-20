@@ -623,7 +623,7 @@ func testInitHuman(t *testing.T, call func(init Init), wantStdout, wantStderr st
 	}
 }
 
-func testInitJson(t *testing.T, call func(init Init), want []map[string]interface{}) {
+func testInitJson(t *testing.T, call func(init Init), want []map[string]any) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
 	initView := NewInit(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
@@ -636,7 +636,7 @@ func testInitJson(t *testing.T, call func(init Init), want []map[string]interfac
 	testJSONViewOutputEquals(t, output.Stdout(), want)
 }
 
-func testInitMulti(t *testing.T, call func(init Init), wantStdout string, wantStderr string, want []map[string]interface{}) {
+func testInitMulti(t *testing.T, call func(init Init), wantStdout string, wantStderr string, want []map[string]any) {
 	jsonInto, err := os.CreateTemp(t.TempDir(), "json-into-*")
 	if err != nil {
 		t.Fatalf("failed to create the file to write json content into: %s", err)
