@@ -47,6 +47,9 @@ type provisionerManager struct {
 
 	instancesLock sync.Mutex
 	instances     map[string]provisioners.Interface
+
+	// TODO handle closed
+	closed bool
 }
 
 func (l *library) NewProvisionerManager() ProvisionerManager {
@@ -63,6 +66,10 @@ func (p *provisionerManager) HasProvisioner(typ string) bool {
 func (p *provisionerManager) provisioner(typ string) (provisioners.Interface, error) {
 	p.instancesLock.Lock()
 	defer p.instancesLock.Unlock()
+
+	if p.closed {
+		return nil, fmt.Errorf("bug: unable to start provisioner %s, manager is closed", typ)
+	}
 
 	instance, ok := p.instances[typ]
 	if !ok {
@@ -88,20 +95,7 @@ func (p *provisionerManager) ProvisionerSchema(typ string) (*configschema.Block,
 	p.provisionerSchemasLock.Lock()
 	entry, ok := p.provisionerSchemas[typ]
 	if !ok {
-		entry = sync.OnceValues(func() (*configschema.Block, error) {
-			log.Printf("[TRACE] Initializing provisioner %q to read its schema", typ)
-			provisioner, err := p.provisioner(typ)
-			if err != nil {
-				return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)
-			}
-			defer provisioner.Close()
-
-			resp := provisioner.GetSchema()
-			if resp.Diagnostics.HasErrors() {
-				return nil, fmt.Errorf("failed to retrieve schema from provisioner %q: %w", typ, resp.Diagnostics.Err())
-			}
-			return resp.Provisioner, nil
-		})
+		entry = &provisionerSchemaEntry{}
 		p.provisionerSchemas[typ] = entry
 	}
 	// This lock is only for access to the map. We don't need to hold the lock when calling
@@ -110,7 +104,27 @@ func (p *provisionerManager) ProvisionerSchema(typ string) (*configschema.Block,
 	// and we want to release as soon as possible for multiple concurrent callers of different provisioners
 	p.provisionerSchemasLock.Unlock()
 
-	return entry()
+	if !entry.populated {
+		log.Printf("[TRACE] Initializing provisioner %q to read its schema", typ)
+		provisioner, err := p.provisionerFactories.NewInstance(typ)
+		if err != nil {
+			// Might be a transient error. Don't memoize this result
+			return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)
+		}
+		// TODO consider using the p.provisioner(typ) call once we have a clear
+		// .Close() call for all usages of the provisioner manager
+		defer provisioner.Close()
+
+		resp := provisioner.GetSchema()
+
+		entry.populated = true
+		entry.schema = resp.Provisioner
+		if resp.Diagnostics.HasErrors() {
+			entry.err = fmt.Errorf("failed to retrieve schema from provisioner %q: %w", typ, resp.Diagnostics.Err())
+		}
+	}
+
+	return entry.schema, entry.err
 }
 
 func (p *provisionerManager) ValidateProvisionerConfig(ctx context.Context, typ string, config cty.Value) tfdiags.Diagnostics {
@@ -139,6 +153,8 @@ func (p *provisionerManager) Close() error {
 	p.instancesLock.Lock()
 	defer p.instancesLock.Unlock()
 
+	p.closed = true
+
 	var diags tfdiags.Diagnostics
 	for name, prov := range p.instances {
 		err := prov.Close()
@@ -146,7 +162,6 @@ func (p *provisionerManager) Close() error {
 			diags = diags.Append(fmt.Errorf("provisioner.Close %s: %w", name, err))
 		}
 	}
-	clear(p.instances)
 	return diags.Err()
 }
 
@@ -161,6 +176,5 @@ func (p *provisionerManager) Stop() error {
 			diags = diags.Append(fmt.Errorf("provisioner.Stop %s: %w", name, err))
 		}
 	}
-	clear(p.instances)
 	return diags.Err()
 }

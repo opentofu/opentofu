@@ -25,27 +25,36 @@ type Library interface {
 func NewLibrary(providerFactories ProviderFactories, provisionerFactories ProvisionerFactories) Library {
 	return &library{
 		providerFactories: providerFactories,
-		providerSchemas:   map[addrs.Provider]providerSchemaEntry{},
+		providerSchemas:   map[addrs.Provider]*providerSchemaEntry{},
 
 		provisionerFactories: provisionerFactories,
-		provisionerSchemas:   map[string]provisionerSchemaEntry{},
+		provisionerSchemas:   map[string]*provisionerSchemaEntry{},
 	}
 }
 
-type providerSchemaResult struct {
+type providerSchemaEntry struct {
+	sync.Mutex
+	populated bool
+
 	schema providers.ProviderSchema
 	diags  tfdiags.Diagnostics
 }
-type providerSchemaEntry func() providerSchemaResult
-type provisionerSchemaEntry func() (*configschema.Block, error)
+
+type provisionerSchemaEntry struct {
+	sync.Mutex
+	populated bool
+
+	schema *configschema.Block
+	err    error
+}
 
 type library struct {
 	providerSchemasLock sync.Mutex
-	providerSchemas     map[addrs.Provider]providerSchemaEntry
+	providerSchemas     map[addrs.Provider]*providerSchemaEntry
 	providerFactories   ProviderFactories
 
 	provisionerSchemasLock sync.Mutex
-	provisionerSchemas     map[string]provisionerSchemaEntry
+	provisionerSchemas     map[string]*provisionerSchemaEntry
 	provisionerFactories   ProvisionerFactories
 }
 

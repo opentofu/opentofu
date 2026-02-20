@@ -67,37 +67,18 @@ func (p *providerManager) HasProvider(addr addrs.Provider) bool {
 }
 
 func (p *providerManager) GetProviderSchema(ctx context.Context, addr addrs.Provider) (providers.ProviderSchema, tfdiags.Diagnostics) {
+	if p.closed {
+		// It's technically possible, but highly unlikely that a manager could be closed while fetching the schema
+		// In that scenario, we will start and then stop the corresponding provider internally to this function and not
+		// interfere with the set of known instances.
+		return providers.ProviderSchema{}, tfdiags.Diagnostics{}.Append(fmt.Errorf("bug: unable to start provider %s, manager is closed", addr))
+	}
+
 	// Coarse lock only for ensuring that a valid entry exists
 	p.providerSchemasLock.Lock()
 	entry, ok := p.providerSchemas[addr]
 	if !ok {
-		entry = sync.OnceValue(func() providerSchemaResult {
-			log.Printf("[TRACE] plugins.providerManager Initializing provider %q to read its schema", addr)
-
-			var diags tfdiags.Diagnostics
-
-			if p.closed {
-				return providerSchemaResult{diags: tfdiags.Diagnostics{}.Append(fmt.Errorf("bug: unable to start provider %s, manager is closed", addr))}
-			}
-
-			provider, err := p.providerFactories.NewInstance(addr)
-			if err != nil {
-				return providerSchemaResult{diags: diags.Append(fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err))}
-			}
-
-			schema := provider.GetProviderSchema(ctx)
-			diags = diags.Append(schema.Diagnostics)
-			if diags.HasErrors() {
-				return providerSchemaResult{schema, diags}
-			}
-
-			err = schema.Validate(addr)
-			if err != nil {
-				diags = diags.Append(err)
-			}
-
-			return providerSchemaResult{schema, diags}
-		})
+		entry = &providerSchemaEntry{}
 		p.providerSchemas[addr] = entry
 	}
 	// This lock is only for access to the map. We don't need to hold the lock when calling
@@ -106,8 +87,33 @@ func (p *providerManager) GetProviderSchema(ctx context.Context, addr addrs.Prov
 	// and we want to release as soon as possible for multiple concurrent callers of different providers
 	p.providerSchemasLock.Unlock()
 
-	result := entry()
-	return result.schema, result.diags
+	entry.Lock()
+	defer entry.Unlock()
+
+	if !entry.populated {
+		log.Printf("[TRACE] plugins.providerManager Initializing provider %q to read its schema", addr)
+
+		provider, err := p.providerFactories.NewInstance(addr)
+		if err != nil {
+			// Might be a transient error. Don't memoize this result
+			return providers.ProviderSchema{}, tfdiags.Diagnostics{}.Append(fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err))
+		}
+		// TODO consider using the p.NewProvider(ctx, addr) call once we have a clear
+		// .Close() call for all usages of the provider manager
+		defer provider.Close(context.WithoutCancel(ctx))
+
+		entry.schema = provider.GetProviderSchema(ctx)
+		entry.diags = entry.diags.Append(entry.schema.Diagnostics)
+		entry.populated = true
+
+		if !entry.diags.HasErrors() {
+			// Validate only if GetProviderSchema succeeded
+			err := entry.schema.Validate(addr)
+			entry.diags = entry.diags.Append(err)
+		}
+	}
+
+	return entry.schema, entry.diags
 }
 
 func (p *providerManager) NewProvider(ctx context.Context, addr addrs.Provider) (providers.Interface, tfdiags.Diagnostics) {
