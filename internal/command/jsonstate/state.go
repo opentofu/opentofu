@@ -113,6 +113,14 @@ type Resource struct {
 
 	// Deposed is set if the resource is deposed in tofu state.
 	DeposedKey string `json:"deposed_key,omitempty"`
+
+	// Identity is the JSON representation of the resource's identity attributes,
+	// if the provider supports resource identity for this type.
+	Identity json.RawMessage `json:"identity,omitempty"`
+
+	// IdentitySchemaVersion indicates which version of the resource identity
+	// schema the "identity" property conforms to.
+	IdentitySchemaVersion *uint64 `json:"identity_schema_version,omitempty"`
 }
 
 // AttributeValues is the JSON representation of the attribute values of the
@@ -412,16 +420,21 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				if schema == nil {
 					return nil, fmt.Errorf("no schema found for %s (in provider %s)", resAddr.String(), r.ProviderConfig.Provider)
 				}
-				riObj, err := ri.Current.Decode(schema.ImpliedType())
+				riObj, err := ri.Current.Decode(schema.Block.ImpliedType())
 				if err != nil {
 					return nil, err
 				}
 
 				current.AttributeValues = marshalAttributeValues(riObj.Value)
 
+				if len(ri.Current.IdentityJSON) > 0 {
+					current.Identity = json.RawMessage(ri.Current.IdentityJSON)
+					current.IdentitySchemaVersion = ri.Current.IdentitySchemaVersion
+				}
+
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsMarks() {
-					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
+				if schema.Block.ContainsMarks() {
+					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil)...)
 				}
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having
@@ -470,16 +483,21 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 					Index:        current.Index,
 				}
 
-				riObj, err := rios.Decode(schema.ImpliedType())
+				riObj, err := rios.Decode(schema.Block.ImpliedType())
 				if err != nil {
 					return nil, err
 				}
 
 				deposed.AttributeValues = marshalAttributeValues(riObj.Value)
 
+				if len(rios.IdentityJSON) > 0 {
+					deposed.Identity = json.RawMessage(rios.IdentityJSON)
+					deposed.IdentitySchemaVersion = rios.IdentitySchemaVersion
+				}
+
 				value, valMarks := riObj.Value.UnmarkDeepWithPaths()
-				if schema.ContainsMarks() {
-					valMarks = append(valMarks, schema.ValueMarks(value, nil)...)
+				if schema.Block.ContainsMarks() {
+					valMarks = append(valMarks, schema.Block.ValueMarks(value, nil)...)
 				}
 				// NOTE: Even though at this point, the resources that are processed here
 				// should have no ephemeral mark, we want to validate that before having

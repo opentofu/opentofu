@@ -68,7 +68,7 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rios, err := obj.Encode(value.Type(), 0)
+			rios, err := obj.Encode(value.Type(), 0, 0)
 			if err != nil {
 				t.Errorf("unexpected error: %s", err)
 			}
@@ -142,7 +142,7 @@ func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		encoded, err := test.inputObj.Encode(test.inputObj.Value.Type(), 0)
+		encoded, err := test.inputObj.Encode(test.inputObj.Value.Type(), 0, 0)
 		if err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}

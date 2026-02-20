@@ -72,7 +72,7 @@ func TestImportBlock_decode(t *testing.T) {
 		want  *Import
 		err   string
 	}{
-		"success": {
+		"success_id": {
 			&hcl.Block{
 				Type: "import",
 				Body: hcltest.MockBody(&hcl.BodyContent{
@@ -98,6 +98,36 @@ func TestImportBlock_decode(t *testing.T) {
 					Resource: barResource,
 				},
 				ID:        fooStrExpr,
+				DeclRange: blockRange,
+			},
+			``,
+		},
+		"success_identity": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"identity": {
+							Name: "identity",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Import{
+				To: barExpr,
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{Resource: barResource},
+				},
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				Identity:  fooStrExpr,
 				DeclRange: blockRange,
 			},
 			``,
@@ -198,7 +228,42 @@ func TestImportBlock_decode(t *testing.T) {
 			},
 			``,
 		},
-		"error: missing id argument": {
+		"error: both id and identity arguments": {
+			&hcl.Block{
+				Type: "import",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"id": {
+							Name: "id",
+							Expr: fooStrExpr,
+						},
+						"identity": {
+							Name: "identity",
+							Expr: fooStrExpr,
+						},
+						"to": {
+							Name: "to",
+							Expr: barExpr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Import{
+				To: barExpr,
+				ResolvedTo: &addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{Resource: barResource},
+				},
+				StaticTo: addrs.ConfigResource{
+					Resource: barResource,
+				},
+				ID:        fooStrExpr,
+				Identity:  fooStrExpr,
+				DeclRange: blockRange,
+			},
+			"Conflicting import arguments",
+		},
+		"error: missing id or identity argument": {
 			&hcl.Block{
 				Type: "import",
 				Body: hcltest.MockBody(&hcl.BodyContent{
@@ -221,7 +286,7 @@ func TestImportBlock_decode(t *testing.T) {
 				},
 				DeclRange: blockRange,
 			},
-			"Missing required argument",
+			"Missing required import argument",
 		},
 		"error: missing to argument": {
 			&hcl.Block{

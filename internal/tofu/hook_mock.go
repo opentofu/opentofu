@@ -337,7 +337,7 @@ func (h *MockHook) PostImportState(addr addrs.AbsResourceInstance, imported []pr
 	return h.PostImportStateReturn, h.PostImportStateError
 }
 
-func (h *MockHook) PrePlanImport(addr addrs.AbsResourceInstance, importID string) (HookAction, error) {
+func (h *MockHook) PrePlanImport(addr addrs.AbsResourceInstance, target providers.ImportTarget) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 

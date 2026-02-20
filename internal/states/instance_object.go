@@ -33,6 +33,9 @@ type ResourceInstanceObject struct {
 	// a provider can use it for retaining any necessary private state.
 	Private []byte
 
+	// TODO: godoc
+	Identity cty.Value
+
 	// Status represents the "readiness" of the object as of the last time
 	// it was updated.
 	Status ObjectStatus
@@ -96,13 +99,13 @@ const (
 // The returned object may share internal references with the receiver and
 // so the caller must not mutate the receiver any further once once this
 // method is called.
-func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*ResourceInstanceObjectSrc, error) {
+func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, identitySchemaVersion uint64) (*ResourceInstanceObjectSrc, error) {
 	// If it contains marks, remove these marks before traversing the
 	// structure with UnknownAsNull, and save the PathValueMarks
 	// so we can save them in state.
 	val, allPVMs := o.Value.UnmarkDeepWithPaths()
 
-	var sensitivePVMs = make([]cty.PathValueMarks, 0, len(allPVMs))
+	sensitivePVMs := make([]cty.PathValueMarks, 0, len(allPVMs))
 
 	for _, pvm := range allPVMs {
 		if _, ok := pvm.Marks[marks.Sensitive]; ok {
@@ -141,12 +144,28 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 
 	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].String() < dependencies[j].String() })
 
+	// Encode identity if present
+	var identityJSON []byte
+	if !o.Identity.IsNull() && o.Identity != cty.NilVal {
+		identityJSON, err = ctyjson.Marshal(o.Identity, o.Identity.Type())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var identitySchemaVer *uint64
+	if identityJSON != nil {
+		identitySchemaVer = &identitySchemaVersion
+	}
+
 	return &ResourceInstanceObjectSrc{
 		SchemaVersion:           schemaVersion,
+		IdentitySchemaVersion:   identitySchemaVer,
 		AttrsJSON:               src,
 		AttrSensitivePaths:      sensitivePVMs,
 		TransientPathValueMarks: allPVMs,
 		Private:                 o.Private,
+		IdentityJSON:            identityJSON,
 		Status:                  o.Status,
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,

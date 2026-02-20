@@ -82,7 +82,6 @@ func TestOperation_emergencyDumpState(t *testing.T) {
 }
 
 func TestOperation_planNoChanges(t *testing.T) {
-
 	tests := map[string]struct {
 		plan     func(schemas *tofu.Schemas) *plans.Plan
 		wantText string
@@ -126,7 +125,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -142,7 +141,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -167,7 +166,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -183,7 +182,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -214,7 +213,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
+				ty := schema.Block.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
@@ -230,7 +229,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -260,7 +259,6 @@ func TestOperation_planNoChanges(t *testing.T) {
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
-				ty := schema.ImpliedType()
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addrPrev,
@@ -279,7 +277,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 						}),
 					},
 				}
-				rcs, err := rc.Encode(ty)
+				rcs, err := rc.Encode(schema)
 				if err != nil {
 					panic(err)
 				}
@@ -463,6 +461,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 		t.Errorf("unexpected output\ngot:\n%s\nwant:\n%s", got, want)
 	}
 }
+
 func TestOperation_planNextStep(t *testing.T) {
 	testCases := map[string]struct {
 		path string

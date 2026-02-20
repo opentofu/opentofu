@@ -44,6 +44,14 @@ type Resource struct {
 	// SensitiveValues is similar to AttributeValues, but with all sensitive
 	// values replaced with true, and all non-sensitive leaf values omitted.
 	SensitiveValues json.RawMessage `json:"sensitive_values,omitempty"`
+
+	// Identity is the JSON representation of the resource's identity attributes,
+	// if the provider supports resource identity for this type.
+	Identity json.RawMessage `json:"identity,omitempty"`
+
+	// IdentitySchemaVersion indicates which version of the resource identity
+	// schema the "identity" property conforms to.
+	IdentitySchemaVersion *uint64 `json:"identity_schema_version,omitempty"`
 }
 
 // ResourceChange is a description of an individual change action that OpenTofu

@@ -32,6 +32,9 @@ type MockProvider struct {
 	GetProviderSchemaCalled   bool
 	GetProviderSchemaResponse *providers.GetProviderSchemaResponse
 
+	GetResourceIdentitySchemasCalled   bool
+	GetResourceIdentitySchemasResponse *providers.GetResourceIdentitySchemasResponse
+
 	ValidateProviderConfigCalled   bool
 	ValidateProviderConfigResponse *providers.ValidateProviderConfigResponse
 	ValidateProviderConfigRequest  providers.ValidateProviderConfigRequest
@@ -60,6 +63,11 @@ type MockProvider struct {
 	UpgradeResourceStateResponse *providers.UpgradeResourceStateResponse
 	UpgradeResourceStateRequest  providers.UpgradeResourceStateRequest
 	UpgradeResourceStateFn       func(providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse
+
+	UpgradeResourceIdentityCalled   bool
+	UpgradeResourceIdentityResponse *providers.UpgradeResourceIdentityResponse
+	UpgradeResourceIdentityRequest  providers.UpgradeResourceIdentityRequest
+	UpgradeResourceIdentityFn       func(providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse
 
 	MoveResourceStateCalled   bool
 	MoveResourceStateTypeName string
@@ -150,6 +158,29 @@ func (p *MockProvider) getProviderSchema() providers.GetProviderSchemaResponse {
 		DataSources:        map[string]providers.Schema{},
 		ResourceTypes:      map[string]providers.Schema{},
 		EphemeralResources: map[string]providers.Schema{},
+	}
+}
+
+func (p *MockProvider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	tracing.ContextProbeReport(context.Background(), 0)
+	p.Lock()
+	defer p.Unlock()
+	p.GetResourceIdentitySchemasCalled = true
+	return p.getResourceIdentitySchemas()
+}
+
+func (p *MockProvider) getResourceIdentitySchemas() providers.GetResourceIdentitySchemasResponse {
+	// Similar to getProviderSchema above,
+	// This version of getResourceIdentitySchemas doesn't do any locking, so it's suitable to
+	// call from other methods of this mock as long as they are already
+	// holding the lock.
+
+	if p.GetResourceIdentitySchemasResponse != nil {
+		return *p.GetResourceIdentitySchemasResponse
+	}
+
+	return providers.GetResourceIdentitySchemasResponse{
+		IdentitySchemas: map[string]providers.ResourceIdentitySchema{},
 	}
 }
 
@@ -306,12 +337,29 @@ func (p *MockProvider) UpgradeResourceState(ctx context.Context, r providers.Upg
 		resp.UpgradedState = v
 	case len(r.RawStateJSON) > 0:
 		v, err := ctyjson.Unmarshal(r.RawStateJSON, schemaType)
-
 		if err != nil {
 			resp.Diagnostics = resp.Diagnostics.Append(err)
 			return resp
 		}
 		resp.UpgradedState = v
+	}
+
+	return resp
+}
+
+func (p *MockProvider) UpgradeResourceIdentity(ctx context.Context, r providers.UpgradeResourceIdentityRequest) (resp providers.UpgradeResourceIdentityResponse) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.UpgradeResourceIdentityCalled = true
+	p.UpgradeResourceIdentityRequest = r
+
+	if p.UpgradeResourceIdentityFn != nil {
+		return p.UpgradeResourceIdentityFn(r)
+	}
+
+	if p.UpgradeResourceIdentityResponse != nil {
+		return *p.UpgradeResourceIdentityResponse
 	}
 
 	return resp
@@ -357,7 +405,6 @@ func (p *MockProvider) MoveResourceState(ctx context.Context, r providers.MoveRe
 		resp.TargetState = v
 	case len(r.SourceStateJSON) > 0:
 		v, err := ctyjson.Unmarshal(r.SourceStateJSON, schemaType)
-
 		if err != nil {
 			resp.Diagnostics = resp.Diagnostics.Append(err)
 			return resp
@@ -628,6 +675,7 @@ func (p *MockProvider) ImportResourceState(ctx context.Context, r providers.Impo
 
 	return resp
 }
+
 func (p *MockProvider) ReadDataSource(ctx context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()

@@ -588,7 +588,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	}
 	schema, _ := schemas.ResourceTypeConfig(addrs.NewDefaultProvider("test"), addr.Mode, addr.Type)
 	// This encoding separates out the After's marks into its AfterValMarks
-	csrc, _ := change.Encode(schema.ImpliedType())
+	csrc, _ := change.Encode(schema)
 	changesSync.AppendResourceInstanceChange(csrc)
 
 	evaluator := &Evaluator{

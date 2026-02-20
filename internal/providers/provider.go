@@ -27,6 +27,10 @@ type Unconfigured interface {
 	// GetSchema returns the complete schema for the provider.
 	GetProviderSchema(context.Context) GetProviderSchemaResponse
 
+	// GetResourceIdentitySchemas returns the identity schemas for all resources
+	// in the provider.
+	GetResourceIdentitySchemas(context.Context) GetResourceIdentitySchemasResponse
+
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The
 	// final configuration is not stored in the state, and any modifications
@@ -93,6 +97,10 @@ type Configured interface {
 	// currently-used version of the corresponding provider, and the upgraded
 	// result is used for any further processing.
 	UpgradeResourceState(context.Context, UpgradeResourceStateRequest) UpgradeResourceStateResponse
+
+	// UpgradeResourceIdentity is called when we encounter a resource identity state that
+	// the schema version is less than the one reported by the provider.
+	UpgradeResourceIdentity(context.Context, UpgradeResourceIdentityRequest) UpgradeResourceIdentityResponse
 
 	// ReadResource refreshes a resource and returns its current state.
 	ReadResource(context.Context, ReadResourceRequest) ReadResourceResponse
@@ -188,6 +196,27 @@ type GetProviderSchemaResponse struct {
 	EphemeralResources map[string]Schema
 }
 
+// GetResourceIdentitySchemasResponse is the return type for GetResourceIdentitySchemas,
+type GetResourceIdentitySchemasResponse struct {
+	// IdentitySchemas maps the resource type name to that type's identity schema.
+	IdentitySchemas map[string]ResourceIdentitySchema
+
+	Diagnostics tfdiags.Diagnostics
+}
+
+type ResourceIdentitySchema struct {
+	// Version is the version of the identity schema. As per the comments in terraform-plugin-go,
+	// this should be a monotonically incrementing number, when OpenTofu comes across an identity stored in state
+	// with an outdated version compared to that advertised by the provider, then OpenTofu should
+	// request that the provider upgrade the resource state .
+	Version int64
+
+	// Body stores the identity schema for the resource.
+	// NOTE: It uses a configschema.Object instead of a configschema.Block because
+	// identity schemas should not contain nested blocks.
+	Body *configschema.Object
+}
+
 // Schema pairs a provider or resource schema with that schema's version.
 // This is used to be able to upgrade the schema in UpgradeResourceState.
 //
@@ -197,6 +226,9 @@ type GetProviderSchemaResponse struct {
 type Schema struct {
 	Version int64
 	Block   *configschema.Block
+
+	IdentitySchemaVersion int64
+	IdentitySchema        *configschema.Object
 }
 
 // ServerCapabilities allows providers to communicate extra information
@@ -255,8 +287,10 @@ type FunctionParameterSpec struct {
 
 type TextFormatting string
 
-const TextFormattingPlain = TextFormatting("Plain")
-const TextFormattingMarkdown = TextFormatting("Markdown")
+const (
+	TextFormattingPlain    = TextFormatting("Plain")
+	TextFormattingMarkdown = TextFormatting("Markdown")
+)
 
 type ValidateProviderConfigRequest struct {
 	// Config is the raw configuration value for the provider.
@@ -337,6 +371,26 @@ type UpgradeResourceStateResponse struct {
 	Diagnostics tfdiags.Diagnostics
 }
 
+// UpgradeResourceIdentityRequest is the request type for upgrading a resource identity.
+type UpgradeResourceIdentityRequest struct {
+	// TypeName is the name of the type to be upgraded
+	TypeName string
+
+	// Version is the version that we are upgrading FROM
+	Version int64
+
+	// RawIdentityJSON is the raw identity JSON that needs to be upgraded by the provider.
+	RawIdentityJSON []byte
+}
+
+type UpgradeResourceIdentityResponse struct {
+	// UpgradedIdentity is the newly upgraded resource identity.
+	UpgradedIdentity cty.Value
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
 type ConfigureProviderRequest struct {
 	// OpenTofu version is the version string from the running instance of
 	// tofu. Providers can use TerraformVersion to verify compatibility,
@@ -368,6 +422,9 @@ type ReadResourceRequest struct {
 	// each provider, and it should not be used without coordination with
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
+
+	// PriorIdentity contains the identity of the resource prior to the read.
+	PriorIdentity cty.Value
 }
 
 type ReadResourceResponse struct {
@@ -380,6 +437,9 @@ type ReadResourceResponse struct {
 	// Private is an opaque blob that will be stored in state along with the
 	// resource. It is intended only for interpretation by the provider itself.
 	Private []byte
+
+	// NewIdentity contains the identity of the resource after the read.
+	NewIdentity cty.Value
 }
 
 type PlanResourceChangeRequest struct {
@@ -410,6 +470,8 @@ type PlanResourceChangeRequest struct {
 	// each provider, and it should not be used without coordination with
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
+
+	PriorIdentity cty.Value
 }
 
 type PlanResourceChangeResponse struct {
@@ -435,6 +497,8 @@ type PlanResourceChangeResponse struct {
 	// otherwise fail due to this imprecise mapping. No other provider or SDK
 	// implementation is permitted to set this.
 	LegacyTypeSystem bool
+
+	PlannedIdentity cty.Value
 }
 
 type ApplyResourceChangeRequest struct {
@@ -462,6 +526,9 @@ type ApplyResourceChangeRequest struct {
 	// each provider, and it should not be used without coordination with
 	// HashiCorp. It is considered experimental and subject to change.
 	ProviderMeta cty.Value
+
+	// Planned identity is the identity returned from PlanResourceChange.
+	PlannedIdentity cty.Value
 }
 
 type ApplyResourceChangeResponse struct {
@@ -483,15 +550,45 @@ type ApplyResourceChangeResponse struct {
 	// otherwise fail due to this imprecise mapping. No other provider or SDK
 	// implementation is permitted to set this.
 	LegacyTypeSystem bool
+
+	// NewIdentity is the new identity after applying the proposed identity from the
+	// Planning phase.
+	NewIdentity cty.Value
+}
+
+type ImportTarget struct {
+	// ID is a string with which the provider can identify the resource to be
+	// imported.
+	ID string
+
+	// Identity is the resource identity which the provider can use to
+	// identify the resource to be imported
+	Identity cty.Value
+}
+
+func (t ImportTarget) IsIdentityBased() bool {
+	return t.Identity != cty.NilVal && !t.Identity.IsNull()
+}
+
+func (t ImportTarget) IsIDBased() bool {
+	return t.ID != ""
+}
+
+func (t ImportTarget) String() string {
+	if t.IsIDBased() {
+		return t.ID
+	}
+	if t.Identity == cty.NilVal {
+		return ""
+	}
+	return t.Identity.GoString()
 }
 
 type ImportResourceStateRequest struct {
 	// TypeName is the name of the resource type to be imported.
 	TypeName string
 
-	// ID is a string with which the provider can identify the resource to be
-	// imported.
-	ID string
+	Target ImportTarget
 }
 
 type ImportResourceStateResponse struct {
@@ -522,6 +619,9 @@ type ImportedResource struct {
 	// Private is an opaque blob that will be stored in state along with the
 	// resource. It is intended only for interpretation by the provider itself.
 	Private []byte
+
+	// Identity contains the resource identity of the resource that is being imported.
+	Identity cty.Value
 }
 
 // AsInstanceObject converts the receiving ImportedObject into a
@@ -536,9 +636,10 @@ type ImportedResource struct {
 // the receiver.
 func (ir ImportedResource) AsInstanceObject() *states.ResourceInstanceObject {
 	return &states.ResourceInstanceObject{
-		Status:  states.ObjectReady,
-		Value:   ir.State,
-		Private: ir.Private,
+		Status:   states.ObjectReady,
+		Value:    ir.State,
+		Private:  ir.Private,
+		Identity: ir.Identity,
 	}
 }
 

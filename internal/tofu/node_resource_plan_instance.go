@@ -72,7 +72,13 @@ type EvaluatedConfigImportTarget struct {
 	Addr addrs.AbsResourceInstance
 
 	// ID is the string ID of the resource to import. This is resource-instance specific.
+	// This is used for ID-based imports (when the import block uses the "id" argument).
 	ID string
+
+	// Identity is the identity value for identity-based imports (when the import block uses the "identity" argument).
+	// This will be a cty.Value containing an object with the identity attributes.
+	// Either ID or Identity will be set, but not both.
+	Identity cty.Value
 }
 
 var (
@@ -288,7 +294,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 	// If the resource is to be imported, we now ask the provider for an Import
 	// and a Refresh, and save the resulting state to instanceRefreshState.
 	if importing {
-		instanceRefreshState, diags = n.importState(ctx, evalCtx, addr, n.importTarget.ID, provider, providerSchema)
+		instanceRefreshState, diags = n.importState(ctx, evalCtx, addr, providers.ImportTarget{ID: n.importTarget.ID, Identity: n.importTarget.Identity}, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
 		instanceRefreshState, readDiags = n.readResourceInstanceState(ctx, evalCtx, addr)
@@ -416,7 +422,10 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		}
 
 		if importing {
-			change.Importing = &plans.Importing{ID: n.importTarget.ID}
+			change.Importing = &plans.Importing{
+				ID:       n.importTarget.ID,
+				Identity: n.importTarget.Identity,
+			}
 		}
 
 		// FIXME: here we update the change to reflect the reason for
@@ -563,12 +572,12 @@ func (n *NodePlannableResourceInstance) replaceTriggered(ctx context.Context, ev
 	return diags
 }
 
-func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, importId string, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, importTarget providers.ImportTarget, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	absAddr := addr.Resource.Absolute(evalCtx.Path())
 
 	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PrePlanImport(absAddr, importId)
+		return h.PrePlanImport(absAddr, importTarget)
 	}))
 	if diags.HasErrors() {
 		return nil, diags
@@ -576,7 +585,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 
 	resp := provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: addr.Resource.Resource.Type,
-		ID:       importId,
+		Target:   importTarget,
 	})
 	diags = diags.Append(resp.Diagnostics)
 	if diags.HasErrors() {
@@ -591,13 +600,13 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			"Import returned no resources",
 			fmt.Sprintf("While attempting to import with ID %s, the provider"+
 				"returned no instance states.",
-				importId,
+				importTarget.String(),
 			),
 		))
 		return nil, diags
 	}
 	for _, obj := range imported {
-		log.Printf("[TRACE] graphNodeImportState: import %s %q produced instance object of type %s", absAddr.String(), importId, obj.TypeName)
+		log.Printf("[TRACE] graphNodeImportState: import %s %q produced instance object of type %s", absAddr.String(), importTarget.String(), obj.TypeName)
 	}
 	if len(imported) > 1 {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -606,7 +615,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			fmt.Sprintf("While attempting to import with ID %s, the provider "+
 				"returned multiple resource instance states. This "+
 				"is not currently supported.",
-				importId,
+				importTarget.String(),
 			),
 		))
 		return nil, diags
@@ -625,12 +634,16 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 	importedState := imported[0].AsInstanceObject()
 
 	if importedState.Value.IsNull() {
+		importDesc := n.importTarget.ID
+		if importDesc == "" {
+			importDesc = n.importTarget.Identity.GoString()
+		}
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Import returned null resource",
-			fmt.Sprintf("While attempting to import with ID %s, the provider"+
+			fmt.Sprintf("While attempting to import with %s, the provider "+
 				"returned an instance with no state.",
-				n.importTarget.ID,
+				importDesc,
 			),
 		))
 	}
@@ -657,8 +670,8 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			"Cannot import non-existent remote object",
 			fmt.Sprintf(
 				"While attempting to import an existing object to %q, "+
-					"the provider detected that no object exists with the given id. "+
-					"Only pre-existing objects can be imported; check that the id "+
+					"the provider detected that no object exists with the given id or identity. "+
+					"Only pre-existing objects can be imported; check that the id or identity "+
 					"is correct and that it is associated with the provider's "+
 					"configured region or endpoint, or use \"tofu apply\" to "+
 					"create a new remote object for this resource.",
@@ -714,7 +727,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 		// First we generate the contents of the resource block for use within
 		// the planning node. Then we wrap it in an enclosing resource block to
 		// pass into the plan for rendering.
-		generatedHCLAttributes, generatedDiags := n.generateHCLStringAttributes(n.Addr, instanceRefreshState, schema)
+		generatedHCLAttributes, generatedDiags := n.generateHCLStringAttributes(n.Addr, instanceRefreshState, schema.Block)
 		diags = diags.Append(generatedDiags)
 
 		n.generatedConfigHCL = genconfig.WrapResourceContents(n.Addr, generatedHCLAttributes)
@@ -751,7 +764,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 }
 
 func (n *NodePlannableResourceInstance) shouldImport(evalCtx EvalContext) bool {
-	if n.importTarget.ID == "" {
+	if n.importTarget.ID == "" && (n.importTarget.Identity == cty.NilVal || n.importTarget.Identity.IsNull()) {
 		return false
 	}
 

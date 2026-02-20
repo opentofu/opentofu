@@ -6,6 +6,8 @@
 package configs
 
 import (
+	"sort"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
@@ -16,6 +18,10 @@ import (
 
 type Import struct {
 	ID hcl.Expression
+
+	// Identity is an alternative to ID, which is used to identify the resource instance
+	// by its 'Resource Identity'.
+	Identity hcl.Expression
 
 	// To is the address HCL expression given in the `import` block configuration.
 	// It supports the following address formats:
@@ -63,8 +69,15 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 	content, moreDiags := block.Body.Content(importBlockSchema)
 	diags = append(diags, moreDiags...)
 
-	if attr, exists := content.Attributes["id"]; exists {
-		imp.ID = attr.Expr
+	idAttr, idExists := content.Attributes["id"]
+	identityAttr, identityExists := content.Attributes["identity"]
+	if idExists {
+		imp.ID = idAttr.Expr
+	}
+
+	if identityExists {
+		// It's okay to set both ID and identity here, we will error about it later
+		imp.Identity = identityAttr.Expr
 	}
 
 	if attr, exists := content.Attributes["to"]; exists {
@@ -118,6 +131,35 @@ func decodeImportBlock(block *hcl.Block) (*Import, hcl.Diagnostics) {
 		imp.ForEach = attr.Expr
 	}
 
+	// We need atleast one of ID or Identity to be set
+	if !idExists && !identityExists {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Missing required import argument",
+			Detail:   "One of 'id' or 'identity' must be specified in an import block to identify the resource instance to import.",
+			Subject:  block.DefRange.Ptr(),
+		})
+	}
+
+	// We cannot have both ID and Identity set at the same time, these are conflicting ways to identify the resource instance
+	if idExists && identityExists {
+		ranges := []hcl.Range{idAttr.Range, identityAttr.Range}
+		// We sort the ranges to return the range between the first and last valid range,
+		// The call to RangeBetween below requires that the start and end ranges are in order
+		sort.SliceStable(ranges, func(i, j int) bool {
+			return ranges[i].Start.Byte < ranges[j].Start.Byte
+		})
+
+		combinedRange := hcl.RangeBetween(ranges[0], ranges[1])
+
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Conflicting import arguments",
+			Detail:   "Only one of 'id' or 'identity' can be specified in an import block. 'id' identifies the resource instance by its ID, while 'identity' identifies the resource instance by its Resource Identity. Choose one method to identify the resource instance to import.",
+			Subject:  combinedRange.Ptr(),
+		})
+	}
+
 	return imp, diags
 }
 
@@ -128,7 +170,11 @@ var importBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name:     "id",
-			Required: true,
+			Required: false, // Mutually exclusive with "identity"
+		},
+		{
+			Name:     "identity",
+			Required: false, // Mutually exclusive with "id"
 		},
 		{
 			Name:     "to",
@@ -175,7 +221,7 @@ func absTraversalForImportToExpr(expr hcl.Expression) (traversal hcl.Traversal, 
 			Subject:  expr.Range().Ptr(),
 		})
 	}
-	return
+	return traversal, diags
 }
 
 // staticImportAddress returns an addrs.ConfigResource representing the module and resource of the import target.

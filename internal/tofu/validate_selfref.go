@@ -33,9 +33,19 @@ func validateSelfRef(addr addrs.Referenceable, config hcl.Body, providerSchema p
 	var schema *configschema.Block
 	switch tAddr := addr.(type) {
 	case addrs.Resource:
-		schema, _ = providerSchema.SchemaForResourceAddr(tAddr)
+		sc, _ := providerSchema.SchemaForResourceAddr(tAddr)
+		if sc == nil {
+			diags = diags.Append(fmt.Errorf("no schema available for %s to validate for self-references; this is a bug in OpenTofu and should be reported", addr))
+			return diags
+		}
+		schema = sc.Block
 	case addrs.ResourceInstance:
-		schema, _ = providerSchema.SchemaForResourceAddr(tAddr.ContainingResource())
+		sc, _ := providerSchema.SchemaForResourceAddr(tAddr.ContainingResource())
+		if sc == nil {
+			diags = diags.Append(fmt.Errorf("no schema available for %s to validate for self-references; this is a bug in OpenTofu and should be reported", addr))
+			return diags
+		}
+		schema = sc.Block
 	}
 
 	if schema == nil {

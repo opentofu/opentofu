@@ -8,9 +8,12 @@ package plans
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/states"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 // ResourceInstanceChangeSrc is a not-yet-decoded ResourceInstanceChange.
@@ -79,8 +82,8 @@ type ResourceInstanceChangeSrc struct {
 // Decode unmarshals the raw representation of the instance object being
 // changed. Pass the implied type of the corresponding resource type schema
 // for correct operation.
-func (rcs *ResourceInstanceChangeSrc) Decode(ty cty.Type) (*ResourceInstanceChange, error) {
-	change, err := rcs.ChangeSrc.Decode(ty)
+func (rcs *ResourceInstanceChangeSrc) Decode(schema *providers.Schema) (*ResourceInstanceChange, error) {
+	change, err := rcs.ChangeSrc.Decode(schema)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +129,13 @@ func (rcs *ResourceInstanceChangeSrc) DeepCopy() *ResourceInstanceChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
+
+	if ret.ChangeSrc.Importing != nil {
+		importing := *ret.ChangeSrc.Importing
+		importing.Identity = importing.Identity.Copy()
+		ret.ChangeSrc.Importing = &importing
+	}
 
 	return &ret
 }
@@ -156,7 +166,7 @@ type OutputChangeSrc struct {
 // Decode unmarshals the raw representation of the output value being
 // changed.
 func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
-	change, err := ocs.ChangeSrc.Decode(cty.DynamicPseudoType)
+	change, err := ocs.ChangeSrc.Decode(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +193,13 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 
 	ret.ChangeSrc.Before = ret.ChangeSrc.Before.Copy()
 	ret.ChangeSrc.After = ret.ChangeSrc.After.Copy()
+	ret.ChangeSrc.PlannedIdentity = ret.ChangeSrc.PlannedIdentity.Copy()
+
+	if ret.ChangeSrc.Importing != nil {
+		importing := *ret.ChangeSrc.Importing
+		importing.Identity = importing.Identity.Copy()
+		ret.ChangeSrc.Importing = &importing
+	}
 
 	return &ret
 }
@@ -195,6 +212,37 @@ func (ocs *OutputChangeSrc) DeepCopy() *OutputChangeSrc {
 type ImportingSrc struct {
 	// ID is the original ID of the imported resource.
 	ID string
+
+	// Identity is an alternative way to import a resource, using its identity
+	// attributes instead of its ID.
+	//
+	// This is mutually exclusive with ID; and only one of the two should be set.
+	Identity DynamicValue
+}
+
+// String returns a human-readable representation of the import source.
+// It returns the ID if set, or a rendered identity value if available.
+func (i ImportingSrc) String() string {
+	if i.ID != "" {
+		return i.ID
+	}
+	if len(i.Identity) == 0 {
+		return ""
+	}
+	ty, err := i.Identity.ImpliedType()
+	if err != nil {
+		return "<identity>"
+	}
+	val, err := i.Identity.Decode(ty)
+	if err != nil {
+		return "<identity>"
+	}
+
+	jsonBytes, err := ctyjson.Marshal(val, ty)
+	if err != nil {
+		return "<identity>"
+	}
+	return string(jsonBytes)
 }
 
 // ChangeSrc is a not-yet-decoded Change.
@@ -226,16 +274,28 @@ type ChangeSrc struct {
 	// should be true. However, not all Importing changes contain generated
 	// config.
 	GeneratedConfig string
+
+	// PlannedIdentity is the serialized identity value returned by the provider
+	// during planning. Only relevant for managed resources, not outputs.
+	PlannedIdentity DynamicValue
 }
 
 // Decode unmarshals the raw representations of the before and after values
-// to produce a Change object. Pass the type constraint that the result must
-// conform to.
+// to produce a Change object.
 //
 // Where a ChangeSrc is embedded in some other struct, it's generally better
 // to call the corresponding Decode method of that struct rather than working
 // directly with its embedded Change.
-func (cs *ChangeSrc) Decode(ty cty.Type) (*Change, error) {
+func (cs *ChangeSrc) Decode(schema *providers.Schema) (*Change, error) {
+	var ty cty.Type
+
+	if schema == nil {
+		// we've been passed a nil set of schema, we should use a dynamic type here
+		ty = cty.DynamicPseudoType
+	} else {
+		ty = schema.Block.ImpliedType()
+	}
+
 	var err error
 	before := cty.NullVal(ty)
 	after := cty.NullVal(ty)
@@ -255,7 +315,45 @@ func (cs *ChangeSrc) Decode(ty cty.Type) (*Change, error) {
 
 	var importing *Importing
 	if cs.Importing != nil {
-		importing = &Importing{ID: cs.Importing.ID}
+		if len(cs.Importing.Identity) > 0 {
+			var identityTy cty.Type
+			if schema != nil && schema.IdentitySchema != nil {
+				identityTy = schema.IdentitySchema.ImpliedType()
+			} else {
+				identityTy, err = cs.Importing.Identity.ImpliedType()
+				if err != nil {
+					return nil, fmt.Errorf("error determining importing identity type: %w", err)
+				}
+			}
+			decodedIdentity, err := cs.Importing.Identity.Decode(identityTy)
+			if err != nil {
+				return nil, fmt.Errorf("error decoding importing identity value: %w", err)
+			}
+			importing = &Importing{
+				Identity: decodedIdentity,
+			}
+		} else {
+			importing = &Importing{
+				ID: cs.Importing.ID,
+			}
+		}
+	}
+
+	plannedIdentity := cty.NullVal(cty.DynamicPseudoType)
+	if len(cs.PlannedIdentity) > 0 {
+		var identityTy cty.Type
+		if schema != nil && schema.IdentitySchema != nil {
+			identityTy = schema.IdentitySchema.ImpliedType()
+		} else {
+			identityTy, err = cs.PlannedIdentity.ImpliedType()
+			if err != nil {
+				return nil, fmt.Errorf("error determining planned identity type: %w", err)
+			}
+		}
+		plannedIdentity, err = cs.PlannedIdentity.Decode(identityTy)
+		if err != nil {
+			return nil, fmt.Errorf("error decoding planned identity value: %w", err)
+		}
 	}
 
 	return &Change{
@@ -264,5 +362,6 @@ func (cs *ChangeSrc) Decode(ty cty.Type) (*Change, error) {
 		After:           after.MarkWithPaths(cs.AfterValMarks),
 		Importing:       importing,
 		GeneratedConfig: cs.GeneratedConfig,
+		PlannedIdentity: plannedIdentity,
 	}, nil
 }
