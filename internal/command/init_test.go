@@ -741,7 +741,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 
 	// make sure the backend is configured how we expect
 	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
-	cfg := map[string]interface{}{}
+	cfg := map[string]any{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -757,7 +757,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 
 	// make sure the backend is configured how we expect
 	configState = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
-	cfg = map[string]interface{}{}
+	cfg = map[string]any{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -808,7 +808,7 @@ func TestInit_backendConfigKVReInitWithConfigDiff(t *testing.T) {
 
 	// make sure the backend is configured how we expect
 	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
-	cfg := map[string]interface{}{}
+	cfg := map[string]any{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
 	}
@@ -1435,18 +1435,18 @@ func TestInit_getProvider(t *testing.T) {
 
 		// Construct a mock state file from the far future
 		type FutureState struct {
-			Version          uint                     `json:"version"`
-			Lineage          string                   `json:"lineage"`
-			TerraformVersion string                   `json:"terraform_version"`
-			Outputs          map[string]interface{}   `json:"outputs"`
-			Resources        []map[string]interface{} `json:"resources"`
+			Version          uint             `json:"version"`
+			Lineage          string           `json:"lineage"`
+			TerraformVersion string           `json:"terraform_version"`
+			Outputs          map[string]any   `json:"outputs"`
+			Resources        []map[string]any `json:"resources"`
 		}
 		fs := &FutureState{
 			Version:          999,
 			Lineage:          "123-456-789",
 			TerraformVersion: "999.0.0",
-			Outputs:          make(map[string]interface{}),
-			Resources:        make([]map[string]interface{}, 0),
+			Outputs:          make(map[string]any),
+			Resources:        make([]map[string]any, 0),
 		}
 		src, err := json.MarshalIndent(fs, "", "  ")
 		if err != nil {

@@ -375,7 +375,7 @@ func TestValidate_json(t *testing.T) {
 				return field == `["filename"]`
 			},
 			//
-			cmp.Transformer("filename", func(filename interface{}) string {
+			cmp.Transformer("filename", func(filename any) string {
 				convertedFilename, ok := filename.(string)
 				if !ok {
 					t.Fatalf("failed to convert filename to string: %v", filename)
@@ -390,7 +390,7 @@ func TestValidate_json(t *testing.T) {
 				field := p.Last().String()
 				return field == `["detail"]`
 			},
-			cmp.Transformer("detail", func(detail interface{}) string {
+			cmp.Transformer("detail", func(detail any) string {
 				convertedDetail, ok := detail.(string)
 				if !ok {
 					t.Fatalf("failed to convert detail to string: %v", detail)
@@ -405,7 +405,7 @@ func TestValidate_json(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.path, func(t *testing.T) {
-			var want, got map[string]interface{}
+			var want, got map[string]any
 
 			wantFile, err := os.Open(path.Join(testFixturePath(tc.path), "output.json"))
 			if err != nil {

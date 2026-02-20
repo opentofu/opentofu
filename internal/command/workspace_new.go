@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -124,11 +125,9 @@ func (c *WorkspaceNewCommand) Run(rawArgs []string) int {
 		)})
 		return 1
 	}
-	for _, ws := range workspaces {
-		if workspace == ws {
-			view.WorkspaceAlreadyExists(workspace)
-			return 1
-		}
+	if slices.Contains(workspaces, workspace) {
+		view.WorkspaceAlreadyExists(workspace)
+		return 1
 	}
 
 	_, err = b.StateMgr(ctx, workspace)
