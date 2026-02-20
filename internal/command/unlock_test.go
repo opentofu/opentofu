@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
@@ -23,7 +24,7 @@ func TestUnlock(t *testing.T) {
 	t.Chdir(td)
 
 	// Write the legacy state
-	statePath := DefaultStateFilename
+	statePath := arguments.DefaultStateFilename
 	{
 		f, err := os.Create(statePath)
 		if err != nil {

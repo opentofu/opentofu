@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -89,7 +90,7 @@ func TestPlan_lockedState(t *testing.T) {
 	testCopyDir(t, testFixturePath("plan"), td)
 	t.Chdir(td)
 
-	unlock, err := testLockState(t, testDataDir, filepath.Join(td, DefaultStateFilename))
+	unlock, err := testLockState(t, testDataDir, filepath.Join(td, arguments.DefaultStateFilename))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1137,7 +1138,7 @@ func TestPlan_withInvalidReferencesInTry(t *testing.T) {
 			providerConfig, addrs.NoKey,
 		)
 	})
-	f, err := os.Create(DefaultStateFilename)
+	f, err := os.Create(arguments.DefaultStateFilename)
 	if err != nil {
 		t.Fatal(err)
 	}

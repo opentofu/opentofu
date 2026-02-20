@@ -12,13 +12,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/repl"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/chzyer/readline"
-	"github.com/mitchellh/cli"
 )
 
-func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
+func (c *ConsoleCommand) modeInteractive(session *repl.Session, view views.Console) int {
 	// Configure input
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:            "> ",
@@ -30,9 +31,11 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 		Stderr:            os.Stderr,
 	})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(
-			"Error initializing console: %s",
-			err))
+		view.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Plugins loading error",
+			fmt.Sprintf("Error initializing console: %s", err),
+		)))
 		return 1
 	}
 	defer l.Close()
@@ -64,7 +67,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 		} else {
 			out, exit, diags := session.Handle(fullCommand)
 			if diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 			}
 			if exit {
 				break
@@ -74,7 +77,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 			// we also reset the prompt
 			l.SetPrompt("> ")
 
-			ui.Output(out)
+			view.Output(out)
 		}
 	}
 

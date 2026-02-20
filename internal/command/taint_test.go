@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -152,8 +153,8 @@ func TestTaint_backup(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	testStateOutput(t, DefaultStateFilename+".backup", testTaintDefaultStr)
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename+".backup", testTaintDefaultStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_backupDisable(t *testing.T) {
@@ -199,11 +200,11 @@ func TestTaint_backupDisable(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	if _, err := os.Stat(DefaultStateFilename + ".backup"); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + ".backup"); err == nil {
 		t.Fatal("backup path should not exist")
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_badState(t *testing.T) {
@@ -268,7 +269,7 @@ func TestTaint_defaultState(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintStr)
 }
 
 func TestTaint_defaultWorkspaceState(t *testing.T) {
@@ -457,7 +458,7 @@ func TestTaint_stateOut(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	testStateOutput(t, DefaultStateFilename, testTaintDefaultStr)
+	testStateOutput(t, arguments.DefaultStateFilename, testTaintDefaultStr)
 	testStateOutput(t, "foo", testTaintStr)
 }
 

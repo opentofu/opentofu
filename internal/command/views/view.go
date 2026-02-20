@@ -6,6 +6,7 @@
 package views
 
 import (
+	"fmt"
 	"maps"
 
 	"github.com/hashicorp/hcl/v2"
@@ -21,8 +22,10 @@ import (
 // streams, a colorize implementation, and implementing a human friendly view
 // for diagnostics.
 type View struct {
-	streams  *terminal.Streams
-	colorize *colorstring.Colorize
+	streams    *terminal.Streams
+	colorize   *colorstring.Colorize
+	errorColor string
+	warnColor  string
 
 	compactWarnings     bool
 	consolidateWarnings bool
@@ -66,6 +69,8 @@ func NewView(streams *terminal.Streams) *View {
 			Disable: true,
 			Reset:   true,
 		},
+		errorColor:    "[red]",
+		warnColor:     "[yellow]",
 		configSources: func() map[string]*hcl.File { return nil },
 		diagsPrinter: func(severity tfdiags.Severity, msg string) {
 			if severity == tfdiags.Error {
@@ -241,4 +246,28 @@ func (v *View) outputHorizRule() {
 
 func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
+}
+
+// error is an unexported method that can be used by other views to send to stderr the given message fully colored in
+// [View#errorColor].
+// This adds a new line after the message.
+func (v *View) errorln(message string) {
+	_, _ = v.streams.Eprintln(v.colorMessage(message, v.errorColor))
+}
+
+// warnln is an unexported method that can be used by other views to send to stdout the given message fully colored in
+// [View#warnColor].
+// This adds a new line after the message.
+func (v *View) warnln(message string) {
+	// Warning messages are meant to go to stdout as pointed out here: https://github.com/opentofu/opentofu/commit/0c3bb316ea56aacf5108883d1a269a53744fdd43
+	_, _ = v.streams.Println(v.colorMessage(message, v.warnColor))
+}
+
+// colorMessage is a utility method to easily color the whole given message in one color.
+func (v *View) colorMessage(message string, color string) string {
+	if color == "" {
+		return message
+	}
+
+	return v.colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
 }
