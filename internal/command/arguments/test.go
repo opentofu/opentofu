@@ -33,6 +33,10 @@ type Test struct {
 	// human-readable format or JSON for each run step depending on the
 	// ViewType.
 	Verbose bool
+
+	// JUnitXMLFile is the path to write JUnit XML test results to. If empty,
+	// no JUnit XML output is produced.
+	JUnitXMLFile string
 }
 
 func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
@@ -46,6 +50,7 @@ func ParseTest(args []string) (*Test, func(), tfdiags.Diagnostics) {
 	cmdFlags.Var((*flags.FlagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
+	cmdFlags.StringVar(&test.JUnitXMLFile, "junit-xml", "", "junit-xml")
 
 	test.ViewOptions.AddFlags(cmdFlags, false)
 

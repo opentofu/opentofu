@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/junit"
 	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
@@ -83,6 +84,10 @@ Options:
 
   -json                 If specified, machine readable output will be printed in
                         JSON format
+
+  -junit-xml=FILE       If specified, writes JUnit XML test results to the
+                        given file. This is intended for integration with
+                        CI/CD systems that consume JUnit XML reports.
 
   -json-into=out.json   Produce the same output as -json, but sent directly
                         to the given file. This allows automation to preserve
@@ -291,6 +296,13 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		Verbose: args.Verbose,
 	}
 
+	// Set up JUnit XML output if requested.
+	var junitXML junit.JUnit
+	if args.JUnitXMLFile != "" {
+		sources := c.configSources()
+		junitXML = junit.NewTestJUnitXMLFile(args.JUnitXMLFile, sources, &runner.Stopped)
+	}
+
 	view.Abstract(&suite)
 
 	panicHandler := logging.PanicHandlerWithTraceFn()
@@ -341,6 +353,14 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	}
 
 	view.Conclusion(&suite)
+
+	if junitXML != nil {
+		junitDiags := junitXML.Save(&suite)
+		view.Diagnostics(nil, nil, junitDiags)
+		if junitDiags.HasErrors() {
+			return 1
+		}
+	}
 
 	if suite.Status != moduletest.Pass {
 		return 1
