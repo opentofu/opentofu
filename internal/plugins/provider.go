@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -181,7 +182,7 @@ func (p *providerManager) NewConfiguredProvider(ctx context.Context, addr addrs.
 		// Terraform version that has roughly the same functionality that
 		// OpenTofu currently has, since providers are permitted to use this to
 		// adapt their behavior for older versions of Terraform.
-		TerraformVersion: "1.13.0",
+		TerraformVersion: version.VersionToImpersonateForProviders,
 		Config:           unmarkedConfigVal,
 	})
 	diags = diags.Append(configResp.Diagnostics)
