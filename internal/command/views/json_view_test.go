@@ -30,7 +30,7 @@ func TestNewJSONView(t *testing.T) {
 	NewJSONView(NewView(streams), nil)
 
 	version := tfversion.String()
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": fmt.Sprintf("OpenTofu %s", version),
@@ -48,12 +48,12 @@ func TestJSONView_Log(t *testing.T) {
 	testCases := []struct {
 		caseName string
 		input    string
-		want     []map[string]interface{}
+		want     []map[string]any
 	}{
 		{
 			"log with regular character",
 			"hello, world",
-			[]map[string]interface{}{
+			[]map[string]any{
 				{
 					"@level":   "info",
 					"@message": "hello, world",
@@ -65,7 +65,7 @@ func TestJSONView_Log(t *testing.T) {
 		{
 			"log with special character",
 			"hello, special char, <>&",
-			[]map[string]interface{}{
+			[]map[string]any{
 				{
 					"@level":   "info",
 					"@message": "hello, special char, <>&",
@@ -105,13 +105,13 @@ func TestJSONView_Diagnostics(t *testing.T) {
 
 	jv.Diagnostics(diags)
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "warn",
 			"@message": `Warning: Improper use of "less"`,
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
-			"diagnostic": map[string]interface{}{
+			"diagnostic": map[string]any{
 				"severity": "warning",
 				"summary":  `Improper use of "less"`,
 				"detail":   `You probably mean "10 buckets or fewer"`,
@@ -122,7 +122,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 			"@message": "Error: Unusually stripey cat detected",
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
-			"diagnostic": map[string]interface{}{
+			"diagnostic": map[string]any{
 				"severity": "error",
 				"summary":  "Unusually stripey cat detected",
 				"detail":   "Are you sure this random_pet isn't a cheetah?",
@@ -150,13 +150,13 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 
 	jv.Diagnostics(diags, "@meta", "extra_info")
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "warn",
 			"@message": `Warning: Improper use of "less"`,
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
-			"diagnostic": map[string]interface{}{
+			"diagnostic": map[string]any{
 				"severity": "warning",
 				"summary":  `Improper use of "less"`,
 				"detail":   `You probably mean "10 buckets or fewer"`,
@@ -168,7 +168,7 @@ func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 			"@message": "Error: Unusually stripey cat detected",
 			"@module":  "tofu.ui",
 			"type":     "diagnostic",
-			"diagnostic": map[string]interface{}{
+			"diagnostic": map[string]any{
 				"severity": "error",
 				"summary":  "Unusually stripey cat detected",
 				"detail":   "Are you sure this random_pet isn't a cheetah?",
@@ -197,15 +197,15 @@ func TestJSONView_PlannedChange(t *testing.T) {
 	}
 	jv.PlannedChange(jsonentities.NewResourceInstanceChange(cs))
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Plan to create`,
 			"@module":  "tofu.ui",
 			"type":     "planned_change",
-			"change": map[string]interface{}{
+			"change": map[string]any{
 				"action": "create",
-				"resource": map[string]interface{}{
+				"resource": map[string]any{
 					"addr":             `module.foo.test_instance.bar["boop"]`,
 					"implied_provider": "test",
 					"module":           "module.foo",
@@ -238,15 +238,15 @@ func TestJSONView_ResourceDrift(t *testing.T) {
 	}
 	jv.ResourceDrift(jsonentities.NewResourceInstanceChange(cs))
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Drift detected (update)`,
 			"@module":  "tofu.ui",
 			"type":     "resource_drift",
-			"change": map[string]interface{}{
+			"change": map[string]any{
 				"action": "update",
-				"resource": map[string]interface{}{
+				"resource": map[string]any{
 					"addr":             `module.foo.test_instance.bar["boop"]`,
 					"implied_provider": "test",
 					"module":           "module.foo",
@@ -272,13 +272,13 @@ func TestJSONView_ChangeSummary(t *testing.T) {
 		Operation: viewsjson.OperationApplied,
 	})
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": "Apply complete! Resources: 1 added, 2 changed, 3 destroyed.",
 			"@module":  "tofu.ui",
 			"type":     "change_summary",
-			"changes": map[string]interface{}{
+			"changes": map[string]any{
 				"add":       float64(1),
 				"import":    float64(0),
 				"change":    float64(2),
@@ -303,13 +303,13 @@ func TestJSONView_ChangeSummaryWithImport(t *testing.T) {
 		Operation: viewsjson.OperationApplied,
 	})
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": "Apply complete! Resources: 1 imported, 1 added, 2 changed, 3 destroyed.",
 			"@module":  "tofu.ui",
 			"type":     "change_summary",
-			"changes": map[string]interface{}{
+			"changes": map[string]any{
 				"add":       float64(1),
 				"change":    float64(2),
 				"remove":    float64(3),
@@ -334,13 +334,13 @@ func TestJSONView_ChangeSummaryWithForget(t *testing.T) {
 		Operation: viewsjson.OperationApplied,
 	})
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": "Apply complete! Resources: 1 added, 2 changed, 3 destroyed, 1 forgotten.",
 			"@module":  "tofu.ui",
 			"type":     "change_summary",
-			"changes": map[string]interface{}{
+			"changes": map[string]any{
 				"add":       float64(1),
 				"change":    float64(2),
 				"remove":    float64(3),
@@ -367,14 +367,14 @@ func TestJSONView_Hook(t *testing.T) {
 
 	jv.Hook(hook)
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": `module.foo.test_instance.bar["boop"]: Creation complete after 34s [id=boop-beep]`,
 			"@module":  "tofu.ui",
 			"type":     "apply_complete",
-			"hook": map[string]interface{}{
-				"resource": map[string]interface{}{
+			"hook": map[string]any{
+				"resource": map[string]any{
 					"addr":             `module.foo.test_instance.bar["boop"]`,
 					"implied_provider": "test",
 					"module":           "module.foo",
@@ -410,19 +410,19 @@ func TestJSONView_Outputs(t *testing.T) {
 		},
 	})
 
-	want := []map[string]interface{}{
+	want := []map[string]any{
 		{
 			"@level":   "info",
 			"@message": "Outputs: 2",
 			"@module":  "tofu.ui",
 			"type":     "outputs",
-			"outputs": map[string]interface{}{
-				"boop_count": map[string]interface{}{
+			"outputs": map[string]any{
+				"boop_count": map[string]any{
 					"sensitive": false,
 					"value":     float64(92),
 					"type":      "number",
 				},
-				"password": map[string]interface{}{
+				"password": map[string]any{
 					"sensitive": true,
 					"value":     "horse-battery",
 					"type":      "string",
@@ -437,7 +437,7 @@ func TestJSONView_Outputs(t *testing.T) {
 // against a slice of structs representing the desired log messages. It
 // verifies that the output of JSONView is in JSON log format, one message per
 // line.
-func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string]interface{}, options ...cmp.Option) {
+func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string]any, options ...cmp.Option) {
 	t.Helper()
 
 	// Remove final trailing newline
@@ -452,7 +452,7 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 
 	// Unmarshal each line and compare to the expected value
 	for i := range gotLines {
-		var gotStruct map[string]interface{}
+		var gotStruct map[string]any
 		if i >= len(want) {
 			t.Error("reached end of want messages too soon")
 			break
@@ -488,7 +488,7 @@ func testJSONViewOutputEqualsFull(t *testing.T, output string, want []map[string
 
 // testJSONViewOutputEquals skips the first line of output, since it ought to
 // be a version message that we don't care about for most of our tests.
-func testJSONViewOutputEquals(t *testing.T, output string, want []map[string]interface{}, options ...cmp.Option) {
+func testJSONViewOutputEquals(t *testing.T, output string, want []map[string]any, options ...cmp.Option) {
 	t.Helper()
 
 	// Remove up to the first newline

@@ -60,8 +60,8 @@ func TestLogin(t *testing.T) {
 				disco.WithHTTPClient(httpclient.New(t.Context())),
 			)
 
-			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
-				"login.v1": map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]any{
+				"login.v1": map[string]any{
 					// For this fake hostname we'll use a conventional OAuth flow,
 					// with browser-based consent that we'll mock away using a
 					// mock browser launcher below.
@@ -70,17 +70,17 @@ func TestLogin(t *testing.T) {
 					"token":  s.URL + "/token",
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname("with-scopes.example.com"), map[string]interface{}{
-				"login.v1": map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname("with-scopes.example.com"), map[string]any{
+				"login.v1": map[string]any{
 					// with scopes
 					// mock browser launcher below.
 					"client": "scopes_test",
 					"authz":  s.URL + "/authz",
 					"token":  s.URL + "/token",
-					"scopes": []interface{}{"app1.full_access", "app2.read_only"},
+					"scopes": []any{"app1.full_access", "app2.read_only"},
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname(hcpTerraformHost), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname(hcpTerraformHost), map[string]any{
 				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
@@ -88,14 +88,14 @@ func TestLogin(t *testing.T) {
 				"tfe.v2.2": ts.URL + "/api/v2",
 				"motd.v1":  ts.URL + "/api/terraform/motd",
 			})
-			svcs.ForceHostServices(svchost.Hostname("tfe.acme.com"), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname("tfe.acme.com"), map[string]any{
 				// This represents a Terraform Enterprise instance which does not
 				// yet support the login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
 				"tfe.v2.1": ts.URL + "/api/v2",
 				"tfe.v2.2": ts.URL + "/api/v2",
 			})
-			svcs.ForceHostServices(svchost.Hostname("unsupported.example.net"), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname("unsupported.example.net"), map[string]any{
 				// This host intentionally left blank.
 			})
 

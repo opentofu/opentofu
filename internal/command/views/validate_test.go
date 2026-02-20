@@ -128,7 +128,7 @@ func TestValidateJSON(t *testing.T) {
 
 			// Make sure the result looks like JSON; we comprehensively test
 			// the structure of this output in the command package tests.
-			var result map[string]interface{}
+			var result map[string]any
 
 			if err := json.Unmarshal([]byte(got), &result); err != nil {
 				t.Fatal(err)

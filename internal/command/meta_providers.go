@@ -391,7 +391,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache providers.SchemaCache) (providers.Interface, error) {
+func initializeProviderInstance(plugin any, protoVer int, pluginClient *plugin.Client, schemaCache providers.SchemaCache) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:

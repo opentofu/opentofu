@@ -392,31 +392,31 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 					// If this fails trying to use a credhelper called "superseded-by-explicit-config"
 					// then we incorrectly preferred the ambient config's setting for this.
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.org")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.org")),
 				},
 				"example.com": {
 					// This domain has a conflicting entry in the ambient Docker-style config,
 					// but the explicit configuration should "win".
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
 				},
 				"example.com/foo": {
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(1),
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
 				},
 				"example.com/bar": {
 					// These credentials come from the base64-encoded "auth" string in the
 					// ambient Docker-style config file.
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(1),
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("ambient-example.com-user", "ambient-password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("ambient-example.com-user", "ambient-password")),
 				},
 				"example.com/not-foo": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
 				},
 				"example.com/not-bar": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
 				},
 			},
 		},
@@ -434,35 +434,35 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 				},
 				"example.com": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
 				},
 				"example.com/foo": {
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(1),
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
 				},
 				"example.com/foo/bar": {
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(2),
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com/foo/bar user", "example.com/foo/bar password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com/foo/bar user", "example.com/foo/bar password")),
 				},
 				"example.com/foo/not-bar": {
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(1),
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com/foo user", "example.com/foo password")),
 				},
 				"example.com/not-foo/not-bar": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("example.com user", "example.com password")),
 				},
 				"example.net": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 				"example.net/foo": {
 					wantSpecificity: ociauthconfig.RepositoryCredentialsSpecificity(1),
-					wantCredentials: ptrTo(ociauthconfig.NewOAuthCredentials("example.net/foo access", "example.net/foo refresh")),
+					wantCredentials: new(ociauthconfig.NewOAuthCredentials("example.net/foo access", "example.net/foo refresh")),
 				},
 				"example.net/not-foo": {
 					wantSpecificity: ociauthconfig.DomainCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -473,11 +473,11 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.com/foo/bar": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.com")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.com")),
 				},
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -501,11 +501,11 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.com/foo/bar": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.com")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.com")),
 				},
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -516,7 +516,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -527,7 +527,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -538,7 +538,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -549,7 +549,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 			subtests: map[string]Subtest{
 				"example.net": {
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -565,7 +565,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 					// If this fails trying to use a different credentials helper
 					// then that suggests that we're not respecting file preference order.
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -585,7 +585,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 					// If this fails trying to use a different credentials helper
 					// then that suggests that we're not respecting file preference order.
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -605,7 +605,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 					// If this fails trying to use a different credentials helper
 					// then that suggests that we're not respecting file preference order.
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -625,7 +625,7 @@ func TestConfigOCICredentialsPolicy(t *testing.T) {
 					// If this fails trying to use a different credentials helper
 					// then that suggests that we're not respecting file preference order.
 					wantSpecificity: ociauthconfig.GlobalCredentialsSpecificity,
-					wantCredentials: ptrTo(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
+					wantCredentials: new(ociauthconfig.NewBasicAuthCredentials("from-cred-helper", "for https://example.net")),
 				},
 			},
 		},
@@ -791,13 +791,4 @@ func (f *fakeOCICredLookupEnvironment) QueryDockerCredentialHelper(ctx context.C
 		Username:  "from-cred-helper",
 		Secret:    "for " + serverURL,
 	}, nil
-}
-
-// ptrTo is a helper to compensate for the fact that Go doesn't allow
-// using the '&' operator unless the operand is directly addressable.
-//
-// Instead then, this function returns a pointer to a copy of the given
-// value.
-func ptrTo[T any](v T) *T {
-	return &v
 }

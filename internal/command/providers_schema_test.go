@@ -125,10 +125,10 @@ type providerSchemas struct {
 }
 
 type providerSchema struct {
-	Provider          interface{}            `json:"provider,omitempty"`
-	ResourceSchemas   map[string]interface{} `json:"resource_schemas,omitempty"`
-	DataSourceSchemas map[string]interface{} `json:"data_source_schemas,omitempty"`
-	Functions         map[string]interface{} `json:"functions,omitempty"`
+	Provider          any            `json:"provider,omitempty"`
+	ResourceSchemas   map[string]any `json:"resource_schemas,omitempty"`
+	DataSourceSchemas map[string]any `json:"data_source_schemas,omitempty"`
+	Functions         map[string]any `json:"functions,omitempty"`
 }
 
 // testProvider returns a mock provider that is configured for basic
