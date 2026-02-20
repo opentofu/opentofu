@@ -223,7 +223,6 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				RefreshStateState:        state.DeepCopy().SyncWrapper(),
 				PrevRunStateState:        state.DeepCopy().SyncWrapper(),
 				InstanceExpanderExpander: instances.NewExpander(),
-				ProviderProvider:         p,
 				ProviderSchemaSchema:     schema,
 				ChangesChanges:           plans.NewChanges().SyncWrapper(),
 			}
@@ -231,10 +230,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			node := NodePlannableResourceInstanceOrphan{
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 					NodeAbstractResource: NodeAbstractResource{
-						ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						}},
+						ResolvedProvider: mustResolvedProviderInRoot("test", p),
 					},
 					Addr: absResource,
 				},
@@ -292,7 +288,6 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		ProviderProvider:         p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
@@ -306,10 +301,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
-				}},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
@@ -375,7 +367,6 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		ProviderProvider:         p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
@@ -389,10 +380,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
-				}},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
