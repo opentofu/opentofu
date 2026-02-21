@@ -116,3 +116,8 @@ manually in the shell profile, run the following command:
 ```bash
 tofu -uninstall-autocomplete
 ```
+To enable tab-completion for a shell alias such as `tf`, add the following to
+your shell profile after running the install command:
+```bash
+complete -C tofu tf
+```
