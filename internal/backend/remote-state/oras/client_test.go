@@ -131,9 +131,6 @@ func (d delegatingRepo) Tag(ctx context.Context, desc ocispec.Descriptor, refere
 func (d delegatingRepo) Delete(ctx context.Context, target ocispec.Descriptor) error {
 	return d.inner.Delete(ctx, target)
 }
-func (d delegatingRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	return d.inner.Exists(ctx, target)
-}
 func (d delegatingRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
 	return d.inner.Tags(ctx, last, fn)
 }
@@ -231,6 +228,125 @@ func TestDeleteWorkspace_ToleratesDeleteUnsupported(t *testing.T) {
 	// Should succeed without error since 405 is tolerated.
 	if err := b.DeleteWorkspace(ctx, "staging", false); err != nil {
 		t.Fatalf("expected DeleteWorkspace to tolerate 405, got: %v", err)
+	}
+}
+
+// resolveFailingRepo wraps fakeORASRepo and returns a transient error on Resolve
+// for a specific tag, simulating a network failure during tag resolution.
+type resolveFailingRepo struct {
+	delegatingRepo
+	failTag string
+	err     error
+}
+
+func (r *resolveFailingRepo) Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error) {
+	if reference == r.failTag {
+		return ocispec.Descriptor{}, r.err
+	}
+	return r.delegatingRepo.Resolve(ctx, reference)
+}
+
+func TestDeleteWorkspace_SurfacesTransientResolveError(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+
+	// Create state so Resolve would normally succeed.
+	normalRepo := &orasRepositoryClient{inner: fake}
+	c := newRemoteClient(normalRepo, "staging")
+	if err := c.Put(ctx, []byte("some-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	// Wrap with a repo that returns a transient error on Resolve for the state tag.
+	failRepo := &resolveFailingRepo{
+		delegatingRepo: delegatingRepo{inner: fake},
+		failTag:        c.stateTag,
+		err:            &orasErrcode.ErrorResponse{StatusCode: http.StatusInternalServerError},
+	}
+	b := &Backend{
+		Backend:    nil,
+		repoClient: &orasRepositoryClient{inner: failRepo, repository: "example.com/test/repo"},
+	}
+
+	// Should surface the transient Resolve error instead of silently swallowing it.
+	err := b.DeleteWorkspace(ctx, "staging", false)
+	if err == nil {
+		t.Fatalf("expected error from transient Resolve failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "deleting state for workspace") {
+		t.Fatalf("expected error about deleting state, got: %v", err)
+	}
+}
+
+func TestWorkspaces_AlwaysIncludesDefault(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	// Create a non-default workspace only (no "default" state exists).
+	c := newRemoteClient(repo, "production")
+	if err := c.Put(ctx, []byte("prod-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	b := &Backend{
+		Backend:    nil,
+		repoClient: repo,
+	}
+
+	wss, err := b.Workspaces(ctx)
+	if err != nil {
+		t.Fatalf("Workspaces: %v", err)
+	}
+
+	// "default" must always be present per the backend contract.
+	hasDefault := false
+	hasProduction := false
+	for _, w := range wss {
+		if w == "default" {
+			hasDefault = true
+		}
+		if w == "production" {
+			hasProduction = true
+		}
+	}
+	if !hasDefault {
+		t.Fatalf("expected 'default' in workspace list %v", wss)
+	}
+	if !hasProduction {
+		t.Fatalf("expected 'production' in workspace list %v", wss)
+	}
+}
+
+func TestWorkspaces_NoDuplicateDefault(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	// Create the default workspace so it IS in the tag list.
+	c := newRemoteClient(repo, "default")
+	if err := c.Put(ctx, []byte("default-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	b := &Backend{
+		Backend:    nil,
+		repoClient: repo,
+	}
+
+	wss, err := b.Workspaces(ctx)
+	if err != nil {
+		t.Fatalf("Workspaces: %v", err)
+	}
+
+	count := 0
+	for _, w := range wss {
+		if w == "default" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 'default' in workspace list, got %d: %v", count, wss)
 	}
 }
 
@@ -976,3 +1092,117 @@ func TestAsyncRetentionNotBlocking(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+func TestRemoteClient_Delete(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	client := newRemoteClient(repo, "default")
+
+	// Delete on a non-existent state should succeed (no-op).
+	if err := client.Delete(ctx); err != nil {
+		t.Fatalf("delete non-existent: %v", err)
+	}
+
+	// Put state, then delete it.
+	if err := client.Put(ctx, []byte("state-to-delete")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	p, err := client.Get(ctx)
+	if err != nil {
+		t.Fatalf("get after put: %v", err)
+	}
+	if p == nil || string(p.Data) != "state-to-delete" {
+		t.Fatalf("expected state data before delete")
+	}
+
+	if err := client.Delete(ctx); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	// After deletion, Get should return nil (no state).
+	p, err = client.Get(ctx)
+	if err != nil {
+		t.Fatalf("get after delete: %v", err)
+	}
+	if p != nil {
+		t.Fatalf("expected nil payload after delete, got %d bytes", len(p.Data))
+	}
+}
+
+func TestRemoteClient_Delete_WithVersioning(t *testing.T) {
+	drainRetentionSem()
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	client := newRemoteClient(repo, "default")
+	client.versioningMaxVersions = 5
+
+	// Put state to create the main tag and a version tag.
+	if err := client.Put(ctx, []byte("versioned-state")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	// Verify both tags exist.
+	if _, err := fake.Resolve(ctx, client.stateTag); err != nil {
+		t.Fatalf("expected state tag to exist: %v", err)
+	}
+	if _, err := fake.Resolve(ctx, client.versionTagFor(1)); err != nil {
+		t.Fatalf("expected version tag to exist: %v", err)
+	}
+
+	// Delete removes only the main state tag; version tags are managed
+	// separately by retention / DeleteWorkspace.
+	if err := client.Delete(ctx); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+
+	if _, err := fake.Resolve(ctx, client.stateTag); err == nil {
+		t.Fatalf("expected state tag to be gone after delete")
+	}
+}
+
+func TestRemoteClient_RetagToNewManifest_PreservesVersionAnnotation(t *testing.T) {
+	ctx := context.Background()
+	fake := newFakeORASRepo()
+	repo := &orasRepositoryClient{inner: fake}
+
+	client := newRemoteClient(repo, "default")
+	client.versioningMaxVersions = 5
+
+	// Create a state with version annotation.
+	if err := client.Put(ctx, []byte("state-v1")); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+
+	// Read the version tag manifest to confirm annotation exists.
+	fm, err := client.fetchManifestWithDesc(ctx, client.versionTagFor(1))
+	if err != nil {
+		t.Fatalf("fetch version tag: %v", err)
+	}
+	if v := fm.m.Annotations[annotationStateVersion]; v != "1" {
+		t.Fatalf("expected version annotation '1', got %q", v)
+	}
+
+	// Simulate retagToNewManifest (as done during retention).
+	logger := &noopLogger{}
+	if err := client.retagToNewManifest(ctx, []string{client.versionTagFor(1)}, logger); err != nil {
+		t.Fatalf("retagToNewManifest: %v", err)
+	}
+
+	// After retag, the version annotation should still be present.
+	fm2, err := client.fetchManifestWithDesc(ctx, client.versionTagFor(1))
+	if err != nil {
+		t.Fatalf("fetch after retag: %v", err)
+	}
+	if v := fm2.m.Annotations[annotationStateVersion]; v != "1" {
+		t.Fatalf("expected preserved version annotation '1' after retag, got %q", v)
+	}
+}
+
+// noopLogger satisfies the logger interface used by retagToNewManifest.
+type noopLogger struct{}
+
+func (noopLogger) Debug(string, ...interface{}) {}

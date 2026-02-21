@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -55,7 +56,12 @@ func tryDeleteGHCRTag(ctx context.Context, repo *orasRepositoryClient, tag strin
 		return fmt.Errorf("no credentials available for %s (need a token with delete:packages)", host)
 	}
 
-	return deleteGitHubPackageVersionByTag(ctx, githubAPIBaseURL, owner, packageName, tag, token)
+	client := repo.httpClient
+	if client == nil {
+		client = cleanhttp.DefaultClient()
+	}
+
+	return deleteGitHubPackageVersionByTag(ctx, client, githubAPIBaseURL, owner, packageName, tag, token)
 }
 
 func parseGHCRRepository(repository string) (host, owner, packageName string, err error) {
@@ -75,11 +81,10 @@ func parseGHCRRepository(repository string) (host, owner, packageName string, er
 	return host, owner, packageName, nil
 }
 
-func deleteGitHubPackageVersionByTag(ctx context.Context, baseURL, owner, packageName, tag, token string) error {
+func deleteGitHubPackageVersionByTag(ctx context.Context, client *http.Client, baseURL, owner, packageName, tag, token string) error {
 	baseURL = strings.TrimRight(baseURL, "/")
 	pkgEscaped := url.PathEscape(packageName)
 	ownerEscaped := url.PathEscape(owner)
-	client := cleanhttp.DefaultClient()
 
 	orgBase := fmt.Sprintf("%s/orgs/%s/packages/container/%s", baseURL, ownerEscaped, pkgEscaped)
 	if err := deleteFromGitHubPackagesEndpoint(ctx, client, orgBase, tag, token); err == nil {
@@ -93,7 +98,6 @@ func deleteGitHubPackageVersionByTag(ctx context.Context, baseURL, owner, packag
 }
 
 func deleteFromGitHubPackagesEndpoint(ctx context.Context, client *http.Client, baseURL, tag, token string) error {
-
 	versionID, err := findGitHubVersionIDByTag(ctx, client, baseURL, tag, token)
 	if err != nil {
 		return err
@@ -169,6 +173,8 @@ func githubRequest(ctx context.Context, client *http.Client, method, urlStr, tok
 	defer resp.Body.Close()
 
 	if resp.StatusCode != expectedStatus {
+		// Drain the body so the underlying TCP connection can be reused (HTTP/1.1 keep-alive).
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return newHTTPStatusError(resp.StatusCode, operation)
 	}
 	if decode == nil {

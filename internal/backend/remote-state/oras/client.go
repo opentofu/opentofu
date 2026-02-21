@@ -251,7 +251,7 @@ func newRemoteClient(repo *orasRepositoryClient, workspaceName string) *RemoteCl
 func (c *RemoteClient) packStateManifest(ctx context.Context, layers []ocispec.Descriptor, stateVersion int) (ocispec.Descriptor, error) {
 	annotations := map[string]string{
 		annotationWorkspace: c.workspaceName,
-		annotationUpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		annotationUpdatedAt: c.nowUTC().Format(time.RFC3339Nano),
 	}
 	if stateVersion > 0 {
 		annotations[annotationStateVersion] = strconv.Itoa(stateVersion)
@@ -390,8 +390,8 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 
 	// Async retention with semaphore to limit concurrent goroutines.
 	// The expensive tag listing is deferred to this goroutine so that Put()
-	// returns quickly. Derive from the caller's context so that shutdown
-	// is propagated, but add a timeout to prevent indefinite runs.
+	// returns quickly. Use context.Background() so that retention is not
+	// cancelled when the caller's context ends (e.g. after tofu apply returns).
 	sem := c.retentionSem
 	if sem == nil {
 		sem = defaultRetentionSem
@@ -400,7 +400,7 @@ func (c *RemoteClient) put(ctx context.Context, state []byte) error {
 	case sem <- struct{}{}:
 		go func() {
 			defer func() { <-sem }()
-			asyncCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			asyncCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			existing, listErr := c.listExistingVersions(asyncCtx)
 			if listErr != nil {
@@ -578,7 +578,16 @@ func (c *RemoteClient) retagToNewManifest(ctx context.Context, tags []string, lo
 		return nil
 	}
 
-	newDesc, err := c.packStateManifest(ctx, m.Layers, 0)
+	// Preserve the version annotation from the original manifest so that
+	// currentStateVersion can still read it without a costly tag scan.
+	preservedVersion := 0
+	if v, ok := m.Annotations[annotationStateVersion]; ok {
+		if n, parseErr := strconv.Atoi(v); parseErr == nil && n > 0 {
+			preservedVersion = n
+		}
+	}
+
+	newDesc, err := c.packStateManifest(ctx, m.Layers, preservedVersion)
 	if err != nil {
 		return err
 	}
@@ -707,9 +716,13 @@ func (c *RemoteClient) lock(ctx context.Context, info *statemgr.LockInfo) (strin
 	// base generation would both increment to the same value.
 	verified, verifyErr := c.getLockManifestData(ctx)
 	if verifyErr != nil {
-		// Could not verify - attempt to clean up our lock attempt
+		// Could not verify — attempt to clean up our lock attempt, but only if
+		// the tag still points to the manifest WE wrote. If another process
+		// already overwrote the tag, deleting it would remove the winner's lock.
 		if cleanupDesc, cleanupErr := c.repo.inner.Resolve(ctx, c.lockTag); cleanupErr == nil {
-			_ = c.repo.inner.Delete(ctx, cleanupDesc)
+			if cleanupDesc.Digest == manifestDesc.Digest {
+				_ = c.repo.inner.Delete(ctx, cleanupDesc)
+			}
 		}
 		return "", &statemgr.LockError{InconsistentRead: true, Err: fmt.Errorf("failed to verify lock acquisition: %w", verifyErr)}
 	}
@@ -770,10 +783,9 @@ func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 }
 
 func (c *RemoteClient) unlock(ctx context.Context, id string) error {
-	// Resolve with retry for transient network errors
-	desc, err := withRetry(ctx, c.retryConfig, func(ctx context.Context) (ocispec.Descriptor, error) {
-		return c.repo.inner.Resolve(ctx, c.lockTag)
-	})
+	// Single Resolve+Fetch to get both descriptor and lock info,
+	// avoiding the redundant round-trip of separate Resolve + getLockInfo.
+	fm, err := c.fetchManifestWithDesc(ctx, c.lockTag)
 	if err != nil {
 		if isNotFound(err) {
 			return nil
@@ -781,7 +793,7 @@ func (c *RemoteClient) unlock(ctx context.Context, id string) error {
 		return err
 	}
 
-	existing, err := c.getLockInfo(ctx)
+	existing, err := parseLockInfo(fm.m, c.stateTag)
 	if err != nil {
 		return err
 	}
@@ -794,7 +806,7 @@ func (c *RemoteClient) unlock(ctx context.Context, id string) error {
 
 	// Delete with retry for transient network errors
 	err = withRetryNoResult(ctx, c.retryConfig, func(ctx context.Context) error {
-		return c.repo.inner.Delete(ctx, desc)
+		return c.repo.inner.Delete(ctx, fm.desc)
 	})
 	if err == nil {
 		return nil
@@ -889,6 +901,10 @@ func (c *RemoteClient) getLockManifestData(ctx context.Context) (*LockManifestDa
 	return parseLockManifestData(fm.m)
 }
 
+// manifest is the deserialized form of an OCI image manifest used to
+// represent both state and lock artifacts. It captures the subset of
+// fields the ORAS backend inspects: artifact type, media type,
+// annotations, and layers.
 type manifest struct {
 	ArtifactType string               `json:"artifactType"`
 	MediaType    string               `json:"mediaType"`
@@ -980,7 +996,6 @@ func listWorkspacesFromTags(ctx context.Context, repo *orasRepositoryClient) ([]
 	g.SetLimit(10) // Limit concurrency to avoid registry rate limits
 
 	for _, tag := range relevantTags {
-		tag := tag
 		g.Go(func() error {
 			name, err := workspaceNameFromTag(ctx, repo, tag)
 			if err != nil {
@@ -1054,7 +1069,7 @@ func workspaceNameFromTag(ctx context.Context, repo *orasRepositoryClient, state
 
 	var m manifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		return wsTag, nil
+		return "", fmt.Errorf("decoding manifest for workspace tag %q: %w", stateTag, err)
 	}
 	if name := m.Annotations[annotationWorkspace]; name != "" {
 		return name, nil

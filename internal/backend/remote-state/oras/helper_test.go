@@ -148,15 +148,6 @@ func (r *fakeORASRepo) Delete(ctx context.Context, target ocispec.Descriptor) er
 	return nil
 }
 
-func (r *fakeORASRepo) Exists(ctx context.Context, target ocispec.Descriptor) (bool, error) {
-	_ = ctx
-
-	r.mu.Lock()
-	_, ok := r.blobs[target.Digest]
-	r.mu.Unlock()
-	return ok, nil
-}
-
 func (r *fakeORASRepo) Tags(ctx context.Context, last string, fn func(tags []string) error) error {
 	_ = ctx
 

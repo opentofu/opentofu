@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -275,8 +276,19 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 		}
 		return nil, err
 	}
-	if len(wss) == 0 {
-		return []string{backend.DefaultStateName}, nil
+
+	// The backend contract requires that the default workspace is always
+	// present in the returned list, even if no state has been written yet.
+	hasDefault := false
+	for _, w := range wss {
+		if w == backend.DefaultStateName {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		wss = append(wss, backend.DefaultStateName)
+		sort.Strings(wss)
 	}
 	return wss, nil
 }
@@ -294,13 +306,12 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	wsTag := workspaceTagFor(name)
 	stateRef := stateTagPrefix + wsTag
 	lockRef := lockTagPrefix + wsTag
+	unlockedRef := unlockedTagPrefix + wsTag
 	stateVersionPrefix := stateRef + stateVersionTagSeparator
 
 	// Delete the main state manifest.
-	if desc, err := repo.inner.Resolve(ctx, stateRef); err == nil {
-		if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
-			return fmt.Errorf("deleting state for workspace %q: %w", name, err)
-		}
+	if err := resolveAndDelete(ctx, repo, stateRef); err != nil {
+		return fmt.Errorf("deleting state for workspace %q: %w", name, err)
 	}
 
 	// Delete versioned state manifests.
@@ -309,10 +320,8 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 			if !strings.HasPrefix(tag, stateVersionPrefix) {
 				continue
 			}
-			if desc, err := repo.inner.Resolve(ctx, tag); err == nil {
-				if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
-					return fmt.Errorf("deleting state version %q for workspace %q: %w", tag, name, err)
-				}
+			if err := resolveAndDelete(ctx, repo, tag); err != nil {
+				return fmt.Errorf("deleting state version %q for workspace %q: %w", tag, name, err)
 			}
 		}
 		return nil
@@ -321,10 +330,30 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 	}
 
 	// Delete the lock manifest.
-	if desc, err := repo.inner.Resolve(ctx, lockRef); err == nil {
-		if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
-			return fmt.Errorf("deleting lock for workspace %q: %w", name, err)
+	if err := resolveAndDelete(ctx, repo, lockRef); err != nil {
+		return fmt.Errorf("deleting lock for workspace %q: %w", name, err)
+	}
+
+	// Delete the unlocked manifest (GHCR fallback artifact).
+	if err := resolveAndDelete(ctx, repo, unlockedRef); err != nil {
+		return fmt.Errorf("deleting unlocked tag for workspace %q: %w", name, err)
+	}
+	return nil
+}
+
+// resolveAndDelete resolves a tag and deletes the underlying manifest.
+// Returns nil when the tag doesn't exist (404). Transient Resolve errors
+// are surfaced instead of silently swallowed.
+func resolveAndDelete(ctx context.Context, repo *orasRepositoryClient, ref string) error {
+	desc, err := repo.inner.Resolve(ctx, ref)
+	if err != nil {
+		if isNotFound(err) {
+			return nil
 		}
+		return err
+	}
+	if err := repo.inner.Delete(ctx, desc); err != nil && !isNotFound(err) && !isDeleteUnsupported(err) {
+		return err
 	}
 	return nil
 }
@@ -341,6 +370,7 @@ type orasRepositoryClient struct {
 	repository string
 	inner      orasRepository
 	authFn     credentialFunc
+	httpClient *http.Client
 }
 
 func (r *orasRepositoryClient) accessTokenForHost(ctx context.Context, host string) (string, error) {
@@ -366,7 +396,6 @@ type orasRepository interface {
 	Resolve(ctx context.Context, reference string) (ocispec.Descriptor, error)
 	Tag(ctx context.Context, desc ocispec.Descriptor, reference string) error
 	Delete(ctx context.Context, target ocispec.Descriptor) error
-	Exists(ctx context.Context, target ocispec.Descriptor) (bool, error)
 	Tags(ctx context.Context, last string, fn func(tags []string) error) error
 }
 
@@ -390,6 +419,7 @@ func newORASRepositoryClient(ctx context.Context, repository string, insecure bo
 		repository: repository,
 		inner:      repo,
 		authFn:     credFunc,
+		httpClient: httpClient,
 	}
 
 	repo.Client = &orasAuth.Client{
