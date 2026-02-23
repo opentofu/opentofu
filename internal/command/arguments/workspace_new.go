@@ -12,14 +12,21 @@ import (
 )
 
 type WorkspaceNew struct {
+	// Workspace represents the name of the workspace that the user wants to be selected.
 	WorkspaceName string
 
-	StatePath        string
-	StateLock        bool
+	// StatePath allows the user to give a specific state file into the command.
+	StatePath string
+	// StateLock allows the user to disable, the default enabled, state locking.
+	StateLock bool
+	// StateLockTimeout allows the user to configure the timeout for the locking of the state..
 	StateLockTimeout time.Duration
 
+	// ViewOptions contains the options that allows the user to configure different types of outputs
+	// from the current command.
 	ViewOptions ViewOptions
 
+	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
 }
 

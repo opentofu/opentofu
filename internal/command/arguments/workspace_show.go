@@ -10,8 +10,11 @@ import (
 )
 
 type WorkspaceShow struct {
+	// ViewOptions contains the options that allows the user to configure different types of outputs
+	// from the current command.
 	ViewOptions ViewOptions
 
+	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
 }
 

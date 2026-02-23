@@ -6,18 +6,15 @@
 package arguments
 
 import (
-	"time"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type WorkspaceList struct {
-	Force            bool
-	StateLock        bool
-	StateLockTimeout time.Duration
-
+	// ViewOptions contains the options that allows the user to configure different types of outputs
+	// from the current command.
 	ViewOptions ViewOptions
 
+	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
 }
 
