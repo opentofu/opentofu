@@ -103,15 +103,6 @@ func TestGetViews(t *testing.T) {
 				},
 			},
 		},
-		// Miscs
-		"help prompt": {
-			viewCall: func(get Get) {
-				get.HelpPrompt()
-			},
-			wantStdout: "",
-			wantStderr: withNewline("\nFor more help on using this command, run:\n  tofu get -help"),
-			wantJson:   []map[string]any{{}},
-		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {

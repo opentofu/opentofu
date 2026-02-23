@@ -9,6 +9,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -54,8 +55,7 @@ func (c *GetCommand) Run(rawArgs []string) int {
 
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		view.HelpPrompt()
-		return 1
+		return cli.RunResultHelp
 	}
 	c.GatherVariables(args.Vars)
 

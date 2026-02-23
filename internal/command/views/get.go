@@ -15,7 +15,6 @@ import (
 
 type Get interface {
 	Diagnostics(diags tfdiags.Diagnostics)
-	HelpPrompt()
 	Hooks(showLocalDir bool) initwd.ModuleInstallHooks
 }
 
@@ -47,12 +46,6 @@ func (m GetMulti) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 }
 
-func (m GetMulti) HelpPrompt() {
-	for _, o := range m {
-		o.HelpPrompt()
-	}
-}
-
 func (m GetMulti) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	hooks := make([]initwd.ModuleInstallHooks, len(m))
 	for i, o := range m {
@@ -71,10 +64,6 @@ func (v *GetHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *GetHuman) HelpPrompt() {
-	v.view.HelpPrompt("get")
-}
-
 func (v *GetHuman) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return &moduleInstallationHookHuman{
 		v:              v.view,
@@ -91,8 +80,6 @@ var _ Get = (*GetJSON)(nil)
 func (v *GetJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
-
-func (v *GetJSON) HelpPrompt() {}
 
 func (v *GetJSON) Hooks(showLocalPath bool) initwd.ModuleInstallHooks {
 	return &moduleInstallationHookJSON{

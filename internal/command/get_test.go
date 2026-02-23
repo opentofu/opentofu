@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
@@ -58,7 +59,7 @@ func TestGet_multipleArgs(t *testing.T) {
 	}
 	code := c.Run(args)
 	getOutput := getDone(t)
-	if code != 1 {
+	if code != cli.RunResultHelp {
 		t.Fatalf("bad: \n%s", getOutput.Stdout())
 	}
 }
@@ -197,7 +198,7 @@ func TestGetCommand_InvalidArgs(t *testing.T) {
 
 			code := c.Run(tc.args)
 			getOutput := getDone(t)
-			if code != 1 {
+			if code != cli.RunResultHelp {
 				t.Errorf("Expected error code 1 for invalid arguments, got %d", code)
 			}
 
