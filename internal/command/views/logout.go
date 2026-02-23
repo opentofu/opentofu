@@ -14,7 +14,6 @@ import (
 
 type Logout interface {
 	Diagnostics(diags tfdiags.Diagnostics)
-	HelpPrompt(credentialsFile string)
 
 	NoCredentialsStored(dispHostname string)
 	RemovingCredentialsFromHelper(dispHostname, helperType string)
@@ -47,12 +46,6 @@ var _ Logout = (LogoutMulti)(nil)
 func (m LogoutMulti) Diagnostics(diags tfdiags.Diagnostics) {
 	for _, o := range m {
 		o.Diagnostics(diags)
-	}
-}
-
-func (m LogoutMulti) HelpPrompt(credentialsFile string) {
-	for _, o := range m {
-		o.HelpPrompt(credentialsFile)
 	}
 }
 
@@ -90,19 +83,6 @@ func (v *LogoutHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *LogoutHuman) HelpPrompt(credentialsFile string) {
-	helpText := fmt.Sprintf(`
-Usage: tofu [global options] logout [hostname]
-
-  Removes locally-stored credentials for specified hostname.
-
-  Note: the API token is only removed from local storage, not destroyed on the
-  remote server, so it will remain valid until manually revoked.
-      %s
-`, credentialsFile)
-	_, _ = v.view.streams.Eprintln(helpText)
-}
-
 func (v *LogoutHuman) NoCredentialsStored(dispHostname string) {
 	msg := fmt.Sprintf("No credentials for %s are stored.\n", dispHostname)
 	_, _ = v.view.streams.Println(msg)
@@ -132,8 +112,6 @@ var _ Logout = (*LogoutJSON)(nil)
 func (v *LogoutJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
-
-func (v *LogoutJSON) HelpPrompt(_ string) {}
 
 func (v *LogoutJSON) NoCredentialsStored(dispHostname string) {
 	v.view.Info(fmt.Sprintf("No credentials for %s are stored", dispHostname))

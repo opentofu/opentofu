@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
@@ -36,7 +37,7 @@ func TestLogout(t *testing.T) {
 		}
 		status := c.Run([]string{})
 		output := logoutDone(t)
-		if status != 1 {
+		if status != cli.RunResultHelp {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, output.Stderr())
 		}
 

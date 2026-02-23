@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -56,8 +57,7 @@ func (c *LogoutCommand) Run(rawArgs []string) int {
 	c.Meta.configureUiFromView(args.ViewOptions)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
-		view.HelpPrompt(c.credentialsFileForHelp())
-		return 1
+		return cli.RunResultHelp
 	}
 
 	// FIXME: the -input flag value is needed to initialize the backend and the
@@ -136,7 +136,16 @@ func (c *LogoutCommand) Run(rawArgs []string) int {
 
 // Help implements cli.Command.
 func (c *LogoutCommand) Help() string {
-	defaultFile := c.credentialsFileForHelp()
+	defaultFile := c.defaultOutputFile()
+	if defaultFile == "" {
+		// Because this is just for the help message and it's very unlikely
+		// that a user wouldn't have a functioning home directory anyway,
+		// we'll just use a placeholder here. The real command has some
+		// more complex behavior for this case. This result is not correct
+		// on all platforms, but given how unlikely we are to hit this case
+		// that seems okay.
+		defaultFile = "~/.terraform/credentials.tfrc.json"
+	}
 
 	helpText := fmt.Sprintf(`
 Usage: tofu [global options] logout [hostname]
@@ -160,18 +169,4 @@ func (c *LogoutCommand) defaultOutputFile() string {
 		return "" // no default available
 	}
 	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
-}
-
-func (c *LogoutCommand) credentialsFileForHelp() string {
-	defaultFile := c.defaultOutputFile()
-	if defaultFile == "" {
-		// Because this is just for the help message and it's very unlikely
-		// that a user wouldn't have a functioning home directory anyway,
-		// we'll just use a placeholder here. The real command has some
-		// more complex behavior for this case. This result is not correct
-		// on all platforms, but given how unlikely we are to hit this case
-		// that seems okay.
-		defaultFile = "~/.terraform/credentials.tfrc.json"
-	}
-	return defaultFile
 }

@@ -73,14 +73,6 @@ func TestLogoutViews(t *testing.T) {
 			},
 			wantStdout: "Success! OpenTofu has removed the stored API token for app.example.com.\n\n",
 		},
-		"helpPrompt": {
-			viewCall: func(logout Logout) {
-				logout.HelpPrompt("/home/user/.terraform.d/credentials.tfrc.json")
-			},
-			wantJson:   []map[string]any{{}},
-			wantStdout: "",
-			wantStderr: "\nUsage: tofu [global options] logout [hostname]\n\n  Removes locally-stored credentials for specified hostname.\n\n  Note: the API token is only removed from local storage, not destroyed on the\n  remote server, so it will remain valid until manually revoked.\n      /home/user/.terraform.d/credentials.tfrc.json\n\n",
-		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(logout Logout) {
