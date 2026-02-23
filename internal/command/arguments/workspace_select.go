@@ -10,12 +10,17 @@ import (
 )
 
 type WorkspaceSelect struct {
+	// Workspace represents the name of the workspace that the user wants to be selected.
 	WorkspaceName string
-
+	// CreateIfMissing is a flag that the user can set to "true" to force the creation of the workspace
+	// in case it's missing from the current list of workspaces.
 	CreateIfMissing bool
 
+	// ViewOptions contains the options that allows the user to configure different types of outputs
+	// from the current command.
 	ViewOptions ViewOptions
 
+	// Vars holds the information that might be needed to be given through `-var`/`-var-file`.
 	Vars *Vars
 }
 

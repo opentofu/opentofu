@@ -10,6 +10,8 @@ import (
 )
 
 type Workspace struct {
+	// ViewOptions contains the options that allows the user to configure different types of outputs
+	// from the current command.
 	ViewOptions ViewOptions
 }
 
