@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -27,9 +28,11 @@ func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	mp := &MockProvisioner{}
-	ps := &configschema.Block{}
-	ctx.ProvisionerSchemaSchema = ps
-	ctx.ProvisionerProvisioner = mp
+	mp.GetSchemaResponse = provisioners.GetSchemaResponse{Provisioner: &configschema.Block{}}
+
+	ctx.ProvisionersProvisioners = plugins.NewLibrary(nil, map[string]provisioners.Factory{
+		"baz": func() (provisioners.Interface, error) { return mp, nil },
+	}).NewProvisionerManager()
 
 	pc := &configs.Provisioner{
 		Type:   "baz",
@@ -70,9 +73,10 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	mp := &MockProvisioner{}
-	ps := &configschema.Block{}
-	ctx.ProvisionerSchemaSchema = ps
-	ctx.ProvisionerProvisioner = mp
+	mp.GetSchemaResponse = provisioners.GetSchemaResponse{Provisioner: &configschema.Block{}}
+	ctx.ProvisionersProvisioners = plugins.NewLibrary(nil, map[string]provisioners.Factory{
+		"baz": func() (provisioners.Interface, error) { return mp, nil },
+	}).NewProvisionerManager()
 
 	pc := &configs.Provisioner{
 		Type:   "baz",
@@ -116,9 +120,10 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
 	mp := &MockProvisioner{}
-	ps := &configschema.Block{}
-	ctx.ProvisionerSchemaSchema = ps
-	ctx.ProvisionerProvisioner = mp
+	mp.GetSchemaResponse = provisioners.GetSchemaResponse{Provisioner: &configschema.Block{}}
+	ctx.ProvisionersProvisioners = plugins.NewLibrary(nil, map[string]provisioners.Factory{
+		"baz": func() (provisioners.Interface, error) { return mp, nil },
+	}).NewProvisionerManager()
 
 	pc := &configs.Provisioner{
 		Type:   "baz",
@@ -196,7 +201,7 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	err := node.validateResource(t.Context(), ctx)
 	if err != nil {
@@ -225,7 +230,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	tests := []struct {
 		name  string
@@ -296,7 +301,7 @@ func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	t.Run("no errors", func(t *testing.T) {
 		mp.ValidateEphemeralConfigCalled = false
@@ -385,7 +390,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -420,7 +425,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -456,7 +461,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
@@ -517,8 +522,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -600,8 +604,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -682,8 +685,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 
 	ctx := &MockEvalContext{}
 	ctx.installSimpleEval()
-
-	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
@@ -809,8 +811,7 @@ func TestNodeValidatableResource_ValidateResource_suggestion(t *testing.T) {
 
 			ctx := &MockEvalContext{}
 			ctx.installSimpleEval()
-
-			ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+			ctx.installProvider(addrs.NewDefaultProvider("test"), p)
 
 			diags := node.validateResource(t.Context(), ctx)
 			if got, want := len(diags), 1; got != want {

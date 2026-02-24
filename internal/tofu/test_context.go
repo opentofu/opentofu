@@ -8,7 +8,6 @@ package tofu
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
@@ -22,7 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -100,47 +98,11 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 			PlanTimestamp:      tc.Plan.Timestamp,
 			// InstanceExpander is intentionally nil for test contexts
 			// The GetModule function will fall back to using state/changes when it's nil
-			InstanceExpander:   nil,
+			InstanceExpander: nil,
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,
 		Operation:       operation,
-	}
-
-	var providerInstanceLock sync.Mutex
-	providerInstances := make(map[addrs.Provider]providers.Interface)
-	defer func() {
-		for addr, inst := range providerInstances {
-			log.Printf("[INFO] Shutting down test provider %s", addr)
-			inst.Close(context.TODO())
-		}
-	}()
-
-	providerSupplier := func(addr addrs.Provider) providers.Interface {
-		providerInstanceLock.Lock()
-		defer providerInstanceLock.Unlock()
-
-		if inst, ok := providerInstances[addr]; ok {
-			return inst
-		}
-
-		factory, ok := tc.plugins.providerFactories[addr]
-		if !ok {
-			log.Printf("[WARN] Unable to find provider %s in test context", addr)
-			providerInstances[addr] = nil
-			return nil
-		}
-		log.Printf("[INFO] Starting test provider %s", addr)
-		inst, err := factory()
-		if err != nil {
-			log.Printf("[WARN] Unable to start provider %s in test context", addr)
-			providerInstances[addr] = nil
-			return nil
-		} else {
-			log.Printf("[INFO] Shutting down test provider %s", addr)
-			providerInstances[addr] = inst
-			return inst
-		}
 	}
 
 	scope := &lang.Scope{
@@ -149,21 +111,8 @@ func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesS
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: tc.Plan.Timestamp,
 		ProviderFunctions: func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-			// This is a simpler flow than what is allowed during normal exection.
-			// We only support non-configured functions here.
-			pr, ok := tc.Config.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
-			if !ok {
-				return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unknown function provider",
-					Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
-					Subject:  rng.ToHCL().Ptr(),
-				})
-			}
-
-			provider := providerSupplier(pr.Type)
-
-			return evalContextProviderFunction(ctx, provider, walkPlan, pf, rng)
+			// TODO pass in tc.plugins
+			return evalContextProviderFunction(ctx, nil, walkPlan, pf, rng)
 		},
 	}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/zclconf/go-cty/cty"
@@ -55,9 +56,9 @@ func TestContextEval(t *testing.T) {
 	m := testModule(t, "eval-context-basic")
 	p := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	scope, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
@@ -124,9 +125,9 @@ output "out" {
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	_, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
