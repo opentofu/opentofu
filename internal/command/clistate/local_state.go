@@ -18,7 +18,6 @@ import (
 
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/opentofu/opentofu/internal/flock"
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
@@ -44,13 +43,13 @@ type LocalState struct {
 	created bool
 
 	mu        sync.Mutex
-	state     *tofu.State
-	readState *tofu.State
+	state     *CLIState
+	readState *CLIState
 	written   bool
 }
 
 // SetState will force a specific state in-memory for this local state.
-func (s *LocalState) SetState(state *tofu.State) {
+func (s *LocalState) SetState(state *CLIState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -59,7 +58,7 @@ func (s *LocalState) SetState(state *tofu.State) {
 }
 
 // StateReader impl.
-func (s *LocalState) State() *tofu.State {
+func (s *LocalState) State() *CLIState {
 	return s.state.DeepCopy()
 }
 
@@ -69,7 +68,7 @@ func (s *LocalState) State() *tofu.State {
 // the original.
 //
 // StateWriter impl.
-func (s *LocalState) WriteState(state *tofu.State) error {
+func (s *LocalState) WriteState(state *CLIState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -81,21 +80,14 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 	// Sync after write
 	return s.stateFileOut.Sync()
 }
-func (s *LocalState) writeState(state *tofu.State) error {
+func (s *LocalState) writeState(state *CLIState) error {
 	if s.stateFileOut == nil {
 		if err := s.createStateFiles(); err != nil {
 			return err
 		}
 	}
 
-	s.state = state.DeepCopy() // don't want mutations before we actually get this written to disk
-
-	if s.readState != nil && s.state != nil {
-		// We don't trust callers to properly manage serials. Instead, we assume
-		// that a WriteState is always for the next version after what was
-		// most recently read.
-		s.state.Serial = s.readState.Serial
-	}
+	s.state = state.DeepCopy()
 
 	if _, err := s.stateFileOut.Seek(0, io.SeekStart); err != nil {
 		return err
@@ -105,15 +97,10 @@ func (s *LocalState) writeState(state *tofu.State) error {
 	}
 
 	if state == nil {
-		// if we have no state, don't write anything else.
 		return nil
 	}
 
-	if !s.state.MarshalEqual(s.readState) {
-		s.state.Serial++
-	}
-
-	if err := tofu.WriteState(s.state, s.stateFileOut); err != nil {
+	if err := WriteState(s.state, s.stateFileOut); err != nil {
 		return err
 	}
 
@@ -176,9 +163,9 @@ func (s *LocalState) RefreshState(_ context.Context) error {
 		reader = s.stateFileOut
 	}
 
-	state, err := tofu.ReadState(reader)
+	state, err := ReadState(reader)
 	// if there's no state we just assign the nil return value
-	if err != nil && err != tofu.ErrNoState {
+	if err != nil && err != ErrNoState {
 		return err
 	}
 
