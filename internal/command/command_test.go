@@ -453,7 +453,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	t.Helper()
 
-	path := filepath.Join(DefaultDataDir, DefaultStateFilename)
+	path := filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1029,7 +1029,7 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, cleanup func()) {
 	services, close := testServices(t)
-	source = getproviders.NewRegistrySource(t.Context(), services, nil)
+	source = getproviders.NewRegistrySource(t.Context(), services, nil, getproviders.LocationConfig{ProviderDownloadRetries: 0})
 	return source, close
 }
 

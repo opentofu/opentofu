@@ -10,12 +10,14 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/provisioners"
 )
 
 func TestResourceProvider_Apply(t *testing.T) {
@@ -57,35 +59,50 @@ func TestResourceProvider_stop(t *testing.T) {
 	p := New()
 	schema := p.GetSchema().Provisioner
 
+	command := "sleep 30; sleep 30"
+	if runtime.GOOS == "windows" {
+		// On Windows the local-exec provisioner uses cmd.exe by default,
+		// and that uses "&" as a command separator instead of ";".
+		command = "sleep 30 & sleep 30"
+	}
+
 	c, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
 		// bash/zsh/ksh will exec a single command in the same process. This
 		// makes certain there's a subprocess in the shell.
-		"command": cty.StringVal("sleep 30; sleep 30"),
+		"command": cty.StringVal(command),
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	doneCh := make(chan struct{})
-	startTime := time.Now()
+	var provisionerResp atomic.Pointer[provisioners.ProvisionResourceResponse]
 	go func() {
 		defer close(doneCh)
-		// The functionality of p.Apply is tested in TestResourceProvider_Apply.
-		// Because p.Apply is called in a goroutine, trying to t.Fatal() on its
-		// result would be ignored or would cause a panic if the parent goroutine
-		// has already completed.
-		_ = p.ProvisionResource(provisioners.ProvisionResourceRequest{
+		resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
 			Config:   c,
 			UIOutput: output,
 		})
+		provisionerResp.Store(&resp)
 	}()
 
-	mustExceed := (50 * time.Millisecond)
+	mustExceed := (250 * time.Millisecond)
 	select {
 	case <-doneCh:
-		t.Fatalf("expected to finish sometime after %s finished in %s", mustExceed, time.Since(startTime))
+		// If doneCh is closed here then provisionerResp will have been
+		// set to a non-nil pointer and so we'll catch it in the
+		// if statement immediately below.
 	case <-time.After(mustExceed):
 		t.Logf("correctly took longer than %s", mustExceed)
+	}
+	if resp := provisionerResp.Load(); resp != nil {
+		// This catches a potential misleading outcome where the provisioner
+		// exits early due to an error but does so slow enough that it would
+		// pass the minimum time check above.
+		if resp.Diagnostics.HasErrors() {
+			t.Fatalf("provisioner failed: %s", resp.Diagnostics.Err())
+		}
+		t.Fatalf("provisioner responded with success before we asked it to stop")
 	}
 
 	// Stop it
@@ -101,6 +118,11 @@ func TestResourceProvider_stop(t *testing.T) {
 		t.Logf(maxTempl, finishWithin, time.Since(stopTime))
 	case <-time.After(finishWithin):
 		t.Fatalf(maxTempl, finishWithin, time.Since(stopTime))
+	}
+
+	// Our background goroutine _must_ eventually exit before we consider
+	// the test to be done.
+	for range doneCh {
 	}
 }
 
@@ -229,6 +251,47 @@ func TestResourceProvisioner_StopClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.Close()
+}
+
+func TestResourceProvider_ValidateNullCommand(t *testing.T) {
+	p := New()
+	schema := p.GetSchema().Provisioner
+
+	cfg, err := schema.CoerceValue(cty.ObjectVal(map[string]cty.Value{
+		"command": cty.NullVal(cty.String),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := p.ValidateProvisionerConfig(provisioners.ValidateProvisionerConfigRequest{
+		Config: cfg,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null command, got none")
+	}
+}
+
+func TestResourceProvider_ApplyNullCommand(t *testing.T) {
+	output := cli.NewMockUi()
+	p := New()
+	cfg := cty.ObjectVal(map[string]cty.Value{
+		"command":     cty.NullVal(cty.String),
+		"interpreter": cty.NullVal(cty.List(cty.String)),
+		"working_dir": cty.NullVal(cty.String),
+		"environment": cty.NullVal(cty.Map(cty.String)),
+		"quiet":       cty.NullVal(cty.Bool),
+	})
+
+	resp := p.ProvisionResource(provisioners.ProvisionResourceRequest{
+		Config:   cfg,
+		UIOutput: output,
+	})
+
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatal("expected error diagnostic for null command, got none")
+	}
 }
 
 func TestResourceProvisioner_nullsInOptionals(t *testing.T) {

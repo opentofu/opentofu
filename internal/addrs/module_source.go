@@ -113,6 +113,14 @@ func ParseModuleSource(raw string) (ModuleSource, error) {
 	return remoteAddr, nil
 }
 
+func MustParseModuleSource(raw string) ModuleSource {
+	ret, err := ParseModuleSource(raw)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 // ModuleSourceLocal is a ModuleSource representing a local path reference
 // from the caller's directory to the callee's directory within the same
 // module package.

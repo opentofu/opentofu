@@ -26,6 +26,7 @@ export ARM_TENANT_ID='xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 ```
 
 We recommend using the Azure CLI (`az`) to authenticate to Azure for the infrastructure bootstrapping steps, which create a resource group, storage account, and blob storage container in your configured subscription.
+It's also possible to run these tests by setting TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET if the Azure CLI cannot be used.
 
 With all of these configured, you'll be able to run the following tests:
 - TestAccBackendAccessKeyBasic
@@ -41,7 +42,7 @@ To run the secrets test, you will need these variables:
 
 ```bash
 export TF_AZURE_TEST_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-export TF_AZURE_TEST_SECRET=some~secret~string
+export TF_AZURE_TEST_CLIENT_SECRET=some~secret~string
 ```
 
 You can get those by going into the meta-test directory and following the instructions there, or manually obtaining a secret client. Instructions for manually creating a Client Secret for your existing app registration can be found [here](https://learn.microsoft.com/en-us/azure/industry/training-services/microsoft-community-training/public-preview-version/frequently-asked-questions/generate-new-clientsecret-link-to-key-vault#check-and-update-client-secret-expiration-date) in the first part of this guide. You do not need to put the secret in a vault or update the application configuration.
@@ -85,7 +86,7 @@ $ GOOS=linux GOARCH=amd64 go test -c .
 This will generate an `azure.test` file. Send this to your VM:
 
 ```bash
-$ scp azure.test azureadmin@xxx.xxx.xxx.xxx:
+$ scp azure.test azureadmin@xxx.xxx.xxx.xxx:/home/azureadmin
 ```
 
 Now, SSH into your VM:
@@ -112,6 +113,14 @@ Finally, run the MSI test:
 ```bash
 $ ./azure.test -test.v -test.run "TestAcc.*ManagedServiceIdentity"
 ```
+
+Sometimes may you want to test something against the full `tofu` binary (as happened in [this issue](https://github.com/opentofu/opentofu/issues/3586)). From the root of this `opentofu` repository, you can run:
+
+```bash
+$ GOOS=linux GOARCH=amd64 make build
+```
+
+You can then `scp` the resulting binary and run `./tofu init`, `./tofu apply`, etc., on the server.
 
 ### Running AKS Workload Identity Test
 

@@ -71,6 +71,30 @@ func (p *Parser) LoadConfigDirSelective(path string, call StaticModuleCall, load
 	return mod, diags
 }
 
+// LoadConfigDirUneval is a variant of [Parser.LoadConfigDir] that only performs
+// the static decoding step and does not perform early evaluation.
+//
+// This is currently intended only for the experiment in internal/lang/eval,
+// which wants to use a different strategy to meet the "early evaluation"
+// use-cases. We should continue to use [Parser.LoadConfigDir] for all other
+// callers for now.
+func (p *Parser) LoadConfigDirUneval(path string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	primaryPaths, overridePaths, _, diags := p.dirFiles(path, "")
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	primary, fDiags := p.loadFiles(primaryPaths, false)
+	diags = append(diags, fDiags...)
+	override, fDiags := p.loadFiles(overridePaths, true)
+	diags = append(diags, fDiags...)
+
+	mod, modDiags := NewModuleUneval(primary, override, path, load)
+	diags = append(diags, modDiags...)
+
+	return mod, diags
+}
+
 // LoadConfigDirWithTests matches LoadConfigDir, but the return Module also
 // contains any relevant .tftest.hcl files.
 func (p *Parser) LoadConfigDirWithTests(path string, testDirectory string, call StaticModuleCall) (*Module, hcl.Diagnostics) {

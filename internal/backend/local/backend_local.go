@@ -213,6 +213,11 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	}
 	run.PlanOpts = planOpts
 
+	// Set ApplyOpts for direct runs to pass through the CLI flag
+	run.ApplyOpts = &tofu.ApplyOpts{
+		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
+	}
+
 	// For a "direct" local run, the input state is the most recently stored
 	// snapshot, from the previous run.
 	state := s.State()
@@ -282,7 +287,10 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	diags = diags.Append(undeclaredDiags)
 	declaredVars, declaredDiags := backend.ParseDeclaredVariableValues(op.Variables, config.Module.Variables)
 	diags = diags.Append(declaredDiags)
-	run.ApplyOpts = &tofu.ApplyOpts{SetVariables: declaredVars}
+	run.ApplyOpts = &tofu.ApplyOpts{
+		SetVariables:                      declaredVars,
+		SuppressForgetErrorsDuringDestroy: op.SuppressForgetErrorsDuringDestroy,
+	}
 
 	// NOTE: We're intentionally comparing the current locks with the
 	// configuration snapshot, rather than the lock snapshot in the plan file,

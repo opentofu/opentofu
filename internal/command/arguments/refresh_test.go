@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -23,29 +24,35 @@ func TestParseRefresh_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Refresh{
-				InputEnabled: true,
-				ViewType:     ViewHuman,
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
 			},
 		},
 		"input=false": {
 			[]string{"-input=false"},
 			&Refresh{
-				InputEnabled: false,
-				ViewType:     ViewHuman,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
 			},
 		},
 		"JSON view disables input": {
 			[]string{"-json"},
 			&Refresh{
-				InputEnabled: false,
-				ViewType:     ViewJSON,
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewJSON,
+				},
 			},
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -53,6 +60,7 @@ func TestParseRefresh_basicValid(t *testing.T) {
 			got.State = nil
 			got.Operation = nil
 			got.Vars = nil
+			got.ViewOptions.jsonFlag = tc.want.ViewOptions.jsonFlag
 			if *got != *tc.want {
 				t.Fatalf("unexpected result\n got: %#v\nwant: %#v", got, tc.want)
 			}
@@ -61,28 +69,28 @@ func TestParseRefresh_basicValid(t *testing.T) {
 }
 
 func TestParseRefresh_invalid(t *testing.T) {
-	got, diags := ParseRefresh([]string{"-frob"})
+	got, _, diags := ParseRefresh([]string{"-frob"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
 func TestParseRefresh_tooManyArguments(t *testing.T) {
-	got, diags := ParseRefresh([]string{"saved.tfplan"})
+	got, _, diags := ParseRefresh([]string{"saved.tfplan"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -120,7 +128,7 @@ func TestParseRefresh_targets(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -333,7 +341,7 @@ func TestParseRefresh_targetFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParseRefresh(targetFileArguments)
+			got, _, gotDiags := ParseRefresh(targetFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -389,7 +397,7 @@ func TestParseRefresh_excludes(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -407,7 +415,7 @@ func TestParseRefresh_excludes(t *testing.T) {
 }
 
 func TestParseRefresh_excludeAndTarget(t *testing.T) {
-	got, gotDiags := ParseRefresh([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
+	got, _, gotDiags := ParseRefresh([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
 	if len(gotDiags) == 0 {
 		t.Fatalf("expected error, but there was none")
 	}
@@ -433,7 +441,7 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 func TestParseRefresh_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []FlagNameValue
+		want []flags.RawFlag
 	}{
 		"no var flags by default": {
 			args: nil,
@@ -441,13 +449,13 @@ func TestParseRefresh_vars(t *testing.T) {
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -457,7 +465,7 @@ func TestParseRefresh_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},
@@ -467,7 +475,7 @@ func TestParseRefresh_vars(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParseRefresh(tc.args)
+			got, _, diags := ParseRefresh(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}

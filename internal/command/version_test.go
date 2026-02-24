@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
@@ -46,7 +47,8 @@ func TestVersion(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &VersionCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 		Version:           "4.5.6",
 		VersionPrerelease: "foo",
@@ -70,7 +72,8 @@ func TestVersion(t *testing.T) {
 func TestVersion_flags(t *testing.T) {
 	ui := new(cli.MockUi)
 	m := Meta{
-		Ui: ui,
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
 	}
 
 	// `tofu version`
@@ -98,7 +101,8 @@ func TestVersion_json(t *testing.T) {
 
 	ui := cli.NewMockUi()
 	meta := Meta{
-		Ui: ui,
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
 	}
 
 	// `tofu version -json` without prerelease

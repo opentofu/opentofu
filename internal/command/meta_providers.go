@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 
@@ -43,12 +44,12 @@ var enableProviderAutoMTLS = os.Getenv("TF_DISABLE_PLUGIN_TLS") == ""
 // how to recover the selections from a prior installation process.
 //
 // The resulting provider installer is constructed from the results of
-// the other methods providerLocalCacheDir, providerGlobalCacheDir, and
-// providerInstallSource.
+// the other methods like providerGlobalCacheDir,
+// providerInstallSource and workdir.Dir#ProviderLocalCacheDir
 //
 // Only one object returned from this method should be live at any time,
 // because objects inside contain caches that must be maintained properly.
-// Because this method wraps a result from providerLocalCacheDir, that
+// Because this method wraps a result from workdir.Dir#ProviderLocalCacheDir, that
 // limitation applies also to results from that method.
 func (m *Meta) providerInstaller() *providercache.Installer {
 	return m.providerInstallerCustomSource(m.providerInstallSource())
@@ -67,7 +68,7 @@ func (m *Meta) providerInstaller() *providercache.Installer {
 // EnsureProviderVersions (anything other than "tofu init") can safely
 // just use the providerInstaller method unconditionally.
 func (m *Meta) providerInstallerCustomSource(source getproviders.Source) *providercache.Installer {
-	targetDir := m.providerLocalCacheDir()
+	targetDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 	globalCacheDir := m.providerGlobalCacheDir()
 	inst := providercache.NewInstaller(targetDir, source)
 	if globalCacheDir != nil {
@@ -104,23 +105,6 @@ func (m *Meta) providerCustomLocalDirectorySource(ctx context.Context, dirs []st
 		})
 	}
 	return ret
-}
-
-// providerLocalCacheDir returns an object representing the
-// configuration-specific local cache directory. This is the
-// only location consulted for provider plugin packages for OpenTofu
-// operations other than provider installation.
-//
-// Only the provider installer (in "tofu init") is permitted to make
-// modifications to this cache directory. All other commands must treat it
-// as read-only.
-//
-// Only one object returned from this method should be live at any time,
-// because objects inside contain caches that must be maintained properly.
-func (m *Meta) providerLocalCacheDir() *providercache.Dir {
-	m.fixupMissingWorkingDir()
-	dir := m.WorkingDir.ProviderLocalCacheDir()
-	return providercache.NewDir(dir)
 }
 
 // providerGlobalCacheDir returns an object representing the shared global
@@ -225,7 +209,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 }
 
 // providerFactories uses the selections made previously by an installer in
-// the local cache directory (m.providerLocalCacheDir) to produce a map
+// the local cache directory (workdir.Dir#ProviderLocalCacheDir) to produce a map
 // from provider addresses to factory functions to create instances of
 // those providers.
 //
@@ -252,7 +236,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	// available in the provider cache because "tofu init" should already
 	// have put them there.
 	providerLocks := locks.AllProviders()
-	cacheDir := m.providerLocalCacheDir()
+	cacheDir := providercache.NewDir(m.WorkingDir.ProviderLocalCacheDir())
 
 	// The internal providers are _always_ available, even if the configuration
 	// doesn't request them, because they don't need any special installation
@@ -283,15 +267,6 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
 	for provider, lock := range providerLocks {
-		reportError := func(thisErr error) {
-			errs[provider] = thisErr
-			// We'll populate a provider factory that just echoes our error
-			// again if called, which allows us to still report a helpful
-			// error even if it gets detected downstream somewhere from the
-			// caller using our partial result.
-			factories[provider] = providerFactoryError(thisErr)
-		}
-
 		if locks.ProviderIsOverridden(provider) {
 			// Overridden providers we'll handle with the other separate
 			// loops below, for dev overrides etc.
@@ -300,33 +275,54 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
+
 		if cached == nil {
-			reportError(fmt.Errorf(
+			errs[provider] = fmt.Errorf(
 				"there is no package for %s %s cached in %s",
 				provider, version, cacheDir.BasePath(),
-			))
+			)
 			continue
 		}
-		// The cached package must match one of the checksums recorded in
-		// the lock file, if any.
-		if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
-			matched, err := cached.MatchesAnyHash(allowedHashes)
-			if err != nil {
-				reportError(fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %w",
-					provider, version, cacheDir.BasePath(), err,
-				))
-				continue
+
+		checkProvider := func() error {
+			// The cached package must match one of the checksums recorded in
+			// the lock file, if any.
+			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
+				matched, err := cached.MatchesAnyHash(allowedHashes)
+				if err != nil {
+					return fmt.Errorf(
+						"failed to verify checksum of %s %s package cached in in %s: %w",
+						provider, version, cacheDir.BasePath(), err,
+					)
+				}
+				if !matched {
+					return fmt.Errorf(
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file, run tofu init to ensure all providers are correctly installed",
+						provider, version, cacheDir.BasePath(),
+					)
+				}
 			}
-			if !matched {
-				reportError(fmt.Errorf(
-					"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
-					provider, version, cacheDir.BasePath(),
-				))
-				continue
-			}
+			return nil
 		}
-		factories[provider] = providerFactory(cached)
+
+		var checkLock sync.Mutex
+		checkedProvider := false
+		var checkErr error
+
+		factories[provider] = func() (providers.Interface, error) {
+			checkLock.Lock()
+			if !checkedProvider {
+				checkedProvider = true
+				checkErr = checkProvider()
+			}
+			checkLock.Unlock()
+
+			if checkErr != nil {
+				return nil, checkErr
+			}
+
+			return providerFactory(cached)()
+		}
 	}
 	for provider, localDir := range devOverrideProviders {
 		factories[provider] = devOverrideProviderFactory(provider, localDir)
@@ -364,6 +360,8 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
 func providerFactory(meta *providercache.CachedProvider) providers.Factory {
+	schemaCache := providers.NewSchemaCache()
+
 	return func() (providers.Interface, error) {
 		execFile, err := meta.ExecutableFile()
 		if err != nil {
@@ -394,7 +392,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		p, err := initializeProviderInstance(raw, protoVer, client, schemaCache)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -405,18 +403,18 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache providers.SchemaCache) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
+		p.SchemaCache = schemaCache
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
-		p.Addr = pluginAddr
+		p.SchemaCache = schemaCache
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
@@ -440,6 +438,8 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
 func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
+	schemaCache := providers.NewSchemaCache()
+
 	return func() (providers.Interface, error) {
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
@@ -489,17 +489,7 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			protoVer = 5
 		}
 
-		return initializeProviderInstance(raw, protoVer, client, provider)
-	}
-}
-
-// providerFactoryError is a stub providers.Factory that returns an error
-// when called. It's used to allow providerFactories to still produce a
-// factory for each available provider in an error case, for situations
-// where the caller can do something useful with that partial result.
-func providerFactoryError(err error) providers.Factory {
-	return func() (providers.Interface, error) {
-		return nil, err
+		return initializeProviderInstance(raw, protoVer, client, schemaCache)
 	}
 }
 

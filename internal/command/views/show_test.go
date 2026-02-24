@@ -73,7 +73,7 @@ func TestShowHuman_DisplayPlan(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewShow(arguments.ViewHuman, view)
+			v := NewShow(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
 
 			code := v.DisplayPlan(t.Context(), testCase.plan, testCase.jsonPlan, nil, nil, testCase.schemas)
 			if code != 0 {
@@ -129,7 +129,7 @@ func TestShowHuman_DisplayState(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewShow(arguments.ViewHuman, view)
+			v := NewShow(arguments.ViewOptions{ViewType: arguments.ViewHuman}, view)
 
 			code := v.DisplayState(t.Context(), testCase.stateFile, testCase.schemas)
 			if code != 0 {
@@ -206,7 +206,7 @@ func TestShowJSON_DisplayPlan(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewShow(arguments.ViewJSON, view)
+			v := NewShow(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
 
 			schemas := &tofu.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
@@ -271,7 +271,7 @@ func TestShowJSON_DisplayState(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
 			view := NewView(streams)
 			view.Configure(&arguments.View{NoColor: true})
-			v := NewShow(arguments.ViewJSON, view)
+			v := NewShow(arguments.ViewOptions{ViewType: arguments.ViewJSON}, view)
 
 			schemas := &tofu.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{

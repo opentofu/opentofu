@@ -117,13 +117,17 @@ recommend that authors create both a `.tf` file and a `.tofu` file of the
 same basename, and place the Terraform version constraint in the `.tf` file
 and the OpenTofu constraint in the `.tofu` file.
 
-This document does not propose to change anything about that behavior, so
-that all existing uses of that pattern will retain their current meaning.
+As part of implementing this proposal, we would _slightly_ change the existing
+behavior so that OpenTofu will always completely ignore `required_providers`
+settings in `.tf` and `.tf.json` files, assuming that they are intended for
+Terraform. OpenTofu will continue to honor `required_providers` arguments
+in `.tofu` and `.tofu.json` files, so existing modules already using that
+pattern will retain their current meaning.
 
 Module authors that wish to support OpenTofu versions prior to the introduction
 of the `language` block type should continue following the existing pattern.
 Authors should adopt a `language` block and nested `compatible_with` block
-only once the minimum required OpenTofu version is one that supports that
+only once the minimum required OpenTofu version is one that supports the new
 syntax.
 
 Authors of broadly-shared modules might prefer to delay adopting the new syntax

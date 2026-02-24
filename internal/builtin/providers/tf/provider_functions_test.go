@@ -116,19 +116,19 @@ func TestDecodeTFVarsFunc(t *testing.T) {
 			name:          "invalid content",
 			arg:           cty.StringVal("test"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: FailedToDecodeError,
+			expectedError: errFailedToDecode,
 		},
 		{
 			name:          "invalid content 2",
 			arg:           cty.StringVal("{}"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: FailedToDecodeError,
+			expectedError: errFailedToDecode,
 		},
 		{
 			name:          "invalid content 3",
 			arg:           cty.StringVal("\"5*5\": 3"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: FailedToDecodeError,
+			expectedError: errFailedToDecode,
 		},
 	}
 
@@ -223,19 +223,19 @@ func TestEncodeTFVarsFunc(t *testing.T) {
 			name:          "null input",
 			arg:           cty.NullVal(cty.DynamicPseudoType),
 			want:          cty.StringVal(""),
-			expectedError: InvalidInputError,
+			expectedError: errInvalidInput,
 		},
 		{
 			name:          "invalid input: not an object",
 			arg:           cty.StringVal("test"), // not an object
 			want:          cty.StringVal(""),
-			expectedError: InvalidInputError,
+			expectedError: errInvalidInput,
 		},
 		{
 			name:          "invalid input: Object with invalid key",
 			arg:           cty.ObjectVal(map[string]cty.Value{"7*7": cty.StringVal("test")}), // invalid key
 			want:          cty.StringVal(""),
-			expectedError: InvalidInputError,
+			expectedError: errInvalidInput,
 		},
 	}
 

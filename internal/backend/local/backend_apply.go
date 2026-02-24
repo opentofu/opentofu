@@ -50,6 +50,7 @@ func (b *Local) opApply(
 	cancelCtx context.Context,
 	op *backend.Operation,
 	runningOp *backend.RunningOperation) {
+
 	log.Printf("[INFO] backend/local: starting Apply operation")
 
 	var diags, moreDiags tfdiags.Diagnostics

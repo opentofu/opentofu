@@ -6,9 +6,9 @@
 package lang
 
 import (
-	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/funcs"
 )
 
@@ -29,7 +29,7 @@ func TestFunctionDescriptions(t *testing.T) {
 	}
 
 	for name := range allFunctions {
-		_, ok := funcs.DescriptionList[strings.TrimPrefix(name, CoreNamespace)]
+		_, ok := funcs.DescriptionList[addrs.ParseFunction(name).Name]
 		if !ok {
 			t.Errorf("missing DescriptionList entry for function %q", name)
 		}

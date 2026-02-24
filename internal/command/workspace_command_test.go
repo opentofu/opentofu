@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
@@ -29,7 +30,11 @@ func TestWorkspace_createAndChange(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	newCmd := &WorkspaceNewCommand{}
+	newCmd := &WorkspaceNewCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+		},
+	}
 
 	current, _ := newCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
@@ -39,7 +44,11 @@ func TestWorkspace_createAndChange(t *testing.T) {
 	args := []string{"test"}
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	newCmd.Meta = Meta{Ui: ui, View: view}
+	newCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if code := newCmd.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
@@ -52,7 +61,11 @@ func TestWorkspace_createAndChange(t *testing.T) {
 	selCmd := &WorkspaceSelectCommand{}
 	args = []string{backend.DefaultStateName}
 	ui = new(cli.MockUi)
-	selCmd.Meta = Meta{Ui: ui, View: view}
+	selCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if code := selCmd.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
@@ -88,7 +101,11 @@ func TestWorkspace_createAndList(t *testing.T) {
 		ui := new(cli.MockUi)
 		view, _ := testView(t)
 		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{Ui: ui, View: view},
+			Meta: Meta{
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
+				View:       view,
+			},
 		}
 		if code := newCmd.Run([]string{env}); code != 0 {
 			t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -98,7 +115,11 @@ func TestWorkspace_createAndList(t *testing.T) {
 	listCmd := &WorkspaceListCommand{}
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	listCmd.Meta = Meta{Ui: ui, View: view}
+	listCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 
 	if code := listCmd.Run(nil); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -132,7 +153,11 @@ func TestWorkspace_createAndShow(t *testing.T) {
 	showCmd := &WorkspaceShowCommand{}
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	showCmd.Meta = Meta{Ui: ui, View: view}
+	showCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 
 	if code := showCmd.Run(nil); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -151,21 +176,33 @@ func TestWorkspace_createAndShow(t *testing.T) {
 
 	// create test_a workspace
 	ui = new(cli.MockUi)
-	newCmd.Meta = Meta{Ui: ui, View: view}
+	newCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if code := newCmd.Run(env); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
 	selCmd := &WorkspaceSelectCommand{}
 	ui = new(cli.MockUi)
-	selCmd.Meta = Meta{Ui: ui, View: view}
+	selCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if code := selCmd.Run(env); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
 	showCmd = &WorkspaceShowCommand{}
 	ui = new(cli.MockUi)
-	showCmd.Meta = Meta{Ui: ui, View: view}
+	showCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 
 	if code := showCmd.Run(nil); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -192,7 +229,11 @@ func TestWorkspace_createInvalid(t *testing.T) {
 		ui := new(cli.MockUi)
 		view, _ := testView(t)
 		newCmd := &WorkspaceNewCommand{
-			Meta: Meta{Ui: ui, View: view},
+			Meta: Meta{
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
+				View:       view,
+			},
 		}
 		if code := newCmd.Run([]string{env}); code == 0 {
 			t.Fatalf("expected failure: \n%s", ui.OutputWriter)
@@ -203,7 +244,11 @@ func TestWorkspace_createInvalid(t *testing.T) {
 	listCmd := &WorkspaceListCommand{}
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	listCmd.Meta = Meta{Ui: ui, View: view}
+	listCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 
 	if code := listCmd.Run(nil); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -227,7 +272,11 @@ func TestWorkspace_createWithState(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	initCmd := &InitCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 	if code := initCmd.Run([]string{}); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
@@ -262,7 +311,11 @@ func TestWorkspace_createWithState(t *testing.T) {
 	args := []string{"-state", "test.tfstate", workspace}
 	ui = new(cli.MockUi)
 	newCmd := &WorkspaceNewCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 	if code := newCmd.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
@@ -298,17 +351,21 @@ func TestWorkspace_delete(t *testing.T) {
 	}
 
 	// create the workspace file
-	if err := os.MkdirAll(DefaultDataDir, 0755); err != nil {
+	if err := os.MkdirAll(workdir.DefaultDataDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(DefaultDataDir, local.DefaultWorkspaceFile), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(workdir.DefaultDataDir, local.DefaultWorkspaceFile), []byte("test"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 
 	current, _ := delCmd.Workspace(t.Context())
@@ -356,7 +413,11 @@ func TestWorkspace_deleteInvalid(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 
 	// delete the workspace
@@ -409,7 +470,11 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
 	delCmd := &WorkspaceDeleteCommand{
-		Meta: Meta{Ui: ui, View: view},
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
+			View:       view,
+		},
 	}
 	args := []string{"test"}
 	if code := delCmd.Run(args); code == 0 {
@@ -441,7 +506,11 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 	td := t.TempDir()
 	t.Chdir(td)
 
-	selectCmd := &WorkspaceSelectCommand{}
+	selectCmd := &WorkspaceSelectCommand{
+		Meta: Meta{
+			WorkingDir: workdir.NewDir("."),
+		},
+	}
 
 	current, _ := selectCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
@@ -451,7 +520,11 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 	args := []string{"-or-create", "test"}
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
-	selectCmd.Meta = Meta{Ui: ui, View: view}
+	selectCmd.Meta = Meta{
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
+	}
 	if code := selectCmd.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
-
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
@@ -20,21 +19,22 @@ func TestGet(t *testing.T) {
 	wd := tempWorkingDirFixture(t, "get")
 	t.Chdir(wd.RootModuleDir())
 
-	ui := cli.NewMockUi()
+	getView, getDone := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             getView,
 			WorkingDir:       wd,
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(nil)
+	getOutput := getDone(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", getOutput.Stderr())
 	}
 
-	output := ui.OutputWriter.String()
+	output := getOutput.Stdout()
 	if !strings.Contains(output, "- foo in") {
 		t.Fatalf("doesn't look like get: %s", output)
 	}
@@ -44,11 +44,11 @@ func TestGet_multipleArgs(t *testing.T) {
 	wd := tempWorkingDir(t)
 	t.Chdir(wd.RootModuleDir())
 
-	ui := cli.NewMockUi()
+	getView, getDone := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             getView,
 			WorkingDir:       wd,
 		},
 	}
@@ -57,8 +57,10 @@ func TestGet_multipleArgs(t *testing.T) {
 		"bad",
 		"bad",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: \n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	getOutput := getDone(t)
+	if code != cli.RunResultHelp {
+		t.Fatalf("bad: \n%s", getOutput.Stdout())
 	}
 }
 
@@ -66,11 +68,11 @@ func TestGet_update(t *testing.T) {
 	wd := tempWorkingDirFixture(t, "get")
 	t.Chdir(wd.RootModuleDir())
 
-	ui := cli.NewMockUi()
+	getView, getDone := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             getView,
 			WorkingDir:       wd,
 		},
 	}
@@ -78,11 +80,13 @@ func TestGet_update(t *testing.T) {
 	args := []string{
 		"-update",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := c.Run(args)
+	getOutput := getDone(t)
+	if code != 0 {
+		t.Fatalf("bad: \n%s", getOutput.Stderr())
 	}
 
-	output := ui.OutputWriter.String()
+	output := getOutput.Stdout()
 	if !strings.Contains(output, `- foo in`) {
 		t.Fatalf("doesn't look like get: %s", output)
 	}
@@ -125,11 +129,11 @@ func TestGet_cancel(t *testing.T) {
 		server.CloseClientConnections() // force any active client request to fail
 	}()
 
-	ui := cli.NewMockUi()
+	getView, getDone := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             getView,
 			WorkingDir:       wd,
 			ShutdownCh:       shutdownCh,
 
@@ -143,13 +147,14 @@ func TestGet_cancel(t *testing.T) {
 	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
 	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
 	code := c.Run(args)
+	getOutput := getDone(t)
 	if err := ctx.Err(); err != nil {
 		t.Errorf("context error: %s", err) // probably reporting a timeout
 	}
 	if code == 0 {
-		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
+		t.Fatalf("succeeded; wanted error\n%s", getOutput.Stdout())
 	}
-	if got, want := ui.ErrorWriter.String(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
+	if got, want := getOutput.Stderr(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
@@ -182,21 +187,23 @@ func TestGetCommand_InvalidArgs(t *testing.T) {
 			wd := tempWorkingDirFixture(t, "get")
 			t.Chdir(wd.RootModuleDir())
 
-			ui := cli.NewMockUi()
+			getView, getDone := testView(t)
 			c := &GetCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(testProvider()),
-					Ui:               ui,
+					View:             getView,
 					WorkingDir:       wd,
 				},
 			}
 
-			if code := c.Run(tc.args); code != 1 {
+			code := c.Run(tc.args)
+			getOutput := getDone(t)
+			if code != cli.RunResultHelp {
 				t.Errorf("Expected error code 1 for invalid arguments, got %d", code)
 			}
 
-			if !strings.Contains(ui.ErrorWriter.String(), tc.expected) {
-				t.Errorf("Expected error message to contain '%s', got: %s", tc.expected, ui.ErrorWriter.String())
+			if !strings.Contains(getOutput.Stderr(), tc.expected) {
+				t.Errorf("Expected error message to contain '%s', got: %s", tc.expected, getOutput.Stderr())
 			}
 		})
 	}

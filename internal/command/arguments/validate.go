@@ -24,27 +24,28 @@ type Validate struct {
 	// included with the module.
 	NoTests bool
 
-	// ViewType specifies which output format to use: human, JSON, or "raw".
-	ViewType ViewType
+	// ViewOptions specifies which view options to use
+	ViewOptions ViewOptions
 
 	Vars *Vars
 }
 
-// ParseValidate processes CLI arguments, returning a Validate value and errors.
+// ParseValidate processes CLI arguments, returning a Validate value, a closer function, and errors.
 // If errors are encountered, a Validate value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
+func ParseValidate(args []string) (*Validate, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
 	validate := &Validate{
 		Path: ".",
 		Vars: &Vars{},
 	}
 
-	var jsonOutput bool
 	cmdFlags := extendedFlagSet("validate", nil, nil, validate.Vars)
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")
+
+	validate.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -67,12 +68,8 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 		validate.Path = args[0]
 	}
 
-	switch {
-	case jsonOutput:
-		validate.ViewType = ViewJSON
-	default:
-		validate.ViewType = ViewHuman
-	}
+	closer, moreDiags := validate.ViewOptions.Parse()
+	diags = diags.Append(moreDiags)
 
-	return validate, diags
+	return validate, closer, diags
 }

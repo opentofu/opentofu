@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -29,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // PlanOpts are the various options that affect the details of how OpenTofu
@@ -150,10 +149,10 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 		ctx, "Plan phase",
 	)
 	span.SetAttributes(
-		otelAttr.String("opentofu.plan.mode", opts.Mode.UIName()),
-		otelAttr.StringSlice("opentofu.plan.target_addrs", tracing.StringSlice(span, slices.Values(opts.Targets))),
-		otelAttr.StringSlice("opentofu.plan.exclude_addrs", tracing.StringSlice(span, slices.Values(opts.Excludes))),
-		otelAttr.StringSlice("opentofu.plan.force_replace_addrs", tracing.StringSlice(span, slices.Values(opts.ForceReplace))),
+		traceattrs.String("opentofu.plan.mode", opts.Mode.UIName()),
+		traceattrs.StringSlice("opentofu.plan.target_addrs", tracing.StringSlice(span, slices.Values(opts.Targets))),
+		traceattrs.StringSlice("opentofu.plan.exclude_addrs", tracing.StringSlice(span, slices.Values(opts.Excludes))),
+		traceattrs.StringSlice("opentofu.plan.force_replace_addrs", tracing.StringSlice(span, slices.Values(opts.ForceReplace))),
 		// Additions here should typically be limited only to options that
 		// significantly change what provider-driven operations we'd perform
 		// during the planning phase, since that's the main influence on how
@@ -387,10 +386,13 @@ func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, p
 	// to refresh only, the set of resource changes should always be empty.
 	// We'll safety-check that here so we can return a clear message about it,
 	// rather than probably just generating confusing output at the UI layer.
-	if len(plan.Changes.Resources) != 0 {
+	// Because the ephemeral resources changes in the plan are meant to be used
+	// later to build the apply graph, those shouldn't be counted when we are
+	// doing this check.
+	if changes := plan.Changes.ActionableResources(); len(changes) != 0 {
 		// Some extra context in the logs in case the user reports this message
 		// as a bug, as a starting point for debugging.
-		for _, rc := range plan.Changes.Resources {
+		for _, rc := range changes {
 			if depKey := rc.DeposedKey; depKey == states.NotDeposed {
 				log.Printf("[DEBUG] Refresh-only plan includes %s change for %s", rc.Action, rc.Addr)
 			} else {
@@ -779,6 +781,14 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// strange problems that may lead to confusing error messages.
 		return nil, diags
 	}
+
+	// TEMP: Opt-in support for testing with the new experimental language
+	// runtime. Refer to backend_temp_new_runtime.go for more information.
+	if experimentalRuntimeEnabled() {
+		plan, moreDiags := c.newEnginePlan(ctx, config, prevRunState, opts)
+		return plan, diags.Append(moreDiags)
+	}
+
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, providerFunctionTracker)

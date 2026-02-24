@@ -90,7 +90,11 @@ func (ms *Module) SetResourceInstance(addr addrs.ResourceInstance, inst *Resourc
 		ms.SetResourceProvider(addr.Resource, provider)
 		rs = ms.Resource(addr.Resource)
 	}
-	rs.Instances[addr.Key] = inst
+	if inst != nil {
+		rs.Instances[addr.Key] = inst
+	} else {
+		delete(rs.Instances, addr.Key)
+	}
 }
 
 // SetResourceInstanceCurrent saves the given instance object as the current

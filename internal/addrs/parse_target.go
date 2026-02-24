@@ -445,3 +445,10 @@ func (t *Target) ModuleAddr() ModuleInstance {
 		panic(fmt.Sprintf("unsupported target address type %T", addr))
 	}
 }
+
+func (t *Target) String() string {
+	if t == nil || t.Subject == nil {
+		return "<nil>"
+	}
+	return t.Subject.String()
+}

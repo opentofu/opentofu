@@ -297,7 +297,9 @@ type Operation struct {
 	// Injected by the command creating the operation (plan/apply/refresh/etc...)
 	Variables map[string]UnparsedVariableValue
 	RootCall  configs.StaticModuleCall
-
+	// SuppressForgetErrorsDuringDestroy suppresses the error that occurs when a
+	// destroy operation completes successfully but leaves forgotten instances behind.
+	SuppressForgetErrorsDuringDestroy bool
 	// Some operations use root module variables only opportunistically or
 	// don't need them at all. If this flag is set, the backend must treat
 	// all variables as optional and provide an unknown value for any required

@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -32,6 +32,7 @@ func TestShow_badArgs(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -55,6 +56,7 @@ func TestShow_noArgsNoState(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -83,6 +85,7 @@ func TestShow_noArgsWithState(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -110,6 +113,7 @@ func TestShow_argsWithState(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -157,6 +161,7 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -192,6 +197,7 @@ func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
 			view, done := testView(t)
 			c := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					View:             view,
 				},
@@ -221,6 +227,7 @@ func TestShow_argsStatefileDoesNotExist(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -254,6 +261,7 @@ func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
 			view, done := testView(t)
 			c := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					View:             view,
 				},
@@ -285,6 +293,7 @@ func TestShow_json_argsStatefileDoesNotExist(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -320,6 +329,7 @@ func TestShow_planNoop(t *testing.T) {
 			view, done := testView(t)
 			c := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					View:             view,
 				},
@@ -352,6 +362,7 @@ func TestShow_planWithChanges(t *testing.T) {
 			view, done := testView(t)
 			c := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 					View:             view,
 				},
@@ -420,6 +431,7 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -462,6 +474,7 @@ func TestShow_planErrored(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -491,6 +504,7 @@ func TestShow_plan_json(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -524,6 +538,7 @@ func TestShow_state(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -570,20 +585,23 @@ func TestShow_json_output(t *testing.T) {
 			p := showFixtureProvider()
 
 			// init
-			ui := new(cli.MockUi)
+			view, done := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
-					Ui:               ui,
+					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}
-			if code := ic.Run([]string{}); code != 0 {
+			code := ic.Run([]string{})
+			output := done(t)
+			if code != 0 {
 				if expectError {
 					// this should error, but not panic.
 					return
 				}
-				t.Fatalf("init failed\n%s", ui.ErrorWriter)
+				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
 			// read expected output
@@ -606,6 +624,7 @@ func TestShow_json_output(t *testing.T) {
 			planView, planDone := testView(t)
 			pc := &PlanCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             planView,
 					ProviderSource:   providerSource,
@@ -616,7 +635,7 @@ func TestShow_json_output(t *testing.T) {
 				"-out=tofu.plan",
 			}
 
-			code := pc.Run(args)
+			code = pc.Run(args)
 			planOutput := planDone(t)
 
 			var wantedCode int
@@ -634,6 +653,7 @@ func TestShow_json_output(t *testing.T) {
 			showView, showDone := testView(t)
 			sc := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             showView,
 					ProviderSource:   providerSource,
@@ -682,22 +702,26 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	p := showFixtureSensitiveProvider()
 
 	// init
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	code := ic.Run([]string{})
+	output := initDone(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", output.Stderr())
 	}
 
 	// plan
 	planView, planDone := testView(t)
 	pc := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             planView,
 			ProviderSource:   providerSource,
@@ -707,7 +731,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	args := []string{
 		"-out=tofu.plan",
 	}
-	code := pc.Run(args)
+	code = pc.Run(args)
 	planOutput := planDone(t)
 
 	if code != 0 {
@@ -718,6 +742,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	showView, showDone := testView(t)
 	sc := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             showView,
 			ProviderSource:   providerSource,
@@ -779,22 +804,26 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	p := showFixtureSensitiveProvider()
 
 	// init
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			ProviderSource:   providerSource,
+			View:             initView,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	output := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", output.Stderr())
 	}
 
 	// plan
 	planView, planDone := testView(t)
 	pc := &PlanCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             planView,
 			ProviderSource:   providerSource,
@@ -818,6 +847,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	showView, showDone := testView(t)
 	sc := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             showView,
 			ProviderSource:   providerSource,
@@ -892,22 +922,26 @@ func TestShow_json_output_state(t *testing.T) {
 			p := showFixtureProvider()
 
 			// init
-			ui := new(cli.MockUi)
+			initView, initDone := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
-					Ui:               ui,
+					View:             initView,
 					ProviderSource:   providerSource,
 				},
 			}
-			if code := ic.Run([]string{}); code != 0 {
-				t.Fatalf("init failed\n%s", ui.ErrorWriter)
+			initCode := ic.Run([]string{})
+			output := initDone(t)
+			if initCode != 0 {
+				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
 			// show
 			showView, showDone := testView(t)
 			sc := &ShowCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(p),
 					View:             showView,
 					ProviderSource:   providerSource,
@@ -980,6 +1014,7 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1012,6 +1047,7 @@ func TestShow_corruptStatefile(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1042,6 +1078,7 @@ func TestShow_showSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1074,6 +1111,7 @@ func TestShow_withoutShowSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1334,21 +1372,25 @@ func TestShow_config(t *testing.T) {
 	defer close()
 
 	// Initialize the module
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	initOutput := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 			ProviderSource:   providerSource,
@@ -1400,6 +1442,7 @@ func TestShow_config_noArgs(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -1436,21 +1479,25 @@ func TestShow_config_withModule(t *testing.T) {
 	defer close()
 
 	// Initialize the module
-	ui := new(cli.MockUi)
+	initView, initDone := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			Ui:               ui,
+			View:             initView,
 			ProviderSource:   providerSource,
 		},
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	initCode := ic.Run([]string{})
+	initOutput := initDone(t)
+	if initCode != 0 {
+		t.Fatalf("init failed\n%s", initOutput.Stderr())
 	}
 
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 			ProviderSource:   providerSource,
@@ -1499,6 +1546,7 @@ func TestShow_config_badArgs(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
 			View:             view,
 		},
@@ -1528,6 +1576,7 @@ func TestShow_config_noJson(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1555,6 +1604,7 @@ func TestShow_config_conflictingOptions(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -1589,7 +1639,8 @@ func TestShow_module(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		},
 	}
 
@@ -1670,7 +1721,8 @@ func TestShow_module_noJson(t *testing.T) {
 	view, done := testView(t)
 	c := &ShowCommand{
 		Meta: Meta{
-			View: view,
+			WorkingDir: workdir.NewDir("."),
+			View:       view,
 		},
 	}
 

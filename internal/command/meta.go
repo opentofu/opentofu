@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -200,9 +201,9 @@ type Meta struct {
 	// flag is set, to reinforce that experiments are not for production use.
 	AllowExperimentalFeatures bool
 
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 	// Protected: commands can set these
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 
 	// pluginPath is a user defined set of directories to look for plugins.
 	// This is set during init with the `-plugin-dir` flag, saved to a file in
@@ -213,9 +214,9 @@ type Meta struct {
 	// Override certain behavior for tests within this package
 	testingOverrides *testingOverrides
 
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 	// Private: do not set these
-	//----------------------------------------------------------
+	// ----------------------------------------------------------
 
 	// configLoader is a shared configuration loader that is used by
 	// LoadConfig and other commands that access configuration files.
@@ -226,7 +227,7 @@ type Meta struct {
 	backendState *legacy.BackendState
 
 	// Variables for the context (private)
-	variableArgs rawFlags
+	variableArgs flags.RawFlags
 	input        bool
 
 	// Targets for this context (private)
@@ -299,12 +300,17 @@ type Meta struct {
 	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
 
-	outputInJSON bool
-
 	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// Since `tofu providers lock` and `tofu providers mirror` have their own
+	// logic to create the source to fetch providers through, we had to
+	// plumb this configuration through the [Meta] type to reach that part too.
+	// In any other cases, this configuration is built and used directly in `realMain`
+	// when the providers sources are built.
+	ProviderSourceLocationConfig getproviders.LocationConfig
 }
 
 type testingOverrides struct {
@@ -344,27 +350,6 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 		Disable: !m.color,
 		Reset:   true,
 	}
-}
-
-// fixupMissingWorkingDir is a compensation for various existing tests which
-// directly construct incomplete "Meta" objects. Specifically, it deals with
-// a test that omits a WorkingDir value by constructing one just-in-time.
-//
-// We shouldn't ever rely on this in any real codepath, because it doesn't
-// take into account the various ways users can override our default
-// directory selection behaviors.
-func (m *Meta) fixupMissingWorkingDir() {
-	if m.WorkingDir == nil {
-		log.Printf("[WARN] This 'Meta' object is missing its WorkingDir, so we're creating a default one suitable only for tests")
-		m.WorkingDir = workdir.NewDir(".")
-	}
-}
-
-// DataDir returns the directory where local data will be stored.
-// Defaults to DefaultDataDir in the current working directory.
-func (m *Meta) DataDir() string {
-	m.fixupMissingWorkingDir()
-	return m.WorkingDir.DataDir()
 }
 
 const (
@@ -513,7 +498,7 @@ func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *back
 		panic("RunOperation called with nil View")
 	}
 	if opReq.ConfigDir != "" {
-		opReq.ConfigDir = m.normalizePath(opReq.ConfigDir)
+		opReq.ConfigDir = m.WorkingDir.NormalizePath(opReq.ConfigDir)
 	}
 
 	// Inject variables and root module call
@@ -626,8 +611,8 @@ func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
 }
 
 func (m *Meta) varFlagSet(f *flag.FlagSet) {
-	if m.variableArgs.items == nil {
-		m.variableArgs = newRawFlags("-var")
+	if m.variableArgs.Items == nil {
+		m.variableArgs = flags.NewRawFlags("-var")
 	}
 	varValues := m.variableArgs.Alias("-var")
 	varFiles := m.variableArgs.Alias("-var-file")
@@ -641,8 +626,8 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f := m.defaultFlagSet(n)
 
 	f.BoolVar(&m.input, "input", true, "input")
-	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
-	f.Var((*FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
+	f.Var((*flags.FlagStringSlice)(&m.targetFlags), "target", "resource to target")
+	f.Var((*flags.FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
 	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
@@ -706,6 +691,39 @@ func (m *Meta) process(args []string) []string {
 	return args
 }
 
+// configureUiFromView is a shim method between now and the moment when
+// the remote backend and cloud package use the new View abstraction.
+// This method does several things:
+//   - creates a new [NewBasicUI] if [Meta.Ui] is nil (needed for testing, see below)
+//   - wraps the existing [Meta.Ui] into a new layer that uses the [views.View]
+//     to print information and the existing [Meta.Ui] to ask for use input
+func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
+	// We do this so that we retain the ability to technically call
+	// process multiple times, even if we have no plans to do so
+	if m.oldUi != nil {
+		m.Ui = m.oldUi
+	}
+	// This is a workaround to be able to get rid of the [Meta.Ui] slow and steady.
+	// For the moment, this builds the Ui in the same way it's built in the main.go, but we want
+	// it added here to remove the requirement of having the Ui initialised during tests.
+	// The highlight here is that the "printing" is done through the [Meta.View] and
+	// this Ui instance is used only to ask for user input.
+	// Therefore, tests can initialise only the View and check the output from there.
+	if m.Ui == nil {
+		m.Ui = NewBasicUI()
+	}
+
+	// Backup the current Ui to be used later
+	m.oldUi = m.Ui
+
+	// Createa new ViewUi that wraps the View for printing and oldUi for user input
+	m.Ui = &cli.ConcurrentUi{
+		Ui: views.NewViewUI(options, m.View, m.oldUi),
+	}
+	// compared with Meta.process, this method does not configure the Meta.View, since that is the
+	// responsibility of the caller of this method.
+}
+
 // uiHook returns the UiHook to use with the context.
 func (m *Meta) uiHook() *views.UiHook {
 	return views.NewUiHook(m.View)
@@ -750,12 +768,6 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	diags.Sort()
 
 	if len(diags) == 0 {
-		return
-	}
-
-	if m.outputInJSON {
-		jsonView := views.NewJSONView(m.View)
-		jsonView.Diagnostics(diags)
 		return
 	}
 
@@ -837,7 +849,7 @@ func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
 		return envVar, true
 	}
 
-	envData, err := os.ReadFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile))
+	envData, err := os.ReadFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile))
 	current := string(bytes.TrimSpace(envData))
 	if current == "" {
 		current = backend.DefaultStateName
@@ -854,12 +866,12 @@ func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
 // SetWorkspace saves the given name as the current workspace in the local
 // filesystem.
 func (m *Meta) SetWorkspace(name string) error {
-	err := os.MkdirAll(m.DataDir(), 0755)
+	err := os.MkdirAll(m.WorkingDir.DataDir(), 0755)
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(filepath.Join(m.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
+	err = os.WriteFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
 	if err != nil {
 		return err
 	}

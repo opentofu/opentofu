@@ -14,6 +14,7 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -36,7 +37,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers mirror")
 	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms FlagStringSlice
+	var optPlatforms flags.FlagStringSlice
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
@@ -112,7 +113,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	// directory without needing to first disable that local mirror
 	// in the CLI configuration.
 	source := getproviders.NewMemoizeSource(
-		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx)),
+		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx), c.ProviderSourceLocationConfig),
 	)
 
 	// Providers from registries always use HTTP, so we don't need the full
@@ -190,7 +191,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				))
 				continue
 			}
-			urlStr, ok := meta.Location.(getproviders.PackageHTTPURL)
+			httpPkg, ok := meta.Location.(getproviders.PackageHTTPURL)
 			if !ok {
 				// We don't expect to get non-HTTP locations here because we're
 				// using the registry source, so this seems like a bug in the
@@ -202,7 +203,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				))
 				continue
 			}
-			urlObj, err := url.Parse(string(urlStr))
+			urlObj, err := url.Parse(httpPkg.URL)
 			if err != nil {
 				// We don't expect to get non-HTTP locations here because we're
 				// using the registry source, so this seems like a bug in the

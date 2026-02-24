@@ -12,7 +12,7 @@ linters:
     staticcheck:
       # For now, we will disable some static checks to match golang-ci-lint@v1 functionality.
       # These should be addressed once the --new-from-rev work is taken care of.
-      checks: ["all", "-QF1008", "-ST1003", "-ST1005", "-ST1012", "-ST1016"]
+      checks: ["all", "-QF1008", "-ST1003", "-ST1005", "-ST1016"]
   exclusions:
     generated: lax
     presets:

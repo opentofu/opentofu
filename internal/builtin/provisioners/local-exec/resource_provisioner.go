@@ -15,10 +15,11 @@ import (
 
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -75,19 +76,30 @@ func (p *provisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
 }
 
 func (p *provisioner) ValidateProvisionerConfig(req provisioners.ValidateProvisionerConfigRequest) (resp provisioners.ValidateProvisionerConfigResponse) {
-	if _, err := p.GetSchema().Provisioner.CoerceValue(req.Config); err != nil {
+	cfg, err := p.GetSchema().Provisioner.CoerceValue(req.Config)
+	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
 			tfdiags.Error,
 			"Invalid local-exec provisioner configuration",
 			err.Error(),
+		))
+		return resp
+	}
+
+	cmd := cfg.GetAttr("command")
+	if cmd.IsKnown() && (cmd.IsNull() || cmd.AsString() == "") {
+		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			"Invalid local-exec provisioner command",
+			"The command must be a non-empty string.",
 		))
 	}
 	return resp
 }
 
 func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceRequest) (resp provisioners.ProvisionResourceResponse) {
-	command := req.Config.GetAttr("command").AsString()
-	if command == "" {
+	commandVal := req.Config.GetAttr("command")
+	if commandVal.IsNull() || commandVal.AsString() == "" {
 		resp.Diagnostics = resp.Diagnostics.Append(tfdiags.WholeContainingBody(
 			tfdiags.Error,
 			"Invalid local-exec provisioner command",
@@ -95,6 +107,7 @@ func (p *provisioner) ProvisionResource(req provisioners.ProvisionResourceReques
 		))
 		return resp
 	}
+	command := commandVal.AsString()
 
 	envVal := req.Config.GetAttr("environment")
 	var env []string

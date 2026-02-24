@@ -39,8 +39,19 @@ jobs:
       - name: Prepare website container
         run: docker compose -f docker-compose.build.yml build
         working-directory: website
+      # The segregation between the next 2 steps is because on non-main branches, there are
+      # blog posts that point to the 'main' branch documentation that is fully missing from
+      # the branches that are used to maintain older versions of OpenTofu.
+      # Therefore, we run the full website check on main (and any branch in a PR that points
+      # to the main branch) and we run a trimmed down website checks for any runs against
+      # a non-main branch (or a PR that points to a non-main branch)
       - name: Build website
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
         run: docker compose -f docker-compose.build.yml up --exit-code-from website
+        working-directory: website
+      - name: Build website with warns
+        if: github.ref != 'refs/heads/main' && github.base_ref != 'main'
+        run: docker compose -f docker-compose.build-non-main.yml up --exit-code-from website
         working-directory: website
 
   installation-instructions:

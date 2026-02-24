@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -2682,6 +2683,94 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
+	addr := mustResourceInstanceAddr("ephemeral.test_object.a")
+
+	// The configuration, the prior state, and the refresh result intentionally
+	// have different values for "test_string" so we can observe that the
+	// refresh took effect but the configuration change wasn't considered.
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			ephemeral "test_object" "a" {
+				arg = "after"
+			}
+		`,
+	})
+	state := states.NewState()
+
+	p := simpleMockProvider()
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{Block: simpleTestSchema()},
+		EphemeralResources: map[string]providers.Schema{
+			"test_object": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"arg": {Type: cty.String, Optional: true},
+					},
+				},
+			},
+		},
+	}
+	p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+		newVal, err := cty.Transform(req.Config, func(path cty.Path, v cty.Value) (cty.Value, error) {
+			if len(path) == 1 && path[0] == (cty.GetAttrStep{Name: "arg"}) {
+				return cty.StringVal("current"), nil
+			}
+			return v, nil
+		})
+		if err != nil {
+			// shouldn't get here
+			t.Fatalf("OpenResourceFn transform failed")
+			return providers.OpenEphemeralResourceResponse{}
+		}
+		return providers.OpenEphemeralResourceResponse{
+			Result: newVal,
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.RefreshOnlyMode,
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+
+	if !p.OpenEphemeralResourceCalled {
+		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
+	}
+
+	if got, want := len(plan.Changes.Resources), 1; got != want {
+		t.Fatalf("expected to have exactly %d resource but got %d", want, got)
+	}
+	if gotResAddr := plan.Changes.Resources[0].Addr; !gotResAddr.Equal(addr) {
+		t.Errorf("plan contains one resource and that's NOT an ephemeral as expected; instead, got %s", gotResAddr)
+	}
+	if got, want := len(plan.Changes.ActionableResources()), 0; got != want {
+		t.Errorf(
+			"changes.ActionableResources() returned more than %d resources, meaning that didn't exclude ephemeral resources. Instead returned %d\nChanges:\n%s",
+			want,
+			got,
+			spew.Sdump(plan.Changes.Resources),
+		)
+	}
+
+	if instState := plan.PlannedState.ResourceInstance(addr); instState == nil {
+		t.Errorf("%s has no planned state, but it should have since it's needed to build the apply graph correctly", addr)
+	} else {
+		want := `{"arg":"current"}`
+		got := string(instState.Current.AttrsJSON)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected attributes for the planned ephemeral:\n%s", diff)
+		}
+	}
+}
+
 func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	deposedKey := states.DeposedKey("byebye")
@@ -3360,52 +3449,218 @@ output "output" {
 	}
 }
 
-func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
-	// This test deals with the situation where a user has changed the
-	// repetition/expansion mode for a module call while there are already
-	// resource instances from the previous declaration in the state.
-	//
-	// This is conceptually just the same as removing the resources
-	// from the module configuration only for that instance, but the
-	// implementation of it ends up a little different because it's
-	// an entry in the resource address's _module path_ that we'll find
-	// missing, rather than the resource's own instance key, and so
-	// our analyses need to handle that situation by indicating that all
-	// of the resources under the missing module instance have zero
-	// instances, regardless of which resource in that module we might
-	// be asking about, and do so without tripping over any missing
-	// registrations in the instance expander that might lead to panics
-	// if we aren't careful.
-	//
-	// (For some history here, see https://github.com/hashicorp/terraform/issues/30110 )
+func TestContext2Plan_moduleImplicitMove(t *testing.T) {
+	// Modules are being moved implicitly to use the `enabled` field when nothing
+	// is declared on the block. Alternatively, they are implicitly being moved from
+	// using `enabled` as true or without declaring `enabled` to use count.
+	var tests = map[string]struct {
+		name         string
+		expectedAddr addrs.AbsResourceInstance
+		prevAddr     addrs.AbsResourceInstance
+		config       *configs.Config
+		prevState    *states.State
+	}{
+		"from count-module single-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from count-module single-resource to enabled-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" { count = 1}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from count-module repeated-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from count-module repeated-resource to enabled-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf":       `module "child" { source = "./child" }`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child[0].test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.IntKey(0))
+			}),
+		},
+		"from enabled-module single-resource to count-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module single-resource to count-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module multiple-resource to count-module multiple-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `module "child" {
+					source = "./child"
+					count = 1
+				}`,
+				"child/main.tf": `resource "test_object" "a" { count = 1 }`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from enabled-module multiple-resource to count-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "child" {
+						source = "./child"
+						count = 1
+					}`,
+				"child/main.tf": `resource "test_object" "a" {}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.test_object.a[0]"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.test_object.a[0]"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from nested enabled-module multiple-resource to count-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "child" {
+						source = "./child"
+					}`,
+				"child/main.tf": `
+					module "grandchild" {
+						source = "./grandchild"
+						count = 1
+					}`,
+				"child/grandchild/main.tf": `resource "test_object" "a" {}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.child.module.grandchild[0].test_object.a"),
+			prevAddr:     mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.child.module.grandchild.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+		"from nested enabled-module multiple-resource to enabled-module single-resource": {
+			config: testModuleInline(t, map[string]string{
+				"main.tf": `
+					module "parent" {
+						source        = "./parent"
+						child_enabled = true
+					}`,
+				"parent/main.tf": `
+					variable "child_enabled" {
+						type = bool
+					}
 
-	addrNoKey := mustResourceInstanceAddr("module.child.test_object.a[0]")
-	addrZeroKey := mustResourceInstanceAddr("module.child[0].test_object.a[0]")
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			module "child" {
-				source = "./child"
-				count = 1
-			}
-		`,
-		"child/main.tf": `
-			resource "test_object" "a" {
-				count = 1
-			}
-		`,
-	})
-
-	state := states.BuildState(func(s *states.SyncState) {
-		// Notice that addrNoKey is the address which lacks any instance key
-		// for module.child, and so that module instance doesn't match the
-		// call declared above with count = 1, and therefore the resource
-		// inside is "orphaned" even though the resource block actually
-		// still exists there.
-		s.SetResourceInstanceCurrent(addrNoKey, &states.ResourceInstanceObjectSrc{
-			AttrsJSON: []byte(`{}`),
-			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
-	})
+					module "child" {
+						source   = "../child"
+						lifecycle {
+							enabled = var.child_enabled
+						}
+						grandchild1_enabled = true
+					}`,
+				"child/main.tf": `
+					variable "grandchild1_enabled" {
+						type = bool
+					}
+					variable "grandchild2_enabled" {
+						type    = bool
+						default = true
+					}
+					module "grandchild1" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild1_enabled
+						}
+					}
+					module "grandchild2" {
+						source = "../grandchild"
+						lifecycle {
+							enabled = var.grandchild2_enabled
+						}
+					}
+					`,
+				"grandchild/main.tf": `resource "test_object" "a" {
+					count = 1
+				}`,
+			}),
+			expectedAddr: mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a[0]"),
+			prevAddr:     mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"),
+			prevState: states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(mustResourceInstanceAddr("module.parent.module.child.module.grandchild1.test_object.a"), &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{}`),
+					Status:    states.ObjectReady,
+				}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+			}),
+		},
+	}
 
 	p := simpleMockProvider()
 	ctx := testContext2(t, &ContextOpts{
@@ -3414,52 +3669,32 @@ func TestContext2Plan_moduleExpandOrphansResourceInstance(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-		Mode: plans.NormalMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			plan, diags := ctx.Plan(context.Background(), test.config, test.prevState, DefaultPlanOpts)
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+			}
+
+			gotPlan := plan.Changes.ResourceInstance(test.expectedAddr)
+			if gotPlan == nil {
+				t.Fatalf("no plan for %s at all", test.expectedAddr)
+			}
+
+			if got, want := gotPlan.Addr, test.expectedAddr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := gotPlan.PrevRunAddr, test.prevAddr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := gotPlan.Action, plans.NoOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := gotPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
 	}
-
-	t.Run(addrNoKey.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrNoKey)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrNoKey)
-		}
-
-		if got, want := instPlan.Addr, addrNoKey; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrNoKey; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Delete; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceDeleteBecauseNoModule; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
-
-	t.Run(addrZeroKey.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrZeroKey)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrZeroKey)
-		}
-
-		if got, want := instPlan.Addr, addrZeroKey; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrZeroKey; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.Create; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
-	})
 }
 
 func TestContext2Plan_resourcePreconditionPostcondition(t *testing.T) {
@@ -4914,97 +5149,6 @@ func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	_, _, _, err := contextOptsForPlanViaFile(t, snap, plan)
 	if err != nil {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
-	}
-}
-
-func TestContext2Plan_providerDefersPlanning(t *testing.T) {
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			resource "test" "test" {
-			}
-		`,
-	})
-
-	tests := []struct {
-		DeferralReason                  providers.DeferralReason
-		WantDiagSummary, WantDiagDetail string
-	}{
-		{
-			DeferralReason:  providers.DeferredBecauseProviderConfigUnknown,
-			WantDiagSummary: `Provider configuration is incomplete`,
-			WantDiagDetail: `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			DeferralReason:  providers.DeferredBecauseResourceConfigUnknown,
-			WantDiagSummary: `Resource configuration is incomplete`,
-			WantDiagDetail: `The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			// This one is currently a generic fallback message because it's
-			// unclear what this reason is intended to mean and no providers
-			// are using it yet at the time of writing.
-			DeferralReason:  providers.DeferredBecausePrereqAbsent,
-			WantDiagSummary: `Operation cannot be completed yet`,
-			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-		{
-			// This special reason is the one we use if a provider returns
-			// a later-added reason that the current OpenTofu version doesn't
-			// know about.
-			DeferralReason:  providers.DeferredReasonUnknown,
-			WantDiagSummary: `Operation cannot be completed yet`,
-			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
-
-To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.DeferralReason.String(), func(t *testing.T) {
-			provider := &MockProvider{
-				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
-					ResourceTypes: map[string]providers.Schema{
-						"test": {
-							Block: &configschema.Block{},
-						},
-					},
-				},
-				PlanResourceChangeFn: func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-					var diags tfdiags.Diagnostics
-					diags = diags.Append(providers.NewDeferralDiagnostic(
-						test.DeferralReason,
-					))
-					return providers.PlanResourceChangeResponse{
-						Diagnostics: diags,
-					}
-				},
-			}
-			tofuCtx := testContext2(t, &ContextOpts{
-				Providers: map[addrs.Provider]providers.Factory{
-					addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
-				},
-			})
-			_, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
-			if !diags.HasErrors() {
-				t.Fatal("plan succeeded; want an error")
-			}
-			if len(diags) != 1 {
-				t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(diags.ForRPC()))
-			}
-			desc := diags[0].Description()
-			if got, want := test.WantDiagSummary, desc.Summary; got != want {
-				t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
-			}
-			if got, want := test.WantDiagDetail, desc.Detail; got != want {
-				t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
-			}
-		})
 	}
 }
 
@@ -8437,111 +8581,6 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 	}
 }
 
-// TestContext2Plan_ephemeralResourceDeferred is testing that an ephemeral resource gets deferred
-// correctly:
-// * gets deferred when a dependency is having planned changes, so OpenEphemeralResource is not called.
-// * gets deferred when the response from OpenEphemeralResource is indicating so.
-func TestContext2Plan_ephemeralResourceDeferred(t *testing.T) {
-	// Ephemeral resource is deferred by opentofu itself, before calling OpenEphemeralResource. This is
-	// due to pending changes in the ephemeral's dependencies.
-	t.Run("before open", func(t *testing.T) {
-		m := testModuleInline(t, map[string]string{
-			"main.tf": `
-			resource "test_object" "testres" {
-			}
-			ephemeral "test_object" "testeph" {
-				depends_on = [
-					test_object.testres
-				]
-			}
-		`,
-		})
-
-		state := states.BuildState(func(s *states.SyncState) {})
-
-		p := simpleMockProvider()
-		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
-				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-			},
-		})
-		hook := &testHook{}
-		ctx.hooks = append(ctx.hooks, hook)
-
-		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-			Mode: plans.NormalMode,
-		})
-
-		if diags.HasErrors() {
-			t.Fatalf("unexpected errors: %s", diags.Err())
-		}
-
-		// last call should have been on the ephemeral defer
-		deferCall := hook.Calls[len(hook.Calls)-1]
-		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
-			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
-		}
-	})
-	// Ephemeral is deferred because of the defer reason returned from OpenEphemeralResource.
-	t.Run("from open", func(t *testing.T) {
-		m := testModuleInline(t, map[string]string{
-			"main.tf": `
-			resource "test_object" "testres" {
-				test_string = "test value"
-			}
-			ephemeral "test_object" "testeph" {
-				depends_on = [
-					test_object.testres
-				]
-			}
-		`,
-		})
-
-		addr := mustAbsResourceAddr("test_object.testres")
-		state := states.BuildState(func(s *states.SyncState) {
-			s.SetResourceInstanceCurrent(addr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
-				AttrsJSON: []byte(`{"test_string": "test value"}`),
-				Status:    states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
-		})
-
-		p := simpleMockProvider()
-		p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
-			Result:   cty.Value{},
-			Deferred: &providers.EphemeralResourceDeferred{DeferralReason: providers.DeferredBecauseResourceConfigUnknown},
-		}
-		p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
-			cfg := req.Config.AsValueMap()
-			resp.PlannedState = cty.ObjectVal(cfg)
-			return resp
-		}
-		ctx := testContext2(t, &ContextOpts{
-			Providers: map[addrs.Provider]providers.Factory{
-				addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-			},
-		})
-		hook := &testHook{}
-		ctx.hooks = append(ctx.hooks, hook)
-
-		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-			Mode: plans.NormalMode,
-		})
-
-		if diags.HasErrors() {
-			t.Fatalf("unexpected errors: %s", diags.Err())
-		}
-
-		if !p.OpenEphemeralResourceCalled {
-			t.Fatal("expected OpenEphemeralResource to be called but it was not")
-		}
-		// last call should have been on the ephemeral defer
-		deferCall := hook.Calls[len(hook.Calls)-1]
-		if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
-			t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
-		}
-	})
-}
-
 func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.b")
 	m := testModuleInline(t, map[string]string{
@@ -8721,6 +8760,7 @@ ephemeral "test_ephemeral_resource" "a" {
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
+			"input":  cty.NullVal(cty.String),
 		}),
 	}
 
@@ -8754,6 +8794,7 @@ ephemeral "test_ephemeral_resource" "a" {
 	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
 		"id":     cty.StringVal("id val"),
 		"secret": cty.StringVal("val"),
+		"input":  cty.NullVal(cty.String),
 	}), objTy)
 	if err != nil {
 		t.Fatalf("unexpected error creating after val: %s", err)
@@ -8854,5 +8895,60 @@ func featuresBlockTestSchema() *configschema.Block {
 				Nesting:  configschema.NestingList,
 			},
 		},
+	}
+}
+
+// TestContext2Plan_moduleDependsOnWithCheck is a regression test for
+// https://github.com/opentofu/opentofu/issues/3060
+// "Depending on a module with a check in it causes a dependency cycle"
+//
+// When module.dependent has depends_on = [module.base], and both modules
+// use a shared submodule containing a check block with a nested data source,
+// this should not cause a dependency cycle.
+func TestContext2Plan_moduleDependsOnWithCheck(t *testing.T) {
+	m := testModule(t, "plan-module-depends-on-check")
+
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{Block: &configschema.Block{}},
+			ResourceTypes: map[string]providers.Schema{
+				"test_resource": {Block: &configschema.Block{}},
+			},
+			DataSources: map[string]providers.Schema{
+				"test_data_source": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"id": {Type: cty.String, Computed: true},
+						},
+					},
+				},
+			},
+		},
+	}
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		return providers.ReadDataSourceResponse{
+			State: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("data-id"),
+			}),
+		}
+	}
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: cty.EmptyObjectVal,
+		}
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	// The key assertion: planning should succeed without a cycle error.
+	// Before the fix, this would fail with:
+	// "Cycle: module.base.module.checker (close), module.dependent.module.checker (close), ..."
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }

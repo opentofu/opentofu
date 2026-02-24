@@ -66,8 +66,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
 			}),
 		},
 		{
@@ -92,8 +92,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
 			}),
 		},
 		{
@@ -118,8 +118,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
 			}),
 		},
 		{
@@ -155,8 +155,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
 			}),
 		},
 		{
@@ -170,8 +170,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
 			}),
 		},
 		{
@@ -185,8 +185,8 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
 			}),
 		},
 	}
@@ -202,7 +202,7 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 					Addr: absResource,
 					NodeAbstractResource: NodeAbstractResource{
-						ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+						ResolvedProvider: mustResolvedProviderInRoot("test", p),
 					},
 				},
 				DeposedKey:       deposedKey,
@@ -231,14 +231,14 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
+	evalCtx, p := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: absResource,
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 		},
 		DeposedKey: deposedKey,
@@ -267,7 +267,6 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 			},
 		},
 	})
-	evalCtx.ProviderProvider = mockProvider
 	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
 	obj := &states.ResourceInstanceObject{
@@ -279,7 +278,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 	node := &NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				ResolvedProvider: mustResolvedProviderInRoot("aws", mockProvider),
 			},
 			Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		},
@@ -302,7 +301,6 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 	p := simpleMockProvider()
 	evalCtx := &MockEvalContext{
 		StateState:           states.NewState().SyncWrapper(),
-		ProviderProvider:     simpleMockProvider(),
 		ProviderSchemaSchema: p.GetProviderSchema(t.Context()),
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}
@@ -311,7 +309,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 		},
 		DeposedKey: states.NewDeposedKey(),
@@ -327,14 +325,14 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
+	evalCtx, p := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeForgetDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			Addr: absResource,
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`)},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 		},
 		DeposedKey: deposedKey,
@@ -397,7 +395,6 @@ func initMockEvalContext(ctx context.Context, resourceAddrs string, deposedKey s
 		PrevRunStateState:    state.DeepCopy().SyncWrapper(),
 		RefreshStateState:    state.DeepCopy().SyncWrapper(),
 		StateState:           state.SyncWrapper(),
-		ProviderProvider:     p,
 		ProviderSchemaSchema: schema,
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}, p

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -32,6 +33,7 @@ func TestOutput(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -68,6 +70,7 @@ func TestOutput_json(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -98,6 +101,7 @@ func TestOutput_emptyOutputs(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -132,6 +136,7 @@ func TestOutput_badVar(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -168,6 +173,7 @@ func TestOutput_blank(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -194,6 +200,7 @@ func TestOutput_manyArgs(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -214,6 +221,7 @@ func TestOutput_noArgs(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -234,6 +242,7 @@ func TestOutput_noState(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -258,6 +267,7 @@ func TestOutput_noVars(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -305,6 +315,7 @@ func TestOutput_stateDefault(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -333,6 +344,7 @@ func TestOutput_showSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -362,6 +374,7 @@ func TestOutput_withoutShowSensitiveArg(t *testing.T) {
 	view, done := testView(t)
 	c := &OutputCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},

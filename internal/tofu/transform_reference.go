@@ -124,12 +124,6 @@ func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
 
 	// Find the things that reference things and connect them
 	for _, v := range vs {
-		if _, ok := v.(GraphNodeDestroyer); ok {
-			// destroy nodes references are not connected, since they can only
-			// use their own state.
-			continue
-		}
-
 		parents := m.References(v)
 		parentsDbg := make([]string, len(parents))
 		for i, v := range parents {
@@ -300,20 +294,30 @@ type ReferenceMap map[string][]dag.Vertex
 // References returns the set of vertices that the given vertex refers to,
 // and any referenced addresses that do not have corresponding vertices.
 func (m ReferenceMap) References(v dag.Vertex) []dag.Vertex {
-	rn, ok := v.(GraphNodeReferencer)
-	if !ok {
+	var refsFunc func() []*addrs.Reference
+	if rn, ok := v.(GraphNodeDestroyer); ok {
+		// For nodes that represent destroying something we use a separate
+		// method because destroying typically uses only a subset of the
+		// references that would be relevant for other operations: destroying
+		// is _mostly_ a state-only operation that only use the configuration
+		// opportunistically for some metadata that influences how the destroy
+		// action is planned.
+		refsFunc = rn.DestroyReferences
+	} else if rn, ok := v.(GraphNodeReferencer); ok {
+		refsFunc = rn.References
+	} else {
 		return nil
 	}
 
 	var matches []dag.Vertex
 
-	if rrn, ok := rn.(GraphNodeRootReferencer); ok {
+	if rrn, ok := v.(GraphNodeRootReferencer); ok {
 		for _, ref := range rrn.RootReferences() {
 			matches = append(matches, m.addReference(addrs.RootModule, v, ref)...)
 		}
 	}
 
-	for _, ref := range rn.References() {
+	for _, ref := range refsFunc() {
 		matches = append(matches, m.addReference(vertexReferencePath(v), v, ref)...)
 	}
 

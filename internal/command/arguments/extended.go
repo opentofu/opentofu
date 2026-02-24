@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -288,11 +289,11 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 // desirable for the arguments package to handle the gathering of variables
 // directly, returning a map of variable values.
 type Vars struct {
-	vars     *flagNameValueSlice
-	varFiles *flagNameValueSlice
+	vars     *flags.RawFlags
+	varFiles *flags.RawFlags
 }
 
-func (v *Vars) All() []FlagNameValue {
+func (v *Vars) All() []flags.RawFlag {
 	if v.vars == nil {
 		return nil
 	}
@@ -329,17 +330,17 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
-		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
-		f.Var((*flagStringSlice)(&operation.targetsFilesRaw), "target-file", "target-file")
-		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
-		f.Var((*flagStringSlice)(&operation.excludesFilesRaw), "exclude-file", "exclude-file")
-		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
+		f.Var((*flags.FlagStringSlice)(&operation.targetsRaw), "target", "target")
+		f.Var((*flags.FlagStringSlice)(&operation.targetsFilesRaw), "target-file", "target-file")
+		f.Var((*flags.FlagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
+		f.Var((*flags.FlagStringSlice)(&operation.excludesFilesRaw), "exclude-file", "exclude-file")
+		f.Var((*flags.FlagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
 	}
 
 	// Gather all -var and -var-file arguments into one heterogeneous structure
 	// to preserve the overall order.
 	if vars != nil {
-		varsFlags := newFlagNameValueSlice("-var")
+		varsFlags := flags.NewRawFlags("-var")
 		varFilesFlags := varsFlags.Alias("-var-file")
 		vars.vars = &varsFlags
 		vars.varFiles = &varFilesFlags

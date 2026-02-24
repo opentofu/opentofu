@@ -131,7 +131,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 	}
 
 	for _, path := range paths {
-		path = c.normalizePath(path)
+		path = c.Meta.WorkingDir.NormalizePath(path)
 		info, err := os.Stat(path)
 		if err != nil {
 			diags = diags.Append(fmt.Errorf("No file or directory at %s", path))
@@ -152,7 +152,7 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 						continue
 					}
 
-					fileDiags := c.processFile(c.normalizePath(path), f, stdout, false)
+					fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(path), f, stdout, false)
 					diags = diags.Append(fileDiags)
 					f.Close()
 
@@ -280,7 +280,7 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 					continue
 				}
 
-				fileDiags := c.processFile(c.normalizePath(subPath), f, stdout, false)
+				fileDiags := c.processFile(c.Meta.WorkingDir.NormalizePath(subPath), f, stdout, false)
 				diags = diags.Append(fileDiags)
 				f.Close()
 

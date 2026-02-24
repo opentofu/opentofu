@@ -61,9 +61,9 @@ type BackendOpts struct {
 	// You probably don't want to set this.
 	ForceLocal bool
 
-	// ViewType will set console output format for the
+	// ViewOptions will set console output format for the
 	// initialization operation (JSON or human-readable).
-	ViewType arguments.ViewType
+	ViewOptions arguments.ViewOptions
 }
 
 // BackendWithRemoteTerraformVersion is a shared interface between the 'remote' and 'cloud' backends
@@ -101,6 +101,16 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 	// If no opts are set, then initialize
 	if opts == nil {
 		opts = &BackendOpts{}
+	}
+
+	if m.AllowExperimentalFeatures {
+		// TEMP: While we're in early development of the new language runtime
+		// we have an experimental shim to enable it using an environment
+		// variable, but that's allowed only in builds where experimental
+		// features are enabled. Refer to the file containing the following
+		// function for more information. This should be completely removed
+		// once the experiment is concluded.
+		tofu.SetExperimentalRuntimeAllowed(true)
 	}
 
 	// Initialize a backend from the config unless we're forcing a purely
@@ -311,6 +321,16 @@ func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	if m.AllowExperimentalFeatures {
+		// TEMP: While we're in early development of the new language runtime
+		// we have an experimental shim to enable it using an environment
+		// variable, but that's allowed only in builds where experimental
+		// features are enabled. Refer to the file containing the following
+		// function for more information. This should be completely removed
+		// once the experiment is concluded.
+		tofu.SetExperimentalRuntimeAllowed(true)
+	}
+
 	f, canonType := backendInit.Backend(settings.Type)
 	if f == nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendSavedUnknown), settings.Type))
@@ -416,7 +436,7 @@ func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
 // This prepares the operation. After calling this, the caller is expected
 // to modify fields of the operation such as Sequence to specify what will
 // be called.
-func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.ViewType, enc encryption.Encryption) *backend.Operation {
+func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.ViewOptions, enc encryption.Encryption) *backend.Operation {
 	schema := b.ConfigSchema()
 	workspace, err := m.Workspace(ctx)
 	if err != nil {
@@ -579,7 +599,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -729,7 +749,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		cloudMode := cloud.DetectConfigChangeType(s.Backend, c, false)
 
 		if !opts.Init {
-			//user ran another cmd that is not init but they are required to initialize because of a potential relevant change to their backend configuration
+			// user ran another cmd that is not init but they are required to initialize because of a potential relevant change to their backend configuration
 			initDiag := m.determineInitReason(s.Backend.Type, c.Type, cloudMode)
 			diags = diags.Append(initDiag)
 			return nil, diags
@@ -807,7 +827,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	// Get the path to where we store a local cache of backend configuration
 	// if we're using a remote backend. This may not yet exist which means
 	// we haven't used a non-local backend before. That is okay.
-	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
+	statePath := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
 	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
@@ -826,7 +846,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 
-	//backend init function
+	// backend init function
 	if s.Backend.Type == "" {
 		return backendLocal.New(enc), diags
 	}
@@ -886,7 +906,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	return b, diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Backend Config Scenarios
 //
 // The functions below cover handling all the various scenarios that
@@ -901,7 +921,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 //   * R - Legacy remote state is set
 //   * S - Backend configuration is set in the state
 //
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // Unconfiguring a backend (moving from backend => local).
 func (m *Meta) backend_c_r_S(
@@ -910,11 +930,14 @@ func (m *Meta) backend_c_r_S(
 
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
+	var viewOptions arguments.ViewOptions
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+	}
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+		viewOptions.ViewType = arguments.ViewHuman
 	}
 
 	s := sMgr.State()
@@ -954,7 +977,7 @@ func (m *Meta) backend_c_r_S(
 		DestinationType: "local",
 		Source:          b,
 		Destination:     localB,
-		ViewType:        vt,
+		ViewOptions:     viewOptions,
 	})
 	if err != nil {
 		diags = diags.Append(err)
@@ -986,11 +1009,14 @@ func (m *Meta) backend_c_r_S(
 func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	viewOptions := arguments.ViewOptions{ViewType: arguments.ViewHuman}
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+		if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+			viewOptions.ViewType = arguments.ViewHuman
+		}
 	}
 
 	// Grab a purely local backend to get the local state if it exists
@@ -1047,7 +1073,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 			DestinationType: c.Type,
 			Source:          localB,
 			Destination:     b,
-			ViewType:        vt,
+			ViewOptions:     viewOptions,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1085,7 +1111,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	if m.stateLock {
-		view := views.NewStateLocker(vt, m.View)
+		view := views.NewStateLocker(viewOptions, m.View)
 		stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
 		if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 			diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
@@ -1155,11 +1181,14 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	vt := arguments.ViewJSON
+	var viewOptions arguments.ViewOptions
+	if opts != nil {
+		viewOptions = opts.ViewOptions
+	}
 	// Set default viewtype if none was set as the StateLocker needs to know exactly
 	// what viewType we want to have.
-	if opts == nil || opts.ViewType != vt {
-		vt = arguments.ViewHuman
+	if viewOptions.ViewType != arguments.ViewHuman && viewOptions.ViewType != arguments.ViewJSON {
+		viewOptions.ViewType = arguments.ViewHuman
 	}
 
 	// Get the old state
@@ -1221,7 +1250,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 			DestinationType: c.Type,
 			Source:          oldB,
 			Destination:     b,
-			ViewType:        vt,
+			ViewOptions:     viewOptions,
 		})
 		if err != nil {
 			diags = diags.Append(err)
@@ -1229,7 +1258,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		}
 
 		if m.stateLock {
-			view := views.NewStateLocker(vt, m.View)
+			view := views.NewStateLocker(viewOptions, m.View)
 			stateLocker := clistate.NewLocker(m.stateLockTimeout, view)
 			if d := stateLocker.Lock(sMgr, "backend from plan"); d != nil {
 				diags = diags.Append(fmt.Errorf("Error locking state: %s", d))
@@ -1365,9 +1394,9 @@ func (m *Meta) updateSavedBackendHash(cHash int, sMgr *clistate.LocalState) tfdi
 	return diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Reusable helper functions for backend management
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 // backendConfigNeedsMigration returns true if migration might be required to
 // move from the configured backend to the given cached backend config.
@@ -1599,9 +1628,9 @@ func (m *Meta) assertSupportedCloudInitOptions(mode cloud.ConfigChangeMode) tfdi
 	return diags
 }
 
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 // Output constants and initialization code
-//-------------------------------------------------------------------
+// -------------------------------------------------------------------
 
 const errBackendLocalRead = `
 Error reading local state: %w

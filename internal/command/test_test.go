@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -201,6 +202,7 @@ func TestTest(t *testing.T) {
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -290,6 +292,7 @@ func TestTest_Full_Output(t *testing.T) {
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -326,6 +329,7 @@ func TestTest_Interrupt(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 			ShutdownCh:       interrupt,
@@ -358,6 +362,7 @@ func TestTest_DoubleInterrupt(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 			ShutdownCh:       interrupt,
@@ -411,6 +416,7 @@ func TestTest_ProviderAlias(t *testing.T) {
 	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -482,6 +488,7 @@ func TestTest_ModuleDependencies(t *testing.T) {
 	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir: workdir.NewDir("."),
 		testingOverrides: &testingOverrides{
 			Providers: map[addrs.Provider]providers.Factory{
 				addrs.NewDefaultProvider("test"):  providers.FactoryFixed(test.Provider),
@@ -544,6 +551,7 @@ func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 		},
@@ -599,6 +607,7 @@ func TestTest_Verbose(t *testing.T) {
 
 	c := &TestCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 		},
@@ -757,11 +766,10 @@ can remove the provider configuration again.
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			ui := new(cli.MockUi)
 
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
-				Ui:               ui,
 				View:             view,
 				Streams:          streams,
 				ProviderSource:   providerSource,
@@ -771,23 +779,27 @@ can remove the provider configuration again.
 				Meta: meta,
 			}
 
-			if code := init.Run(nil); code != 0 {
-				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			initCode := init.Run(nil)
+			initOutput := done(t)
+			if initCode != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 			}
 
+			streams, done = terminal.StreamsForTesting(t)
+			meta.View = views.NewView(streams)
 			c := &TestCommand{
 				Meta: meta,
 			}
 
 			code := c.Run([]string{"-no-color"})
-			output := done(t)
+			testOutput := done(t)
 
 			if code != 1 {
 				t.Errorf("expected status code 1 but got %d", code)
 			}
 
-			actualOut, expectedOut := output.Stdout(), tc.expectedOut
-			actualErr, expectedErr := output.Stderr(), tc.expectedErr
+			actualOut, expectedOut := testOutput.Stdout(), tc.expectedOut
+			actualErr, expectedErr := testOutput.Stderr(), tc.expectedErr
 
 			if diff := cmp.Diff(actualOut, expectedOut); len(diff) > 0 {
 				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expectedOut, actualOut, diff)
@@ -905,10 +917,9 @@ func TestTest_Modules(t *testing.T) {
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
-				Ui:               ui,
 				View:             view,
 				Streams:          streams,
 				ProviderSource:   providerSource,
@@ -918,26 +929,30 @@ func TestTest_Modules(t *testing.T) {
 				Meta: meta,
 			}
 
-			if code := init.Run(nil); code != 0 {
-				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			initCode := init.Run(nil)
+			initOutput := done(t)
+			if initCode != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 			}
 
+			streams, done = terminal.StreamsForTesting(t)
+			meta.View = views.NewView(streams)
 			command := &TestCommand{
 				Meta: meta,
 			}
 
 			code := command.Run([]string{"-no-color"})
-			output := done(t)
+			testOutput := done(t)
 			printedOutput := false
 
 			if code != tc.code {
 				printedOutput = true
-				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, testOutput.All())
 			}
 
 			// If we're not expecting a failure, we can compare the output.
 			if code != 1 {
-				actual := output.All()
+				actual := testOutput.All()
 				if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
 					t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
 				}
@@ -951,7 +966,7 @@ func TestTest_Modules(t *testing.T) {
 
 			if provider.ResourceCount() > 0 {
 				if !printedOutput {
-					t.Errorf("should have deleted all resources on completion but left %s\n\n%s", provider.ResourceString(), output.All())
+					t.Errorf("should have deleted all resources on completion but left %s\n\n%s", provider.ResourceString(), testOutput.All())
 				} else {
 					t.Errorf("should have deleted all resources on completion but left %s", provider.ResourceString())
 				}
@@ -959,7 +974,7 @@ func TestTest_Modules(t *testing.T) {
 
 			if provider.DataSourceCount() > 0 {
 				if !printedOutput {
-					t.Errorf("should have deleted all data sources on completion but left %s\n\n%s", provider.DataSourceString(), output.All())
+					t.Errorf("should have deleted all data sources on completion but left %s\n\n%s", provider.DataSourceString(), testOutput.All())
 				} else {
 					t.Errorf("should have deleted all data sources on completion but left %s", provider.DataSourceString())
 				}
@@ -982,11 +997,10 @@ func TestTest_StatePropagation(t *testing.T) {
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
-	ui := new(cli.MockUi)
 
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
-		Ui:               ui,
 		View:             view,
 		Streams:          streams,
 		ProviderSource:   providerSource,
@@ -996,16 +1010,21 @@ func TestTest_StatePropagation(t *testing.T) {
 		Meta: meta,
 	}
 
-	if code := init.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+	initCode := init.Run(nil)
+	initOutput := done(t)
+	if initCode != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 	}
+
+	streams, done = terminal.StreamsForTesting(t)
+	meta.View = views.NewView(streams)
 
 	c := &TestCommand{
 		Meta: meta,
 	}
 
 	code := c.Run([]string{"-verbose", "-no-color"})
-	output := done(t)
+	testOutput := done(t)
 
 	if code != 0 {
 		t.Errorf("expected status code 0 but got %d", code)
@@ -1073,7 +1092,7 @@ Plan: 0 to add, 1 to change, 0 to destroy.
 Success! 5 passed, 0 failed.
 `
 
-	actual := output.All()
+	actual := testOutput.All()
 
 	if diff := cmp.Diff(actual, expected); len(diff) > 0 {
 		t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
@@ -1174,6 +1193,7 @@ Condition expression could not be evaluated at this time.
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
@@ -1278,10 +1298,9 @@ Success! 1 passed, 0 failed.
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
-				Ui:               ui,
 				View:             view,
 				Streams:          streams,
 				ProviderSource:   providerSource,
@@ -1291,22 +1310,26 @@ Success! 1 passed, 0 failed.
 				Meta: meta,
 			}
 
-			if code := init.Run(nil); code != 0 {
-				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			initCode := init.Run(nil)
+			initOutput := done(t)
+			if initCode != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 			}
 
+			streams, done = terminal.StreamsForTesting(t)
+			meta.View = views.NewView(streams)
 			command := &TestCommand{
 				Meta: meta,
 			}
 
 			code := command.Run([]string{"-verbose", "-no-color"})
-			output := done(t)
+			testOutput := done(t)
 
 			if code != tc.code {
-				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, testOutput.All())
 			}
 
-			actual := output.All()
+			actual := testOutput.All()
 
 			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
 				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
@@ -1364,10 +1387,9 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
-				Ui:               ui,
 				View:             view,
 				Streams:          streams,
 				ProviderSource:   providerSource,
@@ -1377,32 +1399,37 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 				Meta: meta,
 			}
 
-			if code := init.Run(nil); code != 0 {
-				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			initCode := init.Run(nil)
+			initOutput := done(t)
+			if initCode != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
 			}
+
+			streams, done = terminal.StreamsForTesting(t)
+			meta.View = views.NewView(streams)
 
 			command := &TestCommand{
 				Meta: meta,
 			}
 
 			code := command.Run([]string{"-verbose", "-no-color"})
-			output := done(t)
+			testOutput := done(t)
 
 			if code != tc.code {
-				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, testOutput.All())
 			}
 
-			actual := output.All()
+			actual := testOutput.All()
 
 			for _, containsString := range tc.contains {
 				if !strings.Contains(actual, containsString) {
-					t.Errorf("expected '%s' in output but didn't find it: \n%s", containsString, output.All())
+					t.Errorf("expected '%s' in output but didn't find it: \n%s", containsString, testOutput.All())
 				}
 			}
 
 			for _, notContainsString := range tc.notContains {
 				if strings.Contains(actual, notContainsString) {
-					t.Errorf("expected not to find '%s' in output: \n%s", notContainsString, output.All())
+					t.Errorf("expected not to find '%s' in output: \n%s", notContainsString, testOutput.All())
 				}
 			}
 		})
@@ -1447,12 +1474,11 @@ digits, underscores, and dashes.
 			})
 			defer close()
 
-			streams, _ := terminal.StreamsForTesting(t)
+			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewView(streams)
-			ui := new(cli.MockUi)
 			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(provider.Provider),
-				Ui:               ui,
 				View:             view,
 				Streams:          streams,
 				ProviderSource:   providerSource,
@@ -1461,9 +1487,10 @@ digits, underscores, and dashes.
 			init := &InitCommand{
 				Meta: meta,
 			}
-
-			if code := init.Run(nil); code != tc.code {
-				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			code := init.Run(nil)
+			initOutput := done(t)
+			if code != tc.code {
+				t.Fatalf("expected status code 0 but got %d: %s", code, initOutput.Stderr())
 			}
 		})
 	}
@@ -1527,6 +1554,7 @@ func TestTest_MockProviderValidation(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -1593,6 +1621,7 @@ func TestTest_MockProviderValidationForEach(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
@@ -1619,8 +1648,9 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
-		Ui:   ui,
-		View: view,
+		WorkingDir: workdir.NewDir("."),
+		Ui:         ui,
+		View:       view,
 	}
 
 	testCmd := &TestCommand{

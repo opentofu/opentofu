@@ -7,8 +7,6 @@ package states
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -240,47 +238,16 @@ func (i *ResourceInstance) findUnusedDeposedKey() DeposedKey {
 
 // DeposedKey is a 8-character hex string used to uniquely identify deposed
 // instance objects in the state.
-type DeposedKey string
+type DeposedKey = addrs.DeposedKey
 
 // NotDeposed is a special invalid value of DeposedKey that is used to represent
 // the absence of a deposed key. It must not be used as an actual deposed key.
-const NotDeposed = DeposedKey("")
-
-var deposedKeyRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+const NotDeposed = addrs.NotDeposed
 
 // NewDeposedKey generates a pseudo-random deposed key. Because of the short
 // length of these keys, uniqueness is not a natural consequence and so the
 // caller should test to see if the generated key is already in use and generate
 // another if so, until a unique key is found.
 func NewDeposedKey() DeposedKey {
-	v := deposedKeyRand.Uint32()
-	return DeposedKey(fmt.Sprintf("%08x", v))
+	return addrs.NewDeposedKey()
 }
-
-func (k DeposedKey) String() string {
-	return string(k)
-}
-
-func (k DeposedKey) GoString() string {
-	ks := string(k)
-	switch ks {
-	case "":
-		return "states.NotDeposed"
-	default:
-		return fmt.Sprintf("states.DeposedKey(%s)", ks)
-	}
-}
-
-// Generation is a helper method to convert a DeposedKey into a Generation.
-// If the receiver is anything other than NotDeposed then the result is
-// just the same value as a Generation. If the receiver is NotDeposed then
-// the result is CurrentGen.
-func (k DeposedKey) Generation() Generation {
-	if k == NotDeposed {
-		return CurrentGen
-	}
-	return k
-}
-
-// generation is an implementation of Generation.
-func (k DeposedKey) generation() {}

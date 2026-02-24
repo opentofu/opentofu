@@ -197,6 +197,11 @@ type ModuleInstanceStep struct {
 	InstanceKey InstanceKey
 }
 
+func (s ModuleInstanceStep) IsPlaceholder() bool {
+	_, ok := s.InstanceKey.(WildcardKey)
+	return ok
+}
+
 // RootModuleInstance is the module instance address representing the root
 // module, which is also the zero value of ModuleInstance.
 var RootModuleInstance ModuleInstance
@@ -234,6 +239,21 @@ func (m ModuleInstance) Parent() ModuleInstance {
 		return m
 	}
 	return m[:len(m)-1]
+}
+
+// IsPlaceholder returns true if this address is acting as a placeholder for
+// zero or more instances of the module it belongs to, rather than for
+// an actual module instance.
+//
+// Placeholder addresses are only valid in certain contexts, and so should
+// be used with care.
+func (m ModuleInstance) IsPlaceholder() bool {
+	for _, step := range m {
+		if _, ok := step.InstanceKey.(WildcardKey); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // String returns a string representation of the receiver, in the format used
@@ -505,7 +525,7 @@ func (m ModuleInstance) HasSameModule(other ModuleInstance) bool {
 // an argument.
 //
 // This is here only as an optimization to avoid the overhead of constructing
-// a [Module] value from the reciever just to compare it and then throw it away.
+// a [Module] value from the receiver just to compare it and then throw it away.
 func (m ModuleInstance) IsForModule(module Module) bool {
 	if len(m) != len(module) {
 		return false

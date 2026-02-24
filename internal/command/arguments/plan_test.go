@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -27,11 +28,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			nil,
 			&Plan{
 				DetailedExitCode: false,
-				InputEnabled:     true,
-				OutPath:          "",
-				ViewType:         ViewHuman,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: true,
+					ViewType:     ViewHuman,
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -43,11 +46,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			[]string{"-destroy", "-detailed-exitcode", "-input=false", "-out=saved.tfplan"},
 			&Plan{
 				DetailedExitCode: true,
-				InputEnabled:     false,
-				OutPath:          "saved.tfplan",
-				ViewType:         ViewHuman,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewHuman,
+				},
+				OutPath: "saved.tfplan",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -59,11 +64,13 @@ func TestParsePlan_basicValid(t *testing.T) {
 			[]string{"-json"},
 			&Plan{
 				DetailedExitCode: false,
-				InputEnabled:     false,
-				OutPath:          "",
-				ViewType:         ViewJSON,
-				State:            &State{Lock: true},
-				Vars:             &Vars{},
+				ViewOptions: ViewOptions{
+					InputEnabled: false,
+					ViewType:     ViewJSON,
+				},
+				OutPath: "",
+				State:   &State{Lock: true},
+				Vars:    &Vars{},
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -73,11 +80,11 @@ func TestParsePlan_basicValid(t *testing.T) {
 		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})
+	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{}, ViewOptions{})
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParsePlan(tc.args)
+			got, _, diags := ParsePlan(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}
@@ -89,28 +96,28 @@ func TestParsePlan_basicValid(t *testing.T) {
 }
 
 func TestParsePlan_invalid(t *testing.T) {
-	got, diags := ParsePlan([]string{"-frob"})
+	got, _, diags := ParsePlan([]string{"-frob"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
 	if got, want := diags.Err().Error(), "flag provided but not defined"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
 func TestParsePlan_tooManyArguments(t *testing.T) {
-	got, diags := ParsePlan([]string{"saved.tfplan"})
+	got, _, diags := ParsePlan([]string{"saved.tfplan"})
 	if len(diags) == 0 {
 		t.Fatal("expected diags but got none")
 	}
 	if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
 		t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
 	}
-	if got.ViewType != ViewHuman {
-		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewType, ViewHuman)
+	if got.ViewOptions.ViewType != ViewHuman {
+		t.Fatalf("wrong view type, got %#v, want %#v", got.ViewOptions.ViewType, ViewHuman)
 	}
 }
 
@@ -153,7 +160,7 @@ func TestParsePlan_targets(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParsePlan(tc.args)
+			got, _, diags := ParsePlan(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -366,7 +373,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParsePlan(targetFileArguments)
+			got, _, gotDiags := ParsePlan(targetFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -427,7 +434,7 @@ func TestParsePlan_excludes(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParsePlan(tc.args)
+			got, _, diags := ParsePlan(tc.args)
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -549,7 +556,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 
 			wantDiagsExported := wantDiags.ForRPC()
 
-			got, gotDiags := ParsePlan(excludeFileArguments)
+			got, _, gotDiags := ParsePlan(excludeFileArguments)
 			gotDiagsExported := gotDiags.ForRPC()
 
 			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
@@ -578,7 +585,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 		[]string{"-exclude-file=foo_exclude_file", "-target=foo.targetdirect"},
 	}
 	for _, tc := range testCases {
-		got, gotDiags := ParsePlan(tc)
+		got, _, gotDiags := ParsePlan(tc)
 		if len(gotDiags) == 0 {
 			t.Fatalf("expected error, but there was none")
 		}
@@ -605,7 +612,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 func TestParsePlan_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
-		want []FlagNameValue
+		want []flags.RawFlag
 	}{
 		"no var flags by default": {
 			args: nil,
@@ -613,13 +620,13 @@ func TestParsePlan_vars(t *testing.T) {
 		},
 		"one var": {
 			args: []string{"-var", "foo=bar"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 			},
 		},
 		"one var-file": {
 			args: []string{"-var-file", "cool.tfvars"},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var-file", Value: "cool.tfvars"},
 			},
 		},
@@ -629,7 +636,7 @@ func TestParsePlan_vars(t *testing.T) {
 				"-var-file", "cool.tfvars",
 				"-var", "boop=beep",
 			},
-			want: []FlagNameValue{
+			want: []flags.RawFlag{
 				{Name: "-var", Value: "foo=bar"},
 				{Name: "-var-file", Value: "cool.tfvars"},
 				{Name: "-var", Value: "boop=beep"},
@@ -639,7 +646,7 @@ func TestParsePlan_vars(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			got, diags := ParsePlan(tc.args)
+			got, _, diags := ParsePlan(tc.args)
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			}

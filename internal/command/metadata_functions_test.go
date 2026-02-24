@@ -10,13 +10,15 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestMetadataFunctions_error(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &MetadataFunctionsCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -28,7 +30,9 @@ func TestMetadataFunctions_error(t *testing.T) {
 
 func TestMetadataFunctions_output(t *testing.T) {
 	ui := new(cli.MockUi)
-	m := Meta{Ui: ui}
+	m := Meta{
+		Ui: ui,
+	}
 	c := &MetadataFunctionsCommand{Meta: m}
 
 	if code := c.Run([]string{"-json"}); code != 0 {
@@ -63,9 +67,12 @@ func TestMetadataFunctions_output(t *testing.T) {
 
 	// test that ignored functions are not part of the json
 	for _, v := range ignoredFunctions {
-		_, ok := got.Signatures[v]
-		if ok {
-			t.Fatalf("found ignored function %q inside output", v)
+		if _, ok := got.Signatures[v.Name]; ok {
+			t.Errorf("found ignored function %q inside output", v)
+		}
+		corePrefixed := v.String()
+		if _, ok := got.Signatures[corePrefixed]; ok {
+			t.Fatalf("found ignored function %q inside output", corePrefixed)
 		}
 	}
 }

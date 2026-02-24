@@ -27,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/version"
 )
 
 // BuiltinEvalContext is an EvalContext implementation that is used by
@@ -148,91 +147,14 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 		return nil, err
 	}
 
-	if c.Evaluator != nil && c.Evaluator.Config != nil && c.Evaluator.Config.Module != nil {
-		// If an aliased provider is mocked, we use providerForTest wrapper.
-		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := c.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
-		if ok && pc.IsMocked {
-			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema(ctx))
-			if err != nil {
-				return nil, err
-			}
-
-			p = testP.
-				withMockResources(pc.MockResources).
-				withOverrideResources(pc.OverrideResources)
-		}
-	}
-
 	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerInstanceKey, addr)
 	c.ProviderCache[providerAddrKey][providerInstanceKey] = p
 
 	return p, nil
 }
 
-func (c *BuiltinEvalContext) Provider(_ context.Context, addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	providerAddrKey := addr.String()
-
-	pm, ok := c.ProviderCache[providerAddrKey]
-	if !ok {
-		return nil
-	}
-
-	return pm[key]
-}
-
 func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
 	return c.Plugins.ProviderSchema(ctx, addr.Provider)
-}
-
-func (c *BuiltinEvalContext) CloseProvider(ctx context.Context, addr addrs.AbsProviderConfig) error {
-	c.ProviderLock.Lock()
-	defer c.ProviderLock.Unlock()
-
-	var diags tfdiags.Diagnostics
-
-	providerAddrKey := addr.String()
-	providerMap := c.ProviderCache[providerAddrKey]
-	if providerMap != nil {
-		for _, provider := range providerMap {
-			err := provider.Close(ctx)
-			if err != nil {
-				diags = diags.Append(err)
-			}
-		}
-		delete(c.ProviderCache, providerAddrKey)
-	}
-	if diags.HasErrors() {
-		return diags.Err()
-	}
-
-	return nil
-}
-
-func (c *BuiltinEvalContext) ConfigureProvider(ctx context.Context, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-	if !c.Path().IsForModule(addr.Module) {
-		// This indicates incorrect use of ConfigureProvider: it should be used
-		// only from the module that the provider configuration belongs to.
-		panic(fmt.Sprintf("%s configured by wrong module %s", addr, c.Path()))
-	}
-
-	p := c.Provider(ctx, addr, providerKey)
-	if p == nil {
-		diags = diags.Append(fmt.Errorf("%s not initialized", addr.InstanceString(providerKey)))
-		return diags
-	}
-
-	req := providers.ConfigureProviderRequest{
-		TerraformVersion: version.String(),
-		Config:           cfg,
-	}
-
-	resp := p.ConfigureProvider(ctx, req)
-	return resp.Diagnostics
 }
 
 func (c *BuiltinEvalContext) ProviderInput(_ context.Context, pc addrs.AbsProviderConfig) map[string]cty.Value {
@@ -483,7 +405,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 		}
 
-		provider := c.Provider(ctx, providedBy.Provider, providerKey)
+		provider, _ := providedBy.Instance(providerKey)
 
 		if provider == nil {
 			// This should not be possible if references are tracked correctly

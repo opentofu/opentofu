@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
 	"github.com/zclconf/go-cty/cty"
 
@@ -178,8 +178,8 @@ func TestFilesystem_backup(t *testing.T) {
 	}
 	origState := TestFullInitialState()
 	if !bf.State.Equal(origState) {
-		for _, problem := range deep.Equal(origState, bf.State) {
-			t.Error(problem)
+		if diff := cmp.Diff(bf.State, origState); diff != "" {
+			t.Error("wrong backup state:\n" + diff)
 		}
 	}
 }

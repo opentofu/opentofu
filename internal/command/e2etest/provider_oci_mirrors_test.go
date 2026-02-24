@@ -91,9 +91,6 @@ func TestProviderOCIMirrors(t *testing.T) {
 		}
 	`, registryAddr)
 	t.Logf("cli config:\n%s", cliConfigSrc)
-	if err != nil {
-		t.Fatalf("failed to marshal temporary CLI configuration: %s", err)
-	}
 	err = os.WriteFile(cliConfigFile, []byte(cliConfigSrc), os.ModePerm)
 	if err != nil {
 		t.Fatalf("failed to create temporary CLI configuration file: %s", err)

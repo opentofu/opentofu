@@ -7,19 +7,20 @@ package tofu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
+	"github.com/opentofu/opentofu/version"
 )
 
 // traceAttrProviderAddress is a standardized trace span attribute name that we
@@ -50,15 +51,48 @@ const traceAttrProviderInstanceAddr = "opentofu.provider_instance.address"
 // NodeApplyableProvider represents a configured provider.
 type NodeApplyableProvider struct {
 	*NodeAbstractProvider
+
+	instances map[addrs.InstanceKey]providers.Configured
 }
 
 var (
 	_ GraphNodeExecutable = (*NodeApplyableProvider)(nil)
+	_ GraphNodeProvider   = (*NodeApplyableProvider)(nil) // Partial, see NodeAbstractProvider
 )
+
+// GraphNodeProvider
+func (n *NodeApplyableProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
+	if n.instances == nil {
+		// Should never happen
+		return nil, fmt.Errorf("bug: NodeApplyableProvider.Instance() called before Execute()")
+	}
+	instance, ok := n.instances[key]
+	if !ok {
+		return nil, fmt.Errorf("provider %s not initialized with key %s", n.Addr, key)
+	}
+
+	return instance, nil
+}
+
+// GraphNodeProvider
+func (n *NodeApplyableProvider) Close(ctx context.Context) error {
+	if n.instances == nil {
+		// Should never happen
+		return fmt.Errorf("bug: NodeApplyableProvider.Close() called before Execute()")
+	}
+	var errs []error
+	for _, instance := range n.instances {
+		errs = append(errs, instance.Close(ctx))
+	}
+	return errors.Join(errs...)
+}
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	instances, diags := n.initInstances(ctx, evalCtx, op)
+	if diags.HasErrors() {
+		return diags
+	}
 
 	for key, provider := range instances {
 		diags = diags.Append(n.executeInstance(ctx, evalCtx, op, key, provider))
@@ -89,9 +123,16 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 		}
 	}
 
+	if n.instances == nil {
+		n.instances = map[addrs.InstanceKey]providers.Configured{}
+	}
+
 	for _, key := range initKeys {
-		_, err := evalCtx.InitProvider(ctx, n.Addr, key)
+		instance, err := evalCtx.InitProvider(ctx, n.Addr, key)
 		diags = diags.Append(err)
+		if err == nil {
+			n.instances[key] = instance
+		}
 	}
 	if diags.HasErrors() {
 		return nil, diags
@@ -99,9 +140,7 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
 	for configKey, initKey := range instanceKeys {
-		provider, _, err := getProvider(ctx, evalCtx, n.Addr, initKey)
-		diags = diags.Append(err)
-		instances[configKey] = provider
+		instances[configKey] = n.instances[initKey]
 	}
 	if diags.HasErrors() {
 		return nil, diags
@@ -127,13 +166,18 @@ func (n *NodeApplyableProvider) executeInstance(ctx context.Context, evalCtx Eva
 func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Validate provider configuration",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
-			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			traceattrs.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
 		),
 	)
 	defer span.End()
+
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
 
 	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, n.ProviderConfig())
 
@@ -193,13 +237,18 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
 	_, span := tracing.Tracer().Start(
 		ctx, "Configure provider",
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
-			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			traceattrs.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
 		),
 	)
 	defer span.End()
+
+	if n.Config != nil && n.Config.IsMocked {
+		// Mocked for testing
+		return nil
+	}
 
 	config := n.ProviderConfig()
 
@@ -273,8 +322,11 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", n.Addr)
 	}
 
-	configDiags := evalCtx.ConfigureProvider(ctx, n.Addr, providerKey, unmarkedConfigVal)
-	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
+	configResp := provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
+		TerraformVersion: version.String(),
+		Config:           unmarkedConfigVal,
+	})
+	diags = diags.Append(configResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
 		// this error message won't be very clear. Add some detail to the error

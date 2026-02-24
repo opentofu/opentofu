@@ -60,8 +60,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
 			}),
 		},
 		{
@@ -84,8 +84,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
 			}),
 		},
 		{
@@ -108,8 +108,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
 			}),
 		},
 		{
@@ -143,8 +143,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
 			}),
 		},
 		{
@@ -156,8 +156,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
 			}),
 		},
 		{
@@ -169,8 +169,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			wantAction: plans.Forget,
 			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  "Resource going to be removed from the state",
-				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
+				Summary:  "Resource will be removed from the state",
+				Detail:   fmt.Sprintf("After this plan is applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
 			}),
 		},
 	}
@@ -223,7 +223,6 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				RefreshStateState:        state.DeepCopy().SyncWrapper(),
 				PrevRunStateState:        state.DeepCopy().SyncWrapper(),
 				InstanceExpanderExpander: instances.NewExpander(),
-				ProviderProvider:         p,
 				ProviderSchemaSchema:     schema,
 				ChangesChanges:           plans.NewChanges().SyncWrapper(),
 			}
@@ -231,10 +230,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			node := NodePlannableResourceInstanceOrphan{
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 					NodeAbstractResource: NodeAbstractResource{
-						ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						}},
+						ResolvedProvider: mustResolvedProviderInRoot("test", p),
 					},
 					Addr: absResource,
 				},
@@ -292,7 +288,6 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		ProviderProvider:         p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
@@ -306,10 +301,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
-				}},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
@@ -375,7 +367,6 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		RefreshStateState:        refreshState.SyncWrapper(),
 		PrevRunStateState:        prevRunState.SyncWrapper(),
 		InstanceExpanderExpander: instances.NewExpander(),
-		ProviderProvider:         p,
 		ProviderSchemaSchema: providers.ProviderSchema{
 			ResourceTypes: map[string]providers.Schema{
 				"test_object": {
@@ -389,10 +380,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
-				}},
+				ResolvedProvider: mustResolvedProviderInRoot("test", p),
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},

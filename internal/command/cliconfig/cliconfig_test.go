@@ -56,15 +56,15 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 		t.Fatalf("err: %s", errs)
 	}
 
-	hasOpenFileWarn := false
+	hasStatFileWarn := false
 	for _, err := range errs {
 		if err.Severity() == tfdiags.Warning && err.Description().Summary == "Unable to open CLI configuration file" {
-			hasOpenFileWarn = true
+			hasStatFileWarn = true
 			break
 		}
 	}
 
-	if !hasOpenFileWarn {
+	if !hasStatFileWarn {
 		t.Fatal("expecting a warning message because of nonexisting CLI configuration file")
 	}
 }

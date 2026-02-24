@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -31,21 +30,12 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-// normalizePath normalizes a given path so that it is, if possible, relative
-// to the current working directory. This is primarily used to prepare
-// paths used to load configuration, because we want to prefer recording
-// relative paths in source code references within the configuration.
-func (m *Meta) normalizePath(path string) string {
-	m.fixupMissingWorkingDir()
-	return m.WorkingDir.NormalizePath(path)
-}
-
 // loadConfig reads a configuration from the given directory, which should
 // contain a root module and have already have any required descendent modules
 // installed.
 func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -68,7 +58,7 @@ func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config,
 // into the config alongside the main configuration.
 func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -97,7 +87,7 @@ func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string)
 // can be used.
 func (m *Meta) loadSingleModule(ctx context.Context, dir string, load configs.SelectiveLoader) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	dir = m.normalizePath(dir)
+	dir = m.WorkingDir.NormalizePath(dir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -186,7 +176,7 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 // tests for the target module.
 func (m *Meta) loadSingleModuleWithTests(ctx context.Context, dir string, testDir string) (*configs.Module, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	dir = m.normalizePath(dir)
+	dir = m.WorkingDir.NormalizePath(dir)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -258,7 +248,7 @@ func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.
 // specialized "load..." methods to get a higher-level representation.
 func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	filename = m.normalizePath(filename)
+	filename = m.WorkingDir.NormalizePath(filename)
 
 	loader, err := m.initConfigLoader()
 	if err != nil {
@@ -279,9 +269,9 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 // this package has a reasonable implementation for displaying notifications
 // via a provided cli.Ui.
 func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upgrade, installErrsOnly bool, hooks initwd.ModuleInstallHooks) (abort bool, diags tfdiags.Diagnostics) {
-	rootDir = m.normalizePath(rootDir)
+	rootDir = m.WorkingDir.NormalizePath(rootDir)
 
-	err := os.MkdirAll(m.modulesDir(), os.ModePerm)
+	err := os.MkdirAll(m.WorkingDir.ModulesDir(), os.ModePerm)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("failed to create local modules directory: %w", err))
 		return true, diags
@@ -293,7 +283,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
+	inst := initwd.NewModuleInstaller(m.WorkingDir.ModulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
 
 	call, vDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(vDiags)
@@ -329,8 +319,8 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 		return true, diags
 	}
 
-	targetDir = m.normalizePath(targetDir)
-	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
+	targetDir = m.WorkingDir.NormalizePath(targetDir)
+	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.WorkingDir.ModulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
 		m.showDiagnostics(diags)
@@ -412,10 +402,6 @@ func (m *Meta) configSources() map[string]*hcl.File {
 	return m.configLoader.Sources()
 }
 
-func (m *Meta) modulesDir() string {
-	return filepath.Join(m.DataDir(), "modules")
-}
-
 // registerSynthConfigSource allows commands to add synthetic additional source
 // buffers to the config loader's cache of sources (as returned by
 // configSources), which is useful when a command is directly parsing something
@@ -446,7 +432,7 @@ func (m *Meta) registerSynthConfigSource(filename string, src []byte) {
 func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
-			ModulesDir: m.modulesDir(),
+			ModulesDir: m.WorkingDir.ModulesDir(),
 		})
 		if err != nil {
 			return nil, err
@@ -518,61 +504,4 @@ func configValueFromCLI(synthFilename, rawValue string, wantType cty.Type) (cty.
 		}
 		return val, diags
 	}
-}
-
-// rawFlags is a flag.Value implementation that just appends raw flag
-// names and values to a slice.
-type rawFlags struct {
-	flagName string
-	items    *[]rawFlag
-}
-
-func newRawFlags(flagName string) rawFlags {
-	var items []rawFlag
-	return rawFlags{
-		flagName: flagName,
-		items:    &items,
-	}
-}
-
-func (f rawFlags) Empty() bool {
-	if f.items == nil {
-		return true
-	}
-	return len(*f.items) == 0
-}
-
-func (f rawFlags) AllItems() []rawFlag {
-	if f.items == nil {
-		return nil
-	}
-	return *f.items
-}
-
-func (f rawFlags) Alias(flagName string) rawFlags {
-	return rawFlags{
-		flagName: flagName,
-		items:    f.items,
-	}
-}
-
-func (f rawFlags) String() string {
-	return ""
-}
-
-func (f rawFlags) Set(str string) error {
-	*f.items = append(*f.items, rawFlag{
-		Name:  f.flagName,
-		Value: str,
-	})
-	return nil
-}
-
-type rawFlag struct {
-	Name  string
-	Value string
-}
-
-func (f rawFlag) String() string {
-	return fmt.Sprintf("%s=%q", f.Name, f.Value)
 }

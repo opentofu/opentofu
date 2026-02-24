@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -72,7 +73,7 @@ func TestMetaBackend_emptyDir(t *testing.T) {
 	}
 
 	// Verify no backend state was made
-	if !isEmptyState(filepath.Join(m.DataDir(), DefaultStateFilename)) {
+	if !isEmptyState(filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)) {
 		t.Fatal("backend state should be empty")
 	}
 }
@@ -136,7 +137,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	stateName := filepath.Join(m.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -207,7 +208,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 		t.Fatal("file should not exist")
 	}
 
-	stateName := filepath.Join(m.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -1744,7 +1745,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	}
 
 	// Verify we have no configured backend
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1847,7 +1848,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1936,7 +1937,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -2002,7 +2003,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s := testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	if s.Backend.Hash != uint64(cHash) {
 		t.Fatal("mismatched state and config backend hashes")
 	}
@@ -2018,7 +2019,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s = testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	if s.Backend.Hash != uint64(cHash) {
 		t.Fatal("mismatched state and config backend hashes")
 	}
@@ -2031,7 +2032,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	testCopyDir(t, testFixturePath("init-backend-empty"), td)
 	t.Chdir(td)
 
-	//// create our local state
+	// create our local state
 	orig := states.NewState()
 	orig.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	testStateFileDefault(t, orig)
@@ -2068,7 +2069,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 	}
 
 	// Check the state
-	s := testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 	backendHash := s.Backend.Hash
 
 	// init again but remove the path option from the config
@@ -2089,7 +2090,7 @@ func TestMetaBackend_configToExtra(t *testing.T) {
 		t.Fatal(diags.Err())
 	}
 
-	s = testDataStateRead(t, filepath.Join(DefaultDataDir, backendLocal.DefaultStateFilename))
+	s = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, backendLocal.DefaultStateFilename))
 
 	if s.Backend.Hash == backendHash {
 		t.Fatal("state.Backend.Hash was not updated")
@@ -2134,6 +2135,7 @@ func testMetaBackend(t *testing.T, args []string) *Meta {
 
 	// metaBackend tests are verifying migrate actions
 	m.migrateState = true
+	m.WorkingDir = workdir.NewDir(".")
 
 	t.Cleanup(func() {
 		// Trigger garbage collection to ensure that all open file handles are closed.

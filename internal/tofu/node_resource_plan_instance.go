@@ -15,8 +15,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -28,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // NodePlannableResourceInstance represents a _single_ resource
@@ -93,10 +92,11 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 
 	ctx, span := tracing.Tracer().Start(
 		ctx, traceNamePlanResourceInstance,
-		otelTrace.WithAttributes(
-			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
-			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
-			otelAttr.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
+		tracing.SpanAttributes(
+			traceattrs.String(traceAttrResourceInstanceAddr, addr.String()),
+			traceattrs.String(traceAttrResourceType, addr.Resource.Resource.Type),
+			traceattrs.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+			traceattrs.Bool(traceAttrPlanPlanChanges, !n.skipPlanChanges),
 		),
 	)
 	defer span.End()
@@ -107,7 +107,7 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		traceattrs.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
 	)
 
 	// Eval info is different depending on what kind of resource this is
@@ -137,7 +137,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	var change *plans.ResourceInstanceChange
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -192,7 +192,7 @@ func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Con
 	config := n.Config
 	addr := n.ResourceInstanceAddr()
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -252,7 +252,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -321,18 +321,28 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 	} else {
 		if instanceRefreshState != nil {
 			prevCreateBeforeDestroy := instanceRefreshState.CreateBeforeDestroy
+			prevSkipDestroy := instanceRefreshState.SkipDestroy
 
 			// This change is usually written to the refreshState and then
 			// updated value used for further graph execution. However, with
-			// "refresh=false", refreshState is not being written and then
+			// "refresh=false", refreshState is not being written, and then
 			// some resources with updated configuration could be detached
-			// due to missaligned create_before_destroy in different graph nodes.
+			// due to misaligned create_before_destroy and skip_destroy in different graph nodes.
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+			// Destroy coming from the config is an hcl.Expression, so we need to evaluate it here, currently this only supports constant booleans
+			skipDestroy, skipDiags := n.shouldSkipDestroy()
+			diags = diags.Append(skipDiags)
+			if diags.HasErrors() {
+				return diags
+			}
+			instanceRefreshState.SkipDestroy = skipDestroy
 
-			if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy && n.skipRefresh {
-				diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))
-				if diags.HasErrors() {
-					return diags
+			if n.skipRefresh {
+				if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy || prevSkipDestroy != instanceRefreshState.SkipDestroy {
+					diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, instanceRefreshState, refreshState))
+					if diags.HasErrors() {
+						return diags
+					}
 				}
 			}
 		}
@@ -342,7 +352,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 	// The import process handles its own refresh
 	if !n.skipRefresh && !importing {
 		s, refreshDiags := n.refresh(ctx, evalCtx, states.NotDeposed, instanceRefreshState)
-		diags = diags.Append(maybeImproveResourceInstanceDiagnostics(refreshDiags, addr))
+		diags = diags.Append(refreshDiags)
 		if diags.HasErrors() {
 			return diags
 		}
@@ -380,7 +390,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		change, instancePlanState, repeatData, planDiags := n.plan(
 			ctx, evalCtx, nil, instanceRefreshState, n.ForceCreateBeforeDestroy, n.forceReplace,
 		)
-		diags = diags.Append(maybeImproveResourceInstanceDiagnostics(planDiags, addr))
+		diags = diags.Append(planDiags)
 		if diags.HasErrors() {
 			// If we are importing and generating a configuration, we need to
 			// ensure the change is written out so the configuration can be
@@ -434,7 +444,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		if diags.HasErrors() {
 			return diags
 		}
-		diags = diags.Append(n.checkPreventDestroy(change))
+		diags = diags.Append(n.checkPreventDestroy(ctx, evalCtx, change))
 		if diags.HasErrors() {
 			return diags
 		}

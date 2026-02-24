@@ -10,14 +10,14 @@ import (
 	"net/url"
 	"os"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 type providersLockChangeType string
@@ -49,7 +49,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers lock")
 	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms FlagStringSlice
+	var optPlatforms flags.FlagStringSlice
 	var fsMirrorDir string
 	var netMirrorURL string
 	cmdFlags.Var(&optPlatforms, "platform", "target platform")
@@ -61,12 +61,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		return 1
 	}
 
-	span.SetAttributes(otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
+	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
 	if fsMirrorDir != "" {
-		span.SetAttributes(otelAttr.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
 	}
 	if netMirrorURL != "" {
-		span.SetAttributes(otelAttr.String("opentofu.provider.lock.netmirror", netMirrorURL))
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.netmirror", netMirrorURL))
 	}
 
 	var diags tfdiags.Diagnostics
@@ -88,7 +88,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	if len(optPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
 		span.SetAttributes(
-			otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
+			traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
 		)
 	} else {
 		platforms = make([]getproviders.Platform, 0, len(optPlatforms))
@@ -139,12 +139,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
 		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
-		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout)
+		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout, c.ProviderSourceLocationConfig)
 	default:
 		// With no special options we consult upstream registries directly,
 		// because that gives us the most information to produce as complete
 		// and portable as possible a lock entry.
-		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx))
+		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx), c.ProviderSourceLocationConfig)
 	}
 
 	config, confDiags := c.loadConfig(ctx, ".")
@@ -269,6 +269,8 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				c.Ui.Output(fmt.Sprintf("- Retrieved %s %s for %s (%s%s)", provider.ForDisplay(), version, platform, auth, keyID))
 			},
 		}
+		// Ensure that events emitted on multiple routines do not trigger race conditions
+		evts = evts.Sync()
 		ctx := evts.OnContext(ctx)
 
 		dir := providercache.NewDirWithPlatform(tempDir, platform)

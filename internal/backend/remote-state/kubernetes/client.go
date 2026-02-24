@@ -16,18 +16,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
-	_ "k8s.io/client-go/plugin/pkg/client/auth" // Import to initialize client auth plugins.
-	"k8s.io/utils/pointer"
-
-	coordinationv1 "k8s.io/api/coordination/v1"
 	coordinationclientv1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth" // Import to initialize client auth plugins.
+	"k8s.io/utils/ptr"
+
+	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
 const (
@@ -172,7 +172,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 				},
 			},
 			Spec: coordinationv1.LeaseSpec{
-				HolderIdentity: pointer.StringPtr(info.ID),
+				HolderIdentity: ptr.To(info.ID),
 			},
 		}
 
@@ -201,7 +201,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		return "", lockErr
 	}
 
-	lease.Spec.HolderIdentity = pointer.StringPtr(info.ID)
+	lease.Spec.HolderIdentity = ptr.To(info.ID)
 	setLockInfo(lease, info.Marshal())
 	_, err = c.kubernetesLeaseClient.Update(ctx, lease, metav1.UpdateOptions{})
 	if err != nil {

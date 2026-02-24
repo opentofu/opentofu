@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -32,14 +33,15 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	// Parse and validate flags
-	args, diags := arguments.ParseValidate(rawArgs)
+	args, closer, diags := arguments.ParseValidate(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("validate")
 		return 1
 	}
 
-	view := views.NewValidate(args.ViewType, c.View)
+	view := views.NewValidate(args.ViewOptions, c.View)
 
 	// After this point, we must only produce JSON output if JSON mode is
 	// enabled, so all errors should be accumulated into diags and we'll
@@ -83,12 +85,12 @@ func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
 	// package directly, removing this shim layer.
 
 	varArgs := args.All()
-	items := make([]rawFlag, len(varArgs))
+	items := make([]flags.RawFlag, len(varArgs))
 	for i := range varArgs {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
@@ -214,6 +216,11 @@ Options:
   -json                 Produce output in a machine-readable JSON format, 
                         suitable for use in text editor integrations and other 
                         automated systems. Always disables color.
+
+  -json-into=out.json   Produce the same output as -json, but sent directly
+                        to the given file. This allows automation to preserve
+                        the original human-readable output streams, while
+                        capturing more detailed logs for machine analysis.
 
   -no-color             If specified, output won't contain any color.
 

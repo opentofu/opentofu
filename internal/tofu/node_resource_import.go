@@ -100,7 +100,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 	n.ResolvedProviderKey = asAbsNode.ResolvedProviderKey
 	log.Printf("[TRACE] graphNodeImportState: importing using %s", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey))
 
-	provider, _, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, err := n.ResolvedProvider.Instance(n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -121,7 +121,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 		TypeName: n.Addr.Resource.Resource.Type,
 		ID:       n.ID,
 	})
-	diags = diags.Append(maybeImproveResourceInstanceDiagnostics(resp.Diagnostics, n.Addr))
+	diags = diags.Append(resp.Diagnostics)
 	if diags.HasErrors() {
 		return diags
 	}

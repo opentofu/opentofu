@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -25,6 +26,7 @@ func TestGraph(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
 		},
@@ -45,6 +47,7 @@ func TestGraph_multipleArgs(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
 		},
@@ -67,6 +70,7 @@ func TestGraph_noArgs(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
 		},
@@ -90,6 +94,7 @@ func TestGraph_noConfig(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
 		},
@@ -144,6 +149,7 @@ func TestGraph_plan(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &GraphCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
 		},

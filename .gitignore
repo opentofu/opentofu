@@ -23,6 +23,9 @@ website/node_modules
 website/vendor
 vendor/
 
+# "make golangci-lint" places its temprary golangci-lint executable here
+tools/golangci-lint*
+
 # VSCode debugging configurations
 .vscode/launch.json
 

@@ -16,9 +16,7 @@ if __name__ == "__main__":
     data = json.loads(inputData)
 
     # Construct the key:
-    key = b''
-    for i in range(1, 17):
-        key += chr(i).encode('ascii')
+    key = b'AQIDBAUGBwgJCgsMDQ4PEA=='
 
     # Output the keys:
     if data is None:

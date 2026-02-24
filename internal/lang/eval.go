@@ -38,6 +38,9 @@ func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configsc
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
+	// using ExpandFunctionsHCLDec to extract strictly the functions that are referenced inside the `dynamic`
+	// block, since that is what is needed to be injected into the expansion evalCtx for the expansion to work
+	traversals = append(traversals, filterProviderFunctions(dynblock.ExpandFunctionsHCLDec(body, spec))...)
 	refs, diags := References(s.ParseRef, traversals)
 
 	hclCtx, ctxDiags := s.EvalContext(ctx, refs)

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 	"github.com/opentofu/svchost/svcauth"
@@ -21,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
@@ -58,7 +58,7 @@ var Ui cli.Ui
 
 func initCommands(
 	ctx context.Context,
-	originalWorkingDir string,
+	wd *workdir.Dir,
 	streams *terminal.Streams,
 	config *cliconfig.Config,
 	services *disco.Disco,
@@ -87,8 +87,6 @@ func initCommands(
 		configDir = "" // No config dir available (e.g. looking up a home directory failed)
 	}
 
-	wd := workingDir(originalWorkingDir, os.Getenv("TF_DATA_DIR"))
-
 	meta := command.Meta{
 		WorkingDir: wd,
 		Streams:    streams,
@@ -99,7 +97,7 @@ func initCommands(
 		Ui:               Ui,
 
 		Services:        services,
-		BrowserLauncher: webbrowser.NewNativeLauncher(),
+		BrowserLauncher: browserLauncher(),
 
 		RunningInAutomation: inAutomation,
 		CLIConfigDir:        configDir,
@@ -122,6 +120,11 @@ func initCommands(
 		UnmanagedProviders:   unmanagedProviders,
 
 		AllowExperimentalFeatures: experimentsAreAllowed(),
+
+		// ProviderSourceLocationConfig is used for some commands that do not make
+		// use of the OpenTofu configuration files. Therefore, there is no way to configure
+		// the retries from other places than env vars.
+		ProviderSourceLocationConfig: providerSourceLocationConfigFromEnv(),
 	}
 
 	// The command list is included in the tofu -help
@@ -362,9 +365,9 @@ func initCommands(
 			}, nil
 		},
 
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 		// Plumbing
-		//-----------------------------------------------------------
+		// -----------------------------------------------------------
 
 		"force-unlock": func() (cli.Command, error) {
 			return &command.UnlockCommand{

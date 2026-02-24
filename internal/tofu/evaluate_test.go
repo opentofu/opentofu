@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -921,7 +923,187 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 }
 
+// TestEvaluatorGetModule_ForEach verifies that GetModule correctly evaluates
+// a module with for_each that has output values defined in state.
+// This is a regression test to ensure the fix for (modules without outputs)
+// doesn't break the existing behavior for modules WITH outputs.
+func TestEvaluatorGetModule_ForEach(t *testing.T) {
+	expander := instances.NewExpander()
+	expander.SetModuleForEach(
+		addrs.RootModuleInstance,
+		addrs.ModuleCall{Name: "mods"},
+		map[string]cty.Value{
+			"a": cty.StringVal("first"),
+			"b": cty.StringVal("second"),
+		},
+	)
+
+	stateSync := states.BuildState(func(ss *states.SyncState) {
+		ss.SetOutputValue(
+			addrs.OutputValue{Name: "result"}.Absolute(addrs.ModuleInstance{
+				addrs.ModuleInstanceStep{Name: "mods", InstanceKey: addrs.StringKey("a")},
+			}),
+			cty.StringVal("output_a"),
+			false,
+			"",
+		)
+		ss.SetOutputValue(
+			addrs.OutputValue{Name: "result"}.Absolute(addrs.ModuleInstance{
+				addrs.ModuleInstanceStep{Name: "mods", InstanceKey: addrs.StringKey("b")},
+			}),
+			cty.StringVal("output_b"),
+			false,
+			"",
+		)
+	}).SyncWrapper()
+
+	evaluator := &Evaluator{
+		Meta: &ContextMeta{
+			Env: "test",
+		},
+		Config: &configs.Config{
+			Module: &configs.Module{
+				ModuleCalls: map[string]*configs.ModuleCall{
+					"mods": {
+						Name: "mods",
+						ForEach: hcl.StaticExpr(cty.MapVal(map[string]cty.Value{
+							"a": cty.StringVal("first"),
+							"b": cty.StringVal("second"),
+						}), hcl.Range{}),
+					},
+				},
+			},
+			Children: map[string]*configs.Config{
+				"mods": {
+					Path: addrs.Module{"module.mods"},
+					Module: &configs.Module{
+						Outputs: map[string]*configs.Output{
+							"result": {
+								Name: "result",
+							},
+						},
+					},
+				},
+			},
+		},
+		State:            stateSync,
+		Changes:          plans.NewChanges().SyncWrapper(),
+		InstanceExpander: expander,
+	}
+
+	data := &evaluationStateData{
+		Evaluator: evaluator,
+	}
+	scope := evaluator.Scope(data, nil, nil, nil)
+
+	got, diags := scope.Data.GetModule(t.Context(), addrs.ModuleCall{
+		Name: "mods",
+	}, tfdiags.SourceRange{})
+
+	if len(diags) != 0 {
+		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+	}
+
+	want := cty.ObjectVal(map[string]cty.Value{
+		"a": cty.ObjectVal(map[string]cty.Value{
+			"result": cty.StringVal("output_a"),
+		}),
+		"b": cty.ObjectVal(map[string]cty.Value{
+			"result": cty.StringVal("output_b"),
+		}),
+	})
+
+	if !got.RawEquals(want) {
+		t.Errorf("wrong result:\ngot:  %#v\nwant: %#v", got, want)
+	}
+
+	if got.LengthInt() != 2 {
+		t.Errorf("wrong length: got %d, want 2", got.LengthInt())
+	}
+}
+
+// TestEvaluatorGetModule_ForEachWithoutOutputs verifies that GetModule correctly returns
+// the expected length for a module with for_each but no output values defined.
+// This tests the fix for (modules without outputs) where length(module.empty) would incorrectly
+// return 0 for modules without outputs, even when for_each has multiple keys.
+func TestEvaluatorGetModule_ForEachWithoutOutputs(t *testing.T) {
+	expander := instances.NewExpander()
+	expander.SetModuleForEach(
+		addrs.RootModuleInstance,
+		addrs.ModuleCall{Name: "empty"},
+		map[string]cty.Value{
+			"x": cty.StringVal("first"),
+			"y": cty.StringVal("second"),
+			"z": cty.StringVal("third"),
+		},
+	)
+
+	evaluator := &Evaluator{
+		Meta: &ContextMeta{
+			Env: "test",
+		},
+		Config: &configs.Config{
+			Module: &configs.Module{
+				ModuleCalls: map[string]*configs.ModuleCall{
+					"empty": {
+						Name: "empty",
+						ForEach: hcl.StaticExpr(cty.MapVal(map[string]cty.Value{
+							"x": cty.StringVal("first"),
+							"y": cty.StringVal("second"),
+							"z": cty.StringVal("third"),
+						}), hcl.Range{}),
+					},
+				},
+			},
+			Children: map[string]*configs.Config{
+				"empty": {
+					Path: addrs.Module{"module.empty"},
+					Module: &configs.Module{
+						Outputs: map[string]*configs.Output{},
+					},
+				},
+			},
+		},
+		State:            states.NewState().SyncWrapper(),
+		Changes:          plans.NewChanges().SyncWrapper(),
+		InstanceExpander: expander,
+	}
+
+	data := &evaluationStateData{
+		Evaluator: evaluator,
+	}
+	scope := evaluator.Scope(data, nil, nil, nil)
+
+	got, diags := scope.Data.GetModule(t.Context(), addrs.ModuleCall{
+		Name: "empty",
+	}, tfdiags.SourceRange{})
+
+	if len(diags) != 0 {
+		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+	}
+
+	want := cty.ObjectVal(map[string]cty.Value{
+		"x": cty.EmptyObjectVal,
+		"y": cty.EmptyObjectVal,
+		"z": cty.EmptyObjectVal,
+	})
+
+	if !got.RawEquals(want) {
+		t.Errorf("wrong result:\ngot:  %#v\nwant: %#v", got, want)
+	}
+
+	if got.LengthInt() != 3 {
+		t.Errorf("wrong length: got %d, want 3 (module has for_each with 3 keys)", got.LengthInt())
+	}
+}
+
 func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesSync) *Evaluator {
+	expander := instances.NewExpander()
+	expander.SetModuleSingle(
+		addrs.RootModuleInstance,
+		addrs.ModuleCall{Name: "mod"},
+	)
+
 	return &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
@@ -952,7 +1134,8 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 				},
 			},
 		},
-		State:   stateSync,
-		Changes: changesSync,
+		State:            stateSync,
+		Changes:          changesSync,
+		InstanceExpander: expander,
 	}
 }

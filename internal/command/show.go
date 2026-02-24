@@ -12,13 +12,11 @@ import (
 	"os"
 	"strings"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -29,6 +27,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -65,28 +64,29 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	// Parse and validate flags
-	args, diags := arguments.ParseShow(rawArgs)
+	args, closer, diags := arguments.ParseShow(rawArgs)
+	defer closer()
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("show")
 		return 1
 	}
-	c.viewType = args.ViewType
+	c.viewType = args.ViewOptions.ViewType
 	c.View.SetShowSensitive(args.ShowSensitive)
 
 	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
 	ctx, span := tracing.Tracer().Start(ctx, "Show",
-		trace.WithAttributes(
-			otelAttr.String("opentofu.show.view", args.ViewType.String()),
-			otelAttr.String("opentofu.show.target", args.TargetType.String()),
-			otelAttr.String("opentofu.show.target_arg", args.TargetArg),
-			otelAttr.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
+		tracing.SpanAttributes(
+			traceattrs.String("opentofu.show.view", args.ViewOptions.ViewType.String()),
+			traceattrs.String("opentofu.show.target", args.TargetType.String()),
+			traceattrs.String("opentofu.show.target_arg", args.TargetArg),
+			traceattrs.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
 		),
 	)
 	defer span.End()
 
 	// Set up view
-	view := views.NewShow(args.ViewType, c.View)
+	view := views.NewShow(args.ViewOptions, c.View)
 
 	// Check for user-supplied plugin path
 	var err error
@@ -144,6 +144,11 @@ Other options:
 
   -json               Show the information in a machine-readable form.
 
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
+
   -show-sensitive     If specified, sensitive values will be displayed.
 
   -var 'foo=bar'      Set a value for one of the input variables in the root
@@ -172,12 +177,12 @@ func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
 	// package directly, removing this shim layer.
 
 	varArgs := args.All()
-	items := make([]rawFlag, len(varArgs))
+	items := make([]flags.RawFlag, len(varArgs))
 	for i := range varArgs {
 		items[i].Name = varArgs[i].Name
 		items[i].Value = varArgs[i].Value
 	}
-	c.Meta.variableArgs = rawFlags{items: &items}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 type showRenderFunc func(view views.Show) int

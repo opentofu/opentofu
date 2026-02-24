@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -53,6 +54,17 @@ type GraphNodeProvider interface {
 	GraphNodeModulePath
 	ProviderAddr() addrs.AbsProviderConfig
 	Name() string
+	// Retrieve the instance specified by the key.
+	// With the limited implementation of provider for_each, we only support
+	// keys after the AbsProviderConfig level and not at any of the modules it may live in
+	// This is a hard requirement that we have determined it is too hard to change,
+	// which is an extension of the "provider configurations may not live in modules with
+	// expansion" that we ensure within the configuration.
+	Instance(addrs.InstanceKey) (providers.Configured, error)
+	// Call close for all provider instances within this GraphNodeProvider
+	Close(ctx context.Context) error
+	// For test framework
+	MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource)
 }
 
 // GraphNodeCloseProvider is an interface that nodes that can be a close
@@ -77,6 +89,15 @@ type ResolvedProvider struct {
 	KeyModule      addrs.Module
 	KeyResource    bool
 	KeyExact       addrs.InstanceKey
+
+	// Instance gets the provider instance (already initialized)
+	// or returns nil and an error if the provider isn't initialized.
+	Instance func(addrs.InstanceKey) (providers.Configured, error)
+
+	// Test overrides
+	IsMocked          bool
+	MockResources     []*configs.MockResource
+	OverrideResources []*configs.OverrideResource
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -169,14 +190,19 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(ResolvedProvider{
+
+			resolved := ResolvedProvider{
 				ProviderConfig: target.ProviderAddr(),
+				Instance:       target.Instance,
 				// Pass through key data
 				KeyExpression: req.KeyExpression,
 				KeyModule:     req.KeyModule,
 				KeyResource:   req.KeyResource,
 				KeyExact:      req.KeyExact,
-			})
+			}
+			resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = target.MocksAndOverrides()
+			pv.SetProvider(resolved)
+
 			g.Connect(dag.BasicEdge(v, target))
 		case addrs.LocalProviderConfig:
 			// We assume that the value returned from Provider() has already been
@@ -243,6 +269,10 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 				}
 			}
 			resolved.ProviderConfig = target.ProviderAddr()
+			resolved.Instance = target.Instance
+
+			// Include test mocking and override extensions
+			resolved.IsMocked, resolved.MockResources, resolved.OverrideResources = target.MocksAndOverrides()
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(resolved)
@@ -268,6 +298,10 @@ type FunctionProvidedBy struct {
 	Provider      addrs.AbsProviderConfig
 	KeyModule     addrs.Module
 	KeyExpression hcl.Expression
+
+	// Instance gets the provider instance (already initialized)
+	// or returns nil and an error if the provider isn't initialized.
+	Instance func(addrs.InstanceKey) (providers.Configured, error)
 }
 
 // ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
@@ -310,7 +344,7 @@ func (t *ProviderUnconfiguredTransformer) Transform(_ context.Context, g *Graph)
 		pAddr := applyableProvider.ProviderAddr()
 		log.Printf("[TRACE] ProviderFunctionTransformer: replacing NodeApplyableProvider with NodeEvalableProvider for %s since it's missing configuration and there are no consumers of it", pAddr)
 		unconfiguredProvider := &NodeEvalableProvider{
-			&NodeAbstractProvider{
+			NodeAbstractProvider: &NodeAbstractProvider{
 				Addr: pAddr,
 			},
 		}
@@ -419,7 +453,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
 
 							provider = &NodeEvalableProvider{
-								&NodeAbstractProvider{
+								NodeAbstractProvider: &NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
@@ -444,6 +478,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					providerReferences[key] = provider
 					t.ProviderFunctionTracker[key] = FunctionProvidedBy{
 						Provider:      provider.ProviderAddr(),
+						Instance:      provider.Instance,
 						KeyModule:     targetPath,
 						KeyExpression: targetExpr,
 					}
@@ -474,7 +509,7 @@ func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error 
 
 		if closer == nil {
 			// create a closer for this provider type
-			closer = &graphNodeCloseProvider{Addr: p.ProviderAddr()}
+			closer = &graphNodeCloseProvider{Provider: p}
 			g.Add(closer)
 			cpm[key] = closer
 		}
@@ -528,7 +563,7 @@ func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) erro
 	// Initialize factory
 	if t.Concrete == nil {
 		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
-			return a
+			return &NodeEvalableProvider{NodeAbstractProvider: a}
 		}
 	}
 
@@ -615,7 +650,7 @@ func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
 }
 
 type graphNodeCloseProvider struct {
-	Addr addrs.AbsProviderConfig
+	Provider GraphNodeProvider
 }
 
 var (
@@ -624,21 +659,21 @@ var (
 )
 
 func (n *graphNodeCloseProvider) Name() string {
-	return n.Addr.String() + " (close)"
+	return n.Provider.ProviderAddr().String() + " (close)"
 }
 
 // GraphNodeModulePath
 func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
-	return n.Addr.Module
+	return n.Provider.ProviderAddr().Module
 }
 
 // GraphNodeExecutable impl.
 func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
+	return diags.Append(n.Provider.Close(ctx))
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
-	return n.Addr
+	return n.Provider.ProviderAddr()
 }
 
 // GraphNodeDotter impl.
@@ -691,6 +726,19 @@ func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
 	default:
 		return n.target
 	}
+}
+
+func (n *graphNodeProxyProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
+	return n.Target().MocksAndOverrides()
+}
+
+func (n *graphNodeProxyProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
+	return n.Target().Instance(key)
+}
+
+func (n *graphNodeProxyProvider) Close(ctx context.Context) error {
+	// NOP, close handled by the proxied instance
+	return nil
 }
 
 // Find the *single* keyExpression that is used in the provider
@@ -850,7 +898,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 		if t.Concrete != nil {
 			v = t.Concrete(abstract)
 		} else {
-			v = abstract
+			v = &NodeEvalableProvider{NodeAbstractProvider: abstract}
 		}
 
 		// Add it to the graph

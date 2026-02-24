@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestProviders(t *testing.T) {
@@ -18,7 +19,8 @@ func TestProviders(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -47,7 +49,8 @@ func TestProviders_noConfigs(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -70,30 +73,34 @@ func TestProviders_modules(t *testing.T) {
 	t.Chdir(td)
 
 	// first run init with mock provider sources to install the module
-	initUi := new(cli.MockUi)
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		"foo": {"1.0.0"},
 		"bar": {"2.0.0"},
 		"baz": {"1.2.2"},
 	})
 	defer close()
-	m := Meta{
+	view, done := testView(t)
+	initMeta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(testProvider()),
-		Ui:               initUi,
+		View:             view,
 		ProviderSource:   providerSource,
 	}
 	ic := &InitCommand{
-		Meta: m,
+		Meta: initMeta,
 	}
-	if code := ic.Run([]string{}); code != 0 {
-		t.Fatalf("init failed\n%s", initUi.ErrorWriter)
+	code := ic.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("init failed\n%s", output.Stderr())
 	}
 
 	// Providers command
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -105,14 +112,14 @@ func TestProviders_modules(t *testing.T) {
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
 		"provider[registry.opentofu.org/hashicorp/bar] 2.0.0", // from provider config
-		"── module.kiddo",                               // tree node for child module
+		"── module.kiddo", // tree node for child module
 		"provider[registry.opentofu.org/hashicorp/baz]", // implied by a resource in the child module
 	}
 
-	output := ui.OutputWriter.String()
+	stdout := ui.OutputWriter.String()
 	for _, want := range wantOutput {
-		if !strings.Contains(output, want) {
-			t.Errorf("output missing %s:\n%s", want, output)
+		if !strings.Contains(stdout, want) {
+			t.Errorf("output missing %s:\n%s", want, stdout)
 		}
 	}
 }
@@ -123,7 +130,8 @@ func TestProviders_state(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 
@@ -153,7 +161,8 @@ func TestProviders_tests(t *testing.T) {
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			WorkingDir: workdir.NewDir("."),
+			Ui:         ui,
 		},
 	}
 

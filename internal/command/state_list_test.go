@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
 func TestStateList(t *testing.T) {
@@ -20,6 +21,7 @@ func TestStateList(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -48,6 +50,7 @@ func TestStateListWithID(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -77,6 +80,7 @@ func TestStateListWithNonExistentID(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -109,6 +113,7 @@ func TestStateList_backendDefaultState(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -137,6 +142,7 @@ func TestStateList_backendCustomState(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -165,6 +171,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -191,6 +198,7 @@ func TestStateList_noState(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},
@@ -212,6 +220,7 @@ func TestStateList_modules(t *testing.T) {
 	ui := cli.NewMockUi()
 	c := &StateListCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 		},

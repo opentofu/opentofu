@@ -187,6 +187,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		TransientPathValueMarks: allAttrPaths,
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     os.CreateBeforeDestroy,
+		SkipDestroy:             os.SkipDestroy,
 	}
 }
 
@@ -223,6 +224,7 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 		Private:             private,
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: o.CreateBeforeDestroy,
+		SkipDestroy:         o.SkipDestroy,
 	}
 }
 

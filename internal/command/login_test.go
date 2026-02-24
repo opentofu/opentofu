@@ -12,7 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
+	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/svchost"
 	"github.com/opentofu/svchost/disco"
 
@@ -36,7 +37,7 @@ func TestLogin(t *testing.T) {
 	ts := httptest.NewServer(tfeserver.Handler)
 	defer ts.Close()
 
-	loginTestCase := func(test func(t *testing.T, c *LoginCommand, ui *cli.MockUi), useBrowserLauncher bool) func(t *testing.T) {
+	loginTestCase := func(test func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput), useBrowserLauncher bool) func(t *testing.T) {
 		return func(t *testing.T) {
 			t.Helper()
 			workDir := t.TempDir()
@@ -46,9 +47,7 @@ func TestLogin(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			// Do not use the NewMockUi initializer here, as we want to delay
-			// the call to init until after setting up the input mocks
-			ui := new(cli.MockUi)
+			loginView, loginDone := testView(t)
 
 			var browserLauncher webbrowser.Launcher = nil
 			if useBrowserLauncher {
@@ -81,7 +80,7 @@ func TestLogin(t *testing.T) {
 					"scopes": []interface{}{"app1.full_access", "app2.read_only"},
 				},
 			})
-			svcs.ForceHostServices(svchost.Hostname(tfeHost), map[string]interface{}{
+			svcs.ForceHostServices(svchost.Hostname(hcpTerraformHost), map[string]interface{}{
 				// This represents Terraform Cloud, which does not yet support the
 				// login API, but does support its own bespoke tokens API.
 				"tfe.v2":   ts.URL + "/api/v2",
@@ -102,60 +101,78 @@ func TestLogin(t *testing.T) {
 
 			c := &LoginCommand{
 				Meta: Meta{
-					Ui:              ui,
+					WorkingDir:      workdir.NewDir("."),
+					View:            loginView,
 					BrowserLauncher: browserLauncher,
 					Services:        svcs,
 				},
 			}
 
-			test(t, c, ui)
+			test(t, c, loginDone)
 		}
 	}
 
-	t.Run("no hostname provided", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("no hostname provided", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		status := c.Run([]string{})
+		loginOutput := closeView(t)
 		if status == 0 {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := ui.ErrorWriter.String(), "The login command expects exactly one argument"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stderr(), "The login command expects exactly one argument"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run(tfeHost+" (no login support)", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run(hcpTerraformHost+" (special-cased login support)", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "  good-token ",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{"-no-color", hcpTerraformHost})
+		loginOutput := closeView(t)
 		if status != 0 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(tfeHost))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(hcpTerraformHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
-		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
+		// NOTE: The "␀" control picture at the end of this is intentional,
+		// verifying that we correctly filtered the U+0000 character that's
+		// included in the test server's motd.v1 response. This is verifying
+		// that we disallow the remote server from directly including C0
+		// control characters in its output, because implementations are
+		// expected to implemented limited formatting using the colorstring
+		// library's syntax like "[bold]" and "[reset]". The input string
+		// also includes such sequences, and so those being no longer present
+		// in the output here confirms that the login command did use the
+		// colorstring library to prepare the string (which filters out the
+		// color codes entirely when running in no-color mode, as we are here).
+		if got, want := loginOutput.Stdout(), "Welcome to the cloud backend!␀"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
+		}
+		if !c.Meta.stateLock {
+			t.Errorf("stateLock always expected to be true for the login command")
 		}
 	}, true))
 
-	t.Run("example.com with authorization code flow", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("example.com with authorization code flow", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 		})()
 		status := c.Run([]string{"example.com"})
+		loginOutput := closeView(t)
 		if status != 0 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
@@ -167,12 +184,12 @@ func TestLogin(t *testing.T) {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
-		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stdout(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 
 		host, _ := c.Services.Discover(t.Context(), "example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
@@ -181,14 +198,15 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("with-scopes.example.com with authorization code flow and scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("with-scopes.example.com with authorization code flow and scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 		})()
 		status := c.Run([]string{"with-scopes.example.com"})
+		loginOutput := closeView(t)
 		if status != 0 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
@@ -202,12 +220,12 @@ func TestLogin(t *testing.T) {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
-		if got, want := ui.OutputWriter.String(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stdout(), "OpenTofu has obtained and saved an API token."; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 
 		host, _ := c.Services.Discover(t.Context(), "with-scopes.example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
@@ -222,7 +240,7 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("TFE host without login support", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("TFE host without login support", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste a token with some
 		// accidental whitespace.
 		defer testInputMap(t, map[string]string{
@@ -230,8 +248,9 @@ func TestLogin(t *testing.T) {
 			"token":   "  good-token ",
 		})()
 		status := c.Run([]string{"tfe.acme.com"})
+		loginOutput := closeView(t)
 		if status != 0 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
@@ -243,20 +262,21 @@ func TestLogin(t *testing.T) {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
-		if got, want := ui.OutputWriter.String(), "Logged in to the cloud backend"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stdout(), "Logged in to the cloud backend"; !strings.Contains(got, want) {
 			t.Errorf("expected output to contain %q, but was:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run("TFE host without login support, incorrectly pasted token", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("TFE host without login support, incorrectly pasted token", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt, then paste an invalid token.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
 			"token":   "good-tok",
 		})()
 		status := c.Run([]string{"tfe.acme.com"})
+		loginOutput := closeView(t)
 		if status != 1 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
 		credsSrc := c.Services.CredentialsSource()
@@ -269,43 +289,46 @@ func TestLogin(t *testing.T) {
 		}
 	}, true))
 
-	t.Run("host without login or TFE API support", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
-		status := c.Run([]string{"unsupported.example.net"})
+	t.Run("host without login or TFE API support", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
+		status := c.Run([]string{"-no-color", "unsupported.example.net"})
+		loginOutput := closeView(t)
 		if status == 0 {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Error: Host does not support OpenTofu tokens API"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stderr(), "Error: Host does not support OpenTofu tokens API"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run("answering no cancels", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("answering no cancels", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "no" at the consent prompt
 		defer testInputMap(t, map[string]string{
 			"approve": "no",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
+		loginOutput := closeView(t)
 		if status != 1 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Login cancelled"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stderr(), "Login cancelled"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, true))
 
-	t.Run("answering y cancels", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("answering y cancels", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "y" at the consent prompt
 		defer testInputMap(t, map[string]string{
 			"approve": "y",
 		})()
-		status := c.Run([]string{tfeHost})
+		status := c.Run([]string{hcpTerraformHost})
+		loginOutput := closeView(t)
 		if status != 1 {
-			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Login cancelled"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stderr(), "Login cancelled"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, true))
@@ -314,7 +337,7 @@ func TestLogin(t *testing.T) {
 	// and wait for the callback with code.
 	// There is no timeout in `tofu login` OAuth2 callback server code, so the only way to interrupt it
 	// is to write to the shutdown channel (or complete the login process).
-	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
+	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, c *LoginCommand, closeView func(*testing.T) *terminal.TestOutput) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{
 			"approve": "yes",
@@ -326,6 +349,7 @@ func TestLogin(t *testing.T) {
 
 		// statusCh will receive command Run result
 		statusCh := make(chan int)
+		defer close(statusCh)
 		go func() {
 			statusCh <- c.Run([]string{"example.com"})
 		}()
@@ -335,11 +359,12 @@ func TestLogin(t *testing.T) {
 		// and OAuth2 callback server will never get request with 'code'.
 		abortCh <- struct{}{}
 		status := <-statusCh
+		loginOutput := closeView(t)
 		if status != 1 {
-			t.Fatalf("unexpected error code %d after interrupting the command\nstderr:\n%s", status, ui.ErrorWriter.String())
+			t.Fatalf("unexpected error code %d after interrupting the command\nstderr:\n%s", status, loginOutput.Stderr())
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Action aborted"; !strings.Contains(got, want) {
+		if got, want := loginOutput.Stderr(), "Action aborted"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	}, false))

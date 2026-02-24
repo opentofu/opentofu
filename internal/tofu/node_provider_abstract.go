@@ -18,7 +18,10 @@ import (
 type ConcreteProviderNodeFunc func(*NodeAbstractProvider) dag.Vertex
 
 // NodeAbstractProvider represents a provider that has no associated operations.
-// It registers all the common interfaces across operations for providers.
+// It registers all the common interfaces across operations for providers, except
+// for GraphNodeProvider as that depends on additional implementation details.
+// It does however implement what methods it can from GraphNodeProvider to reduce
+// duplication between concrete implementations.
 type NodeAbstractProvider struct {
 	Addr addrs.AbsProviderConfig
 
@@ -33,7 +36,6 @@ type NodeAbstractProvider struct {
 var (
 	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
-	_ GraphNodeProvider                   = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
 	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)
@@ -64,12 +66,12 @@ func (n *NodeAbstractProvider) References() []*addrs.Reference {
 	return ReferencesFromConfig(n.Config.Config, n.Schema)
 }
 
-// GraphNodeProvider
+// GraphNodeProvider (Partial Implementation)
 func (n *NodeAbstractProvider) ProviderAddr() addrs.AbsProviderConfig {
 	return n.Addr
 }
 
-// GraphNodeProvider
+// GraphNodeProvider (Partial Implementation)
 func (n *NodeAbstractProvider) ProviderConfig() *configs.Provider {
 	if n.Config == nil {
 		return nil
@@ -86,6 +88,14 @@ func (n *NodeAbstractProvider) AttachProvider(c *configs.Provider) {
 // GraphNodeAttachProviderConfigSchema impl.
 func (n *NodeAbstractProvider) AttachProviderConfigSchema(schema *configschema.Block) {
 	n.Schema = schema
+}
+
+// GraphNodeProvider (Partial Implementation)
+func (n *NodeAbstractProvider) MocksAndOverrides() (IsMocked bool, MockResources []*configs.MockResource, OverrideResources []*configs.OverrideResource) {
+	if n.Config == nil {
+		return false, nil, nil
+	}
+	return n.Config.IsMocked, n.Config.MockResources, n.Config.OverrideResources
 }
 
 // GraphNodeDotter impl.

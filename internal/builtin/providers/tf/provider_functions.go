@@ -46,7 +46,7 @@ func (f *decodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	}
 }
 
-var FailedToDecodeError = errors.New("failed to decode tfvars content")
+var errFailedToDecode = errors.New("failed to decode tfvars content")
 
 func wrapDiagErrors(m error, diag hcl.Diagnostics) error {
 	//Prepend the main error
@@ -58,19 +58,19 @@ func (f *decodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	varsFileContent := args[0].AsString()
 	schema, diag := hclsyntax.ParseConfig([]byte(varsFileContent), "", hcl.Pos{Line: 0, Column: 0})
 	if schema == nil || diag.HasErrors() {
-		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
+		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(errFailedToDecode, diag)
 	}
 	attrs, diag := schema.Body.JustAttributes()
 	// Check if there are any errors.
 	// attrs == nil does not mean that there are no attributes, attrs - is still initialized as an empty map
 	if attrs == nil || diag.HasErrors() {
-		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
+		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(errFailedToDecode, diag)
 	}
 	vals := make(map[string]cty.Value)
 	for name, attr := range attrs {
 		val, diag := attr.Expr.Value(nil)
 		if diag.HasErrors() {
-			return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
+			return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(errFailedToDecode, diag)
 		}
 		vals[name] = val
 	}
@@ -103,16 +103,16 @@ func (f *encodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	}
 }
 
-var InvalidInputError = errors.New("invalid input")
+var errInvalidInput = errors.New("invalid input")
 
 func (f *encodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	toEncode := args[0]
 	// null is invalid input
 	if toEncode.IsNull() {
-		return cty.NullVal(cty.String), fmt.Errorf("%w: must not be null", InvalidInputError)
+		return cty.NullVal(cty.String), fmt.Errorf("%w: must not be null", errInvalidInput)
 	}
 	if !toEncode.Type().IsObjectType() {
-		return cty.NullVal(cty.String), fmt.Errorf("%w: must be an object", InvalidInputError)
+		return cty.NullVal(cty.String), fmt.Errorf("%w: must be an object", errInvalidInput)
 	}
 	ef := hclwrite.NewEmptyFile()
 	body := ef.Body()
@@ -123,11 +123,11 @@ func (f *encodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 		key, val := it.Element()
 		// Check if the key is a string, known and not null, otherwise AsString method panics
 		if !key.Type().Equals(cty.String) || !key.IsKnown() || key.IsNull() {
-			return cty.NullVal(cty.String), fmt.Errorf("%w: object key must be a string: %v", InvalidInputError, key)
+			return cty.NullVal(cty.String), fmt.Errorf("%w: object key must be a string: %v", errInvalidInput, key)
 		}
 		name := key.AsString()
 		if valid := hclsyntax.ValidIdentifier(name); !valid {
-			return cty.NullVal(cty.String), fmt.Errorf("%w: object key: %s - must be a valid identifier", InvalidInputError, name)
+			return cty.NullVal(cty.String), fmt.Errorf("%w: object key: %s - must be a valid identifier", errInvalidInput, name)
 		}
 		body.SetAttributeValue(key.AsString(), val)
 	}
@@ -160,13 +160,13 @@ func (f *encodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
 	}
 }
 
-var UnknownInputError = errors.New("input is not wholly known")
+var errUnknownInput = errors.New("input is not wholly known")
 
 func (f *encodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
 	toEncode := args[0]
 	nf := hclwrite.NewEmptyFile()
 	if !toEncode.IsWhollyKnown() {
-		return cty.NullVal(cty.String), UnknownInputError
+		return cty.NullVal(cty.String), errUnknownInput
 	}
 	tokens := hclwrite.TokensForValue(toEncode)
 	body := nf.Body()

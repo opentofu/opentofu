@@ -37,12 +37,14 @@ func TestConfig_asAWSBase(t *testing.T) {
 				region = "magic-mountain"`,
 			expected: awsbase.Config{
 				Region:                 "magic-mountain",
-				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
+				CallerDocumentationURL: "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 				CallerName:             "KMS Key Provider",
 				MaxRetries:             5,
-				UserAgent: awsbase.UserAgentProducts{
-					{Name: "APN", Version: "1.0"},
-					{Name: httpclient.DefaultApplicationName, Version: version.String()},
+				APNInfo: &awsbase.APNInfo{
+					PartnerName: "OpenTofu-AWS-KMS",
+					Products: []awsbase.UserAgentProduct{
+						{Name: httpclient.DefaultApplicationName, Version: version.String()},
+					},
 				},
 			},
 		},
@@ -103,13 +105,14 @@ func TestConfig_asAWSBase(t *testing.T) {
 				retry_mode = "adaptive"
 				`,
 			expected: awsbase.Config{
-				CallerDocumentationURL: "https://opentofu.org/docs/language/settings/backends/s3",
+				CallerDocumentationURL: "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 				CallerName:             "KMS Key Provider",
-				UserAgent: awsbase.UserAgentProducts{
-					{Name: "APN", Version: "1.0"},
-					{Name: httpclient.DefaultApplicationName, Version: version.String()},
+				APNInfo: &awsbase.APNInfo{
+					PartnerName: "OpenTofu-AWS-KMS",
+					Products: []awsbase.UserAgentProduct{
+						{Name: httpclient.DefaultApplicationName, Version: version.String()},
+					},
 				},
-
 				AccessKey:                      "my-access-key",
 				IamEndpoint:                    "https://endpoint-iam",
 				MaxRetries:                     42,

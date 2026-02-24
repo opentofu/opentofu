@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // traceNameValidateResource is a standardized trace span name we use for the
@@ -206,6 +207,11 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 
 		if c.Managed != nil {
+			if c.Managed.PreventDestroy != nil {
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
+				result = append(result, refs...)
+			}
+
 			if c.Managed.Connection != nil {
 				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, shared.ConnectionBlockSupersetSchema)
 				result = append(result, refs...)
@@ -243,6 +249,28 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		}
 	}
 
+	return result
+}
+
+// DestroyReferences is a _partial_ implementation of [GraphNodeDestroyer]
+// providing a default implementation for any embedding node type that has
+// its own implementations of all of the other methods of that interface.
+func (n *NodeAbstractResource) DestroyReferences() []*addrs.Reference {
+	// Config is always optional at destroy time, but if it's present then
+	// it might influence how we plan and apply the destroy actions.
+	var result []*addrs.Reference
+	if c := n.Config; c != nil {
+		if c.Managed != nil {
+			// The prevent_destroy setting, if present, forces planning to fail
+			// if the planned action for any instance of the resource is to
+			// destroy it, so we need to be able to evaluate the given expression
+			// for destroy nodes too.
+			if c.Managed.PreventDestroy != nil {
+				refs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.Managed.PreventDestroy)
+				result = append(result, refs...)
+			}
+		}
+	}
 	return result
 }
 
@@ -556,7 +584,7 @@ func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) 
 // the state.
 func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -611,7 +639,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Con
 // instance in the state.
 func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -668,6 +696,49 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx cont
 	}
 
 	return obj, diags
+}
+
+// checkSkipDestroy checks if the resource should be forgotten instead of destroyed
+func (n *NodeAbstractResource) shouldSkipDestroy() (bool, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	if n.Config == nil || n.Config.Managed == nil {
+		return false, diags
+	}
+
+	skipDestroy, skipDestroyDiags := skipDestroyValueFromConstantExpression(n.Config.Managed.Destroy)
+	diags = diags.Append(skipDestroyDiags)
+	if diags.HasErrors() {
+		return false, diags
+	}
+
+	return skipDestroy, diags
+}
+
+// skipDestroyValueFromConstantExpression evaluates (lifecycle.)destroy expression coming from the config and returns !destroy (Corresponding to SkipDestroy)
+// As of now, this can only be a constant expression of a boolean type. We will likely extend this in the future to make dynamic values possible
+func skipDestroyValueFromConstantExpression(destroyExpr hcl.Expression) (bool, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	// If destroyExpr is nil, we do not need to set SkipDestroy, as its zero value is false, which results in the desired default behavior (of not skipping destruction)
+	if destroyExpr == nil {
+		return false, diags
+	}
+
+	destroyVal, valDiags := destroyExpr.Value(nil)
+	if diags.HasErrors() {
+		return false, valDiags
+	}
+
+	if destroyVal.Type() != cty.Bool {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid lifecycle destroy expression",
+			Detail:   "The lifecycle destroy expression must be a boolean constant.",
+			Subject:  destroyExpr.Range().Ptr(),
+		})
+		return false, diags
+	}
+
+	return destroyVal.False(), diags
 }
 
 // graphNodesAreResourceInstancesInDifferentInstancesOfSameModule is an

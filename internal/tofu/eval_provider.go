@@ -20,7 +20,6 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -136,23 +135,4 @@ func resolveProviderInstance(ctx context.Context, keyExpr hcl.Expression, keySco
 		})
 	}
 	return parsedKey, diags
-}
-
-// getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
-	if addr.Provider.Type == "" {
-		// Should never happen
-		panic("GetProvider used with uninitialized provider configuration address")
-	}
-	provider := evalCtx.Provider(ctx, addr, providerKey)
-	if provider == nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
-	}
-	// Not all callers require a schema, so we will leave checking for a nil
-	// schema to the callers.
-	schema, err := evalCtx.ProviderSchema(ctx, addr)
-	if err != nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", addr, err)
-	}
-	return provider, schema, nil
 }

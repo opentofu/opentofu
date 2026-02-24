@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -77,8 +78,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -113,8 +115,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -149,8 +152,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -184,8 +188,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -213,8 +218,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -239,8 +245,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -261,8 +268,9 @@ func TestStateReplaceProvider(t *testing.T) {
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
-					Ui:   ui,
-					View: view,
+					WorkingDir: workdir.NewDir("."),
+					Ui:         ui,
+					View:       view,
 				},
 			},
 		}
@@ -366,8 +374,9 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 	c := &StateReplaceProviderCommand{
 		StateMeta{
 			Meta: Meta{
-				Ui:   ui,
-				View: view,
+				WorkingDir: workdir.NewDir("."),
+				Ui:         ui,
+				View:       view,
 			},
 		},
 	}

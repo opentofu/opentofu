@@ -6,6 +6,7 @@
 package unencrypted
 
 import (
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
@@ -19,8 +20,8 @@ type descriptor struct{}
 func (f *descriptor) ID() method.ID {
 	return "unencrypted"
 }
-func (f *descriptor) ConfigStruct() method.Config {
-	return new(methodConfig)
+func (f *descriptor) DecodeConfig(_ method.EvalContext, _ hcl.Body) (method.Config, hcl.Diagnostics) {
+	return new(methodConfig), nil
 }
 
 type methodConfig struct{}

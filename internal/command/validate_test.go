@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
 	testing_command "github.com/opentofu/opentofu/internal/command/testing"
@@ -54,6 +55,7 @@ func setupTest(t *testing.T, fixturepath string, args ...string) (*terminal.Test
 	}
 	c := &ValidateCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
 			View:             view,
 		},
@@ -82,6 +84,7 @@ func TestValidateCommandWithTfvarsFile(t *testing.T) {
 	view, done := testView(t)
 	c := &ValidateCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			View:             view,
 		},
@@ -187,6 +190,13 @@ func TestUndefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
 	}
 }
 
+func TestDefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
+	output, code := setupTest(t, "validate-valid/import_defined_resource")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
+
 func TestDefinedVarAsImportIDShouldSucceed(t *testing.T) {
 	output, code := setupTest(t, "validate-valid/import_id_defined_var")
 	if code != 0 {
@@ -256,6 +266,7 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 	provider := testing_command.NewProvider(nil)
 	c := &ValidateCommand{
 		Meta: Meta{
+			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(provider.Provider),
 			View:             view,
 		},
@@ -300,6 +311,7 @@ func TestValidateWithInvalidTestModule(t *testing.T) {
 	defer close()
 
 	meta := Meta{
+		WorkingDir:       workdir.NewDir("."),
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,

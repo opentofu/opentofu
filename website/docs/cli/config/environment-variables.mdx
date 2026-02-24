@@ -165,7 +165,9 @@ For more details on `.terraformignore`, please see [Excluding Files from Upload 
 Set `TF_PROVIDER_DOWNLOAD_RETRY` to configure the max number of request retries
 the remote provider client will attempt for client connection errors or
 500-range responses that are safe to retry.
-
+:::info
+This will be used only for the methods without the argument `download_retry_count` specified in [OpenTofu CLI configuration file](./config-file.mdx#explicit-installation-method-configuration).
+:::
 ```shell
 export TF_PROVIDER_DOWNLOAD_RETRY=3
 ```

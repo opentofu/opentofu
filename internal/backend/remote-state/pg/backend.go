@@ -9,13 +9,19 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 	"os"
 	"strconv"
+
+	"github.com/lib/pq"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+)
+
+const (
+	sequenceName = "global_states_id_seq"
+	publicSchema = "public"
 )
 
 func defaultBoolFunc(k string, dv bool) schema.SchemaDefaultFunc {
@@ -143,16 +149,18 @@ func (b *Backend) configure(ctx context.Context) error {
 	}
 
 	if !skipTableCreation {
-		query = "CREATE SEQUENCE IF NOT EXISTS public.global_states_id_seq AS bigint"
+		query = fmt.Sprintf("CREATE SEQUENCE IF NOT EXISTS %s.%s AS bigint", publicSchema, sequenceName)
 		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 
+		// The `public` schema is required for the sequence because the pg_advisory_lock is a global locking
+		// relying on the uniqueness of the ids of the states across the db instance.
 		query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
-			id bigint NOT NULL DEFAULT nextval('public.global_states_id_seq') PRIMARY KEY,
+			id bigint NOT NULL DEFAULT nextval('%s.%s') PRIMARY KEY,
 			name text UNIQUE,
 			data text
-			)`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+			)`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName), publicSchema, sequenceName)
 
 		if _, err = db.Exec(query); err != nil {
 			return err

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //go:build windows
-// +build windows
 
 package terminal
 
@@ -143,7 +142,7 @@ const CP_UTF8 = 65001
 // interface.)
 
 func SetConsoleCP(codepageID uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procSetConsoleCP.Addr(), 1, uintptr(codepageID), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procSetConsoleCP.Addr(), uintptr(codepageID), 0, 0)
 	if r1 == 0 {
 		err = e1
 	}
@@ -151,7 +150,7 @@ func SetConsoleCP(codepageID uint32) (err error) {
 }
 
 func SetConsoleOutputCP(codepageID uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procSetConsoleOutputCP.Addr(), 1, uintptr(codepageID), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procSetConsoleOutputCP.Addr(), uintptr(codepageID), 0, 0)
 	if r1 == 0 {
 		err = e1
 	}
@@ -160,8 +159,4 @@ func SetConsoleOutputCP(codepageID uint32) (err error) {
 
 func staticTrue(f *os.File) bool {
 	return true
-}
-
-func staticFalse(f *os.File) bool {
-	return false
 }

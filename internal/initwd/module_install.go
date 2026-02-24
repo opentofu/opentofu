@@ -20,8 +20,6 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -29,7 +27,6 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/opentofu/opentofu/internal/registry"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
@@ -242,10 +239,11 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			ctx, span := tracing.Tracer().Start(ctx,
 				fmt.Sprintf("Install Module %q", req.Name),
-				trace.WithAttributes(
-					otelAttr.String(traceattrs.ModuleCallName, req.Name),
-					otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String()),
-				))
+				tracing.SpanAttributes(
+					traceattrs.OpenTofuModuleCallName(req.Name),
+					traceattrs.OpenTofuModuleSource(req.SourceAddr.String()),
+				),
+			)
 			defer span.End()
 
 			log.Printf("[DEBUG] Module installer: begin %s", key)
@@ -343,7 +341,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			case addrs.ModuleSourceLocal:
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "local"))
+				span.SetAttributes(traceattrs.String("opentofu.module.source_type", "local"))
 				mod, mDiags := i.installLocalModule(ctx, req, key, manifest, hooks)
 				mDiags = maybeImproveLocalInstallError(req, mDiags)
 				diags = append(diags, mDiags...)
@@ -351,7 +349,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			case addrs.ModuleSourceRegistry:
 				log.Printf("[TRACE] ModuleInstaller: %s is a registry module at %s", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "registry"))
+				span.SetAttributes(traceattrs.String("opentofu.module.source_type", "registry"))
 				mod, v, mDiags := i.installRegistryModule(ctx, req, key, instPath, addr, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, v, diags
@@ -426,9 +424,9 @@ func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod 
 func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	_, span := tracing.Tracer().Start(ctx, "Install Local Module",
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
+	_, span := tracing.Tracer().Start(ctx, "Install Local Module", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(req.Name),
+		traceattrs.OpenTofuModuleSource(req.SourceAddr.String())),
 	)
 	defer span.End()
 
@@ -508,11 +506,11 @@ var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module",
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, req.VersionConstraint.Required.String())),
-	)
+	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module", tracing.SpanAttributes(
+		traceattrs.OpenTofuModuleCallName(req.Name),
+		traceattrs.OpenTofuModuleSource(req.SourceAddr.String()),
+		traceattrs.OpenTofuModuleVersion(req.VersionConstraint.Required.String()),
+	))
 	defer span.End()
 
 	if i.reg == nil || fetcher == nil {
@@ -539,17 +537,13 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// directory.
 	packageAddr := addr.Package
 
-	// Our registry client is still using the legacy model of addresses, so
-	// we'll shim it here for now.
-	regsrcAddr := regsrc.ModuleFromRegistryPackageAddr(packageAddr)
-
 	// check if we've already looked up this module from the registry
 	if resp, exists = i.registryPackageVersions[packageAddr]; exists {
 		log.Printf("[TRACE] %s using already found available versions of %s at %s", key, addr, hostname)
 	} else {
 		var err error
 		log.Printf("[DEBUG] %s listing available versions of %s at %s", key, addr, hostname)
-		resp, err = reg.ModuleVersions(ctx, regsrcAddr)
+		resp, err = reg.ModulePackageVersions(ctx, packageAddr)
 		if err != nil {
 			if registry.IsModuleNotFound(err) {
 				suggestion := ""
@@ -752,7 +746,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	// first check the cache for the download URL
 	moduleAddr := moduleVersion{module: packageAddr, version: latestMatch.String()}
 	if _, exists := i.registryPackageSources[moduleAddr]; !exists {
-		realAddrRaw, err := reg.ModuleLocation(ctx, regsrcAddr, latestMatch.String())
+		realAddrRaw, err := reg.ModulePackageLocation(ctx, packageAddr, latestMatch.String())
 		if err != nil {
 			log.Printf("[ERROR] %s from %s %s: %s", key, addr, latestMatch, err)
 			diags = diags.Append(&hcl.Diagnostic{
@@ -774,7 +768,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			return nil, nil, diags
 		}
 
-		span.SetAttributes(otelAttr.String(traceattrs.ModuleSource, realAddr.String()))
+		span.SetAttributes(traceattrs.OpenTofuModuleSource(realAddr.String()))
 
 		switch realAddr := realAddr.(type) {
 		// Only a remote source address is allowed here: a registry isn't

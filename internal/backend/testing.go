@@ -379,7 +379,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	t.Helper()
 
 	// Get the default state for each
-	b1StateMgr, err := b1.StateMgr(t.Context(), DefaultStateName)
+	b1StateMgr, err := b1.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -395,7 +395,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 
 	t.Logf("TestBackend: testing state locking for %T", b1)
 
-	b2StateMgr, err := b2.StateMgr(t.Context(), DefaultStateName)
+	b2StateMgr, err := b2.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -423,7 +423,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	// Make sure we can still get the statemgr.Full from another instance even
 	// when locked.  This should only happen when a state is loaded via the
 	// backend, and as a remote state.
-	_, err = b2.StateMgr(t.Context(), DefaultStateName)
+	_, err = b2.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Errorf("failed to read locked state from another backend instance: %s", err)
 	}

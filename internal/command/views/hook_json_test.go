@@ -24,7 +24,7 @@ import (
 // Test a sequence of hooks associated with creating a resource
 func TestJSONHook_create(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	hook := newJSONHook(NewJSONView(NewView(streams)))
+	hook := newJSONHook(NewJSONView(NewView(streams), nil))
 
 	var nowMu sync.Mutex
 	now := time.Now()
@@ -195,7 +195,7 @@ func TestJSONHook_create(t *testing.T) {
 
 func TestJSONHook_errors(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	hook := newJSONHook(NewJSONView(NewView(streams)))
+	hook := newJSONHook(NewJSONView(NewView(streams), nil))
 
 	addr := addrs.Resource{
 		Mode: addrs.ManagedResourceMode,
@@ -282,7 +282,7 @@ func TestJSONHook_errors(t *testing.T) {
 
 func TestJSONHook_refresh(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
-	hook := newJSONHook(NewJSONView(NewView(streams)))
+	hook := newJSONHook(NewJSONView(NewView(streams), nil))
 
 	addr := addrs.Resource{
 		Mode: addrs.DataResourceMode,
@@ -497,7 +497,7 @@ func TestJSONHook_ephemeral(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
-			h := newJSONHook(NewJSONView(NewView(streams)))
+			h := newJSONHook(NewJSONView(NewView(streams), nil))
 
 			action, err := tt.preF(h)
 			if err != nil {

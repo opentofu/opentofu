@@ -73,6 +73,23 @@ func (c *Changes) Empty() bool {
 	return true
 }
 
+// ActionableResources returns all the [Changes.Resources] that are changes that would actually
+// update the resources.
+// This method's main purpose is to exclude from [Changes.Resources] the changes that are
+// in the plan strictly for building the graph and are not going to change the resource state.
+// In case of [Open] actions, these are needed to build the required ephemeral nodes
+// in [DiffTransformer].
+func (c *Changes) ActionableResources() []*ResourceInstanceChangeSrc {
+	var ret []*ResourceInstanceChangeSrc
+	for _, r := range c.Resources {
+		if r.Action == Open {
+			continue
+		}
+		ret = append(ret, r)
+	}
+	return ret
+}
+
 // ResourceInstance returns the planned change for the current object of the
 // resource instance of the given address, if any. Returns nil if no change is
 // planned.
@@ -364,7 +381,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 					GeneratedConfig: rc.GeneratedConfig,
 				},
 			}
-		case CreateThenDelete, DeleteThenCreate:
+		case CreateThenDelete, DeleteThenCreate, ForgetThenCreate:
 			return &ResourceInstanceChange{
 				Addr:         rc.Addr,
 				DeposedKey:   rc.DeposedKey,
@@ -394,7 +411,7 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 // apply step.
 type ResourceInstanceChangeActionReason rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=ResourceInstanceChangeActionReason changes.go
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=ResourceInstanceChangeActionReason changes.go
 
 const (
 	// In most cases there's no special reason for choosing a particular
@@ -487,6 +504,18 @@ const (
 	// a check block and when the check assertions execute we want them to use
 	// the most up-to-date data.
 	ResourceInstanceReadBecauseCheckNested ResourceInstanceChangeActionReason = '#'
+
+	// ResourceInstanceForgotBecauseLifecycleDestroyInState indicates that the resource
+	// instance is being forgotten because the resource has a lifecycle configuration with "destroy" set to false in the state.
+	// This is used to avoid confusion for users not having the "lifecycle.destroy" attribute set in the current configuration (or the resource has been removed entirely).
+	// Used to differentiate between the different origins of the `forgot` action.
+	// However, we still have the attribute in the state to avoid deleting resources that should have been retained.
+	ResourceInstanceForgotBecauseLifecycleDestroyInState ResourceInstanceChangeActionReason = 'X'
+
+	// ResourceInstanceForgotBecauseLifecycleDestroyInConfig indicates that the resource
+	// instance is being forgotten because the resource has a lifecycle configuration with "destroy" set to false.
+	// Used to differentiate between the different origins of the `forgot` action.
+	ResourceInstanceForgotBecauseLifecycleDestroyInConfig ResourceInstanceChangeActionReason = 'Y'
 )
 
 // OutputChange describes a change to an output value.

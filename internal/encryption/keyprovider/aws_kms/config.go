@@ -137,7 +137,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 
 	return &awsbase.Config{
 		AccessKey:               c.AccessKey,
-		CallerDocumentationURL:  "https://opentofu.org/docs/language/settings/backends/s3", // TODO
+		CallerDocumentationURL:  "https://opentofu.org/docs/language/state/encryption/#aws-kms",
 		CallerName:              "KMS Key Provider",
 		IamEndpoint:             stringAttrEnvFallback(endpoints.IAM, "AWS_ENDPOINT_URL_IAM"),
 		MaxRetries:              c.MaxRetries,
@@ -160,9 +160,11 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 		Insecure:             c.Insecure,
 		UseDualStackEndpoint: c.UseDualStackEndpoint,
 		UseFIPSEndpoint:      c.UseFIPSEndpoint,
-		UserAgent: awsbase.UserAgentProducts{
-			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.DefaultApplicationName, Version: version.String()},
+		APNInfo: &awsbase.APNInfo{
+			PartnerName: "OpenTofu-AWS-KMS",
+			Products: []awsbase.UserAgentProduct{
+				{Name: httpclient.DefaultApplicationName, Version: version.String()},
+			},
 		},
 		CustomCABundle: stringAttrEnvFallback(c.CustomCABundle, "AWS_CA_BUNDLE"),
 

@@ -11,23 +11,26 @@ import (
 	"log"
 	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
-	"github.com/opentofu/opentofu/internal/communicator/shared"
+	commShared "github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/opentofu/opentofu/internal/shared"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -49,6 +52,14 @@ const traceNameApplyResourceInstance = "Apply resource instance changes"
 // The value of this should be populated by calling the String method on
 // a value of type [addrs.AbsResourceInstance].
 const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
+
+// traceAttrResourceType is a standardized trace span attribute name that we
+// use for recording the type of the resource that a particular span is
+// concerned with, such as "aws_instance" or "google_compute_disk".
+//
+// The value of this should be populated from the Type field of the
+// [addrs.Resource] embedded in the relevant [addrs.AbsResourceInstance].
+const traceAttrResourceType = "opentofu.resource.type"
 
 // traceAttrPlanRefresh is a standardized trace span attribute name that we use
 // for a boolean attribute describing whether the refresh step is enabled
@@ -103,9 +114,8 @@ type NodeAbstractResourceInstance struct {
 	// start so calls to NodeAbstractResourceInstance.Close can return no diagnostics whatsoever.
 	// A common reason for which the renewal goroutine can be skipped from being created is when the ephemeral
 	// resource is deferred for the apply phase.
-	closeCh        chan struct{}
-	ephemeralDiags chan tfdiags.Diagnostics
-	renewStarted   atomic.Bool
+	ephemeralCloseFn func() tfdiags.Diagnostics
+	renewStarted     atomic.Bool
 }
 
 // NewNodeAbstractResourceInstance creates an abstract resource instance graph
@@ -162,6 +172,29 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	}
 
 	// If we have neither config nor state then we have no references.
+	return nil
+}
+
+// DestroyReferences is a _partial_ implementation of [GraphNodeDestroyer],
+// providing a default implementation of this method for any embedder of
+// [NodeAbstractResourceInstance] that implements all of the other methods
+// of that interface.
+func (n *NodeAbstractResourceInstance) DestroyReferences() []*addrs.Reference {
+	// If we have a configuration attached then we'll delegate to our
+	// embedded abstract resource, which knows how to extract dependencies
+	// from configuration. If there is no config, then the dependencies will
+	// be connected during destroy from those stored in the state.
+	if n.Config != nil {
+		if n.Schema == nil {
+			// We'll produce a log message about this out here so that
+			// we can include the full instance address, since the equivalent
+			// message in NodeAbstractResource.References cannot see it.
+			log.Printf("[WARN] no schema is attached to %s, so destroy-time config references cannot be detected", n.Name())
+			return nil
+		}
+		return n.NodeAbstractResource.DestroyReferences()
+	}
+
 	return nil
 }
 
@@ -256,7 +289,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, eval
 		panic("EnsureProvider used with uninitialized provider configuration address")
 	}
 
-	provider := evalCtx.Provider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, _ := n.ResolvedProvider.Instance(n.ResolvedProviderKey)
 	if provider != nil {
 		// All good
 		return nil
@@ -398,28 +431,195 @@ func (n *NodeAbstractResourceInstance) readDiff(evalCtx EvalContext, providerSch
 	return change, nil
 }
 
-func (n *NodeAbstractResourceInstance) checkPreventDestroy(change *plans.ResourceInstanceChange) error {
-	if change == nil || n.Config == nil || n.Config.Managed == nil {
+func (n *NodeAbstractResourceInstance) checkPreventDestroy(ctx context.Context, evalCtx EvalContext, change *plans.ResourceInstanceChange) tfdiags.Diagnostics {
+	if change == nil || n.Config == nil || n.Config.Managed == nil || n.Config.Managed.PreventDestroy == nil {
 		return nil
 	}
 
-	preventDestroy := n.Config.Managed.PreventDestroy
+	var diags tfdiags.Diagnostics
 
-	if (change.Action == plans.Delete || change.Action.IsReplace()) && preventDestroy {
-		var diags tfdiags.Diagnostics
+	// NOTE: Some of the following would probably be similar if we later
+	// implement support for dynamic create_before_destroy too, but it's
+	// all written in a simpler, non-general way for now to keep it relatively
+	// simple until we actually know what subset of these rules is going to
+	// be common between the two.
+
+	preventDestroyExpr := n.Config.Managed.PreventDestroy
+	preventDestroyRefs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, preventDestroyExpr)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return diags
+	}
+
+	// We have some special error messages for the instance-related symbols
+	// here, because it's reasonable for someone to try to use them to
+	// set prevent_destroy for only certain instances of a resource but we
+	// don't yet know how to support that.
+	for _, ref := range preventDestroyRefs {
+		switch addr := ref.Subject.(type) {
+		case addrs.ForEachAttr, addrs.CountAttr:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid reference in prevent_destroy",
+				Detail: fmt.Sprintf(
+					"A prevent_destroy argument cannot refer to %s, because OpenTofu needs to evaluate this argument for instances that have already been removed from the configuration and so whose per-instance data is no longer available.",
+					addr.String(),
+				),
+				Subject: ref.SourceRange.ToHCL().Ptr(),
+			})
+		}
+	}
+	if diags.HasErrors() {
+		// If we already have errors then we'll stop here because otherwise
+		// we'll redundantly re-report the invalid references during
+		// expression evaluation with lower-relevance error messages.
+		return diags
+	}
+
+	scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
+	hclCtx, moreDiags := scope.EvalContext(ctx, preventDestroyRefs)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return diags
+	}
+	preventDestroyVal, hclDiags := preventDestroyExpr.Value(hclCtx)
+	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		return diags
+	}
+
+	const errSummary = "Invalid value for prevent_destroy"
+	preventDestroyVal, err := convert.Convert(preventDestroyVal, cty.Bool)
+	if err != nil {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Instance cannot be destroyed",
+			Summary:  errSummary,
 			Detail: fmt.Sprintf(
-				"Resource %s has lifecycle.prevent_destroy set, but the plan calls for this resource to be destroyed. To avoid this error and continue with the plan, either disable lifecycle.prevent_destroy or reduce the scope of the plan using the -target flag.",
+				"Resource instance %s has an invalid value for its prevent_destroy argument: %s.",
+				n.Addr.String(), tfdiags.FormatError(err),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+		})
+	}
+	preventDestroyVal, moreDiags = marks.ExtractDeprecatedDiagnosticsWithExpr(preventDestroyVal, preventDestroyExpr)
+	diags = diags.Append(moreDiags)
+	preventDestroyVal, pdMarks := preventDestroyVal.Unmark()
+	for mark := range pdMarks {
+		switch mark {
+		case marks.Sensitive:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has a sensitive value for its prevent_destroy argument, which is invalid because it would cause OpenTofu to disclose the sensitive value by whether deletion is blocked.\n\nIf you know this value is not sensitive in practice, consider using the nonsensitive function to declare that.",
+					n.Addr.String(),
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+				Extra:       evalchecks.DiagnosticCausedByConfidentialValues(true),
+			})
+		case marks.Ephemeral:
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has an ephemeral value for its prevent_destroy argument, which is invalid because the decision for whether it's okay to destroy instances of this resource instance must stay consistent between plan and apply.",
+					n.Addr.String(),
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+			})
+		default:
+			// This is a generic error message just to make sure that we'll
+			// fail if a new kind of mark gets added in future which we've
+			// not yet considered whether to allow here. If we add a new mark
+			// kind then we should add a new case for it above, even if the
+			// behavior is to do absolutely nothing because that mark is
+			// allowed in prevent_destroy.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  errSummary,
+				Detail: fmt.Sprintf(
+					"Resource instance %s has a prevent_destroy value derived from something that isn't allowed for deciding whether a resource instance may be destroyed (has internal mark %#v). The fact that OpenTofu cannot give more details about this is a bug, so please report it!",
+					n.Addr.String(), mark,
+				),
+				Subject:     preventDestroyExpr.Range().Ptr(),
+				Expression:  preventDestroyExpr,
+				EvalContext: hclCtx,
+			})
+		}
+	}
+
+	if diags.HasErrors() {
+		// If we already have errors then we'll stop early here.
+		return diags
+	}
+	if change.Action != plans.Delete && !change.Action.IsReplace() {
+		// If we're not attempting to destroy then the above checks are
+		// sufficient to reject an expression that cannot possibly be valid
+		// for prevent_destroy. If we're not actually planning to destroy
+		// then we'll skip the remaining checks because they are likely to
+		// fail dynamically in non-destroy situations even though they
+		// could be valid by the time this object actually is planned for
+		// destroy.
+		return nil
+	}
+
+	if !preventDestroyVal.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"Resource instance %s has a prevent_destroy argument but its value will not be known until the apply step, so OpenTofu can't predict whether destroying this is acceptable.\n\nTo proceed, exclude instances of this resource from this round using:\n    -exclude=%q",
+				n.Addr.String(), n.Addr.ContainingResource().String(),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+	if preventDestroyVal.IsNull() {
+		// We could potentially treat null as equivalent to false here, matching
+		// how OpenTofu would behave if there were no expression present at all,
+		// but "false" is just as easy to specify as "null" in a conditional
+		// expression and doesn't require a reader to know what the default
+		// is, so we'll require that to make life easier for a future maintainer
+		// that isn't necessarily familiar with the prevent_destroy behavior yet.
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  errSummary,
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set to null. When making a dynamic decision to allow destroy, use false instead.",
 				n.Addr.String(),
+			),
+			Subject:     preventDestroyExpr.Range().Ptr(),
+			Expression:  preventDestroyExpr,
+			EvalContext: hclCtx,
+		})
+	}
+	if diags.HasErrors() {
+		// Any errors so far means that preventDestroyVal.True is likely to
+		// either panic or return nonsense.
+		return diags
+	}
+
+	if preventDestroyVal.True() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Resource instance cannot be destroyed",
+			Detail: fmt.Sprintf(
+				"Resource instance %s has prevent_destroy set, but the plan calls for it to be destroyed.\n\nTo proceed, either disable prevent_destroy for this resource or exclude instances of this resource from this round using:\n    -exclude=%q",
+				n.Addr.String(), n.Addr.ContainingResource().String(),
 			),
 			Subject: &n.Config.DeclRange,
 		})
-		return diags.Err()
 	}
-
-	return nil
+	return diags
 }
 
 // preApplyHook calls the pre-Apply hook
@@ -474,7 +674,7 @@ const (
 	prevRunState
 )
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type phaseState
+//go:generate go tool golang.org/x/tools/cmd/stringer -type phaseState
 
 // writeResourceInstanceState saves the given object as the current object for
 // the selected resource instance.
@@ -1063,6 +1263,13 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	if diags.HasErrors() {
+		return nil, nil, keyData, diags
+	}
+	log.Printf("[TRACE] plan: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
+
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
 		Config:           unmarkedConfigVal,
@@ -1373,6 +1580,15 @@ func (n *NodeAbstractResourceInstance) plan(
 		actionReason = plans.ResourceInstanceReplaceBecauseTainted
 	}
 
+	// We check here if user declared lifecycle destroy attribute as false, intending to retain this resource even if
+	// so far we thought the action was "replace".
+	// As mentioned above, we are not concerned with the "delete" action in this flow; the pure delete is handled elsewhere
+	if action.IsReplace() && skipDestroy {
+		// We alter the action to "forget" and "create" to not trigger resource destruction
+		action = plans.ForgetThenCreate
+		log.Printf("[DEBUG] plan: %s changing action from %s to ForgetThenCreate due to lifecycle.destroy=false", n.Addr, action)
+	}
+
 	// compare the marks between the prior and the new value, there may have been a change of sensitivity
 	// in the new value that requires an update
 	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
@@ -1436,9 +1652,10 @@ func (n *NodeAbstractResourceInstance) plan(
 		// must _also_ record the returned change in the active plan,
 		// which the expression evaluator will use in preference to this
 		// incomplete value recorded in the state.
-		Status:  states.ObjectPlanned,
-		Value:   plannedNewVal,
-		Private: plannedPrivate,
+		Status:      states.ObjectPlanned,
+		Value:       plannedNewVal,
+		Private:     plannedPrivate,
+		SkipDestroy: skipDestroy,
 	}
 
 	return plan, state, keyData, diags
@@ -1844,128 +2061,81 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 	return metaConfigVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, providers.DeferralReason, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	var newVal cty.Value
-
 	config := *n.Config
 
 	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return cty.NilVal, diags
 	}
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
-		return newVal, providers.DeferredReasonUnknown, diags
+		return cty.NilVal, diags
 	}
 
-	// Unmark before sending to provider, will re-mark before returning
-	var pvm []cty.PathValueMarks
-	configVal, pvm = configVal.UnmarkDeepWithPaths()
-
-	log.Printf("[TRACE] openEphemeralResource: Re-validating config for %s", n.Addr)
-	validateResp := provider.ValidateEphemeralConfig(
+	newVal, closeFn, openDiags := shared.OpenEphemeralResourceInstance(
 		ctx,
-		providers.ValidateEphemeralConfigRequest{
-			TypeName: n.Addr.ContainingResource().Resource.Type,
-			Config:   configVal,
+		n.Addr,
+		schema,
+		n.ResolvedProvider.ProviderConfig.Correct().Instance(n.ResolvedProviderKey),
+		provider,
+		configVal,
+		shared.EphemeralResourceHooks{
+			PreOpen: func(addr addrs.AbsResourceInstance) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PreOpen(addr)
+				})
+			},
+			PostOpen: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PostOpen(addr, diags.Err())
+				})
+			},
+			PreRenew: func(addr addrs.AbsResourceInstance) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PreRenew(addr)
+				})
+			},
+			PostRenew: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PostRenew(addr, diags.Err())
+				})
+			},
+			PreClose: func(addr addrs.AbsResourceInstance) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PreClose(addr)
+				})
+			},
+			PostClose: func(addr addrs.AbsResourceInstance, diags tfdiags.Diagnostics) {
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					return h.PostClose(addr, diags.Err())
+				})
+			},
 		},
 	)
-	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
+
+	diags = diags.Append(openDiags.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+		return newVal, diags
 	}
 
-	// If we get down here then our configuration is complete and we're ready
-	// to actually call the provider to open the ephemeral resource.
-	log.Printf("[TRACE] openEphemeralResource: %s configuration is complete, so calling the provider", n.Addr)
-
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PreOpen(n.Addr)
-	}))
-	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
+	n.ephemeralCloseFn = func() tfdiags.Diagnostics {
+		// We use the same context for close here, not sure if we want to consider using the context for the close node instead
+		return closeFn(ctx).InConfigBody(config.Config, n.Addr.String())
 	}
 
-	req := providers.OpenEphemeralResourceRequest{
-		TypeName: n.Addr.ContainingResource().Resource.Type,
-		Config:   configVal,
-	}
-	resp := provider.OpenEphemeralResource(ctx, req)
-	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
-	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
-	}
-
-	if resp.Deferred != nil {
-		return newVal, resp.Deferred.DeferralReason, diags
-	}
-	newVal = resp.Result
-
-	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider produced invalid object",
-			fmt.Sprintf(
-				"Provider %q produced an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), tfdiags.FormatErrorPrefixed(err, n.Addr.String()),
-			),
-		))
-	}
-	if diags.HasErrors() {
-		return newVal, providers.DeferredReasonUnknown, diags
-	}
-
-	if newVal.IsNull() {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider produced null object",
-			fmt.Sprintf(
-				"Provider %q produced a null value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
-			),
-		))
-		return newVal, providers.DeferredReasonUnknown, diags
-	}
-
-	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider produced invalid object",
-			fmt.Sprintf(
-				"Provider %q produced a value for %s that is not wholly known.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
-			),
-		))
-		return newVal, providers.DeferredReasonUnknown, diags
-	}
-
-	if len(pvm) > 0 {
-		newVal = newVal.MarkWithPaths(pvm)
-	}
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostOpen(n.Addr, diags.Err())
-	}))
-
-	// Initialize the closing channel and the channel that sends diagnostics back to the
-	// NodeAbstractResourceInstance.Close caller.
-	n.closeCh = make(chan struct{}, 1)
-	n.ephemeralDiags = make(chan tfdiags.Diagnostics, 1)
 	// Due to the go scheduler inner works, the goroutine spawned below can be actually scheduled
 	// later than the execution of the nodeCloseableResource graph node.
 	// Therefore, we want to mark the renewal process as started before the goroutine spawning to be sure
 	// that the execution of nodeCloseableResource will block on the diagnostics reported by the
 	// goroutine below.
 	n.renewStarted.Store(true)
-	// The renewer is taking care of calling provider.Renew if resp.RenewAt != nil.
-	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
-	// when calling provider.CloseEphemeralResource.
-	go n.startEphemeralRenew(ctx, evalCtx, provider, resp.RenewAt, resp.Private)
 
-	return newVal, providers.DeferredReasonUnknown, diags
+	return newVal, diags
 }
 
 // planDataSource deals with the main part of the data resource lifecycle:
@@ -2517,11 +2687,11 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		}
 
 		// start with an empty connInfo
-		connInfo := cty.NullVal(shared.ConnectionBlockSupersetSchema.ImpliedType())
+		connInfo := cty.NullVal(commShared.ConnectionBlockSupersetSchema.ImpliedType())
 
 		if connBody != nil {
 			var connInfoDiags tfdiags.Diagnostics
-			connInfo, connInfoDiags = evalScope(ctx, evalCtx, connBody, self, shared.ConnectionBlockSupersetSchema)
+			connInfo, connInfoDiags = evalScope(ctx, evalCtx, connBody, self, commShared.ConnectionBlockSupersetSchema)
 			diags = diags.Append(connInfoDiags)
 			if diags.HasErrors() {
 				return diags
@@ -2660,7 +2830,6 @@ func (n *NodeAbstractResourceInstance) apply(
 	keyData instances.RepetitionData,
 	createBeforeDestroy bool,
 ) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
-
 	var diags tfdiags.Diagnostics
 	if state == nil {
 		state = &states.ResourceInstanceObject{}
@@ -2748,6 +2917,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		// Copy the previous state, changing only the value
 		newState := &states.ResourceInstanceObject{
 			CreateBeforeDestroy: state.CreateBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 			Dependencies:        state.Dependencies,
 			Private:             state.Private,
 			Status:              state.Status,
@@ -2779,8 +2949,9 @@ func (n *NodeAbstractResourceInstance) apply(
 	newVal := resp.NewState
 
 	// If we have paths to mark, mark those on this new value
-	if len(afterPaths) > 0 {
-		newVal = newVal.MarkWithPaths(afterPaths)
+	newValMarks := combinePathValueMarks(afterPaths, schema.ValueMarks(newVal, nil))
+	if len(newValMarks) > 0 {
+		newVal = newVal.MarkWithPaths(newValMarks)
 	}
 
 	if newVal == cty.NilVal {
@@ -2868,6 +3039,10 @@ func (n *NodeAbstractResourceInstance) apply(
 		// best-effort sort of thing.
 		newVal = cty.UnknownAsNull(newVal)
 	}
+
+	skipDestroy, skipDiags := n.shouldSkipDestroy()
+	diags = diags.Append(skipDiags)
+	log.Printf("[TRACE] apply: %s lifecycle.destroy evaluation result: skipDestroy=%t", n.Addr, skipDestroy)
 
 	if change.Action != plans.Delete && !diags.HasErrors() {
 		// Only values that were marked as unknown in the planned value are allowed
@@ -2961,6 +3136,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         state.SkipDestroy,
 		}
 
 		// if the resource was being deleted, the dependencies are not going to
@@ -2978,11 +3154,12 @@ func (n *NodeAbstractResourceInstance) apply(
 			Value:               newVal,
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
+			SkipDestroy:         skipDestroy,
 		}
 		return newState, diags
 
 	default:
-		// Non error case, were the object was deleted
+		// Non-error case, where the object was deleted
 		return nil, diags
 	}
 }
@@ -2997,86 +3174,53 @@ func resourceInstancePrevRunAddr(evalCtx EvalContext, currentAddr addrs.AbsResou
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx EvalContext) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	underlyingProvider, err := n.ResolvedProvider.Instance(n.ResolvedProviderKey)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
 	}
 
-	if n.Config == nil || !n.Config.IsOverridden {
-		if p, ok := underlyingProvider.(providerForTest); ok {
-			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())
-		}
-
-		return underlyingProvider, schema, nil
-	}
-
-	provider, err := newProviderForTestWithSchema(underlyingProvider, schema)
+	// Not all callers require a schema, so we will leave checking for a nil
+	// schema to the callers.
+	schema, err := evalCtx.ProviderSchema(ctx, n.ResolvedProvider.ProviderConfig)
 	if err != nil {
-		return nil, providers.ProviderSchema{}, err
+		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, err)
 	}
 
-	provider = provider.
-		withOverrideResource(n.Addr.ConfigResource(), n.Config.OverrideValues).
-		linkWithCurrentResource(n.Addr.ConfigResource())
+	var isOverridden bool
+	var overrideValues map[string]cty.Value
 
-	return provider, schema, nil
-}
+	if n.ResolvedProvider.IsMocked {
+		isOverridden = true
 
-func maybeImproveResourceInstanceDiagnostics(diags tfdiags.Diagnostics, excludeAddr addrs.Targetable) tfdiags.Diagnostics {
-	// We defer allocating a new diagnostics array until we know we need to
-	// change something, because most of the time we'll just be returning
-	// the given diagnostics verbatim.
-	var ret tfdiags.Diagnostics
-	for i, diag := range diags {
-		if excludeAddr != nil && providers.IsDeferralDiagnostic(diag) {
-			// We've found a diagnostic we want to change, so we'll allocate
-			// a new diagnostics array if we didn't already.
-			if ret == nil {
-				ret = make(tfdiags.Diagnostics, len(diags))
-				copy(ret, diags)
+		// Mocked by the provider
+		for _, res := range n.ResolvedProvider.MockResources {
+			if res.Type == n.Addr.Resource.Resource.Type && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Defaults
+				break
 			}
-			// FIXME: The following is a hack to slightly modify the diagnostic
-			// with an extra paragraph of detail content. If this becomes a
-			// more common need elsewhere then we should find a less clunky way
-			// to do this, probably with a new feature in tfdiags.
-			desc := diag.Description()
-			src := diag.Source()
-			extraDetail := fmt.Sprintf(
-				// FIXME: This should use a technique similar to evalchecks.commandLineArgumentsSuggestion
-				// to generate appropriate quoting/escaping of the address for the current platform.
-				"\n\nTo work around this, use the planning option -exclude=%q to first apply without this object, and then apply normally to converge.",
-				excludeAddr.String(),
-			)
-			newDiag := &hcl.Diagnostic{
-				Severity: diag.Severity().ToHCL(),
-				Summary:  desc.Summary,
-				Detail:   desc.Detail + extraDetail,
+		}
+
+		// Overridden by the provider (overrides mocks)
+		for _, res := range n.ResolvedProvider.OverrideResources {
+			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
+				overrideValues = res.Values
+				break
 			}
-			if src.Subject != nil {
-				newDiag.Subject = src.Subject.ToHCL().Ptr()
-			}
-			if src.Context != nil {
-				newDiag.Context = src.Context.ToHCL().Ptr()
-			}
-			// The following is a little awkward because of how tfdiags is
-			// designed: we need to "append" a new diagnostic over the
-			// one we're trying to replace so that tfdiags has an opportunity
-			// to transform it, so we'll make a zero-length slice whose
-			// capacity covers the one element we're trying to replace.
-			appendTo := ret[i : i : i+1]
-			appendTo = appendTo.Append(newDiag)
-			// appendTo.Append isn't _actually_ required to use the
-			// capacity we gave it (that's an implementation detail)
-			// so just to make sure we'll copy from what was returned
-			// into the final slot. This is likely to be a no-op in most
-			// cases.
-			ret[i] = appendTo[0]
 		}
 	}
-	if ret == nil { // We didn't change anything
-		return diags
+
+	if n.Config != nil && n.Config.IsOverridden {
+		// Overridden in the currently running test (overrides any provider settings)
+		isOverridden = n.Config.IsOverridden
+		overrideValues = n.Config.OverrideValues
 	}
-	return ret
+
+	if isOverridden {
+		provider, err := newProviderForTestWithSchema(underlyingProvider, schema, overrideValues)
+		return provider, schema, err
+	}
+
+	return underlyingProvider, schema, err
 }
 
 func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
@@ -3123,17 +3267,7 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can open the ephemeral resource and store its value in the state.
-	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
-	if deferralReason != providers.DeferredReasonUnknown {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Ephemeral resource deferred during apply",
-			Detail:   fmt.Sprintf("Ephemeral resource %q asked for being deferred. This is a provider error.", n.Addr.String()),
-			Subject:  n.Config.TypeRange.Ptr(),
-			Context:  n.Config.DeclRange.Ptr(),
-		})
-		return nil, instances.RepetitionData{}, diags
-	}
+	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return nil, keyData, diags
@@ -3227,14 +3361,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can open the ephemeral resource and store its value in the state.
-	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
-	if deferralReason != providers.DeferredReasonUnknown {
-		reason := providers.DeferralReasonSummary(deferralReason)
-
-		plannedChange, plannedNewState, deferDiags := n.deferEphemeralResource(evalCtx, schema, priorVal, configVal, reason)
-		diags = diags.Append(deferDiags)
-		return plannedChange, plannedNewState, keyData, diags
-	}
+	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return nil, nil, instances.RepetitionData{}, diags
@@ -3269,74 +3396,6 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	return plannedChange, plannedNewState, keyData, diags
 }
 
-func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, evalContext EvalContext, provider providers.Interface, renewAt *time.Time, privateData []byte) {
-	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
-		panic("renewal process cannot be started for resources other than ephemeral ones. This is an OpenTofu issue, please report it")
-	}
-	privateData, diags := n.renewEphemeral(ctx, evalContext, provider, renewAt, privateData)
-	// wait for the close signal. This is like this because the renewEphemeral can return right away if the renewAt is nil.
-	// But the close of the ephemeral should happen only when the graph walk is reaching the execution of the closing
-	// ephemeral resource node.
-	<-n.closeCh
-	diags = diags.Append(n.closeEphemeralResource(ctx, evalContext, provider, privateData))
-	n.ephemeralDiags <- diags
-}
-
-func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Context, evalContext EvalContext, provider providers.Interface, privateData []byte) (diags tfdiags.Diagnostics) {
-	req := providers.CloseEphemeralResourceRequest{
-		TypeName: n.Addr.Resource.Resource.Type,
-		Private:  privateData,
-	}
-
-	// We are using cty.EmptyObject for the PreApply and PostApply because the prior state
-	// and the new planned state does not matter in ephemeral resources context, especially
-	// in the context of the close operation.
-	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PreClose(n.Addr)
-	}))
-	resp := provider.CloseEphemeralResource(ctx, req)
-	diags = diags.Append(resp.Diagnostics)
-
-	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PostClose(n.Addr, diags.Err())
-	}))
-	return diags.Append(diags)
-}
-
-// renewEphemeral is meant to be called into a goroutine. This method listens on ctx.Done and n.closeCh for ending the job and
-// to return the data.
-func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalContext EvalContext, provider providers.Interface, renewAt *time.Time, privateData []byte) ([]byte, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-	for {
-		if renewAt == nil {
-			return privateData, diags
-		}
-		select {
-		case <-time.After(time.Until(*renewAt)):
-		case <-n.closeCh:
-			return privateData, diags
-		case <-ctx.Done():
-			return privateData, diags
-		}
-		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-			// We are using cty.EmptyObject here because the prior state and the new planned state does not matter
-			// in ephemeral resources context, especially in the context of the renew operation.
-			return h.PreRenew(n.Addr)
-		}))
-		req := providers.RenewEphemeralResourceRequest{
-			TypeName: n.Addr.Resource.Resource.Type,
-			Private:  privateData,
-		}
-		resp := provider.RenewEphemeralResource(ctx, req)
-		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-			return h.PostRenew(n.Addr, diags.Err())
-		}))
-		diags = diags.Append(resp.Diagnostics)
-		renewAt = resp.RenewAt
-		privateData = resp.Private
-	}
-}
-
 // deferEphemeralResource is a helper function that builds a change and a state object by using a
 // partial value and is announcing the deferral of the ephemeral resource.
 func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContext, schema *configschema.Block, priorVal cty.Value, configVal cty.Value, reason string) (
@@ -3344,7 +3403,6 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 	plannedNewState *states.ResourceInstanceObject,
 	diags tfdiags.Diagnostics,
 ) {
-
 	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
 	proposedNewVal := objchange.PlannedUnknownObject(schema, unmarkedConfigVal)
 	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
@@ -3386,21 +3444,7 @@ func (n *NodeAbstractResourceInstance) Close() tfdiags.Diagnostics {
 		// If the ephemeral resource has been deferred, this method needs to return immediately.
 		return nil
 	}
-	defer func() {
-		close(n.ephemeralDiags)
-		n.renewStarted.Store(false)
-	}()
-	close(n.closeCh)
-	timeout := 10 * time.Second
-	select {
-	case d := <-n.ephemeralDiags:
-		return d
-	case <-time.After(timeout):
-		return tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Closing ephemeral resource timed out",
-			Detail:   fmt.Sprintf("The ephemeral resource %q timed out on closing after %s", n.Addr.String(), timeout),
-			Subject:  n.Config.DeclRange.Ptr(),
-		})
-	}
+	defer n.renewStarted.Store(false)
+
+	return n.ephemeralCloseFn()
 }

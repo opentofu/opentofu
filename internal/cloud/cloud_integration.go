@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 )
 
-// IntegrationOutputWriter is an interface used to to write output tailored for
+// IntegrationOutputWriter is an interface used to write output tailored for
 // Terraform Cloud integrations
 type IntegrationOutputWriter interface {
 	End()

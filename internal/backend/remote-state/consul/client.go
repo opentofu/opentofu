@@ -38,7 +38,7 @@ const (
 	lockReacquireInterval = 2 * time.Second
 )
 
-var lostLockErr = errors.New("consul lock was lost")
+var errLostLock = errors.New("consul lock was lost")
 
 // RemoteClient is a remote client that stores data in Consul.
 type RemoteClient struct {
@@ -608,7 +608,7 @@ func (c *RemoteClient) unlock(id string) error {
 
 	select {
 	case <-c.lockCh:
-		return lostLockErr
+		return errLostLock
 	default:
 	}
 
