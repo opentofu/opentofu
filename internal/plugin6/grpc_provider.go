@@ -1102,7 +1102,7 @@ func (p *GRPCProvider) ValidateStateStoreConfig(ctx context.Context, r providers
 		return resp
 	}
 
-	protoReq := &proto6.ValidateStateStore_Request{
+	protoReq := &proto6.ValidateStateStoreConfig_Request{
 		TypeName: r.TypeName,
 		Config:   &proto6.DynamicValue{Msgpack: mp},
 	}
@@ -1222,7 +1222,7 @@ func (p *GRPCProvider) WriteStateBytes(ctx context.Context, r iter.Seq[providers
 		}
 		protoChunk.Bytes = chunk.Bytes
 		protoChunk.TotalLength = chunk.TotalLength
-		protoChunk.Range = &proto6.StateRange{
+		protoChunk.Range = &proto6.StateByteRange{
 			Start: chunk.Range.Start,
 			End:   chunk.Range.End,
 		}
@@ -1297,7 +1297,7 @@ func (p *GRPCProvider) GetStates(ctx context.Context, r providers.GetStatesReque
 		return resp
 	}
 
-	resp.StateId = protoResp.StateId
+	resp.StateId = protoResp.StateIds
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 	return resp
 }
