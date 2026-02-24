@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -189,7 +190,7 @@ func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg con
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, varDiags := locateKeyProviderDeps(cfg, keyProviderConfig)
 	diags = diags.Extend(varDiags)
 	if diags.HasErrors() {
 		return diags
@@ -229,7 +230,7 @@ func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg con
 	}
 
 	// Initialize the Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
+	decodeDiags := decodeConfig(cfg, evalCtx, keyProviderConfig)
 	diags = diags.Extend(decodeDiags)
 	if diags.HasErrors() {
 		return diags
@@ -304,4 +305,46 @@ func keyProvidersStack(stack []config.KeyProviderConfig) ([]string, hcl.Diagnost
 		res[i] = string(addr)
 	}
 	return res, diags
+}
+
+func locateKeyProviderDeps(cfg config.KeyProviderConfig, keyProviderConfig keyprovider.Config) ([]hcl.Traversal, hcl.Diagnostics) {
+	if selfDecoder, ok := keyProviderConfig.(keyprovider.SelfDecodingConfig); ok {
+		schema := selfDecoder.ConfigSchema()
+		content, diags := cfg.Body.Content(schema)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		if content == nil {
+			return nil, nil
+		}
+		var ret []hcl.Traversal
+		for _, attribute := range content.Attributes {
+			absTrav, travDiags := hcl.AbsTraversalForExpr(attribute.Expr)
+			if !travDiags.HasErrors() && validTraversalForEncryptionBlock(absTrav) { // we need actual references
+				ret = append(ret, absTrav)
+				continue
+			}
+			ret = append(ret, attribute.Expr.Variables()...)
+		}
+		return ret, nil
+	}
+	var diags hcl.Diagnostics
+	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	return deps, diags.Extend(varDiags)
+}
+
+func decodeConfig(cfg config.KeyProviderConfig, evalCtx *hcl.EvalContext, keyProviderConfig keyprovider.Config) (diags hcl.Diagnostics) {
+	if selfDecoder, ok := keyProviderConfig.(keyprovider.SelfDecodingConfig); ok {
+		return selfDecoder.DecodeConfig(cfg.Body, evalCtx)
+	}
+	return gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
+}
+
+func validTraversalForEncryptionBlock(trav hcl.Traversal) bool {
+	if trav == nil {
+		return false
+	}
+	// NOTE: A kp cannot reference to other constructs other than the ones listed here.
+	validRootElements := []string{"key_provider", "var", "local"}
+	return slices.Contains(validRootElements, trav.RootName())
 }

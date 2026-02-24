@@ -5,6 +5,10 @@
 
 package keyprovider
 
+import (
+	"github.com/hashicorp/hcl/v2"
+)
+
 // Config is a struct annotated with HCL (and preferably JSON) tags that OpenTofu reads the user-provided configuration
 // into. The Build function assembles the configuration into a usable key provider.
 type Config interface {
@@ -13,4 +17,11 @@ type Config interface {
 	//
 	// If a key provider does not need metadata, it may return nil.
 	Build() (KeyProvider, KeyMeta, error)
+}
+
+// SelfDecodingConfig can be implemented by the [Config] types that has special rules for decoding
+// references to other `encryption` contained blocks.
+type SelfDecodingConfig interface {
+	DecodeConfig(body hcl.Body, evalCtx *hcl.EvalContext) (diags hcl.Diagnostics)
+	ConfigSchema() *hcl.BodySchema
 }
