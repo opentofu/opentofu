@@ -289,7 +289,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, eval
 		panic("EnsureProvider used with uninitialized provider configuration address")
 	}
 
-	provider := evalCtx.Provider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, _ := n.ResolvedProvider.Instance(n.ResolvedProviderKey)
 	if provider != nil {
 		// All good
 		return nil
@@ -3174,9 +3174,16 @@ func resourceInstancePrevRunAddr(evalCtx EvalContext, currentAddr addrs.AbsResou
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx EvalContext) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	underlyingProvider, err := n.ResolvedProvider.Instance(n.ResolvedProviderKey)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
+	}
+
+	// Not all callers require a schema, so we will leave checking for a nil
+	// schema to the callers.
+	schema, err := evalCtx.ProviderSchema(ctx, n.ResolvedProvider.ProviderConfig)
+	if err != nil {
+		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, err)
 	}
 
 	var isOverridden bool

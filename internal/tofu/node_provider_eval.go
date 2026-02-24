@@ -7,8 +7,10 @@ package tofu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -18,12 +20,35 @@ import (
 // with it.
 type NodeEvalableProvider struct {
 	*NodeAbstractProvider
+
+	instance providers.Configured
 }
 
 var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
+var _ GraphNodeProvider = (*NodeEvalableProvider)(nil) // Partial, see NodeAbstractProvider
+
+// GraphNodeProvider
+func (n *NodeEvalableProvider) Instance(key addrs.InstanceKey) (providers.Configured, error) {
+	if key != addrs.NoKey {
+		return nil, fmt.Errorf("unexpected key %s passed to NodeEvalableProvider.Instance for %s", key, n.Addr)
+	}
+	if n.instance == nil {
+		return nil, fmt.Errorf("bug: provider %s not yet initialized or encountered an error during initialization", n.Addr)
+	}
+	return n.instance, nil
+}
+
+// GraphNodeProvider
+func (n *NodeEvalableProvider) Close(ctx context.Context) error {
+	if n.instance == nil {
+		return fmt.Errorf("bug: provider %s not yet initialized or encountered an error during initialization", n.Addr)
+	}
+	return n.instance.Close(ctx)
+}
 
 // GraphNodeExecutable
 func (n *NodeEvalableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	_, err := evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
+	var err error
+	n.instance, err = evalCtx.InitProvider(ctx, n.Addr, addrs.NoKey)
 	return diags.Append(err)
 }
