@@ -5,7 +5,7 @@ Welcome and thank you for wanting to contribute!
 ## Get started
 
 - Have a question? Post it in [GitHub Discussions ➡️](https://github.com/orgs/opentofu/discussions) or on the [OpenTofu Slack ➡️](https://opentofu.org/slack/)!
-- Found a bug? [Report it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=bug%2Cpending-decision&projects=&template=bug_report.yml)
+- Found a bug? [Open a bug report!](BUG_REPORTS.md)
 - Have a feature idea? [Submit it here ➡️](https://github.com/opentofu/opentofu/issues/new?assignees=&labels=enhancement%2Cpending-decision&projects=&template=feature_request.yml)
 - Want to help define a complex feature or bug fix? [Write an RFC here ➡️](./rfc/README.md)
 - Want to add a feature, fix bug, refactor something, or add CI tooling?
