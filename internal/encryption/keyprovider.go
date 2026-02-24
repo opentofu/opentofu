@@ -189,7 +189,7 @@ func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg con
 	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
 
 	// Locate all the dependencies
-	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	deps, varDiags := locateKeyProviderDeps(cfg, keyProviderConfig)
 	diags = diags.Extend(varDiags)
 	if diags.HasErrors() {
 		return diags
@@ -229,7 +229,7 @@ func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg con
 	}
 
 	// Initialize the Key Provider
-	decodeDiags := gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
+	decodeDiags := decodeConfig(cfg, evalCtx, keyProviderConfig)
 	diags = diags.Extend(decodeDiags)
 	if diags.HasErrors() {
 		return diags
@@ -304,4 +304,20 @@ func keyProvidersStack(stack []config.KeyProviderConfig) ([]string, hcl.Diagnost
 		res[i] = string(addr)
 	}
 	return res, diags
+}
+
+func locateKeyProviderDeps(cfg config.KeyProviderConfig, keyProviderConfig keyprovider.Config) ([]hcl.Traversal, hcl.Diagnostics) {
+	if locator, ok := keyProviderConfig.(keyprovider.SelfDecodingConfig); ok {
+		return locator.DepsTraversals(cfg.Body)
+	}
+	var diags hcl.Diagnostics
+	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	return deps, diags.Extend(varDiags)
+}
+
+func decodeConfig(cfg config.KeyProviderConfig, evalCtx *hcl.EvalContext, keyProviderConfig keyprovider.Config) (diags hcl.Diagnostics) {
+	if locator, ok := keyProviderConfig.(keyprovider.SelfDecodingConfig); ok {
+		return locator.DecodeConfig(cfg.Body, evalCtx)
+	}
+	return gohcl.DecodeBody(cfg.Body, evalCtx, keyProviderConfig)
 }
