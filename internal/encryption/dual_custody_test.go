@@ -20,8 +20,9 @@ import (
 func TestDualCustody(t *testing.T) {
 	// Note: the XOR provider is not available in final OpenTofu builds because its security constraints have not
 	// been properly evaluated. The code below doesn't work in OpenTofu and is for tests only.
-	t.Run("hcl", func(t *testing.T) {
-		sourceConfig := `key_provider "pbkdf2" "base1" {
+	cases := map[string]string{
+		// simple hcl
+		"hcl": `key_provider "pbkdf2" "base1" {
 			passphrase = "Hello world! 123"
 		}
 		key_provider "pbkdf2" "base2" {
@@ -36,52 +37,9 @@ func TestDualCustody(t *testing.T) {
 		}
 		state {
 			method = method.aes_gcm.example
-		}`
-		reg := lockingencryptionregistry.New()
-		if err := reg.RegisterKeyProvider(xor.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterKeyProvider(pbkdf2.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterMethod(aesgcm.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterMethod(unencrypted.New()); err != nil {
-			panic(err)
-		}
-
-		parsedSourceConfig, diags := config.LoadConfigFromString("source", sourceConfig)
-		if diags.HasErrors() {
-			t.Fatalf("%v", diags.Error())
-		}
-
-		staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
-
-		enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
-		if diags.HasErrors() {
-			t.Fatalf("%v", diags.Error())
-		}
-
-		sfe := enc.State()
-		testData := []byte(`{"serial": 42, "lineage": "magic"}`)
-		encryptedState, err := sfe.EncryptState(testData)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		if string(encryptedState) == string(testData) {
-			t.Fatalf("The state has not been encrypted.")
-		}
-		decryptedState, _, err := sfe.DecryptState(encryptedState)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		if string(decryptedState) != string(testData) {
-			t.Fatalf("Incorrect decrypted state: %s", decryptedState)
-		}
-	})
-	t.Run("json", func(t *testing.T) {
-		sourceConfig := `{
+		}`,
+		// Json with raw references
+		"json with raw reference": `{
       "key_provider": {
         "pbkdf2": {
           "base1": {
@@ -109,48 +67,82 @@ func TestDualCustody(t *testing.T) {
         "method": "method.aes_gcm.example"
       }
     }
-`
-		reg := lockingencryptionregistry.New()
-		if err := reg.RegisterKeyProvider(xor.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterKeyProvider(pbkdf2.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterMethod(aesgcm.New()); err != nil {
-			panic(err)
-		}
-		if err := reg.RegisterMethod(unencrypted.New()); err != nil {
-			panic(err)
-		}
+`,
+		// Json format with interpolated references
+		"json with interpolation": `{
+      "key_provider": {
+        "pbkdf2": {
+          "base1": {
+			"passphrase": "Hello world! 123"
+          },
+          "base2": {
+			"passphrase": "OpenTofu has Encryption"
+          }
+        },
+        "xor": {
+          "dualcustody": {
+            "a": "${key_provider.pbkdf2.base1}",
+            "b": "${key_provider.pbkdf2.base2}"
+          }
+        }
+      },
+      "method": {
+        "aes_gcm": {
+          "example": {
+            "keys": "key_provider.xor.dualcustody"
+          }
+        }
+      },
+      "state": {
+        "method": "method.aes_gcm.example"
+      }
+    }
+`,
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			reg := lockingencryptionregistry.New()
+			if err := reg.RegisterKeyProvider(xor.New()); err != nil {
+				panic(err)
+			}
+			if err := reg.RegisterKeyProvider(pbkdf2.New()); err != nil {
+				panic(err)
+			}
+			if err := reg.RegisterMethod(aesgcm.New()); err != nil {
+				panic(err)
+			}
+			if err := reg.RegisterMethod(unencrypted.New()); err != nil {
+				panic(err)
+			}
 
-		parsedSourceConfig, diags := config.LoadConfigFromString("source", sourceConfig)
-		if diags.HasErrors() {
-			t.Fatalf("%v", diags.Error())
-		}
+			parsedSourceConfig, diags := config.LoadConfigFromString("source", tc)
+			if diags.HasErrors() {
+				t.Fatalf("%v", diags.Error())
+			}
 
-		staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
+			staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-		enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
-		if diags.HasErrors() {
-			t.Fatalf("%v", diags.Error())
-		}
+			enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
+			if diags.HasErrors() {
+				t.Fatalf("%v", diags.Error())
+			}
 
-		sfe := enc.State()
-		testData := []byte(`{"serial": 42, "lineage": "magic"}`)
-		encryptedState, err := sfe.EncryptState(testData)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		if string(encryptedState) == string(testData) {
-			t.Fatalf("The state has not been encrypted.")
-		}
-		decryptedState, _, err := sfe.DecryptState(encryptedState)
-		if err != nil {
-			t.Fatalf("%v", err)
-		}
-		if string(decryptedState) != string(testData) {
-			t.Fatalf("Incorrect decrypted state: %s", decryptedState)
-		}
-	})
+			sfe := enc.State()
+			testData := []byte(`{"serial": 42, "lineage": "magic"}`)
+			encryptedState, err := sfe.EncryptState(testData)
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			if string(encryptedState) == string(testData) {
+				t.Fatalf("The state has not been encrypted.")
+			}
+			decryptedState, _, err := sfe.DecryptState(encryptedState)
+			if err != nil {
+				t.Fatalf("%v", err)
+			}
+			if string(decryptedState) != string(testData) {
+				t.Fatalf("Incorrect decrypted state: %s", decryptedState)
+			}
+		})
+	}
 }
