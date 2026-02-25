@@ -315,10 +315,7 @@ func (v *WorkspaceJSON) WorkspaceInvalidName(name string) {
 }
 
 func (v *WorkspaceJSON) ListWorkspaces(workspaces []string, current string) {
-	for _, workspace := range workspaces {
-		isCurrent := current == workspace
-		v.view.log.Info("workspace listing", "workspace", workspace, "is_current", isCurrent)
-	}
+	v.view.log.Info("list of workspaces", "type", "workspace_list", "workspaces", workspaces, "current_workspace", current)
 }
 
 func (v *WorkspaceJSON) WorkspaceOverwrittenByEnvVarWarn() {
