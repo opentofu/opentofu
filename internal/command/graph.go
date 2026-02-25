@@ -9,8 +9,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
@@ -24,40 +27,49 @@ type GraphCommand struct {
 	Meta
 }
 
-func (c *GraphCommand) Run(args []string) int {
-	var diags tfdiags.Diagnostics
-
-	var drawCycles bool
-	var graphTypeStr string
-	var moduleDepth int
-	var verbose bool
-	var planPath string
-
+func (c *GraphCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("graph")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&drawCycles, "draw-cycles", false, "draw-cycles")
-	cmdFlags.StringVar(&graphTypeStr, "type", "", "type")
-	cmdFlags.IntVar(&moduleDepth, "module-depth", -1, "module-depth")
-	cmdFlags.BoolVar(&verbose, "verbose", false, "verbose")
-	cmdFlags.StringVar(&planPath, "plan", "", "plan")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	configPath, err := modulePath(cmdFlags.Args())
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
 
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseGraph(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewGraph(c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
+	}
+	c.GatherVariables(args.Vars)
+
+	// This gets the current directory as full path.
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
+
+	var err error
 	// Check for user-supplied plugin path
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error loading plugin path: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading plugin path",
+			fmt.Sprintf("Encountered an error while loading the plugin path: %s", err),
+		)))
 		return 1
 	}
 
@@ -65,16 +77,20 @@ func (c *GraphCommand) Run(args []string) int {
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Try to load plan if path is specified
 	var planFile *planfile.WrappedPlanFile
-	if planPath != "" {
-		planFile, err = c.PlanFile(planPath, enc.Plan())
+	if args.PlanPath != "" {
+		planFile, err = c.PlanFile(args.PlanPath, enc.Plan())
 		if err != nil {
-			c.Ui.Error(err.Error())
+			view.Diagnostics(diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed loading the plan file",
+				fmt.Sprintf("Encountered an error while opening the plan file %q: %s", args.PlanPath, err),
+			)))
 			return 1
 		}
 	}
@@ -87,9 +103,9 @@ func (c *GraphCommand) Run(args []string) int {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Failed to read plan from plan file",
-				fmt.Sprintf("Cannot read the plan from the given plan file: %s.", planErr),
+				fmt.Sprintf("Cannot read the plan from the given plan file: %s", planErr),
 			))
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		if plan.Backend.Config == nil {
@@ -99,21 +115,21 @@ func (c *GraphCommand) Run(args []string) int {
 				"Failed to read plan from plan file",
 				"The given plan file does not have a valid backend configuration. This is a bug in the OpenTofu command that generated this plan file.",
 			))
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		var backendDiags tfdiags.Diagnostics
 		b, backendDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	} else {
 		backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 		diags = diags.Append(backendDiags)
 		if diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 
@@ -122,7 +138,7 @@ func (c *GraphCommand) Run(args []string) int {
 		}, enc.State())
 		diags = diags.Append(backendDiags)
 		if backendDiags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	}
@@ -130,8 +146,8 @@ func (c *GraphCommand) Run(args []string) int {
 	// We require a local backend
 	local, ok := b.(backend.Local)
 	if !ok {
-		c.showDiagnostics(diags) // in case of any warnings in here
-		c.Ui.Error(ErrUnsupportedLocalOp)
+		view.Diagnostics(diags) // in case of any warnings in here
+		view.ErrorUnsupportedLocalOp()
 		return 1
 	}
 
@@ -150,13 +166,13 @@ func (c *GraphCommand) Run(args []string) int {
 	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	diags = diags.Append(callDiags)
 	if callDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	if err != nil {
 		diags = diags.Append(err)
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -164,22 +180,22 @@ func (c *GraphCommand) Run(args []string) int {
 	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	if graphTypeStr == "" {
+	if args.GraphType == "" {
 		switch {
 		case lr.Plan != nil:
-			graphTypeStr = "apply"
+			args.GraphType = "apply"
 		default:
-			graphTypeStr = "plan"
+			args.GraphType = "plan"
 		}
 	}
 
 	var g *tofu.Graph
 	var graphDiags tfdiags.Diagnostics
-	switch graphTypeStr {
+	switch args.GraphType {
 	case "plan":
 		g, graphDiags = lr.Core.PlanGraphForUI(lr.Config, lr.InputState, plans.NormalMode)
 	case "plan-refresh-only":
@@ -210,7 +226,7 @@ func (c *GraphCommand) Run(args []string) int {
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Graph type no longer available",
-			fmt.Sprintf("The graph type %q is no longer available. Use -type=plan instead to get a similar result.", graphTypeStr),
+			fmt.Sprintf("The graph type %q is no longer available. Use -type=plan instead to get a similar result.", args.GraphType),
 		))
 	default:
 		graphDiags = graphDiags.Append(tfdiags.Sourceless(
@@ -221,17 +237,21 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 	diags = diags.Append(graphDiags)
 	if graphDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	graphStr, err := tofu.GraphDot(g, &dag.DotOpts{
-		DrawCycles: drawCycles,
-		MaxDepth:   moduleDepth,
-		Verbose:    verbose,
+		DrawCycles: args.DrawCycles,
+		MaxDepth:   args.ModuleDepth,
+		Verbose:    args.Verbose,
 	})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error converting graph: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed generating the graph representation",
+			fmt.Sprintf("Error encountered while generating the graph representation: %s.", err),
+		)))
 		return 1
 	}
 
@@ -239,11 +259,11 @@ func (c *GraphCommand) Run(args []string) int {
 		// For this command we only show diagnostics if there are errors,
 		// because printing out naked warnings could upset a naive program
 		// consuming our dot output.
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	c.Ui.Output(graphStr)
+	view.Output(graphStr)
 
 	return 0
 }
@@ -288,4 +308,22 @@ Options:
 
 func (c *GraphCommand) Synopsis() string {
 	return "Generate a Graphviz graph of the steps in an operation"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *GraphCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
