@@ -384,14 +384,19 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 		// For each of the module scoped refernces
 		for _, ref := range nr.References() {
 			refPath := nr.ModulePath()
-			outside, isOutside := v.(GraphNodeReferenceOutside)
-			if isOutside {
+			if outside, ok := v.(GraphNodeReferenceOutside); ok {
 				// If the reference is outside, we need to get the path from the reference itself instead of the vertex
 				_, refPath = outside.ReferenceOutside()
 			}
 			diags = diags.Append(t.trackProviderFunction(g, v, ref, refPath, providerVerts, providerReferences))
 		}
 
+		// For root module scoped references (such as import blocks)
+		if rootReferencerNode, ok := v.(GraphNodeRootReferencer); ok {
+			for _, ref := range rootReferencerNode.RootReferences() {
+				diags = diags.Append(t.trackProviderFunction(g, v, ref, addrs.RootModule, providerVerts, providerReferences))
+			}
+		}
 	}
 
 	return diags.Err()
