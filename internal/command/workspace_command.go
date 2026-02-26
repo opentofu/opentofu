@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 )
 
 // WorkspaceCommand is a Command Implementation that manipulates workspaces,
@@ -19,12 +21,36 @@ type WorkspaceCommand struct {
 	LegacyName bool
 }
 
-func (c *WorkspaceCommand) Run(args []string) int {
-	c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+func (c *WorkspaceCommand) Run(rawArgs []string) int {
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	cmdFlags := c.Meta.extendedFlagSet("workspace")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseWorkspace(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewWorkspace(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
+	}
+
+	view.WarnWhenUsedAsEnvCmd(c.LegacyName)
 
 	return cli.RunResultHelp
 }
@@ -49,82 +75,3 @@ func (c *WorkspaceCommand) Synopsis() string {
 func validWorkspaceName(name string) bool {
 	return name == url.PathEscape(name)
 }
-
-func envCommandShowWarning(ui cli.Ui, show bool) {
-	if !show {
-		return
-	}
-
-	ui.Warn(`Warning: the "tofu env" family of commands is deprecated.
-
-"Workspace" is now the preferred term for what earlier OpenTofu versions
-called "environment", to reduce ambiguity caused by the latter term colliding
-with other concepts.
-
-The "tofu workspace" commands should be used instead. "tofu env"
-will be removed in a future OpenTofu version.
-`)
-}
-
-const (
-	envExists = `Workspace %q already exists`
-
-	envDoesNotExist = `
-Workspace %q doesn't exist.
-
-You can create this workspace with the "new" subcommand 
-or include the "-or-create" flag with the "select" subcommand.`
-
-	envChanged = `[reset][green]Switched to workspace %q.`
-
-	envCreated = `
-[reset][green][bold]Created and switched to workspace %q![reset][green]
-
-You're now on a new, empty workspace. Workspaces isolate their state,
-so if you run "tofu plan" OpenTofu will not see any existing state
-for this configuration.
-`
-
-	envDeleted = `[reset][green]Deleted workspace %q!`
-
-	envWarnNotEmpty = `[reset][yellow]WARNING: %q was non-empty.
-The resources managed by the deleted workspace may still exist,
-but are no longer manageable by OpenTofu since the state has
-been deleted.
-`
-
-	envDelCurrent = `
-Workspace %[1]q is your active workspace.
-
-You cannot delete the currently active workspace. Please switch
-to another workspace and try again.
-`
-
-	envInvalidName = `
-The workspace name %q is not allowed. The name must contain only URL safe
-characters, and no path separators.
-`
-
-	envIsOverriddenNote = `
-
-The active workspace is being overridden using the TF_WORKSPACE environment
-variable.
-`
-
-	envIsOverriddenSelectError = `
-The selected workspace is currently overridden using the TF_WORKSPACE
-environment variable.
-
-To select a new workspace, either update this environment variable or unset
-it and then run this command again.
-`
-
-	envIsOverriddenNewError = `
-The workspace is currently overridden using the TF_WORKSPACE environment
-variable. You cannot create a new workspace when using this setting.
-
-To create a new workspace, either unset this environment variable or update it
-to match the workspace name you are trying to create, and then run this command
-again.
-`
-)
