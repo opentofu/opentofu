@@ -215,6 +215,8 @@ type Meta struct {
 	// Override certain behavior for tests within this package
 	testingOverrides *testingOverrides
 
+	Plugins plugins.Library
+
 	// ----------------------------------------------------------
 	// Private: do not set these
 	// ----------------------------------------------------------
@@ -552,6 +554,29 @@ func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *back
 	return op, diags
 }
 
+func (m *Meta) pluginLibrary() (plugins.Library, error) {
+	var err error
+	if m.Plugins == nil {
+		// If testingOverrides are set, we'll skip the plugin discovery process
+		// and just work with what we've been given, thus allowing the tests
+		// to provide mock providers and provisioners.
+		if m.testingOverrides != nil {
+			m.Plugins = plugins.NewLibrary(
+				m.testingOverrides.Providers,
+				m.testingOverrides.Provisioners,
+			)
+		} else {
+			var providerFactories map[addrs.Provider]providers.Factory
+			providerFactories, err = m.providerFactories()
+			m.Plugins = plugins.NewLibrary(
+				providerFactories,
+				m.provisionerFactories(),
+			)
+		}
+	}
+	return m.Plugins, err
+}
+
 // contextOpts returns the options to use to initialize a OpenTofu
 // context with the settings from this Meta.
 func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
@@ -564,24 +589,7 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 
 	opts.UIInput = m.UIInput()
 	opts.Parallelism = m.parallelism
-
-	// If testingOverrides are set, we'll skip the plugin discovery process
-	// and just work with what we've been given, thus allowing the tests
-	// to provide mock providers and provisioners.
-	if m.testingOverrides != nil {
-		opts.Plugins = plugins.NewLibrary(
-			m.testingOverrides.Providers,
-			m.testingOverrides.Provisioners,
-		)
-	} else {
-		var providerFactories map[addrs.Provider]providers.Factory
-		providerFactories, err = m.providerFactories()
-		opts.Plugins = plugins.NewLibrary(
-			providerFactories,
-			m.provisionerFactories(),
-		)
-	}
-
+	opts.Plugins, err = m.pluginLibrary()
 	opts.Meta = &tofu.ContextMeta{
 		Env:                workspace,
 		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),

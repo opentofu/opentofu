@@ -11,7 +11,7 @@ import (
 
 type pluginClient struct {
 	provider  providers.Interface
-	cfgType   string
+	stateType string
 	chunkSize int64
 
 	workspace string
@@ -20,7 +20,7 @@ type pluginClient struct {
 func (p *pluginClient) Workspace(ws string) *pluginClient {
 	return &pluginClient{
 		provider:  p.provider,
-		cfgType:   p.cfgType,
+		stateType: p.stateType,
 		chunkSize: p.chunkSize,
 		workspace: ws,
 	}
@@ -28,7 +28,7 @@ func (p *pluginClient) Workspace(ws string) *pluginClient {
 
 func (p *pluginClient) Get(_ context.Context) (*remote.Payload, error) {
 	resp := p.provider.ReadStateBytes(context.TODO(), providers.ReadStateBytesRequest{
-		TypeName: p.cfgType,
+		TypeName: p.stateType,
 		StateId:  p.workspace,
 	})
 
@@ -59,7 +59,7 @@ func (p *pluginClient) Put(_ context.Context, data []byte) error {
 		size := int64(len(data))
 
 		meta := &providers.WriteStateRequestChunkMeta{
-			TypeName: p.cfgType,
+			TypeName: p.stateType,
 			StateId:  p.workspace,
 		}
 
@@ -93,7 +93,7 @@ func (p *pluginClient) Put(_ context.Context, data []byte) error {
 
 func (p *pluginClient) Delete(_ context.Context) error {
 	resp := p.provider.DeleteState(context.TODO(), providers.DeleteStateRequest{
-		TypeName: p.cfgType,
+		TypeName: p.stateType,
 		StateId:  p.workspace,
 	})
 	return resp.Diagnostics.Err()
@@ -101,7 +101,7 @@ func (p *pluginClient) Delete(_ context.Context) error {
 
 func (p *pluginClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	lockResult := p.provider.LockState(context.TODO(), providers.LockStateRequest{
-		TypeName:  p.cfgType,
+		TypeName:  p.stateType,
 		StateId:   p.workspace,
 		Operation: info.Operation,
 	})
@@ -111,7 +111,7 @@ func (p *pluginClient) Lock(_ context.Context, info *statemgr.LockInfo) (string,
 
 func (p *pluginClient) Unlock(_ context.Context, id string) error {
 	unlockResult := p.provider.UnlockState(context.TODO(), providers.UnlockStateRequest{
-		TypeName: p.cfgType,
+		TypeName: p.stateType,
 		StateId:  p.workspace,
 		LockId:   id,
 	})

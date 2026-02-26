@@ -25,7 +25,6 @@ import (
 	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
 	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
-	backendPlugin "github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
 	backendCloud "github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -87,7 +86,9 @@ func Init(services *disco.Disco) {
 		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
 		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
 		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
-		"plugin":     func(enc encryption.StateEncryption) backend.Backend { return backendPlugin.New(enc) },
+		"state_store": func(enc encryption.StateEncryption) backend.Backend {
+			panic("THIS WILL BE REPLACED AT RUNTIME")
+		},
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package

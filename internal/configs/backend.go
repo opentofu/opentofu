@@ -25,6 +25,9 @@ type Backend struct {
 	Config hcl.Body
 	Eval   *StaticEvaluator
 
+	StateStoreType     string
+	StateStoreProvider addrs.Provider
+
 	TypeRange hcl.Range
 	DeclRange hcl.Range
 }

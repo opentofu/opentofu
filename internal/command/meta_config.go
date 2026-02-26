@@ -20,9 +20,13 @@ import (
 	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/backend"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -238,6 +242,22 @@ func (m *Meta) loadBackendConfig(ctx context.Context, rootDir string) (*configs.
 	if mod.CloudConfig != nil {
 		backendConfig := mod.CloudConfig.ToBackendConfig()
 		return &backendConfig, nil
+	}
+	if mod.StateStoreConfig != nil {
+		stateStoreConfig := mod.StateStoreConfig.ToBackendConfig()
+
+		plugins, _ := m.pluginLibrary()
+		manager := plugins.NewProviderManager()
+
+		backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
+			b, diags := plugin.New(enc, manager, mod.StateStoreConfig.Provider, mod.StateStoreConfig.Type)
+			if diags.HasErrors() {
+				m.View.Diagnostics(diags)
+			}
+			return b
+		})
+
+		return &stateStoreConfig, nil
 	}
 
 	return mod.Backend, nil

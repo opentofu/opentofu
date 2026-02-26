@@ -106,6 +106,13 @@ func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExpe
 						file.CloudConfigs = append(file.CloudConfigs, cloudCfg)
 					}
 
+				case "state_store":
+					state_storeCfg, cfgDiags := decodeStateStoreBlock(innerBlock)
+					diags = append(diags, cfgDiags...)
+					if state_storeCfg != nil {
+						file.StateStoreConfigs = append(file.StateStoreConfigs, state_storeCfg)
+					}
+
 				case "required_providers":
 					reqs, reqsDiags := decodeRequiredProvidersBlock(innerBlock)
 					diags = append(diags, reqsDiags...)
@@ -346,6 +353,10 @@ var terraformBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "cloud",
+		},
+		{
+			Type:       "state_store",
+			LabelNames: []string{"type"},
 		},
 		{
 			Type: "required_providers",

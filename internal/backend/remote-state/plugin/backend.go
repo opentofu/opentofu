@@ -8,112 +8,138 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"strings"
+	"maps"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
-var ProviderSupplier func(addrs.LocalProviderConfig) (providers.Interface, error)
-
-func New(enc encryption.StateEncryption) backend.Backend {
-	s := &schema.Backend{
-		Schema: map[string]*schema.Schema{
-			"provider": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			"type": &schema.Schema{
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			"config": &schema.Schema{
-				Type:     schema.TypeMap,
-				Optional: true,
-			},
-		},
-	}
-
-	b := &Backend{Backend: s, encryption: enc}
-	b.Backend.ConfigureFunc = b.configure
-	return b
+func New(enc encryption.StateEncryption, manager plugins.ProviderManager, providerAddr addrs.Provider, stateType string) (backend.Backend, tfdiags.Diagnostics) {
+	providerSchema, diags := manager.GetProviderSchema(context.TODO(), providerAddr)
+	return &Backend{encryption: enc, manager: manager, providerAddr: providerAddr, providerSchema: providerSchema, stateType: stateType}, diags
 }
 
 type Backend struct {
-	*schema.Backend
-	encryption encryption.StateEncryption
+	encryption     encryption.StateEncryption
+	manager        plugins.ProviderManager
+	providerAddr   addrs.Provider
+	providerSchema providers.ProviderSchema
+	stateType      string
 
 	client *pluginClient
 }
 
-func (b *Backend) configure(ctx context.Context) error {
-	data := schema.FromContextBackendConfig(ctx)
+// ConfigSchema returns a description of the expected configuration
+// structure for the receiving backend.
+//
+// This method does not have any side-effects for the backend and can
+// be safely used before configuring.
+func (b *Backend) ConfigSchema() *configschema.Block {
+	base := b.providerSchema.StateStores[b.stateType].Block
 
-	providerIdent := data.Get("provider").(string)
-	providerParts := strings.Split(providerIdent, ".")
-	addr := addrs.LocalProviderConfig{
-		LocalName: providerParts[0],
-	}
-	if len(providerParts) > 1 {
-		addr.Alias = providerParts[1]
-	}
+	blockTypes := map[string]*configschema.NestedBlock{}
+	maps.Copy(blockTypes, base.BlockTypes)
+	blockTypes["provider"] = &configschema.NestedBlock{Block: *b.providerSchema.Provider.Block, Nesting: configschema.NestingMap}
 
-	provider, err := ProviderSupplier(addr)
-	if err != nil {
-		return err
+	return &configschema.Block{
+		Attributes:      base.Attributes,
+		BlockTypes:      blockTypes,
+		Description:     base.Description,
+		DescriptionKind: base.DescriptionKind,
+		Ephemeral:       base.Ephemeral,
 	}
+}
 
-	cfgType := data.Get("type").(string)
-	cfgVal := cty.NullVal(cty.DynamicPseudoType)
-	rawConfig, ok := data.GetOk("config")
-	if ok {
-		mapConfig := rawConfig.(map[string]interface{})
-		// TODO fancier schema mapping
-		ident := mapConfig["ident"].(string)
-		cfgVal = cty.MapVal(map[string]cty.Value{
-			"ident": cty.StringVal(ident),
-		})
+// PrepareConfig checks the validity of the values in the given
+// configuration, and inserts any missing defaults, assuming that its
+// structure has already been validated per the schema returned by
+// ConfigSchema.
+//
+// This method does not have any side-effects for the backend and can
+// be safely used before configuring. It also does not consult any
+// external data such as environment variables, disk files, etc. Validation
+// that requires such external data should be deferred until the
+// Configure call.
+//
+// If error diagnostics are returned then the configuration is not valid
+// and must not subsequently be passed to the Configure method.
+//
+// This method may return configuration-contextual diagnostics such
+// as tfdiags.AttributeValue, and so the caller should provide the
+// necessary context via the diags.InConfigBody method before returning
+// diagnostics to the user.
+func (b *Backend) PrepareConfig(cfgVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	// TODO make sure that there's only one provider block in the labeled map
+	return cfgVal, nil
+}
+
+// Configure uses the provided configuration to set configuration fields
+// within the backend.
+//
+// The given configuration is assumed to have already been validated
+// against the schema returned by ConfigSchema and passed validation
+// via PrepareConfig.
+//
+// This method may be called only once per backend instance, and must be
+// called before all other methods except where otherwise stated.
+//
+// If error diagnostics are returned, the internal state of the instance
+// is undefined and no other methods may be called.
+func (b *Backend) Configure(ctx context.Context, cfgVal cty.Value) tfdiags.Diagnostics {
+	cfgMap := cfgVal.AsValueMap()
+
+	// TODO safe map access
+	providerVal := cfgMap["provider"].AsValueMap()[b.providerAddr.Type]
+	// Remove provider block
+	delete(cfgMap, "provider")
+	configVal := cty.ObjectVal(cfgMap)
+
+	provider, diags := b.manager.NewConfiguredProvider(ctx, b.providerAddr, providerVal)
+	if diags.HasErrors() {
+		return diags
 	}
 
 	validateResp := provider.ValidateStateStoreConfig(ctx, providers.ValidateStateStoreConfigRequest{
-		TypeName: cfgType,
-		Config:   cfgVal,
+		TypeName: b.stateType,
+		Config:   configVal,
 	})
-
-	if validateResp.Diagnostics.HasErrors() {
-		return validateResp.Diagnostics.Err()
+	diags = diags.Append(validateResp.Diagnostics)
+	if diags.HasErrors() {
+		return diags
 	}
 
 	configureResp := provider.ConfigureStateStore(ctx, providers.ConfigureStateStoreRequest{
-		TypeName: cfgType,
-		Config:   cfgVal,
+		TypeName: b.stateType,
+		Config:   configVal,
 		Capabilities: providers.StateStoreClientCapabilities{
 			ChunkSize: 4 * 1024,
 		},
 	})
-
-	if configureResp.Diagnostics.HasErrors() {
-		return configureResp.Diagnostics.Err()
+	diags = diags.Append(configureResp.Diagnostics)
+	if diags.HasErrors() {
+		return diags
 	}
 
 	b.client = &pluginClient{
 		provider:  provider,
-		cfgType:   cfgType,
+		stateType: b.stateType,
 		chunkSize: configureResp.Capabilities.ChunkSize,
 	}
 
 	if b.client.chunkSize <= 0 {
-		return fmt.Errorf("StateStorage Provider did not provide a valid value for ChunkSize: %v", b.client.chunkSize)
+		diags = diags.Append(fmt.Errorf("StateStorage Provider did not provide a valid value for ChunkSize: %v", b.client.chunkSize))
 	}
 
-	return nil
+	return diags
 }
 
 func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
@@ -161,7 +187,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 }
 
 func (b *Backend) Workspaces(context.Context) ([]string, error) {
-	resp := b.client.provider.GetStates(context.TODO(), providers.GetStatesRequest{TypeName: b.client.cfgType})
+	resp := b.client.provider.GetStates(context.TODO(), providers.GetStatesRequest{TypeName: b.client.stateType})
 	resp.StateId = append(resp.StateId, backend.DefaultStateName)
 	return resp.StateId, resp.Diagnostics.Err()
 }

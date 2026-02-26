@@ -23,6 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
@@ -217,7 +218,11 @@ func (c *InitCommand) Run(rawArgs []string) int {
 	case args.FlagCloud && rootModEarly.CloudConfig != nil:
 		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
 	case args.FlagBackend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
+		if rootModEarly.StateStoreConfig != nil {
+			back, backendOutput, backDiags = c.initStateStore(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
+		} else {
+			back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, args.FlagConfigExtra, enc, view)
+		}
 	default:
 		// load the previously-stored backend config
 		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
@@ -428,6 +433,45 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 	}
 
 	backendConfig := root.CloudConfig.ToBackendConfig()
+
+	opts := &BackendOpts{
+		Config: &backendConfig,
+		Init:   true,
+	}
+
+	back, backDiags := c.Backend(ctx, opts, enc.State())
+	diags = diags.Append(backDiags)
+	return back, true, diags
+}
+
+func (c *InitCommand) initStateStore(ctx context.Context, root *configs.Module, extraConfig flags.RawFlags, enc encryption.Encryption, view views.Init) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
+	ctx, span := tracing.Tracer().Start(ctx, "StateStore backend init")
+	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
+	defer span.End()
+
+	view.InitializingStateStoreBackend()
+
+	if len(extraConfig.AllItems()) != 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid command-line option",
+			"The -backend-config=... command line option is only for state backends, and is not applicable to state_store backend-based configurations.\n\nTo change the set of workspaces associated with this configuration, edit the StateStore configuration block in the root module.",
+		))
+		return nil, true, diags
+	}
+
+	backendConfig := root.StateStoreConfig.ToBackendConfig()
+
+	plugins, _ := c.pluginLibrary()
+	manager := plugins.NewProviderManager()
+
+	backendInit.Set("state_store", func(enc encryption.StateEncryption) backend.Backend {
+		b, diags := plugin.New(enc, manager, root.StateStoreConfig.Provider, root.StateStoreConfig.Type)
+		if diags.HasErrors() {
+			view.Diagnostics(diags)
+		}
+		return b
+	})
 
 	opts := &BackendOpts{
 		Config: &backendConfig,
