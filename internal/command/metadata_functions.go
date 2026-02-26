@@ -6,20 +6,9 @@
 package command
 
 import (
-	"fmt"
-
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/zclconf/go-cty/cty/function"
-
-	"github.com/opentofu/opentofu/internal/command/jsonfunction"
-	"github.com/opentofu/opentofu/internal/lang"
-)
-
-var (
-	ignoredFunctions = []addrs.Function{
-		addrs.ParseFunction("map").FullyQualified(),
-		addrs.ParseFunction("list").FullyQualified(),
-	}
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 )
 
 // MetadataFunctionsCommand is a Command implementation that prints out information
@@ -36,42 +25,26 @@ func (c *MetadataFunctionsCommand) Synopsis() string {
 	return "Show signatures and descriptions for the available functions"
 }
 
-func (c *MetadataFunctionsCommand) Run(args []string) int {
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("metadata functions")
-	var jsonOutput bool
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "produce JSON output")
+func (c *MetadataFunctionsCommand) Run(rawArgs []string) int {
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
 
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	// Parse and validate flags
+	_, closer, diags := arguments.ParseMetadataFunctions(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewMetadataFunctions(c.View)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
+	}
+
+	if !view.PrintFunctions() {
 		return 1
 	}
-
-	if !jsonOutput {
-		c.Ui.Error(
-			"The `tofu metadata functions` command requires the `-json` flag.\n")
-		cmdFlags.Usage()
-		return 1
-	}
-
-	scope := &lang.Scope{}
-	funcs := scope.Functions()
-	filteredFuncs := make(map[string]function.Function)
-	for k, v := range funcs {
-		if isIgnoredFunction(k) {
-			continue
-		}
-		filteredFuncs[k] = v
-	}
-
-	jsonFunctions, marshalDiags := jsonfunction.Marshal(filteredFuncs)
-	if marshalDiags.HasErrors() {
-		c.showDiagnostics(marshalDiags)
-		return 1
-	}
-	c.Ui.Output(string(jsonFunctions))
-
 	return 0
 }
 
@@ -80,13 +53,3 @@ Usage: tofu [global options] metadata functions -json
 
   Prints out a json representation of the available function signatures.
 `
-
-func isIgnoredFunction(name string) bool {
-	funcAddr := addrs.ParseFunction(name).FullyQualified().String()
-	for _, i := range ignoredFunctions {
-		if funcAddr == i.String() {
-			return true
-		}
-	}
-	return false
-}
