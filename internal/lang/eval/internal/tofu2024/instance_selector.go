@@ -64,7 +64,7 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) c
 	countValuer = configgraph.ValuerOnce(countValuer)
 	return &instanceSelector{
 		keyType:     addrs.IntKeyType,
-		sourceRange: nil,
+		sourceRange: countValuer.ValueSourceRange(),
 		selectInstances: func(ctx context.Context) (configgraph.Maybe[configgraph.InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics) {
 			var count int
 			countVal, diags := countValuer.Value(ctx)
@@ -107,7 +107,7 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) c
 					}
 				}
 			}
-			return configgraph.Known(seq), nil, nil
+			return configgraph.Known(seq), marks, nil
 		},
 	}
 }
@@ -153,15 +153,102 @@ func compileInstanceSelectorEnabled(_ context.Context, enabledValuer exprs.Value
 					yield(addrs.NoKey, instances.RepetitionData{})
 				}
 			}
-			return configgraph.Known(seq), nil, nil
+			return configgraph.Known(seq), marks, nil
 		},
 	}
 }
 
 func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Valuer) configgraph.InstanceSelector {
-	// TODO: The logic for this one is a little more complex so I'll come
-	// back to this once more of the rest of this is working.
-	panic("unimplemented")
+	forEachValuer = configgraph.ValuerOnce(forEachValuer)
+	return &instanceSelector{
+		keyType:     addrs.StringKeyType,
+		sourceRange: forEachValuer.ValueSourceRange(),
+		selectInstances: func(ctx context.Context) (configgraph.Maybe[configgraph.InstancesSeq], cty.ValueMarks, tfdiags.Diagnostics) {
+			const errSummary = "Invalid for_each argument"
+
+			rawVal, diags := forEachValuer.Value(ctx)
+			if diags.HasErrors() {
+				return nil, nil, diags
+			}
+			rawVal, marks := rawVal.Unmark()
+			if !rawVal.IsKnown() {
+				// We represent "unknown" by returning a nil configgraph.Maybe
+				// without any error diagnostics, but we will still report
+				// what marks we found on the unknown value.
+				return nil, marks, diags
+			}
+			if rawVal.IsNull() {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  errSummary,
+					Detail:   "The for_each value must not be null.",
+					Subject:  forEachValuer.ValueSourceRange().ToHCL().Ptr(),
+					// TODO: Need some way to get the expression and evalcontext
+					// that were used in forEachValuer.Value above so that
+					// we can describe what upstream values contributed
+					// to this result. (This is true for all of the other
+					// diagnostics based on rawVal below, too.)
+				})
+				return nil, marks, diags
+			}
+
+			typ := rawVal.Type()
+			if typ.IsSetType() {
+				if !typ.ElementType().Equals(cty.String) {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  errSummary,
+						Detail:   "When using a set with for_each, the element type must be string because the element values will be used as instance keys. To work with collections of values of other types, use a map instead.",
+						Subject:  forEachValuer.ValueSourceRange().ToHCL().Ptr(),
+					})
+					return nil, marks, diags
+				}
+				if !rawVal.IsWhollyKnown() {
+					return nil, marks, diags
+				}
+			} else if typ.IsMapType() {
+				if !rawVal.IsKnown() {
+					return nil, marks, diags
+				}
+			} else if typ.IsObjectType() {
+				// An object type is always acceptable, because in that case
+				// the attribute names are part of the type and so available
+				// even if the value isn't known yet.
+			} else if typ.Equals(cty.DynamicPseudoType) {
+				// If we don't even know the type then we have to just assume
+				// it'll become something valid in a later phase.
+				return nil, marks, diags
+			} else {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  errSummary,
+					Detail:   "The for_each value must be either a mapping or a set of strings.",
+					Subject:  forEachValuer.ValueSourceRange().ToHCL().Ptr(),
+				})
+				return nil, marks, diags
+			}
+
+			// For all of the types we accepted above, cty.Value.Elements
+			// returns a sequence that we can directly use for each.key
+			// and each.value, because this feature is designed to be a subset
+			// of the behavior of HCL's 'for' expressions and they also
+			// rely on cty.Value.Elements. In particular, the rules above
+			// should ensure that the key is always a known, non-null string.
+			seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+				for k, v := range rawVal.Elements() {
+					keyStr := k.AsString()
+					more := yield(addrs.StringKey(keyStr), instances.RepetitionData{
+						EachKey:   k,
+						EachValue: v,
+					})
+					if !more {
+						break
+					}
+				}
+			}
+			return configgraph.Known(seq), marks, nil
+		},
+	}
 }
 
 type instanceSelector struct {
