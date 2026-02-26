@@ -167,10 +167,15 @@ func (b *execGraphBuilder) AddResourceInstanceObjectSubgraphs(
 		}
 	}
 
-	// FIXME: We also need a loop to add in all of the explicit dependencies
-	// from provider instance to resource instances, using the callbacks in
-	// addProviderConfigDeps. But to do that we'll first need to extend the
-	// [resourceInstanceObjects] type to capture those dependencies.
+	// We also need explicit dependency relationships whenever a provider
+	// instance's configuration refers to information from a resource instance.
+	for _, elem := range addProviderConfigDeps.Elems {
+		providerInstAddr := elem.Key
+		addConfigDep := elem.Value
+		for dependency := range objs.ProviderInstanceDependencies(providerInstAddr) {
+			addConfigDep(ensureResourceInstanceObjectResultRef(dependency, resultRefs, b))
+		}
+	}
 }
 
 func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject, knownResults addrs.Map[addrs.AbsResourceInstanceObject, execgraph.ResourceInstanceResultRef], b *execGraphBuilder) execgraph.ResourceInstanceResultRef {
