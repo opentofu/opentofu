@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/initwd"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -286,9 +287,9 @@ func testSession(t *testing.T, test testSessionTest) {
 
 	// Build the TF context
 	ctx, diags := tofu.NewContext(&tofu.ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): providers.FactoryFixed(p),
-		},
+		}, nil),
 	})
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context: %s", diags.Err())

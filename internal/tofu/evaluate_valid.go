@@ -234,15 +234,16 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 
 	// TODO: Plugin a suitable context.Context through to here.
 	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerFqn, addr.Mode, addr.Type)
-	if err != nil {
+	schema, _, moreDiags := d.Evaluator.Plugins.ResourceTypeSchema(ctx, providerFqn, addr.Mode, addr.Type)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
 		// Prior validation should've taken care of a schema lookup error,
 		// so we should never get here but we'll handle it here anyway for
 		// robustness.
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Failed provider schema lookup`,
-			Detail:   fmt.Sprintf(`Couldn't load schema for %s resource type %q in %s: %s.`, modeAdjective, addr.Type, providerFqn.String(), err),
+			Detail:   fmt.Sprintf(`Couldn't load schema for %s resource type %q in %s: %s.`, modeAdjective, addr.Type, providerFqn.String(), diags.Err()),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 	}
@@ -278,7 +279,7 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 
 	// If we got this far then we'll try to validate the remaining traversal
 	// steps against our schema.
-	moreDiags := schema.StaticValidateTraversal(remain)
+	moreDiags = schema.StaticValidateTraversal(remain)
 	diags = diags.Append(moreDiags)
 
 	return diags

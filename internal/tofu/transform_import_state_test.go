@@ -67,23 +67,24 @@ func TestGraphNodeImportStateSubExecute(t *testing.T) {
 	state := states.NewState()
 	provider := testProvider("aws")
 	provider.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
-	evalCtx := &MockEvalContext{
-		StateState: state.SyncWrapper(),
-		ProviderSchemaSchema: providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"aws_instance": {
-					Block: &configschema.Block{
-						Attributes: map[string]*configschema.Attribute{
-							"id": {
-								Type:     cty.String,
-								Computed: true,
-							},
+	provider.GetProviderSchemaResponse = &providers.ProviderSchema{
+		ResourceTypes: map[string]providers.Schema{
+			"aws_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {
+							Type:     cty.String,
+							Computed: true,
 						},
 					},
 				},
 			},
 		},
 	}
+	evalCtx := &MockEvalContext{
+		StateState: state.SyncWrapper(),
+	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("aws"), provider)
 
 	importedResource := providers.ImportedResource{
 		TypeName: "aws_instance",
@@ -124,24 +125,25 @@ func TestGraphNodeImportStateSubExecuteNull(t *testing.T) {
 		}))
 		return resp
 	}
-
-	evalCtx := &MockEvalContext{
-		StateState: state.SyncWrapper(),
-		ProviderSchemaSchema: providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"aws_instance": {
-					Block: &configschema.Block{
-						Attributes: map[string]*configschema.Attribute{
-							"id": {
-								Type:     cty.String,
-								Computed: true,
-							},
+	provider.GetProviderSchemaResponse = &providers.ProviderSchema{
+		ResourceTypes: map[string]providers.Schema{
+			"aws_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {
+							Type:     cty.String,
+							Computed: true,
 						},
 					},
 				},
 			},
 		},
 	}
+
+	evalCtx := &MockEvalContext{
+		StateState: state.SyncWrapper(),
+	}
+	evalCtx.installProvider(addrs.NewDefaultProvider("aws"), provider)
 
 	importedResource := providers.ImportedResource{
 		TypeName: "aws_instance",

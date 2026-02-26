@@ -109,14 +109,14 @@ func loadProviderSchemas(ctx context.Context, config *configs.Config, state *sta
 	for fqn := range schemas {
 		wg.Go(func() {
 			log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", fqn.String())
-			schema, err := plugins.ProviderSchema(ctx, fqn)
+			schema, schemaDiags := plugins.providers.GetProviderSchema(ctx, fqn)
 
 			// Ensure that we don't race on diags or schemas now that the hard work is done
 			lock.Lock()
 			defer lock.Unlock()
 
-			if err != nil {
-				diags = diags.Append(err)
+			if schemaDiags.HasErrors() {
+				diags = diags.Append(schemaDiags)
 				return
 			}
 

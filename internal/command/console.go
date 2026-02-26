@@ -33,6 +33,8 @@ func (c *ConsoleCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
+	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
+	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -246,6 +248,12 @@ Options:
   -var-file=foo          Set variables in the OpenTofu configuration from
                          a file. If "terraform.tfvars" or any ".auto.tfvars"
                          files are present, they will be automatically loaded.
+
+  -lock=false            Don't hold a state lock during the operation. This is
+                         dangerous if others might concurrently run commands
+                         against the same workspace.
+
+  -lock-timeout=0s       Duration to retry a state lock.
 `
 	return strings.TrimSpace(helpText)
 }
