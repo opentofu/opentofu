@@ -11,6 +11,7 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -372,152 +373,147 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 	// Locate all providerVerts in the graph
 	providerVerts := providerVertexMap(g)
 	// LuT of provider reference -> provider vertex
-	providerReferences := make(map[ProviderFunctionReference]GraphNodeProvider)
+	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
+
+	type NodeReference struct {
+		ref    *addrs.Reference
+		module addrs.Module
+	}
 
 	for _, v := range g.Vertices() {
 		// Provider function references
-		nr, ok := v.(GraphNodeReferencer)
-		if !ok || t.Config == nil {
-			continue
-		}
+		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 
-		// For each of the module scoped refernces
-		for _, ref := range nr.References() {
-			refPath := nr.ModulePath()
-			if outside, ok := v.(GraphNodeReferenceOutside); ok {
-				// If the reference is outside, we need to get the path from the reference itself instead of the vertex
-				_, refPath = outside.ReferenceOutside()
+			// Construct the set of references that we need to check.
+			var refs []NodeReference
+
+			// We collate both References() and RootReferences() because
+			// import block expressions are returned via RootReferences(),
+			// since they are always evaluated in the root module context
+			// regardless of whether the import target is in a child module.
+			for _, ref := range nr.References() {
+				refPath := nr.ModulePath()
+				if outside, isOutside := v.(GraphNodeReferenceOutside); isOutside {
+					_, refPath = outside.ReferenceOutside()
+				}
+				refs = append(refs, NodeReference{ref, refPath})
 			}
-			diags = diags.Append(t.trackProviderFunction(g, v, ref, refPath, providerVerts, providerReferences))
-		}
 
-		// For root module scoped references (such as import blocks)
-		if rootReferencerNode, ok := v.(GraphNodeRootReferencer); ok {
-			for _, ref := range rootReferencerNode.RootReferences() {
-				diags = diags.Append(t.trackProviderFunction(g, v, ref, addrs.RootModule, providerVerts, providerReferences))
+			if nr, ok := v.(GraphNodeRootReferencer); ok {
+				for _, ref := range nr.RootReferences() {
+					refs = append(refs, NodeReference{ref, addrs.RootModule})
+				}
+			}
+			// Now that we have a set of the references, Let's iterate over them
+			for _, nodeRef := range refs {
+				ref := nodeRef.ref
+
+				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
+					refPath := nodeRef.module
+
+					key := ProviderFunctionReference{
+						ModulePath:    refPath.String(),
+						ProviderName:  pf.ProviderName,
+						ProviderAlias: pf.ProviderAlias,
+					}
+
+					// We already know about this provider and can link directly
+					if provider, ok := providerReferences[key]; ok {
+						// Is it worth skipping if we have already connected this provider?
+						g.Connect(dag.BasicEdge(v, provider))
+						continue
+					}
+
+					// Find the config that this node belongs to
+					mc := t.Config.Descendent(refPath)
+					if mc == nil {
+						// I don't think this is possible
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown Descendent Module",
+							Detail:   refPath.String(),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					// Find the provider type from required_providers
+					pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
+					if !ok {
+						diags = diags.Append(&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unknown function provider",
+							Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
+							Subject:  ref.SourceRange.ToHCL().Ptr(),
+						})
+						continue
+					}
+
+					// Build fully qualified provider address
+					absPc := addrs.AbsProviderConfig{
+						Provider: pr.Type,
+						Module:   refPath,
+						Alias:    pf.ProviderAlias,
+					}
+
+					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
+
+					// Lookup provider via full address
+					provider := providerVerts[absPc.String()]
+
+					if provider != nil {
+						// Providers with configuration will already exist within the graph and can be directly referenced
+						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
+					} else {
+						// If this provider doesn't exist, stub it out with an init-only provider node
+						// This works for unconfigured functions only, but that validation is elsewhere
+						log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", absPc)
+						stubAddr := addrs.AbsProviderConfig{
+							Module:   addrs.RootModule,
+							Provider: absPc.Provider,
+						}
+						// Try to look up an existing stub
+						provider, ok = providerVerts[stubAddr.String()]
+						// If it does not exist, create it
+						if !ok {
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+
+							provider = &NodeEvalableProvider{
+								NodeAbstractProvider: &NodeAbstractProvider{
+									Addr: stubAddr,
+								},
+							}
+							providerVerts[stubAddr.String()] = provider
+							g.Add(provider)
+						}
+					}
+
+					var targetExpr hcl.Expression
+					var targetPath addrs.Module
+
+					// see if this is a proxy provider pointing to another concrete config
+					if p, ok := provider.(*graphNodeProxyProvider); ok {
+						provider = p.Target()
+						targetExpr, targetPath = p.TargetExpr()
+					}
+
+					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
+					g.Connect(dag.BasicEdge(v, provider))
+
+					// Save for future lookups
+					providerReferences[key] = provider
+					t.ProviderFunctionTracker[key] = FunctionProvidedBy{
+						Provider:      provider.ProviderAddr(),
+						Instance:      provider.Instance,
+						KeyModule:     targetPath,
+						KeyExpression: targetExpr,
+					}
+				}
 			}
 		}
 	}
 
 	return diags.Err()
-}
-
-// trackProviderFunction processes a single reference, and if it is a provider function reference,
-// ensures the provider is present in the graph and tracked in the ProviderFunctionTracker.
-func (t *ProviderFunctionTransformer) trackProviderFunction(
-	g *Graph,
-	v dag.Vertex,
-	ref *addrs.Reference,
-	refPath addrs.Module,
-	providerVerts map[string]GraphNodeProvider,
-	providerReferences map[ProviderFunctionReference]GraphNodeProvider,
-) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	provFunc, ok := ref.Subject.(addrs.ProviderFunction)
-	if !ok {
-		return nil
-	}
-
-	key := ProviderFunctionReference{
-		ModulePath:    refPath.String(),
-		ProviderName:  provFunc.ProviderName,
-		ProviderAlias: provFunc.ProviderAlias,
-	}
-
-	// We already know about this provider and can link directly
-	if provider, ok := providerReferences[key]; ok {
-		// Is it worth skipping if we have already connected this provider?
-		g.Connect(dag.BasicEdge(v, provider))
-		return nil
-	}
-
-	// Find the config that this node belongs to
-	mc := t.Config.Descendent(refPath)
-	if mc == nil {
-		// I don't think this is possible
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unknown Descendent Module",
-			Detail:   refPath.String(),
-			Subject:  ref.SourceRange.ToHCL().Ptr(),
-		})
-		return diags
-	}
-
-	// Find the provider type from required_providers
-	pr, ok := mc.Module.ProviderRequirements.RequiredProviders[provFunc.ProviderName]
-	if !ok {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Unknown function provider",
-			Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", provFunc.ProviderName),
-			Subject:  ref.SourceRange.ToHCL().Ptr(),
-		})
-		return diags
-	}
-
-	// Build fully qualified provider address
-	absPc := addrs.AbsProviderConfig{
-		Provider: pr.Type,
-		Module:   refPath,
-		Alias:    provFunc.ProviderAlias,
-	}
-
-	log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", provFunc, dag.VertexName(v), absPc)
-
-	// Lookup provider via full address
-	provider := providerVerts[absPc.String()]
-
-	if provider != nil {
-		// Providers with configuration will already exist within the graph and can be directly referenced
-		log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
-	} else {
-		// If this provider doesn't exist, stub it out with an init-only provider node
-		// This works for unconfigured functions only, but that validation is elsewhere
-		log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", absPc)
-		stubAddr := addrs.AbsProviderConfig{
-			Module:   addrs.RootModule,
-			Provider: absPc.Provider,
-		}
-		// Try to look up an existing stub
-		provider, ok = providerVerts[stubAddr.String()]
-		// If it does not exist, create it
-		if !ok {
-			log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-
-			provider = &NodeEvalableProvider{
-				NodeAbstractProvider: &NodeAbstractProvider{
-					Addr: stubAddr,
-				},
-			}
-			providerVerts[stubAddr.String()] = provider
-			g.Add(provider)
-		}
-	}
-
-	var targetExpr hcl.Expression
-	var targetPath addrs.Module
-
-	// see if this is a proxy provider pointing to another concrete config
-	if p, ok := provider.(*graphNodeProxyProvider); ok {
-		provider = p.Target()
-		targetExpr, targetPath = p.TargetExpr()
-	}
-
-	log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
-	g.Connect(dag.BasicEdge(v, provider))
-
-	// Save for future lookups
-	providerReferences[key] = provider
-	t.ProviderFunctionTracker[key] = FunctionProvidedBy{
-		Provider:      provider.ProviderAddr(),
-		Instance:      provider.Instance,
-		KeyModule:     targetPath,
-		KeyExpression: targetExpr,
-	}
-
-	return nil
 }
 
 // CloseProviderTransformer is a GraphTransformer that adds nodes to the
