@@ -187,6 +187,12 @@ type resourceInstanceObjects struct {
 	// We maintain this so that we can efficiently traverse the graph in both
 	// directions when performing further analysis.
 	reverseDeps addrs.Map[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]]
+
+	// providerInstDeps describes the resource instances that each provider
+	// instance depends on, which are therefore effectively additional indirect
+	// dependencies for any resource instance that belongs to a given
+	// provider instance and must be represented in the final execution graph.
+	providerInstDeps addrs.Map[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]]
 }
 
 // Get returns the resource instance object with the given address, or nil if
@@ -212,8 +218,7 @@ func (rios *resourceInstanceObjects) All() iter.Seq2[addrs.AbsResourceInstanceOb
 // Dependencies returns the addresses of all resource instance objects that the
 // resource instance object of the given address depends on.
 //
-// The caller must not modify the result and must not access it concurrently
-// with other calls to methods on the same object.
+// The caller must not modify any object reachable through the results.
 func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceObject) iter.Seq[addrs.AbsResourceInstanceObject] {
 	obj := rios.objects.Get(of)
 	if obj == nil {
@@ -226,8 +231,7 @@ func (rios *resourceInstanceObjects) Dependencies(of addrs.AbsResourceInstanceOb
 // the resource instance object with the given address as one of their
 // dependencies. In other words, this queries the dependencies "backwards".
 //
-// The caller must not modify the result and must not access it concurrently
-// with other calls to methods on the same object.
+// The caller must not modify any object reachable through the results.
 //
 // Note that not all of the returned addresses necessarily match an object
 // that can be retrieved using [resourceInstanceObjects.Get]. The collection
@@ -257,6 +261,25 @@ func (rios *resourceInstanceObjects) DependenciesAndDependents(of addrs.AbsResou
 	}
 }
 
+// ProviderInstanceDependencies returns the addresses of all resource instance
+// objects that the given provider instance depends on to be configured.
+//
+// The caller must not modify any object reachable through the results.
+func (rios *resourceInstanceObjects) ProviderInstanceDependencies(of addrs.AbsProviderInstanceCorrect) iter.Seq[addrs.AbsResourceInstanceObject] {
+	// We internally track these as relationships to resource instances rather
+	// than resource instance objects because provider instances are not allowed
+	// to depend on deposed objects, but for consistency with the other methods
+	// of this type we'll translate them into resource instance object addresses
+	// referring to the current object of each instance as we stream them out.
+	return func(yield func(addrs.AbsResourceInstanceObject) bool) {
+		for _, instAddr := range rios.providerInstDeps.Get(of) {
+			if !yield(instAddr.CurrentObject()) {
+				return
+			}
+		}
+	}
+}
+
 // resourceInstanceObjectsBuilder is a wrapper around a
 // [resourceInstanceObjects] that allows new objects to be inserted in a
 // concurrency-safe way.
@@ -268,8 +291,9 @@ type resourceInstanceObjectsBuilder struct {
 func newResourceInstanceObjectsBuilder() *resourceInstanceObjectsBuilder {
 	return &resourceInstanceObjectsBuilder{
 		result: &resourceInstanceObjects{
-			objects:     addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
-			reverseDeps: addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
+			objects:          addrs.MakeMap[addrs.AbsResourceInstanceObject, *resourceInstanceObject](),
+			reverseDeps:      addrs.MakeMap[addrs.AbsResourceInstanceObject, addrs.Set[addrs.AbsResourceInstanceObject]](),
+			providerInstDeps: addrs.MakeMap[addrs.AbsProviderInstanceCorrect, addrs.Set[addrs.AbsResourceInstance]](),
 		},
 	}
 }
@@ -300,6 +324,30 @@ func (b *resourceInstanceObjectsBuilder) Put(obj *resourceInstanceObject) {
 		}
 		b.result.reverseDeps.Get(depAddr).Add(obj.Addr)
 	}
+}
+
+// PutProviderInstanceDependencies records the set of resource instance objects
+// that the given provider instance depends on in order to be configured.
+//
+// This takes a set of provider instance addresses rather than provider instance
+// _object_ addresses because it's never valid for a provider instance to
+// depend on deposed resource instance objects.
+//
+// This function panics if there have been multiple calls for the same provider
+// instance. The caller must not modify the given set or anything reachable
+// through it after calling this function, because it becomes part of the
+// internal state of the reciever.
+func (b *resourceInstanceObjectsBuilder) PutProviderInstanceDependencies(addr addrs.AbsProviderInstanceCorrect, deps addrs.Set[addrs.AbsResourceInstance]) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.result.providerInstDeps.Has(addr) {
+		panic(fmt.Sprintf("%s dependencies already tracked in this resourceInstanceObjects collection", addr))
+	}
+	b.result.providerInstDeps.Put(addr, deps)
+
+	// We don't retain reverse dependencies for provider instances, because
+	// they are never "destroyed" and so backward edges are never needed.
 }
 
 func (b *resourceInstanceObjectsBuilder) Close() *resourceInstanceObjects {
