@@ -269,5 +269,5 @@ func (v *View) colorMessage(message string, color string) string {
 		return message
 	}
 
-	return v.colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
+	return v.colorize.Color(fmt.Sprintf("%s%s", color, message))
 }

@@ -448,7 +448,6 @@ func TestView_errorln(t *testing.T) {
 		validate func(*testing.T, string)
 	}{
 		"simple error message": {
-
 			message: "This is an error",
 			noColor: true,
 			validate: func(t *testing.T, output string) {
@@ -461,7 +460,6 @@ func TestView_errorln(t *testing.T) {
 			},
 		},
 		"error with color disabled": {
-
 			message: "Colored error",
 			noColor: true,
 			validate: func(t *testing.T, output string) {
@@ -471,12 +469,12 @@ func TestView_errorln(t *testing.T) {
 			},
 		},
 		"error with color enabled": {
-
 			message: "Colored error",
 			noColor: false,
 			validate: func(t *testing.T, output string) {
-				if !strings.Contains(output, "Colored error") {
-					t.Errorf("expected error message in output, got %q", output)
+				expected := "\x1b[31mColored error\x1b[0m\n"
+				if diff := cmp.Diff(expected, output); diff != "" {
+					t.Errorf("got unexpected message (-want, +got):\n%s", diff)
 				}
 			},
 		},
@@ -504,7 +502,6 @@ func TestView_warnln(t *testing.T) {
 		validate func(*testing.T, string)
 	}{
 		"simple warning message": {
-
 			message: "This is a warning",
 			noColor: true,
 			validate: func(t *testing.T, output string) {
@@ -517,7 +514,6 @@ func TestView_warnln(t *testing.T) {
 			},
 		},
 		"warning with color disabled": {
-
 			message: "Colored warning",
 			noColor: true,
 			validate: func(t *testing.T, output string) {
@@ -527,12 +523,12 @@ func TestView_warnln(t *testing.T) {
 			},
 		},
 		"warning with color enabled": {
-
 			message: "Colored warning",
 			noColor: false,
 			validate: func(t *testing.T, output string) {
-				if !strings.Contains(output, "Colored warning") {
-					t.Errorf("expected warning message in output, got %q", output)
+				expected := "\x1b[33mColored warning\x1b[0m\n"
+				if diff := cmp.Diff(expected, output); diff != "" {
+					t.Errorf("got unexpected message (-want, +got):\n%s", diff)
 				}
 			},
 		},
