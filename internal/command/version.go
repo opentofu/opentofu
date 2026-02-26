@@ -6,15 +6,12 @@
 package command
 
 import (
-	"bytes"
 	"crypto/fips140"
-	"encoding/json"
-	"fmt"
-	"sort"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/depsfile"
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
@@ -25,13 +22,6 @@ type VersionCommand struct {
 	Version           string
 	VersionPrerelease string
 	Platform          getproviders.Platform
-}
-
-type VersionOutput struct {
-	Version            string            `json:"terraform_version"`
-	Platform           string            `json:"platform"`
-	FIPS140Enabled     bool              `json:"fips140,omitempty"`
-	ProviderSelections map[string]string `json:"provider_selections"`
 }
 
 func (c *VersionCommand) Help() string {
@@ -47,27 +37,31 @@ Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *VersionCommand) Run(args []string) int {
-	var versionString bytes.Buffer
-	args = c.Meta.process(args)
-	var jsonOutput bool
-	cmdFlags := c.Meta.defaultFlagSet("version")
-	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
-	// Enable but ignore the global version flags. In main.go, if any of the
-	// arguments are -v, -version, or --version, this command will be called
-	// with the rest of the arguments, so we need to be able to cope with
-	// those.
-	cmdFlags.Bool("v", true, "version")
-	cmdFlags.Bool("version", true, "version")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+func (c *VersionCommand) Run(rawArgs []string) int {
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	fmt.Fprintf(&versionString, "OpenTofu v%s", c.Version)
-	if c.VersionPrerelease != "" {
-		fmt.Fprintf(&versionString, "-%s", c.VersionPrerelease)
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseVersion(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewVersion(args.ViewOptions, c.View)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
 	}
 
 	// We'll also attempt to print out the selected plugin versions. We do
@@ -78,63 +72,15 @@ func (c *VersionCommand) Run(args []string) int {
 	// Generally-speaking this is a best-effort thing that will give us a good
 	// result in the usual case where the user successfully ran "tofu init"
 	// and then hit a problem running _another_ command.
-	var providerVersions []string
-	var providerLocks map[addrs.Provider]*depsfile.ProviderLock
+	providerVersions := map[string]string{}
 	if locks, err := c.lockedDependencies(); err == nil {
-		providerLocks = locks.AllProviders()
-		for providerAddr, lock := range providerLocks {
-			version := lock.Version().String()
-			if version == "0.0.0" {
-				providerVersions = append(providerVersions, fmt.Sprintf("+ provider %s (unversioned)", providerAddr))
-			} else {
-				providerVersions = append(providerVersions, fmt.Sprintf("+ provider %s v%s", providerAddr, version))
-			}
+		for providerAddr, lock := range locks.AllProviders() {
+			providerVersions[providerAddr.String()] = lock.Version().String()
 		}
 	}
-
-	if jsonOutput {
-		selectionsOutput := make(map[string]string)
-		for providerAddr, lock := range providerLocks {
-			version := lock.Version().String()
-			selectionsOutput[providerAddr.String()] = version
-		}
-
-		var versionOutput string
-		if c.VersionPrerelease != "" {
-			versionOutput = c.Version + "-" + c.VersionPrerelease
-		} else {
-			versionOutput = c.Version
-		}
-
-		output := VersionOutput{
-			Version:            versionOutput,
-			Platform:           c.Platform.String(),
-			ProviderSelections: selectionsOutput,
-			FIPS140Enabled:     fips140.Enabled(),
-		}
-
-		jsonOutput, err := json.MarshalIndent(output, "", "  ")
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("\nError marshalling JSON: %s", err))
-			return 1
-		}
-		c.Ui.Output(string(jsonOutput))
-		return 0
-	} else {
-		c.Ui.Output(versionString.String())
-		c.Ui.Output(fmt.Sprintf("on %s", c.Platform))
-		if fips140.Enabled() {
-			c.Ui.Output("running in FIPS 140-3 mode (not yet supported)")
-		}
-
-		if len(providerVersions) != 0 {
-			sort.Strings(providerVersions)
-			for _, str := range providerVersions {
-				c.Ui.Output(str)
-			}
-		}
+	if !view.PrintVersion(c.Version, c.VersionPrerelease, c.Platform.String(), fips140.Enabled(), providerVersions) {
+		return 1
 	}
-
 	return 0
 }
 
