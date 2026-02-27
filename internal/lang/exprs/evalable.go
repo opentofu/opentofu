@@ -328,9 +328,38 @@ func (h *hclBodyJustAttributes) Evaluate(ctx context.Context, hclCtx *hcl.EvalCo
 
 // FunctionCalls implements Evalable.
 func (h *hclBodyJustAttributes) FunctionCalls() iter.Seq[*hcl.StaticCall] {
-	// For now this is not implemented because the underlying HCL API
-	// isn't the right shape to implement this method.
-	return func(yield func(*hcl.StaticCall) bool) {}
+	// FIXME: The underlying HCL API somewhat-misuses [hcl.Traversal] to
+	// enumerate the names of the functions without providing any
+	// information about their arguments. We can get away with leaving
+	// the args unpopulated for now since we're not actually relying on
+	// them but it would be nice to update HCL to return [hcl.StaticCall]
+	// for the function analysis instead, for consistency with how
+	// [hcl.ExprCall] works.
+	return func(yield func(*hcl.StaticCall) bool) {
+		// We intentionally ignore diagnostics here since we're just making a
+		// best-effort static analysis in preparation for a later call to
+		// [hclBodyJustAttributes.Evaluate], which will then perform this
+		// same operation and return its diagnostics. Whatever subset of
+		// the attributes this function returns should all be valid enough
+		// for the subsequent analysis.
+		attrs, _ := h.body.JustAttributes()
+
+		for _, attr := range attrs {
+			withFuncs, ok := attr.Expr.(hcl.ExpressionWithFunctions)
+			if !ok {
+				continue
+			}
+			for _, traversal := range withFuncs.Functions() {
+				wantMore := yield(&hcl.StaticCall{
+					Name:      traversal.RootName(),
+					NameRange: traversal.SourceRange(),
+				})
+				if !wantMore {
+					return
+				}
+			}
+		}
+	}
 }
 
 // References implements Evalable.
