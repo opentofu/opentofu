@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 
 	"github.com/apparentlymart/go-versions/versions"
@@ -210,6 +211,11 @@ func (c *Context) newEngineApply(ctx context.Context, config *configs.Config, pl
 // it works in some slightly-different terms than this new API expects.
 type newRuntimeModules struct {
 	loader *configload.Loader
+
+	// configload.Loader is not concurrency-safe because it wraps
+	// hclparse.Parser functionality that is not concurrency-safe, so we must
+	// hold this lock whenever we're interacting with the loader object.
+	mu sync.Mutex
 }
 
 var _ eval.ExternalModules = (*newRuntimeModules)(nil)
@@ -236,7 +242,9 @@ func (n *newRuntimeModules) ModuleConfig(ctx context.Context, source addrs.Modul
 	}
 	log.Printf("[TRACE] backend/local: Loading module from %q from local path %q", source, sourceDir)
 
+	n.mu.Lock()
 	mod, hclDiags := n.loader.Parser().LoadConfigDirUneval(sourceDir, configs.SelectiveLoadAll)
+	n.mu.Unlock()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return nil, diags
