@@ -10,7 +10,9 @@ import (
 	"hash"
 	"io"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // HashFunction is a provider of a hash.Hash.
@@ -160,4 +162,94 @@ func (c *Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	return &pbkdf2KeyProvider{*c}, new(Metadata), nil
+}
+
+func (c *Config) DecodeConfig(body hcl.Body, evalCtx *hcl.EvalContext) (diags hcl.Diagnostics) {
+	if body == nil {
+		return diags
+	}
+	content, contentDiags := body.Content(c.ConfigSchema())
+	diags = diags.Extend(contentDiags)
+	if contentDiags.HasErrors() {
+		return diags
+	}
+
+	if attr, ok := content.Attributes["passphrase"]; ok {
+		value, vDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(vDiags)
+		c.Passphrase = value.AsString()
+	}
+	if attr, ok := content.Attributes["chain"]; ok {
+		value, vDiags := evaluateExpr(attr.Expr, evalCtx)
+		diags = diags.Extend(vDiags)
+		if !vDiags.HasErrors() {
+			out, outDiags := keyprovider.DecodeOutput(value, attr.Range)
+			diags = diags.Extend(outDiags)
+			c.Chain = &out
+		}
+	}
+	if attr, ok := content.Attributes["key_length"]; ok {
+		value, vDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(vDiags)
+		if bf := value.AsBigFloat(); bf.IsInt() {
+			bigInt, _ := bf.Int64()
+			c.KeyLength = int(bigInt)
+		}
+	}
+	if attr, ok := content.Attributes["iterations"]; ok {
+		value, vDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(vDiags)
+		if bf := value.AsBigFloat(); bf.IsInt() {
+			bigInt, _ := bf.Int64()
+			c.Iterations = int(bigInt)
+		}
+	}
+	if attr, ok := content.Attributes["hash_function"]; ok {
+		value, vDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(vDiags)
+		if !diags.HasErrors() {
+			c.HashFunction = HashFunctionName(value.AsString())
+		}
+	}
+	if attr, ok := content.Attributes["salt_length"]; ok {
+		value, vDiags := attr.Expr.Value(evalCtx)
+		diags = diags.Extend(vDiags)
+		if bf := value.AsBigFloat(); bf.IsInt() {
+			bigInt, _ := bf.Int64()
+			c.SaltLength = int(bigInt)
+		}
+	}
+
+	return diags
+}
+
+func (c *Config) ConfigSchema() *hcl.BodySchema {
+	return &hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			{Name: "passphrase", Required: false},
+			{Name: "chain", Required: false},
+			{Name: "key_length", Required: false},
+			{Name: "iterations", Required: false},
+			{Name: "hash_function", Required: false},
+			{Name: "salt_length", Required: false},
+		},
+	}
+}
+
+// evaluateExpr tries to evaluate the expression in different ways.
+//   - Evaluate by using the traversals returned by the Variables() call
+//   - If the first step does not work, tries to convert the expression into an absolute traversal and use that new traversal
+//     to generate a value.
+func evaluateExpr(expr hcl.Expression, evalCtx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	traversals := expr.Variables()
+	// We are interested only in situations where the `chain` attribute contains exactly one key provider reference
+	if len(traversals) == 1 {
+		return traversals[0].TraverseAbs(evalCtx)
+	}
+
+	traversal, exprDiags := hcl.AbsTraversalForExpr(expr)
+	if exprDiags.HasErrors() || traversal == nil {
+		return cty.NilVal, exprDiags
+	}
+	return traversal.TraverseAbs(evalCtx)
 }
