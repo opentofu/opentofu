@@ -49,7 +49,7 @@ func compileModuleInstanceModuleCalls(
 			Addr:             addr.Absolute(moduleInstanceAddr),
 			DeclRange:        tfdiags.SourceRangeFromHCL(config.DeclRange),
 			ParentSourceAddr: parentSourceAddr,
-			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, nil),
+			InstanceSelector: compileInstanceSelector(ctx, declScope, config.ForEach, config.Count, config.Enabled),
 			SourceAddrValuer: configgraph.ValuerOnce(exprs.NewClosure(
 				exprs.EvalableHCLExpression(config.Source),
 				declScope,
