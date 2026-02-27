@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -157,14 +158,14 @@ func TestUntaint_backup(t *testing.T) {
 	}
 
 	// Backup is still tainted
-	testStateOutput(t, DefaultStateFilename+".backup", strings.TrimSpace(`
+	testStateOutput(t, arguments.DefaultStateFilename+".backup", strings.TrimSpace(`
 test_instance.foo: (tainted)
   ID = bar
   provider = provider["registry.opentofu.org/hashicorp/test"]
 	`))
 
 	// State is untainted
-	testStateOutput(t, DefaultStateFilename, strings.TrimSpace(`
+	testStateOutput(t, arguments.DefaultStateFilename, strings.TrimSpace(`
 test_instance.foo:
   ID = bar
   provider = provider["registry.opentofu.org/hashicorp/test"]
@@ -214,11 +215,11 @@ func TestUntaint_backupDisable(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	if _, err := os.Stat(DefaultStateFilename + ".backup"); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + ".backup"); err == nil {
 		t.Fatal("backup path should not exist")
 	}
 
-	testStateOutput(t, DefaultStateFilename, strings.TrimSpace(`
+	testStateOutput(t, arguments.DefaultStateFilename, strings.TrimSpace(`
 test_instance.foo:
   ID = bar
   provider = provider["registry.opentofu.org/hashicorp/test"]
@@ -287,7 +288,7 @@ func TestUntaint_defaultState(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	testStateOutput(t, DefaultStateFilename, strings.TrimSpace(`
+	testStateOutput(t, arguments.DefaultStateFilename, strings.TrimSpace(`
 test_instance.foo:
   ID = bar
   provider = provider["registry.opentofu.org/hashicorp/test"]
@@ -485,7 +486,7 @@ func TestUntaint_stateOut(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
 
-	testStateOutput(t, DefaultStateFilename, strings.TrimSpace(`
+	testStateOutput(t, arguments.DefaultStateFilename, strings.TrimSpace(`
 test_instance.foo: (tainted)
   ID = bar
   provider = provider["registry.opentofu.org/hashicorp/test"]

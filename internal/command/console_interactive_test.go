@@ -6,12 +6,11 @@
 package command
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -34,18 +33,6 @@ func TestConsole_multiline_interactive(t *testing.T) {
 					},
 				},
 			},
-		},
-	}
-	streams, _ := terminal.StreamsForTesting(t)
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
-	c := &ConsoleCommand{
-		Meta: Meta{
-			WorkingDir:       workdir.NewDir("."),
-			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
-			View:             view,
-			Streams:          streams,
 		},
 	}
 
@@ -106,21 +93,32 @@ func TestConsole_multiline_interactive(t *testing.T) {
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
-			var output bytes.Buffer
 			defer testStdinPipe(t, strings.NewReader(tc.input))()
-			outCloser := testStdoutCapture(t, &output)
 
-			args := []string{}
-			code := c.Run(args)
-			outCloser()
-
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			c := &ConsoleCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
+					Streams:          streams,
+				},
+			}
+			code := c.Run(nil)
+			streamsOut := done(t)
 			if code != 0 {
-				t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+				t.Fatalf("bad: %d\n\n%s", code, streamsOut.Stderr())
 			}
 
-			got := output.String()
+			got := streamsOut.Stdout()
 			if diff := cmp.Diff(got, tc.expected); diff != "" {
 				t.Fatalf("unexpected output. For input: %s\n%s", tc.input, diff)
+			}
+
+			// TODO meta-refactor: remove this assertion once the stateLock from Meta is removed
+			if !c.Meta.stateLock {
+				t.Errorf("stateLock should always be nil for this command")
 			}
 		})
 	}

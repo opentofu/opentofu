@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
 
@@ -63,17 +64,17 @@ func TestMetaBackend_emptyDir(t *testing.T) {
 	}
 
 	// Verify it exists where we expect it to
-	if isEmptyState(DefaultStateFilename) {
+	if isEmptyState(arguments.DefaultStateFilename) {
 		t.Fatalf("no state was written")
 	}
 
 	// Verify no backup since it was empty to start
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state should be empty")
 	}
 
 	// Verify no backend state was made
-	if !isEmptyState(filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)) {
+	if !isEmptyState(filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)) {
 		t.Fatal("backend state should be empty")
 	}
 }
@@ -100,7 +101,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	t.Chdir(td)
 
 	// Write the legacy state
-	statePath := DefaultStateFilename
+	statePath := arguments.DefaultStateFilename
 	{
 		f, err := os.Create(statePath)
 		if err != nil {
@@ -133,11 +134,11 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	}
 
 	// Verify it exists where we expect it to
-	if _, err := os.Stat(DefaultStateFilename); err != nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -153,7 +154,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	}
 
 	// Verify a backup was made since we're modifying a pre-existing state
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state should not be empty")
 	}
 }
@@ -204,11 +205,11 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	}
 
 	// Verify neither defaults exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
-	stateName := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	stateName := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	if !isEmptyState(stateName) {
 		t.Fatal("expected no state at", stateName)
 	}
@@ -301,12 +302,12 @@ func TestMetaBackend_configureNew(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify a backup doesn't exist
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -375,14 +376,14 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup does exist
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state is empty or missing")
 	}
 }
@@ -395,7 +396,7 @@ func TestMetaBackend_configureNewWithoutCopy(t *testing.T) {
 	testCopyDir(t, testFixturePath("backend-new-migrate"), td)
 	t.Chdir(td)
 
-	if err := copy.CopyFile(DefaultStateFilename, "local-state.tfstate"); err != nil {
+	if err := copy.CopyFile(arguments.DefaultStateFilename, "local-state.tfstate"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -425,14 +426,14 @@ func TestMetaBackend_configureNewWithoutCopy(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup does exist
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state is empty or missing")
 	}
 }
@@ -470,14 +471,14 @@ func TestMetaBackend_configureNewWithStateNoMigrate(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup does exist
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state is empty or missing")
 	}
 }
@@ -543,14 +544,14 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup does exist
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state is empty or missing")
 	}
 }
@@ -616,14 +617,14 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup does exist
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup state is empty or missing")
 	}
 }
@@ -658,12 +659,12 @@ func TestMetaBackend_configuredUnchanged(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify a backup doesn't exist
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -802,12 +803,12 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify a backup doesn't exist
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -845,12 +846,12 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify a backup doesn't exist
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 
@@ -881,12 +882,12 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -1076,12 +1077,12 @@ func TestMetaBackend_configuredChangeCopy(t *testing.T) {
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -1129,12 +1130,12 @@ func TestMetaBackend_configuredChangeCopy_singleState(t *testing.T) {
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -1183,12 +1184,12 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleDefault(t *testing.T) {
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 }
@@ -1237,12 +1238,12 @@ func TestMetaBackend_configuredChangeCopy_multiToSingle(t *testing.T) {
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 
@@ -1311,12 +1312,12 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleCurrentEnv(t *testing.T) 
 	}
 
 	// Verify no local state
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 
@@ -1398,7 +1399,7 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 	}
 
 	// Verify no local backup
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 
@@ -1601,14 +1602,14 @@ func TestMetaBackend_configuredUnset(t *testing.T) {
 	}
 
 	// Verify the default paths don't exist
-	if !isEmptyState(DefaultStateFilename) {
-		data, _ := os.ReadFile(DefaultStateFilename)
+	if !isEmptyState(arguments.DefaultStateFilename) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename)
 		t.Fatal("state should not exist, but contains:\n", string(data))
 	}
 
 	// Verify a backup doesn't exist
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
-		data, _ := os.ReadFile(DefaultStateFilename + DefaultBackupExtension)
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename + DefaultBackupExtension)
 		t.Fatal("backup should not exist, but contains:\n", string(data))
 	}
 
@@ -1621,13 +1622,13 @@ func TestMetaBackend_configuredUnset(t *testing.T) {
 	}
 
 	// Verify it exists where we expect it to
-	if isEmptyState(DefaultStateFilename) {
-		t.Fatal(DefaultStateFilename, "is empty")
+	if isEmptyState(arguments.DefaultStateFilename) {
+		t.Fatal(arguments.DefaultStateFilename, "is empty")
 	}
 
 	// Verify no backup since it was empty to start
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
-		data, _ := os.ReadFile(DefaultStateFilename + DefaultBackupExtension)
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
+		data, _ := os.ReadFile(arguments.DefaultStateFilename + DefaultBackupExtension)
 		t.Fatal("backup state should be empty, but contains:\n", string(data))
 	}
 }
@@ -1668,7 +1669,7 @@ func TestMetaBackend_configuredUnsetCopy(t *testing.T) {
 	}
 
 	// Verify a backup doesn't exist
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatalf("backup state should be empty")
 	}
 
@@ -1681,12 +1682,12 @@ func TestMetaBackend_configuredUnsetCopy(t *testing.T) {
 	}
 
 	// Verify it exists where we expect it to
-	if _, err := os.Stat(DefaultStateFilename); err != nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	// Verify a backup since it wasn't empty to start
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup is empty")
 	}
 }
@@ -1735,17 +1736,17 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	}
 
 	// The default state file should not exist yet
-	if !isEmptyState(DefaultStateFilename) {
+	if !isEmptyState(arguments.DefaultStateFilename) {
 		t.Fatal("expected empty state")
 	}
 
 	// A backup file shouldn't exist yet either.
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("expected empty backup")
 	}
 
 	// Verify we have no configured backend
-	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1763,7 +1764,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 
 	// Verify the state is where we expect
 	{
-		f, err := os.Open(DefaultStateFilename)
+		f, err := os.Open(arguments.DefaultStateFilename)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1777,7 +1778,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	}
 
 	// Verify no local backup
-	if !isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if !isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatalf("backup state should be empty")
 	}
 }
@@ -1838,17 +1839,17 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	}
 
 	// Verify the default path doesn't exist
-	if _, err := os.Stat(DefaultStateFilename); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename); err == nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	// Verify a backup doesn't exists
-	if _, err := os.Stat(DefaultStateFilename + DefaultBackupExtension); err == nil {
+	if _, err := os.Stat(arguments.DefaultStateFilename + DefaultBackupExtension); err == nil {
 		t.Fatal("file should not exist")
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1932,12 +1933,12 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	}
 
 	// Verify the default path
-	if isEmptyState(DefaultStateFilename) {
+	if isEmptyState(arguments.DefaultStateFilename) {
 		t.Fatal("state is empty")
 	}
 
 	// Verify we have no configured backend/legacy
-	path := filepath.Join(m.WorkingDir.DataDir(), DefaultStateFilename)
+	path := filepath.Join(m.WorkingDir.DataDir(), arguments.DefaultStateFilename)
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("should not have backend configured")
 	}
@@ -1955,7 +1956,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 
 	// Verify the state is where we expect
 	{
-		f, err := os.Open(DefaultStateFilename)
+		f, err := os.Open(arguments.DefaultStateFilename)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1969,7 +1970,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	}
 
 	// Verify local backup
-	if isEmptyState(DefaultStateFilename + DefaultBackupExtension) {
+	if isEmptyState(arguments.DefaultStateFilename + DefaultBackupExtension) {
 		t.Fatal("backup is empty")
 	}
 }
@@ -2046,7 +2047,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 	}
 
 	// check that we can read the state
-	s := testStateRead(t, DefaultStateFilename)
+	s := testStateRead(t, arguments.DefaultStateFilename)
 	if s.Empty() {
 		t.Fatal("our state was deleted")
 	}

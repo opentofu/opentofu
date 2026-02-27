@@ -323,7 +323,7 @@ type testingOverrides struct {
 // statePath, stateOutPath, and backupPath
 func (m *Meta) initStatePaths() {
 	if m.statePath == "" {
-		m.statePath = DefaultStateFilename
+		m.statePath = arguments.DefaultStateFilename
 	}
 	if m.stateOutPath == "" {
 		m.stateOutPath = m.statePath

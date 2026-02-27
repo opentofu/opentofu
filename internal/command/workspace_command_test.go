@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -321,7 +322,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	newPath := filepath.Join(local.DefaultWorkspaceDir, "test", DefaultStateFilename)
+	newPath := filepath.Join(local.DefaultWorkspaceDir, "test", arguments.DefaultStateFilename)
 	envState := statemgr.NewFilesystem(newPath, encryption.StateEncryptionDisabled())
 	err = envState.RefreshState(t.Context())
 	if err != nil {
