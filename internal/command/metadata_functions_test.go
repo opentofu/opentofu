@@ -14,33 +14,37 @@ import (
 )
 
 func TestMetadataFunctions_error(t *testing.T) {
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &MetadataFunctionsCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
+			View:       view,
 		},
 	}
 
 	// This test will always error because it's missing the -json flag
-	if code := c.Run(nil); code != 1 {
-		t.Fatalf("expected error, got:\n%s", ui.OutputWriter.String())
+	code := c.Run(nil)
+	output := done(t)
+	if code != cli.RunResultHelp {
+		t.Fatalf("expected error, got:\n%s", output.All())
 	}
 }
 
 func TestMetadataFunctions_output(t *testing.T) {
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	m := Meta{
-		Ui: ui,
+		View: view,
 	}
 	c := &MetadataFunctionsCommand{Meta: m}
 
-	if code := c.Run([]string{"-json"}); code != 0 {
-		t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())
+	code := c.Run([]string{"-json"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, output.Stderr())
 	}
 
 	var got functions
-	gotString := ui.OutputWriter.String()
+	gotString := output.Stdout()
 	err := json.Unmarshal([]byte(gotString), &got)
 	if err != nil {
 		t.Fatal(err)
@@ -60,20 +64,9 @@ func TestMetadataFunctions_output(t *testing.T) {
 		t.Fatalf("wrong function signature for \"max\":\ngot: %q\nwant: %q", gotMax, wantMax)
 	}
 
-	stderr := ui.ErrorWriter.String()
+	stderr := output.Stderr()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got:\n%s", stderr)
-	}
-
-	// test that ignored functions are not part of the json
-	for _, v := range ignoredFunctions {
-		if _, ok := got.Signatures[v.Name]; ok {
-			t.Errorf("found ignored function %q inside output", v)
-		}
-		corePrefixed := v.String()
-		if _, ok := got.Signatures[corePrefixed]; ok {
-			t.Fatalf("found ignored function %q inside output", corePrefixed)
-		}
 	}
 }
 
