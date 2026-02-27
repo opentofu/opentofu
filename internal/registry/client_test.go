@@ -719,9 +719,9 @@ func TestInstallModulePackage(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for HTTP error response")
 		}
-		// The error should be about extraction failure since we got a non-archive response
-		if !strings.Contains(err.Error(), "extracting package archive") {
-			t.Errorf("expected extraction error, got: %v", err)
+		// The error should indicate a download failure due to the non-2xx HTTP status
+		if !strings.Contains(err.Error(), "failed to download module package") {
+			t.Errorf("expected download error, got: %v", err)
 		}
 	})
 
