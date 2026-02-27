@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"iter"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/opentofu/opentofu/internal/plugin/validation"
@@ -1033,6 +1034,38 @@ func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctio
 
 	resp.Result, resp.Error = decodeDynamicValue(protoResp.Result, spec.Return)
 	return
+}
+
+func (g *GRPCProvider) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (g *GRPCProvider) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
+	panic("not implemented") // TODO: Implement
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.

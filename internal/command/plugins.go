@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
@@ -49,6 +50,9 @@ func (m *Meta) storePluginPath(pluginPath []string) error {
 // Load the user-defined plugin search path into Meta.pluginPath if the file
 // exists.
 func (m *Meta) loadPluginPath() ([]string, error) {
+	//HACK
+	m.contextOpts(context.TODO())
+
 	return m.WorkingDir.ForcedPluginDirs()
 }
 
