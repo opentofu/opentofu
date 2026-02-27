@@ -586,7 +586,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	if _, ok := inst.registryPackageVersions[packageAddr]; !ok {
 		t.Errorf("module versions cache was not populated\ngot: %s\nwant: key hashicorp/module-installer-acctest/aws", spew.Sdump(inst.registryPackageVersions))
 	}
-	if _, ok := inst.registryPackageSources[moduleVersion{module: packageAddr, version: "0.0.1"}]; !ok {
+	if _, ok := inst.registryPackageSources[moduleVersion{module: packageAddr, version: "0.0.1", subdir: ""}]; !ok {
 		t.Errorf("module download url cache was not populated\ngot: %s", spew.Sdump(inst.registryPackageSources))
 	}
 
@@ -882,7 +882,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	if _, ok := inst.registryPackageVersions[packageAddr]; !ok {
 		t.Errorf("module versions cache was not populated\ngot: %s\nwant: key hashicorp/module-installer-acctest/aws", spew.Sdump(inst.registryPackageVersions))
 	}
-	if _, ok := inst.registryPackageSources[moduleVersion{module: packageAddr, version: "0.0.1"}]; !ok {
+	if _, ok := inst.registryPackageSources[moduleVersion{module: packageAddr, version: "0.0.1", subdir: ""}]; !ok {
 		t.Errorf("module download url cache was not populated\ngot: %s", spew.Sdump(inst.registryPackageSources))
 	}
 
