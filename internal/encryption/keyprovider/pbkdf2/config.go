@@ -10,6 +10,8 @@ import (
 	"hash"
 	"io"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
@@ -160,4 +162,83 @@ func (c *Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 
 	return &pbkdf2KeyProvider{*c}, new(Metadata), nil
+}
+
+func (c *Config) DepsTraversals(body hcl.Body) ([]hcl.Traversal, hcl.Diagnostics) {
+	traversal, remainingBody, _, diags := extractChainTraversal(body)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	var traversals []hcl.Traversal
+	if remainingBody != nil {
+		// First we need to extract other references, like variables or locals
+		otherTravs, otherDiags := gohcl.VariablesInBody(remainingBody, c)
+		diags = diags.Extend(otherDiags)
+		if otherDiags.HasErrors() {
+			return nil, diags
+		}
+		traversals = append(traversals, otherTravs...)
+	}
+	// and if we have the `chain` attribute expression traversal, add that too
+	if traversal != nil {
+		traversals = append(traversals, traversal)
+	}
+	return traversals, nil
+}
+
+func (c *Config) DecodeConfig(body hcl.Body, evalCtx *hcl.EvalContext) (diags hcl.Diagnostics) {
+	traversal, remainingBody, chainAttr, travDiags := extractChainTraversal(body)
+	diags = diags.Extend(travDiags)
+	if travDiags.HasErrors() {
+		return diags
+	}
+	if traversal != nil {
+		val, exprDiags := traversal.TraverseAbs(evalCtx)
+		diags = diags.Extend(exprDiags)
+		if exprDiags.HasErrors() {
+			return diags
+		}
+		// NOTE: at this point, val cannot be [cty.NilVal] or null since this will be caught after traversal
+		// returned from [Config.DepsTraversals].
+		out, outDiags := keyprovider.DecodeOutput(val, chainAttr.Expr.Range())
+		diags = diags.Extend(outDiags)
+		if outDiags.HasErrors() {
+			return diags
+		}
+		c.Chain = &out
+	}
+
+	if remainingBody == nil {
+		return diags
+	}
+	return diags.Extend(gohcl.DecodeBody(remainingBody, evalCtx, c))
+}
+
+func extractChainTraversal(body hcl.Body) (hcl.Traversal, hcl.Body, *hcl.Attribute, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	if body == nil {
+		return nil, nil, nil, nil
+	}
+	content, remainingBody, contentDiags := body.PartialContent(&hcl.BodySchema{
+		Attributes: []hcl.AttributeSchema{
+			// For the dependencies purpose, we want to get only the chain expression out of the body
+			{Name: "chain", Required: false},
+		},
+	})
+	diags = diags.Extend(contentDiags)
+	if diags.HasErrors() {
+		return nil, nil, nil, diags
+	}
+	attr, ok := content.Attributes["chain"]
+	if !ok {
+		return nil, remainingBody, nil, diags
+	}
+	traversals := attr.Expr.Variables()
+	// We are interested only in situations where the `chain` attribute contains exactly one key provider reference
+	if len(traversals) == 1 {
+		return traversals[0], remainingBody, attr, nil
+	}
+
+	traversal, exprDiags := hcl.AbsTraversalForExpr(attr.Expr)
+	return traversal, remainingBody, attr, diags.Extend(exprDiags)
 }
