@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 	"path"
 	"slices"
 	"sort"
@@ -1339,9 +1340,7 @@ func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs
 	// First, take a backup of the existing configuration so we can easily
 	// restore it later.
 	currentVars := make(map[string]*configs.Variable)
-	for name, variable := range config.Module.Variables {
-		currentVars[name] = variable
-	}
+	maps.Copy(currentVars, config.Module.Variables)
 
 	// Next, let's go through our entire inputs and add any that aren't already
 	// defined into the config.

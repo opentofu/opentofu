@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -108,11 +109,9 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to get configured named states: %s", err))
 		return 1
 	}
-	for _, ws := range workspaces {
-		if workspace == ws {
-			c.Ui.Error(fmt.Sprintf(envExists, workspace))
-			return 1
-		}
+	if slices.Contains(workspaces, workspace) {
+		c.Ui.Error(fmt.Sprintf(envExists, workspace))
+		return 1
 	}
 
 	_, err = b.StateMgr(ctx, workspace)

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -341,9 +342,7 @@ func (m *Meta) StateOutPath() string {
 // Colorize returns the colorization structure for a command.
 func (m *Meta) Colorize() *colorstring.Colorize {
 	colors := make(map[string]string)
-	for k, v := range colorstring.DefaultColors {
-		colors[k] = v
-	}
+	maps.Copy(colors, colorstring.DefaultColors)
 	colors["purple"] = "38;5;57"
 
 	return &colorstring.Colorize{
@@ -740,7 +739,7 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 		return false, errors.New("input is disabled")
 	}
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		v, err := m.UIInput().Input(context.Background(), opts)
 		if err != nil {
 			return false, fmt.Errorf(
@@ -766,7 +765,7 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 //
 // Internally this function uses Diagnostics.Append, and so it will panic
 // if given unsupported value types, just as Append does.
-func (m *Meta) showDiagnostics(vals ...interface{}) {
+func (m *Meta) showDiagnostics(vals ...any) {
 
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(vals...)

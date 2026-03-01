@@ -99,7 +99,7 @@ func testModuleInstallationHookHuman(t *testing.T, call func(init initwd.ModuleI
 	}
 }
 
-func testModuleInstallationHookJson(t *testing.T, call func(init initwd.ModuleInstallHooks), showLocalPaths bool, want []map[string]interface{}) {
+func testModuleInstallationHookJson(t *testing.T, call func(init initwd.ModuleInstallHooks), showLocalPaths bool, want []map[string]any) {
 	// New type just to assert the fields that we are interested in
 	view, done := testView(t)
 	moduleInstallationViewCall := moduleInstallationHookJSON{v: NewJSONView(view, nil), showLocalPaths: showLocalPaths}
@@ -112,7 +112,7 @@ func testModuleInstallationHookJson(t *testing.T, call func(init initwd.ModuleIn
 	testJSONViewOutputEquals(t, output.Stdout(), want)
 }
 
-func testModuleInstallationHookMulti(t *testing.T, call func(init initwd.ModuleInstallHooks), showLocalPaths bool, wantStdout string, wantStderr string, want []map[string]interface{}) {
+func testModuleInstallationHookMulti(t *testing.T, call func(init initwd.ModuleInstallHooks), showLocalPaths bool, wantStdout string, wantStderr string, want []map[string]any) {
 	jsonInto, err := os.CreateTemp(t.TempDir(), "json-into-*")
 	if err != nil {
 		t.Fatalf("failed to create the file to write json content into: %s", err)

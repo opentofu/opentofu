@@ -53,11 +53,11 @@ func TestValue_SimpleBlocks(t *testing.T) {
 	}{
 		"delete_with_null_sensitive_value": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"normal_attribute": "some value",
 				},
 				After: nil,
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"sensitive_attribute": true,
 				},
 				AfterSensitive: false,
@@ -79,10 +79,10 @@ func TestValue_SimpleBlocks(t *testing.T) {
 		"create_with_null_sensitive_value": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"normal_attribute": "some value",
 				},
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"sensitive_attribute": true,
 				},
 				AfterSensitive: false,
@@ -236,7 +236,7 @@ func TestValue_SimpleBlocks(t *testing.T) {
 				},
 				BeforeSensitive: false,
 				AfterSensitive:  false,
-				ReplacePaths:    &attribute_path.PathMatcher{Paths: [][]interface{}{{"write_only_attribute"}}},
+				ReplacePaths:    &attribute_path.PathMatcher{Paths: [][]any{{"write_only_attribute"}}},
 			},
 			block: &jsonprovider.Block{
 				Attributes: map[string]*jsonprovider.Attribute{
@@ -290,7 +290,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		"create": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -305,7 +305,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"delete": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
 				After: nil,
@@ -322,7 +322,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		"create_sensitive": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 				AfterSensitive: true,
@@ -347,7 +347,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"delete_sensitive": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
 				BeforeSensitive: true,
@@ -376,7 +376,7 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_unknown": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
 				After:   nil,
@@ -406,8 +406,8 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"create_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
-				After: map[string]interface{}{
+				Before: map[string]any{},
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -436,10 +436,10 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"create_attribute_from_explicit_null": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": nil,
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -468,10 +468,10 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"delete_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{},
+				After: map[string]any{},
 			},
 			attributes: map[string]cty.Type{
 				"attribute_one": cty.String,
@@ -498,10 +498,10 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"delete_attribute_to_explicit_null": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": nil,
 				},
 			},
@@ -530,10 +530,10 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -564,11 +564,11 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"create_sensitive_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
-				After: map[string]interface{}{
+				Before: map[string]any{},
+				After: map[string]any{
 					"attribute_one": "new",
 				},
-				AfterSensitive: map[string]interface{}{
+				AfterSensitive: map[string]any{
 					"attribute_one": true,
 				},
 			},
@@ -597,13 +597,13 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"delete_sensitive_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"attribute_one": true,
 				},
-				After: map[string]interface{}{},
+				After: map[string]any{},
 			},
 			attributes: map[string]cty.Type{
 				"attribute_one": cty.String,
@@ -630,16 +630,16 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_sensitive_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"attribute_one": true,
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
-				AfterSensitive: map[string]interface{}{
+				AfterSensitive: map[string]any{
 					"attribute_one": true,
 				},
 			},
@@ -670,9 +670,9 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"create_computed_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
-				After:  map[string]interface{}{},
-				Unknown: map[string]interface{}{
+				Before: map[string]any{},
+				After:  map[string]any{},
+				Unknown: map[string]any{
 					"attribute_one": true,
 				},
 			},
@@ -687,11 +687,11 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_computed_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{},
-				Unknown: map[string]interface{}{
+				After: map[string]any{},
+				Unknown: map[string]any{
 					"attribute_one": true,
 				},
 			},
@@ -725,8 +725,8 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"ignores_unset_fields": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
-				After:  map[string]interface{}{},
+				Before: map[string]any{},
+				After:  map[string]any{},
 			},
 			attributes: map[string]cty.Type{
 				"attribute_one": cty.String,
@@ -737,14 +737,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_replace_self": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 				ReplacePaths: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{},
 					},
 				},
@@ -776,14 +776,14 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_replace_attribute": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new",
 				},
 				ReplacePaths: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{"attribute_one"},
 					},
 				},
@@ -815,16 +815,16 @@ func TestValue_ObjectAttributes(t *testing.T) {
 		},
 		"update_includes_relevant_attributes": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "old_one",
 					"attribute_two": "old_two",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "new_one",
 					"attribute_two": "new_two",
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{"attribute_one"},
 					},
 				},
@@ -1183,15 +1183,15 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 	// different block types.
 
 	tcs := map[string]struct {
-		before      interface{}
-		after       interface{}
+		before      any
+		after       any
 		block       *jsonprovider.Block
 		validate    renderers.ValidateDiffFunction
 		validateSet []renderers.ValidateDiffFunction
 	}{
 		"create_attribute": {
-			before: map[string]interface{}{},
-			after: map[string]interface{}{
+			before: map[string]any{},
+			after: map[string]any{
 				"attribute_one": "new",
 			},
 			block: &jsonprovider.Block{
@@ -1212,10 +1212,10 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			},
 		},
 		"update_attribute": {
-			before: map[string]interface{}{
+			before: map[string]any{
 				"attribute_one": "old",
 			},
-			after: map[string]interface{}{
+			after: map[string]any{
 				"attribute_one": "new",
 			},
 			block: &jsonprovider.Block{
@@ -1238,10 +1238,10 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			},
 		},
 		"delete_attribute": {
-			before: map[string]interface{}{
+			before: map[string]any{
 				"attribute_one": "old",
 			},
-			after: map[string]interface{}{},
+			after: map[string]any{},
 			block: &jsonprovider.Block{
 				Attributes: map[string]*jsonprovider.Attribute{
 					"attribute_one": {
@@ -1260,9 +1260,9 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			},
 		},
 		"create_block": {
-			before: map[string]interface{}{},
-			after: map[string]interface{}{
-				"block_one": map[string]interface{}{
+			before: map[string]any{},
+			after: map[string]any{
+				"block_one": map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -1295,13 +1295,13 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			},
 		},
 		"update_block": {
-			before: map[string]interface{}{
-				"block_one": map[string]interface{}{
+			before: map[string]any{
+				"block_one": map[string]any{
 					"attribute_one": "old",
 				},
 			},
-			after: map[string]interface{}{
-				"block_one": map[string]interface{}{
+			after: map[string]any{
+				"block_one": map[string]any{
 					"attribute_one": "new",
 				},
 			},
@@ -1338,12 +1338,12 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			},
 		},
 		"delete_block": {
-			before: map[string]interface{}{
-				"block_one": map[string]interface{}{
+			before: map[string]any{
+				"block_one": map[string]any{
 					"attribute_one": "old",
 				},
 			},
-			after: map[string]interface{}{},
+			after: map[string]any{},
 			block: &jsonprovider.Block{
 				BlockTypes: map[string]*jsonprovider.BlockType{
 					"block_one": {
@@ -1379,10 +1379,10 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Run("single", func(t *testing.T) {
 				input := structured.Change{
-					Before: map[string]interface{}{
+					Before: map[string]any{
 						"block_type": tc.before,
 					},
-					After: map[string]interface{}{
+					After: map[string]any{
 						"block_type": tc.after,
 					},
 					ReplacePaths:       &attribute_path.PathMatcher{},
@@ -1405,13 +1405,13 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			})
 			t.Run("map", func(t *testing.T) {
 				input := structured.Change{
-					Before: map[string]interface{}{
-						"block_type": map[string]interface{}{
+					Before: map[string]any{
+						"block_type": map[string]any{
 							"one": tc.before,
 						},
 					},
-					After: map[string]interface{}{
-						"block_type": map[string]interface{}{
+					After: map[string]any{
+						"block_type": map[string]any{
 							"one": tc.after,
 						},
 					},
@@ -1437,13 +1437,13 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			})
 			t.Run("list", func(t *testing.T) {
 				input := structured.Change{
-					Before: map[string]interface{}{
-						"block_type": []interface{}{
+					Before: map[string]any{
+						"block_type": []any{
 							tc.before,
 						},
 					},
-					After: map[string]interface{}{
-						"block_type": []interface{}{
+					After: map[string]any{
+						"block_type": []any{
 							tc.after,
 						},
 					},
@@ -1469,13 +1469,13 @@ func TestValue_BlockAttributesAndNestedBlocks(t *testing.T) {
 			})
 			t.Run("set", func(t *testing.T) {
 				input := structured.Change{
-					Before: map[string]interface{}{
-						"block_type": []interface{}{
+					Before: map[string]any{
+						"block_type": []any{
 							tc.before,
 						},
 					},
-					After: map[string]interface{}{
-						"block_type": []interface{}{
+					After: map[string]any{
+						"block_type": []any{
 							tc.after,
 						},
 					},
@@ -1521,7 +1521,7 @@ func TestValue_Outputs(t *testing.T) {
 		"object_create": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"element_one": "new_one",
 					"element_two": "new_two",
 				},
@@ -1534,7 +1534,7 @@ func TestValue_Outputs(t *testing.T) {
 		"list_create": {
 			input: structured.Change{
 				Before: nil,
-				After: []interface{}{
+				After: []any{
 					"new_one",
 					"new_two",
 				},
@@ -1553,11 +1553,11 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"object_update": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element_one": "old_one",
 					"element_two": "old_two",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"element_one": "new_one",
 					"element_two": "new_two",
 				},
@@ -1569,11 +1569,11 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"list_update": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"old_one",
 					"old_two",
 				},
-				After: []interface{}{
+				After: []any{
 					"new_one",
 					"new_two",
 				},
@@ -1594,7 +1594,7 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"object_delete": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element_one": "old_one",
 					"element_two": "old_two",
 				},
@@ -1607,7 +1607,7 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"list_delete": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"old_one",
 					"old_two",
 				},
@@ -1621,7 +1621,7 @@ func TestValue_Outputs(t *testing.T) {
 		"primitive_to_list": {
 			input: structured.Change{
 				Before: "old",
-				After: []interface{}{
+				After: []any{
 					"new_one",
 					"new_two",
 				},
@@ -1636,7 +1636,7 @@ func TestValue_Outputs(t *testing.T) {
 		"primitive_to_object": {
 			input: structured.Change{
 				Before: "old",
-				After: map[string]interface{}{
+				After: map[string]any{
 					"element_one": "new_one",
 					"element_two": "new_two",
 				},
@@ -1650,7 +1650,7 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"list_to_primitive": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"old_one",
 					"old_two",
 				},
@@ -1666,11 +1666,11 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"list_to_object": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"old_one",
 					"old_two",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"element_one": "new_one",
 					"element_two": "new_two",
 				},
@@ -1687,7 +1687,7 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"object_to_primitive": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element_one": "old_one",
 					"element_two": "old_two",
 				},
@@ -1703,11 +1703,11 @@ func TestValue_Outputs(t *testing.T) {
 		},
 		"object_to_list": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element_one": "old_one",
 					"element_two": "old_two",
 				},
-				After: []interface{}{
+				After: []any{
 					"new_one",
 					"new_two",
 				},
@@ -1749,11 +1749,11 @@ func TestValue_MultilineStringsInList(t *testing.T) {
 	}{
 		"multiline_string_list_update": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"line1\nline2",
 					"line1",
 				},
-				After: []interface{}{
+				After: []any{
 					"line1\nline2+",
 					"line1\nline2",
 				},
@@ -1765,13 +1765,13 @@ func TestValue_MultilineStringsInList(t *testing.T) {
 		},
 		"multiline_string_list_update_2": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"unchanged line",
 					"deleted line",
 					"line1\nline2",
 					"line1",
 				},
-				After: []interface{}{
+				After: []any{
 					"unchanged line",
 					"line1\nline2+",
 					"line1\nline2",
@@ -1923,7 +1923,7 @@ func TestValue_PrimitiveAttributes(t *testing.T) {
 				Before: "old",
 				After:  "new",
 				ReplacePaths: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{}, // An empty path suggests replace should be true.
 					},
 				},
@@ -2057,7 +2057,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"map_create_empty": {
 			input: structured.Change{
 				Before: nil,
-				After:  map[string]interface{}{},
+				After:  map[string]any{},
 			},
 			attribute: &jsonprovider.Attribute{
 				AttributeType: unmarshalType(t, cty.Map(cty.String)),
@@ -2067,7 +2067,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"map_create_populated": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"element_one": "one",
 					"element_two": "two",
 				},
@@ -2082,7 +2082,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"map_delete_empty": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
+				Before: map[string]any{},
 				After:  nil,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2092,7 +2092,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"map_delete_populated": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element_one": "one",
 					"element_two": "two",
 				},
@@ -2109,7 +2109,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"map_create_sensitive": {
 			input: structured.Change{
 				Before:         nil,
-				After:          map[string]interface{}{},
+				After:          map[string]any{},
 				AfterSensitive: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2119,11 +2119,11 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"map_update_sensitive": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"element": "one",
 				},
 				BeforeSensitive: true,
-				After:           map[string]interface{}{},
+				After:           map[string]any{},
 				AfterSensitive:  true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2135,7 +2135,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"map_delete_sensitive": {
 			input: structured.Change{
-				Before:          map[string]interface{}{},
+				Before:          map[string]any{},
 				BeforeSensitive: true,
 				After:           nil,
 			},
@@ -2147,7 +2147,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"map_create_unknown": {
 			input: structured.Change{
 				Before:  nil,
-				After:   map[string]interface{}{},
+				After:   map[string]any{},
 				Unknown: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2157,8 +2157,8 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"map_update_unknown": {
 			input: structured.Change{
-				Before: map[string]interface{}{},
-				After: map[string]interface{}{
+				Before: map[string]any{},
+				After: map[string]any{
 					"element": "one",
 				},
 				Unknown: true,
@@ -2171,7 +2171,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"list_create_empty": {
 			input: structured.Change{
 				Before: nil,
-				After:  []interface{}{},
+				After:  []any{},
 			},
 			attribute: &jsonprovider.Attribute{
 				AttributeType: unmarshalType(t, cty.List(cty.String)),
@@ -2181,7 +2181,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"list_create_populated": {
 			input: structured.Change{
 				Before: nil,
-				After:  []interface{}{"one", "two"},
+				After:  []any{"one", "two"},
 			},
 			attribute: &jsonprovider.Attribute{
 				AttributeType: unmarshalType(t, cty.List(cty.String)),
@@ -2193,7 +2193,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"list_delete_empty": {
 			input: structured.Change{
-				Before: []interface{}{},
+				Before: []any{},
 				After:  nil,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2203,7 +2203,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"list_delete_populated": {
 			input: structured.Change{
-				Before: []interface{}{"one", "two"},
+				Before: []any{"one", "two"},
 				After:  nil,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2217,7 +2217,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"list_create_sensitive": {
 			input: structured.Change{
 				Before:         nil,
-				After:          []interface{}{},
+				After:          []any{},
 				AfterSensitive: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2227,9 +2227,9 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"list_update_sensitive": {
 			input: structured.Change{
-				Before:          []interface{}{"one"},
+				Before:          []any{"one"},
 				BeforeSensitive: true,
-				After:           []interface{}{},
+				After:           []any{},
 				AfterSensitive:  true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2241,7 +2241,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"list_delete_sensitive": {
 			input: structured.Change{
-				Before:          []interface{}{},
+				Before:          []any{},
 				BeforeSensitive: true,
 				After:           nil,
 			},
@@ -2253,7 +2253,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"list_create_unknown": {
 			input: structured.Change{
 				Before:  nil,
-				After:   []interface{}{},
+				After:   []any{},
 				Unknown: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2263,8 +2263,8 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"list_update_unknown": {
 			input: structured.Change{
-				Before:  []interface{}{},
-				After:   []interface{}{"one"},
+				Before:  []any{},
+				After:   []any{"one"},
 				Unknown: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2275,7 +2275,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"set_create_empty": {
 			input: structured.Change{
 				Before: nil,
-				After:  []interface{}{},
+				After:  []any{},
 			},
 			attribute: &jsonprovider.Attribute{
 				AttributeType: unmarshalType(t, cty.Set(cty.String)),
@@ -2285,7 +2285,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"set_create_populated": {
 			input: structured.Change{
 				Before: nil,
-				After:  []interface{}{"one", "two"},
+				After:  []any{"one", "two"},
 			},
 			attribute: &jsonprovider.Attribute{
 				AttributeType: unmarshalType(t, cty.Set(cty.String)),
@@ -2297,7 +2297,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"set_delete_empty": {
 			input: structured.Change{
-				Before: []interface{}{},
+				Before: []any{},
 				After:  nil,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2307,7 +2307,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"set_delete_populated": {
 			input: structured.Change{
-				Before: []interface{}{"one", "two"},
+				Before: []any{"one", "two"},
 				After:  nil,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2321,7 +2321,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"set_create_sensitive": {
 			input: structured.Change{
 				Before:         nil,
-				After:          []interface{}{},
+				After:          []any{},
 				AfterSensitive: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2331,9 +2331,9 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"set_update_sensitive": {
 			input: structured.Change{
-				Before:          []interface{}{"one"},
+				Before:          []any{"one"},
 				BeforeSensitive: true,
-				After:           []interface{}{},
+				After:           []any{},
 				AfterSensitive:  true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2345,7 +2345,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"set_delete_sensitive": {
 			input: structured.Change{
-				Before:          []interface{}{},
+				Before:          []any{},
 				BeforeSensitive: true,
 				After:           nil,
 			},
@@ -2357,7 +2357,7 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		"set_create_unknown": {
 			input: structured.Change{
 				Before:  nil,
-				After:   []interface{}{},
+				After:   []any{},
 				Unknown: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2367,8 +2367,8 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"set_update_unknown": {
 			input: structured.Change{
-				Before:  []interface{}{},
-				After:   []interface{}{"one"},
+				Before:  []any{},
+				After:   []any{"one"},
 				Unknown: true,
 			},
 			attribute: &jsonprovider.Attribute{
@@ -2378,12 +2378,12 @@ func TestValue_CollectionAttributes(t *testing.T) {
 		},
 		"tuple_primitive": {
 			input: structured.Change{
-				Before: []interface{}{
+				Before: []any{
 					"one",
 					json.Number("2"),
 					"three",
 				},
-				After: []interface{}{
+				After: []any{
 					"one",
 					json.Number("4"),
 					"three",
@@ -2423,16 +2423,16 @@ func TestRelevantAttributes(t *testing.T) {
 	}{
 		"simple_attributes": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"id":     "old_id",
 					"ignore": "doesn't matter",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"id":     "new_id",
 					"ignore": "doesn't matter but modified",
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"id",
 						},
@@ -2456,28 +2456,28 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"nested_attributes": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"list_block": []interface{}{
-						map[string]interface{}{
+				Before: map[string]any{
+					"list_block": []any{
+						map[string]any{
 							"id": "old_one",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"id": "ignored",
 						},
 					},
 				},
-				After: map[string]interface{}{
-					"list_block": []interface{}{
-						map[string]interface{}{
+				After: map[string]any{
+					"list_block": []any{
+						map[string]any{
 							"id": "new_one",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"id": "ignored_but_changed",
 						},
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"list_block",
 							float64(0),
@@ -2513,19 +2513,19 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"nested_attributes_in_object": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"object": map[string]interface{}{
+				Before: map[string]any{
+					"object": map[string]any{
 						"id": "old_id",
 					},
 				},
-				After: map[string]interface{}{
-					"object": map[string]interface{}{
+				After: map[string]any{
+					"object": map[string]any{
 						"id": "new_id",
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
 					Propagate: true,
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"object", // Even though we just specify object, it should now include every below object as well.
 						},
@@ -2549,18 +2549,18 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"elements_in_list": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"list": []interface{}{
+				Before: map[string]any{
+					"list": []any{
 						json.Number("0"), json.Number("1"), json.Number("2"), json.Number("3"), json.Number("4"),
 					},
 				},
-				After: map[string]interface{}{
-					"list": []interface{}{
+				After: map[string]any{
+					"list": []any{
 						json.Number("0"), json.Number("5"), json.Number("6"), json.Number("7"), json.Number("4"),
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{ // The list is actually just going to ignore this.
+					Paths: [][]any{ // The list is actually just going to ignore this.
 						{
 							"list",
 							0.0,
@@ -2600,22 +2600,22 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"elements_in_map": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"map": map[string]interface{}{
+				Before: map[string]any{
+					"map": map[string]any{
 						"key_one":   "value_one",
 						"key_two":   "value_two",
 						"key_three": "value_three",
 					},
 				},
-				After: map[string]interface{}{
-					"map": map[string]interface{}{
+				After: map[string]any{
+					"map": map[string]any{
 						"key_one":  "value_three",
 						"key_two":  "value_seven",
 						"key_four": "value_four",
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"map",
 							"key_one",
@@ -2649,19 +2649,19 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"elements_in_set": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"set": []interface{}{
+				Before: map[string]any{
+					"set": []any{
 						json.Number("0"), json.Number("1"), json.Number("2"), json.Number("3"), json.Number("4"),
 					},
 				},
-				After: map[string]interface{}{
-					"set": []interface{}{
+				After: map[string]any{
+					"set": []any{
 						json.Number("0"), json.Number("2"), json.Number("4"), json.Number("5"), json.Number("6"),
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
 					Propagate: true,
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"set",
 						},
@@ -2689,37 +2689,37 @@ func TestRelevantAttributes(t *testing.T) {
 		},
 		"dynamic_types": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"dynamic_nested_type": map[string]interface{}{
+				Before: map[string]any{
+					"dynamic_nested_type": map[string]any{
 						"nested_id": "nomatch",
-						"nested_object": map[string]interface{}{
+						"nested_object": map[string]any{
 							"nested_nested_id": "matched",
 						},
 					},
-					"dynamic_nested_type_match": map[string]interface{}{
+					"dynamic_nested_type_match": map[string]any{
 						"nested_id": "allmatch",
-						"nested_object": map[string]interface{}{
+						"nested_object": map[string]any{
 							"nested_nested_id": "allmatch",
 						},
 					},
 				},
-				After: map[string]interface{}{
-					"dynamic_nested_type": map[string]interface{}{
+				After: map[string]any{
+					"dynamic_nested_type": map[string]any{
 						"nested_id": "nomatch_changed",
-						"nested_object": map[string]interface{}{
+						"nested_object": map[string]any{
 							"nested_nested_id": "matched",
 						},
 					},
-					"dynamic_nested_type_match": map[string]interface{}{
+					"dynamic_nested_type_match": map[string]any{
 						"nested_id": "allmatch",
-						"nested_object": map[string]interface{}{
+						"nested_object": map[string]any{
 							"nested_nested_id": "allmatch",
 						},
 					},
 				},
 				RelevantAttributes: &attribute_path.PathMatcher{
 					Propagate: true,
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"dynamic_nested_type",
 							"nested_object",
@@ -2775,12 +2775,12 @@ func TestDynamicPseudoType(t *testing.T) {
 		"after_sensitive_in_dynamic_type": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"key": "value",
 				},
 				Unknown:         false,
 				BeforeSensitive: false,
-				AfterSensitive: map[string]interface{}{
+				AfterSensitive: map[string]any{
 					"key": true,
 				},
 				ReplacePaths:       attribute_path.Empty(false),
@@ -2792,12 +2792,12 @@ func TestDynamicPseudoType(t *testing.T) {
 		},
 		"before_sensitive_in_dynamic_type": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"key": "value",
 				},
 				After:   nil,
 				Unknown: false,
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"key": true,
 				},
 				AfterSensitive:     false,
@@ -2810,17 +2810,17 @@ func TestDynamicPseudoType(t *testing.T) {
 		},
 		"sensitive_in_dynamic_type": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"key": "before",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"key": "after",
 				},
 				Unknown: false,
-				BeforeSensitive: map[string]interface{}{
+				BeforeSensitive: map[string]any{
 					"key": true,
 				},
-				AfterSensitive: map[string]interface{}{
+				AfterSensitive: map[string]any{
 					"key": true,
 				},
 				ReplacePaths:       attribute_path.Empty(false),
@@ -2833,8 +2833,8 @@ func TestDynamicPseudoType(t *testing.T) {
 		"create_unknown_in_dynamic_type": {
 			input: structured.Change{
 				Before: nil,
-				After:  map[string]interface{}{},
-				Unknown: map[string]interface{}{
+				After:  map[string]any{},
+				Unknown: map[string]any{
 					"key": true,
 				},
 				BeforeSensitive:    false,
@@ -2848,11 +2848,11 @@ func TestDynamicPseudoType(t *testing.T) {
 		},
 		"update_unknown_in_dynamic_type": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"key": "before",
 				},
-				After: map[string]interface{}{},
-				Unknown: map[string]interface{}{
+				After: map[string]any{},
+				Unknown: map[string]any{
 					"key": true,
 				},
 				BeforeSensitive:    false,
@@ -2884,18 +2884,18 @@ func TestSpecificCases(t *testing.T) {
 		"issues/33016/unknown": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
-					"triggers": map[string]interface{}{},
+				After: map[string]any{
+					"triggers": map[string]any{},
 				},
-				Unknown: map[string]interface{}{
+				Unknown: map[string]any{
 					"id": true,
-					"triggers": map[string]interface{}{
+					"triggers": map[string]any{
 						"rotation": true,
 					},
 				},
 				BeforeSensitive: false,
-				AfterSensitive: map[string]interface{}{
-					"triggers": map[string]interface{}{},
+				AfterSensitive: map[string]any{
+					"triggers": map[string]any{},
 				},
 				ReplacePaths:       attribute_path.Empty(false),
 				RelevantAttributes: attribute_path.AlwaysMatcher(),
@@ -2920,18 +2920,18 @@ func TestSpecificCases(t *testing.T) {
 		"issues/33016/null": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
-					"triggers": map[string]interface{}{
+				After: map[string]any{
+					"triggers": map[string]any{
 						"rotation": nil,
 					},
 				},
-				Unknown: map[string]interface{}{
+				Unknown: map[string]any{
 					"id":       true,
-					"triggers": map[string]interface{}{},
+					"triggers": map[string]any{},
 				},
 				BeforeSensitive: false,
-				AfterSensitive: map[string]interface{}{
-					"triggers": map[string]interface{}{},
+				AfterSensitive: map[string]any{
+					"triggers": map[string]any{},
 				},
 				ReplacePaths:       attribute_path.Empty(false),
 				RelevantAttributes: attribute_path.AlwaysMatcher(),
@@ -2967,16 +2967,16 @@ func TestSpecificCases(t *testing.T) {
 
 		"issues/33472/expected": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"list": []interface{}{
-						map[string]interface{}{
+				Before: map[string]any{
+					"list": []any{
+						map[string]any{
 							"number": json.Number("-1"),
 						},
 					},
 				},
-				After: map[string]interface{}{
-					"list": []interface{}{
-						map[string]interface{}{
+				After: map[string]any{
+					"list": []any{
+						map[string]any{
 							"number": json.Number("2"),
 						},
 					},
@@ -2987,7 +2987,7 @@ func TestSpecificCases(t *testing.T) {
 				ReplacePaths:    attribute_path.Empty(false),
 				RelevantAttributes: &attribute_path.PathMatcher{
 					Propagate: true,
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"list",
 							0.0, // This is normal and expected so easy case.
@@ -3016,16 +3016,16 @@ func TestSpecificCases(t *testing.T) {
 
 		"issues/33472/coerce": {
 			input: structured.Change{
-				Before: map[string]interface{}{
-					"list": []interface{}{
-						map[string]interface{}{
+				Before: map[string]any{
+					"list": []any{
+						map[string]any{
 							"number": json.Number("-1"),
 						},
 					},
 				},
-				After: map[string]interface{}{
-					"list": []interface{}{
-						map[string]interface{}{
+				After: map[string]any{
+					"list": []any{
+						map[string]any{
 							"number": json.Number("2"),
 						},
 					},
@@ -3036,7 +3036,7 @@ func TestSpecificCases(t *testing.T) {
 				ReplacePaths:    attribute_path.Empty(false),
 				RelevantAttributes: &attribute_path.PathMatcher{
 					Propagate: true,
-					Paths: [][]interface{}{
+					Paths: [][]any{
 						{
 							"list",
 							"0", // Difficult but allowed, we need to handle this.
@@ -3068,10 +3068,10 @@ func TestSpecificCases(t *testing.T) {
 		"issues/1805/create_with_unknown_dynamic_nested_block": {
 			input: structured.Change{
 				Before: nil,
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "test",
 				},
-				Unknown: map[string]interface{}{
+				Unknown: map[string]any{
 					"nested_unknown_block": true,
 				},
 				ReplacePaths:       &attribute_path.PathMatcher{},
@@ -3104,14 +3104,14 @@ func TestSpecificCases(t *testing.T) {
 		},
 		"issues/1805/update_with_unknown_dynamic_nested_block": {
 			input: structured.Change{
-				Before: map[string]interface{}{
+				Before: map[string]any{
 					"attribute_one": "before_value_attr_1",
 					"attribute_two": "before_value_attr_2",
 				},
-				After: map[string]interface{}{
+				After: map[string]any{
 					"attribute_one": "after_value_attr_1",
 				},
-				Unknown: map[string]interface{}{
+				Unknown: map[string]any{
 					"nested_unknown_block": true,
 				},
 				ReplacePaths:       &attribute_path.PathMatcher{},
@@ -3594,15 +3594,15 @@ func unmarshalType(t *testing.T, ctyType cty.Type) json.RawMessage {
 // wrapChangeInSlice does the same as wrapChangeInMap, except it wraps it into a
 // slice internally.
 func wrapChangeInSlice(input structured.Change) structured.Change {
-	return wrapChange(input, float64(0), func(value interface{}, unknown interface{}, explicit bool) interface{} {
+	return wrapChange(input, float64(0), func(value any, unknown any, explicit bool) any {
 		switch value.(type) {
 		case nil:
 			if set, ok := unknown.(bool); (set && ok) || explicit {
-				return []interface{}{nil}
+				return []any{nil}
 			}
-			return []interface{}{}
+			return []any{}
 		default:
-			return []interface{}{value}
+			return []any{value}
 		}
 	})
 }
@@ -3611,27 +3611,27 @@ func wrapChangeInSlice(input structured.Change) structured.Change {
 // structured.Change that represents a map with a single element. That single
 // element is the input value.
 func wrapChangeInMap(input structured.Change) structured.Change {
-	return wrapChange(input, "element", func(value interface{}, unknown interface{}, explicit bool) interface{} {
+	return wrapChange(input, "element", func(value any, unknown any, explicit bool) any {
 		switch value.(type) {
 		case nil:
 			if set, ok := unknown.(bool); (set && ok) || explicit {
-				return map[string]interface{}{
+				return map[string]any{
 					"element": nil,
 				}
 			}
-			return map[string]interface{}{}
+			return map[string]any{}
 		default:
-			return map[string]interface{}{
+			return map[string]any{
 				"element": value,
 			}
 		}
 	})
 }
 
-func wrapChange(input structured.Change, step interface{}, wrap func(interface{}, interface{}, bool) interface{}) structured.Change {
+func wrapChange(input structured.Change, step any, wrap func(any, any, bool) any) structured.Change {
 	replacePaths := &attribute_path.PathMatcher{}
 	for _, path := range input.ReplacePaths.(*attribute_path.PathMatcher).Paths {
-		var updated []interface{}
+		var updated []any
 		updated = append(updated, step)
 		updated = append(updated, path...)
 		replacePaths.Paths = append(replacePaths.Paths, updated)
@@ -3644,7 +3644,7 @@ func wrapChange(input structured.Change, step interface{}, wrap func(interface{}
 	if concrete, ok := relevantAttributes.(*attribute_path.PathMatcher); ok {
 		newRelevantAttributes := &attribute_path.PathMatcher{}
 		for _, path := range concrete.Paths {
-			var updated []interface{}
+			var updated []any
 			updated = append(updated, step)
 			updated = append(updated, path...)
 			newRelevantAttributes.Paths = append(newRelevantAttributes.Paths, updated)
