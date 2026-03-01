@@ -1,0 +1,261 @@
+---
+sidebar_position: 2
+sidebar_label: Migrating interdependent configurations
+description: |-
+  Guide for migrating multiple interdependent Terraform configurations that use terraform_remote_state.
+---
+
+# Migrating Interdependent Terraform Configurations
+
+This guide addresses the specific challenges of migrating systems built from multiple interdependent Terraform configurations that share data using the `terraform_remote_state` data source.
+
+If you're migrating a single, standalone Terraform configuration, refer to the [Migration Guide](../migration-guide) instead.
+
+## When to use this guide
+
+Use this guide if you meet any of the following criteria:
+
+    - **Data sharing between root modules** using `terraform_remote_state`
+    - **Dependencies between root modules** (one root module consumes outputs from the other)
+
+## Understanding terraform_remote_state
+
+### What is terraform_remote_state?
+
+The `terraform_remote_state` data source allows one configuration to read outputs from another configuration's state file. This creates a dependency relationship between configurations.
+
+For more details, see the [terraform_remote_state documentation](/docs/language/state/remote-state-data.mdx)
+
+**Example:**
+
+```hcl
+# Configuration A: Creates a VPC
+output "vpc_id" {
+  value = aws_vpc.main.id
+}
+```
+
+```hcl
+# Configuration B: Consumes the VPC ID
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
+  config = {
+    bucket = "my-terraform-state"
+    key    = "vpc/terraform.tfstate"
+  }
+}
+
+resource "aws_subnet" "main" {
+  vpc_id = data.terraform_remote_state.vpc.outputs.vpc_id
+  //...
+}
+```
+
+
+In this example, **Configuration B depends on Configuration A**. Configuration B reads A's state file to get the VPC ID.
+
+### Why this matters for migration
+
+When migrating to OpenTofu, the order in which you migrate configurations is critical because:
+
+1. **Dependent configurations must read state files** written by their dependencies
+2. **State file compatibility** between Terraform and OpenTofu determines which migration orders are safe
+3. **Mixed environments** (some configs on Terraform, others on OpenTofu) may exist during migration
+
+## Understanding your dependency graph
+
+Before migrating a config, map out your configuration dependencies.
+
+### Simple dependency example
+
+```
+Configuration A (VPC)
+        ↑
+        |
+Configuration B (Subnets)
+```
+
+Configuration B depends on A (B reads A's state).
+
+### Complex dependency example
+
+```
+        A
+        ↑
+        |
+   +----+----+
+   |    |    |
+   B    C    D
+   ↑    ↑    ↑
+   |    +----+
+   |         |
+   |         E
+   |         ↑
+   |         |
+   F         |
+   ↑         |
+   +----+----+
+        |
+        G
+```
+
+In this graph:
+- **G depends on F and E** (reads their state)
+- **E depends on C and D** (reads their state)
+- **F depends on B** (reads its state)
+- **B, C, and D depend on A** (read its state)
+
+
+To create your dependency graph:
+
+1. List all your Terraform configurations
+2. Identify which configurations use `terraform_remote_state`
+3. Note which state files each configuration reads
+4. Draw the dependency relationships
+
+## Migration order: Bottom-up approach
+
+**Critical principle:** Migrate dependent configurations before their dependencies.
+
+### Why bottom-up?
+
+OpenTofu maintains state file compatibility with Terraform 1.x, which means:
+
+ - OpenTofu can read Terraform state files
+
+ - Terraform may not reliably read OpenTofu state files (especially if OpenTofu-specific features are used)
+
+This compatibility pattern makes **bottom-up migration safe**:
+
+- Configurations migrated to OpenTofu can safely use `terraform_remote_state` on state from configurations that are still on Terraform
+- You can migrate gradually without breaking the dependency chain
+- Mixed Terraform/OpenTofu environments work during the transition
+
+### Migration order example
+
+For the complex dependency graph above, the safe migration order is:
+
+**Phase 1:** Migrate the leaf node (no dependents)
+```
+G → (migrate first)
+```
+
+**Phase 2:** Migrate G's direct dependencies
+```
+F, E → (migrate after G)
+```
+
+**Phase 3:** Continue up the tree
+```
+B, C, D → (migrate after F and E)
+```
+
+**Phase 4:** Migrate the root
+```
+A → (migrate last)
+```
+
+### Why top-down is risky
+
+If you migrate A first (top-down):
+
+```
+A (OpenTofu) → B, C, D (Terraform)
+```
+
+Configurations B, C, and D (still on Terraform) would try to read state written by A (now on OpenTofu). This could cause issues if:
+
+- OpenTofu writes state in a format Terraform doesn't recognize
+- OpenTofu uses features not present in Terraform
+- Compatibility breaks in future versions
+
+Bottom-up migration avoids this risk entirely.
+
+## Step-by-step migration process
+
+### Step 1: Map your dependencies
+
+Create a visual representation of your configuration dependencies using `terraform_remote_state` data sources by:
+- Searching your codebase for `terraform_remote_state`
+- Document which configurations read from which backends/state files
+- Draw the dependency graph
+
+### Step 2: Identify leaf nodes
+
+Find configurations that:
+- Have no other configurations depending on them
+- May themselves depend on other configurations
+
+These are your starting points for migration.
+
+### Step 3: Back up everything
+
+Before migrating any configuration:
+
+1. **Back up all state files** (for all configurations, not just the one you're migrating)
+2. **Commit all configuration files** to version control
+3. **Document the current state** of each configuration (Terraform version, provider versions)
+
+### Step 4: Migrate leaf configurations first
+
+For each leaf configuration:
+
+1. Follow the standard [Migration Guide](./migration-guide.mdx)
+2. Verify the migration with `tofu plan`
+3. Apply with `tofu apply`
+4. **Test the migration:** For any non leaf configuration, ensure that dependent configuration(s) can still read this configuration's state
+
+### Step 5: Verify dependencies still work
+
+After migrating a configuration, verify that:
+- Any configurations that depend on it still work correctly by running `terraform plan` (or `tofu plan` if already migrated) on those dependent configs
+- Confirm no unexpected changes appear
+
+### Step 6: Continue up the dependency tree
+
+Repeat steps 4-5 for each level of your dependency graph, moving from leaf nodes toward root nodes.
+
+### Step 7: Migrate root configurations last
+
+Once all dependent configurations are migrated, migrate the root configurations (those that have no dependencies themselves but are depended upon by others).
+
+## State compatibility notes
+
+### What OpenTofu guarantees
+
+- **OpenTofu reads Terraform 1.x state files** without modification
+- **State format is compatible** during migration
+- **Mixed environments work** (some configs on Terraform, others on OpenTofu)
+
+### Important considerations
+
+- **Avoid OpenTofu-specific features** during migration to maintain maximum compatibility
+- **Test thoroughly** after each configuration migration
+- **Keep backups** of all state files throughout the migration process
+- **Document which configurations** are on Terraform vs. OpenTofu during the transition
+
+### Rolling back
+
+If you need to roll back a specific configuration:
+
+1. **Stop using OpenTofu** for that configuration
+2. **Restore from backups** if state changes were made
+3. **Run `terraform init` and `terraform plan`**
+4. **Verify no unexpected changes**
+5. **Continue with Terraform** for that configuration
+
+The bottom-up approach makes rollback safer because:
+- Only leaf nodes are migrated early (fewer dependents affected)
+- Root configurations migrate last (after dependents are stable)
+
+## Handling version differences
+Your configurations may be using different Terraform versions (1.6.x, 1.7.x, 1.8.x). 
+
+**Recommended approach:** Before migrating to OpenTofu, upgrade all configurations to the same Terraform version. This narrows down variables and makes troubleshooting easier if you encounter any issues during migration.
+
+## Getting Help
+If you encounter issues during migration:
+
+- Join the <a href="/slack/">OpenTofu Slack</a>
+- Ask on [GitHub Discussions](https://github.com/orgs/opentofu/discussions)
+- Report bugs on [GitHub Issues](https://github.com/opentofu/opentofu/issues)
