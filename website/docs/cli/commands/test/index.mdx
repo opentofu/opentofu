@@ -36,6 +36,8 @@ import MockProviderTest from '!!raw-loader!./examples/mock_provider/main.tftest.
 import OverrideModuleMain from '!!raw-loader!./examples/override_module/main.tf'
 import OverrideModuleTest from '!!raw-loader!./examples/override_module/main.tftest.hcl'
 import OverrideModuleBucketMeta from '!!raw-loader!./examples/override_module/bucket_meta/main.tf'
+import MockResourceMain from '!!raw-loader!./examples/mock_resource/main.tf'
+import MockResourceTest from '!!raw-loader!./examples/mock_resource/main.tftest.hcl'
 
 # Command: test
 
@@ -497,6 +499,45 @@ without actually creating it:
         <CodeBlock language={"hcl"}>{MockProviderMain}</CodeBlock>
     </TabItem>
 </Tabs>
+
+### The `mock_resource` and `mock_data` blocks
+
+These blocks are used inside a `mock_provider` block to customize mocked values for a specific resource or data source type.
+
+When using `mock_provider`, OpenTofu skips real provider calls and generates placeholder values for computed attributes.
+Use `mock_resource` and `mock_data` to set default values for computed attributes/blocks for a given resource or data source type, instead of relying on auto generated placeholders.
+
+A `mock_resource` / `mock_data` block affects **all instances** of the given type that are handled by the surrounding `mock_provider`.
+
+:::note
+
+Defaults can only be set for **computed** attributes/blocks; configuration values cannot be changed via mocks. :contentReference[oaicite:2]{index=2}
+
+:::
+
+These blocks consist of the following elements:
+
+| Name     | Type         | Description                                                                                                                                                         |
+|:--------:|:------------:|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| defaults | map          | Optional. Default values for computed attributes and blocks for this type. If omitted, OpenTofu auto generates values.  |
+
+:::tip Note
+
+`mock_resource` and `mock_data` blocks are overriding the entire resource or data source types. If you want to override a specific instance of a resource, use the `override_resource` or `override_data` blocks.
+
+:::
+
+In the example below, we test if the bucket name is correctly passed to the resource without actually creating it:
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        <CodeBlock language={"hcl"}>{MockResourceTest}</CodeBlock>
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        <CodeBlock language={"hcl"}>{MockResourceMain}</CodeBlock>
+    </TabItem>
+</Tabs>
+
 
 ### The `override_resource` and `override_data` blocks
 
