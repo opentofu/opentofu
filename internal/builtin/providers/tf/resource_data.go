@@ -9,11 +9,12 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-uuid"
+	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	ctyjson "github.com/zclconf/go-cty/cty/json"
 )
 
 func dataStoreResourceSchema() providers.Schema {
@@ -31,7 +32,7 @@ func dataStoreResourceSchema() providers.Schema {
 
 func dataStoreResourceIdentitySchema() providers.ResourceIdentitySchema {
 	// Similar to dataStoreResourceSchema above, but we provide the identity schema
-	// Note for developers: If you edit this schema, please snure that you correctly implement UpgradeResourceIdentity too
+	// Note for developers: If you edit this schema, please ensure that you correctly implement UpgradeResourceIdentity too
 	return providers.ResourceIdentitySchema{
 		Version: 1,
 		Body: &configschema.Object{
