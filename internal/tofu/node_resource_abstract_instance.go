@@ -1530,6 +1530,13 @@ func (n *NodeAbstractResourceInstance) plan(
 		// create a new proposed value from the null state and the config
 		proposedNewVal = objchange.ProposedNew(schema.Block, nullPriorVal, unmarkedConfigVal)
 
+		// used in the PriorIdentity, if we dont know the type due to a missing schema then we
+		// will want to fall back to DPT here
+		identitySchemaType := cty.DynamicPseudoType
+		if schema.IdentitySchema != nil {
+			identitySchemaType = schema.IdentitySchema.ImpliedType()
+		}
+
 		resp = provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 			TypeName:         n.Addr.Resource.Resource.Type,
 			Config:           unmarkedConfigVal,
@@ -1537,7 +1544,7 @@ func (n *NodeAbstractResourceInstance) plan(
 			ProposedNewState: proposedNewVal,
 			PriorPrivate:     plannedPrivate,
 			ProviderMeta:     metaConfigVal,
-			PriorIdentity:    cty.NullVal(cty.DynamicPseudoType), // null for create portion of replace
+			PriorIdentity:    cty.NullVal(identitySchemaType), // null for create portion of replace
 		})
 		// We need to tread carefully here, since if there are any warnings
 		// in here they probably also came out of our previous call to
