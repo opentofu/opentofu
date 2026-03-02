@@ -30,20 +30,6 @@ func dataStoreResourceSchema() providers.Schema {
 	}
 }
 
-func dataStoreResourceIdentitySchema() providers.ResourceIdentitySchema {
-	// Similar to dataStoreResourceSchema above, but we provide the identity schema
-	// Note for developers: If you edit this schema, please ensure that you correctly implement UpgradeResourceIdentity too
-	return providers.ResourceIdentitySchema{
-		Version: 1,
-		Body: &configschema.Object{
-			Attributes: map[string]*configschema.Attribute{
-				"id": {Type: cty.String, Description: "The ID of the resource.", Required: true},
-			},
-			Nesting: configschema.NestingSingle,
-		},
-	}
-}
-
 func validateDataStoreResourceConfig(req providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
 	if req.Config.IsNull() {
 		return resp
@@ -222,7 +208,7 @@ func importDataStore(req providers.ImportResourceStateRequest) (resp providers.I
 	schema := dataStoreResourceSchema()
 
 	v := cty.ObjectVal(map[string]cty.Value{
-		"id": cty.StringVal(req.Target.ID), // TODO: Support identity based imports
+		"id": cty.StringVal(req.Target.ID),
 	})
 	state, err := schema.Block.CoerceValue(v)
 	resp.Diagnostics = resp.Diagnostics.Append(err)

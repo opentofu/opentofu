@@ -11,10 +11,11 @@ import (
 	"log"
 	"strings"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Provider is an implementation of providers.Interface
@@ -52,11 +53,7 @@ func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSch
 
 // GetResourceIdentitySchemas fetches the identity schemas for terraform_data
 func (p *Provider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
-	return providers.GetResourceIdentitySchemasResponse{
-		IdentitySchemas: map[string]providers.ResourceIdentitySchema{
-			"terraform_data": dataStoreResourceIdentitySchema(),
-		},
-	}
+	return providers.GetResourceIdentitySchemasResponse{}
 }
 
 // ValidateProviderConfig is used to validate the configuration values.
