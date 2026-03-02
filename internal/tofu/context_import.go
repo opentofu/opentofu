@@ -117,7 +117,7 @@ func NewImportResolver() *ImportResolver {
 func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) (tfdiags.Diagnostics, cty.Type) {
+	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext, keyData instances.RepetitionData) (tfdiags.Diagnostics, cty.Type) {
 		var diags tfdiags.Diagnostics
 		if importTarget.Config.Provider.Type == "" {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -133,7 +133,22 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			Module:   addrs.RootModule, // Import blocks are only allowed in the root module, this code assumes that the validation around that has happened already
 			Provider: importTarget.Config.Provider,
 		}
-		provider := evalCtx.Provider(ctx, providerAddr, addrs.NoKey)
+		if importTarget.Config.ProviderConfigRef != nil {
+			providerAddr.Alias = importTarget.Config.ProviderConfigRef.Alias
+		}
+
+		var resolvedProviderKey addrs.InstanceKey
+		if importTarget.Config.ProviderConfigRef != nil && importTarget.Config.ProviderConfigRef.KeyExpression != nil {
+			keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
+			var keyDiags tfdiags.Diagnostics
+			resolvedProviderKey, keyDiags = resolveProviderInstance(ctx, importTarget.Config.ProviderConfigRef.KeyExpression, keyScope, importTarget.Config.StaticTo.String())
+			diags = diags.Append(keyDiags)
+			if keyDiags.HasErrors() {
+				return diags, cty.DynamicPseudoType
+			}
+		}
+
+		provider := evalCtx.Provider(ctx, providerAddr, resolvedProviderKey)
 		if provider == nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -202,7 +217,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 				evalDiags = validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, keyData)
 				diags = diags.Append(evalDiags)
 			} else if importTarget.Config.Identity != nil {
-				identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
+				identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx, keyData)
 				diags = diags.Append(identityDiags)
 				if !identityDiags.HasErrors() {
 					evalDiags = validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, keyData, identityType)
@@ -217,7 +232,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			evalDiags := validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, EvalDataForNoInstanceKey)
 			diags = diags.Append(evalDiags)
 		} else if importTarget.Config.Identity != nil {
-			identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
+			identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx, EvalDataForNoInstanceKey)
 			diags = diags.Append(identityDiags)
 			if !identityDiags.HasErrors() {
 				evalDiags := validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, EvalDataForNoInstanceKey, identityType)
@@ -313,8 +328,20 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 			Module:   importAddress.Module.Module(),
 			Provider: importTarget.Config.Provider,
 		}
+		if importTarget.Config.ProviderConfigRef != nil {
+			providerAddr.Alias = importTarget.Config.ProviderConfigRef.Alias
+		}
 
-		provider := evalCtx.Provider(ctx, providerAddr, addrs.NoKey)
+		var resolvedProviderKey addrs.InstanceKey
+		if importTarget.Config.ProviderConfigRef != nil && importTarget.Config.ProviderConfigRef.KeyExpression != nil {
+			keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
+			resolvedProviderKey, diags = resolveProviderInstance(ctx, importTarget.Config.ProviderConfigRef.KeyExpression, keyScope, importAddress.String())
+			if diags.HasErrors() {
+				return diags
+			}
+		}
+
+		provider := evalCtx.Provider(ctx, providerAddr, resolvedProviderKey)
 		if provider == nil {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
