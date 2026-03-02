@@ -10,16 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
-func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
+func testProviderTransformerGraph(t *testing.T, cfg *configs.Config, importTargets ...*ImportTarget) *Graph {
 	t.Helper()
 
 	g := &Graph{Path: addrs.RootModuleInstance}
-	ct := &ConfigTransformer{Config: cfg}
+	ct := &ConfigTransformer{Config: cfg, importTargets: importTargets}
 	if err := ct.Transform(t.Context(), g); err != nil {
 		t.Fatal(err)
 	}
@@ -486,6 +488,53 @@ provider "test" {
 	actual := strings.TrimSpace(g.String())
 	if actual != expected {
 		t.Fatalf("expected:\n%s\n\ngot:\n%s", expected, actual)
+	}
+}
+
+func TestProviderFunctionTransformer_importBlock(t *testing.T) {
+	mod := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+		aws = {}
+	}
+}
+
+import {
+  to = aws_instance.foo
+  id = provider::aws::arn_build("test")
+}
+
+resource "aws_instance" "foo" {
+}
+`,
+	})
+
+	var importTargets []*ImportTarget
+	for _, ic := range mod.Module.Import {
+		importTargets = append(importTargets, &ImportTarget{Config: ic})
+	}
+
+	g := testProviderTransformerGraph(t, mod, importTargets...)
+
+	concrete := func(a *NodeAbstractProvider) dag.Vertex {
+		return &NodeApplyableProvider{NodeAbstractProvider: a}
+	}
+
+	tf := testTransformProviders(concrete, mod)
+	if err := tf.Transform(t.Context(), g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	// The resource should have an edge to the provider, proving the
+	// provider function in the import block id was tracked.
+	expected := `aws_instance.foo
+  provider["registry.opentofu.org/hashicorp/aws"]
+provider["registry.opentofu.org/hashicorp/aws"]`
+
+	actual := strings.TrimSpace(g.String())
+	if diff := cmp.Diff(actual, expected); diff != "" {
+		t.Fatalf("expected:\n%s", diff)
 	}
 }
 

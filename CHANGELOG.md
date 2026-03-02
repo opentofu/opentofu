@@ -1,5 +1,9 @@
 ## 1.10.10 (unreleased)
 
+BUG FIXES:
+
+* Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
+
 ## 1.10.9
 
 SECURITY ADVISORIES:
