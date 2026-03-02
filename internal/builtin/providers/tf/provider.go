@@ -38,7 +38,7 @@ func (p *Provider) getFunctionSpecs() map[string]providers.FunctionSpec {
 	return funcSpecs
 }
 
-// GetSchema returns the complete schema for the provider.
+// GetProviderSchema returns the complete schema for the provider.
 func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	return providers.GetProviderSchemaResponse{
 		DataSources: map[string]providers.Schema{
