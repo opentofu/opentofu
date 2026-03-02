@@ -146,7 +146,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64, ident
 
 	// Encode identity if present
 	var identityJSON []byte
-	if !o.Identity.IsNull() && o.Identity != cty.NilVal {
+	if o.Identity != cty.NilVal && !o.Identity.IsNull() {
 		identityJSON, err = ctyjson.Marshal(o.Identity, o.Identity.Type())
 		if err != nil {
 			return nil, err
