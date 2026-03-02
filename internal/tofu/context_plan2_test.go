@@ -20,11 +20,12 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plugins"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -5334,6 +5335,64 @@ import {
 				t.Errorf("expected addr to be %s, but was %s", wantAddr, addr)
 			}
 		})
+	}
+}
+
+func TestContext2Plan_importUsingProviderDefinedFunction(t *testing.T) {
+	p := testProvider("aws")
+
+	p.GetProviderSchemaResponse.Functions = map[string]providers.FunctionSpec{
+		"echo": {
+			Parameters: []providers.FunctionParameterSpec{{
+				Name: "input",
+				Type: cty.String,
+			}},
+			Return: cty.String,
+		},
+	}
+
+	p.CallFunctionResponse = &providers.CallFunctionResponse{
+		Result: cty.StringVal("foo"),
+	}
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+	required_providers {
+	  aws = {}
+	}
+}
+
+import {
+	to = aws_instance.foo
+	id = provider::aws::echo("foo")
+}
+
+resource "aws_instance" "foo" {
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "aws_instance",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"id": cty.StringVal("foo"),
+				}),
+			},
+		},
+	}
+
+	_, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
 }
 
