@@ -196,12 +196,12 @@ Although not common, we do occasionally encounter issues with our registry host 
 
 We propose the following changes to the provider package installer (from @apparentlymart):
 >
-    Before we make any request to the registry, we'd check whether the dependency lock file selection corresponds to a package already in the global cache directory. If so, we just install from that cache directory and don't interact with the registry or change the checksums in the dependency lock file at all, and the rest of the steps are skipped.
+>    Before we make any request to the registry, we'd check whether the dependency lock file selection corresponds to a package already in the global cache directory. If so, we just install from that cache directory and don't interact with the registry or change the checksums in the dependency lock file at all, and the rest of the steps are skipped.
 >
-    If the cache contents could not be immediately verified with the hashes in the dependency lock file then OpenTofu would make the registry API request, add new hashes to the lock file as appropriate, and re-validate the cache contents against the hashes returned from the registry.
+>    If the cache contents could not be immediately verified with the hashes in the dependency lock file then OpenTofu would make the registry API request, add new hashes to the lock file as appropriate, and re-validate the cache contents against the hashes returned from the registry.
 >
-    If this succeeds then we can skip fetching the package itself from the registry and just install from the cache. Between this and the previous step we will use the cache if either the lock file or the registry can provide a hash that matches the cache directory.
+>    If this succeeds then we can skip fetching the package itself from the registry and just install from the cache. Between this and the previous step we will use the cache if either the lock file or the registry can provide a hash that matches the cache directory.
 >
-    If none of the hashes we can find in either the lock file or the registry match the cache directory then we fall back to fetching the package from the URL the registry indicated, just as we would if the cache directory were not present at all.
+>    If none of the hashes we can find in either the lock file or the registry match the cache directory then we fall back to fetching the package from the URL the registry indicated, just as we would if the cache directory were not present at all.
 
 This also has the benefit of reducing the number of calls to the OpenTofu registry when `tofu init` is run massively in parallel, i.e Terragrunt and other automation tools.
