@@ -165,6 +165,11 @@ This process should:
 * Should we run the backfill on a large rented machine (faster) or do it in github actions (slower, better traceability)
 * Should we bundle backfill commits (a-z0-9) or have a commit per-provider metadata file?
 * Do we want to space out the backfill to prevent overloading the API generation process (sync to R2) ?
+* How should we handle provider maintainers updating/editing release assets?
+  - Right now we have a manual process where a maintainer verifies the identity of the requester and will wipe a release from the metadata to force it to be regenerated
+  - Given that we are making the hash generation part of the registry bump version process, it should be the same workflow
+  - At the very least we should document this process / make an issue template
+  - Is now the right time to automate this and create a policy?
 
 ### Future Considerations
 
