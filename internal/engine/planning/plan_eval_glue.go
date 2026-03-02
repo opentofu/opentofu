@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/lang/eval"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -298,31 +297,6 @@ func (p *planGlue) desiredResourceInstanceMustBeDeferred(inst *eval.DesiredResou
 	// of this to a later round. The following is not exhaustive but is a
 	// placeholder to show where deferral might fit in.
 	return inst.IsPlaceholder() || inst.ProviderInstance == nil || derivedFromDeferredVal(inst.ConfigVal)
-}
-
-func (p *planGlue) resourceInstancePlaceholderValue(ctx context.Context, providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string, priorVal, configVal cty.Value) cty.Value {
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, diags := evalCtx.Providers.ResourceTypeSchema(ctx, providerAddr, resourceMode, resourceType)
-	if diags.HasErrors() {
-		// If we can't get any schema information then we'll just return
-		// a completely-unknown object as our placeholder. We should get here
-		// only if the eval system already failed to use the provider to decode
-		// or validate the configuration, and so it should already have reported
-		// a related error upstream.
-		return cty.DynamicVal
-	}
-
-	if configVal.IsNull() {
-		return cty.NullVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
-	}
-	if !configVal.IsKnown() {
-		return cty.UnknownVal(schema.Block.ImpliedType().WithoutOptionalAttributesDeep())
-	}
-	return objchange.ProposedNew(
-		schema.Block,
-		priorVal,
-		configVal,
-	)
 }
 
 // resourceInstancesFilter returns a sequence of resource instances from the

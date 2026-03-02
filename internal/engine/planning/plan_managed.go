@@ -8,15 +8,13 @@ package planning
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/eval"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
-	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/resources"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -66,12 +64,27 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		ret.ReplaceOrder = replaceCreateThenDestroy
 	}
 
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, schemaDiags := evalCtx.Providers.ResourceTypeSchema(ctx,
-		inst.Provider,
-		inst.Addr.Resource.Resource.Mode,
-		inst.Addr.Resource.Resource.Type,
-	)
+	if inst.ProviderInstance == nil {
+		// If we don't even know which provider instance we're supposed to be
+		// talking to then we can't proceed any further.
+		return ret, diags
+	}
+	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
+	if providerClient == nil {
+		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
+			nil,
+		))
+	}
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return ret, diags
+	}
+
+	resourceType := resources.NewManagedResourceType(inst.Provider, inst.Addr.Resource.Resource.Type, providerClient)
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
 		// they should have already been returned by earlier code, but we do
@@ -89,7 +102,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		return ret, diags
 	}
 
-	validateDiags := p.planCtx.providers.ValidateResourceConfig(ctx, inst.Provider, inst.ResourceMode, inst.ResourceType, inst.ConfigVal)
+	validateDiags := resourceType.ValidateConfig(ctx, inst.ConfigVal)
 	diags = diags.Append(validateDiags)
 	if diags.HasErrors() {
 		return ret, diags
@@ -127,59 +140,22 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		prevRoundVal = cty.NullVal(schema.Block.ImpliedType())
 	}
 
-	proposedNewVal := p.resourceInstancePlaceholderValue(ctx,
-		inst.Provider,
-		inst.Addr.Resource.Resource.Mode,
-		inst.Addr.Resource.Resource.Type,
-		prevRoundVal,
-		inst.ConfigVal,
-	)
-
-	if inst.ProviderInstance == nil {
-		// If we don't even know which provider instance we're supposed to be
-		// talking to then we can't proceed any further, but we can at least
-		// improve our placeholder value based on what we learned from the
-		// configuration and prior state.
-		ret.PlaceholderValue = proposedNewVal
-		return ret, diags
-	}
-
-	providerClient, moreDiags := p.providerClient(ctx, *inst.ProviderInstance)
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", inst.Addr, *inst.ProviderInstance),
-			nil,
-		))
-	}
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return ret, diags
-	}
-
 	// TODO: If inst.IgnoreChangesPaths has any entries then we need to
 	// transform effectiveConfigVal so that any paths specified in there are
 	// forced to match the corresponding value from prevRoundVal, if any.
 	effectiveConfigVal := inst.ConfigVal
 
-	// TODO: Call providerClient.ReadResource and update the "refreshed state"
+	// TODO: Call resourceType.RefreshObject, update the "refreshed state",
 	// and reassign this refreshedVal to the refreshed result.
 	refreshedVal := prevRoundVal
 	refreshedPrivate := prevRoundPrivate
 
-	// As long as we have a provider instance we should be able to ask the
-	// provider to plan _something_. If this is a placeholder for zero or more
-	// instances of a resource whose expansion isn't yet known then we're asking
-	// the provider to produce a speculative plan for all of them at once,
-	// so we can catch whatever subset of problems are already obvious across
-	// all of the potential resource instances.
-	planResp := providerClient.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
-		TypeName:         inst.ResourceType,
-		PriorState:       refreshedVal,
-		ProposedNewState: proposedNewVal,
-		Config:           effectiveConfigVal,
-		PriorPrivate:     refreshedPrivate,
+	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+		Current: resources.ValueWithPrivate{
+			Value:   refreshedVal,
+			Private: refreshedPrivate,
+		},
+		DesiredValue: effectiveConfigVal,
 
 		// TODO: ProviderMeta is a rarely-used feature that only really makes
 		// sense when the module and provider are both written by the same
@@ -187,34 +163,10 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		// transport module usage telemetry. We should decide whether we want
 		// to keep supporting that, and if so design a way for the relevant
 		// meta value to get from the evaluator into here.
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
-	})
-	for _, err := range objchange.AssertPlanValid(schema.Block, refreshedVal, effectiveConfigVal, planResp.PlannedState) {
-		if planResp.LegacyTypeSystem {
-			// This provider seems to be using the legacy Terraform plugin SDK
-			// that cannot implement the modern protocol correctly, so we'll
-			// treat these errors as internal log warnings instead of reporting
-			// them. This compromise means that things can work for providers
-			// that are only incorrect _because_ they are using the legacy SDK,
-			// while still providing some information about the problem in case
-			// it's useful for debugging a real issue with a provider.
-			//
-			// TODO: Bring over the full version of this log message from
-			// the original runtime.
-			log.Printf("[WARN] Provider produced invalid plan: %s", tfdiags.FormatError(err))
-			continue
-		}
-		planResp.Diagnostics = planResp.Diagnostics.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider produced invalid plan",
-			// TODO: Bring over the full version of this error case from the
-			// original runtime.
-			fmt.Sprintf("Invalid planned new value: %s.", tfdiags.FormatError(err)),
-			nil,
-		))
-	}
-	diags = diags.Append(planResp.Diagnostics)
-	if planResp.Diagnostics.HasErrors() {
+		ProviderMetaValue: cty.NilVal,
+	}, ret.Addr)
+	diags = diags.Append(planDiags)
+	if planDiags.HasErrors() {
 		return ret, diags
 	}
 
@@ -225,7 +177,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	// that case, but we would need to mark it as deferred and _not_ record a
 	// proposed change for it.
 
-	if eq, _ := planResp.PlannedState.Equals(refreshedVal).Unmark(); !eq.IsKnown() || eq.True() {
+	if eq, _ := planResp.Planned.Value.Equals(refreshedVal).Unmark(); !eq.IsKnown() || eq.True() {
 		// There is no change to make, so we'll return early without actually
 		// recording any change. In this case our resource instance will be
 		// included in the execution graph only if some other resource instance
@@ -242,6 +194,13 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	if prevRoundState == nil {
 		plannedAction = plans.Create
 	} else if len(planResp.RequiresReplace) != 0 {
+		// FIXME: In this case we ought to call resourceType.PlanChanges
+		// again with the "current value" unset, to get the provider to plan
+		// to create the new object, and then record _that_ result as the
+		// planned new value. Currently we're just saving the planned new
+		// value from the initial call, which is likely to contain values from
+		// the old object that would not match a newly-created object of the
+		// same type.
 		if inst.CreateBeforeDestroy {
 			plannedAction = plans.CreateThenDelete
 		} else {
@@ -263,11 +222,11 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 			Alias:    (*inst.ProviderInstance).Config.Config.Alias,
 		},
 		RequiredReplace: cty.NewPathSet(planResp.RequiresReplace...),
-		Private:         planResp.PlannedPrivate,
+		Private:         planResp.Planned.Private,
 		Change: plans.Change{
 			Action: plannedAction,
-			Before: refreshedVal,
-			After:  planResp.PlannedState,
+			Before: planResp.Current.Value,
+			After:  planResp.Planned.Value,
 		},
 
 		// TODO: ActionReason, but need to figure out how to get the information
@@ -321,13 +280,33 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	// handle it as an object that is in both the prior and desired state,
 	// albeit with different addresses in each.
 
+	// FIXME: Currently this fails if the only mention of a particular provider
+	// instance is in the state, because this function relies on provider
+	// config information from the evaluator and thus only from the config.
+	// If you get the error about the provider not being able to initialize
+	// then you might currently need to add an explicit empty provider config
+	// block for the provider, if you were testing with a provider like
+	// hashicorp/null where an explicit configuration is not normally required.
+	//
+	// There's another FIXME comment further down the callstack beneath this
+	// function identifying the main location of the problem.
 	providerAddr := stateSrc.ProviderInstanceAddr.Config.Config.Provider
-	evalCtx := p.oracle.EvalContext(ctx)
-	schema, schemaDiags := evalCtx.Providers.ResourceTypeSchema(ctx,
-		providerAddr,
-		addr.Resource.Resource.Mode,
-		addr.Resource.Resource.Type,
-	)
+	providerClient, moreDiags := p.providerClient(ctx, stateSrc.ProviderInstanceAddr)
+	if providerClient == nil {
+		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Provider instance not available",
+			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, stateSrc.ProviderInstanceAddr),
+			nil,
+		))
+	}
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return ret, diags
+	}
+
+	resourceType := resources.NewManagedResourceType(providerAddr, addr.Resource.Resource.Type, providerClient)
+	schema, schemaDiags := resourceType.LoadSchema(ctx)
 	if schemaDiags.HasErrors() {
 		// We don't return the schema-loading diagnostics directly here because
 		// they should have already been returned by earlier code, but we do
@@ -363,30 +342,6 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	prevRoundVal = prevRoundState.Value
 	prevRoundPrivate = prevRoundState.Private
 
-	// FIXME: Currently this fails if the only mention of a particular provider
-	// instance is in the state, because this function relies on provider
-	// config information from the evaluator and thus only from the config.
-	// If you get the error about the provider not being able to initialize
-	// then you might currently need to add an explicit empty provider config
-	// block for the provider, if you were testing with a provider like
-	// hashicorp/null where an explicit configuration is not normally required.
-	//
-	// There's another FIXME comment further down the callstack beneath this
-	// function identifying the main location of the problem.
-	providerClient, moreDiags := p.providerClient(ctx, prevRoundState.ProviderInstanceAddr)
-	if providerClient == nil {
-		moreDiags = moreDiags.Append(tfdiags.AttributeValue(
-			tfdiags.Error,
-			"Provider instance not available",
-			fmt.Sprintf("Cannot plan %s because its associated provider instance %s cannot initialize.", addr, prevRoundState.ProviderInstanceAddr),
-			nil,
-		))
-	}
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return ret, diags
-	}
-
 	// TODO: Call providerClient.ReadResource and update the "refreshed state"
 	// and reassign this refreshedVal to the refreshed result.
 	refreshedVal := prevRoundVal
@@ -399,17 +354,12 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		return ret, diags
 	}
 
-	newVal := cty.NullVal(schema.Block.ImpliedType())
-	// FIXME: Whether the provider gets involved in planning to delete something
-	// is a dynamically-negotiable protocol feature, with older providers unable
-	// to handle requests like this. We ought to skip the following call unless
-	// we know the provider has negotiated the relevant capability.
-	planResp := providerClient.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
-		TypeName:         addr.Resource.Resource.Type,
-		PriorState:       refreshedVal,
-		ProposedNewState: newVal,
-		Config:           newVal,
-		PriorPrivate:     refreshedPrivate,
+	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+		Current: resources.ValueWithPrivate{
+			Value:   refreshedVal,
+			Private: refreshedPrivate,
+		},
+		DesiredValue: cty.NilVal, // we want to destroy this object
 
 		// TODO: ProviderMeta is a rarely-used feature that only really makes
 		// sense when the module and provider are both written by the same
@@ -417,11 +367,12 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 		// transport module usage telemetry. We should decide whether we want
 		// to keep supporting that, and if so design a way for the relevant
 		// meta value to get from the evaluator into here.
-		ProviderMeta: cty.NullVal(cty.DynamicPseudoType),
-	})
-	// TODO: Check that the provider's planned value is compatible with what
-	// we sent in Config, which was a null value and therefore the planned
-	// value must also be null.
+		ProviderMetaValue: cty.NilVal,
+	}, addr.CurrentObject())
+	diags = diags.Append(planDiags)
+	if planDiags.HasErrors() {
+		return ret, diags
+	}
 
 	ret.PlannedChange = &plans.ResourceInstanceChange{
 		Addr:        addr,
@@ -436,11 +387,11 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 			Alias:    prevRoundState.ProviderInstanceAddr.Config.Config.Alias,
 		},
 		RequiredReplace: cty.NewPathSet(planResp.RequiresReplace...),
-		Private:         planResp.PlannedPrivate,
+		Private:         planResp.Planned.Private,
 		Change: plans.Change{
 			Action: plans.Delete,
 			Before: refreshedVal,
-			After:  planResp.PlannedState,
+			After:  planResp.Planned.Value,
 		},
 
 		// TODO: ActionReason, but need to figure out how to get the information
