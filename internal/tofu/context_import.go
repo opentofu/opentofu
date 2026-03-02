@@ -117,13 +117,16 @@ func NewImportResolver() *ImportResolver {
 func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) cty.Type {
-		// TODO: During the review process we should determine what should happen here in all of the negative cases, should we error somehow instead of
-		// returning a dynamic type?
+	getIdentitySchemaType := func(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) (tfdiags.Diagnostics, cty.Type) {
+		var diags tfdiags.Diagnostics
 		if importTarget.Config.Provider.Type == "" {
-			// Not much we can do here during validation phase
-			// So we just return dynamic type for now
-			return cty.DynamicPseudoType
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to determine provider for import identity",
+				Detail:   fmt.Sprintf("The provider for import target %q could not be determined. Please ensure the import block has a valid provider configuration.", importTarget.Config.StaticTo),
+				Subject:  importTarget.Config.Identity.Range().Ptr(),
+			})
+			return diags, cty.DynamicPseudoType
 		}
 
 		providerAddr := addrs.AbsProviderConfig{
@@ -132,21 +135,34 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 		}
 		provider := evalCtx.Provider(ctx, providerAddr, addrs.NoKey)
 		if provider == nil {
-			return cty.DynamicPseudoType
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to determine provider for import identity",
+				Detail:   fmt.Sprintf("The provider %q could not be found when trying to validate the import of resource %q. Please ensure the provider is declared and configured properly.", providerAddr, importTarget.Config.StaticTo),
+				Subject:  importTarget.Config.Identity.Range().Ptr(),
+			})
+			return diags, cty.DynamicPseudoType
 		}
 
 		identitySchemasResponse := provider.GetResourceIdentitySchemas(ctx)
 		if identitySchemasResponse.Diagnostics.HasErrors() {
-			return cty.DynamicPseudoType
+			diags = diags.Append(identitySchemasResponse.Diagnostics)
+			return diags, cty.DynamicPseudoType
 		}
 
 		resourceType := importTarget.Config.StaticTo.Resource.Type
 		identitySchema, exists := identitySchemasResponse.IdentitySchemas[resourceType]
 		if !exists {
-			return cty.DynamicPseudoType
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unable to determine identity schema for import identity",
+				Detail:   fmt.Sprintf("The provider %q does not provide an identity schema for the resource type %q, which is required when trying to validate the import of resource %q using identity-based import. Please ensure the resource type supports identity-based import.", providerAddr, resourceType, importTarget.Config.StaticTo),
+				Subject:  importTarget.Config.Identity.Range().Ptr(),
+			})
+			return diags, cty.DynamicPseudoType
 		}
 
-		return identitySchema.Body.SpecType()
+		return diags, identitySchema.Body.SpecType()
 	}
 
 	// The import block expressions are declared within the root module.
@@ -186,9 +202,12 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 				evalDiags = validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, keyData)
 				diags = diags.Append(evalDiags)
 			} else if importTarget.Config.Identity != nil {
-				identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
-				evalDiags = validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, keyData, identityType)
-				diags = diags.Append(evalDiags)
+				identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
+				diags = diags.Append(identityDiags)
+				if !identityDiags.HasErrors() {
+					evalDiags = validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, keyData, identityType)
+					diags = diags.Append(evalDiags)
+				}
 			}
 		}
 	} else {
@@ -198,9 +217,12 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			evalDiags := validateImportIdExpression(ctx, importTarget.Config.ID, rootCtx, EvalDataForNoInstanceKey)
 			diags = diags.Append(evalDiags)
 		} else if importTarget.Config.Identity != nil {
-			identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
-			evalDiags := validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, EvalDataForNoInstanceKey, identityType)
-			diags = diags.Append(evalDiags)
+			identityDiags, identityType := getIdentitySchemaType(ctx, importTarget, evalCtx)
+			diags = diags.Append(identityDiags)
+			if !identityDiags.HasErrors() {
+				evalDiags := validateImportIdentityExpression(ctx, importTarget.Config.Identity, rootCtx, EvalDataForNoInstanceKey, identityType)
+				diags = diags.Append(evalDiags)
+			}
 		}
 	}
 
