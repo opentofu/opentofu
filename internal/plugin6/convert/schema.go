@@ -11,10 +11,11 @@ import (
 	"reflect"
 	"sort"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	proto "github.com/opentofu/opentofu/internal/tfplugin6"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // ConfigSchemaToProto takes a *configschema.Block and converts it to a
@@ -165,8 +166,7 @@ func ResourceIdentitySchemaToProto(schema *providers.ResourceIdentitySchema) *pr
 		if attribute.Type != cty.NilType {
 			ty, err := json.Marshal(attribute.Type)
 			if err != nil {
-				// TODO: Similar to above, discuss how panics should be created, should it be the err or some enriched info?
-				panic(err)
+				panic(fmt.Errorf("failed to marshal attribute type for resource identity: %w", err))
 			}
 			attr.Type = ty
 		}
