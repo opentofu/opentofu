@@ -24,7 +24,7 @@ Hash Scheme 1 is a newer mechanism which uses go's sumdb Hash1 algorithm and Dir
 
 ## Normal Workflow
 
-The population of the .terraform.lock.hcl file is managed by `tofu init`. The registry is queried for acceptable hashes for the providers present in the configuration, as well as for the corresponding download links. Init then downloads and extracts the providers to `.terraform/providers`. It records all zh's in the registry's response, as well as the single h1 hash for the current platform.
+The population of the .terraform.lock.hcl file is managed by `tofu init`. The registry is queried for acceptable hashes for the providers present in the configuration, as well as for the corresponding download links. `tofu init` then downloads and extracts the providers to `.terraform/providers`. It records all zh's in the registry's response, as well as the single h1 hash for the current platform.
 
 On the developer's machine, subsequent calls to `tofu` in the project directory will use the lockfile to ensure the locally installed providers have not been tampered with.
 
@@ -36,7 +36,7 @@ In automation, subsequent calls to `tofu` in the project directory will use the 
 
 ### Read only lockfile in automation
 
-As mentioned above: If the architecture between a developer's machine and the automation system does not match, a new h1 entry will be added to the lockfile as the provider is installed. For security reasons, some automation systems consider the lockfile read-only and will interpret this change to the lockfile as a blocking issue and refuse to continue. This is enforced via `tofu init -lockfile=readonly`.
+As mentioned above: If the architecture between a developer's machine and the automation system does not match (A developer running on a mac vs their CI/CD platform being a linux machine), a new h1 entry will be added to the lockfile as the provider is installed. For security reasons, some automation systems consider the lockfile read-only and will interpret this change to the lockfile as a blocking issue and refuse to continue. This is enforced via `tofu init -lockfile=readonly`.
 
 This is usually fixed by running `tofu providers lock` on the developer's machine (sometimes as a git-hook) with additional architectures listed and committing the resulting lock file.
 
@@ -44,13 +44,13 @@ This is usually fixed by running `tofu providers lock` on the developer's machin
 
 For efficiency, many people rely on a internal Network or Filesystem mirror for providers. This usually takes the form of an internal service or pre-built cache.
 
-When utilizing a network mirror, we only fetch the download link and zh for the current platform to store in the lockfile.  If this is during a developer's first `tofu init` or `tofu init -upgrade`, the lockfile will not contain anything other than the zh and h1 for the developer's platform and will fail on systems with a different architecture. Again, this can be addressed with `tofu providers lock`.
+When utilizing a network mirror, `tofu init` will only fetch the download link and zh for the current platform to store in the lockfile.  If this is during a developer's first `tofu init` or `tofu init -upgrade`, the lockfile will not contain anything other than the zh and h1 for the developer's platform and will fail on systems with a different architecture. Again, this can be addressed with `tofu providers lock`.
 
 ### Utilizing a Filesystem Mirror (extracted)
 
 Filesystem mirrors can also be configured to contain only the pre-extracted providers. This has some significant performance advantages, but again is a stumbling block when multiple architectures are at play.
 
-A developer may have run init on a standard machine, populating all of the zh entries and a single h1 entry for a different platform. An automation system with a filesystem mirror would not have any matching hash entries and would therefore fail to init.
+A developer may have run `init` on a standard machine, populating all of the zh entries and a single h1 entry for a different platform. An automation system with a filesystem mirror would not have any matching hash entries and would therefore fail to init.
 
 The global plugin cache (TF_PLUGIN_CACHE_DIR) suffers from the same issue.
 
