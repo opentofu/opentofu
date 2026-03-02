@@ -16,6 +16,7 @@ import (
 type Taint interface {
 	Diagnostics(diags tfdiags.Diagnostics)
 	TaintedSuccessfully(addr addrs.AbsResourceInstance)
+	UntaintedSuccessfully(addr addrs.AbsResourceInstance)
 }
 
 // NewTaint returns an initialized Taint implementation for the given ViewType.
@@ -52,6 +53,12 @@ func (m TaintMulti) TaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	}
 }
 
+func (m TaintMulti) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
+	for _, o := range m {
+		o.UntaintedSuccessfully(addr)
+	}
+}
+
 type TaintHuman struct {
 	view *View
 }
@@ -66,6 +73,10 @@ func (v *TaintHuman) TaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	_, _ = v.view.streams.Println(fmt.Sprintf("Resource instance %s has been marked as tainted.", addr))
 }
 
+func (v *TaintHuman) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
+	_, _ = v.view.streams.Println(fmt.Sprintf("Resource instance %s has been successfully untainted.", addr))
+}
+
 type TaintJSON struct {
 	view *JSONView
 }
@@ -78,4 +89,8 @@ func (v *TaintJSON) Diagnostics(diags tfdiags.Diagnostics) {
 
 func (v *TaintJSON) TaintedSuccessfully(addr addrs.AbsResourceInstance) {
 	v.view.Info(fmt.Sprintf("Resource instance %s has been marked as tainted.", addr))
+}
+
+func (v *TaintJSON) UntaintedSuccessfully(addr addrs.AbsResourceInstance) {
+	v.view.Info(fmt.Sprintf("Resource instance %s has been successfully untainted.", addr))
 }

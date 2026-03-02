@@ -43,6 +43,27 @@ func TestTaintView(t *testing.T) {
 				},
 			},
 		},
+		"untainted successfully": {
+			viewCall: func(v Taint) {
+				addr := addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "test_instance",
+					Name: "foo",
+				}.Instance(addrs.NoKey).Absolute(
+					addrs.RootModuleInstance,
+				)
+				v.UntaintedSuccessfully(addr)
+			},
+			wantStdout: withNewline("Resource instance test_instance.foo has been successfully untainted."),
+			wantStderr: "",
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Resource instance test_instance.foo has been successfully untainted.",
+					"@module":  "tofu.ui",
+				},
+			},
+		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(v Taint) {

@@ -44,7 +44,7 @@ func (c *TaintCommand) Run(rawArgs []string) int {
 	c.Meta.Color = c.Meta.color
 
 	// Parse and validate flags
-	args, closer, diags := arguments.ParseTaint(rawArgs)
+	args, closer, diags := arguments.ParseTaint(true, rawArgs)
 	defer closer()
 	// TODO meta-refactor: move these values to their right place once it's clear how to propagate their values to
 	//   the functionality that is using these.

@@ -12,7 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// Taint represents the command-line arguments for the taint command.
+// Taint represents the command-line arguments for the taint and untaint commands.
 type Taint struct {
 	// TargetAddress is the resource address that is requested to be marked as tainted.
 	TargetAddress addrs.AbsResourceInstance
@@ -38,15 +38,18 @@ type Taint struct {
 // ParseTaint processes CLI arguments, returning a Taint value, a closer function, and errors.
 // If errors are encountered, a Taint value is still returned representing
 // the best effort interpretation of the arguments.
-func ParseTaint(args []string) (*Taint, func(), tfdiags.Diagnostics) {
+func ParseTaint(isTaint bool, args []string) (*Taint, func(), tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	arguments := &Taint{
 		Vars:    &Vars{},
 		State:   &State{},
 		Backend: &Backend{},
 	}
-
-	cmdFlags := extendedFlagSet("taint", arguments.State, nil, arguments.Vars)
+	cmd := "taint"
+	if !isTaint {
+		cmd = "untaint"
+	}
+	cmdFlags := extendedFlagSet(cmd, arguments.State, nil, arguments.Vars)
 	cmdFlags.BoolVar(&arguments.AllowMissing, "allow-missing", false, "allow missing")
 	arguments.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	arguments.ViewOptions.AddFlags(cmdFlags, false)
@@ -69,14 +72,14 @@ func ParseTaint(args []string) (*Taint, func(), tfdiags.Diagnostics) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid arguments",
-			"The taint command expects exactly one argument.",
+			fmt.Sprintf("The %s command expects exactly one argument.", cmd),
 		))
 	} else {
 		addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
 		diags = diags.Append(addrDiags)
 		arguments.TargetAddress = addr
 		if !diags.HasErrors() {
-			if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
+			if addr.Resource.Resource.Mode != addrs.ManagedResourceMode && isTaint {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Invalid resource address",
