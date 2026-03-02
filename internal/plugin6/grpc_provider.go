@@ -11,13 +11,14 @@ import (
 	"fmt"
 
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/opentofu/opentofu/internal/plugin6/validation"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/opentofu/opentofu/internal/plugin6/validation"
 
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
@@ -222,6 +223,7 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
 	if protoResp.UpgradedIdentity == nil || protoResp.UpgradedIdentity.IdentityData == nil {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("call to UpgradeResourceIdentity returned nil for IdentityData, this should be non-nil"))
 		return resp
 	}
 

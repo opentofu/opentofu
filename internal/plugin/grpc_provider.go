@@ -111,6 +111,7 @@ func (p *GRPCProvider) UpgradeResourceIdentity(ctx context.Context, req provider
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
 	if protoResp.UpgradedIdentity == nil || protoResp.UpgradedIdentity.IdentityData == nil {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("call to UpgradeResourceIdentity returned nil for IdentityData, this should be non-nil"))
 		return resp
 	}
 
@@ -248,7 +249,7 @@ func (p *GRPCProvider) getProtoProviderSchema(ctx context.Context) (*proto.GetPr
 }
 
 func (p *GRPCProvider) GetResourceIdentitySchemas(ctx context.Context) providers.GetResourceIdentitySchemasResponse {
-	logger.Trace("GRPCProvider.v6: GetResourceIdentitySchemas")
+	logger.Trace("GRPCProvider: GetResourceIdentitySchemas")
 
 	// Caching is not needed here: callers should use resSchema.IdentitySchema
 	// from the cached GetProviderSchema response instead of calling this directly.

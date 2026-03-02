@@ -109,10 +109,8 @@ func ProtoToProviderSchema(s *proto.Schema) providers.Schema {
 
 func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.ResourceIdentitySchema {
 	// This method is taking a similar approach to ProtoToConfigSchema below, basically
-	// its just a copy ctor with a little bit more defensiveness
 
 	// We cant convert these
-	// TODO: Should we panic instead?
 	if s == nil {
 		return nil
 	}
@@ -126,7 +124,6 @@ func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.R
 		}
 		if a.Type != nil {
 			if err := json.Unmarshal(a.Type, &attribute.Type); err != nil {
-				// TODO: Discuss how panics should be created, should it just be the err or some enriched info?
 				panic(fmt.Errorf("failed to unmarshal attribute type for resource identity: %w", err))
 			}
 		}
