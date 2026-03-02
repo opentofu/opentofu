@@ -16,7 +16,6 @@ import "encoding/json"
 // Consumers should be capable of rendering/parsing the Importing struct even
 // if it does not have the ID or Identity fields set.
 type Importing struct {
-	// TODO: Ensure usages of this ID also handle Identity
 	ID string `json:"id,omitempty"`
 
 	Identity json.RawMessage `json:"identity,omitempty"`
