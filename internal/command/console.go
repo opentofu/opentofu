@@ -14,11 +14,11 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/repl"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	"github.com/mitchellh/cli"
 )
 
 // ConsoleCommand is a Command implementation that starts an interactive
@@ -27,47 +27,80 @@ type ConsoleCommand struct {
 	Meta
 }
 
-func (c *ConsoleCommand) Run(args []string) int {
+func (c *ConsoleCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.extendedFlagSet("console")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
-		return 1
-	}
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	configPath, err := modulePath(cmdFlags.Args())
-	if err != nil {
-		c.Ui.Error(err.Error())
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseConsole(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewConsole(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.HelpPrompt()
+		view.Diagnostics(diags)
 		return 1
 	}
-	configPath = c.Meta.WorkingDir.NormalizePath(configPath)
+	// TODO meta-refactor: get rid of this assignment once the statePath from Meta is removed
+	c.Meta.statePath = args.StatePath
+	c.Meta.stateLock = args.Backend.StateLock
+	c.Meta.stateLockTimeout = args.Backend.StateLockTimeout
+
+	// FIXME: the -input flag value is needed to initialize the backend and the
+	// operation, but there is no clear path to pass this value down, so we
+	// continue to mutate the Meta object state for now.
+	c.Meta.input = args.ViewOptions.InputEnabled
+
+	// TODO meta-refactor: when the stateLock and stateLockTimeout are extracted to be configured separately, remove
+	// these and use a common way to configure this
+	// The stateLock=true is here this way because this command used before meta.extendedFlagSet which did the same
+	// and left for the command to configure flags for this if needed.
+	c.Meta.stateLock = true
+
+	c.GatherVariables(args.Vars)
+
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Check for user-supplied plugin path
+	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error loading plugin path: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Plugins loading error",
+			fmt.Sprintf("Error loading plugin path: %s", err),
+		)))
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -77,15 +110,15 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// We require a local backend
 	local, ok := b.(backend.Local)
 	if !ok {
-		c.showDiagnostics(diags) // in case of any warnings in here
-		c.Ui.Error(ErrUnsupportedLocalOp)
+		view.Diagnostics(diags) // in case of any warnings in here
+		view.UnsupportedLocalOp()
 		return 1
 	}
 
@@ -99,7 +132,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	opReq.AllowUnsetVariables = true // we'll just evaluate them as unknown
 	if err != nil {
 		diags = diags.Append(err)
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -110,7 +143,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
 		if moreDiags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 	}
@@ -119,7 +152,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -127,15 +160,9 @@ func (c *ConsoleCommand) Run(args []string) int {
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
 		if diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 		}
 	}()
-
-	// Set up the UI so we can output directly to stdout
-	ui := &cli.BasicUi{
-		Writer:      os.Stdout,
-		ErrorWriter: os.Stderr,
-	}
 
 	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
@@ -153,7 +180,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	if scope == nil {
 		// scope is nil if there are errors so bad that we can't even build a scope.
 		// Otherwise, we'll try to eval anyway.
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -167,7 +194,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Before we become interactive we'll show any diagnostics we encountered
 	// during initialization, and then afterwards the driver will manage any
 	// further diagnostics itself.
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 
 	// IO Loop
 	session := &repl.Session{
@@ -176,13 +203,13 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, ui)
+		return c.modePiped(session, view)
 	}
 
-	return c.modeInteractive(session, ui)
+	return c.modeInteractive(session, view)
 }
 
-func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
+func (c *ConsoleCommand) modePiped(session *repl.Session, view views.Console) int {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	var consoleState consoleBracketState
@@ -197,14 +224,14 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 			result, exit, diags := session.Handle(fullCommand)
 			if diags.HasErrors() {
 				// We're in piped mode, so we'll exit immediately on error.
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 				return 1
 			}
 			if exit {
 				return 0
 			}
 			// Output the result
-			ui.Output(result)
+			view.Output(result)
 		}
 	}
 
@@ -260,4 +287,22 @@ Options:
 
 func (c *ConsoleCommand) Synopsis() string {
 	return "Try OpenTofu expressions at an interactive command prompt"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *ConsoleCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }

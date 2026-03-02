@@ -21,6 +21,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-version"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
@@ -250,7 +251,7 @@ func TestInit_backend(t *testing.T) {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
 
-	if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)); err != nil {
+	if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename)); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 }
@@ -284,7 +285,7 @@ func TestInit_backendUnset(t *testing.T) {
 		t.Logf("First run output:\n%s", output.Stdout())
 		t.Logf("First run errors:\n%s", output.Stderr())
 
-		if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, DefaultStateFilename)); err != nil {
+		if _, err := os.Stat(filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename)); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -316,7 +317,7 @@ func TestInit_backendUnset(t *testing.T) {
 		t.Logf("Second run output:\n%s", output.Stdout())
 		t.Logf("Second run errors:\n%s", output.Stderr())
 
-		s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+		s := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 		if !s.Backend.Empty() {
 			t.Fatal("should not have backend config")
 		}
@@ -346,7 +347,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 		}
 
 		// Read our saved backend config and verify we have our settings
-		state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+		state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 		if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
 			t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 		}
@@ -432,7 +433,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 		}
 
 		// Read our saved backend config and verify the backend config is empty
-		state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+		state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 		if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":null,"workspace_dir":null}`; got != want {
 			t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 		}
@@ -573,7 +574,7 @@ func TestInit_backendConfigFileChange(t *testing.T) {
 	}
 
 	// Read our saved backend config and verify we have our settings
-	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -648,7 +649,7 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 		},
 	}
 
-	oldState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	oldState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 
 	// we deliberately do not provide the answer for backend-migrate-copy-to-empty to trigger error
 	args := []string{"-migrate-state", "-backend-config", "input.config", "-input=true"}
@@ -662,7 +663,7 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	}
 
 	// Read our backend config and verify new settings are not saved
-	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"local-state.tfstate"}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -696,7 +697,7 @@ func TestInit_backendConfigKV(t *testing.T) {
 	}
 
 	// Read our saved backend config and verify we have our settings
-	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -739,7 +740,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	}
 
 	// make sure the backend is configured how we expect
-	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	cfg := map[string]interface{}{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
@@ -755,7 +756,7 @@ func TestInit_backendConfigKVReInit(t *testing.T) {
 	}
 
 	// make sure the backend is configured how we expect
-	configState = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	configState = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	cfg = map[string]interface{}{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
@@ -806,7 +807,7 @@ func TestInit_backendConfigKVReInitWithConfigDiff(t *testing.T) {
 	}
 
 	// make sure the backend is configured how we expect
-	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	configState := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	cfg := map[string]interface{}{}
 	if err := json.Unmarshal(configState.Backend.ConfigRaw, &cfg); err != nil {
 		t.Fatal(err)
@@ -885,7 +886,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 	}
 
 	// Read our saved backend config and verify we have our settings
-	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -898,7 +899,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
-	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"hello","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -929,7 +930,7 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 	}
 
 	// Read our saved backend config and verify we have our settings
-	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state := testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"foo","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config\ngot:  %s\nwant: %s", got, want)
 	}
@@ -959,7 +960,7 @@ func TestInit_backendReinitConfigToExtra(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("bad: \n%s", output.Stderr())
 	}
-	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, DefaultStateFilename))
+	state = testDataStateRead(t, filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename))
 	if got, want := normalizeJSON(t, state.Backend.ConfigRaw), `{"path":"foo","workspace_dir":null}`; got != want {
 		t.Errorf("wrong config after moving to arg\ngot:  %s\nwant: %s", got, want)
 	}
@@ -1426,7 +1427,7 @@ func TestInit_getProvider(t *testing.T) {
 		// tofu exists, since InitCommand.getProviders needs to inspect that
 		// state.
 
-		f, err := os.Create(DefaultStateFilename)
+		f, err := os.Create(arguments.DefaultStateFilename)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
