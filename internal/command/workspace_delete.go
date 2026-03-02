@@ -8,6 +8,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -94,13 +95,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	workspace := args[0]
-	exists := false
-	for _, ws := range workspaces {
-		if workspace == ws {
-			exists = true
-			break
-		}
-	}
+	exists := slices.Contains(workspaces, workspace)
 
 	if !exists {
 		c.Ui.Error(fmt.Sprintf(strings.TrimSpace(envDoesNotExist), workspace))

@@ -339,7 +339,7 @@ func TestApply_parallelism(t *testing.T) {
 	// here. They will all have the same mock implementation function assigned
 	// but crucially they will each have their own mutex.
 	providerFactories := map[addrs.Provider]providers.Factory{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		name := fmt.Sprintf("test%d", i)
 		provider := &tofu.MockProvider{}
 		provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{

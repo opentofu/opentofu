@@ -1012,7 +1012,7 @@ func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
 	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
 
 	services = disco.New()
-	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
+	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]any{
 		"providers.v1": server.URL + "/providers/v1/",
 	})
 
@@ -1157,10 +1157,10 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 
 	// Compare the rest of the lines against the golden reference
-	var gotLineMaps []map[string]interface{}
+	var gotLineMaps []map[string]any
 	for i, line := range gotLines[1:] {
 		index := i + 1
-		var gotMap map[string]interface{}
+		var gotMap map[string]any
 		if err := json.Unmarshal([]byte(line), &gotMap); err != nil {
 			t.Errorf("failed to unmarshal got line %d: %s\n%s", index, err, gotLines[index])
 		}
@@ -1172,10 +1172,10 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		gotLineMaps = append(gotLineMaps, gotMap)
 	}
 
-	var wantLineMaps []map[string]interface{}
+	var wantLineMaps []map[string]any
 	for i, line := range wantLines[1:] {
 		index := i + 1
-		var wantMap map[string]interface{}
+		var wantMap map[string]any
 		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
 			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
 		}
@@ -1190,8 +1190,8 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 }
 
-func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
-	rootMap, ok := fieldMap[rootField].(map[string]interface{})
+func deleteMapField(fieldMap map[string]any, rootField, field string) map[string]any {
+	rootMap, ok := fieldMap[rootField].(map[string]any)
 	if !ok {
 		return fieldMap
 	}
