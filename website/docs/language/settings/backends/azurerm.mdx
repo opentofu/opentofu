@@ -186,6 +186,29 @@ terraform {
 
 ***
 
+#### Azure DevOps / Pipelines Workload Identity Federation
+
+If you're using Azure DevOps / Azure Pipelines, the environment variables `SYSTEM_OIDCREQUESTURI`, `SYSTEM_ACCESSTOKEN` and `AZURESUBSCRIPTION_SERVICE_CONNECTION_ID` will provide you with a way to obtain the OIDC request token. OpenTofu is programmed to accept these environment variables and other naming variants; a workload with OpenTofu on Azure DevOps / Azure Pipelines using OIDC will have this backend configuration to authenticate. Refer to the [Azure DevOps Documentation](https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables?view=azure-devops&tabs=yaml#systemaccesstoken) for more information on setting up this kind of workload identity federation.
+
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "tofu-rg"
+    storage_account_name = "tofu123abc"
+    container_name       = "tofu-state"
+    key                  = "prod.terraform.tfstate"
+
+    use_azuread_auth = true
+    subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    tenant_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    use_oidc = true
+  }
+}
+```
+
+***
+
 ### Managed Service Identity
 
 This example authenticates a managed service identity attached to the Azure VM or other compute.
@@ -317,7 +340,7 @@ When authenticating using a Service Principal with OpenID Connect (OIDC) - the f
 
 * `client_id` - (Optional) The Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID` environment variable.
 
-* `client_id_file_path` - (Optional) The path to a file containing the Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID_FILE_PATH` environment variable. 
+* `client_id_file_path` - (Optional) The path to a file containing the Client ID of the Service Principal. This can also be sourced from the `ARM_CLIENT_ID_FILE_PATH` environment variable.
 
 * `subscription_id` - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the `ARM_SUBSCRIPTION_ID` environment variable.
 
