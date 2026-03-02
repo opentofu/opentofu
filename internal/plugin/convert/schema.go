@@ -78,12 +78,11 @@ func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.R
 		}
 
 		if a.Type != nil {
-			unmarshalled, err := ctyjson.UnmarshalType(a.Type)
+			t, err := ctyjson.UnmarshalType(a.Type)
 			if err != nil {
 				panic(fmt.Errorf("failed to unmarshal attribute type for resource identity: %w", err))
 			}
-
-			attribute.Type = unmarshalled
+			attribute.Type = t
 		}
 		attributes[a.Name] = attribute
 	}

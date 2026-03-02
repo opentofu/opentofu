@@ -12,6 +12,7 @@ import (
 	"sort"
 
 	"github.com/zclconf/go-cty/cty"
+	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -123,9 +124,11 @@ func ProtoToResourceIdentitySchema(s *proto.ResourceIdentitySchema) *providers.R
 			Optional:    a.OptionalForImport,
 		}
 		if a.Type != nil {
-			if err := json.Unmarshal(a.Type, &attribute.Type); err != nil {
+			t, err := ctyjson.UnmarshalType(a.Type)
+			if err != nil {
 				panic(fmt.Errorf("failed to unmarshal attribute type for resource identity: %w", err))
 			}
+			attribute.Type = t
 		}
 		attributes[a.Name] = attribute
 	}

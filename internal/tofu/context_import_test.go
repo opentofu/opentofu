@@ -1434,7 +1434,7 @@ func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
 			resource "test_thing" "test" {
 				for_each = { "foo" = "a" }
 				provider = test.multi[each.value]
-			}
+			//}
 
 			import {
 				to       = test_thing.test["foo"]
