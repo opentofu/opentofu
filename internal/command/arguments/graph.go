@@ -60,7 +60,6 @@ func ParseGraph(args []string) (*Graph, func(), tfdiags.Diagnostics) {
 		return arguments, closer, diags
 	}
 
-	// The graph command accepts an optional path argument
 	if len(cmdFlags.Args()) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
