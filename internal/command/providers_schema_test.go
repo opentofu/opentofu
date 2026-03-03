@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -23,18 +22,19 @@ import (
 )
 
 func TestProvidersSchema_error(t *testing.T) {
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersSchemaCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(testProvider()),
-			Ui:               ui,
+			View:             view,
 		},
 	}
 
 	if code := c.Run(nil); code != 1 {
-		fmt.Println(ui.OutputWriter.String())
-		t.Fatalf("expected error: \n%s", ui.OutputWriter.String())
+		output := done(t)
+		fmt.Println(output.Stdout())
+		t.Fatalf("expected error: \n%s", output.Stdout())
 	}
 }
 
@@ -79,22 +79,21 @@ func TestProvidersSchema_output(t *testing.T) {
 				t.Fatalf("init failed\n%s", output.Stderr())
 			}
 
+			view, done = testView(t)
+			m.View = view
+
 			// `tofu provider schemas` command
-			// TODO meta-refactor-views: we need the ui here because the provider schema command is not yet migrated to views
-			// Once the command is migrated, remove this part and use the testView
-			ui := new(cli.MockUi)
-			m.Ui = ui
-			m.View = nil
 			pc := &ProvidersSchemaCommand{
 				Meta: m,
 			}
 			code = pc.Run([]string{"-json"})
+			output = done(t)
 			if code != 0 {
-				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())
+				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, output.Stderr())
 			}
 			var got, want providerSchemas
 
-			gotString := ui.OutputWriter.String()
+			gotString := output.Stdout()
 			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
 				t.Fatal(err)
 			}
