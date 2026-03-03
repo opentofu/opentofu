@@ -21,3 +21,14 @@ variable "ssh_pub_key_path" {
   type        = string
   description = "The file path on the local file system where this user's public SSH key is located. This is for ssh-ing into the VM used for MSI testing, and so it is only relevant if use_msi is set to true."
 }
+
+variable "use_ado" {
+  default     = false
+  type        = bool
+  description = "Set this to setup a pre-existing Azure DevOps org for integration testing. "
+}
+
+variable "ado_org_name" {
+  type        = string
+  description = "The name of the Azure DevOps organization to use for testing Azure DevOps integration. This is only relevant if running tests for Azure DevOps integration, therefore only relevent when use_ado is set to true."
+}

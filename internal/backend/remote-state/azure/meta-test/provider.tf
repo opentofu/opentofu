@@ -2,7 +2,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "4.35.0"
+      version = "4.62.1"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -16,6 +16,10 @@ terraform {
       source  = "chilicat/pkcs12"
       version = "0.2.5"
     }
+    azuredevops = {
+      source  = "microsoft/azuredevops"
+      version = "1.13.0"
+    }
   }
 }
 
@@ -25,4 +29,8 @@ provider "azurerm" {
 }
 
 provider "azuread" {
+}
+
+provider "azuredevops" {
+  org_service_url = "https://dev.azure.com/${var.ado_org_name}"
 }

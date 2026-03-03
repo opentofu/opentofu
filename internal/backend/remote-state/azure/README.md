@@ -162,3 +162,37 @@ Finally, run the AKS Workload Identity test:
 ```bash
 $ ./azure.test -test.v -test.run "TestAcc.*AKSWorkloadIdentity"
 ```
+
+### Running Azure DevOps Tests
+
+#### Prerequisites
+
+You need to have an Microsoft Entra Tenant with an Azure Subscriptions, permission to create an Azure DevOps organization, and permissions to create service connections in that organization. Additionally you need at least the `Cloud Application Administrator` role in your Microsoft Entra Tenant to be able to create the application registrations required for the tests.
+
+- Go to <https://aex.dev.azure.com/> and sign-in with an Microsoft Entra Account
+- Create a new Azure DevOps organization to be used for testing
+- Create/add an SSH key to your account
+- [Request Pipeline Paralellism](https://aka.ms/azpipelines-parallelism-request) for the ADO Org
+- Set the variables required for the test setup
+  - `ado_org_name`: The name of the Azure DevOps organization you just created
+  - `use_ado`: Set this to `true` to enable the Azure DevOps specific tests
+- Run tofu apply to configure the Azure DevOps org and create the necessary service connection for the tests
+
+Within the same directory as this README, compile all the tests:
+
+```bash
+GOOS=linux GOARCH=amd64 go test -c .
+```
+
+Clone the created repository and commit & push the compiled test binary to the root folder of the repository:
+
+```bash
+git clone <repo_url>
+cd <repo_name>
+cp ../azure.test .
+git add azure.test
+git commit -m "Add test binary"
+git push
+```
+
+Now the backend tests using the Azure DevOps service connection should be able to run successfully.
