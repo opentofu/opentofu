@@ -39,9 +39,11 @@ jobs:
       - name: "Fetch source code"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - id: diff
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin ${{github.event.pull_request.base.ref}}
-          echo "go=$(git diff --name-only origin/${{github.event.pull_request.base.ref}} | grep -e '\.go' -e '\.github' -e 'go\.mod' -e 'go\.sum' -e '\.tf' -e '\.gitattributes' | wc -l)" | tee -a "$GITHUB_OUTPUT"
+          git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "$BASE_REF"
+          echo "go=$(git diff --name-only origin/"$BASE_REF" | grep -e '\.go' -e '\.github' -e 'go\.mod' -e 'go\.sum' -e '\.tf' -e '\.gitattributes' | wc -l)" | tee -a "$GITHUB_OUTPUT"
     outputs:
       go: ${{ steps.diff.outputs.go }}
 

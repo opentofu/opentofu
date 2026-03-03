@@ -57,7 +57,7 @@ jobs:
       # Upload the artifact to make it available to the next job.
       # The artifact will be named as the branch name that we are scanning ("main" or "v1.7"...)
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{matrix.branch}}-results
           path: ${{matrix.branch}}
@@ -80,7 +80,7 @@ jobs:
       # will gather all the files generated in the job(s) above into a single directory flattening the file tree.
       # Eg: Instead of writing the results into "results/main-results/main" it will write the results into "results/main"
       - name: Download vulns results
-        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           path: results
           merge-multiple: true
