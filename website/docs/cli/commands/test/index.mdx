@@ -323,6 +323,12 @@ This can be useful when you need to pass values between different test cases.
     <TabItem value="main" label="mod/main.tf"><CodeBlock language={"hcl"}>{RunInVariablesMain}</CodeBlock></TabItem>
 </Tabs>
 
+:::warning Limitation
+
+Cross-run references (e.g. `run.setup.filename`) only resolve after `run` blocks that use `command = apply` (the default). Run blocks with `command = plan` do not populate the run state needed to make `run.*` references available to later blocks. If you need to pass outputs between run blocks, ensure the producing run block uses `command = apply`. See [#3754](https://github.com/opentofu/opentofu/issues/3754) for more details.
+
+:::
+
 ### The `run.expect_failures` list
 
 You can use `expect_failures` inside a `run` block to test
