@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/opentofu/opentofu/internal/tracing"
 
 	"github.com/mitchellh/cli"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -24,49 +27,58 @@ type UnlockCommand struct {
 	Meta
 }
 
-func (c *UnlockCommand) Run(args []string) int {
+func (c *UnlockCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	var force bool
-	cmdFlags := c.Meta.defaultFlagSet("force-unlock")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.BoolVar(&force, "force", false, "force")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
+	ctx, span := tracing.Tracer().Start(ctx, "Unlock")
+	defer span.End()
 
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("Expected a single argument: LOCK_ID")
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseUnlock(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewUnlock(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
 		return cli.RunResultHelp
 	}
+	c.GatherVariables(args.Vars)
 
-	lockID := args[0]
-	args = args[1:]
+	lockID := args.LockID
 
-	// assume everything is initialized. The user can manually init if this is
-	// required.
-	configPath, err := modulePath(args)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
+	// This gets the current directory as full path.
+	configPath := c.WorkingDir.NormalizePath(c.WorkingDir.RootModuleDir())
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -76,7 +88,7 @@ func (c *UnlockCommand) Run(args []string) int {
 	}, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -85,12 +97,12 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to load state: %s", err)))
 		return 1
 	}
 
@@ -99,17 +111,17 @@ func (c *UnlockCommand) Run(args []string) int {
 	if optionalLocker, ok := stateMgr.(statemgr.OptionalLocker); ok {
 		// Now we can safely call IsLockingEnabled() on optionalLocker
 		if !optionalLocker.IsLockingEnabled() {
-			c.Ui.Error("Locking is disabled for this backend")
+			view.LockingDisabledForBackend()
 			return 1
 		}
 	}
 
 	// Proceed with unlocking logic if locking is enabled
-	if !force {
+	if !args.Force {
 		// Forcing this doesn't do anything, but doesn't break anything either,
 		// and allows us to run the basic command test too.
 		if isLocal {
-			c.Ui.Error("Local state cannot be unlocked by another process")
+			view.CannotUnlockByAnotherProcess()
 			return 1
 		}
 
@@ -123,21 +135,20 @@ func (c *UnlockCommand) Run(args []string) int {
 			Description: desc,
 		})
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error asking for confirmation: %s", err))
+			view.Diagnostics(diags.Append(fmt.Errorf("Error asking for confirmation: %s", err)))
 			return 1
 		}
 		if v != "yes" {
-			c.Ui.Output("force-unlock cancelled.")
+			view.ForceUnlockCancelled()
 			return 1
 		}
 	}
 
 	if err := stateMgr.Unlock(context.TODO(), lockID); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to unlock state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to unlock state: %s", err)))
 		return 1
 	}
-
-	c.Ui.Output(c.Colorize().Color(strings.TrimSpace(outputUnlockSuccess)))
+	view.ForceUnlockSucceeded()
 	return 0
 }
 
@@ -172,9 +183,20 @@ func (c *UnlockCommand) Synopsis() string {
 	return "Release a stuck lock on the current workspace"
 }
 
-const outputUnlockSuccess = `
-[reset][bold][green]OpenTofu state has been successfully unlocked![reset][green]
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *UnlockCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
 
-The state has been unlocked, and OpenTofu commands should now be able to
-obtain a new lock on the remote state.
-`
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
+}
