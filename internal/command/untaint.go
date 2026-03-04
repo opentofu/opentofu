@@ -103,6 +103,8 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 	if diags.HasErrors() {
 		return 1
 	}
+	// since we already printed the diagnostics above, we can discard any possible warnings
+	diags = tfdiags.Diagnostics{}
 
 	// Get the state
 	stateMgr, err := b.StateMgr(ctx, workspace)
@@ -129,7 +131,11 @@ func (c *UntaintCommand) Run(rawArgs []string) int {
 	}
 
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error refreshing the state",
+			fmt.Sprintf("Failed to load state: %s", err),
+		)))
 		return 1
 	}
 

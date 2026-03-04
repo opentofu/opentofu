@@ -107,6 +107,8 @@ func (c *TaintCommand) Run(rawArgs []string) int {
 	if diags.HasErrors() {
 		return 1
 	}
+	// since we already printed the diagnostics above, we can discard the possible warnings
+	diags = tfdiags.Diagnostics{}
 
 	// Get the state
 	stateMgr, err := b.StateMgr(ctx, workspace)
