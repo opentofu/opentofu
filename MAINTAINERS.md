@@ -10,6 +10,7 @@
 | Ilia Gogotchuri    | gogotchuri@opentofu.org     | @Gogotchuri     |
 | James Humphries    | jamesh@spacelift.io         | @Yantrio        |
 | Martin Atkins      | apparentlymart@opentofu.org | @apparentlymart |
+| Larry Bordowitz    | larryb@opentofu.org         | @lbordowitz     |
 
 ## Repository Maintainers
 
