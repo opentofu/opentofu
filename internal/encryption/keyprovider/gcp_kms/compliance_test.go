@@ -131,6 +131,142 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: true,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
+				"success": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "%s",
+				"key_length": 32
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *keyProvider) error {
+						if config.KMSKeyName != testKeyId {
+							return fmt.Errorf("incorrect key ID returned")
+						}
+						return nil
+					},
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"invalid-key-size": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "%s",
+				"key_length": -1
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"empty-key-id": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "",
+				"key_length": 32
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"large-key-size": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "alias/temp",
+				"key_length": 99999999
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"unknown-property": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "%s",
+				"key_length": 32,
+				"unknown_property": "foo"
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"with-access-token": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "alias/temp",
+				"key_length": 32,
+				"access_token": "my-access-token"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+				"bad-credentials": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "alias/temp",
+				"key_length": 32,
+				"credentials": "AS{DU*@#8UQDD*a"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"impersonation": {
+					JSON: `{
+	"key_provider": {
+		"gcp_kms": {
+			"foo": {
+				"kms_encryption_key": "alias/temp",
+				"key_length": 32,
+				"impersonate_service_account": "batman"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
