@@ -48,6 +48,9 @@ type ResourceInstanceObjectFull = resourceInstanceObjectRepr[cty.Value]
 type ResourceInstanceObjectFullSrc = resourceInstanceObjectRepr[ValueJSONWithMetadata]
 
 func DecodeResourceInstanceObjectFull(src *ResourceInstanceObjectFullSrc, ty cty.Type) (*ResourceInstanceObjectFull, error) {
+	if src == nil {
+		return nil, nil
+	}
 	v, err := src.Value.Decode(ty)
 	if err != nil {
 		return nil, err
@@ -56,6 +59,9 @@ func DecodeResourceInstanceObjectFull(src *ResourceInstanceObjectFullSrc, ty cty
 }
 
 func EncodeResourceInstanceObjectFull(obj *ResourceInstanceObjectFull, ty cty.Type) (*ResourceInstanceObjectFullSrc, error) {
+	if obj == nil {
+		return nil, nil
+	}
 	vSrc, err := EncodeValueJSONWithMetadata(obj.Value, ty)
 	if err != nil {
 		return nil, err
@@ -167,41 +173,55 @@ func (s *SyncState) SetResourceInstanceObjectFull(addr addrs.AbsResourceInstance
 	// Currently this is a wrapper around various other methods as we
 	// shim the new-style representation to fit the traditional representation.
 	ms := s.state.EnsureModule(addr.Module)
-	providerConfigAddr := addrs.AbsProviderConfig{
-		// NOTE: This is currently a little lossy because
-		// [addrs.AbsProviderConfig] is constrained by the limitations of our
-		// old language runtime. In particular, it loses any instance keys
-		// of modules in the module address, because the old runtime did not
-		// permit provider configurations inside multi-instanced modules.
-		// FIXME: Update our underlying model to support this more generally,
-		// once we're confident enough about the new runtime to risk changes
-		// that could impact code from the old runtime.
-		Module:   obj.ProviderInstanceAddr.Config.Module.Module(),
-		Provider: obj.ProviderInstanceAddr.Config.Config.Provider,
-		Alias:    obj.ProviderInstanceAddr.Config.Config.Alias,
-	}
-	smallerObj := &ResourceInstanceObjectSrc{
-		AttrsJSON:           obj.Value.ValueJSON,
-		SchemaVersion:       obj.SchemaVersion,
-		Status:              obj.Status,
-		Private:             obj.Private,
-		Dependencies:        obj.Dependencies,
-		CreateBeforeDestroy: obj.CreateBeforeDestroy,
-	}
-	if len(obj.Value.SensitivePaths) != 0 {
-		smallerObj.AttrSensitivePaths = make([]cty.PathValueMarks, len(obj.Value.SensitivePaths))
-		marks := cty.NewValueMarks(marks.Sensitive)
-		for i, path := range obj.Value.SensitivePaths {
-			smallerObj.AttrSensitivePaths[i] = cty.PathValueMarks{
-				Path:  path,
-				Marks: marks,
+
+	// The underlying [ModuleState] method that this method is based on have
+	// an awkward signature where some metadata that is either resource-scoped
+	// or instance-scoped gets passed alongside the object in additional
+	// arguments. However, those other arguments are ignored whenever the
+	// given object is nil to represent "remove from state", so it's intentional
+	// that we leave all of the following variables at their zero value when
+	// the given obj is nil.
+	var smallerObj *ResourceInstanceObjectSrc
+	var providerConfigAddr addrs.AbsProviderConfig
+	var providerInstanceKey addrs.InstanceKey
+	if obj != nil {
+		providerConfigAddr = addrs.AbsProviderConfig{
+			// NOTE: This is currently a little lossy because
+			// [addrs.AbsProviderConfig] is constrained by the limitations of our
+			// old language runtime. In particular, it loses any instance keys
+			// of modules in the module address, because the old runtime did not
+			// permit provider configurations inside multi-instanced modules.
+			// FIXME: Update our underlying model to support this more generally,
+			// once we're confident enough about the new runtime to risk changes
+			// that could impact code from the old runtime.
+			Module:   obj.ProviderInstanceAddr.Config.Module.Module(),
+			Provider: obj.ProviderInstanceAddr.Config.Config.Provider,
+			Alias:    obj.ProviderInstanceAddr.Config.Config.Alias,
+		}
+		providerInstanceKey = obj.ProviderInstanceAddr.Key
+		smallerObj = &ResourceInstanceObjectSrc{
+			AttrsJSON:           obj.Value.ValueJSON,
+			SchemaVersion:       obj.SchemaVersion,
+			Status:              obj.Status,
+			Private:             obj.Private,
+			Dependencies:        obj.Dependencies,
+			CreateBeforeDestroy: obj.CreateBeforeDestroy,
+		}
+		if len(obj.Value.SensitivePaths) != 0 {
+			smallerObj.AttrSensitivePaths = make([]cty.PathValueMarks, len(obj.Value.SensitivePaths))
+			marks := cty.NewValueMarks(marks.Sensitive)
+			for i, path := range obj.Value.SensitivePaths {
+				smallerObj.AttrSensitivePaths[i] = cty.PathValueMarks{
+					Path:  path,
+					Marks: marks,
+				}
 			}
 		}
 	}
 	if deposedKey == NotDeposed {
-		ms.SetResourceInstanceCurrent(addr.Resource, smallerObj, providerConfigAddr, obj.ProviderInstanceAddr.Key)
+		ms.SetResourceInstanceCurrent(addr.Resource, smallerObj, providerConfigAddr, providerInstanceKey)
 	} else {
-		ms.SetResourceInstanceDeposed(addr.Resource, deposedKey, smallerObj, providerConfigAddr, obj.ProviderInstanceAddr.Key)
+		ms.SetResourceInstanceDeposed(addr.Resource, deposedKey, smallerObj, providerConfigAddr, providerInstanceKey)
 	}
 	s.maybePruneModule(addr.Module)
 }

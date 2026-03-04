@@ -115,6 +115,11 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		return
 	}
 	if obj == nil && rs != nil {
+		// NOTE: [SyncState.SetResourceInstanceObjectFull] is assuming that
+		// this function completely ignores the "provider" argument whenever
+		// "obj" is nil, so we must not interact with provider anywhere in
+		// this block.
+
 		// does the resource have any other objects?
 		// if not then delete the whole resource
 		if len(rs.Instances) == 0 {

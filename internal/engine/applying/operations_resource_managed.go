@@ -245,10 +245,12 @@ func (ops *execOperations) ManagedApply(
 	if !diags.HasErrors() {
 		status = states.ObjectReady
 	}
-	ret := &exec.ResourceInstanceObject{
-		InstanceAddr: plan.InstanceAddr,
-		DeposedKey:   plan.DeposedKey,
-		State: &states.ResourceInstanceObjectFull{
+	// We include a "state" object only for an object that actually exists,
+	// because the [states.SyncState] API expects us to pass nil to represent
+	// that an object ought to be completely removed from the state.
+	var state *states.ResourceInstanceObjectFull
+	if resp.NewState != cty.NilVal && !resp.NewState.IsNull() {
+		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.NewState,
 			Private:              resp.Private,
@@ -261,7 +263,12 @@ func (ops *execOperations) ManagedApply(
 			// TODO: Propagate whether this resource instance has
 			// "create_before_destroy" set into the final plan and then
 			// populate CreateBeforeDestroy here.
-		},
+		}
+	}
+	ret := &exec.ResourceInstanceObject{
+		InstanceAddr: plan.InstanceAddr,
+		DeposedKey:   plan.DeposedKey,
+		State:        state,
 	}
 	stateSrc, err := states.EncodeResourceInstanceObjectFull(ret.State, schema.Block.ImpliedType())
 	if err != nil {
