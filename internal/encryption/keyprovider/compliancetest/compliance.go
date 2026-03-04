@@ -314,11 +314,17 @@ func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfi
 	}
 
 	configStruct := cfg.Descriptor.ConfigStruct()
-	diags = gohcl.DecodeBody(
-		parsedConfig.KeyProviderConfigs[0].Body,
-		nil,
-		configStruct,
-	)
+	// If the key provider has a custom logic of decoding, use that instead of relying on gohcl.e
+	if decoder, ok := configStruct.(keyprovider.SelfDecodingConfig); ok {
+		diags = decoder.DecodeConfig(parsedConfig.KeyProviderConfigs[0].Body, nil)
+	} else {
+		diags = gohcl.DecodeBody(
+			parsedConfig.KeyProviderConfigs[0].Body,
+			nil,
+			configStruct,
+		)
+	}
+
 	var keyProvider TKeyProvider
 	if tc.ValidHCL {
 		if diags.HasErrors() {
