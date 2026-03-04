@@ -141,6 +141,173 @@ func TestCompliance(t *testing.T) {
 					ValidBuild: false,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *pbkdf2KeyProvider]{
+				"invalid": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"chain": {
+					"encryption_key": "Hello world! 123"
+				}
+			}
+		}
+	}
+}`,
+					ValidJSON: false,
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+					Validate:   nil,
+				},
+				"basic": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 123"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.Passphrase != "Hello world! 123" {
+							return fmt.Errorf("invalid passphrase after HCL parsing")
+						}
+						if keyProvider.Passphrase != "Hello world! 123" {
+							return fmt.Errorf("invalid passphrase in key provideer")
+						}
+						return nil
+					},
+				},
+				"both-passphrase-and-chain": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 123",
+				"chain": {
+					"encryption_key": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+				}
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"chain": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"chain": {
+					"encryption_key": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+				}
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.Chain == nil {
+							return fmt.Errorf("no chain after parsing")
+						}
+						if len(config.Chain.EncryptionKey) != 16 {
+							return fmt.Errorf("tncorrect encryption key length")
+						}
+						if !bytes.Equal(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
+							return fmt.Errorf("tncorrect encryption key")
+						}
+						return nil
+					},
+				},
+				"extended": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 123",
+				"key_length": %d,
+				"iterations": %d,
+				"salt_length": %d,
+				"hash_function": "%s"
+			}
+		}
+	}
+}`, DefaultKeyLength+1, DefaultIterations+1, DefaultSaltLength+1, SHA256HashFunctionName),
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.KeyLength != DefaultKeyLength+1 {
+							return fmt.Errorf("incorrect key length after HCL parsing: %d", config.KeyLength)
+						}
+						if config.Iterations != DefaultIterations+1 {
+							return fmt.Errorf("incorrect iterations after HCL parsing: %d", config.Iterations)
+						}
+						if config.SaltLength != DefaultSaltLength+1 {
+							return fmt.Errorf("incorrect salt length after HCL parsing: %d", config.SaltLength)
+						}
+						if config.HashFunction != SHA256HashFunctionName {
+							return fmt.Errorf("incorrect hash function after HCL parsing: %s", config.HashFunction)
+						}
+						return nil
+					},
+				},
+				"short-passphrase": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 12"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"too-small-iterations": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 123",
+				"iterations": %d
+			}
+		}
+	}
+}`, MinimumIterations-1),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"invalid-hash-function": {
+					JSON: `{
+	"key_provider": {
+		"pbkdf2": {
+			"foo": {
+				"passphrase": "Hello world! 123",
+				"hash_function": "non_existent"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *pbkdf2KeyProvider]{},
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *Metadata]{
 				"not-present-salt": {

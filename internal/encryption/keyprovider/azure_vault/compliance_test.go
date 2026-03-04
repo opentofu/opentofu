@@ -113,6 +113,105 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: false,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
+				"success": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+				"vault_key_name": "%s",
+				"vault_uri": "%s",
+				"key_length": 32
+			}
+		}
+	}
+}`, testKeyName, testVaultUri),
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *keyProvider) error {
+						if config.VaultKeyName != testKeyName {
+							return fmt.Errorf("incorrect key ID returned")
+						}
+						if config.Vault != testVaultUri {
+							return fmt.Errorf("incorrect vault URI returned")
+						}
+						return nil
+					},
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"invalid-key-size": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+				"vault_key_name": "%s",
+				"vault_uri": "%s",
+				"key_length": -1
+			}
+		}
+	}
+}`, testKeyName, testVaultUri),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"empty-key-uri": {
+					JSON: `{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+				"vault_key_name": "",
+				"vault_uri": "",
+				"key_length": 32
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"large-key-size": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+				"vault_uri": "%s",
+				"vault_key_name": "%s",
+				"key_length": 99999999
+			}
+		}
+	}
+}`, testKeyName, testVaultUri),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"unknown-property": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"azure_vault": {
+			"foo": {
+				"vault_key_name": "%s",
+				"vault_uri": "%s",
+				"key_length": 32,
+				"unknown_property": "foo"
+			}
+		}
+	}
+}`, testKeyName, testVaultUri),
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
