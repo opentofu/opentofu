@@ -11,10 +11,12 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // StateListCommand is a Command implementation that lists the resources
@@ -24,36 +26,51 @@ type StateListCommand struct {
 	StateMeta
 }
 
-func (c *StateListCommand) Run(args []string) int {
+func (c *StateListCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	var statePath string
-	cmdFlags := c.Meta.defaultFlagSet("state list")
-	c.Meta.varFlagSet(cmdFlags)
-	cmdFlags.StringVar(&statePath, "state", "", "path")
-	lookupId := cmdFlags.String("id", "", "Restrict output to paths with a resource having the specified ID.")
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseStateList(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewState(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
 		return cli.RunResultHelp
 	}
-	args = cmdFlags.Args()
 
-	if statePath != "" {
-		c.Meta.statePath = statePath
+	c.GatherVariables(args.Vars)
+
+	if args.StatePath != "" {
+		c.Meta.statePath = args.StatePath
 	}
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(backendDiags)
+		view.Diagnostics(backendDiags)
 		return 1
 	}
 
@@ -63,46 +80,45 @@ func (c *StateListCommand) Run(args []string) int {
 	// Get the state
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to load state: %s", err)))
 		return 1
 	}
 
 	state := stateMgr.State()
 	if state == nil {
-		c.Ui.Error(errStateNotFound)
+		view.StateNotFound()
 		return 1
 	}
 
-	var addrs []addrs.AbsResourceInstance
-	var diags tfdiags.Diagnostics
-	if len(args) == 0 {
-		addrs, diags = c.lookupAllResourceInstanceAddrs(state)
+	var resourceAddrs []addrs.AbsResourceInstance
+	if len(args.InstancesRawAddr) == 0 {
+		resourceAddrs, diags = c.lookupAllResourceInstanceAddrs(state)
 	} else {
-		addrs, diags = c.lookupResourceInstanceAddrs(state, args...)
+		resourceAddrs, diags = c.lookupResourceInstanceAddrs(state, args.InstancesRawAddr...)
 	}
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	for _, addr := range addrs {
+	for _, addr := range resourceAddrs {
 		if is := state.ResourceInstance(addr); is != nil {
-			if *lookupId == "" || *lookupId == states.LegacyInstanceObjectID(is.Current) {
-				c.Ui.Output(addr.String())
+			if args.LookupId == "" || args.LookupId == states.LegacyInstanceObjectID(is.Current) {
+				view.StateListAddr(addr)
 			}
 		}
 	}
 
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 
 	return 0
 }
@@ -147,6 +163,15 @@ Options:
                       Use this option more than once to include more than one
                       variables file.
 
+  -json               Produce output in a machine-readable JSON format, 
+                      suitable for use in text editor integrations and other 
+                      automated systems. Always disables color.
+
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -155,6 +180,25 @@ func (c *StateListCommand) Synopsis() string {
 	return "List resources in the state"
 }
 
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *StateListCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
+}
+
+// TODO meta-refactor: remove these once all state related commands have been migrated
 const errStateLoadingState = `Error loading the state: %[1]s
 
 Please ensure that your OpenTofu state exists and that you've
