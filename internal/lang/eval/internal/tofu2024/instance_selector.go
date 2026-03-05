@@ -208,6 +208,25 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				// An object type is always acceptable, because in that case
 				// the attribute names are part of the type and so available
 				// even if the value isn't known yet.
+				//
+				// If the value is unknown though, then we need to produce the
+				// result differently by iterating the attributes from the
+				// type instead of from the value.
+				if !rawVal.IsKnown() {
+					seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+						for name, ty := range typ.AttributeTypes() {
+							more := yield(addrs.StringKey(name), instances.RepetitionData{
+								EachKey:   cty.StringVal(name),
+								EachValue: cty.UnknownVal(ty),
+							})
+							if !more {
+								break
+							}
+						}
+					}
+					return configgraph.Known(seq), marks, nil
+
+				}
 			} else if typ.Equals(cty.DynamicPseudoType) {
 				// If we don't even know the type then we have to just assume
 				// it'll become something valid in a later phase.
