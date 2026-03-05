@@ -188,6 +188,7 @@ func ensureResourceInstanceObjectResultRef(addr addrs.AbsResourceInstanceObject,
 	var resultRef execgraph.ResourceInstanceResultRef
 	if addr.IsCurrent() {
 		resultRef = b.lower.ResourceInstancePrior(b.lower.ConstantResourceInstAddr(addr.InstanceAddr))
+		b.SetResourceInstanceFinalStateResult(addr.InstanceAddr, resultRef)
 	} else {
 		resultRef = b.lower.ManagedAlreadyDeposed(b.lower.ConstantResourceInstAddr(addr.InstanceAddr), b.lower.ConstantDeposedKey(addr.DeposedKey))
 	}
