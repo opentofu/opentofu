@@ -223,6 +223,7 @@ func (c *StateRmCommand) Synopsis() string {
 	return "Remove instances from the state"
 }
 
+// TODO meta-refactor: remove this once we migrated all `state` commands to the view abstraction
 const errStateRmPersist = `Error saving the state: %s
 
 The state was not saved. No items were removed from the persisted
