@@ -54,7 +54,7 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Output only in json is allowed",
-			"The `tofu providers schema` command requires the `-json` flag.\n",
+			"The `tofu providers schema` command requires the `-json` flag.",
 		))
 	}
 
