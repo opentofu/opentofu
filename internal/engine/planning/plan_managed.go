@@ -110,7 +110,7 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 
 	var prevRoundVal cty.Value
 	var prevRoundPrivate []byte
-	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr, states.NotDeposed)
+	prevRoundState := p.planCtx.prevRoundState.SyncWrapper().ResourceInstanceObjectFull(inst.Addr.CurrentObject())
 	if prevRoundState != nil {
 		obj, err := states.DecodeResourceInstanceObjectFull(prevRoundState, schema.Block.ImpliedType())
 		if err != nil {
