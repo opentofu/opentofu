@@ -93,20 +93,6 @@ func (ops *execOperations) ManagedFinalPlan(
 	if moreDiags.HasErrors() {
 		return nil, diags
 	}
-	if len(resp.RequiresReplace) != 0 {
-		// There should never be any "requires replace" in a final plan because
-		// by this point any planned replace should've already been decomposed
-		// into separate create and delete changes, and we should be making the
-		// final plan for either one of those.
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Provider produced inconsistent final plan",
-			fmt.Sprintf(
-				"When producing a final plan for %s provider %s reported that this change cannot be applied in-place, which is a different answer than during the planning phase.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				objAddr, providerAddr,
-			),
-		))
-	}
 
 	return &exec.ManagedResourceObjectFinalPlan{
 		InstanceAddr:    instAddr,
