@@ -48,11 +48,7 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 
 	view := views.NewProvidersSchema(args.ViewOptions, c.View)
 
-	// Since the output format is JSON and not the json ui, we don't want to
-	// initialize the json ui.
-	if args.ViewOptions.ViewType != arguments.ViewJSON {
-		c.Meta.configureUiFromView(args.ViewOptions)
-	}
+	c.Meta.configureUiFromView(args.ViewOptions)
 
 	if diags.HasErrors() {
 		view.HelpPrompt()

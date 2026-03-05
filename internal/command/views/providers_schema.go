@@ -48,12 +48,7 @@ func (v *ProvidersSchemaHuman) HelpPrompt() {
 }
 
 func (v *ProvidersSchemaHuman) UnsupportedLocalOp() {
-	var diags tfdiags.Diagnostics
-	v.view.Diagnostics(diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Unsupported local operation",
-		"This command requires a local workspace.",
-	)))
+	v.view.errorln(errUnsupportedLocalOp)
 }
 
 func (v *ProvidersSchemaHuman) Output(json string) {
@@ -73,12 +68,7 @@ func (v *ProvidersSchemaJSON) HelpPrompt() {
 }
 
 func (v *ProvidersSchemaJSON) UnsupportedLocalOp() {
-	var diags tfdiags.Diagnostics
-	v.view.Diagnostics(diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Unsupported local operation",
-		"This command requires a local workspace.",
-	)))
+	v.view.errorln(errUnsupportedLocalOp)
 }
 
 func (v *ProvidersSchemaJSON) Output(json string) {

@@ -11,25 +11,65 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestParseProvidersSchema_jsonValidation(t *testing.T) {
+func TestParseProvidersSchema_basicValidation(t *testing.T) {
 	testCases := map[string]struct {
-		args []string
-		want *ProvidersSchema
+		args        []string
+		want        *ProvidersSchema
+		wantDiags   bool
+		wantContain []string
 	}{
-		"valid json": {
-			[]string{"-json"},
-			getProvidersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
+		"valid json flag": {
+			args: []string{"-json"},
+			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
 				ps.ViewOptions.ViewType = ViewJSON
 			}),
 		},
+		"missing json flag": {
+			args:      []string{},
+			wantDiags: true,
+			wantContain: []string{
+				"Output only in json is allowed",
+				"The `tofu providers schema` command requires the `-json` flag.",
+			},
+		},
+		"one positional argument with json": {
+			args:      []string{"-json", "foo"},
+			wantDiags: true,
+			wantContain: []string{
+				"Too many command line arguments",
+				"Expected at most zero positional arguments.",
+			},
+		},
+		"multiple positional arguments with json": {
+			args:      []string{"-json", "foo", "bar"},
+			wantDiags: true,
+			wantContain: []string{
+				"Too many command line arguments",
+				"Expected at most zero positional arguments.",
+			},
+		},
 	}
 
-	cmpOpts := cmpopts.IgnoreUnexported(Vars{}, ViewOptions{})
+	cmpOpts := cmp.Options{
+		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}),
+	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, closer, diags := ParseProvidersSchema(tc.args)
 			defer closer()
+
+			if tc.wantDiags {
+				if len(diags) == 0 {
+					t.Fatal("expected diagnostics but got none")
+				}
+				for _, want := range tc.wantContain {
+					if !strings.Contains(diags.Err().Error(), want) {
+						t.Fatalf("wrong diags\n got: %s\nwant: %s", diags.Err().Error(), want)
+					}
+				}
+				return
+			}
 
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
@@ -41,64 +81,7 @@ func TestParseProvidersSchema_jsonValidation(t *testing.T) {
 	}
 }
 
-func TestParseProvidersSchema_missingJsonCheck(t *testing.T) {
-	testCases := map[string]struct {
-		args []string
-	}{
-		"missing json": {
-			args: []string{}, // No JSON flag
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			_, closer, diags := ParseProvidersSchema(tc.args)
-			defer closer()
-
-			if len(diags) == 0 {
-				t.Fatal("expected diagnostics but got none")
-			}
-			if got, want := diags.Err().Error(), "Output only in json is allowed"; !strings.Contains(got, want) {
-				t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
-			}
-			if got, want := diags.Err().Error(), "The `tofu providers schema` command requires the `-json` flag."; !strings.Contains(got, want) {
-				t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
-			}
-		})
-	}
-}
-
-func TestParseProvidersSchema_tooManyArguments(t *testing.T) {
-	testCases := map[string]struct {
-		args []string
-	}{
-		"one positional argument with json": {
-			args: []string{"-json", "foo"},
-		},
-		"multiple positional arguments with json": {
-			args: []string{"-json", "foo", "bar"},
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			_, closer, diags := ParseProvidersSchema(tc.args)
-			defer closer()
-
-			if len(diags) == 0 {
-				t.Fatal("expected diagnostics but got none")
-			}
-			if got, want := diags.Err().Error(), "Too many command line arguments"; !strings.Contains(got, want) {
-				t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
-			}
-			if got, want := diags.Err().Error(), "Expected at most zero positional arguments."; !strings.Contains(got, want) {
-				t.Fatalf("wrong diags\n got: %s\nwant: %s", got, want)
-			}
-		})
-	}
-}
-
-func getProvidersSchemaArgsWithDefaults(mutate func(ps *ProvidersSchema)) *ProvidersSchema {
+func providersSchemaArgsWithDefaults(mutate func(ps *ProvidersSchema)) *ProvidersSchema {
 	ret := &ProvidersSchema{
 		ViewOptions: ViewOptions{
 			ViewType:     ViewHuman,
