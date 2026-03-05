@@ -62,12 +62,18 @@ type ViewOptions struct {
 }
 
 func (v *ViewOptions) AddFlags(cmdFlags *flag.FlagSet, input bool) {
+	v.AddGranularFlags(cmdFlags, input, true)
+}
+
+func (v *ViewOptions) AddGranularFlags(cmdFlags *flag.FlagSet, input bool, jsonInto bool) {
 	if input {
 		cmdFlags.BoolVar(&v.InputEnabled, "input", true, "input")
 	}
 
 	cmdFlags.BoolVar(&v.jsonFlag, "json", false, "json")
-	cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "", "json-into")
+	if jsonInto {
+		cmdFlags.StringVar(&v.jsonIntoFlag, "json-into", "", "json-into")
+	}
 }
 
 func (v *ViewOptions) Parse() (func(), tfdiags.Diagnostics) {
