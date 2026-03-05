@@ -10,8 +10,11 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
@@ -41,58 +44,64 @@ func (c *ProvidersLockCommand) Synopsis() string {
 	return "Write out dependency locks for the configured providers"
 }
 
-func (c *ProvidersLockCommand) Run(args []string) int {
+func (c *ProvidersLockCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
 	defer span.End()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("providers lock")
-	c.Meta.varFlagSet(cmdFlags)
-	var optPlatforms flags.FlagStringSlice
-	var fsMirrorDir string
-	var netMirrorURL string
-	cmdFlags.Var(&optPlatforms, "platform", "target platform")
-	cmdFlags.StringVar(&fsMirrorDir, "fs-mirror", "", "filesystem mirror directory")
-	cmdFlags.StringVar(&netMirrorURL, "net-mirror", "", "network mirror base URL")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseProvidersLock(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewProvidersLock(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // in case it's json, do not print the help of the command
+		}
+		return cli.RunResultHelp
+	}
+	c.GatherVariables(args.Vars)
+
+	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", args.OptPlatforms))
+	if args.FsMirrorDir != "" {
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.fsmirror", args.FsMirrorDir))
+	}
+	if args.NetMirrorURL != "" {
+		span.SetAttributes(traceattrs.String("opentofu.provider.lock.netmirror", args.NetMirrorURL))
 	}
 
-	span.SetAttributes(traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
-	if fsMirrorDir != "" {
-		span.SetAttributes(traceattrs.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
-	}
-	if netMirrorURL != "" {
-		span.SetAttributes(traceattrs.String("opentofu.provider.lock.netmirror", netMirrorURL))
-	}
-
-	var diags tfdiags.Diagnostics
-
-	if fsMirrorDir != "" && netMirrorURL != "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid installation method options",
-			"The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
-		))
-		c.showDiagnostics(diags)
-		tracing.SetSpanError(span, diags)
-		return 1
-	}
-
-	providerStrs := cmdFlags.Args()
+	providerStrs := args.Providers
 
 	var platforms []getproviders.Platform
-	if len(optPlatforms) == 0 {
+	if len(args.OptPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
 		span.SetAttributes(
 			traceattrs.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
 		)
 	} else {
-		platforms = make([]getproviders.Platform, 0, len(optPlatforms))
-		for _, platformStr := range optPlatforms {
+		platforms = make([]getproviders.Platform, 0, len(args.OptPlatforms))
+		for _, platformStr := range args.OptPlatforms {
 			platform, err := getproviders.ParsePlatform(platformStr)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -120,10 +129,10 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// against the upstream checksums.
 	var source getproviders.Source
 	switch {
-	case fsMirrorDir != "":
-		source = getproviders.NewFilesystemMirrorSource(ctx, fsMirrorDir)
-	case netMirrorURL != "":
-		u, err := url.Parse(netMirrorURL)
+	case args.FsMirrorDir != "":
+		source = getproviders.NewFilesystemMirrorSource(ctx, args.FsMirrorDir)
+	case args.NetMirrorURL != "":
+		u, err := url.Parse(args.NetMirrorURL)
 		if err != nil || u.Scheme != "https" {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -131,7 +140,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				"The -net-mirror option requires a valid https: URL as the mirror base URL.",
 			))
 			tracing.SetSpanError(span, diags)
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		// For historical reasons, we use the registry client timeout for this
@@ -199,7 +208,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// If we have any error diagnostics already then we won't proceed further.
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -233,7 +242,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			// Our output from this command is minimal just to show that
 			// we're making progress, rather than just silently hanging.
 			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation, inCacheDirectory bool) {
-				c.Ui.Output(fmt.Sprintf("- Fetching %s %s for %s...", provider.ForDisplay(), version, platform))
+				view.InstallationFetching(provider.ForDisplay(), version.String(), platform.String())
 				if prevVersion, exists := selectedVersions[provider]; exists && version != prevVersion {
 					// This indicates a weird situation where we ended up
 					// selecting a different version for one platform than
@@ -263,10 +272,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				if auth != nil && auth.Signed() {
 					keyID = auth.GPGKeyIDsString()
 				}
-				if keyID != "" {
-					keyID = c.Colorize().Color(fmt.Sprintf(", key ID [reset][bold]%s[reset]", keyID))
-				}
-				c.Ui.Output(fmt.Sprintf("- Retrieved %s %s for %s (%s%s)", provider.ForDisplay(), version, platform, auth, keyID))
+				view.FetchPackageSuccess(keyID, provider.ForDisplay(), version.String(), platform.String(), auth.String())
 			},
 		}
 		// Ensure that events emitted on multiple routines do not trigger race conditions
@@ -291,7 +297,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// If we have any error diagnostics from installation then we won't
 	// proceed to merging and updating the lock file on disk.
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -336,24 +342,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			switch providersLockCalculateChangeType(oldLock, platformLock) {
 			case providersLockChangeTypeNewProvider:
 				madeAnyChange = true
-				c.Ui.Output(
-					fmt.Sprintf(
-						"- Obtained %s checksums for %s; This was a new provider and the checksums for this platform are now tracked in the lock file",
-						provider.ForDisplay(),
-						platform))
+				view.LockUpdateNewProvider(provider.ForDisplay(), platform.String())
 			case providersLockChangeTypeNewHashes:
 				madeAnyChange = true
-				c.Ui.Output(
-					fmt.Sprintf(
-						"- Obtained %s checksums for %s; Additional checksums for this platform are now tracked in the lock file",
-						provider.ForDisplay(),
-						platform))
+				view.LockUpdateNewHashForProvider(provider.ForDisplay(), platform.String())
 			case providersLockChangeTypeNoChange:
-				c.Ui.Output(
-					fmt.Sprintf(
-						"- Obtained %s checksums for %s; All checksums for this platform were already tracked in the lock file",
-						provider.ForDisplay(),
-						platform))
+				view.LockUpdateNoChange(provider.ForDisplay(), platform.String())
 			}
 		}
 		newLocks.SetProvider(provider, version, constraints, hashes)
@@ -362,18 +356,31 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 	diags = diags.Append(moreDiags)
 
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
 
-	if madeAnyChange {
-		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]OpenTofu has updated the lock file.[reset]"))
-		c.Ui.Output("\nReview the changes in .terraform.lock.hcl and then commit to your\nversion control system to retain the new checksums.\n")
-	} else {
-		c.Ui.Output(c.Colorize().Color("\n[bold][green]Success![reset] [bold]OpenTofu has validated the lock file and found no need for changes.[reset]"))
-	}
+	view.UpdatedSuccessfully(madeAnyChange)
 	return 0
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *ProvidersLockCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *ProvidersLockCommand) Help() string {
@@ -441,6 +448,15 @@ Options:
                      to the default files terraform.tfvars and *.auto.tfvars.
                      Use this option more than once to include more than one
                      variables file.
+
+  -json               Produce output in a machine-readable JSON format, 
+                      suitable for use in text editor integrations and other 
+                      automated systems. Always disables color.
+
+  -json-into=out.json Produce the same output as -json, but sent directly
+                      to the given file. This allows automation to preserve
+                      the original human-readable output streams, while
+                      capturing more detailed logs for machine analysis.
 `
 }
 
