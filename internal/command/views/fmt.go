@@ -34,9 +34,5 @@ func (v *FmtHuman) Diagnostics(diags tfdiags.Diagnostics) {
 // UserOutputWriter returns a [io.Writer] that uses the [FmtHuman.view] as a proxy to write
 // the user facing information during formatting.
 func (v *FmtHuman) UserOutputWriter() io.Writer {
-	return &writer{
-		writeFn: func(msg string) {
-			_, _ = v.view.streams.Println(msg)
-		},
-	}
+	return v.view.streams.Stdout.File
 }
