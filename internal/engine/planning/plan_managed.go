@@ -150,20 +150,21 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	refreshedVal := prevRoundVal
 	refreshedPrivate := prevRoundPrivate
 
+	// TODO: ProviderMeta is a rarely-used feature that only really makes
+	// sense when the module and provider are both written by the same
+	// party and the module author is using the provider as a way to
+	// transport module usage telemetry. We should decide whether we want
+	// to keep supporting that, and if so design a way for the relevant
+	// meta value to get from the evaluator into here.
+	providerMetaValue := cty.NilVal
+
 	planResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
 		Current: resources.ValueWithPrivate{
 			Value:   refreshedVal,
 			Private: refreshedPrivate,
 		},
-		DesiredValue: effectiveConfigVal,
-
-		// TODO: ProviderMeta is a rarely-used feature that only really makes
-		// sense when the module and provider are both written by the same
-		// party and the module author is using the provider as a way to
-		// transport module usage telemetry. We should decide whether we want
-		// to keep supporting that, and if so design a way for the relevant
-		// meta value to get from the evaluator into here.
-		ProviderMetaValue: cty.NilVal,
+		DesiredValue:      effectiveConfigVal,
+		ProviderMetaValue: providerMetaValue,
 	}, ret.Addr)
 	diags = diags.Append(planDiags)
 	if planDiags.HasErrors() {
@@ -194,13 +195,49 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 	if prevRoundState == nil {
 		plannedAction = plans.Create
 	} else if len(planResp.RequiresReplace) != 0 {
-		// FIXME: In this case we ought to call resourceType.PlanChanges
-		// again with the "current value" unset, to get the provider to plan
-		// to create the new object, and then record _that_ result as the
-		// planned new value. Currently we're just saving the planned new
-		// value from the initial call, which is likely to contain values from
-		// the old object that would not match a newly-created object of the
-		// same type.
+		// For "replace" actions the execution graph will include two separate
+		// plan and apply operations, where one handles deletion and the other
+		// handles creation. There is therefore an implicit third intermediate
+		// state between those two, but in our plan model we have a convention
+		// to model it as if it were just a direct transition from the old
+		// object to the new object.
+		//
+		// Our current planResp.Planned.Value describes the situation as if
+		// we were performing an in-place update though, so we need to now
+		// ask the provider to plan each of the parts separately so that we
+		// can match how the apply engine will ask the provider these questions.
+		createPlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+			// "Current" is intentionally not set here, because we're asking
+			// for a plan to create a new object matching the configuration.
+			DesiredValue:      effectiveConfigVal,
+			ProviderMetaValue: providerMetaValue,
+		}, ret.Addr)
+		diags = diags.Append(planDiags)
+		if planDiags.HasErrors() {
+			return ret, diags
+		}
+		deletePlanResp, planDiags := resourceType.PlanChanges(ctx, &resources.ManagedResourcePlanRequest{
+			Current: resources.ValueWithPrivate{
+				Value:   refreshedVal,
+				Private: refreshedPrivate,
+			},
+			// DesiredValue is intentionally not set here, because we're asking
+			// asking for a plan to just destroy what currently exists.
+			ProviderMetaValue: providerMetaValue,
+		}, ret.Addr)
+		diags = diags.Append(planDiags)
+		if planDiags.HasErrors() {
+			return ret, diags
+		}
+		// Now we'll update the original plan response with these newly-chosen
+		// before/after values, to match what the rest of the system expects.
+		planResp.Current = deletePlanResp.Current
+		planResp.DesiredValue = createPlanResp.DesiredValue
+		planResp.Planned = createPlanResp.Planned
+
+		// We'll select a reasonable initial planned action here but this
+		// might be overridden later once we propagate ordering constraints
+		// through the dependency graph.
 		if inst.CreateBeforeDestroy {
 			plannedAction = plans.CreateThenDelete
 		} else {
