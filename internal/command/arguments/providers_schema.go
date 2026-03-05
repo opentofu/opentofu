@@ -7,7 +7,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ProvidersSchema represents the command-line arguments for the providers schema command.
+// ProvidersSchema represents the command-line arguments for the 'providers schema' command.
 type ProvidersSchema struct {
 	// ViewOptions specifies which view options to use
 	ViewOptions ViewOptions
