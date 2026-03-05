@@ -32,5 +32,4 @@ provider "azuread" {
 }
 
 provider "azuredevops" {
-  org_service_url = "https://dev.azure.com/${var.ado_org_name}"
 }

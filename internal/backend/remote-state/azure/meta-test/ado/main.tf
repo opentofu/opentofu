@@ -11,7 +11,6 @@ locals {
   storage_account_name = "acctestsa${random_string.resource_suffix.result}"
   resource_group_name  = "acctestRG-backend-${time_static.rg_timestamp.unix}-${random_string.resource_suffix.result}"
   container_name       = "acctestcont"
-  vm_username          = "azureadmin"
 }
 
 resource "azurerm_resource_group" "this" {

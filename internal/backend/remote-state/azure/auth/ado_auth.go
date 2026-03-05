@@ -29,11 +29,6 @@ func (cred *adoAuth) Name() string {
 }
 
 func (cred *adoAuth) Construct(ctx context.Context, config *Config) (azcore.TokenCredential, error) {
-	return getAdoTokenCredential(ctx, config)
-}
-
-
-func getAdoTokenCredential(ctx context.Context, config *Config) (*azidentity.AzurePipelinesCredential, error) {
 	clientId, err := consolidateClientId(config)
 	if err != nil {
 		return nil, err
@@ -52,36 +47,20 @@ func getAdoTokenCredential(ctx context.Context, config *Config) (*azidentity.Azu
 
 func (cred *adoAuth) Validate(ctx context.Context, config *Config) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if !config.UseOIDC {
+	if !config.UseOIDC || config.ADOServiceConnectionId == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure DevOps Auth",
-			"Azure DevOps Auth is disabled when use_oidc or the environment variable ARM_USE_OIDC are unset or set explicitly to false.",
+			"To use Azure DevOps Auth, use_oidc must be set directly or via environment variable ARM_USE_OIDC. Additionally, the Azure DevOps Service Connection ID must be provided. If you are running in Azure DevOps, make sure you have serviceConnection configured for the pipeline task.",
 		))
 		return diags
 	}
-	if config.ADOServiceConnectionId == "" {
+	if os.Getenv("SYSTEM_OIDCREQUESTURI") == "" {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid Azure DevOps Auth",
-			"ADO Service Connection ID is missing.",
+			"ADO System OIDC Request URI is missing. This should be set by the Azure DevOps pipeline service via the SYSTEM_OIDCREQUESTURI environment variable.",
 		))
-	}
-	if os.Getenv("SYSTEM_OIDCREQUESTURI") == "" && config.OIDCRequestURL == "" {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid Azure DevOps Auth",
-			"ADO System OIDC Request URI is missing. This should be set by the Azure DevOps pipeline service.",
-		))
-	} else if config.OIDCRequestURL != "" {
-		// The Azure SDK looks for the OIDC request URL in the environment variable SYSTEM_OIDCREQUESTURI, so we need to set it here if it's not already set.
-		if err := os.Setenv("SYSTEM_OIDCREQUESTURI", config.OIDCRequestURL); err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Invalid Azure DevOps Auth",
-				fmt.Sprintf("Failed to set SYSTEM_OIDCREQUESTURI environment variable: %s.", tfdiags.FormatError(err)),
-			))
-		}
 	}
 	if config.OIDCRequestToken == "" {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -97,15 +76,7 @@ func (cred *adoAuth) Validate(ctx context.Context, config *Config) tfdiags.Diagn
 			"Tenant ID is missing.",
 		))
 	}
-	_, err := consolidateClientId(config)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid Azure DevOps Auth",
-			fmt.Sprintf("The Client ID is misconfigured: %s.", tfdiags.FormatError(err)),
-		))
-	}
-	_, err = getAdoTokenCredential(ctx, config)
+	_, err := cred.Construct(ctx, config)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

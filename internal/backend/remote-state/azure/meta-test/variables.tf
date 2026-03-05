@@ -27,8 +27,3 @@ variable "use_ado" {
   type        = bool
   description = "Set this to setup a pre-existing Azure DevOps org for integration testing. "
 }
-
-variable "ado_org_name" {
-  type        = string
-  description = "The name of the Azure DevOps organization to use for testing Azure DevOps integration. This is only relevant if running tests for Azure DevOps integration, therefore only relevent when use_ado is set to true."
-}

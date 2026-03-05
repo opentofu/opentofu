@@ -9,3 +9,7 @@ output "resource_group_name" {
 output "container_name" {
   value = local.container_name
 }
+
+output "repository_information" {
+  value = azuredevops_git_repository.this
+}
