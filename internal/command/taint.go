@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -25,54 +27,57 @@ type TaintCommand struct {
 	Meta
 }
 
-func (c *TaintCommand) Run(args []string) int {
+func (c *TaintCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	var allowMissing bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("taint")
-	cmdFlags.BoolVar(&allowMissing, "allow-missing", false, "allow missing")
-	cmdFlags.StringVar(&c.Meta.backupPath, "backup", "", "path")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
-	cmdFlags.StringVar(&c.Meta.stateOutPath, "state-out", "", "path")
-	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
 
-	var diags tfdiags.Diagnostics
+	// new view
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	// Require the one argument for the resource to taint
-	args = cmdFlags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("The taint command expects exactly one argument.")
-		cmdFlags.Usage()
-		return 1
-	}
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
 
-	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
-	diags = diags.Append(addrDiags)
-	if addrDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
-	}
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseTaint(true, rawArgs)
+	defer closer()
+	// TODO meta-refactor: move these values to their right place once it's clear how to propagate their values to
+	//   the functionality that is using these.
+	c.Meta.backupPath = args.State.BackupPath
+	c.Meta.stateLock = args.State.Lock
+	c.Meta.stateLockTimeout = args.State.LockTimeout
+	c.Meta.statePath = args.State.StatePath
+	c.Meta.stateOutPath = args.State.StateOutPath
 
-	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
-		c.Ui.Error(fmt.Sprintf("Resource instance %s cannot be tainted", addr))
-		return 1
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewTaint(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
 	}
+	c.GatherVariables(args.Vars)
+	addr := args.TargetAddress
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
 
@@ -80,55 +85,69 @@ func (c *TaintCommand) Run(args []string) int {
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Determine the workspace name
 	workspace, err := c.Workspace(ctx)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error selecting the current workspace name",
+			fmt.Sprintf("Failed to select the current workspace: %s", err),
+		)))
 		return 1
 	}
 
 	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 	diags = diags.Append(remoteVersionDiags)
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
 	}
+	// since we already printed the diagnostics above, we can discard the possible warnings
+	diags = tfdiags.Diagnostics{}
 
 	// Get the state
 	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error loading the state",
+			fmt.Sprintf("Failed to load the state: %s", err),
+		)))
 		return 1
 	}
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
 		if diags := stateLocker.Lock(stateMgr, "taint"); diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		defer func() {
 			if diags := stateLocker.Unlock(); diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 			}
 		}()
 	}
 
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error refreshing the state",
+			fmt.Sprintf("Failed to refresh the state: %s", err),
+		)))
 		return 1
 	}
 
 	// Get the actual state structure
 	state := stateMgr.State()
 	if state.Empty() {
-		if allowMissing {
-			return c.allowMissingExit(addr)
+		if args.AllowMissing {
+			return c.allowMissingExit(addr, view)
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
@@ -136,7 +155,7 @@ func (c *TaintCommand) Run(args []string) int {
 			"No such resource instance",
 			"The state currently contains no resource instances whatsoever. This may occur if the configuration has never been applied or if it has recently been destroyed.",
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -154,8 +173,8 @@ func (c *TaintCommand) Run(args []string) int {
 	rs := ss.Resource(addr.ContainingResource())
 	is := ss.ResourceInstance(addr)
 	if is == nil {
-		if allowMissing {
-			return c.allowMissingExit(addr)
+		if args.AllowMissing {
+			return c.allowMissingExit(addr, view)
 		}
 
 		diags = diags.Append(tfdiags.Sourceless(
@@ -163,7 +182,7 @@ func (c *TaintCommand) Run(args []string) int {
 			"No such resource instance",
 			fmt.Sprintf("There is no resource instance in the state with the address %s. If the resource configuration has just been added, you must run \"tofu apply\" once to create the corresponding instance(s) before they can be tainted.", addr),
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -183,7 +202,7 @@ func (c *TaintCommand) Run(args []string) int {
 				fmt.Sprintf("Resource instance %s does not currently have a remote object associated with it, so it cannot be tainted.", addr),
 			))
 		}
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -191,16 +210,24 @@ func (c *TaintCommand) Run(args []string) int {
 	ss.SetResourceInstanceCurrent(addr, obj, rs.ProviderConfig, is.ProviderKey)
 
 	if err := stateMgr.WriteState(state); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error writing state file",
+			fmt.Sprintf("Failed writing the new state: %s", err),
+		)))
 		return 1
 	}
 	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))
+		view.Diagnostics(diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error writing state file",
+			fmt.Sprintf("Failed to persist the new state: %s", err),
+		)))
 		return 1
 	}
 
-	c.showDiagnostics(diags)
-	c.Ui.Output(fmt.Sprintf("Resource instance %s has been marked as tainted.", addr))
+	view.Diagnostics(diags)
+	view.TaintedSuccessfully(addr)
 	return 0
 }
 
@@ -252,6 +279,15 @@ Options:
                           Use this option more than once to include more than one
                           variables file.
 
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 
@@ -263,11 +299,29 @@ func (c *TaintCommand) Synopsis() string {
 	return "Mark a resource instance as not fully functional"
 }
 
-func (c *TaintCommand) allowMissingExit(name addrs.AbsResourceInstance) int {
-	c.showDiagnostics(tfdiags.Sourceless(
+func (c *TaintCommand) allowMissingExit(name addrs.AbsResourceInstance, view views.Taint) int {
+	view.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
 		tfdiags.Warning,
 		"No such resource instance",
 		fmt.Sprintf("Resource instance %s was not found, but this is not an error because -allow-missing was set.", name),
-	))
+	)))
 	return 0
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *TaintCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
