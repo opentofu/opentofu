@@ -33,7 +33,6 @@ func TestProvidersSchema_error(t *testing.T) {
 
 	if code := c.Run(nil); code != 1 {
 		output := done(t)
-		fmt.Println(output.Stdout())
 		t.Fatalf("expected error: \n%s", output.Stdout())
 	}
 }
