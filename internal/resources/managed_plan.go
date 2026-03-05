@@ -141,6 +141,20 @@ func (rt *ManagedResourceType) PlanChanges(ctx context.Context, req *ManagedReso
 			return nil, diags
 		}
 	}
+	if len(resp.RequiresReplace) != 0 && (currentVal.IsNull() || desiredVal.IsNull()) {
+		// RequiresReplace is only applicable when the plan request had both
+		// a current and a desired value, because it specifies attributes that
+		// cannot be updated-in-place.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid plan",
+			fmt.Sprintf(
+				"Provider %s reported that a create or delete plan for %s has changes that require replacement, but replacement is only valid as a modification of update-in-place.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				rt.providerAddr, dispAddr,
+			),
+		))
+	}
+
 	// FIXME: plannedVal also needs sensitive marks added to it based on the
 	// static attribute flags in the resource type schema.
 	plannedVal := plannedValUnmarked.MarkWithPaths(currentMarks).MarkWithPaths(desiredMarks)
