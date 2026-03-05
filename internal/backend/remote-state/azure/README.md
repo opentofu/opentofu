@@ -176,6 +176,7 @@ You need to have an Microsoft Entra Tenant with an Azure Subscriptions, permissi
 - Depending on how the organization was created, you may need to visit `Organization Settings -> Microsoft Entra` and use `Connect Directory` to link ADO to your Microsoft Entra tenant
 - Create/add an SSH key to your account
 - [Request Pipeline Paralellism](https://aka.ms/azpipelines-parallelism-request) for the ADO Org
+- Instead of waiting for this to be approved (can take several days) you can also opt to pay for parallelism via your Azure Subscription. To do this, go to `Organization Settings -> Billing` and link an Azure Subscription to your ADO organization. Once that's done, you can purchase parallelism with the linked subscription. **Be sure to turn this off after completing the tests, as it will be billed even if unused.**
 - Set the variables required for the test setup in the `meta-test` directory
   - `use_ado`: Set this to `true` to enable the Azure DevOps specific tests
   - Export the environment variable `AZDO_ORG_SERVICE_URL` with the URL of your Azure DevOps organization (e.g. `https://dev.azure.com/<myorg>`)
