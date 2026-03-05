@@ -171,12 +171,6 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				return nil, nil, diags
 			}
 			rawVal, marks := rawVal.Unmark()
-			if !rawVal.IsKnown() {
-				// We represent "unknown" by returning a nil configgraph.Maybe
-				// without any error diagnostics, but we will still report
-				// what marks we found on the unknown value.
-				return nil, marks, diags
-			}
 			if rawVal.IsNull() {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
