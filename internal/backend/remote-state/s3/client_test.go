@@ -921,7 +921,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 // TestS3LockingWritingHeaders is double-checking that the configuration for writing the lock object is the same
 // with the state writing configuration
 func TestS3LockingWritingHeaders(t *testing.T) {
-	ignoredValues := []string{"Amz-Sdk-Invocation-Id", "Authorization", "X-Amz-Checksum-Sha256"}
+	ignoredValues := []string{"Amz-Sdk-Invocation-Id", "Authorization", "X-Amz-Checksum-Sha256", "X-Amz-Date"}
 	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
 	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
 	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
