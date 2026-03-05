@@ -227,14 +227,17 @@ func (ops *execOperations) ManagedApply(
 	// consistent with what was planned. (That'll need the provider schema
 	// we fetched above, but currently we're just discarding that schema.)
 
-	status := states.ObjectTainted
-	if !diags.HasErrors() {
-		status = states.ObjectReady
-	}
-	ret := &exec.ResourceInstanceObject{
-		InstanceAddr: plan.InstanceAddr,
-		DeposedKey:   plan.DeposedKey,
-		State: &states.ResourceInstanceObjectFull{
+	// FIXME: Change [exec.ManagedResourceObjectFinalPlan] to use
+	// [addrs.AbsResourceInstanceObject] itself, instead of separate instance
+	// address and deposed key fields.
+	objAddr := plan.InstanceAddr.Object(plan.DeposedKey)
+	var state *states.ResourceInstanceObjectFull
+	if !resp.NewState.IsNull() {
+		status := states.ObjectTainted
+		if !diags.HasErrors() {
+			status = states.ObjectReady
+		}
+		state = &states.ResourceInstanceObjectFull{
 			Status:               status,
 			Value:                resp.NewState,
 			Private:              resp.Private,
@@ -247,21 +250,34 @@ func (ops *execOperations) ManagedApply(
 			// TODO: Propagate whether this resource instance has
 			// "create_before_destroy" set into the final plan and then
 			// populate CreateBeforeDestroy here.
-		},
+		}
+		stateSrc, err := states.EncodeResourceInstanceObjectFull(state, schema.Block.ImpliedType())
+		if err != nil {
+			// This is a worst-case scenario where we've successfully changed
+			// something but we can't represent what changed in the state for some
+			// reason, and so the changes just get lost. It shouldn't be possible
+			// to get here in practice though, because resp.NewState would've
+			// already been decoded using the same schema if it came from a plugin,
+			// and so it should definitely conform to that schema.
+			// FIXME: A proper error message for this.
+			diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.InstanceAddr, err))
+			return nil, diags
+		}
+		ops.workingState.SetResourceInstanceObjectFull(objAddr, stateSrc)
+	} else {
+		// A null value for "new state" represents that the object has been
+		// deleted, so we now just need to remove it from the state.
+		// Unfortunately this API is still a little quirkly and wants us to
+		// pass the provider instance address so that it can update some
+		// resource-level and instance-level metadata as a side-effect.
+		ops.workingState.RemoveResourceInstanceObjectFull(objAddr, providerClient.InstanceAddr)
 	}
-	stateSrc, err := states.EncodeResourceInstanceObjectFull(ret.State, schema.Block.ImpliedType())
-	if err != nil {
-		// This is a worst-case scenario where we've successfully changed
-		// something but we can't represent what changed in the state for some
-		// reason, and so the changes just get lost. It shouldn't be possible
-		// to get here in practice though, because resp.NewState would've
-		// already been decoded using the same schema if it came from a plugin,
-		// and so it should definitely conform to that schema.
-		// FIXME: A proper error message for this.
-		diags = diags.Append(fmt.Errorf("failed to encode the new state for %s: %w", plan.InstanceAddr, err))
-		return ret, diags
+
+	ret := &exec.ResourceInstanceObject{
+		InstanceAddr: plan.InstanceAddr,
+		DeposedKey:   plan.DeposedKey,
+		State:        state, // nil if the object was deleted
 	}
-	ops.workingState.SetResourceInstanceObjectFull(plan.InstanceAddr, plan.DeposedKey, stateSrc)
 	return ret, diags
 }
 

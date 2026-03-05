@@ -117,7 +117,7 @@ func (p *planGlue) planOrphanDataResourceInstance(_ context.Context, addr addrs.
 	// An orphan data object is always just discarded completely, because
 	// OpenTofu retains them only for esoteric uses like the "tofu console"
 	// command: they are not actually expected to persist between rounds.
-	p.planCtx.refreshedState.SetResourceInstanceObjectFull(addr, states.NotDeposed, nil)
+	p.planCtx.refreshedState.RemoveResourceInstanceObjectFull(addr.CurrentObject(), state.ProviderInstanceAddr)
 
 	return &resourceInstanceObject{
 		Addr:             addr.CurrentObject(),
