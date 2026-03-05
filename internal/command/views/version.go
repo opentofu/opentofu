@@ -28,29 +28,29 @@ type Version interface {
 // Instead, the view that is returned will always print diagnostics in human format while
 // [Version.PrintVersion] will return different results based on the [arguments.ViewOptions#ViewType].
 func NewVersion(args arguments.ViewOptions, view *View) Version {
-	return &VersionHuman{view: view, json: args.ViewType == arguments.ViewJSON}
+	return &VersionMixed{view: view, json: args.ViewType == arguments.ViewJSON}
 }
 
-type VersionHuman struct {
+type VersionMixed struct {
 	view *View
 	// In the case of this command, we don't use the [JSONView], but we only marshal the result and print it directly
 	json bool
 }
 
-var _ Version = (*VersionHuman)(nil)
+var _ Version = (*VersionMixed)(nil)
 
-func (v *VersionHuman) Diagnostics(diags tfdiags.Diagnostics) {
+func (v *VersionMixed) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *VersionHuman) PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) PrintVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
 	if v.json {
 		return v.printJsonVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions)
 	}
 	return v.printHumanVersion(version, versionPrerelease, platform, fipsEnabled, providerVersions)
 }
 
-func (v *VersionHuman) printJsonVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) printJsonVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
 	finalVersion := version
 	if versionPrerelease != "" {
 		finalVersion = fmt.Sprintf("%s-%s", finalVersion, versionPrerelease)
@@ -71,7 +71,7 @@ func (v *VersionHuman) printJsonVersion(version string, versionPrerelease string
 	return true
 }
 
-func (v *VersionHuman) printHumanVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
+func (v *VersionMixed) printHumanVersion(version string, versionPrerelease string, platform string, fipsEnabled bool, providerVersions map[string]string) bool {
 	formattedVersion := fmt.Sprintf("OpenTofu v%s", version)
 	if versionPrerelease != "" {
 		formattedVersion = fmt.Sprintf("%s-%s", formattedVersion, versionPrerelease)
