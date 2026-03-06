@@ -127,6 +127,17 @@ func (p *planGlue) planDesiredManagedResourceInstance(
 		}
 		prevRoundVal = obj.Value
 		prevRoundPrivate = obj.Private
+		// Unfortunately our current state model represents dependencies only
+		// between static [addrs.ConfigResource] and loses specific instance
+		// information, so we must conservatively assume that all matching
+		// instances are dependencies. This loses the precision we get from
+		// dynamic analysis of the configuration, but it's the best we can
+		// do without switching to an updated model of state.
+		for _, configAddr := range prevRoundState.Dependencies {
+			for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
+				ret.Dependencies.Add(instAddr.CurrentObject())
+			}
+		}
 	} else {
 		// TODO: Ask the planning oracle whether there are any "moved" blocks
 		// that ultimately end up at inst.Addr (possibly through a chain of
@@ -378,6 +389,17 @@ func (p *planGlue) planOrphanManagedResourceInstance(
 	}
 	prevRoundVal = prevRoundState.Value
 	prevRoundPrivate = prevRoundState.Private
+	// Unfortunately our current state model represents dependencies only
+	// between static [addrs.ConfigResource] and loses specific instance
+	// information, so we must conservatively assume that all matching
+	// instances are dependencies. This loses the precision we get from
+	// dynamic analysis of the configuration, but it's the best we can
+	// do without switching to an updated model of state.
+	for _, configAddr := range prevRoundState.Dependencies {
+		for instAddr := range p.planCtx.prevRoundState.InstancesMatchingConfigResource(configAddr) {
+			ret.Dependencies.Add(instAddr.CurrentObject())
+		}
+	}
 
 	// TODO: Call providerClient.ReadResource and update the "refreshed state"
 	// and reassign this refreshedVal to the refreshed result.
