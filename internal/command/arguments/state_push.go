@@ -37,6 +37,7 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 	ret.Backend.AddIgnoreRemoteVersionFlag(cmdFlags)
 	ret.Backend.AddStateFlags(cmdFlags)
 	cmdFlags.BoolVar(&ret.Force, "force", false, "")
+	ret.ViewOptions.AddFlags(cmdFlags, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -57,8 +58,6 @@ func ParseStatePush(args []string) (*StatePush, func(), tfdiags.Diagnostics) {
 		ret.StateSrc = args[0]
 	}
 
-	// we only parse but do not register the views flags since this command does not need it because it already
-	// prints the state in json format
 	closer, moreDiags := ret.ViewOptions.Parse()
 	diags = diags.Append(moreDiags)
 
