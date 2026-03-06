@@ -6,6 +6,7 @@
 package states
 
 import (
+	"iter"
 	"slices"
 
 	"github.com/zclconf/go-cty/cty"
@@ -259,6 +260,12 @@ type resourceInstanceObjectRepr[V interface {
 	// just because that needs less shimming from the current underlying
 	// representation, and so we can wait until we better understand what the
 	// caller needs before we spend time implementing that.
+	//
+	// Use [State.InstancesMatchingConfigResource] to find all of the
+	// instances that match an address in this slice, which should include
+	// _at least_ the same instances that ought to have been recorded here,
+	// along with some spurious extras that we match due to the lossiness
+	// of this representation.
 	Dependencies []addrs.ConfigResource
 
 	// CreateBeforeDestroy reflects the status of the lifecycle
@@ -341,4 +348,47 @@ func EncodeValueJSONWithMetadata(v cty.Value, ty cty.Type) (ValueJSONWithMetadat
 		}
 	}
 	return ret, nil
+}
+
+// InstancesMatchingConfigResource is an adapter to help deal with the fact
+// that our state model current represents dependencies between whole resources
+// using their unexpanded addresses, but in the new experimental language
+// runtime we want to work in relationships between individual resource
+// instances instead.
+//
+// Given an [addrs.ConfigResource] address, the result is every
+// [addrs.AbsResourceInstance] that matches the given address and has a current
+// object in the state.
+//
+// TODO: Consider changing the state model so that we track relationships
+// between resource instances as the _main_ representation, rather than throwing
+// that information away and then trying to recover it lossily later.
+func (s *State) InstancesMatchingConfigResource(addr addrs.ConfigResource) iter.Seq[addrs.AbsResourceInstance] {
+	// (This function is lurking in here just because it's exclusively for
+	// the new experimental langauge runtime and this is the file where we're
+	// gathering all of its state model extensions. It's not actually
+	// particularly related to "full" state object representations except that
+	// it's helping to compensate for a current concession we're making in
+	// _not_ representing dependencies properly in the "full" representations.)
+
+	return func(yield func(addrs.AbsResourceInstance) bool) {
+		for _, ms := range s.Modules {
+			if !ms.Addr.IsForModule(addr.Module) {
+				continue
+			}
+			for _, rs := range ms.Resources {
+				if !rs.Addr.Resource.Equal(addr.Resource) {
+					continue
+				}
+				for key, is := range rs.Instances {
+					if is.Current == nil {
+						continue // instances that only have deposed objects are not eligible
+					}
+					if !yield(rs.Addr.Instance(key)) {
+						return
+					}
+				}
+			}
+		}
+	}
 }
