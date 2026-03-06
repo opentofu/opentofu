@@ -19,42 +19,43 @@ import (
 func TestParseImport_basicValidation(t *testing.T) {
 	wd := workdir.NewDir(".")
 	testCases := map[string]struct {
-		args []string
-		want *Import
+		args        []string
+		want        *Import
+		wantErrText string
 	}{
 		"defaults": {
-			[]string{"addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 			}),
 		},
 		"parallelism flag": {
-			[]string{"-parallelism=5", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-parallelism=5", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.Parallelism = 5
 			}),
 		},
 		"config flag": {
-			[]string{"-config=/path/to/config", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-config=/path/to/config", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.ConfigPath = "/path/to/config"
 			}),
 		},
 		"ignore-remote-version flag": {
-			[]string{"-ignore-remote-version", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-ignore-remote-version", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.Backend.IgnoreRemoteVersion = true
 			}),
 		},
 		"state flags": {
-			[]string{
+			args: []string{
 				"-lock=false",
 				"-lock-timeout=10s",
 				"-state=foo.tfstate",
@@ -63,7 +64,7 @@ func TestParseImport_basicValidation(t *testing.T) {
 				"addr",
 				"id",
 			},
-			importArgsWithDefaults(func(imp *Import) {
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.State.Lock = false
@@ -74,28 +75,43 @@ func TestParseImport_basicValidation(t *testing.T) {
 			}),
 		},
 		"var flags": {
-			[]string{"-var=foo=bar", "-var-file=vars.tfvars", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-var=foo=bar", "-var-file=vars.tfvars", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 			}),
 		},
 		"input flag": {
-			[]string{"-input=false", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-input=false", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.ViewOptions.InputEnabled = false
 			}),
 		},
 		"json flag": {
-			[]string{"-json", "addr", "id"},
-			importArgsWithDefaults(func(imp *Import) {
+			args: []string{"-json", "addr", "id"},
+			want: importArgsWithDefaults(func(imp *Import) {
 				imp.ResourceAddress = "addr"
 				imp.ResourceID = "id"
 				imp.ViewOptions.ViewType = ViewJSON
 				imp.ViewOptions.InputEnabled = false
 			}),
+		},
+		"no arguments": {
+			args:        []string{},
+			want:        importArgsWithDefaults(nil),
+			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+		},
+		"one argument": {
+			args:        []string{"addr"},
+			want:        importArgsWithDefaults(nil),
+			wantErrText: "Invalid number of arguments: The import command expects two arguments",
+		},
+		"too many arguments": {
+			args:        []string{"addr", "id", "extra"},
+			want:        importArgsWithDefaults(nil),
+			wantErrText: "Invalid number of arguments: The import command expects two arguments",
 		},
 	}
 
@@ -106,62 +122,18 @@ func TestParseImport_basicValidation(t *testing.T) {
 			got, closer, diags := ParseImport(tc.args, wd)
 			defer closer()
 
-			if len(diags) > 0 {
-				t.Fatalf("unexpected diags: %v", diags)
+			if tc.wantErrText != "" && len(diags) == 0 {
+				t.Errorf("test wanted error but got nothing")
+			} else if tc.wantErrText == "" && len(diags) > 0 {
+				t.Errorf("test didn't expect errors but got some: %s", diags.ErrWithWarnings())
+			} else if tc.wantErrText != "" && len(diags) > 0 {
+				errStr := diags.ErrWithWarnings().Error()
+				if !strings.Contains(errStr, tc.wantErrText) {
+					t.Errorf("the returned diagnostics does not contain the expected error message.\ndiags:\n%s\nwanted: %s\n", errStr, tc.wantErrText)
+				}
 			}
 			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
 				t.Errorf("unexpected result\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestParseImport_argsValidation(t *testing.T) {
-	wd := workdir.NewDir(".")
-	testCases := map[string]struct {
-		args        []string
-		wantError   string
-		wantDetails string
-	}{
-		"no arguments": {
-			args:        []string{},
-			wantError:   "Invalid number of arguments",
-			wantDetails: "The import command expects two arguments",
-		},
-		"one argument": {
-			args:        []string{"addr"},
-			wantError:   "Invalid number of arguments",
-			wantDetails: "The import command expects two arguments",
-		},
-		"too many arguments": {
-			args:        []string{"addr", "id", "extra"},
-			wantError:   "Invalid number of arguments",
-			wantDetails: "The import command expects two arguments",
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			_, closer, diags := ParseImport(tc.args, wd)
-			defer closer()
-
-			if len(diags) == 0 {
-				t.Fatal("expected diagnostics but got none")
-			}
-			err := diags.Err()
-			if err == nil {
-				t.Fatal("expected error but got nil")
-			}
-
-			if got := err.Error(); !strings.Contains(got, tc.wantError) {
-				t.Errorf("wrong error message\n got: %s\nwant: %s", got, tc.wantError)
-			}
-
-			if len(diags) > 0 {
-				detail := diags[0].Description().Detail
-				if detail != tc.wantDetails {
-					t.Errorf("wrong diagnostic detail\n got: %s\nwant: %s", detail, tc.wantDetails)
-				}
 			}
 		})
 	}

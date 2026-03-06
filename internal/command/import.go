@@ -305,7 +305,7 @@ func (c *ImportCommand) Run(rawArgs []string) int {
 	return 0
 }
 
-// configureBackendFlags is a temporary shim until we move the flags for state management to a better placce
+// configureBackendFlags is a temporary shim until we move the flags for state management to a better place
 //
 // TODO meta-refactor: remove this when the Meta fields configured here will be removed and replaced
 // with proper arguments for the backend.
