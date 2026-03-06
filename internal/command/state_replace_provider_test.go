@@ -6,12 +6,10 @@
 package command
 
 import (
-	"bytes"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -73,29 +71,29 @@ func TestStateReplaceProvider(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		statePath := testStateFile(t, state)
 
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
 		}
 
-		inputBuf := &bytes.Buffer{}
-		ui.InputReader = inputBuf
-		inputBuf.WriteString("yes\n")
+		defer testInputMap(t, map[string]string{
+			"confirm": "yes",
+		})()
 
 		args := []string{
 			"-state", statePath,
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("return code: %d\n\n%s", code, ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
 		}
 
 		testStateOutput(t, statePath, testStateReplaceProviderOutput)
@@ -110,20 +108,16 @@ func TestStateReplaceProvider(t *testing.T) {
 	t.Run("auto approve", func(t *testing.T) {
 		statePath := testStateFile(t, state)
 
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
 		}
-
-		inputBuf := &bytes.Buffer{}
-		ui.InputReader = inputBuf
+		defer testInputMap(t, map[string]string{})()
 
 		args := []string{
 			"-state", statePath,
@@ -131,8 +125,10 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("return code: %d\n\n%s", code, ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
 		}
 
 		testStateOutput(t, statePath, testStateReplaceProviderOutput)
@@ -147,29 +143,28 @@ func TestStateReplaceProvider(t *testing.T) {
 	t.Run("cancel at approval step", func(t *testing.T) {
 		statePath := testStateFile(t, state)
 
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
 		}
-
-		inputBuf := &bytes.Buffer{}
-		ui.InputReader = inputBuf
-		inputBuf.WriteString("no\n")
+		defer testInputMap(t, map[string]string{
+			"confirm": "no",
+		})()
 
 		args := []string{
 			"-state", statePath,
 			"hashicorp/aws",
 			"acmecorp/aws",
 		}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("return code: %d\n\n%s", code, ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
 		}
 
 		testStateOutput(t, statePath, testStateReplaceProviderOutputOriginal)
@@ -183,13 +178,11 @@ func TestStateReplaceProvider(t *testing.T) {
 	t.Run("no matching provider found", func(t *testing.T) {
 		statePath := testStateFile(t, state)
 
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
@@ -200,8 +193,10 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/google",
 			"acmecorp/google",
 		}
-		if code := c.Run(args); code != 0 {
-			t.Fatalf("return code: %d\n\n%s", code, ui.ErrorWriter.String())
+		code := c.Run(args)
+		output := done(t)
+		if code != 0 {
+			t.Fatalf("return code: %d\n\n%s", code, output.Stderr())
 		}
 
 		testStateOutput(t, statePath, testStateReplaceProviderOutputOriginal)
@@ -213,63 +208,62 @@ func TestStateReplaceProvider(t *testing.T) {
 	})
 
 	t.Run("invalid flags", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
 		}
 
 		args := []string{
+			"-no-color",
 			"-invalid",
 			"hashicorp/google",
 			"acmecorp/google",
 		}
-		if code := c.Run(args); code == 0 {
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Error parsing command-line flags"; !strings.Contains(got, want) {
+		if got, want := output.Stderr(), "Error parsing command-line flags"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	})
 
 	t.Run("wrong number of arguments", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
 		}
 
 		args := []string{"a", "b", "c", "d"}
-		if code := c.Run(args); code == 0 {
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
 			t.Fatalf("successful exit; want error")
 		}
 
-		if got, want := ui.ErrorWriter.String(), "Exactly two arguments expected"; !strings.Contains(got, want) {
+		if got, want := output.Stderr(), "Exactly two arguments expected"; !strings.Contains(got, want) {
 			t.Fatalf("missing expected error message\nwant: %s\nfull output:\n%s", want, got)
 		}
 	})
 
 	t.Run("invalid provider strings", func(t *testing.T) {
-		ui := new(cli.MockUi)
-		view, _ := testView(t)
+		view, done := testView(t)
 		c := &StateReplaceProviderCommand{
 			StateMeta{
 				Meta: Meta{
 					WorkingDir: workdir.NewDir("."),
-					Ui:         ui,
 					View:       view,
 				},
 			},
@@ -279,11 +273,13 @@ func TestStateReplaceProvider(t *testing.T) {
 			"hashicorp/google_cloud",
 			"-/-/google",
 		}
-		if code := c.Run(args); code == 0 {
+		code := c.Run(args)
+		output := done(t)
+		if code == 0 {
 			t.Fatalf("successful exit; want error")
 		}
 
-		got := ui.ErrorWriter.String()
+		got := output.Stderr()
 		msgs := []string{
 			`Invalid "from" provider "hashicorp/google_cloud"`,
 			"Invalid provider type",
@@ -369,36 +365,34 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 
 	statePath := testStateFile(t, state)
 
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateReplaceProviderCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir: workdir.NewDir("."),
-				Ui:         ui,
 				View:       view,
 			},
 		},
 	}
 
-	inputBuf := &bytes.Buffer{}
-	ui.InputReader = inputBuf
-	inputBuf.WriteString("yes\n")
+	defer testInputMap(t, map[string]string{})()
 
 	args := []string{
 		"-state", statePath,
 		"hashicorp/aws",
 		"acmecorp/aws",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// State is unchanged
 	testStateOutput(t, statePath, testStateReplaceProviderOutputOriginal)
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}

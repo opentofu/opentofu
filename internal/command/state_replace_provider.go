@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -25,59 +26,77 @@ import (
 // to change the provider associated with existing resources. This is only
 // likely to be useful if a provider is forked or changes its fully-qualified
 // name.
-
 type StateReplaceProviderCommand struct {
 	StateMeta
 }
 
-func (c *StateReplaceProviderCommand) Run(args []string) int {
+func (c *StateReplaceProviderCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
 
-	var autoApprove bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state replace-provider")
-	cmdFlags.BoolVar(&autoApprove, "auto-approve", false, "skip interactive approval of replacements")
-	cmdFlags.StringVar(&c.backupPath, "backup", "-", "backup")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock states")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&c.statePath, "state", "", "path")
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	// We need this down the road for the confirmation
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseReplaceProvider(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewState(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // We don't want to print the help of the command in JSON view
+		}
 		return cli.RunResultHelp
 	}
-	args = cmdFlags.Args()
-	if len(args) != 2 {
-		c.Ui.Error("Exactly two arguments expected.\n")
-		return cli.RunResultHelp
-	}
+	// TODO meta-refactor: remove these assignments once there is a clear way to propagate these to the place
+	//   where are used
+	c.backupPath = args.BackupPath
+	c.statePath = args.StatePath
+	c.stateLock = args.Backend.StateLock
+	c.stateLockTimeout = args.Backend.StateLockTimeout
+	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+	c.GatherVariables(args.Vars)
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	var diags tfdiags.Diagnostics
-
 	// Parse from/to arguments into providers
-	from, fromDiags := addrs.ParseProviderSourceString(args[0])
+	from, fromDiags := addrs.ParseProviderSourceString(args.RawSrcAddr)
 	if fromDiags.HasErrors() {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			fmt.Sprintf(`Invalid "from" provider %q`, args[0]),
+			fmt.Sprintf(`Invalid "from" provider %q`, args.RawSrcAddr),
 			fromDiags.Err().Error(),
 		))
 	}
-	to, toDiags := addrs.ParseProviderSourceString(args[1])
+	to, toDiags := addrs.ParseProviderSourceString(args.RawDestAddr)
 	if toDiags.HasErrors() {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			fmt.Sprintf(`Invalid "to" provider %q`, args[1]),
+			fmt.Sprintf(`Invalid "to" provider %q`, args.RawDestAddr),
 			toDiags.Err().Error(),
 		))
 	}
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -85,47 +104,47 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Initialize the state manager as configured
 	stateMgr, err := c.State(ctx, enc)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 
 	// Acquire lock if requested
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
 		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		defer func() {
 			if diags := stateLocker.Unlock(); diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 			}
 		}()
 	}
 
 	// Refresh and load state
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to refresh source state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh source state: %s", err)))
 		return 1
 	}
 
 	state := stateMgr.State()
 	if state == nil {
-		c.Ui.Error(errStateNotFound)
+		view.StateNotFound()
 		return 1
 	}
 
 	// Fetch all resources from the state
 	resources, diags := c.lookupAllResources(state)
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -137,38 +156,29 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 			willReplace = append(willReplace, resource)
 		}
 	}
-	c.showDiagnostics(diags)
+	view.Diagnostics(diags)
 
 	if len(willReplace) == 0 {
-		c.Ui.Output("No matching resources found.")
+		view.NoMatchingResourcesForProviderReplacement()
 		return 0
 	}
 
 	// Explain the changes
-	colorize := c.Colorize()
-	c.Ui.Output("OpenTofu will perform the following actions:\n")
-	c.Ui.Output(colorize.Color("  [yellow]~[reset] Updating provider:"))
-	c.Ui.Output(colorize.Color(fmt.Sprintf("    [red]-[reset] %s", from)))
-	c.Ui.Output(colorize.Color(fmt.Sprintf("    [green]+[reset] %s\n", to)))
-
-	c.Ui.Output(colorize.Color(fmt.Sprintf("[bold]Changing[reset] %d resources:\n", len(willReplace))))
-	for _, resource := range willReplace {
-		c.Ui.Output(colorize.Color(fmt.Sprintf("  %s", resource.Addr)))
-	}
+	view.ReplaceProviderOverview(from, to, willReplace)
 
 	// Confirm
-	if !autoApprove {
-		c.Ui.Output(colorize.Color(
-			"\n[bold]Do you want to make these changes?[reset]\n" +
-				"Only 'yes' will be accepted to continue.\n",
-		))
-		v, err := c.Ui.Ask("Enter a value:")
+	if !args.AutoApprove {
+		v, err := c.UIInput().Input(ctx, &tofu.InputOpts{
+			Id:          "confirm",
+			Query:       "\nDo you want to make these changes?",
+			Description: "Only 'yes' will be accepted to continue.",
+		})
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error asking for approval: %s", err))
+			view.Diagnostics(diags.Append(fmt.Errorf("Error asking for approval: %s", err)))
 			return 1
 		}
 		if v != "yes" {
-			c.Ui.Output("Cancelled replacing providers.")
+			view.ReplaceProviderCancelled()
 			return 0
 		}
 	}
@@ -181,7 +191,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -195,16 +205,16 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Write the updated state
 	if err := stateMgr.WriteState(state); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 
-	c.showDiagnostics(diags)
-	c.Ui.Output(fmt.Sprintf("\nSuccessfully replaced provider for %d resources.", len(willReplace)))
+	view.Diagnostics(diags)
+	view.ProviderReplaced(len(willReplace))
 	return 0
 }
 
@@ -245,4 +255,22 @@ Options:
 
 func (c *StateReplaceProviderCommand) Synopsis() string {
 	return "Replace provider in the state"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *StateReplaceProviderCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
