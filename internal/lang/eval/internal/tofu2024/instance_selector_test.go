@@ -506,6 +506,112 @@ func TestCompileInstanceSelectorCount(t *testing.T) {
 	)
 }
 
+func TestCompileInstanceSelectorEnabled(t *testing.T) {
+	// We have a small number of tests that use this scope just to prove that
+	// the compileInstanceSelector function is making use of the scope we pass
+	// into it, but the main logic we're testing here only cares about the final
+	// value the expression evaluates to and so most of the test cases just use
+	// constant-valued expressions for simplicity and readability.
+	scope := exprs.FlatScopeForTesting(map[string]cty.Value{
+		"t": cty.True,  // Not "true" because that's a keyword in HCL
+		"f": cty.False, // Not "false" because that's a keyword in HCL
+	})
+	rng := hcl.Range{
+		Start: hcl.InitialPos,
+		End:   hcl.InitialPos,
+	}
+	diagsHasError := func(want string) func(*testing.T, tfdiags.Diagnostics) {
+		return func(t *testing.T, diags tfdiags.Diagnostics) {
+			if !diags.HasErrors() {
+				t.Fatalf("unexpected success")
+			}
+			s := diags.Err().Error()
+			if !strings.Contains(s, want) {
+				t.Errorf("missing expected error\ngot:  %s\nwant: %s", s, want)
+			}
+		}
+	}
+	testCompileInstanceSelector(t,
+		map[string]compileInstanceSelectorTest{
+			"false inline": {
+				hcl.StaticExpr(cty.False, rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
+			"false from scope": {
+				hcltest.MockExprTraversalSrc(`f`),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
+			"true inline": {
+				hcl.StaticExpr(cty.True, rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.NoKey: {},
+				}),
+				nil,
+				nil,
+			},
+			"true from scope": {
+				hcltest.MockExprTraversalSrc(`t`),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.NoKey: {},
+				}),
+				nil,
+				nil,
+			},
+			"true marked": {
+				hcl.StaticExpr(cty.True.Mark("!"), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.NoKey: {},
+				}),
+				cty.NewValueMarks("!"),
+				nil,
+			},
+			"false marked": {
+				hcl.StaticExpr(cty.False.Mark("!"), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				cty.NewValueMarks("!"),
+				nil,
+			},
+			"unknown bool": {
+				hcl.StaticExpr(cty.UnknownVal(cty.Bool), rng),
+				nil, // instances are unknown
+				nil,
+				nil,
+			},
+			"unknown type": {
+				hcl.StaticExpr(cty.DynamicVal, rng),
+				nil, // instances are unknown
+				nil,
+				nil,
+			},
+			"not a bool": {
+				hcl.StaticExpr(cty.EmptyObjectVal, rng),
+				nil,
+				nil,
+				diagsHasError("bool required, but have object."),
+			},
+			"unknown and not a bool": {
+				hcl.StaticExpr(cty.UnknownVal(cty.EmptyObject), rng),
+				nil,
+				nil,
+				diagsHasError("bool required, but have object."),
+			},
+			"null bool": {
+				hcl.StaticExpr(cty.NullVal(cty.Bool), rng),
+				nil,
+				nil,
+				diagsHasError("must not be null."),
+			},
+		},
+		func(ctx context.Context, e hcl.Expression) configgraph.InstanceSelector {
+			return compileInstanceSelector(ctx, scope, nil, nil, e)
+		},
+	)
+}
+
 type compileInstanceSelectorTest struct {
 	expr       hcl.Expression
 	wantInsts  configgraph.Maybe[map[addrs.InstanceKey]instances.RepetitionData]
