@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -38,7 +37,7 @@ func TestParseStatePull_basicValidation(t *testing.T) {
 	}
 
 	cmpOpts := cmp.Options{
-		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}, State{}),
+		cmpopts.IgnoreUnexported(Vars{}, ViewOptions{}),
 		cmpopts.IgnoreFields(ViewOptions{}, "JSONInto"), // We ignore JSONInto because it contains a file which is not really diffable
 	}
 
@@ -93,23 +92,20 @@ func TestParseStatePull_vars(t *testing.T) {
 	}
 
 	for name, tc := range testCases {
-		for _, isTaint := range []bool{true, false} {
-			tcName := fmt.Sprintf("%s_%t", name, isTaint)
-			t.Run(tcName, func(t *testing.T) {
-				got, closer, diags := ParseStatePull(tc.args)
-				defer closer()
+		t.Run(name, func(t *testing.T) {
+			got, closer, diags := ParseStatePull(tc.args)
+			defer closer()
 
-				if len(diags) > 0 {
-					t.Fatalf("unexpected diags: %v", diags)
-				}
-				if got.Vars.Empty() != tc.wantEmpty {
-					t.Errorf("Vars.Empty() = %v, want %v", got.Vars.Empty(), tc.wantEmpty)
-				}
-				if len(got.Vars.All()) != tc.wantCount {
-					t.Errorf("len(Vars.All()) = %d, want %d", len(got.Vars.All()), tc.wantCount)
-				}
-			})
-		}
+			if len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			}
+			if got.Vars.Empty() != tc.wantEmpty {
+				t.Errorf("Vars.Empty() = %v, want %v", got.Vars.Empty(), tc.wantEmpty)
+			}
+			if len(got.Vars.All()) != tc.wantCount {
+				t.Errorf("len(Vars.All()) = %d, want %d", len(got.Vars.All()), tc.wantCount)
+			}
+		})
 	}
 }
 
