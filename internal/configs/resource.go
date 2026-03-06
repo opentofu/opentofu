@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
@@ -60,76 +59,10 @@ type Resource struct {
 	// an empty Overrides even if IsOverridden is set to true. This map
 	// is keyed for particular instances, with addrs.NoKey being the default, and all
 	// associated modules being added to the list.
-	Overrides *OverrideTrie
+	Overrides *addrs.OverrideTrie
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range
-}
-
-type OverrideTrie struct {
-	trie     map[addrs.InstanceKey]*OverrideTrie
-	value    map[string]cty.Value
-	defaults map[string]cty.Value
-}
-
-func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
-	return &OverrideTrie{
-		trie:     make(map[addrs.InstanceKey]*OverrideTrie),
-		value:    make(map[string]cty.Value),
-		defaults: defaults,
-	}
-}
-
-func (ot *OverrideTrie) Set(addr *addrs.AbsResourceInstance, val map[string]cty.Value) {
-	current := ot
-	for _, mod := range addr.Module {
-		current = ot.subSet(current, mod.InstanceKey)
-	}
-	last := ot.subSet(current, addr.Resource.Key)
-	last.value = val
-}
-
-func (ot *OverrideTrie) subSet(current *OverrideTrie, key addrs.InstanceKey) *OverrideTrie {
-	if key == addrs.NoKey {
-		key = addrs.WildcardKey{addrs.UnknownKeyType}
-	}
-	next, ok := current.trie[key]
-	if !ok {
-		current.trie[key] = NewOverrideTrie(ot.defaults)
-		next = current.trie[key]
-	}
-	return next
-}
-
-// Get returns the value in the OverrideTrie associated with the address
-//
-// If it could not be found in the OverrideTrie as an override, the default is used and
-// the boolean is set to false to indicate it was not found
-func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) (map[string]cty.Value, bool) {
-	current := ot
-	for _, mod := range addr.Module {
-		var ok bool
-		current, ok = subGet(current, mod.InstanceKey)
-		if !ok {
-			return ot.defaults, false
-		}
-	}
-	last, ok := subGet(current, addr.Resource.Key)
-	if !ok {
-		return ot.defaults, false
-	}
-	return last.value, true
-}
-
-func subGet(current *OverrideTrie, key addrs.InstanceKey) (*OverrideTrie, bool) {
-	next, ok := current.trie[key]
-	if !ok {
-		next, ok = current.trie[addrs.WildcardKey{addrs.UnknownKeyType}]
-		if !ok {
-			return nil, false
-		}
-	}
-	return next, true
 }
 
 // ManagedResource represents a "resource" block in a module or file.
