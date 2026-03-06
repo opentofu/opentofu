@@ -163,7 +163,10 @@ This process should:
 ### Open Questions
 
 * Should we run the backfill on a large rented machine (faster) or do it in github actions (slower, better traceability)
+  - Github actions for traceability
+  - We can bake it into the existing bump versions to slowly hydrate the new fields over the course of a few days.
 * Should we bundle backfill commits (a-z0-9) or have a commit per-provider metadata file?
+  - See previous bullet, we can augment our existing bump-versions action
 * Do we want to space out the backfill to prevent overloading the API generation process (sync to R2) ?
 * How should we handle provider maintainers updating/editing release assets?
   - Right now we have a manual process where a maintainer verifies the identity of the requester and will wipe a release from the metadata to force it to be regenerated
