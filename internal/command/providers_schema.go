@@ -48,7 +48,10 @@ func (c *ProvidersSchemaCommand) Run(rawArgs []string) int {
 
 	view := views.NewProvidersSchema(args.ViewOptions, c.View)
 
-	c.Meta.configureUiFromView(args.ViewOptions)
+	// The actual schema data is printed directly to stdout at the end of the command
+	// and doesn't rely on the UI layer. Configuring JSON UI drops a Version payload
+	// into stdout which invalidates the raw schema JSON output.
+	// c.Meta.configureUiFromView(args.ViewOptions)
 
 	if diags.HasErrors() {
 		view.HelpPrompt()
