@@ -378,9 +378,12 @@ The available options are:
   by other software, but the file _does_ contain your full configuration,
   all of the values associated with planned changes, and all of the plan
   options including the input variables. If your plan includes any sort of
-  sensitive data, even if obscured in OpenTofu's terminal output, it will
-  be saved in cleartext in the plan file. You should therefore treat any
-  saved plan files as potentially-sensitive artifacts.
+  sensitive data, even if obscured in OpenTofu's terminal output,
+  it may be saved in cleartext in the plan file unless encryption is enabled.
+  You should therefore treat saved plan files as potentially-sensitive artifacts
+  or enable plan encryption.
+
+  See the [State Encryption](/docs/language/state/encryption) for more details.
 
 * `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
