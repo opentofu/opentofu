@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -83,6 +85,25 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) c
 				err = errors.New("must not be null")
 			}
 			if err == nil {
+				// We'll do a few range checks explicitly here just because
+				// cty's own error messages for numeric range are quite general
+				// and overpromise what is actually allowed here.
+				bf := countVal.AsBigFloat()
+				if !bf.IsInt() {
+					err = errors.New("must be a whole number")
+				} else if bf.Cmp(big.NewFloat(0)) < 0 {
+					err = errors.New("must not be a negative number")
+				} else if v, acc := bf.Int64(); acc != big.Exact || v > math.MaxInt {
+					// This will eventually result in a Go slice of the
+					// requested length, so we are constrained by Go's maximum
+					// slice length on the current platform.
+					err = fmt.Errorf("must be between 0 and %d, inclusive", math.MaxInt)
+				}
+			}
+			if err == nil {
+				// If all of the checks above failed then the following should
+				// always succeed, but we check and handle the error anyway for
+				// robustness.
 				err = gocty.FromCtyValue(countVal, &count)
 			}
 			if err != nil {
