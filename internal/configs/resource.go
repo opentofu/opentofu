@@ -59,7 +59,7 @@ type Resource struct {
 	// should be used to compose mock provider response. It is possible to have
 	// an empty Overrides even if IsOverridden is set to true. This map
 	// is keyed for particular instances, with addrs.NoKey being the default, and all
-	// associated modules being added to the list. TODO figure out splat vs addrs.NoKey
+	// associated modules being added to the list.
 	Overrides *OverrideTrie
 
 	DeclRange hcl.Range
@@ -101,20 +101,24 @@ func (ot *OverrideTrie) subSet(current *OverrideTrie, key addrs.InstanceKey) *Ov
 	return next
 }
 
-func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) map[string]cty.Value {
+// Get returns the value in the OverrideTrie associated with the address
+//
+// If it could not be found in the OverrideTrie as an override, the default is used and
+// the boolean is set to false to indicate it was not found
+func (ot *OverrideTrie) Get(addr *addrs.AbsResourceInstance) (map[string]cty.Value, bool) {
 	current := ot
 	for _, mod := range addr.Module {
 		var ok bool
 		current, ok = subGet(current, mod.InstanceKey)
 		if !ok {
-			return ot.defaults
+			return ot.defaults, false
 		}
 	}
 	last, ok := subGet(current, addr.Resource.Key)
 	if !ok {
-		return ot.defaults
+		return ot.defaults, false
 	}
-	return last.value
+	return last.value, true
 }
 
 func subGet(current *OverrideTrie, key addrs.InstanceKey) (*OverrideTrie, bool) {

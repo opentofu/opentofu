@@ -1697,6 +1697,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expected: "3 passed, 0 failed.",
 			code:     0,
 		},
+		"resource_and_provider": {
+			expected: "2 passed, 0 failed.",
+			code:     0,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
