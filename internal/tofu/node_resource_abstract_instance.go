@@ -3204,7 +3204,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, schemaDiags.Err())
 	}
 
-	var isOverridden bool
+	var isOverridden, providerOverrideIsNotDefault bool
 	var overrideValues map[string]cty.Value
 
 	if n.ResolvedProvider.IsMocked {
@@ -3225,18 +3225,20 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 				trie.Set(res.TargetParsed, res.Values)
 			}
 		}
-		overrideValues = trie.Get(&n.Addr)
+		overrideValues, providerOverrideIsNotDefault = trie.Get(&n.Addr)
 	}
 
 	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
+
+		// We check if the provider's override is non-default;
+		// if it is, we only set overrideValues if the retrieved value
+		// is not default, i.e. it was actually overridden in the trie.
 		isOverridden = n.Config.IsOverridden
-		// TODO how do we square away between provider mocks and root override mocks, especially if a provider mock has a more specific keyed value than the root override?
-		// for example:
-		// provider{override_resource{resource.cat["with_a_key"]}}
-		// override_resource{resource.cat}
-		// provider should be preferred, since it's more specific, but current code has root-level preferred!
-		overrideValues = n.Config.Overrides.Get(&n.Addr)
+		if newOverrideValues, ok := n.Config.Overrides.Get(&n.Addr); !providerOverrideIsNotDefault || ok {
+			overrideValues = newOverrideValues
+		}
+		// TODO: should this be collapsed into one if-statement? The logic is a bit hairy...
 	}
 
 	if isOverridden {
