@@ -25,6 +25,30 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func TestCompileInstanceSelectorSingleton(t *testing.T) {
+	ctx := grapheval.ContextWithNewWorker(t.Context())
+	selector := compileInstanceSelector(ctx, exprs.FlatScopeForTesting(nil), nil, nil, nil)
+	instsSeq, marks, diags := selector.Instances(ctx)
+	insts := configgraph.MapMaybe(instsSeq, func(s configgraph.InstancesSeq) map[addrs.InstanceKey]instances.RepetitionData {
+		return maps.Collect(s)
+	})
+
+	// There should always be exactly one instance with no instance key and
+	// no per-instance values.
+	wantInsts := configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+		addrs.NoKey: {},
+	})
+	if diff := cmp.Diff(wantInsts, insts, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong instances:\n" + diff)
+	}
+	if len(marks) != 0 {
+		t.Errorf("unexpected marks: %#v", marks)
+	}
+	if len(diags) != 0 {
+		t.Errorf("unexpected diagnostics: %s", diags.ErrWithWarnings().Error())
+	}
+}
+
 func TestCompileInstanceSelectorForEach(t *testing.T) {
 	// We have a small number of tests that use this scope just to prove that
 	// the compileInstanceSelector function is making use of the scope we pass
