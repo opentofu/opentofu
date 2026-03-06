@@ -25,55 +25,28 @@ type ProvidersSchema interface {
 	Output(json string)
 }
 
-// NewProvidersSchema creates a new ProvidersSchema view based on the view type specified in the options.
+// NewProvidersSchema creates a new ProvidersSchema view.
 func NewProvidersSchema(opts arguments.ViewOptions, v *View) ProvidersSchema {
-	if opts.ViewType == arguments.ViewJSON {
-		return &ProvidersSchemaJSON{v}
-	}
-
-	// This is a bit of a special case because providers schema actually requires the
-	// -json flag. So the "human" view here only exists to print diagnostics around
-	// flag parsing failures or the missing -json flag.
-	return &ProvidersSchemaHuman{view: v}
+	return &ProvidersSchemaMixed{view: v}
 }
 
-type ProvidersSchemaHuman struct {
+type ProvidersSchemaMixed struct {
 	view *View
 }
 
-func (v *ProvidersSchemaHuman) Diagnostics(diags tfdiags.Diagnostics) {
+func (v *ProvidersSchemaMixed) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *ProvidersSchemaHuman) HelpPrompt() {
+func (v *ProvidersSchemaMixed) HelpPrompt() {
 	v.view.HelpPrompt("providers schema")
 }
 
-func (v *ProvidersSchemaHuman) UnsupportedLocalOp() {
+func (v *ProvidersSchemaMixed) UnsupportedLocalOp() {
 	v.view.errorln(errUnsupportedLocalOp)
 }
 
-func (v *ProvidersSchemaHuman) Output(json string) {
-	// This should not happen because if we are in this View type we've failed validation
-	panic("can't produce output in human view for providers schema")
-}
-
-type ProvidersSchemaJSON struct {
-	view *View
-}
-
-func (v *ProvidersSchemaJSON) Diagnostics(diags tfdiags.Diagnostics) {
-	v.view.Diagnostics(diags)
-}
-
-func (v *ProvidersSchemaJSON) HelpPrompt() {
-}
-
-func (v *ProvidersSchemaJSON) UnsupportedLocalOp() {
-	v.view.errorln(errUnsupportedLocalOp)
-}
-
-func (v *ProvidersSchemaJSON) Output(json string) {
+func (v *ProvidersSchemaMixed) Output(json string) {
 	// The provider schema output is expected to just be the raw JSON
 	v.view.streams.Print(json)
 }

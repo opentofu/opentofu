@@ -29,6 +29,7 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 		"missing json flag": {
 			args:      []string{},
 			wantDiags: true,
+			want: providersSchemaArgsWithDefaults(nil),
 			wantContain: []string{
 				"Output only in json is allowed",
 				"The `tofu providers schema` command requires the `-json` flag.",
@@ -37,6 +38,9 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 		"one positional argument with json": {
 			args:      []string{"-json", "foo"},
 			wantDiags: true,
+			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
+				ps.ViewOptions.ViewType = ViewJSON
+			}),
 			wantContain: []string{
 				"Too many command line arguments",
 				"Expected at most zero positional arguments.",
@@ -45,6 +49,9 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 		"multiple positional arguments with json": {
 			args:      []string{"-json", "foo", "bar"},
 			wantDiags: true,
+			want: providersSchemaArgsWithDefaults(func(ps *ProvidersSchema) {
+				ps.ViewOptions.ViewType = ViewJSON
+			}),
 			wantContain: []string{
 				"Too many command line arguments",
 				"Expected at most zero positional arguments.",
@@ -61,6 +68,10 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 			got, closer, diags := ParseProvidersSchema(tc.args)
 			defer closer()
 
+			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
+				t.Errorf("unexpected result\n%s", diff)
+			}
+
 			if tc.wantDiags {
 				if len(diags) == 0 {
 					t.Fatal("expected diagnostics but got none")
@@ -75,9 +86,6 @@ func TestParseProvidersSchema_basicValidation(t *testing.T) {
 
 			if len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
-			}
-			if diff := cmp.Diff(tc.want, got, cmpOpts); diff != "" {
-				t.Errorf("unexpected result\n%s", diff)
 			}
 		})
 	}
