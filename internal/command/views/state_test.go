@@ -166,6 +166,19 @@ func TestStateViews(t *testing.T) {
 			},
 			wantStdout: withNewline("Successfully moved 1 object(s)."),
 		},
+		"printPulledState": {
+			viewCall: func(state State) {
+				state.PrintPulledState(`{"version":4,"terraform_version":"1.11.5","serial":9,"lineage":"9ba8c556-ae6c-20ee-f6ed-b57c7cc04dcd","outputs":{},"resources":[]}`)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "printing the pulled state is not available in the JSON view. The `tofu state pull` should not be configured with the `-json` flag",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`{"version":4,"terraform_version":"1.11.5","serial":9,"lineage":"9ba8c556-ae6c-20ee-f6ed-b57c7cc04dcd","outputs":{},"resources":[]}`),
+		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(state State) {
