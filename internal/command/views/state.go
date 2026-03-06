@@ -11,7 +11,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 type State interface {
@@ -33,6 +35,12 @@ type State interface {
 
 	// `tofu state pull` specific
 	PrintPulledState(state string)
+
+	// `tofu replace-provider` specific
+	NoMatchingResourcesForProviderReplacement()
+	ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource)
+	ReplaceProviderCancelled()
+	ProviderReplaced(forResources int)
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -117,6 +125,30 @@ func (m StateMulti) PrintPulledState(state string) {
 	}
 }
 
+func (m StateMulti) NoMatchingResourcesForProviderReplacement() {
+	for _, o := range m {
+		o.NoMatchingResourcesForProviderReplacement()
+	}
+}
+
+func (m StateMulti) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+	for _, o := range m {
+		o.ReplaceProviderOverview(from, to, willReplace)
+	}
+}
+
+func (m StateMulti) ReplaceProviderCancelled() {
+	for _, o := range m {
+		o.ReplaceProviderCancelled()
+	}
+}
+
+func (m StateMulti) ProviderReplaced(forResources int) {
+	for _, o := range m {
+		o.ProviderReplaced(forResources)
+	}
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -171,6 +203,32 @@ func (v *StateHuman) MoveFinalStatus(moved int) {
 
 func (v *StateHuman) PrintPulledState(state string) {
 	_, _ = v.view.streams.Println(state)
+}
+
+func (v *StateHuman) NoMatchingResourcesForProviderReplacement() {
+	_, _ = v.view.streams.Println("No matching resources found.")
+}
+
+func (v *StateHuman) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+	colorize := v.view.colorize.Color
+	printer := func(args ...any) { _, _ = v.view.streams.Println(args...) }
+	printer("OpenTofu will perform the following actions:\n")
+	printer(colorize("  [yellow]~[reset] Updating provider:"))
+	printer(colorize(fmt.Sprintf("    [red]-[reset] %s", from)))
+	printer(colorize(fmt.Sprintf("    [green]+[reset] %s\n", to)))
+
+	printer(colorize(fmt.Sprintf("[bold]Changing[reset] %d resources:\n", len(willReplace))))
+	for _, resource := range willReplace {
+		printer(colorize(fmt.Sprintf("  %s", resource.Addr)))
+	}
+}
+
+func (v *StateHuman) ReplaceProviderCancelled() {
+	_, _ = v.view.streams.Println("Cancelled replacing providers.")
+}
+
+func (v *StateHuman) ProviderReplaced(forResources int) {
+	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully replaced provider for %d resources.", forResources))
 }
 
 type StateJSON struct {
@@ -251,6 +309,27 @@ func (v *StateJSON) MoveFinalStatus(moved int) {
 
 func (v *StateJSON) PrintPulledState(_ string) {
 	v.view.Error("printing the pulled state is not available in the JSON view. The `tofu state pull` should not be configured with the `-json` flag")
+}
+
+func (v *StateJSON) NoMatchingResourcesForProviderReplacement() {
+	v.view.log.Info("No matching resources found")
+}
+
+func (v *StateJSON) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+	replacedResources := make([]string, len(willReplace))
+	for i, resource := range willReplace {
+		replacedResources[i] = resource.Addr.String()
+	}
+	msg := fmt.Sprintf("OpenTofu will replace provider from %s to %s for %d resources", from, to, len(willReplace))
+	v.view.log.Info(msg, "resources", replacedResources, "type", "replace_provider")
+}
+
+func (v *StateJSON) ReplaceProviderCancelled() {
+	v.view.Info("Cancelled replacing providers")
+}
+
+func (v *StateJSON) ProviderReplaced(forResources int) {
+	v.view.Info(fmt.Sprintf("Successfully replaced provider for %d resources", forResources))
 }
 
 const errStateLoadingState = `Error loading the state: %[1]s
