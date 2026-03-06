@@ -729,11 +729,6 @@ func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
 	// responsibility of the caller of this method.
 }
 
-// uiHook returns the UiHook to use with the context.
-func (m *Meta) uiHook() *views.UiHook {
-	return views.NewUiHook(m.View)
-}
-
 // confirm asks a yes/no confirmation.
 func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	if !m.Input() {
