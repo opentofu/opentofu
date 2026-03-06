@@ -22,6 +22,19 @@ func TestStateViews(t *testing.T) {
 		wantStdout string
 		wantStderr string
 	}{
+		"stateNotFound": {
+			viewCall: func(state State) {
+				state.StateNotFound()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "No state file was found! State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStderr: withNewline("No state file was found!\n\nState management commands require a state file. Run this command\nin a directory where OpenTofu has been run or use the -state flag\nto point the command to a specific state location."),
+		},
 		"stateLoadingFailure": {
 			viewCall: func(state State) {
 				state.StateLoadingFailure("failed to read state file")
@@ -35,18 +48,18 @@ func TestStateViews(t *testing.T) {
 			},
 			wantStderr: withNewline("Error loading the state: failed to read state file\n\nPlease ensure that your OpenTofu state exists and that you've\nconfigured it properly. You can use the \"-state\" flag to point\nOpenTofu at another state file."),
 		},
-		"stateNotFound": {
+		"stateSavingError": {
 			viewCall: func(state State) {
-				state.StateNotFound()
+				state.StateSavingError("failed to save state file")
 			},
 			wantJson: []map[string]any{
 				{
 					"@level":   "error",
-					"@message": "No state file was found! State management commands require a state file. Run this command in a directory where OpenTofu has been run or use the -state flag to point the command to a specific state location.",
+					"@message": "Error saving the state: failed to save state file. The state was not saved. No items were removed from the persisted state. No backup was created since no modification occurred. Please resolve the issue above and try again.",
 					"@module":  "tofu.ui",
 				},
 			},
-			wantStderr: withNewline("No state file was found!\n\nState management commands require a state file. Run this command\nin a directory where OpenTofu has been run or use the -state flag\nto point the command to a specific state location."),
+			wantStderr: withNewline("Error saving the state: failed to save state file\n\nThe state was not saved. No items were removed from the persisted\nstate. No backup was created since no modification occurred. Please\nresolve the issue above and try again."),
 		},
 		"stateListAddr": {
 			viewCall: func(state State) {
@@ -65,6 +78,93 @@ func TestStateViews(t *testing.T) {
 				},
 			},
 			wantStdout: withNewline("null_resource.example[0]"),
+		},
+		"errorMovingToAlreadyExistingDst": {
+			viewCall: func(state State) {
+				state.ErrorMovingToAlreadyExistingDst()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "Error moving state: destination module already exists. Please ensure your addresses and state paths are valid. No state was persisted. Your existing states are untouched.",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStderr: withNewline("Error moving state: destination module already exists.\n\nPlease ensure your addresses and state paths are valid. No\nstate was persisted. Your existing states are untouched."),
+		},
+		"resourceMoveStatus with dryRun=true": {
+			viewCall: func(state State) {
+				state.ResourceMoveStatus(true, "test_res.name1", "test_res.name2")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": `Would move "test_res.name1" to "test_res.name2"`,
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`Would move "test_res.name1" to "test_res.name2"`),
+		},
+		"resourceMoveStatus with dryRun=false": {
+			viewCall: func(state State) {
+				state.ResourceMoveStatus(false, "test_res.name1", "test_res.name2")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": `Move "test_res.name1" to "test_res.name2"`,
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`Move "test_res.name1" to "test_res.name2"`),
+		},
+		"dryRunMovedStatus with 0 resources": {
+			viewCall: func(state State) {
+				state.DryRunMovedStatus(0)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": `Would have moved nothing`,
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`Would have moved nothing.`),
+		},
+		"dryRunMovedStatus with >0 resources": {
+			viewCall: func(state State) {
+				state.DryRunMovedStatus(1)
+			},
+			wantJson: []map[string]any{
+				{},
+			},
+			wantStdout: "",
+		},
+		"moveFinalStatus with 0 resources": {
+			viewCall: func(state State) {
+				state.MoveFinalStatus(0)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": `No matching objects found`,
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`No matching objects found.`),
+		},
+		"moveFinalStatus with >0 resources": {
+			viewCall: func(state State) {
+				state.MoveFinalStatus(1)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Successfully moved 1 object(s)",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline("Successfully moved 1 object(s)."),
 		},
 		// Diagnostics
 		"warning": {
