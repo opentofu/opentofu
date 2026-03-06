@@ -352,6 +352,160 @@ func TestCompileInstanceSelectorForEach(t *testing.T) {
 	)
 }
 
+func TestCompileInstanceSelectorCount(t *testing.T) {
+	// We have a small number of tests that use this scope just to prove that
+	// the compileInstanceSelector function is making use of the scope we pass
+	// into it, but the main logic we're testing here only cares about the final
+	// value the expression evaluates to and so most of the test cases just use
+	// constant-valued expressions for simplicity and readability.
+	scope := exprs.FlatScopeForTesting(map[string]cty.Value{
+		"zero": cty.Zero,
+		"one":  cty.NumberIntVal(1),
+	})
+	rng := hcl.Range{
+		Start: hcl.InitialPos,
+		End:   hcl.InitialPos,
+	}
+	diagsHasError := func(want string) func(*testing.T, tfdiags.Diagnostics) {
+		return func(t *testing.T, diags tfdiags.Diagnostics) {
+			if !diags.HasErrors() {
+				t.Fatalf("unexpected success")
+			}
+			s := diags.Err().Error()
+			if !strings.Contains(s, want) {
+				t.Errorf("missing expected error\ngot:  %s\nwant: %s", s, want)
+			}
+		}
+	}
+	testCompileInstanceSelector(t,
+		map[string]compileInstanceSelectorTest{
+			"zero inline": {
+				hcl.StaticExpr(cty.Zero, rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
+			"zero from scope": {
+				hcltest.MockExprTraversalSrc(`zero`),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{}),
+				nil,
+				nil,
+			},
+			"one inline": {
+				hcl.StaticExpr(cty.NumberIntVal(1), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.IntKey(0): {
+						CountIndex: cty.Zero,
+					},
+				}),
+				nil,
+				nil,
+			},
+			"one from scope": {
+				hcltest.MockExprTraversalSrc(`one`),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.IntKey(0): {
+						CountIndex: cty.Zero,
+					},
+				}),
+				nil,
+				nil,
+			},
+			"three": {
+				hcl.StaticExpr(cty.NumberIntVal(3), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					addrs.IntKey(0): {
+						CountIndex: cty.Zero,
+					},
+					addrs.IntKey(1): {
+						CountIndex: cty.NumberIntVal(1),
+					},
+					addrs.IntKey(2): {
+						CountIndex: cty.NumberIntVal(2),
+					},
+				}),
+				nil,
+				nil,
+			},
+			"three marked": {
+				hcl.StaticExpr(cty.NumberIntVal(3).Mark("!"), rng),
+				configgraph.Known(map[addrs.InstanceKey]instances.RepetitionData{
+					// TODO: Should we automatically propagate the mark to the
+					// CountIndex values in here too?
+					addrs.IntKey(0): {
+						CountIndex: cty.Zero,
+					},
+					addrs.IntKey(1): {
+						CountIndex: cty.NumberIntVal(1),
+					},
+					addrs.IntKey(2): {
+						CountIndex: cty.NumberIntVal(2),
+					},
+				}),
+				cty.NewValueMarks("!"),
+				nil,
+			},
+			"unknown number": {
+				hcl.StaticExpr(cty.UnknownVal(cty.Number), rng),
+				nil, // instances are unknown
+				nil,
+				nil,
+			},
+			"unknown type": {
+				hcl.StaticExpr(cty.DynamicVal, rng),
+				nil, // instances are unknown
+				nil,
+				nil,
+			},
+			"not a number": {
+				hcl.StaticExpr(cty.EmptyObjectVal, rng),
+				nil,
+				nil,
+				diagsHasError("number required, but have object."),
+			},
+			"unknown and not a number": {
+				hcl.StaticExpr(cty.UnknownVal(cty.Bool), rng),
+				nil,
+				nil,
+				diagsHasError("number required, but have bool."),
+			},
+			"null number": {
+				hcl.StaticExpr(cty.NullVal(cty.Number), rng),
+				nil,
+				nil,
+				diagsHasError("must not be null."),
+			},
+			"negative number": {
+				hcl.StaticExpr(cty.NumberIntVal(-1), rng),
+				nil,
+				nil,
+				diagsHasError("must not be a negative number."),
+			},
+			"fractional number": {
+				hcl.StaticExpr(cty.NumberFloatVal(0.5), rng),
+				nil,
+				nil,
+				diagsHasError("must be a whole number."),
+			},
+			"very large number": {
+				// This number is definitely out of range on both 32-bit and
+				// 64-bit targets.
+				hcl.StaticExpr(cty.MustParseNumberVal("99999999999999999999"), rng),
+				nil,
+				nil,
+				// The exact upper bound in this error message differs between
+				// 32-bit and 64-bit targets, and so we only match the constant
+				// prefix here which is enough to distinguish it from all
+				// of the other errors this function could return.
+				diagsHasError("must be between 0 and "),
+			},
+		},
+		func(ctx context.Context, e hcl.Expression) configgraph.InstanceSelector {
+			return compileInstanceSelector(ctx, scope, nil, e, nil)
+		},
+	)
+}
+
 type compileInstanceSelectorTest struct {
 	expr       hcl.Expression
 	wantInsts  configgraph.Maybe[map[addrs.InstanceKey]instances.RepetitionData]
