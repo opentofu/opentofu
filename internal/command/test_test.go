@@ -1720,6 +1720,7 @@ func TestTest_InstanceOverride(t *testing.T) {
 
 			c := &TestCommand{
 				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
 					testingOverrides: metaOverridesForProvider(provider.Provider),
 					View:             view,
 				},
