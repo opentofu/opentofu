@@ -17,6 +17,10 @@ type TestConfiguration[TDescriptor keyprovider.Descriptor, TConfig keyprovider.C
 	// function.
 	HCLParseTestCases map[string]HCLParseTestCase[TConfig, TKeyProvider]
 
+	// JSONParseTestCases contains the test cases of parsing JSON configuration and then validating it using the Build()
+	// function.
+	JSONParseTestCases map[string]JSONParseTestCase[TConfig, TKeyProvider]
+
 	// ConfigStructT validates that a certain config results or does not result in a valid Build() call.
 	ConfigStructTestCases map[string]ConfigStructTestCase[TConfig, TKeyProvider]
 
@@ -38,6 +42,20 @@ type HCLParseTestCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyPr
 	ValidBuild bool
 	// Validate is an extra optional validation function that can check if the configuration contains the correct
 	// values parsed from HCL. If ValidBuild is true, the key provider will be passed as well.
+	Validate func(config TConfig, keyProvider TKeyProvider) error
+}
+
+// JSONParseTestCase contains a test case that parses JSON into a configuration.
+type JSONParseTestCase[TConfig keyprovider.Config, TKeyProvider keyprovider.KeyProvider] struct {
+	// JSON contains the code that should be parsed into the configuration structure.
+	JSON string
+	// ValidJSON indicates that the JSON block should be parsable into the configuration structure, but not necessarily
+	// result in a valid Build() call.
+	ValidJSON bool
+	// ValidBuild indicates that calling the Build() function should not result in an error.
+	ValidBuild bool
+	// Validate is an extra optional validation function that can check if the configuration contains the correct
+	// values parsed from JSON. If ValidBuild is true, the key provider will be passed as well.
 	Validate func(config TConfig, keyProvider TKeyProvider) error
 }
 

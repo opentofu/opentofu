@@ -56,6 +56,17 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				})
 			}
 		})
+		t.Run("json-parsing", func(t *testing.T) {
+			if config.JSONParseTestCases == nil {
+				compliancetest.Fail(t, "Please provide a map in JSONParseTestCases.")
+			}
+			for name, tc := range config.JSONParseTestCases {
+				tc := tc
+				t.Run(name, func(t *testing.T) {
+					complianceTestJSONParsingTestCase(t, tc, config)
+				})
+			}
+		})
 
 		t.Run("config", func(t *testing.T) {
 			if config.ConfigStructTestCases == nil {
@@ -314,11 +325,17 @@ func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfi
 	}
 
 	configStruct := cfg.Descriptor.ConfigStruct()
-	diags = gohcl.DecodeBody(
-		parsedConfig.KeyProviderConfigs[0].Body,
-		nil,
-		configStruct,
-	)
+	// If the key provider has a custom logic of decoding, use that instead of relying on gohcl.
+	if decoder, ok := configStruct.(keyprovider.SelfDecodingConfig); ok {
+		diags = decoder.DecodeConfig(parsedConfig.KeyProviderConfigs[0].Body, nil)
+	} else {
+		diags = gohcl.DecodeBody(
+			parsedConfig.KeyProviderConfigs[0].Body,
+			nil,
+			configStruct,
+		)
+	}
+
 	var keyProvider TKeyProvider
 	if tc.ValidHCL {
 		if diags.HasErrors() {
@@ -344,6 +361,65 @@ func complianceTestHCLParsingTestCase[TDescriptor keyprovider.Descriptor, TConfi
 		}
 	} else {
 		compliancetest.Log(t, "No ValidateAndConfigure provided, skipping HCL parse validation.")
+	}
+}
+
+func complianceTestJSONParsingTestCase[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TMeta keyprovider.KeyMeta, TKeyProvider keyprovider.KeyProvider](
+	t *testing.T,
+	tc JSONParseTestCase[TConfig, TKeyProvider],
+	cfg TestConfiguration[TDescriptor, TConfig, TMeta, TKeyProvider],
+) {
+	parseError := false
+	parsedConfig, diags := config.LoadConfigFromString("config.tf.json", tc.JSON)
+	if tc.ValidJSON {
+		if diags.HasErrors() {
+			compliancetest.Fail(t, "Unexpected JSON error (%v).", diags)
+		} else {
+			compliancetest.Log(t, "JSON successfully parsed.")
+		}
+	} else {
+		if diags.HasErrors() {
+			parseError = true
+		}
+	}
+
+	configStruct := cfg.Descriptor.ConfigStruct()
+	// If the key provider has a custom logic of decoding, use that instead of relying on gohcl.
+	if decoder, ok := configStruct.(keyprovider.SelfDecodingConfig); ok {
+		diags = decoder.DecodeConfig(parsedConfig.KeyProviderConfigs[0].Body, nil)
+	} else {
+		diags = gohcl.DecodeBody(
+			parsedConfig.KeyProviderConfigs[0].Body,
+			nil,
+			configStruct,
+		)
+	}
+
+	var keyProvider TKeyProvider
+	if tc.ValidJSON {
+		if diags.HasErrors() {
+			compliancetest.Fail(t, "Failed to parse empty JSON block into config struct (%v).", diags)
+		} else {
+			compliancetest.Log(t, "JSON successfully loaded into config struct.")
+		}
+
+		keyProvider, _ = complianceTestBuildConfigAndValidate[TKeyProvider, TMeta](t, configStruct, tc.ValidBuild)
+	} else {
+		if !parseError && !diags.HasErrors() {
+			compliancetest.Fail(t, "Expected error during JSON parsing, but no error was returned.")
+		} else {
+			compliancetest.Log(t, "JSON loading errored correctly (%v).", diags)
+		}
+	}
+
+	if tc.Validate != nil {
+		if err := tc.Validate(configStruct.(TConfig), keyProvider); err != nil {
+			compliancetest.Fail(t, "Error during validation and configuration (%v).", err)
+		} else {
+			compliancetest.Log(t, "Successfully validated parsed JSON config and applied modifications.")
+		}
+	} else {
+		compliancetest.Log(t, "No ValidateAndConfigure provided, skipping JSON parse validation.")
 	}
 }
 

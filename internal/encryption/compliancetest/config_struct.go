@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
 func ConfigStruct[TConfig any](t *testing.T, configStruct any) {
@@ -73,11 +75,19 @@ func ConfigStruct[TConfig any](t *testing.T, configStruct any) {
 		}
 	}
 	if !hclTagFound {
-		Fail(
-			t,
-			"The configuration struct %s does not contain any fields with hcl tags, which means users will not be able to configure this key provider. Please provide at least one field with an hcl tag.",
-			configStructType.Name(),
-		)
+		// We don't check this for the configurations that are meant to decode the hcl configuration on their own.
+		// For cases like that, the configurations might not even have the `hcl` tags and even if it does
+		// the decoding might use those partially or not at all
+		if _, ok := configStruct.(keyprovider.SelfDecodingConfig); ok {
+			Log(t, "Configuration %s is a meant to decode the HCL configuration itself and not be decoded by gohcl", configStructType.Name())
+		} else {
+			Fail(
+				t,
+				"The configuration struct %s does not contain any fields with hcl tags, which means users will not be able to configure this key provider. Please provide at least one field with an hcl tag.",
+				configStructType.Name(),
+			)
+		}
+
 	} else {
 		Log(t, "Found at least one field with a hcl tag.")
 	}
