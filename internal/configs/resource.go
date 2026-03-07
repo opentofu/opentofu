@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	hcljson "github.com/hashicorp/hcl/v2/json"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
@@ -59,7 +60,7 @@ type Resource struct {
 	// an empty Overrides even if IsOverridden is set to true. This map
 	// is keyed for particular instances, with addrs.NoKey being the default, and all
 	// associated modules being added to the list.
-	Overrides *addrs.OverrideTrie
+	Overrides *addrs.OverrideTrie[map[string]cty.Value]
 
 	DeclRange hcl.Range
 	TypeRange hcl.Range

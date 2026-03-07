@@ -7,7 +7,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // parseAbsResourceRangeStr is copied from ParseAbsResourceInstanceStr (more or less),
@@ -44,35 +43,29 @@ func getAbsResourceRangeOrPanic(str string) AbsResourceInstance {
 
 type override struct {
 	Address *AbsResourceInstance
-	Values  map[string]cty.Value
+	Values  string
 }
 
 func TestOverrideTrie(t *testing.T) {
 	tests := []struct {
 		TestName    string
-		Default     map[string]cty.Value
+		Default     string
 		Overrides   []override
 		Query       *AbsResourceInstance
 		WantDefault bool
-		Want        map[string]cty.Value
+		Want        string
 	}{
 		{
 			TestName: "basic input",
-			Default: map[string]cty.Value{
-				"area": cty.StringVal("somewhere"),
-			},
+			Default:  "somewhere",
 			Overrides: []override{
 				{
 					Address: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
-					Values: map[string]cty.Value{
-						"area": cty.StringVal("usa"),
-					},
+					Values:  "usa",
 				},
 			},
 			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
-			Want: map[string]cty.Value{
-				"area": cty.StringVal("usa"),
-			},
+			Want:  "usa",
 		},
 	}
 	for _, test := range tests {
