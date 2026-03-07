@@ -4,22 +4,76 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
+// parseAbsResourceRangeStr is copied from ParseAbsResourceInstanceStr (more or less),
+// but with functions edited to refer to ranges instead.
+// TODO should this be outside of the test file?
+func parseAbsResourceRangeStr(str string) (AbsResourceInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	expr, parseDiags := hclsyntax.ParseExpression([]byte(str), "", hcl.InitialPos)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	traversal, parseDiags := hcl.AbsTraversalPatternForExpr(expr)
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsResourceInstance{}, diags
+	}
+
+	addr, addrDiags := ParseAbsResourceRange(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
+}
+
+// shorthand function to obtain known good strings.
+// Please please please do not use this outside of tests!!!
+func getAbsResourceRangeOrPanic(str string) AbsResourceInstance {
+	out, diags := parseAbsResourceRangeStr(str)
+	if diags.HasErrors() {
+		panic(diags)
+	}
+	return out
+}
+
+type override struct {
+	Address *AbsResourceInstance
+	Values  map[string]cty.Value
+}
+
 func TestOverrideTrie(t *testing.T) {
 	tests := []struct {
-		TestName  string
-		Default   map[string]cty.Value
-		Overrides []struct {
-			Address *AbsResourceInstance
-			Values  map[string]cty.Value
-		}
+		TestName    string
+		Default     map[string]cty.Value
+		Overrides   []override
 		Query       *AbsResourceInstance
 		WantDefault bool
 		Want        map[string]cty.Value
 	}{
-		// TODO add some good tests!
+		{
+			TestName: "basic input",
+			Default: map[string]cty.Value{
+				"area": cty.StringVal("somewhere"),
+			},
+			Overrides: []override{
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+					Values: map[string]cty.Value{
+						"area": cty.StringVal("usa"),
+					},
+				},
+			},
+			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			Want: map[string]cty.Value{
+				"area": cty.StringVal("usa"),
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
