@@ -67,6 +67,31 @@ func TestOverrideTrie(t *testing.T) {
 			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
 			Want:  "usa",
 		},
+		{
+			TestName: "wildcard override",
+			Default:  "somewhere",
+			Overrides: []override{
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps[*].tofu_network.spiderweb`)),
+					Values:  "global",
+				},
+			},
+			Query: new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			Want:  "global",
+		},
+		{
+			TestName: "use default",
+			Default:  "somewhere",
+			Overrides: []override{
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps["apac"].tofu_network.spiderweb`)),
+					Values:  "australia",
+				},
+			},
+			Query:       new(getAbsResourceRangeOrPanic(`module.vps["us-central1"].tofu_network.spiderweb`)),
+			WantDefault: true,
+			Want:        "somewhere",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
@@ -77,7 +102,11 @@ func TestOverrideTrie(t *testing.T) {
 
 			got, isNotDefault := trie.Get(test.Query)
 			if isNotDefault == test.WantDefault {
-				// TODO bad! We want the default!
+				if test.WantDefault {
+					t.Error("expected to get default, but didn't")
+				} else {
+					t.Error("expected not to get default, but did")
+				}
 			}
 
 			if diff := cmp.Diff(test.Want, got, CmpOptionsForTesting); diff != "" {
