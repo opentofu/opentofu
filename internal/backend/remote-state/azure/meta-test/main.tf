@@ -95,6 +95,13 @@ module "aks" {
   ssh_pub_key_path = var.ssh_pub_key_path
 }
 
+module "ado" {
+  source = "./ado"
+  count  = var.use_ado ? 1 : 0
+
+  location = var.location
+}
+
 locals {
   msi_extra_env_vars = !var.use_msi ? "" : <<EOT
 export TF_AZURE_TEST_STORAGE_ACCOUNT_NAME=${module.msi[0].storage_account_name}
