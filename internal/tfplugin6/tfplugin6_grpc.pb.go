@@ -1,9 +1,9 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2020, 2026
 // SPDX-License-Identifier: MPL-2.0
 
-// Terraform Plugin RPC protocol version 6.9
+// Terraform Plugin RPC protocol version 6.11
 //
-// This file defines version 6.9 of the RPC protocol. To implement a plugin
+// This file defines version 6.11 of the RPC protocol. To implement a plugin
 // against this protocol, copy this definition into your own codebase and
 // use protoc to generate stubs for your target language.
 //
@@ -60,8 +60,21 @@ const (
 	Provider_OpenEphemeralResource_FullMethodName           = "/tfplugin6.Provider/OpenEphemeralResource"
 	Provider_RenewEphemeralResource_FullMethodName          = "/tfplugin6.Provider/RenewEphemeralResource"
 	Provider_CloseEphemeralResource_FullMethodName          = "/tfplugin6.Provider/CloseEphemeralResource"
+	Provider_ListResource_FullMethodName                    = "/tfplugin6.Provider/ListResource"
+	Provider_ValidateListResourceConfig_FullMethodName      = "/tfplugin6.Provider/ValidateListResourceConfig"
 	Provider_GetFunctions_FullMethodName                    = "/tfplugin6.Provider/GetFunctions"
 	Provider_CallFunction_FullMethodName                    = "/tfplugin6.Provider/CallFunction"
+	Provider_ValidateActionConfig_FullMethodName            = "/tfplugin6.Provider/ValidateActionConfig"
+	Provider_PlanAction_FullMethodName                      = "/tfplugin6.Provider/PlanAction"
+	Provider_InvokeAction_FullMethodName                    = "/tfplugin6.Provider/InvokeAction"
+	Provider_ValidateStateStoreConfig_FullMethodName        = "/tfplugin6.Provider/ValidateStateStoreConfig"
+	Provider_ConfigureStateStore_FullMethodName             = "/tfplugin6.Provider/ConfigureStateStore"
+	Provider_ReadStateBytes_FullMethodName                  = "/tfplugin6.Provider/ReadStateBytes"
+	Provider_WriteStateBytes_FullMethodName                 = "/tfplugin6.Provider/WriteStateBytes"
+	Provider_LockState_FullMethodName                       = "/tfplugin6.Provider/LockState"
+	Provider_UnlockState_FullMethodName                     = "/tfplugin6.Provider/UnlockState"
+	Provider_GetStates_FullMethodName                       = "/tfplugin6.Provider/GetStates"
+	Provider_DeleteState_FullMethodName                     = "/tfplugin6.Provider/DeleteState"
 	Provider_StopProvider_FullMethodName                    = "/tfplugin6.Provider/StopProvider"
 )
 
@@ -102,11 +115,34 @@ type ProviderClient interface {
 	OpenEphemeralResource(ctx context.Context, in *OpenEphemeralResource_Request, opts ...grpc.CallOption) (*OpenEphemeralResource_Response, error)
 	RenewEphemeralResource(ctx context.Context, in *RenewEphemeralResource_Request, opts ...grpc.CallOption) (*RenewEphemeralResource_Response, error)
 	CloseEphemeralResource(ctx context.Context, in *CloseEphemeralResource_Request, opts ...grpc.CallOption) (*CloseEphemeralResource_Response, error)
+	// ///// List
+	ListResource(ctx context.Context, in *ListResource_Request, opts ...grpc.CallOption) (Provider_ListResourceClient, error)
+	ValidateListResourceConfig(ctx context.Context, in *ValidateListResourceConfig_Request, opts ...grpc.CallOption) (*ValidateListResourceConfig_Response, error)
 	// GetFunctions returns the definitions of all functions.
 	GetFunctions(ctx context.Context, in *GetFunctions_Request, opts ...grpc.CallOption) (*GetFunctions_Response, error)
 	// CallFunction runs the provider-defined function logic and returns
 	// the result with any diagnostics.
 	CallFunction(ctx context.Context, in *CallFunction_Request, opts ...grpc.CallOption) (*CallFunction_Response, error)
+	// ////// Actions Lifecycle
+	ValidateActionConfig(ctx context.Context, in *ValidateActionConfig_Request, opts ...grpc.CallOption) (*ValidateActionConfig_Response, error)
+	PlanAction(ctx context.Context, in *PlanAction_Request, opts ...grpc.CallOption) (*PlanAction_Response, error)
+	InvokeAction(ctx context.Context, in *InvokeAction_Request, opts ...grpc.CallOption) (Provider_InvokeActionClient, error)
+	// ValidateStateStoreConfig performs configuration validation
+	ValidateStateStoreConfig(ctx context.Context, in *ValidateStateStoreConfig_Request, opts ...grpc.CallOption) (*ValidateStateStoreConfig_Response, error)
+	// ConfigureStateStore configures the state store, such as S3 connection in the context of already configured provider
+	ConfigureStateStore(ctx context.Context, in *ConfigureStateStore_Request, opts ...grpc.CallOption) (*ConfigureStateStore_Response, error)
+	// ReadStateBytes streams byte chunks of a given state file from a state store
+	ReadStateBytes(ctx context.Context, in *ReadStateBytes_Request, opts ...grpc.CallOption) (Provider_ReadStateBytesClient, error)
+	// WriteStateBytes streams byte chunks of a given state file into a state store
+	WriteStateBytes(ctx context.Context, opts ...grpc.CallOption) (Provider_WriteStateBytesClient, error)
+	// LockState locks a given state (i.e. CE workspace)
+	LockState(ctx context.Context, in *LockState_Request, opts ...grpc.CallOption) (*LockState_Response, error)
+	// UnlockState unlocks a given state (i.e. CE workspace)
+	UnlockState(ctx context.Context, in *UnlockState_Request, opts ...grpc.CallOption) (*UnlockState_Response, error)
+	// GetStates returns a list of all states (i.e. CE workspaces) managed by a given state store
+	GetStates(ctx context.Context, in *GetStates_Request, opts ...grpc.CallOption) (*GetStates_Response, error)
+	// DeleteState instructs a given state store to delete a specific state (i.e. a CE workspace)
+	DeleteState(ctx context.Context, in *DeleteState_Request, opts ...grpc.CallOption) (*DeleteState_Response, error)
 	// ////// Graceful Shutdown
 	StopProvider(ctx context.Context, in *StopProvider_Request, opts ...grpc.CallOption) (*StopProvider_Response, error)
 }
@@ -290,6 +326,47 @@ func (c *providerClient) CloseEphemeralResource(ctx context.Context, in *CloseEp
 	return out, nil
 }
 
+func (c *providerClient) ListResource(ctx context.Context, in *ListResource_Request, opts ...grpc.CallOption) (Provider_ListResourceClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[0], Provider_ListResource_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerListResourceClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Provider_ListResourceClient interface {
+	Recv() (*ListResource_Event, error)
+	grpc.ClientStream
+}
+
+type providerListResourceClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerListResourceClient) Recv() (*ListResource_Event, error) {
+	m := new(ListResource_Event)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) ValidateListResourceConfig(ctx context.Context, in *ValidateListResourceConfig_Request, opts ...grpc.CallOption) (*ValidateListResourceConfig_Response, error) {
+	out := new(ValidateListResourceConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_ValidateListResourceConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *providerClient) GetFunctions(ctx context.Context, in *GetFunctions_Request, opts ...grpc.CallOption) (*GetFunctions_Response, error) {
 	out := new(GetFunctions_Response)
 	err := c.cc.Invoke(ctx, Provider_GetFunctions_FullMethodName, in, out, opts...)
@@ -302,6 +379,176 @@ func (c *providerClient) GetFunctions(ctx context.Context, in *GetFunctions_Requ
 func (c *providerClient) CallFunction(ctx context.Context, in *CallFunction_Request, opts ...grpc.CallOption) (*CallFunction_Response, error) {
 	out := new(CallFunction_Response)
 	err := c.cc.Invoke(ctx, Provider_CallFunction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) ValidateActionConfig(ctx context.Context, in *ValidateActionConfig_Request, opts ...grpc.CallOption) (*ValidateActionConfig_Response, error) {
+	out := new(ValidateActionConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_ValidateActionConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) PlanAction(ctx context.Context, in *PlanAction_Request, opts ...grpc.CallOption) (*PlanAction_Response, error) {
+	out := new(PlanAction_Response)
+	err := c.cc.Invoke(ctx, Provider_PlanAction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) InvokeAction(ctx context.Context, in *InvokeAction_Request, opts ...grpc.CallOption) (Provider_InvokeActionClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[1], Provider_InvokeAction_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerInvokeActionClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Provider_InvokeActionClient interface {
+	Recv() (*InvokeAction_Event, error)
+	grpc.ClientStream
+}
+
+type providerInvokeActionClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerInvokeActionClient) Recv() (*InvokeAction_Event, error) {
+	m := new(InvokeAction_Event)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) ValidateStateStoreConfig(ctx context.Context, in *ValidateStateStoreConfig_Request, opts ...grpc.CallOption) (*ValidateStateStoreConfig_Response, error) {
+	out := new(ValidateStateStoreConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_ValidateStateStoreConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) ConfigureStateStore(ctx context.Context, in *ConfigureStateStore_Request, opts ...grpc.CallOption) (*ConfigureStateStore_Response, error) {
+	out := new(ConfigureStateStore_Response)
+	err := c.cc.Invoke(ctx, Provider_ConfigureStateStore_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) ReadStateBytes(ctx context.Context, in *ReadStateBytes_Request, opts ...grpc.CallOption) (Provider_ReadStateBytesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[2], Provider_ReadStateBytes_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerReadStateBytesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Provider_ReadStateBytesClient interface {
+	Recv() (*ReadStateBytes_ResponseChunk, error)
+	grpc.ClientStream
+}
+
+type providerReadStateBytesClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerReadStateBytesClient) Recv() (*ReadStateBytes_ResponseChunk, error) {
+	m := new(ReadStateBytes_ResponseChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) WriteStateBytes(ctx context.Context, opts ...grpc.CallOption) (Provider_WriteStateBytesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[3], Provider_WriteStateBytes_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerWriteStateBytesClient{stream}
+	return x, nil
+}
+
+type Provider_WriteStateBytesClient interface {
+	Send(*WriteStateBytes_RequestChunk) error
+	CloseAndRecv() (*WriteStateBytes_Response, error)
+	grpc.ClientStream
+}
+
+type providerWriteStateBytesClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerWriteStateBytesClient) Send(m *WriteStateBytes_RequestChunk) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *providerWriteStateBytesClient) CloseAndRecv() (*WriteStateBytes_Response, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(WriteStateBytes_Response)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) LockState(ctx context.Context, in *LockState_Request, opts ...grpc.CallOption) (*LockState_Response, error) {
+	out := new(LockState_Response)
+	err := c.cc.Invoke(ctx, Provider_LockState_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) UnlockState(ctx context.Context, in *UnlockState_Request, opts ...grpc.CallOption) (*UnlockState_Response, error) {
+	out := new(UnlockState_Response)
+	err := c.cc.Invoke(ctx, Provider_UnlockState_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) GetStates(ctx context.Context, in *GetStates_Request, opts ...grpc.CallOption) (*GetStates_Response, error) {
+	out := new(GetStates_Response)
+	err := c.cc.Invoke(ctx, Provider_GetStates_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) DeleteState(ctx context.Context, in *DeleteState_Request, opts ...grpc.CallOption) (*DeleteState_Response, error) {
+	out := new(DeleteState_Response)
+	err := c.cc.Invoke(ctx, Provider_DeleteState_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,11 +601,34 @@ type ProviderServer interface {
 	OpenEphemeralResource(context.Context, *OpenEphemeralResource_Request) (*OpenEphemeralResource_Response, error)
 	RenewEphemeralResource(context.Context, *RenewEphemeralResource_Request) (*RenewEphemeralResource_Response, error)
 	CloseEphemeralResource(context.Context, *CloseEphemeralResource_Request) (*CloseEphemeralResource_Response, error)
+	// ///// List
+	ListResource(*ListResource_Request, Provider_ListResourceServer) error
+	ValidateListResourceConfig(context.Context, *ValidateListResourceConfig_Request) (*ValidateListResourceConfig_Response, error)
 	// GetFunctions returns the definitions of all functions.
 	GetFunctions(context.Context, *GetFunctions_Request) (*GetFunctions_Response, error)
 	// CallFunction runs the provider-defined function logic and returns
 	// the result with any diagnostics.
 	CallFunction(context.Context, *CallFunction_Request) (*CallFunction_Response, error)
+	// ////// Actions Lifecycle
+	ValidateActionConfig(context.Context, *ValidateActionConfig_Request) (*ValidateActionConfig_Response, error)
+	PlanAction(context.Context, *PlanAction_Request) (*PlanAction_Response, error)
+	InvokeAction(*InvokeAction_Request, Provider_InvokeActionServer) error
+	// ValidateStateStoreConfig performs configuration validation
+	ValidateStateStoreConfig(context.Context, *ValidateStateStoreConfig_Request) (*ValidateStateStoreConfig_Response, error)
+	// ConfigureStateStore configures the state store, such as S3 connection in the context of already configured provider
+	ConfigureStateStore(context.Context, *ConfigureStateStore_Request) (*ConfigureStateStore_Response, error)
+	// ReadStateBytes streams byte chunks of a given state file from a state store
+	ReadStateBytes(*ReadStateBytes_Request, Provider_ReadStateBytesServer) error
+	// WriteStateBytes streams byte chunks of a given state file into a state store
+	WriteStateBytes(Provider_WriteStateBytesServer) error
+	// LockState locks a given state (i.e. CE workspace)
+	LockState(context.Context, *LockState_Request) (*LockState_Response, error)
+	// UnlockState unlocks a given state (i.e. CE workspace)
+	UnlockState(context.Context, *UnlockState_Request) (*UnlockState_Response, error)
+	// GetStates returns a list of all states (i.e. CE workspaces) managed by a given state store
+	GetStates(context.Context, *GetStates_Request) (*GetStates_Response, error)
+	// DeleteState instructs a given state store to delete a specific state (i.e. a CE workspace)
+	DeleteState(context.Context, *DeleteState_Request) (*DeleteState_Response, error)
 	// ////// Graceful Shutdown
 	StopProvider(context.Context, *StopProvider_Request) (*StopProvider_Response, error)
 	mustEmbedUnimplementedProviderServer()
@@ -425,11 +695,50 @@ func (UnimplementedProviderServer) RenewEphemeralResource(context.Context, *Rene
 func (UnimplementedProviderServer) CloseEphemeralResource(context.Context, *CloseEphemeralResource_Request) (*CloseEphemeralResource_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CloseEphemeralResource not implemented")
 }
+func (UnimplementedProviderServer) ListResource(*ListResource_Request, Provider_ListResourceServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListResource not implemented")
+}
+func (UnimplementedProviderServer) ValidateListResourceConfig(context.Context, *ValidateListResourceConfig_Request) (*ValidateListResourceConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateListResourceConfig not implemented")
+}
 func (UnimplementedProviderServer) GetFunctions(context.Context, *GetFunctions_Request) (*GetFunctions_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFunctions not implemented")
 }
 func (UnimplementedProviderServer) CallFunction(context.Context, *CallFunction_Request) (*CallFunction_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CallFunction not implemented")
+}
+func (UnimplementedProviderServer) ValidateActionConfig(context.Context, *ValidateActionConfig_Request) (*ValidateActionConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateActionConfig not implemented")
+}
+func (UnimplementedProviderServer) PlanAction(context.Context, *PlanAction_Request) (*PlanAction_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PlanAction not implemented")
+}
+func (UnimplementedProviderServer) InvokeAction(*InvokeAction_Request, Provider_InvokeActionServer) error {
+	return status.Errorf(codes.Unimplemented, "method InvokeAction not implemented")
+}
+func (UnimplementedProviderServer) ValidateStateStoreConfig(context.Context, *ValidateStateStoreConfig_Request) (*ValidateStateStoreConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateStateStoreConfig not implemented")
+}
+func (UnimplementedProviderServer) ConfigureStateStore(context.Context, *ConfigureStateStore_Request) (*ConfigureStateStore_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfigureStateStore not implemented")
+}
+func (UnimplementedProviderServer) ReadStateBytes(*ReadStateBytes_Request, Provider_ReadStateBytesServer) error {
+	return status.Errorf(codes.Unimplemented, "method ReadStateBytes not implemented")
+}
+func (UnimplementedProviderServer) WriteStateBytes(Provider_WriteStateBytesServer) error {
+	return status.Errorf(codes.Unimplemented, "method WriteStateBytes not implemented")
+}
+func (UnimplementedProviderServer) LockState(context.Context, *LockState_Request) (*LockState_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LockState not implemented")
+}
+func (UnimplementedProviderServer) UnlockState(context.Context, *UnlockState_Request) (*UnlockState_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnlockState not implemented")
+}
+func (UnimplementedProviderServer) GetStates(context.Context, *GetStates_Request) (*GetStates_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStates not implemented")
+}
+func (UnimplementedProviderServer) DeleteState(context.Context, *DeleteState_Request) (*DeleteState_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteState not implemented")
 }
 func (UnimplementedProviderServer) StopProvider(context.Context, *StopProvider_Request) (*StopProvider_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StopProvider not implemented")
@@ -789,6 +1098,45 @@ func _Provider_CloseEphemeralResource_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Provider_ListResource_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListResource_Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProviderServer).ListResource(m, &providerListResourceServer{stream})
+}
+
+type Provider_ListResourceServer interface {
+	Send(*ListResource_Event) error
+	grpc.ServerStream
+}
+
+type providerListResourceServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerListResourceServer) Send(m *ListResource_Event) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Provider_ValidateListResourceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateListResourceConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ValidateListResourceConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ValidateListResourceConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ValidateListResourceConfig(ctx, req.(*ValidateListResourceConfig_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Provider_GetFunctions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetFunctions_Request)
 	if err := dec(in); err != nil {
@@ -821,6 +1169,218 @@ func _Provider_CallFunction_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProviderServer).CallFunction(ctx, req.(*CallFunction_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_ValidateActionConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateActionConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ValidateActionConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ValidateActionConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ValidateActionConfig(ctx, req.(*ValidateActionConfig_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_PlanAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PlanAction_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).PlanAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_PlanAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).PlanAction(ctx, req.(*PlanAction_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_InvokeAction_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(InvokeAction_Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProviderServer).InvokeAction(m, &providerInvokeActionServer{stream})
+}
+
+type Provider_InvokeActionServer interface {
+	Send(*InvokeAction_Event) error
+	grpc.ServerStream
+}
+
+type providerInvokeActionServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerInvokeActionServer) Send(m *InvokeAction_Event) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Provider_ValidateStateStoreConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateStateStoreConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ValidateStateStoreConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ValidateStateStoreConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ValidateStateStoreConfig(ctx, req.(*ValidateStateStoreConfig_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_ConfigureStateStore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfigureStateStore_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ConfigureStateStore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ConfigureStateStore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ConfigureStateStore(ctx, req.(*ConfigureStateStore_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_ReadStateBytes_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ReadStateBytes_Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProviderServer).ReadStateBytes(m, &providerReadStateBytesServer{stream})
+}
+
+type Provider_ReadStateBytesServer interface {
+	Send(*ReadStateBytes_ResponseChunk) error
+	grpc.ServerStream
+}
+
+type providerReadStateBytesServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerReadStateBytesServer) Send(m *ReadStateBytes_ResponseChunk) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Provider_WriteStateBytes_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ProviderServer).WriteStateBytes(&providerWriteStateBytesServer{stream})
+}
+
+type Provider_WriteStateBytesServer interface {
+	SendAndClose(*WriteStateBytes_Response) error
+	Recv() (*WriteStateBytes_RequestChunk, error)
+	grpc.ServerStream
+}
+
+type providerWriteStateBytesServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerWriteStateBytesServer) SendAndClose(m *WriteStateBytes_Response) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *providerWriteStateBytesServer) Recv() (*WriteStateBytes_RequestChunk, error) {
+	m := new(WriteStateBytes_RequestChunk)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func _Provider_LockState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LockState_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).LockState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_LockState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).LockState(ctx, req.(*LockState_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_UnlockState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnlockState_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).UnlockState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_UnlockState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).UnlockState(ctx, req.(*UnlockState_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_GetStates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStates_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).GetStates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_GetStates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).GetStates(ctx, req.(*GetStates_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_DeleteState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteState_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).DeleteState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_DeleteState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).DeleteState(ctx, req.(*DeleteState_Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -927,6 +1487,10 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_CloseEphemeralResource_Handler,
 		},
 		{
+			MethodName: "ValidateListResourceConfig",
+			Handler:    _Provider_ValidateListResourceConfig_Handler,
+		},
+		{
 			MethodName: "GetFunctions",
 			Handler:    _Provider_GetFunctions_Handler,
 		},
@@ -935,10 +1499,63 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_CallFunction_Handler,
 		},
 		{
+			MethodName: "ValidateActionConfig",
+			Handler:    _Provider_ValidateActionConfig_Handler,
+		},
+		{
+			MethodName: "PlanAction",
+			Handler:    _Provider_PlanAction_Handler,
+		},
+		{
+			MethodName: "ValidateStateStoreConfig",
+			Handler:    _Provider_ValidateStateStoreConfig_Handler,
+		},
+		{
+			MethodName: "ConfigureStateStore",
+			Handler:    _Provider_ConfigureStateStore_Handler,
+		},
+		{
+			MethodName: "LockState",
+			Handler:    _Provider_LockState_Handler,
+		},
+		{
+			MethodName: "UnlockState",
+			Handler:    _Provider_UnlockState_Handler,
+		},
+		{
+			MethodName: "GetStates",
+			Handler:    _Provider_GetStates_Handler,
+		},
+		{
+			MethodName: "DeleteState",
+			Handler:    _Provider_DeleteState_Handler,
+		},
+		{
 			MethodName: "StopProvider",
 			Handler:    _Provider_StopProvider_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ListResource",
+			Handler:       _Provider_ListResource_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "InvokeAction",
+			Handler:       _Provider_InvokeAction_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "ReadStateBytes",
+			Handler:       _Provider_ReadStateBytes_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WriteStateBytes",
+			Handler:       _Provider_WriteStateBytes_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "tfplugin6.proto",
 }

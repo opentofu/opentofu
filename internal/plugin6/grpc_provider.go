@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"iter"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/opentofu/opentofu/internal/plugin6/validation"
@@ -111,6 +113,7 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	resp.DataSources = make(map[string]providers.Schema)
 	resp.EphemeralResources = make(map[string]providers.Schema)
 	resp.Functions = make(map[string]providers.FunctionSpec)
+	resp.StateStores = map[string]providers.Schema{}
 
 	protoResp, err := p.getProtoProviderSchema(ctx)
 	if err != nil {
@@ -153,6 +156,11 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	for name, res := range protoResp.EphemeralResourceSchemas {
 		// Ephemeral resources should be able to work with ephemeral values by design.
 		resp.EphemeralResources[name] = convert.ProtoToEphemeralProviderSchema(res)
+	}
+
+	for name, res := range protoResp.StateStoreSchemas {
+		// Ephemeral resources should be able to work with ephemeral values by design.
+		resp.StateStores[name] = convert.ProtoToProviderSchema(res)
 	}
 
 	if protoResp.ServerCapabilities != nil {
@@ -1022,6 +1030,246 @@ func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctio
 
 	resp.Result, resp.Error = decodeDynamicValue(protoResp.Result, spec.Return)
 	return
+}
+
+func (p *GRPCProvider) ValidateStateStoreConfig(ctx context.Context, r providers.ValidateStateStoreConfigRequest) (resp providers.ValidateStateStoreConfigResponse) {
+	logger.Trace("GRPCProvider6: ValidateStateStoreConfig")
+
+	schema := p.GetProviderSchema(ctx)
+	if schema.Diagnostics.HasErrors() {
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	ss, ok := schema.StateStores[r.TypeName]
+	if !ok {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TypeName))
+		return resp
+	}
+	ty := ss.Block.ImpliedType()
+
+	mp, err := msgpack.Marshal(r.Config, ty)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	protoReq := &proto6.ValidateStateStoreConfig_Request{
+		TypeName: r.TypeName,
+		Config:   &proto6.DynamicValue{Msgpack: mp},
+	}
+
+	protoResp, err := p.client.ValidateStateStoreConfig(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+}
+
+func (p *GRPCProvider) ConfigureStateStore(ctx context.Context, r providers.ConfigureStateStoreRequest) (resp providers.ConfigureStateStoreResponse) {
+	logger.Trace("GRPCProvider6: ConfigureStateStore")
+
+	schema := p.GetProviderSchema(ctx)
+	if schema.Diagnostics.HasErrors() {
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	ss, ok := schema.StateStores[r.TypeName]
+	if !ok {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TypeName))
+		return resp
+	}
+	ty := ss.Block.ImpliedType()
+
+	mp, err := msgpack.Marshal(r.Config, ty)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	protoReq := &proto6.ConfigureStateStore_Request{
+		TypeName: r.TypeName,
+		Config:   &proto6.DynamicValue{Msgpack: mp},
+		Capabilities: &proto6.StateStoreClientCapabilities{
+			ChunkSize: r.Capabilities.ChunkSize,
+		},
+	}
+
+	protoResp, err := p.client.ConfigureStateStore(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	resp.Capabilities.ChunkSize = protoResp.Capabilities.ChunkSize
+	return resp
+}
+
+func (p *GRPCProvider) ReadStateBytes(ctx context.Context, r providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	logger.Trace("GRPCProvider6: ReadStateBytes")
+
+	protoReq := &proto6.ReadStateBytes_Request{
+		TypeName: r.TypeName,
+		StateId:  r.StateId,
+	}
+
+	return func(yield func(providers.ReadStateBytesResponse) bool) {
+		protoResp, err := p.client.ReadStateBytes(ctx, protoReq)
+		if err != nil {
+			var resp providers.ReadStateBytesResponse
+			resp.Diagnostics = resp.Diagnostics.Append(err)
+			yield(resp)
+			return
+		}
+
+		// TODO make sure we are cleaning up the stream in case of an error
+		for {
+			chunk, err := protoResp.Recv()
+			if err == io.EOF || chunk == nil {
+				return
+			}
+
+			var resp providers.ReadStateBytesResponse
+
+			resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(chunk.Diagnostics))
+
+			resp.Bytes = chunk.Bytes
+			resp.TotalLength = chunk.TotalLength
+			// TODO nullability of Range, not allowed in terraform-plugin-go currently
+			resp.Range = providers.StateByteRange{
+				Start: chunk.Range.Start,
+				End:   chunk.Range.End,
+			}
+
+			if !yield(resp) {
+				return
+			}
+		}
+	}
+}
+
+func (p *GRPCProvider) WriteStateBytes(ctx context.Context, r iter.Seq[providers.WriteStateBytesRequest]) (resp providers.WriteStateBytesResponse) {
+	logger.Trace("GRPCProvider6: WriteStateBytes")
+
+	protoStream, err := p.client.WriteStateBytes(ctx)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return
+	}
+
+	for chunk := range r {
+		println("SEND CHUNK")
+		var protoChunk proto6.WriteStateBytes_RequestChunk
+
+		if chunk.Meta != nil {
+			protoChunk.Meta = &proto6.RequestChunkMeta{
+				TypeName: chunk.Meta.TypeName,
+				StateId:  chunk.Meta.StateId,
+			}
+		}
+		protoChunk.Bytes = chunk.Bytes
+		protoChunk.TotalLength = chunk.TotalLength
+		protoChunk.Range = &proto6.StateByteRange{
+			Start: chunk.Range.Start,
+			End:   chunk.Range.End,
+		}
+
+		err := protoStream.Send(&protoChunk)
+		if err != nil {
+			resp.Diagnostics = resp.Diagnostics.Append(err)
+			// TODO should we return or keep trying?
+			// Would need to make sure we properly close
+		}
+	}
+
+	protoResp, err := protoStream.CloseAndRecv()
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+
+}
+
+func (p *GRPCProvider) LockState(ctx context.Context, r providers.LockStateRequest) (resp providers.LockStateResponse) {
+	logger.Trace("GRPCProvider6: LockState")
+
+	protoReq := &proto6.LockState_Request{
+		TypeName:  r.TypeName,
+		StateId:   r.StateId,
+		Operation: r.Operation,
+	}
+
+	protoResp, err := p.client.LockState(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.LockId = protoResp.LockId
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+}
+
+func (p *GRPCProvider) UnlockState(ctx context.Context, r providers.UnlockStateRequest) (resp providers.UnlockStateResponse) {
+	logger.Trace("GRPCProvider6: UnlockState")
+
+	protoReq := &proto6.UnlockState_Request{
+		TypeName: r.TypeName,
+		StateId:  r.StateId,
+		LockId:   r.LockId,
+	}
+
+	protoResp, err := p.client.UnlockState(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+}
+
+func (p *GRPCProvider) GetStates(ctx context.Context, r providers.GetStatesRequest) (resp providers.GetStatesResponse) {
+	logger.Trace("GRPCProvider6: GetStates")
+
+	protoReq := &proto6.GetStates_Request{
+		TypeName: r.TypeName,
+	}
+
+	protoResp, err := p.client.GetStates(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.StateId = protoResp.StateIds
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+}
+
+func (p *GRPCProvider) DeleteState(ctx context.Context, r providers.DeleteStateRequest) (resp providers.DeleteStateResponse) {
+	logger.Trace("GRPCProvider6: DeleteState")
+
+	protoReq := &proto6.DeleteState_Request{
+		TypeName: r.TypeName,
+		StateId:  r.StateId,
+	}
+
+	protoResp, err := p.client.DeleteState(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.
