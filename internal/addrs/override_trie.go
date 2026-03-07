@@ -1,7 +1,5 @@
 package addrs
 
-import "github.com/zclconf/go-cty/cty"
-
 // OverrideTrie provides a step-wise method to obtain values
 // for overridden resource. Each instance of the OverrideTrie
 // represents one "hop" in the resource address, traversing
@@ -10,29 +8,26 @@ import "github.com/zclconf/go-cty/cty"
 // A resource without a key, which is expected to have a key, may use
 // either the Wildcard key "[*]" or no key at all, but not both. See Set
 // and Get for more specific information on how that is handled.
-type OverrideTrie struct {
-	trie     map[InstanceKey]*OverrideTrie
-	value    map[string]cty.Value
-	defaults map[string]cty.Value
+type OverrideTrie[T any] struct {
+	trie       map[InstanceKey]*OverrideTrie[T]
+	value      *T
+	defaultVal T
 }
-
-// TODO Question: should the OverrideTrie be rewritten/renamed to be generic?
-// Or maybe do that once it is adopted in move/remove/import?
 
 // NewOverrideTrie creates a new trie for mapping override values to addresses.
 //
-// A map of resource attribute defaults is provided in this constructor.
-// This values map is used when the address is not found, that is,
+// A default value is provided in this constructor.
+// This is used when the address is not found in the trie, that is,
 // it is not set as an override.
-func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
-	return &OverrideTrie{
-		trie:     make(map[InstanceKey]*OverrideTrie),
-		value:    make(map[string]cty.Value),
-		defaults: defaults,
+func NewOverrideTrie[T any](defaultVal T) *OverrideTrie[T] {
+	return &OverrideTrie[T]{
+		trie:       make(map[InstanceKey]*OverrideTrie[T]),
+		value:      nil,
+		defaultVal: defaultVal,
 	}
 }
 
-// Set takes an address and value map and loads it into the OverrideTrie. Each
+// Set takes an address and value and loads it into the OverrideTrie. Each
 // instance key, for a module or resource, creates a trie, with the "leaf" trie
 // containing the value for the address.
 //
@@ -41,23 +36,23 @@ func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
 // resource address was used to refer to every instance associated with the address.
 //
 // val is expected to be non-nil; it might complicate overrides if no value
-// map is provided but the resource is still considered "overridden"
-func (ot *OverrideTrie) Set(addr *AbsResourceInstance, val map[string]cty.Value) {
+// is provided but the resource is still considered "overridden"
+func (ot *OverrideTrie[T]) Set(addr *AbsResourceInstance, val T) {
 	current := ot
 	for _, mod := range addr.Module {
 		current = ot.subSet(current, mod.InstanceKey)
 	}
 	last := ot.subSet(current, addr.Resource.Key)
-	last.value = val
+	last.value = new(val)
 }
 
-func (ot *OverrideTrie) subSet(current *OverrideTrie, key InstanceKey) *OverrideTrie {
+func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) *OverrideTrie[T] {
 	if key == NoKey {
 		key = WildcardKey{UnknownKeyType}
 	}
 	next, ok := current.trie[key]
 	if !ok {
-		current.trie[key] = NewOverrideTrie(ot.defaults)
+		current.trie[key] = NewOverrideTrie(ot.defaultVal)
 		next = current.trie[key]
 	}
 	return next
@@ -74,23 +69,23 @@ func (ot *OverrideTrie) subSet(current *OverrideTrie, key InstanceKey) *Override
 // make sense to use this to obtain a single value when referencing a wildcard.
 // ^^^ TODO write a test where a wildcard address REFERENCES one of the overridden instances values
 // ^^^ TODO in an output, for example, value = pets.cat[*].name or something
-func (ot *OverrideTrie) Get(addr *AbsResourceInstance) (map[string]cty.Value, bool) {
+func (ot *OverrideTrie[T]) Get(addr *AbsResourceInstance) (T, bool) {
 	current := ot
 	for _, mod := range addr.Module {
 		var ok bool
 		current, ok = subGet(current, mod.InstanceKey)
 		if !ok {
-			return ot.defaults, false
+			return ot.defaultVal, false
 		}
 	}
 	last, ok := subGet(current, addr.Resource.Key)
-	if !ok {
-		return ot.defaults, false
+	if !ok || last.value == nil {
+		return ot.defaultVal, false
 	}
-	return last.value, true
+	return *last.value, true
 }
 
-func subGet(current *OverrideTrie, key InstanceKey) (*OverrideTrie, bool) {
+func subGet[T any](current *OverrideTrie[T], key InstanceKey) (*OverrideTrie[T], bool) {
 	next, ok := current.trie[key]
 	if !ok {
 		next, ok = current.trie[WildcardKey{UnknownKeyType}]
