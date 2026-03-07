@@ -9,7 +9,7 @@ import "github.com/zclconf/go-cty/cty"
 //
 // A resource without a key, which is expected to have a key, may use
 // either the Wildcard key "[*]" or no key at all, but not both. See Set
-// for more specific information.
+// and Get for more specific information on how that is handled.
 type OverrideTrie struct {
 	trie     map[InstanceKey]*OverrideTrie
 	value    map[string]cty.Value
@@ -32,9 +32,13 @@ func NewOverrideTrie(defaults map[string]cty.Value) *OverrideTrie {
 	}
 }
 
-// Set takes an address and value map and TODO add more information I guess?
+// Set takes an address and value map and loads it into the OverrideTrie. Each
+// instance key, for a module or resource, creates a trie, with the "leaf" trie
+// containing the value for the address.
 //
-// # TODO information on wildcard, NoKey, etc
+// The "NoKey" key is treated specially and made equivalent to WildCard. This is
+// to provide backwards compatibility; before this was implemented, a non-instanced
+// resource address was used to refer to every instance associated with the address.
 //
 // val is expected to be non-nil; it might complicate overrides if no value
 // map is provided but the resource is still considered "overridden"
@@ -59,12 +63,14 @@ func (ot *OverrideTrie) subSet(current *OverrideTrie, key InstanceKey) *Override
 	return next
 }
 
-// Get returns the value in the OverrideTrie associated with the address
+// Get returns the value in the OverrideTrie associated with the address. If part of the
+// address is not found, but a WildCard address is set in the trie, that sub-trie is
+// then used to continue the query.
 //
 // If it could not be found in the OverrideTrie as an override, the default is used and
 // the boolean is set to false to indicate it was not found
 //
-// A wildcard instance key is not expected anywhere in the address, nor does it
+// A wildcard instance key is not expected anywhere in the provided address, nor does it
 // make sense to use this to obtain a single value when referencing a wildcard.
 // ^^^ TODO write a test where a wildcard address REFERENCES one of the overridden instances values
 // ^^^ TODO in an output, for example, value = pets.cat[*].name or something
