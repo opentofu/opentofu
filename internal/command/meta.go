@@ -6,1223 +6,979 @@
 package command
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/base64"
-	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"io"
-	"io/fs"
-	"net/http"
-	"net/http/httptest"
+	"log"
 	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
-	"runtime"
+	"strconv"
 	"strings"
-	"testing"
+	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/command/arguments"
-
-	"github.com/opentofu/svchost"
+	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/mitchellh/cli"
+	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/opentofu/internal/command/flags"
 	"github.com/opentofu/svchost/disco"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	clistate "github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/backend/local"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/copy"
-	"github.com/opentofu/opentofu/internal/depsfile"
-	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/initwd"
-	_ "github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/registry"
+	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
 )
 
-// These are the directories for our test data and fixtures.
-var (
-	fixtureDir  = "./testdata"
-	testDataDir = "./testdata"
+// Meta are the meta-options that are available on all or most commands.
+type Meta struct {
+	// The exported fields below should be set by anyone using a
+	// command with a Meta field. These are expected to be set externally
+	// (not from within the command itself).
+
+	// WorkingDir is an object representing the "working directory" where we're
+	// running commands. In the normal case this literally refers to the
+	// working directory of the OpenTofu process, though this can take on
+	// a more symbolic meaning when the user has overridden default behavior
+	// to specify a different working directory or to override the special
+	// data directory where we'll persist settings that must survive between
+	// consecutive commands.
+	//
+	// We're currently gradually migrating the various bits of state that
+	// must persist between consecutive commands in a session to be encapsulated
+	// in here, but we're not there yet and so there are also some methods on
+	// Meta which directly read and modify paths inside the data directory.
+	WorkingDir *workdir.Dir
+
+	// Streams tracks the raw Stdout, Stderr, and Stdin handles along with
+	// some basic metadata about them, such as whether each is connected to
+	// a terminal, how wide the possible terminal is, etc.
+	//
+	// For historical reasons this might not be set in unit test code, and
+	// so functions working with this field must check if it's nil and
+	// do some default behavior instead if so, rather than panicking.
+	Streams *terminal.Streams
+
+	View *views.View
+
+	Color            bool     // True if output should be colored
+	GlobalPluginDirs []string // Additional paths to search for plugins
+	Ui               cli.Ui   // Ui for output
+
+	// Services provides access to remote endpoint information for
+	// 'tofu-native' services running at a specific user-facing hostname.
+	Services *disco.Disco
+
+	// RunningInAutomation indicates that commands are being run by an
+	// automated system rather than directly at a command prompt.
+	//
+	// This is a hint to various command routines that it may be confusing
+	// to print out messages that suggest running specific follow-up
+	// commands, since the user consuming the output will not be
+	// in a position to run such commands.
+	//
+	// The intended use-case of this flag is when OpenTofu is running in
+	// some sort of workflow orchestration tool which is abstracting away
+	// the specific commands being run.
+	RunningInAutomation bool
+
+	// CLIConfigDir is the directory from which CLI configuration files were
+	// read by the caller and the directory where any changes to CLI
+	// configuration files by commands should be made.
+	//
+	// If this is empty then no configuration directory is available and
+	// commands which require one cannot proceed.
+	CLIConfigDir string
+
+	// PluginCacheDir, if non-empty, enables caching of downloaded plugins
+	// into the given directory.
+	PluginCacheDir string
+
+	// PluginCacheMayBreakDependencyLockFile is a temporary CLI configuration-based
+	// opt out for the behavior of only using the plugin cache dir if its
+	// contents match checksums recorded in the dependency lock file.
+	//
+	// This is an accommodation for those who currently essentially ignore the
+	// dependency lock file -- treating it only as transient working directory
+	// state -- and therefore don't care if the plugin cache dir causes the
+	// checksums inside to only be sufficient for the computer where OpenTofu
+	// is currently running.
+	//
+	// We intend to remove this exception again (making the CLI configuration
+	// setting a silent no-op) in future once we've improved the dependency
+	// lock file mechanism so that it's usable for everyone and there are no
+	// longer any compelling reasons for folks to not lock their dependencies.
+	PluginCacheMayBreakDependencyLockFile bool
+
+	// ProviderSource allows determining the available versions of a provider
+	// and determines where a distribution package for a particular
+	// provider version can be obtained.
+	ProviderSource getproviders.Source
+
+	// ModulePackageFetcher is the client to use when fetching module packages
+	// from remote locations. This object effectively represents the policy
+	// for how to fetch remote module packages, which is decided by the caller.
+	//
+	// Leaving this nil means that only local modules (using relative paths
+	// in the source address) are supported, which is only reasonable for
+	// unit testing.
+	ModulePackageFetcher *getmodules.PackageFetcher
+
+	// MakeRegistryHTTPClient is a function called each time a command needs
+	// an HTTP client that will be used to make requests to a module or
+	// provider registry.
+	//
+	// This is used by package main to deal with some operator-configurable
+	// settings for retries and timeouts. If this isn't set then a new client
+	// with reasonable defaults for tests will be used instead.
+	MakeRegistryHTTPClient func() *retryablehttp.Client
+
+	// BrowserLauncher is used by commands that need to open a URL in a
+	// web browser.
+	BrowserLauncher webbrowser.Launcher
+
+	// A context.Context provided by the caller -- typically "package main" --
+	// which might be carrying telemetry-related metadata and so should be
+	// used when creating downstream traces, etc.
+	//
+	// This isn't guaranteed to be set, so use [Meta.CommandContext] to
+	// safely create a context for the entire execution of a command, which
+	// will be connected to this parent context if it's present.
+	CallerContext context.Context
+
+	// When this channel is closed, the command will be cancelled.
+	ShutdownCh <-chan struct{}
+
+	// ProviderDevOverrides are providers where we ignore the lock file, the
+	// configured version constraints, and the local cache directory and just
+	// always use exactly the path specified. This is intended to allow
+	// provider developers to easily test local builds without worrying about
+	// what version number they might eventually be released as, or what
+	// checksums they have.
+	ProviderDevOverrides map[addrs.Provider]getproviders.PackageLocalDir
+
+	// UnmanagedProviders are a set of providers that exist as processes
+	// predating OpenTofu, which OpenTofu should use but not worry about the
+	// lifecycle of.
+	//
+	// This is essentially a more extreme version of ProviderDevOverrides where
+	// OpenTofu doesn't even worry about how the provider server gets launched,
+	// just trusting that someone else did it before running OpenTofu.
+	UnmanagedProviders map[addrs.Provider]*plugin.ReattachConfig
+
+	// AllowExperimentalFeatures controls whether a command that embeds this
+	// Meta is permitted to make use of experimental OpenTofu features.
+	//
+	// Set this field only during the initial creation of Meta. If you change
+	// this field after calling methods of type Meta then the resulting
+	// behavior is undefined.
+	//
+	// In normal code this would be set by package main only in builds
+	// explicitly marked as being alpha releases or development snapshots,
+	// making experimental features unavailable otherwise. Test code may
+	// choose to set this if it needs to exercise experimental features.
+	//
+	// Some experiments predated the addition of this setting, and may
+	// therefore still be available even if this flag is false. Our intent
+	// is that all/most _future_ experiments will be unavailable unless this
+	// flag is set, to reinforce that experiments are not for production use.
+	AllowExperimentalFeatures bool
+
+	// ----------------------------------------------------------
+	// Protected: commands can set these
+	// ----------------------------------------------------------
+
+	// pluginPath is a user defined set of directories to look for plugins.
+	// This is set during init with the `-plugin-dir` flag, saved to a file in
+	// the data directory.
+	// This overrides all other search paths when discovering plugins.
+	pluginPath []string
+
+	// Override certain behavior for tests within this package
+	testingOverrides *testingOverrides
+
+	// ----------------------------------------------------------
+	// Private: do not set these
+	// ----------------------------------------------------------
+
+	// configLoader is a shared configuration loader that is used by
+	// LoadConfig and other commands that access configuration files.
+	// It is initialized on first use.
+	configLoader *configload.Loader
+
+	// backendState is the currently active backend state
+	backendState *clistate.BackendState
+
+	// Variables for the context (private)
+	variableArgs flags.RawFlags
+	input        bool
+
+	// Targets for this context (private)
+	targets     []addrs.Targetable
+	targetFlags []string
+
+	// Excludes for this context (private)
+	excludes     []addrs.Targetable
+	excludeFlags []string
+
+	// Internal fields
+	color bool
+	oldUi cli.Ui
+
+	// The fields below are expected to be set by the command via
+	// command line flags. See the Apply command for an example.
+	//
+	// statePath is the path to the state file. If this is empty, then
+	// no state will be loaded. It is also okay for this to be a path to
+	// a file that doesn't exist; it is assumed that this means that there
+	// is simply no state.
+	//
+	// stateOutPath is used to override the output path for the state.
+	// If not provided, the StatePath is used causing the old state to
+	// be overridden.
+	//
+	// backupPath is used to backup the state file before writing a modified
+	// version. It defaults to stateOutPath + DefaultBackupExtension
+	//
+	// parallelism is used to control the number of concurrent operations
+	// allowed when walking the graph
+	//
+	// provider is to specify specific resource providers
+	//
+	// stateLock is set to false to disable state locking
+	//
+	// stateLockTimeout is the optional duration to retry a state locks locks
+	// when it is already locked by another process.
+	//
+	// forceInitCopy suppresses confirmation for copying state data during
+	// init.
+	//
+	// reconfigure forces init to ignore any stored configuration.
+	//
+	// migrateState confirms the user wishes to migrate from the prior backend
+	// configuration to a new configuration.
+	//
+	// compactWarnings (-compact-warnings) selects a more compact presentation
+	// of warnings in the output when they are not accompanied by errors.
+	//
+	// consolidateWarnings (-consolidate-warnings=false) disables consolidation
+	// of warnings in the output, printing all instances of a particular warning.
+	//
+	// consolidateErrors (-consolidate-errors=true) enables consolidation
+	// of errors in the output, printing a single instances of a particular warning.
+	statePath           string
+	stateOutPath        string
+	backupPath          string
+	parallelism         int
+	stateLock           bool
+	stateLockTimeout    time.Duration
+	forceInitCopy       bool
+	reconfigure         bool
+	migrateState        bool
+	compactWarnings     bool
+	consolidateWarnings bool
+	consolidateErrors   bool
+
+	// Used with commands which write state to allow users to write remote
+	// state even if the remote and local OpenTofu versions don't match.
+	ignoreRemoteVersion bool
+
+	// Used to cache the root module rootModuleCallCache and known variables.
+	// This helps prevent duplicate errors/warnings.
+	rootModuleCallCache *configs.StaticModuleCall
+	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// Since `tofu providers lock` and `tofu providers mirror` have their own
+	// logic to create the source to fetch providers through, we had to
+	// plumb this configuration through the [Meta] type to reach that part too.
+	// In any other cases, this configuration is built and used directly in `realMain`
+	// when the providers sources are built.
+	ProviderSourceLocationConfig getproviders.LocationConfig
+}
+
+type testingOverrides struct {
+	Providers    map[addrs.Provider]providers.Factory
+	Provisioners map[string]provisioners.Factory
+}
+
+// initStatePaths is used to initialize the default values for
+// statePath, stateOutPath, and backupPath
+func (m *Meta) initStatePaths() {
+	if m.statePath == "" {
+		m.statePath = arguments.DefaultStateFilename
+	}
+	if m.stateOutPath == "" {
+		m.stateOutPath = m.statePath
+	}
+	if m.backupPath == "" {
+		m.backupPath = m.stateOutPath + DefaultBackupExtension
+	}
+}
+
+// StateOutPath returns the true output path for the state file
+func (m *Meta) StateOutPath() string {
+	return m.stateOutPath
+}
+
+// Colorize returns the colorization structure for a command.
+func (m *Meta) Colorize() *colorstring.Colorize {
+	colors := make(map[string]string)
+	for k, v := range colorstring.DefaultColors {
+		colors[k] = v
+	}
+	colors["purple"] = "38;5;57"
+
+	return &colorstring.Colorize{
+		Colors:  colors,
+		Disable: !m.color,
+		Reset:   true,
+	}
+}
+
+const (
+	// InputModeEnvVar is the environment variable that, if set to "false" or
+	// "0", causes tofu commands to behave as if the `-input=false` flag was
+	// specified.
+	InputModeEnvVar = "TF_INPUT"
 )
 
-func init() {
-	test = true
-
-	// Initialize the backends
-	backendInit.Init(nil)
-
-	// Expand the data and fixture dirs on init because
-	// we change the working directory in some tests.
-	var err error
-	fixtureDir, err = filepath.Abs(fixtureDir)
-	if err != nil {
-		panic(err)
+// InputMode returns the type of input we should ask for in the form of
+// tofu.InputMode which is passed directly to Context.Input.
+func (m *Meta) InputMode() tofu.InputMode {
+	if test || !m.input {
+		return 0
 	}
 
-	testDataDir, err = filepath.Abs(testDataDir)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func TestMain(m *testing.M) {
-	// Make sure backend init is initialized, since our tests tend to assume it.
-	backendInit.Init(nil)
-
-	os.Exit(m.Run())
-}
-
-// tempWorkingDir constructs a workdir.Dir object referring to a newly-created
-// temporary directory. The temporary directory is automatically removed when
-// the test and all its subtests complete.
-//
-// Although workdir.Dir is built to support arbitrary base directories, the
-// not-yet-migrated behaviors in command.Meta tend to expect the root module
-// directory to be the real process working directory, and so if you intend
-// to use the result inside a command.Meta object you must use a pattern
-// similar to the following when initializing your test:
-//
-//	wd := tempWorkingDir(t)
-//	defer testChdir(t, wd.RootModuleDir())()
-//
-// Note that testChdir modifies global state for the test process, and so a
-// test using this pattern must never call t.Parallel().
-func tempWorkingDir(t *testing.T) *workdir.Dir {
-	t.Helper()
-
-	dirPath := t.TempDir()
-	t.Logf("temporary directory %s", dirPath)
-
-	return workdir.NewDir(dirPath)
-}
-
-// tempWorkingDirFixture is like tempWorkingDir but it also copies the content
-// from a fixture directory into the temporary directory before returning it.
-//
-// The same caveats about working directory apply as for testWorkingDir. See
-// the testWorkingDir commentary for an example of how to use this function
-// along with testChdir to meet the expectations of command.Meta legacy
-// functionality.
-func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
-	t.Helper()
-
-	dirPath := testTempDirRealpath(t)
-	t.Logf("temporary directory %s with fixture %q", dirPath, fixtureName)
-
-	fixturePath := testFixturePath(fixtureName)
-	testCopyDir(t, fixturePath, dirPath)
-	// NOTE: Unfortunately because testCopyDir immediately aborts the test
-	// on failure, a failure to copy will prevent us from cleaning up the
-	// temporary directory. Oh well. :(
-
-	return workdir.NewDir(dirPath)
-}
-
-func testFixturePath(name string) string {
-	return filepath.Join(fixtureDir, name)
-}
-
-func metaOverridesForProvider(p providers.Interface) *testingOverrides {
-	return &testingOverrides{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"):                                           providers.FactoryFixed(p),
-			addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp2", "test"): providers.FactoryFixed(p),
-		},
-	}
-}
-
-func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *configload.Snapshot) {
-	t.Helper()
-
-	dir := filepath.Join(fixtureDir, name)
-	loader := configload.NewLoaderForTests(t)
-
-	// Test modules usually do not refer to remote sources, and for local
-	// sources only this ultimately just records all of the module paths
-	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
-	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
-	if instDiags.HasErrors() {
-		t.Fatal(instDiags.Err())
-	}
-
-	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
-	if diags.HasErrors() {
-		t.Fatal(diags.Error())
-	}
-
-	return config, snap
-}
-
-// testPlan returns a non-nil noop plan.
-func testPlan(t *testing.T) *plans.Plan {
-	t.Helper()
-
-	// This is what an empty configuration block would look like after being
-	// decoded with the schema of the "local" backend.
-	backendConfig := cty.ObjectVal(map[string]cty.Value{
-		"path":          cty.NullVal(cty.String),
-		"workspace_dir": cty.NullVal(cty.String),
-	})
-	backendConfigRaw, err := plans.NewDynamicValue(backendConfig, backendConfig.Type())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return &plans.Plan{
-		Backend: plans.Backend{
-			// This is just a placeholder so that the plan file can be written
-			// out. Caller may wish to override it to something more "real"
-			// where the plan will actually be subsequently applied.
-			Type:   "local",
-			Config: backendConfigRaw,
-		},
-		Changes: plans.NewChanges(),
-	}
-}
-
-func testPlanFile(t *testing.T, configSnap *configload.Snapshot, state *states.State, plan *plans.Plan) string {
-	return testPlanFileMatchState(t, configSnap, state, plan, statemgr.SnapshotMeta{})
-}
-
-func testPlanFileMatchState(t *testing.T, configSnap *configload.Snapshot, state *states.State, plan *plans.Plan, stateMeta statemgr.SnapshotMeta) string {
-	t.Helper()
-
-	stateFile := &statefile.File{
-		Lineage:          stateMeta.Lineage,
-		Serial:           stateMeta.Serial,
-		State:            state,
-		TerraformVersion: version.SemVer,
-	}
-	prevStateFile := &statefile.File{
-		Lineage:          stateMeta.Lineage,
-		Serial:           stateMeta.Serial,
-		State:            state, // we just assume no changes detected during refresh
-		TerraformVersion: version.SemVer,
-	}
-
-	path := testTempFile(t)
-	err := planfile.Create(path, planfile.CreateArgs{
-		ConfigSnapshot:       configSnap,
-		PreviousRunStateFile: prevStateFile,
-		StateFile:            stateFile,
-		Plan:                 plan,
-		DependencyLocks:      depsfile.NewLocks(),
-	}, encryption.PlanEncryptionDisabled())
-	if err != nil {
-		t.Fatalf("failed to create temporary plan file: %s", err)
-	}
-
-	return path
-}
-
-// testPlanFileNoop is a shortcut function that creates a plan file that
-// represents no changes and returns its path. This is useful when a test
-// just needs any plan file, and it doesn't matter what is inside it.
-func testPlanFileNoop(t *testing.T) string {
-	snap := &configload.Snapshot{
-		Modules: map[string]*configload.SnapshotModule{
-			"": {
-				Dir: ".",
-				Files: map[string][]byte{
-					"main.tf": nil,
-				},
-			},
-		},
-	}
-	state := states.NewState()
-	plan := testPlan(t)
-	return testPlanFile(t, snap, state, plan)
-}
-
-func testFileEquals(t *testing.T, got, want string) {
-	t.Helper()
-
-	actual, err := os.ReadFile(got)
-	if err != nil {
-		t.Fatalf("error reading %s", got)
-	}
-
-	expected, err := os.ReadFile(want)
-	if err != nil {
-		t.Fatalf("error reading %s", want)
-	}
-
-	if diff := cmp.Diff(string(actual), string(expected)); len(diff) > 0 {
-		t.Fatalf("got:\n%s\nwant:\n%s\ndiff:\n%s", actual, expected, diff)
-	}
-}
-
-func testReadPlan(t *testing.T, path string) *plans.Plan {
-	t.Helper()
-
-	f, err := planfile.Open(path, encryption.PlanEncryptionDisabled())
-	if err != nil {
-		t.Fatalf("error opening plan file %q: %s", path, err)
-	}
-
-	p, err := f.ReadPlan()
-	if err != nil {
-		t.Fatalf("error reading plan from plan file %q: %s", path, err)
-	}
-
-	return p
-}
-
-// testState returns a test State structure that we use for a lot of tests.
-func testState() *states.State {
-	return states.BuildState(func(s *states.SyncState) {
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_instance",
-				Name: "foo",
-			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				// The weird whitespace here is reflective of how this would
-				// get written out in a real state file, due to the indentation
-				// of all of the containing wrapping objects and arrays.
-				AttrsJSON:    []byte(`{"id":"bar"}`),
-				Status:       states.ObjectReady,
-				Dependencies: []addrs.ConfigResource{},
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-			addrs.NoKey,
-		)
-		// DeepCopy is used here to ensure our synthetic state matches exactly
-		// with a state that will have been copied during the command
-		// operation, and all fields have been copied correctly.
-	}).DeepCopy()
-}
-
-// writeStateForTesting is a helper that writes the given naked state to the
-// given writer, generating a stub *statefile.File wrapper which is then
-// immediately discarded.
-func writeStateForTesting(state *states.State, w io.Writer) error {
-	sf := &statefile.File{
-		Serial:  0,
-		Lineage: "fake-for-testing",
-		State:   state,
-	}
-	return statefile.Write(sf, w, encryption.StateEncryptionDisabled())
-}
-
-// testStateMgrCurrentLineage returns the current lineage for the given state
-// manager, or the empty string if it does not use lineage. This is primarily
-// for testing against the local backend, which always supports lineage.
-func testStateMgrCurrentLineage(mgr statemgr.Persistent) string {
-	if pm, ok := mgr.(statemgr.PersistentMeta); ok {
-		m := pm.StateSnapshotMeta()
-		return m.Lineage
-	}
-	return ""
-}
-
-// markStateForMatching is a helper that writes a specific marker value to
-// a state so that it can be recognized later with getStateMatchingMarker.
-//
-// Internally this just sets a root module output value called "testing_mark"
-// to the given string value. If the state is being checked in other ways,
-// the test code may need to compensate for the addition or overwriting of this
-// special output value name.
-//
-// The given mark string is returned verbatim, to allow the following pattern
-// in tests:
-//
-//	mark := markStateForMatching(state, "foo")
-//	// (do stuff to the state)
-//	assertStateHasMarker(state, mark)
-func markStateForMatching(state *states.State, mark string) string {
-	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false, "")
-	return mark
-}
-
-// getStateMatchingMarker is used with markStateForMatching to retrieve the
-// mark string previously added to the given state. If no such mark is present,
-// the result is an empty string.
-func getStateMatchingMarker(state *states.State) string {
-	os := state.RootModule().OutputValues["testing_mark"]
-	if os == nil {
-		return ""
-	}
-	v := os.Value
-	if v.Type() == cty.String && v.IsKnown() && !v.IsNull() {
-		return v.AsString()
-	}
-	return ""
-}
-
-// stateHasMarker is a helper around getStateMatchingMarker that also includes
-// the equality test, for more convenient use in test assertion branches.
-func stateHasMarker(state *states.State, want string) bool {
-	return getStateMatchingMarker(state) == want
-}
-
-// assertStateHasMarker wraps stateHasMarker to automatically generate a
-// fatal test result (i.e. t.Fatal) if the marker doesn't match.
-func assertStateHasMarker(t *testing.T, state *states.State, want string) {
-	if !stateHasMarker(state, want) {
-		t.Fatalf("wrong state marker\ngot:  %q\nwant: %q", getStateMatchingMarker(state), want)
-	}
-}
-
-func testStateFile(t *testing.T, s *states.State) string {
-	t.Helper()
-
-	path := testTempFile(t)
-
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("failed to create temporary state file %s: %s", path, err)
-	}
-	defer f.Close()
-
-	err = writeStateForTesting(s, f)
-	if err != nil {
-		t.Fatalf("failed to write state to temporary file %s: %s", path, err)
-	}
-
-	return path
-}
-
-// testStateFileDefault writes the state out to the default statefile
-// in the cwd. Use `testCwd` to change into a temp cwd.
-func testStateFileDefault(t *testing.T, s *states.State) {
-	t.Helper()
-
-	f, err := os.Create(arguments.DefaultStateFilename)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	if err := writeStateForTesting(s, f); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-}
-
-// testStateFileWorkspaceDefault writes the state out to the default statefile
-// for the given workspace in the cwd. Use `testCwd` to change into a temp cwd.
-func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.State) string {
-	t.Helper()
-
-	workspaceDir := filepath.Join(backendLocal.DefaultWorkspaceDir, workspace)
-	err := os.MkdirAll(workspaceDir, os.ModePerm)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	path := filepath.Join(workspaceDir, arguments.DefaultStateFilename)
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	if err := writeStateForTesting(s, f); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	return path
-}
-
-// testStateFileRemote writes the state out to the remote statefile
-// in the cwd. Use `testCwd` to change into a temp cwd.
-func testStateFileRemote(t *testing.T, s *clistate.CLIState) string {
-	t.Helper()
-
-	path := filepath.Join(workdir.DefaultDataDir, arguments.DefaultStateFilename)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	f, err := os.Create(path)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	if err := clistate.WriteState(s, f); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	return path
-}
-
-// testStateRead reads the state from a file
-func testStateRead(t *testing.T, path string) *states.State {
-	t.Helper()
-
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	sf, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	return sf.State
-}
-
-// testDataStateRead reads a "data state", which is a file format resembling
-// our state format v3 that is used only to track current backend settings.
-//
-// This uses *clistate.CLIState which is the specialized type for
-// tracking backend configuration.
-func testDataStateRead(t *testing.T, path string) *clistate.CLIState {
-	t.Helper()
-
-	f, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	s, err := clistate.ReadState(f)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	return s
-}
-
-// testStateOutput tests that the state at the given path contains
-// the expected state string.
-func testStateOutput(t *testing.T, path string, expected string) {
-	t.Helper()
-
-	newState := testStateRead(t, path)
-	actual := strings.TrimSpace(newState.String())
-	expected = strings.TrimSpace(expected)
-	if actual != expected {
-		t.Fatalf("expected:\n%s\nactual:\n%s", expected, actual)
-	}
-}
-
-func testProvider() *tofu.MockProvider {
-	p := new(tofu.MockProvider)
-	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
-		resp.PlannedState = req.ProposedNewState
-		return resp
-	}
-
-	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
-		return providers.ReadResourceResponse{
-			NewState: req.PriorState,
+	if envVar := os.Getenv(InputModeEnvVar); envVar != "" {
+		if v, err := strconv.ParseBool(envVar); err == nil {
+			if !v {
+				return 0
+			}
 		}
 	}
-	return p
+
+	var mode tofu.InputMode
+	mode |= tofu.InputModeProvider
+
+	return mode
 }
 
-func testTempFile(t *testing.T) string {
-	t.Helper()
-
-	return filepath.Join(testTempDirRealpath(t), "state.tfstate")
-}
-
-// testTempDirRealpath is like [testing.T.TempDir] but takes the
-// extra step of ensuring that the result is a path that does not
-// include any symlinks.
-func testTempDirRealpath(t *testing.T) string {
-	t.Helper()
-	d, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
+// UIInput returns a UIInput object to be used for asking for input.
+func (m *Meta) UIInput() tofu.UIInput {
+	return &UIInput{
+		Colorize: m.Colorize(),
 	}
-	return d
 }
 
-// testCwdTemp is used to change the current working directory into a temporary
-// directory. The cleanup is performed automatically after the test and all its
-// subtests complete.
-func testCwdTemp(t testing.TB) string {
-	t.Helper()
-
-	tmp := t.TempDir()
-	t.Chdir(tmp)
-	return tmp
-}
-
-// testStdinPipe changes os.Stdin to be a pipe that sends the data from
-// the reader before closing the pipe.
+// OutputColumns returns the number of columns that normal (non-error) UI
+// output should be wrapped to fill.
 //
-// The returned function should be deferred to properly clean up and restore
-// the original stdin.
-func testStdinPipe(t *testing.T, src io.Reader) func() {
-	t.Helper()
+// This is the column count to use if you'll be printing your message via
+// the Output or Info methods of m.Ui.
+func (m *Meta) OutputColumns() int {
+	if m.Streams == nil {
+		// A default for unit tests that don't populate Meta fully.
+		return 78
+	}
+	return m.Streams.Stdout.Columns()
+}
 
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("err: %s", err)
+// ErrorColumns returns the number of columns that error UI output should be
+// wrapped to fill.
+//
+// This is the column count to use if you'll be printing your message via
+// the Error or Warn methods of m.Ui.
+func (m *Meta) ErrorColumns() int {
+	if m.Streams == nil {
+		// A default for unit tests that don't populate Meta fully.
+		return 78
+	}
+	return m.Streams.Stderr.Columns()
+}
+
+// StdinPiped returns true if the input is piped.
+func (m *Meta) StdinPiped() bool {
+	if m.Streams == nil {
+		// If we don't have m.Streams populated then we're presumably in a unit
+		// test that doesn't properly populate Meta, so we'll just say the
+		// output _isn't_ piped because that's the common case and so most likely
+		// to be useful to a unit test.
+		return false
+	}
+	return !m.Streams.Stdin.IsTerminal()
+}
+
+// InterruptibleContext returns a context.Context that will be cancelled
+// if the process is interrupted by a platform-specific interrupt signal.
+//
+// The typical way to use this is to pass the result of [Meta.CommandContext]
+// as the base context, but that's appropriate only if the interruptible
+// context is being created directly inside the "Run" method of a particular
+// command, to create a context representing the entire remaining runtime of
+// that command:
+//
+// As usual with cancelable contexts, the caller must always call the given
+// cancel function once all operations are complete in order to make sure
+// that the context resources will still be freed even if there is no
+// interruption.
+//
+//	// This example is only for when using this function very early in
+//	// the "Run" method of a Command implementation. If you already have
+//	// an active context, pass that in as base instead.
+//	ctx, done := c.InterruptibleContext(c.CommandContext())
+//	defer done()
+func (m *Meta) InterruptibleContext(base context.Context) (context.Context, context.CancelFunc) {
+	if m.ShutdownCh == nil {
+		// If we're running in a unit testing context without a shutdown
+		// channel populated then we'll return an uncancelable channel.
+		return base, func() {}
 	}
 
-	// Modify stdin to point to our new pipe
-	old := os.Stdin
-	os.Stdin = r
-
-	// Copy the data from the reader to the pipe
+	ctx, cancel := context.WithCancel(base)
 	go func() {
-		defer w.Close()
-		if _, err := io.Copy(w, src); err != nil {
-			panic(err)
+		select {
+		case <-m.ShutdownCh:
+			cancel()
+		case <-ctx.Done():
+			// finished without being interrupted
 		}
 	}()
-
-	return func() {
-		// Close our read end
-		r.Close()
-
-		// Reset stdin
-		os.Stdin = old
-	}
+	return ctx, cancel
 }
 
-// testInteractiveInput configures tests so that the answers given are sent
-// in order to interactive prompts. The returned function must be called
-// in a defer to clean up.
-func testInteractiveInput(t *testing.T, answers []string) func() {
-	t.Helper()
-
-	// Disable test mode so input is called
-	test = false
-
-	// Set up reader/writers
-	testInputResponse = answers
-	defaultInputReader = bytes.NewBufferString("")
-	defaultInputWriter = new(bytes.Buffer)
-
-	// Return the cleanup
-	return func() {
-		test = true
-		testInputResponse = nil
-	}
-}
-
-// testInputMap configures tests so that the given answers are returned
-// for calls to Input when the right question is asked. The key is the
-// question "Id" that is used.
-func testInputMap(t *testing.T, answers map[string]string) func() {
-	t.Helper()
-
-	// Disable test mode so input is called
-	test = false
-
-	// Set up reader/writers
-	defaultInputReader = bytes.NewBufferString("")
-	defaultInputWriter = new(bytes.Buffer)
-
-	// Setup answers
-	testInputResponse = nil
-	testInputResponseMap = answers
-
-	// Return the cleanup
-	return func() {
-		var unusedAnswers = testInputResponseMap
-
-		// First, clean up!
-		test = true
-		testInputResponseMap = nil
-
-		if len(unusedAnswers) > 0 {
-			t.Fatalf("expected no unused answers provided to command.testInputMap, got: %v", unusedAnswers)
-		}
-	}
-}
-
-// testBackendState is used to make a test HTTP server to test a configured
-// backend. This returns the complete state that can be saved. Use
-// `testStateFileRemote` to write the returned state.
+// CommandContext returns the "root context" to use in the main Run function
+// of a command.
 //
-// When using this function, the configuration fixture for the test must
-// include an empty configuration block for the HTTP backend, like this:
+// This method is just a substitute for passing a context directly to the
+// "Run" method of a command, which we can't do because that API is owned by
+// mitchellh/cli rather than by OpenTofu. Use this only in situations
+// comparable to the context having been passed in as an argument to Run.
 //
-//	terraform {
-//	  backend "http" {
-//	  }
-//	}
+// If the caller (e.g. "package main") provided a context when it instantiated
+// the Meta then the returned context will inherit all of its values, deadlines,
+// etc. If the caller did not provide a context then the result is an inert
+// background context ready to be passed to other functions.
+func (m *Meta) CommandContext() context.Context {
+	if m.CallerContext == nil {
+		return context.Background()
+	}
+	// We just return the caller context directly for now, since we don't
+	// have anything to add to it.
+	return m.CallerContext
+}
+
+// RunOperation executes the given operation on the given backend, blocking
+// until that operation completes or is interrupted, and then returns
+// the RunningOperation object representing the completed or
+// aborted operation that is, despite the name, no longer running.
 //
-// If such a block isn't present, or if it isn't empty, then an error will
-// be returned about the backend configuration having changed and that
-// "tofu init" must be run, since the test backend config cache created
-// by this function contains the hash for an empty configuration.
-func testBackendState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
-	t.Helper()
-
-	var b64md5 string
-	buf := bytes.NewBuffer(nil)
-
-	cb := func(resp http.ResponseWriter, req *http.Request) {
-		if req.Method == "PUT" {
-			resp.WriteHeader(c)
-			return
-		}
-		if s == nil {
-			resp.WriteHeader(404)
-			return
-		}
-
-		resp.Header().Set("Content-MD5", b64md5)
-		if _, err := resp.Write(buf.Bytes()); err != nil {
-			t.Fatal(err)
-		}
+// An error is returned if the operation either fails to start or is cancelled.
+// If the operation runs to completion then no error is returned even if the
+// operation itself is unsuccessful. Use the "Result" field of the
+// returned operation object to recognize operation-level failure.
+func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
+	if opReq.View == nil {
+		panic("RunOperation called with nil View")
+	}
+	if opReq.ConfigDir != "" {
+		opReq.ConfigDir = m.WorkingDir.NormalizePath(opReq.ConfigDir)
 	}
 
-	// If a state was given, make sure we calculate the proper b64md5
-	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		md5 := md5.Sum(buf.Bytes())
-		b64md5 = base64.StdEncoding.EncodeToString(md5[:16])
-	}
-
-	srv := httptest.NewServer(http.HandlerFunc(cb))
-
-	backendConfig := &configs.Backend{
-		Type:   "http",
-		Config: configs.SynthBody("<testBackendState>", map[string]cty.Value{}),
-		Eval:   configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting()),
-	}
-	httpBackendInit, _ := backendInit.Backend("http")
-	b := httpBackendInit(encryption.StateEncryptionDisabled())
-	configSchema := b.ConfigSchema()
-	hash, _ := backendConfig.Hash(t.Context(), configSchema)
-
-	state := clistate.NewState()
-	state.Backend = &clistate.BackendState{
-		Type:      "http",
-		ConfigRaw: json.RawMessage(fmt.Sprintf(`{"address":%q}`, srv.URL)),
-		Hash:      uint64(hash),
-	}
-
-	return state, srv
-}
-
-// testRemoteState is used to make a test HTTP server to return a given
-// state file that can be used for testing remote backend state.
-//
-// The return values are a *clistate.CLIState instance that should be written
-// as the "data state" (really: backend state) and the server that the
-// returned data state refers to.
-func testRemoteState(t *testing.T, s *states.State, c int) (*clistate.CLIState, *httptest.Server) {
-	t.Helper()
-
-	var b64md5 string
-	buf := bytes.NewBuffer(nil)
-
-	cb := func(resp http.ResponseWriter, req *http.Request) {
-		if req.Method == "PUT" {
-			resp.WriteHeader(c)
-			return
-		}
-		if s == nil {
-			resp.WriteHeader(404)
-			return
-		}
-
-		resp.Header().Set("Content-MD5", b64md5)
-		if _, err := resp.Write(buf.Bytes()); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	retState := clistate.NewState()
-
-	srv := httptest.NewServer(http.HandlerFunc(cb))
-	b := &clistate.BackendState{
-		Type: "http",
-	}
-	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
-		"address": cty.StringVal(srv.URL),
-	}), &configschema.Block{
-		Attributes: map[string]*configschema.Attribute{
-			"address": {
-				Type:     cty.String,
-				Required: true,
-			},
-		},
-	}); err != nil {
-		t.Fatal(err)
-	}
-	retState.Backend = b
-
-	if s != nil {
-		err := statefile.Write(&statefile.File{State: s}, buf, encryption.StateEncryptionDisabled())
-		if err != nil {
-			t.Fatalf("failed to write initial state: %v", err)
-		}
-	}
-
-	return retState, srv
-}
-
-// testLockState calls a separate process to the lock the state file at path.
-// deferFunc should be called in the caller to properly unlock the file.
-// Since many tests change the working directory, the sourceDir argument must be
-// supplied to locate the statelocker.go source.
-func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
-	// build and run the binary ourselves so we can quickly terminate it for cleanup
-	buildDir := t.TempDir()
-
-	source := filepath.Join(sourceDir, "statelocker.go")
-	lockBin := filepath.Join(buildDir, "statelocker")
-
-	if runtime.GOOS == "windows" {
-		lockBin = lockBin + ".exe"
-	}
-
-	cmd := exec.Command("go", "build", "-o", lockBin, source)
-
-	cmd.Dir = filepath.Dir(sourceDir)
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("%w %s", err, out)
-	}
-
-	locker := exec.Command(lockBin, path)
-	stdin, err := locker.StdinPipe()
-	if err != nil {
-		return nil, err
-	}
-	stdout, err := locker.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := locker.Start(); err != nil {
-		return nil, err
-	}
-
-	reader := bufio.NewReader(stdout)
-
-	// callback function to unlock the state file
-	cbFunc := func() {
-		stdin.Close()
-		stdout.Close()
-
-		_ = locker.Wait()
-
-		t.Logf("closed statelocker stdin and finished.")
-
-		// Trigger garbage collection to ensure that all open file handles are closed.
-		// This prevents TempDir RemoveAll cleanup errors on Windows.
-		if runtime.GOOS == "windows" {
-			runtime.GC()
-		}
-	}
-
-	// wait for the process to lock
-	buf, err := reader.ReadString('\n')
-	if err != nil {
-		return cbFunc, fmt.Errorf("read from statelocker returned: %w", err)
-	}
-
-	output := string(buf)
-	if !strings.HasPrefix(output, "LOCKID") {
-		return cbFunc, fmt.Errorf("statelocker wrote: %s", output)
-	}
-	t.Logf("statelocker locked %s", output)
-	return cbFunc, nil
-}
-
-// testCopyDir recursively copies a directory tree, attempting to preserve
-// permissions. Source directory must exist, destination directory may exist
-// but will be created if not; it should typically be a temporary directory,
-// and thus already created using os.MkdirTemp or similar.
-// Symlinks are ignored and skipped.
-func testCopyDir(t *testing.T, src, dst string) {
-	t.Helper()
-
-	src = filepath.Clean(src)
-	dst = filepath.Clean(dst)
-
-	si, err := os.Stat(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !si.IsDir() {
-		t.Fatal("source is not a directory")
-	}
-
-	_, err = os.Stat(dst)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatal(err)
-	}
-
-	err = os.MkdirAll(dst, si.Mode())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		// If the entry is a symlink, we copy the contents
-		for entry.Type()&os.ModeSymlink != 0 {
-			target, err := os.Readlink(srcPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			fi, err := os.Stat(target)
-			if err != nil {
-				t.Fatal(err)
-			}
-			entry = fs.FileInfoToDirEntry(fi)
-		}
-
-		if entry.IsDir() {
-			testCopyDir(t, srcPath, dstPath)
-		} else {
-			err = copy.CopyFile(srcPath, dstPath)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-
-	t.Cleanup(func() {
-		// Trigger garbage collection to ensure that all open file handles are closed.
-		// This prevents TempDir RemoveAll cleanup errors on Windows.
-		if runtime.GOOS == "windows" {
-			runtime.GC()
-		}
-	})
-}
-
-// normalizeJSON removes all insignificant whitespace from the given JSON buffer
-// and returns it as a string for easier comparison.
-func normalizeJSON(t *testing.T, src []byte) string {
-	t.Helper()
-	var buf bytes.Buffer
-	err := json.Compact(&buf, src)
-	if err != nil {
-		t.Fatalf("error normalizing JSON: %s", err)
-	}
-	return buf.String()
-}
-
-func mustResourceAddr(s string) addrs.ConfigResource {
-	addr, diags := addrs.ParseAbsResourceStr(s)
+	// Inject variables and root module call
+	var diags, callDiags tfdiags.Diagnostics
+	opReq.Variables, diags = m.collectVariableValues()
+	opReq.RootCall, callDiags = m.rootModuleCall(ctx, opReq.ConfigDir)
+	diags = diags.Append(callDiags)
 	if diags.HasErrors() {
-		panic(diags.Err())
-	}
-	return addr.Config()
-}
-
-// This map from provider type name to namespace is used by the fake registry
-// when called via LookupLegacyProvider. Providers not in this map will return
-// a 404 Not Found error.
-var legacyProviderNamespaces = map[string]string{
-	"foo": "hashicorp",
-	"bar": "hashicorp",
-	"baz": "terraform-providers",
-	"qux": "hashicorp",
-}
-
-// This map is used to mock the provider redirect feature.
-var movedProviderNamespaces = map[string]string{
-	"qux": "acme",
-}
-
-// testServices starts up a local HTTP server running a fake provider registry
-// service which responds only to discovery requests and legacy provider lookup
-// API calls.
-//
-// The final return value is a function to call at the end of a test function
-// to shut down the test server. After you call that function, the discovery
-// object becomes useless.
-func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
-	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
-
-	services = disco.New()
-	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
-		"providers.v1": server.URL + "/providers/v1/",
-	})
-
-	return services, func() {
-		server.Close()
-	}
-}
-
-// testRegistrySource is a wrapper around testServices that uses the created
-// discovery object to produce a Source instance that is ready to use with the
-// fake registry services.
-//
-// As with testServices, the final return value is a function to call at the end
-// of your test in order to shut down the test server.
-func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, cleanup func()) {
-	services, close := testServices(t)
-	source = getproviders.NewRegistrySource(t.Context(), services, nil, getproviders.LocationConfig{ProviderDownloadRetries: 0})
-	return source, close
-}
-
-func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
-	path := req.URL.EscapedPath()
-
-	write := func(data string) {
-		if _, err := resp.Write([]byte(data)); err != nil {
-			panic(err)
-		}
+		return nil, diags
 	}
 
-	if !strings.HasPrefix(path, "/providers/v1/") {
-		resp.WriteHeader(404)
-		write(`not a provider registry endpoint`)
-		return
-	}
-
-	pathParts := strings.Split(path, "/")[3:]
-
-	if len(pathParts) != 3 {
-		resp.WriteHeader(404)
-		write(`unrecognized path scheme`)
-		return
-	}
-
-	if pathParts[2] != "versions" {
-		resp.WriteHeader(404)
-		write(`this registry only supports legacy namespace lookup requests`)
-		return
-	}
-
-	name := pathParts[1]
-
-	// Legacy lookup
-	if pathParts[0] == "-" {
-		if namespace, ok := legacyProviderNamespaces[name]; ok {
-			resp.Header().Set("Content-Type", "application/json")
-			resp.WriteHeader(200)
-			if movedNamespace, ok := movedProviderNamespaces[name]; ok {
-				fmt.Fprintf(resp, `{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)
-			} else {
-				fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
-			}
-		} else {
-			resp.WriteHeader(404)
-			write(`provider not found`)
-		}
-		return
-	}
-
-	// Also return versions for redirect target
-	if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
-		resp.Header().Set("Content-Type", "application/json")
-		resp.WriteHeader(200)
-		fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
-	} else {
-		resp.WriteHeader(404)
-		write(`provider not found`)
-	}
-}
-
-func testView(t *testing.T) (*views.View, func(*testing.T) *terminal.TestOutput) {
-	streams, done := terminal.StreamsForTesting(t)
-	return views.NewView(streams), done
-}
-
-// checkGoldenReference compares the given test output with a known "golden" output log
-// located under the specified fixture path.
-//
-// If any of these tests fail, please communicate with Terraform Cloud folks before resolving,
-// as changes to UI output may also affect the behavior of Terraform Cloud's structured run output.
-func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePathName string) {
-	t.Helper()
-
-	// Load the golden reference fixture
-	wantFile, err := os.Open(path.Join(testFixturePath(fixturePathName), "output.jsonlog"))
+	op, err := b.Operation(ctx, opReq)
 	if err != nil {
-		t.Fatalf("failed to open output file: %s", err)
-	}
-	defer wantFile.Close()
-	wantBytes, err := io.ReadAll(wantFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %s", err)
-	}
-	want := string(wantBytes)
-
-	got := output.Stdout()
-
-	// Split the output and the reference into lines so that we can compare
-	// messages
-	got = strings.TrimSuffix(got, "\n")
-	gotLines := strings.Split(got, "\n")
-
-	want = strings.TrimSuffix(want, "\n")
-	wantLines := strings.Split(want, "\n")
-
-	if len(gotLines) != len(wantLines) {
-		t.Errorf("unexpected number of log lines: got %d, want %d\n"+
-			"NOTE: This failure may indicate a UI change affecting the behavior of structured run output on TFC.\n"+
-			"Please communicate with Terraform Cloud team before resolving", len(gotLines), len(wantLines))
+		return nil, diags.Append(fmt.Errorf("error starting operation: %w", err))
 	}
 
-	// Verify that the log starts with a version message
-	type versionMessage struct {
-		Level    string `json:"@level"`
-		Message  string `json:"@message"`
-		Type     string `json:"type"`
-		OpenTofu string `json:"tofu"`
-		UI       string `json:"ui"`
-	}
-	var gotVersion versionMessage
-	if err := json.Unmarshal([]byte(gotLines[0]), &gotVersion); err != nil {
-		t.Errorf("failed to unmarshal version line: %s\n%s", err, gotLines[0])
-	}
-	wantVersion := versionMessage{
-		"info",
-		fmt.Sprintf("OpenTofu %s", version.String()),
-		"version",
-		version.String(),
-		views.JSON_UI_VERSION,
-	}
-	if !cmp.Equal(wantVersion, gotVersion) {
-		t.Errorf("unexpected first message:\n%s", cmp.Diff(wantVersion, gotVersion))
-	}
+	// Wait for the operation to complete or an interrupt to occur
+	select {
+	case <-m.ShutdownCh:
+		// gracefully stop the operation
+		op.Stop()
 
-	// Compare the rest of the lines against the golden reference
-	var gotLineMaps []map[string]interface{}
-	for i, line := range gotLines[1:] {
-		index := i + 1
-		var gotMap map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &gotMap); err != nil {
-			t.Errorf("failed to unmarshal got line %d: %s\n%s", index, err, gotLines[index])
-		}
-		if _, ok := gotMap["@timestamp"]; !ok {
-			t.Errorf("missing @timestamp field in log: %s", gotLines[index])
-		}
-		gotMap = deleteMapField(gotMap, "hook", "elapsed_seconds")
-		delete(gotMap, "@timestamp")
-		gotLineMaps = append(gotLineMaps, gotMap)
-	}
+		// Notify the user
+		opReq.View.Interrupted()
 
-	var wantLineMaps []map[string]interface{}
-	for i, line := range wantLines[1:] {
-		index := i + 1
-		var wantMap map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
-			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
-		}
-		wantMap = deleteMapField(wantMap, "hook", "elapsed_seconds")
-		wantLineMaps = append(wantLineMaps, wantMap)
-	}
-
-	if diff := cmp.Diff(wantLineMaps, gotLineMaps); diff != "" {
-		t.Errorf("wrong output lines\n%s\n"+
-			"NOTE: This failure may indicate a UI change affecting the behavior of structured run output on TFC.\n"+
-			"Please communicate with Terraform Cloud team before resolving", diff)
-	}
-}
-
-func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
-	rootMap, ok := fieldMap[rootField].(map[string]interface{})
-	if !ok {
-		return fieldMap
-	}
-
-	delete(rootMap, field)
-	return rootMap
-}
-
-// testHangServer starts a local HTTP server that accepts incoming requests
-// but then intentionally leaves the connection hanging without responding,
-// writing the request to the returned channel so that the caller can then
-// trigger some mechanism for cancelling that hung request.
-//
-// This is intended for testing anything that needs to be able to cancel
-// slow requests to remote HTTP servers, so that the test can be sure that
-// the request definitely will be "slow enough" that cancellation is
-// definitely the only way the request could've halted.
-//
-// The returned server is automatically closed when the calling test
-// is complete, but the caller is also allowed to optionally call Close
-// directly itself. Note that the Close method alone will not close
-// any active requests, but testHangServer guarantees that it will
-// eventually terminate active requests once the calling test is
-// complete.
-func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Request) {
-	t.Helper()
-
-	// We'll use this channel to signal any active requests to terminate
-	// during test cleanup, so that the active requests can't remain
-	// running indefinitely.
-	cleanupCh := make(chan struct{})
-
-	// This channel is how we'll notify the caller when we get a request.
-	// This has a buffer so that in the assumed-typical case where the
-	// test server will only start serving a few requests before they
-	// get cancelled the server's handler can be decoupled from the
-	// channel reads in the caller.
-	reqsCh := make(chan *http.Request, 8)
-
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		// We intentionally don't take any action on this request until
-		// the test cleanup function runs, but we will notify our
-		// caller that the request was started.
-		//
-		// We'll also accept getting told to clean up before the
-		// channel write succeeds just in case the calling test exits
-		// before it reads from reqsCh.
+		// Still get the result, since there is still one
 		select {
-		case reqsCh <- req:
-		case <-cleanupCh:
-		}
-		// If we managed to send req to reqsCh above then we still
-		// need to wait for cleanupCh to close. The following is
-		// no-op if the channel is already closed.
-		<-cleanupCh
-		// If any client is still connected by the time we get here then
-		// we'll respond quickly just to get their connection closed.
-		// This is unlikely but could potentially happen if a new client
-		// connects in the narrow time window between us closing the
-		// existing client connections and fully closing the server,
-		// after cleanupCh is already closed: in that case the new client
-		// will get a 500 Internal Server Error response immediately.
-		w.WriteHeader(500)
-	}))
-	t.Logf("testHangServer is running at %s", server.URL)
+		case <-m.ShutdownCh:
+			opReq.View.FatalInterrupt()
 
-	t.Cleanup(func() {
-		t.Helper()
-		t.Log("shutting down testHangServer")
-		close(cleanupCh)                // terminate any active handlers
-		close(reqsCh)                   // unblock any test that's awaiting a request notification
-		server.CloseClientConnections() // force any active clients to disconnect
-		server.Close()                  // stop accepting new requests and wait for existing ones to stop
-	})
-	return server, reqsCh
+			// cancel the operation completely
+			op.Cancel()
+
+			// the operation should return asap
+			// but timeout just in case
+			select {
+			case <-op.Done():
+			case <-time.After(5 * time.Second):
+			}
+
+			return nil, diags.Append(errors.New("operation canceled"))
+
+		case <-op.Done():
+			// operation completed after Stop
+		}
+	case <-op.Done():
+		// operation completed normally
+	}
+
+	return op, diags
+}
+
+// contextOpts returns the options to use to initialize a OpenTofu
+// context with the settings from this Meta.
+func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
+	workspace, err := m.Workspace(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var opts tofu.ContextOpts
+
+	opts.UIInput = m.UIInput()
+	opts.Parallelism = m.parallelism
+
+	// If testingOverrides are set, we'll skip the plugin discovery process
+	// and just work with what we've been given, thus allowing the tests
+	// to provide mock providers and provisioners.
+	if m.testingOverrides != nil {
+		opts.Plugins = plugins.NewLibrary(
+			m.testingOverrides.Providers,
+			m.testingOverrides.Provisioners,
+		)
+	} else {
+		var providerFactories map[addrs.Provider]providers.Factory
+		providerFactories, err = m.providerFactories()
+		opts.Plugins = plugins.NewLibrary(
+			providerFactories,
+			m.provisionerFactories(),
+		)
+	}
+
+	opts.Meta = &tofu.ContextMeta{
+		Env:                workspace,
+		OriginalWorkingDir: m.WorkingDir.OriginalWorkingDir(),
+	}
+
+	return &opts, err
+}
+
+// defaultFlagSet creates a default flag set for commands.
+// See also command/arguments/default.go
+func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
+	f := flag.NewFlagSet(n, flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+
+	// Set the default Usage to empty
+	f.Usage = func() {}
+
+	return f
+}
+
+// ignoreRemoteVersionFlagSet add the ignore-remote version flag to suppress
+// the error when the configured OpenTofu version on the remote workspace
+// does not match the local OpenTofu version.
+func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
+	f := m.defaultFlagSet(n)
+
+	m.varFlagSet(f)
+
+	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
+
+	return f
+}
+
+func (m *Meta) varFlagSet(f *flag.FlagSet) {
+	if m.variableArgs.Items == nil {
+		m.variableArgs = flags.NewRawFlags("-var")
+	}
+	varValues := m.variableArgs.Alias("-var")
+	varFiles := m.variableArgs.Alias("-var-file")
+	f.Var(varValues, "var", "variables")
+	f.Var(varFiles, "var-file", "variable file")
+}
+
+// extendedFlagSet adds custom flags that are mostly used by commands
+// that are used to run an operation like plan or apply.
+func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
+	f := m.defaultFlagSet(n)
+
+	f.BoolVar(&m.input, "input", true, "input")
+	f.Var((*flags.FlagStringSlice)(&m.targetFlags), "target", "resource to target")
+	f.Var((*flags.FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
+	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
+	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
+	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
+
+	m.varFlagSet(f)
+
+	// commands that bypass locking will supply their own flag on this var,
+	// but set the initial meta value to true as a failsafe.
+	m.stateLock = true
+
+	return f
+}
+
+// process will process any -no-color entries out of the arguments. This
+// will potentially modify the args in-place. It will return the resulting
+// slice, and update the Meta and Ui.
+func (m *Meta) process(args []string) []string {
+	// We do this so that we retain the ability to technically call
+	// process multiple times, even if we have no plans to do so
+	if m.oldUi != nil {
+		m.Ui = m.oldUi
+	}
+
+	// Set colorization
+	m.color = m.Color
+	i := 0 // output index
+	for _, v := range args {
+		if v == "-no-color" {
+			m.color = false
+			m.Color = false
+		} else {
+			// copy and increment index
+			args[i] = v
+			i++
+		}
+	}
+	args = args[:i]
+
+	// Set the UI
+	m.oldUi = m.Ui
+	m.Ui = &cli.ConcurrentUi{
+		Ui: &ColorizeUi{
+			Colorize:   m.Colorize(),
+			ErrorColor: "[red]",
+			WarnColor:  "[yellow]",
+			Ui:         m.oldUi,
+		},
+	}
+
+	// Reconfigure the view. This is necessary for commands which use both
+	// views.View and cli.Ui during the migration phase.
+	if m.View != nil {
+		m.View.Configure(&arguments.View{
+			CompactWarnings:     m.compactWarnings,
+			ConsolidateWarnings: m.consolidateWarnings,
+			ConsolidateErrors:   m.consolidateErrors,
+			NoColor:             !m.Color,
+		})
+	}
+
+	return args
+}
+
+// configureUiFromView is a shim method between now and the moment when
+// the remote backend and cloud package use the new View abstraction.
+// This method does several things:
+//   - creates a new [NewBasicUI] if [Meta.Ui] is nil (needed for testing, see below)
+//   - wraps the existing [Meta.Ui] into a new layer that uses the [views.View]
+//     to print information and the existing [Meta.Ui] to ask for use input
+func (m *Meta) configureUiFromView(options arguments.ViewOptions) {
+	// We do this so that we retain the ability to technically call
+	// process multiple times, even if we have no plans to do so
+	if m.oldUi != nil {
+		m.Ui = m.oldUi
+	}
+	// This is a workaround to be able to get rid of the [Meta.Ui] slow and steady.
+	// For the moment, this builds the Ui in the same way it's built in the main.go, but we want
+	// it added here to remove the requirement of having the Ui initialised during tests.
+	// The highlight here is that the "printing" is done through the [Meta.View] and
+	// this Ui instance is used only to ask for user input.
+	// Therefore, tests can initialise only the View and check the output from there.
+	if m.Ui == nil {
+		m.Ui = NewBasicUI()
+	}
+
+	// Backup the current Ui to be used later
+	m.oldUi = m.Ui
+
+	// Createa new ViewUi that wraps the View for printing and oldUi for user input
+	m.Ui = &cli.ConcurrentUi{
+		Ui: views.NewViewUI(options, m.View, m.oldUi),
+	}
+	// compared with Meta.process, this method does not configure the Meta.View, since that is the
+	// responsibility of the caller of this method.
+}
+
+// uiHook returns the UiHook to use with the context.
+func (m *Meta) uiHook() *views.UiHook {
+	return views.NewUiHook(m.View)
+}
+
+// confirm asks a yes/no confirmation.
+func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
+	if !m.Input() {
+		return false, errors.New("input is disabled")
+	}
+
+	for i := 0; i < 2; i++ {
+		v, err := m.UIInput().Input(context.Background(), opts)
+		if err != nil {
+			return false, fmt.Errorf(
+				"Error asking for confirmation: %w", err)
+		}
+
+		switch strings.ToLower(v) {
+		case "no":
+			return false, nil
+		case "yes":
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// showDiagnostics displays error and warning messages in the UI.
+//
+// "Diagnostics" here means the Diagnostics type from the tfdiag package,
+// though as a convenience this function accepts anything that could be
+// passed to the "Append" method on that type, converting it to Diagnostics
+// before displaying it.
+//
+// Internally this function uses Diagnostics.Append, and so it will panic
+// if given unsupported value types, just as Append does.
+func (m *Meta) showDiagnostics(vals ...interface{}) {
+
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(vals...)
+	diags.Sort()
+
+	if len(diags) == 0 {
+		return
+	}
+
+	outputWidth := m.ErrorColumns()
+
+	if m.consolidateWarnings {
+		diags = diags.Consolidate(1, tfdiags.Warning)
+	}
+	if m.consolidateErrors {
+		diags = diags.Consolidate(1, tfdiags.Error)
+	}
+
+	// Since warning messages are generally competing
+	if m.compactWarnings {
+		// If the user selected compact warnings and all of the diagnostics are
+		// warnings then we'll use a more compact representation of the warnings
+		// that only includes their summaries.
+		// We show full warnings if there are also errors, because a warning
+		// can sometimes serve as good context for a subsequent error.
+		useCompact := true
+		for _, diag := range diags {
+			if diag.Severity() != tfdiags.Warning {
+				useCompact = false
+				break
+			}
+		}
+		if useCompact {
+			msg := format.DiagnosticWarningsCompact(diags, m.Colorize())
+			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
+			m.Ui.Warn(msg)
+			return
+		}
+	}
+
+	for _, diag := range diags {
+		var msg string
+		if m.Color {
+			msg = format.Diagnostic(diag, m.configSources(), m.Colorize(), outputWidth)
+		} else {
+			msg = format.DiagnosticPlain(diag, m.configSources(), outputWidth)
+		}
+
+		switch diag.Severity() {
+		case tfdiags.Error:
+			m.Ui.Error(msg)
+		case tfdiags.Warning:
+			m.Ui.Warn(msg)
+		default:
+			m.Ui.Output(msg)
+		}
+	}
+}
+
+// WorkspaceNameEnvVar is the name of the environment variable that can be used
+// to set the name of the OpenTofu workspace, overriding the workspace chosen
+// by `tofu workspace select`.
+//
+// Note that this environment variable is ignored by `tofu workspace new`
+// and `tofu workspace delete`.
+const WorkspaceNameEnvVar = "TF_WORKSPACE"
+
+var errInvalidWorkspaceNameEnvVar = fmt.Errorf("Invalid workspace name set using %s", WorkspaceNameEnvVar)
+
+// Workspace returns the name of the currently configured workspace, corresponding
+// to the desired named state.
+func (m *Meta) Workspace(ctx context.Context) (string, error) {
+	current, overridden := m.WorkspaceOverridden(ctx)
+	if overridden && !validWorkspaceName(current) {
+		return "", errInvalidWorkspaceNameEnvVar
+	}
+	return current, nil
+}
+
+// WorkspaceOverridden returns the name of the currently configured workspace,
+// corresponding to the desired named state, as well as a bool saying whether
+// this was set via the TF_WORKSPACE environment variable.
+func (m *Meta) WorkspaceOverridden(_ context.Context) (string, bool) {
+	if envVar := os.Getenv(WorkspaceNameEnvVar); envVar != "" {
+		return envVar, true
+	}
+
+	envData, err := os.ReadFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile))
+	current := string(bytes.TrimSpace(envData))
+	if current == "" {
+		current = backend.DefaultStateName
+	}
+
+	if err != nil && !os.IsNotExist(err) {
+		// always return the default if we can't get a workspace name
+		log.Printf("[ERROR] failed to read current workspace: %s", err)
+	}
+
+	return current, false
+}
+
+// SetWorkspace saves the given name as the current workspace in the local
+// filesystem.
+func (m *Meta) SetWorkspace(name string) error {
+	err := os.MkdirAll(m.WorkingDir.DataDir(), 0755)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filepath.Join(m.WorkingDir.DataDir(), local.DefaultWorkspaceFile), []byte(name), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// isAutoVarFile determines if the file ends with .auto.tfvars or .auto.tfvars.json
+func isAutoVarFile(path string) bool {
+	return strings.HasSuffix(path, ".auto.tfvars") ||
+		strings.HasSuffix(path, ".auto.tfvars.json")
+}
+
+// FIXME: as an interim refactoring step, we apply the contents of the state
+// arguments directly to the Meta object. Future work would ideally update the
+// code paths which use these arguments to be passed them directly for clarity.
+func (m *Meta) applyStateArguments(args *arguments.State) {
+	m.stateLock = args.Lock
+	m.stateLockTimeout = args.LockTimeout
+	m.statePath = args.StatePath
+	m.stateOutPath = args.StateOutPath
+	m.backupPath = args.BackupPath
+}
+
+// checkRequiredVersion loads the config and check if the
+// core version requirements are satisfied.
+func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	loader, err := m.initConfigLoader()
+	if err != nil {
+		diags = diags.Append(err)
+		return diags
+	}
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		diags = diags.Append(fmt.Errorf("Error getting pwd: %w", err))
+		return diags
+	}
+
+	call, callDiags := m.rootModuleCall(ctx, pwd)
+	if callDiags.HasErrors() {
+		diags = diags.Append(callDiags)
+		return diags
+	}
+
+	config, configDiags := loader.LoadConfig(ctx, pwd, call)
+	if configDiags.HasErrors() {
+		diags = diags.Append(configDiags)
+		return diags
+	}
+
+	versionDiags := tofu.CheckCoreVersionRequirements(config)
+	if versionDiags.HasErrors() {
+		diags = diags.Append(versionDiags)
+		return diags
+	}
+
+	return nil
+}
+
+// MaybeGetSchemas attempts to load and return the schemas
+// If there is not enough information to return the schemas,
+// it could potentially return nil without errors. It is the
+// responsibility of the caller to handle the lack of schema
+// information accordingly
+func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	path, err := os.Getwd()
+	if err != nil {
+		diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
+		return nil, diags
+	}
+
+	if config == nil {
+		config, diags = c.loadConfig(ctx, path)
+		if diags.HasErrors() {
+			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
+			return nil, diags
+		}
+	}
+
+	if config != nil || state != nil {
+		opts, err := c.contextOpts(ctx)
+		if err != nil {
+			diags = diags.Append(err)
+			return nil, diags
+		}
+		tfCtx, ctxDiags := tofu.NewContext(opts)
+		diags = diags.Append(ctxDiags)
+		if ctxDiags.HasErrors() {
+			return nil, diags
+		}
+		var schemaDiags tfdiags.Diagnostics
+		schemas, schemaDiags := tfCtx.Schemas(ctx, config, state)
+		diags = diags.Append(schemaDiags)
+		if schemaDiags.HasErrors() {
+			return nil, diags
+		}
+		return schemas, diags
+
+	}
+	return nil, diags
 }
