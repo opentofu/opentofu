@@ -66,7 +66,7 @@ func TestReadState_InvalidJSON(t *testing.T) {
 }
 
 func TestReadState_MissingVersion(t *testing.T) {
-	reader := strings.NewReader(`{"serial": 1, "lineage": "test"}`)
+	reader := strings.NewReader(`{}`)
 	_, err := ReadState(reader)
 	if err == nil {
 		t.Fatal("expected error for missing version, got nil")
