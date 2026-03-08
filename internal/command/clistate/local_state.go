@@ -42,10 +42,9 @@ type LocalState struct {
 	// hurt to remove file we never wrote to.
 	created bool
 
-	mu        sync.Mutex
-	state     *CLIState
-	readState *CLIState
-	written   bool
+	mu      sync.Mutex
+	state   *CLIState
+	written bool
 }
 
 // SetState will force a specific state in-memory for this local state.
@@ -54,7 +53,6 @@ func (s *LocalState) SetState(state *CLIState) {
 	defer s.mu.Unlock()
 
 	s.state = state.DeepCopy()
-	s.readState = state.DeepCopy()
 }
 
 // StateReader impl.
@@ -170,7 +168,6 @@ func (s *LocalState) RefreshState(_ context.Context) error {
 	}
 
 	s.state = state
-	s.readState = s.state.DeepCopy()
 	return nil
 }
 

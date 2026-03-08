@@ -560,10 +560,7 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 // This function handles various edge cases around backend config loading. For
 // example: new config changes, backend type changes, etc.
 //
-// As of the 0.12 release it can no longer migrate from legacy remote state
-// to backends, and will instead instruct users to use 0.11 or earlier as
-// a stepping-stone to do that migration.
-//
+// Legacy remote state is no longer supported.
 // This function may query the user for input unless input is disabled, in
 // which case this function will error.
 func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
@@ -580,19 +577,15 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 
 	// ------------------------------------------------------------------------
 	// For historical reasons, current backend configuration for a working
-	// directory is kept in a *state-like* file, using the legacy state
-	// structures in the OpenTofu package. It is not actually a OpenTofu
-	// state, and so only the "backend" portion of it is actually used.
+	// directory is kept in a *state-like* file using clistate.CLIState.
+	// It is not actually an OpenTofu resource state, and so only the
+	// "backend" portion of it is actually used.
 	//
 	// The remainder of this code often confusingly refers to this as a "state",
 	// so it's unfortunately important to remember that this is not actually
 	// what we _usually_ think of as "state", and is instead a local working
-	// directory "backend configuration state" that is never persisted anywhere.
-	//
-	// Since the "real" state has since moved on to be represented by
-	// states.State, we can recognize the special meaning of state that applies
-	// to this function and its callees by their continued use of the
-	// otherwise-obsolete tofu.State.
+	// directory "backend configuration state" that is never persisted anywhere
+	// except the .terraform directory.
 	// ------------------------------------------------------------------------
 
 	// Get the path to where we store a local cache of backend configuration
@@ -613,7 +606,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	} else if s.Backend != nil {
 		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
 	} else {
-		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend (is using legacy remote state?)")
+		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend configuration")
 	}
 
 	// if we want to force reconfiguration of the backend, we set the backend
@@ -829,7 +822,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	}
 	if s.Backend == nil {
 		// s.Backend is nil, so return a local backend
-		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend (is using legacy remote state?)")
+		log.Printf("[TRACE] Meta.Backend: working directory was previously initialized but has no backend configuration")
 		return backendLocal.New(enc), diags
 	}
 	log.Printf("[TRACE] Meta.Backend: working directory was previously initialized for %q backend", s.Backend.Type)
