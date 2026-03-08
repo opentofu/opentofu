@@ -38,9 +38,6 @@ type CLIState struct {
 	mu sync.Mutex
 }
 
-func (s *CLIState) Lock()   { s.mu.Lock() }
-func (s *CLIState) Unlock() { s.mu.Unlock() }
-
 func NewState() *CLIState {
 	s := &CLIState{}
 	s.init()
@@ -48,8 +45,8 @@ func NewState() *CLIState {
 }
 
 func (s *CLIState) Init() {
-	s.Lock()
-	defer s.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.init()
 }
 

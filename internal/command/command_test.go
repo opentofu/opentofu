@@ -35,7 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	clistate "github.com/opentofu/opentofu/internal/command/clistate"
+	"github.com/opentofu/opentofu/internal/command/clistate"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs"
