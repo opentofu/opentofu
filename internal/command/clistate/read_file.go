@@ -157,7 +157,7 @@ func ReadState(src io.Reader) (*CLIState, error) {
 		return nil, fmt.Errorf("decoding CLI state file failed: %w", err)
 	}
 
-	// Ensure the legacy version is set consistently
+	// Ensure the version is set consistently
 	st.Version = StateVersion
 	return st, nil
 }
