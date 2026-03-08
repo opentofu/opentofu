@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -76,13 +77,28 @@ func TestReadState_MissingVersion(t *testing.T) {
 }
 
 func TestReadState_UnsupportedVersion(t *testing.T) {
-	reader := strings.NewReader(`{"version": 999, "serial": 1, "lineage": "test"}`)
-	_, err := ReadState(reader)
-	if err == nil {
-		t.Fatal("expected error for unsupported version, got nil")
+	tests := []struct {
+		name    string
+		version int
+	}{
+		{"state file v1", 1},
+		{"state file v2", 2},
+		{"state file v4", 4},
+		{"future version", 10},
 	}
-	if !strings.Contains(err.Error(), "does not support state version 999") {
-		t.Errorf("unexpected error message: %v", err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`{"version": %d}`, tt.version)
+			_, err := ReadState(strings.NewReader(input))
+			if err == nil {
+				t.Fatalf("expected error for version %d, got nil", tt.version)
+			}
+			want := fmt.Sprintf("does not support state version %d", tt.version)
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("got error %q, want substring %q", err.Error(), want)
+			}
+		})
 	}
 }
 
@@ -180,7 +196,6 @@ func TestCLIState_DeepCopy_Nil(t *testing.T) {
 		t.Errorf("expected nil for DeepCopy of nil, got %T", copied)
 	}
 }
-
 
 func TestBackendState_Empty(t *testing.T) {
 	tests := []struct {
@@ -324,6 +339,10 @@ func TestReadWriteRoundTrip(t *testing.T) {
 	result, err := ReadState(buf)
 	if err != nil {
 		t.Fatalf("ReadState failed: %v", err)
+	}
+
+	if result.Version != StateVersion {
+		t.Errorf("version mismatch: got %d, want %d", result.Version, StateVersion)
 	}
 
 	if result.Backend == nil || result.Backend.Type != "s3" {
