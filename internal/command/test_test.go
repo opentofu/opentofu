@@ -1705,7 +1705,16 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expected: "2 passed, 0 failed.",
 			code:     0,
 		},
+		"module_1": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
 	}
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
 			tftestHCLDir := fmt.Sprintf("override_instance_%s", name)
@@ -1726,12 +1735,26 @@ func TestTest_InstanceOverride(t *testing.T) {
 			// testing.
 			provider.Provider.ConfigureProviderCalled = true
 
+			meta := Meta{
+				WorkingDir:       workdir.NewDir("."),
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				View:             view,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			initCode := init.Run(nil)
+
+			if initCode != 0 {
+				initOutput := done(t)
+				t.Fatalf("expected status code 0 but got %d: %s", initCode, initOutput.Stderr())
+			}
+
 			c := &TestCommand{
-				Meta: Meta{
-					WorkingDir:       workdir.NewDir("."),
-					testingOverrides: metaOverridesForProvider(provider.Provider),
-					View:             view,
-				},
+				Meta: meta,
 			}
 
 			code := c.Run(nil)
