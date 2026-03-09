@@ -30,6 +30,9 @@ type State interface {
 	ResourceMoveStatus(dryRun bool, src, dest string)
 	DryRunMovedStatus(moved int)
 	MoveFinalStatus(moved int)
+
+	// `tofu state pull` specific
+	PrintPulledState(state string)
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -108,6 +111,12 @@ func (m StateMulti) MoveFinalStatus(moved int) {
 	}
 }
 
+func (m StateMulti) PrintPulledState(state string) {
+	for _, o := range m {
+		o.PrintPulledState(state)
+	}
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -158,6 +167,10 @@ func (v *StateHuman) MoveFinalStatus(moved int) {
 		return
 	}
 	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully moved %d object(s).", moved))
+}
+
+func (v *StateHuman) PrintPulledState(state string) {
+	_, _ = v.view.streams.Println(state)
 }
 
 type StateJSON struct {
@@ -234,6 +247,10 @@ func (v *StateJSON) MoveFinalStatus(moved int) {
 		return
 	}
 	v.view.Info(fmt.Sprintf("Successfully moved %d object(s)", moved))
+}
+
+func (v *StateJSON) PrintPulledState(_ string) {
+	v.view.Error("printing the pulled state is not available in the JSON view. The `tofu state pull` should not be configured with the `-json` flag")
 }
 
 const errStateLoadingState = `Error loading the state: %[1]s

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 )
 
@@ -27,21 +26,23 @@ func TestStatePull(t *testing.T) {
 	}
 
 	p := testProvider()
-	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
+			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.All())
 	}
 
-	actual := ui.OutputWriter.Bytes()
+	actual := []byte(output.Stdout())
 	if bytes.Equal(actual, expected) {
 		t.Fatalf("expected:\n%s\n\nto include: %q", actual, expected)
 	}
@@ -51,21 +52,23 @@ func TestStatePull_noState(t *testing.T) {
 	testCwdTemp(t)
 
 	p := testProvider()
-	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
+			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.All())
 	}
 
-	actual := ui.OutputWriter.String()
+	actual := output.Stdout()
 	if actual != "" {
 		t.Fatalf("bad: %s", actual)
 	}
@@ -78,22 +81,24 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 	t.Chdir(td)
 
 	p := testProvider()
-	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
+			View:             view,
 		},
 	}
 
 	args := []string{}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}
