@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/flags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -25,111 +26,125 @@ type StateRmCommand struct {
 	StateMeta
 }
 
-func (c *StateRmCommand) Run(args []string) int {
+func (c *StateRmCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
-	args = c.Meta.process(args)
-	var dryRun bool
-	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state rm")
-	cmdFlags.BoolVar(&dryRun, "dry-run", false, "dry run")
-	cmdFlags.StringVar(&c.backupPath, "backup", "-", "backup")
-	cmdFlags.BoolVar(&c.Meta.stateLock, "lock", true, "lock state")
-	cmdFlags.DurationVar(&c.Meta.stateLockTimeout, "lock-timeout", 0, "lock timeout")
-	cmdFlags.StringVar(&c.statePath, "state", "", "path")
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
-	}
 
-	args = cmdFlags.Args()
-	if len(args) < 1 {
-		c.Ui.Error("At least one address is required.\n")
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	// We need this down the road for the confirmation
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseStateRm(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewState(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		if args.ViewOptions.ViewType == arguments.ViewJSON {
+			return 1 // We don't want to print the help of the command in JSON view
+		}
 		return cli.RunResultHelp
 	}
+	// TODO meta-refactor: remove these assignments once we have a clear way to propagate these to the logic
+	//  that uses them
+	c.GatherVariables(args.Vars)
+	c.ignoreRemoteVersion = args.Backend.IgnoreRemoteVersion
+	c.backupPath = args.BackupPath
+	c.stateLock = args.Backend.StateLock
+	c.stateLockTimeout = args.Backend.StateLockTimeout
+	c.statePath = args.StatePath
 
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Get the state
 	stateMgr, err := c.State(ctx, enc)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 
 	if c.stateLock {
-		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewOptions{ViewType: arguments.ViewHuman}, c.View))
+		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(args.ViewOptions, c.View))
 		if diags := stateLocker.Lock(stateMgr, "state-rm"); diags.HasErrors() {
-			c.showDiagnostics(diags)
+			view.Diagnostics(diags)
 			return 1
 		}
 		defer func() {
 			if diags := stateLocker.Unlock(); diags.HasErrors() {
-				c.showDiagnostics(diags)
+				view.Diagnostics(diags)
 			}
 		}()
 	}
 
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh state: %s", err)))
 		return 1
 	}
 
 	state := stateMgr.State()
 	if state == nil {
-		c.Ui.Error(errStateNotFound)
+		view.StateNotFound()
 		return 1
 	}
 
 	// This command primarily works with resource instances, though it will
 	// also clean up any modules and resources left empty by actions it takes.
-	var addrs []addrs.AbsResourceInstance
-	var diags tfdiags.Diagnostics
-	for _, addrStr := range args {
+	var resAddrs []addrs.AbsResourceInstance
+	for _, addrStr := range args.TargetAddrs {
 		moreAddrs, moreDiags := c.lookupResourceInstanceAddr(state, true, addrStr)
-		addrs = append(addrs, moreAddrs...)
+		resAddrs = append(resAddrs, moreAddrs...)
 		diags = diags.Append(moreDiags)
 	}
 	if diags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
-	}
-
-	prefix := "Removed "
-	if dryRun {
-		prefix = "Would remove "
 	}
 
 	var isCount int
 	ss := state.SyncWrapper()
-	for _, addr := range addrs {
+	for _, addr := range resAddrs {
 		isCount++
-		c.Ui.Output(prefix + addr.String())
-		if !dryRun {
+		view.ResourceRemoveStatus(args.DryRun, addr.String())
+		if !args.DryRun {
 			ss.ForgetResourceInstanceAll(addr)
 			ss.RemoveResourceIfEmpty(addr.ContainingResource())
 		}
 	}
 
-	if dryRun {
-		if isCount == 0 {
-			c.Ui.Output("Would have removed nothing.")
-		}
+	if args.DryRun {
+		view.DryRunRemovedStatus(isCount)
 		return 0 // This is as far as we go in dry-run mode
 	}
 
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -142,16 +157,16 @@ func (c *StateRmCommand) Run(args []string) int {
 	}
 
 	if err := stateMgr.WriteState(state); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
+		view.StateSavingError(err.Error())
 		return 1
 	}
 
 	if len(diags) > 0 && isCount != 0 {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 	}
 
 	if isCount == 0 {
@@ -160,11 +175,11 @@ func (c *StateRmCommand) Run(args []string) int {
 			"Invalid target address",
 			"No matching objects found. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
 		))
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully removed %d resource instance(s).", isCount))
+	view.RemoveFinalStatus(isCount)
 	return 0
 }
 
@@ -215,12 +230,39 @@ Options:
                           Use this option more than once to include more than one
                           variables file.
 
+  -json                   Produce output in a machine-readable JSON format, 
+                          suitable for use in text editor integrations and other 
+                          automated systems. Always disables color.
+
+  -json-into=out.json     Produce the same output as -json, but sent directly
+                          to the given file. This allows automation to preserve
+                          the original human-readable output streams, while
+                          capturing more detailed logs for machine analysis.
+
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *StateRmCommand) Synopsis() string {
 	return "Remove instances from the state"
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *StateRmCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 // TODO meta-refactor: remove this once we migrated all `state` commands to the view abstraction
