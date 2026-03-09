@@ -55,7 +55,7 @@ func TestCompliance(t *testing.T) {
 							return fmt.Errorf("invalid passphrase after HCL parsing")
 						}
 						if keyProvider.Passphrase != "Hello world! 123" {
-							return fmt.Errorf("invalid passphrase in key provideer")
+							return fmt.Errorf("invalid passphrase in key provider")
 						}
 						return nil
 					},
@@ -83,10 +83,10 @@ func TestCompliance(t *testing.T) {
 							return fmt.Errorf("no chain after parsing")
 						}
 						if len(config.Chain.EncryptionKey) != 16 {
-							return fmt.Errorf("tncorrect encryption key length")
+							return fmt.Errorf("incorrect encryption key length")
 						}
 						if !bytes.Equal(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
-							return fmt.Errorf("tncorrect encryption key")
+							return fmt.Errorf("incorrect encryption key")
 						}
 						return nil
 					},
@@ -186,7 +186,7 @@ func TestCompliance(t *testing.T) {
 							return fmt.Errorf("invalid passphrase after HCL parsing")
 						}
 						if keyProvider.Passphrase != "Hello world! 123" {
-							return fmt.Errorf("invalid passphrase in key provideer")
+							return fmt.Errorf("invalid passphrase in key provider")
 						}
 						return nil
 					},
@@ -226,10 +226,10 @@ func TestCompliance(t *testing.T) {
 							return fmt.Errorf("no chain after parsing")
 						}
 						if len(config.Chain.EncryptionKey) != 16 {
-							return fmt.Errorf("tncorrect encryption key length")
+							return fmt.Errorf("incorrect encryption key length")
 						}
 						if !bytes.Equal(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
-							return fmt.Errorf("tncorrect encryption key")
+							return fmt.Errorf("incorrect encryption key")
 						}
 						return nil
 					},

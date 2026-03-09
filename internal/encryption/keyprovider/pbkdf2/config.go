@@ -307,7 +307,7 @@ func extractChainTraversal(body hcl.Body) (hcl.Traversal, hcl.Body, *hcl.Attribu
 	}
 
 	// Step #2: If we are here, then it could be a raw string expression (available only in json)
-	// so we try to decode a raw string expression into an actual traverasal.
+	// so we try to decode a raw string expression into an actual traversal.
 	traversal, exprDiags := hcl.AbsTraversalForExpr(attr.Expr)
 	if exprDiags.HasErrors() {
 		// Step #3: If step #2 failed, then the expression most probably is a value and not a reference (or traversal)
