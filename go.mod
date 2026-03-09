@@ -80,7 +80,7 @@ require (
 	github.com/openbao/openbao/api/v2 v2.4.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
-	github.com/opentofu/registry-address/v2 v2.0.0-20250611143131-d0a99bd8acdd
+	github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4
 	github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pkg/errors v0.9.1
