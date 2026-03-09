@@ -27,6 +27,12 @@ type Config interface {
 // If it does, [SelfDecodingConfig.DecodeConfig] should be called instead. Not doing so, the gohcl
 // based decoding could result in incorrectly [Config] content or might return unwanted errors.
 type SelfDecodingConfig interface {
+	// DepsTraversals is meant to parse the body and return all the traversals that it finds.
+	// This is necessary to build the evaluation context that will be later used for decoding.
 	DepsTraversals(body hcl.Body) ([]hcl.Traversal, hcl.Diagnostics)
+	// DecodeConfig is meant to decode the given body *into* the structure itself.
+	// The evalCtx received contains information provided by the DepsTraversals. Therefore, in order
+	// to be able to decode correctly, the dependencies of the given body needs to be identified
+	// consistently between DepsTraversals and DecodeConfig.
 	DecodeConfig(body hcl.Body, evalCtx *hcl.EvalContext) (diags hcl.Diagnostics)
 }

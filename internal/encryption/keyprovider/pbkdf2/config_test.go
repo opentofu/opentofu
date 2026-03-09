@@ -214,6 +214,35 @@ key_provider "pbkdf2" "base2" {
 				},
 			},
 		},
+		// This highlights that even though this is named "invalid reference", the traversal is returned because the DepsTraversals method
+		// has no way to know if that is valid from a reference POV or not.
+		// The validation of that is outside of the scope of the DepsTraversals method.
+		"json body with invalid chain reference": {
+			bodyBuilder: func(t *testing.T) hcl.Body {
+				parsedSourceConfig, diags := config.LoadConfigFromString("source", `{
+      "key_provider": {
+        "pbkdf2": {
+          "base1": {
+			"passphrase": "Hello world! 123"
+          },
+          "base2": {
+			"chain": "${key_provider.pbkdf2}"
+          }
+        }
+      }
+    }`)
+				if diags.HasErrors() {
+					t.Fatalf("failed to create config: %s", diags.Error())
+				}
+				return parsedSourceConfig.KeyProviderConfigs[1].Body
+			},
+			expectedTraversals: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "key_provider", SrcRange: hcl.Range{Filename: "source", Start: hcl.Pos{Line: 8, Column: 19, Byte: 152}, End: hcl.Pos{Line: 8, Column: 31, Byte: 164}}},
+					hcl.TraverseAttr{Name: "pbkdf2", SrcRange: hcl.Range{Filename: "source", Start: hcl.Pos{Line: 8, Column: 31, Byte: 164}, End: hcl.Pos{Line: 8, Column: 38, Byte: 171}}},
+				},
+			},
+		},
 	}
 	for name, testCase := range tc {
 		t.Run(name, func(t *testing.T) {
@@ -232,8 +261,9 @@ key_provider "pbkdf2" "base2" {
 
 func TestConfig_DecodeBody(t *testing.T) {
 	tc := map[string]struct {
-		setup          func(t *testing.T) (hcl.Body, *hcl.EvalContext)
-		expectedConfig *pbkdf2.Config
+		setup               func(t *testing.T) (hcl.Body, *hcl.EvalContext)
+		expectedConfig      *pbkdf2.Config
+		expectedDiagnostics hcl.Diagnostics
 	}{
 		"nil body": {
 			setup: func(*testing.T) (hcl.Body, *hcl.EvalContext) {
@@ -363,6 +393,47 @@ func TestConfig_DecodeBody(t *testing.T) {
 				},
 			},
 		},
+		"json body with invalid chain reference": {
+			setup: func(t *testing.T) (hcl.Body, *hcl.EvalContext) {
+				parsedSourceConfig, diags := config.LoadConfigFromString("source", `{
+		      "key_provider": {
+		        "pbkdf2": {
+		          "base1": {
+					"passphrase": "Hello world! 123"
+		          },
+		          "base2": {
+					"chain": "${key_provider.pbkdf2}"
+		          }
+		        }
+		      }
+		    }`)
+				if diags.HasErrors() {
+					t.Fatalf("failed to create config: %s", diags.Error())
+				}
+				evalCtx := &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"key_provider": cty.ObjectVal(map[string]cty.Value{
+							"pbkdf2": cty.ObjectVal(map[string]cty.Value{
+								"base1": cty.ObjectVal(map[string]cty.Value{
+									"encryption_key": byteToCty([]byte("Hello world! 123")),
+									"decryption_key": byteToCty([]byte("Hello world! 123")),
+								}),
+							}),
+						}),
+					},
+				}
+				return parsedSourceConfig.KeyProviderConfigs[1].Body, evalCtx
+			},
+			expectedConfig: &pbkdf2.Config{},
+			expectedDiagnostics: hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing encryption_key value",
+					Detail:   "An encryption_key value is required in the key_provider compatible object at this location",
+					Subject:  &hcl.Range{Filename: "source", Start: hcl.Pos{Line: 8, Column: 20, Byte: 163}, End: hcl.Pos{Line: 8, Column: 44, Byte: 187}},
+				},
+			},
+		},
 	}
 	for name, testCase := range tc {
 		t.Run(name, func(t *testing.T) {
@@ -372,8 +443,19 @@ func TestConfig_DecodeBody(t *testing.T) {
 			if diff := cmp.Diff(testCase.expectedConfig, cfg, cmpopts.IgnoreUnexported(pbkdf2.Config{})); diff != "" {
 				t.Errorf("wrong config. diff (-want, +got):\n%s", diff)
 			}
-			if len(diags) != 0 {
-				t.Errorf("unexpected diagnostics: %s", diags.Error())
+			if len(diags) == 0 && len(testCase.expectedDiagnostics) > 0 {
+				t.Fatalf("expected diagnostics but got nothing")
+			} else if len(diags) > 0 && len(testCase.expectedDiagnostics) == 0 {
+				t.Fatalf("expected no diagnostics but got %d: \n%s", len(diags), diags)
+			}
+
+			for i, got := range diags {
+				want := testCase.expectedDiagnostics[i]
+				wantErr := want.Error()
+				gotErr := got.Error()
+				if wantErr != gotErr {
+					t.Errorf("unexpected diagnostic\nwanted:\n\t%s\ngot:\n\t%s", wantErr, gotErr)
+				}
 			}
 		})
 	}

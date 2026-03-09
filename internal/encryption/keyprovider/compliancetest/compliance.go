@@ -50,7 +50,6 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				compliancetest.Fail(t, "Please provide a map in HCLParseTestCases.")
 			}
 			for name, tc := range config.HCLParseTestCases {
-				tc := tc
 				t.Run(name, func(t *testing.T) {
 					complianceTestHCLParsingTestCase(t, tc, config)
 				})
@@ -61,7 +60,6 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				compliancetest.Fail(t, "Please provide a map in JSONParseTestCases.")
 			}
 			for name, tc := range config.JSONParseTestCases {
-				tc := tc
 				t.Run(name, func(t *testing.T) {
 					complianceTestJSONParsingTestCase(t, tc, config)
 				})
@@ -73,7 +71,6 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 				compliancetest.Fail(t, "Please provide a map in ConfigStructTestCases.")
 			}
 			for name, tc := range config.ConfigStructTestCases {
-				tc := tc
 				t.Run(name, func(t *testing.T) {
 					complianceTestConfigCase[TConfig, TKeyProvider, TMeta](t, tc)
 				})
