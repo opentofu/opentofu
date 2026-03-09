@@ -681,8 +681,8 @@ github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJw
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
 github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828 h1:r2WiJxljn/Cxwpq9zMZ5HomJcNwmGNjKmeZnFsxkpBg=
 github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828/go.mod h1:k+HgkLpoWu9OS81sy4j1XKDXaWm/rLysG33v5ibdDnc=
-github.com/opentofu/registry-address/v2 v2.0.0-20250611143131-d0a99bd8acdd h1:YAAnzmyOoMvm5SuGXL4hhlfBgqz92XDfORGPV3kmQFc=
-github.com/opentofu/registry-address/v2 v2.0.0-20250611143131-d0a99bd8acdd/go.mod h1:7M92SvuJm1WBriIpa4j0XmruU9pxkgPXmRdc6FfAvAk=
+github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4 h1:k5ODrqBcfHzccrsiiKKRcqvtMgDw1yo1W53K7LYFBlA=
+github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4/go.mod h1:7M92SvuJm1WBriIpa4j0XmruU9pxkgPXmRdc6FfAvAk=
 github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8 h1:J3pmsVB+nGdfNp5HWdEAC96asYgc7S6J724ICrYDCTk=
 github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8/go.mod h1:0kKTcD9hUrbAz41GWp8USa/+OuI8QKirU3qdCWNa3jI=
 github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b h1:FfH+VrHHk6Lxt9HdVS0PXzSXFyS2NbZKXv33FYPol0A=
