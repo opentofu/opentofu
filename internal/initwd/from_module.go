@@ -153,6 +153,12 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 				SourceAddr: sourceAddr,
 				Source:     hcl.StaticExpr(cty.StringVal(sourceAddrStr), rng),
 				DeclRange:  rng,
+				Variables: func(v *configs.Variable) (cty.Value, hcl.Diagnostics) {
+					if v.Default != cty.NilVal {
+						return v.Default, nil
+					}
+					return cty.DynamicVal, nil
+				},
 			},
 		},
 		ProviderRequirements: &configs.RequiredProviders{},
@@ -217,7 +223,12 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			// and must thus be rewritten to be absolute addresses again.
 			// For now we can't do this rewriting automatically, but we'll
 			// generate an error to help the user do it manually.
-			mod, _ := loader.Parser().LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, nil, rootDir, "")) // ignore diagnostics since we're just doing value-add here anyway
+			mod, _ := loader.Parser().LoadConfigDir(rootDir, configs.NewStaticModuleCall(addrs.RootModule, func(v *configs.Variable) (cty.Value, hcl.Diagnostics) { // ignore diagnostics since we're just doing value-add here anyway
+				if v.Default != cty.NilVal {
+					return v.Default, nil
+				}
+				return cty.DynamicVal, nil
+			}, rootDir, ""))
 			if mod != nil {
 				for _, mc := range mod.ModuleCalls {
 					if pathTraversesUp(mc.SourceAddrRaw) {
