@@ -264,10 +264,3 @@ func (c *StateRmCommand) GatherVariables(args *arguments.Vars) {
 	}
 	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
-
-// TODO meta-refactor: remove this once we migrated all `state` commands to the view abstraction
-const errStateRmPersist = `Error saving the state: %s
-
-The state was not saved. No items were removed from the persisted
-state. No backup was created since no modification occurred. Please
-resolve the issue above and try again.`
