@@ -3,7 +3,6 @@ package addrs
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -109,8 +108,8 @@ func TestOverrideTrie(t *testing.T) {
 				}
 			}
 
-			if diff := cmp.Diff(test.Want, got, CmpOptionsForTesting); diff != "" {
-				t.Error("wrong result:\n" + diff)
+			if test.Want != got {
+				t.Errorf("wrong result: expected %s, got %s\n", test.Want, got)
 			}
 		})
 	}
