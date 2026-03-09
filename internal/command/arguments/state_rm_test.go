@@ -91,7 +91,7 @@ func TestParseStateRm_basicValidation(t *testing.T) {
 		"no arguments": {
 			args:        []string{},
 			want:        stateRmArgsWithDefaults(nil),
-			wantErrText: "Invalid number of arguments",
+			wantErrText: "Invalid number of arguments: At least one address is required",
 		},
 	}
 

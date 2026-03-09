@@ -66,7 +66,7 @@ func ParseStateRm(args []string) (*StateRm, func(), tfdiags.Diagnostics) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid number of arguments",
-			"At least one address is required.",
+			"At least one address is required",
 		))
 	} else {
 		ret.TargetAddrs = args

@@ -40,6 +40,11 @@ type State interface {
 	ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource)
 	ReplaceProviderCancelled()
 	ProviderReplaced(forResources int)
+
+	// `tofu state rm` specific
+	ResourceRemoveStatus(dryRun bool, target string)
+	DryRunRemovedStatus(removed int)
+	RemoveFinalStatus(count int)
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -148,6 +153,24 @@ func (m StateMulti) ProviderReplaced(forResources int) {
 	}
 }
 
+func (m StateMulti) ResourceRemoveStatus(dryRun bool, target string) {
+	for _, o := range m {
+		o.ResourceRemoveStatus(dryRun, target)
+	}
+}
+
+func (m StateMulti) DryRunRemovedStatus(removed int) {
+	for _, o := range m {
+		o.DryRunRemovedStatus(removed)
+	}
+}
+
+func (m StateMulti) RemoveFinalStatus(count int) {
+	for _, o := range m {
+		o.RemoveFinalStatus(count)
+	}
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -228,6 +251,28 @@ func (v *StateHuman) ReplaceProviderCancelled() {
 
 func (v *StateHuman) ProviderReplaced(forResources int) {
 	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully replaced provider for %d resources.", forResources))
+}
+
+func (v *StateHuman) ResourceRemoveStatus(dryRun bool, target string) {
+	if dryRun {
+		_, _ = v.view.streams.Println(fmt.Sprintf("Would remove %s", target))
+		return
+	}
+	_, _ = v.view.streams.Println(fmt.Sprintf("Removed %s", target))
+}
+
+func (v *StateHuman) DryRunRemovedStatus(removed int) {
+	if removed == 0 {
+		_, _ = v.view.streams.Println("Would have removed nothing.")
+	}
+}
+
+func (v *StateHuman) RemoveFinalStatus(count int) {
+	if count == 0 {
+		// NOTE: printing nothing here since this case needs to be handled by the caller
+		return
+	}
+	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully removed %d resource instance(s).", count))
 }
 
 type StateJSON struct {
@@ -329,6 +374,28 @@ func (v *StateJSON) ReplaceProviderCancelled() {
 
 func (v *StateJSON) ProviderReplaced(forResources int) {
 	v.view.Info(fmt.Sprintf("Successfully replaced provider for %d resources", forResources))
+}
+
+func (v *StateJSON) ResourceRemoveStatus(dryRun bool, target string) {
+	if dryRun {
+		v.view.Info(fmt.Sprintf("Would remove %s", target))
+		return
+	}
+	v.view.Info(fmt.Sprintf("Removed %s", target))
+}
+
+func (v *StateJSON) DryRunRemovedStatus(removed int) {
+	if removed == 0 {
+		v.view.Info("Would have removed nothing")
+	}
+}
+
+func (v *StateJSON) RemoveFinalStatus(count int) {
+	if count == 0 {
+		// NOTE: printing nothing here since this case needs to be handled by the caller
+		return
+	}
+	v.view.Info(fmt.Sprintf("Successfully removed %d resource instance(s)", count))
 }
 
 const errStateLoadingState = `Error loading the state: %[1]s

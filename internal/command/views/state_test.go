@@ -258,6 +258,76 @@ Changing 1 resources:
 			},
 			wantStdout: withNewline(`Successfully replaced provider for 2 resources.`),
 		},
+		"resourceRemoveStatus with dryRun=true": {
+			viewCall: func(state State) {
+				state.ResourceRemoveStatus(true, "test_res.name1")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Would remove test_res.name1",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline("Would remove test_res.name1"),
+		},
+		"resourceRemoveStatus with dryRun=false": {
+			viewCall: func(state State) {
+				state.ResourceRemoveStatus(false, "test_res.name1")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Removed test_res.name1",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline("Removed test_res.name1"),
+		},
+		"dryRunRemovedStatus with 0 resources": {
+			viewCall: func(state State) {
+				state.DryRunRemovedStatus(0)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Would have removed nothing",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline("Would have removed nothing."),
+		},
+		"dryRunRemovedStatus with >0 resources": {
+			viewCall: func(state State) {
+				state.DryRunRemovedStatus(1)
+			},
+			wantJson: []map[string]any{
+				{},
+			},
+			wantStdout: "",
+		},
+		"removeFinalStatus with 0 resources": {
+			viewCall: func(state State) {
+				state.RemoveFinalStatus(0)
+			},
+			wantJson: []map[string]any{
+				{},
+			},
+			wantStdout: "",
+		},
+		"removeFinalStatus with >0 resources": {
+			viewCall: func(state State) {
+				state.RemoveFinalStatus(2)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Successfully removed 2 resource instance(s)",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline("Successfully removed 2 resource instance(s)."),
+		},
 		// Diagnostics
 		"warning": {
 			viewCall: func(state State) {
