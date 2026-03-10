@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 type State interface {
@@ -38,7 +37,7 @@ type State interface {
 
 	// `tofu state replace-provider` specific
 	NoMatchingResourcesForProviderReplacement()
-	ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource)
+	ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource)
 	ReplaceProviderCancelled()
 	ProviderReplaced(forResources int)
 }
@@ -131,7 +130,7 @@ func (m StateMulti) NoMatchingResourcesForProviderReplacement() {
 	}
 }
 
-func (m StateMulti) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+func (m StateMulti) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
 	for _, o := range m {
 		o.ReplaceProviderOverview(from, to, willReplace)
 	}
@@ -209,7 +208,7 @@ func (v *StateHuman) NoMatchingResourcesForProviderReplacement() {
 	_, _ = v.view.streams.Println("No matching resources found.")
 }
 
-func (v *StateHuman) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+func (v *StateHuman) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
 	colorize := v.view.colorize.Color
 	printer := func(args ...any) { _, _ = v.view.streams.Println(args...) }
 	printer("OpenTofu will perform the following actions:\n")
@@ -315,7 +314,7 @@ func (v *StateJSON) NoMatchingResourcesForProviderReplacement() {
 	v.view.log.Info("No matching resources found")
 }
 
-func (v *StateJSON) ReplaceProviderOverview(from, to regaddr.Provider, willReplace []*states.Resource) {
+func (v *StateJSON) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
 	replacedResources := make([]string, len(willReplace))
 	for i, resource := range willReplace {
 		replacedResources[i] = resource.Addr.String()
