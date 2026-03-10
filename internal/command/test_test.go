@@ -1700,6 +1700,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expected: "3 passed, 0 failed.",
 			code:     0,
 		},
+		"module_2": {
+			expected: "3 passed, 0 failed.",
+			code:     0,
+		},
 	}
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
