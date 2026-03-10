@@ -12,7 +12,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 func TestStateViews(t *testing.T) {
@@ -178,6 +180,83 @@ func TestStateViews(t *testing.T) {
 				},
 			},
 			wantStdout: withNewline(`{"version":4,"terraform_version":"1.11.5","serial":9,"lineage":"9ba8c556-ae6c-20ee-f6ed-b57c7cc04dcd","outputs":{},"resources":[]}`),
+		},
+		"noMatchingResourcesForProviderReplacement": {
+			viewCall: func(state State) {
+				state.NoMatchingResourcesForProviderReplacement()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "No matching resources found",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`No matching resources found.`),
+		},
+		"replaceProviderOverview": {
+			viewCall: func(state State) {
+				state.ReplaceProviderOverview(
+					regaddr.NewProvider("registry1.org", "ns", "prov"),
+					regaddr.NewProvider("registry2.org", "ns", "prov"),
+					[]*states.Resource{
+						{
+							Addr: addrs.AbsResource{Resource: addrs.Resource{
+								Mode: addrs.ManagedResourceMode,
+								Type: "res",
+								Name: "foo",
+							}},
+						},
+					},
+				)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":    "info",
+					"@message":  "OpenTofu will replace provider from registry1.org/ns/prov to registry2.org/ns/prov for 1 resources",
+					"resources": []any{"res.foo"},
+					"@module":   "tofu.ui",
+					"type":      "replace_provider",
+					"from":      "registry1.org/ns/prov",
+					"to":        "registry2.org/ns/prov",
+				},
+			},
+			wantStdout: `OpenTofu will perform the following actions:
+
+  ~ Updating provider:
+    - registry1.org/ns/prov
+    + registry2.org/ns/prov
+
+Changing 1 resources:
+
+  res.foo
+`,
+		},
+		"replaceProviderCancelled": {
+			viewCall: func(state State) {
+				state.ReplaceProviderCancelled()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Cancelled replacing providers",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`Cancelled replacing providers.`),
+		},
+		"providerReplaced": {
+			viewCall: func(state State) {
+				state.ProviderReplaced(2)
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "Successfully replaced provider for 2 resources",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStdout: withNewline(`Successfully replaced provider for 2 resources.`),
 		},
 		// Diagnostics
 		"warning": {
