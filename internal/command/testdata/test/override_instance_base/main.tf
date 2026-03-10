@@ -1,6 +1,6 @@
 locals {
     my_pets = toset(["pet_a", "pet_b", "pet_c"])
-    universes = toset(["alpha", "67", "413"])
+    universes = toset(["a", "b", "c"])
 }
 
 resource "test_resource" "cats" {
@@ -23,37 +23,37 @@ module dog_houses {
 }
 
 output "dino_a_greeting" {
-    value = "Hey there, ${module.dog_houses["alpha"].flintstones}"
+    value = "Hey there, ${module.dog_houses["a"].flintstones}"
 }
 
 output "dino_b_greeting" {
-    value = "Ooga Booga, ${module.dog_houses["67"].flintstones}"
+    value = "Ooga Booga, ${module.dog_houses["b"].flintstones}"
 }
 
 output "dino_c_greeting" {
-    value = "*random grunts*, ${module.dog_houses["413"].flintstones}"
+    value = "*random grunts*, ${module.dog_houses["c"].flintstones}"
 }
 
 output "astro_a_greeting" {
-    value = "Greetings, ${module.dog_houses["alpha"].jetsons}"
+    value = "Greetings, ${module.dog_houses["a"].jetsons}"
 }
 
 output "astro_b_greeting" {
-    value = "Avast, ${module.dog_houses["67"].jetsons}"
+    value = "Avast, ${module.dog_houses["b"].jetsons}"
 }
 
 output "astro_c_greeting" {
-    value = "*random beeps*, ${module.dog_houses["413"].jetsons}"
+    value = "*random beeps*, ${module.dog_houses["c"].jetsons}"
 }
 
 output "scoob_a_greeting" {
-    value = "Zoinks, ${module.dog_houses["alpha"].shaggy}"
+    value = "Zoinks, ${module.dog_houses["a"].shaggy}"
 }
 
 output "scoob_b_greeting" {
-    value = "Jeepers, ${module.dog_houses["67"].shaggy}"
+    value = "Jeepers, ${module.dog_houses["b"].shaggy}"
 }
 
 output "scoob_c_greeting" {
-    value = "Jinkies, ${module.dog_houses["413"].shaggy}"
+    value = "Jinkies, ${module.dog_houses["c"].shaggy}"
 }

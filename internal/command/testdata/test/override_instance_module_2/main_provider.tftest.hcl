@@ -9,7 +9,7 @@ override_resource {
 }
 
 override_resource {
-    target = module.dog_houses["67"].test_resource.dogs[*]
+    target = module.dog_houses["b"].test_resource.dogs[*]
     values = {
         id = "Snoopy"
     }
