@@ -602,19 +602,6 @@ func (m *Meta) defaultFlagSet(n string) *flag.FlagSet {
 	return f
 }
 
-// ignoreRemoteVersionFlagSet add the ignore-remote version flag to suppress
-// the error when the configured OpenTofu version on the remote workspace
-// does not match the local OpenTofu version.
-func (m *Meta) ignoreRemoteVersionFlagSet(n string) *flag.FlagSet {
-	f := m.defaultFlagSet(n)
-
-	m.varFlagSet(f)
-
-	f.BoolVar(&m.ignoreRemoteVersion, "ignore-remote-version", false, "continue even if remote and local OpenTofu versions are incompatible")
-
-	return f
-}
-
 func (m *Meta) varFlagSet(f *flag.FlagSet) {
 	if m.variableArgs.Items == nil {
 		m.variableArgs = flags.NewRawFlags("-var")

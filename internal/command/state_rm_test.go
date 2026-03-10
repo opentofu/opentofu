@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -56,14 +55,12 @@ func TestStateRm(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -73,8 +70,10 @@ func TestStateRm(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Test it is correct
@@ -129,14 +128,12 @@ func TestStateRmNotChildModule(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -146,8 +143,10 @@ func TestStateRmNotChildModule(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Test it is correct
@@ -220,14 +219,12 @@ func TestStateRmNoArgs(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -236,11 +233,13 @@ func TestStateRmNoArgs(t *testing.T) {
 	args := []string{
 		"-state", statePath,
 	}
-	if code := c.Run(args); code == 0 {
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
 		t.Errorf("expected non-zero exit code, got: %d", code)
 	}
 
-	if msg := ui.ErrorWriter.String(); !strings.Contains(msg, "At least one address") {
+	if msg := output.Stderr(); !strings.Contains(msg, "At least one address") {
 		t.Errorf("not the error we were looking for:\n%s", msg)
 	}
 
@@ -284,14 +283,12 @@ func TestStateRmNonExist(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -301,8 +298,10 @@ func TestStateRmNonExist(t *testing.T) {
 		"-state", statePath,
 		"test_instance.baz", // doesn't exist in the state constructed above
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("expected exit status %d, got: %d", 1, code)
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("expected exit status %d, got: %d\noutput:\n%s", 1, code, output.All())
 	}
 }
 
@@ -345,14 +344,12 @@ func TestStateRm_backupExplicit(t *testing.T) {
 	backupPath := statePath + ".backup.test"
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -363,8 +360,10 @@ func TestStateRm_backupExplicit(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Test it is correct
@@ -378,22 +377,22 @@ func TestStateRm_noState(t *testing.T) {
 	testCwdTemp(t)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
 	}
 
 	args := []string{"foo"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 }
 
@@ -403,26 +402,26 @@ func TestStateRm_needsInit(t *testing.T) {
 	t.Chdir(td)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
 	}
 
 	args := []string{"foo"}
-	if code := c.Run(args); code == 0 {
-		t.Fatalf("expected error output, got:\n%s", ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code == 0 {
+		t.Fatalf("expected error output, got:\n%s", output.Stdout())
 	}
 
-	if !strings.Contains(ui.ErrorWriter.String(), "Backend initialization") {
-		t.Fatalf("expected initialization error, got:\n%s", ui.ErrorWriter.String())
+	if !strings.Contains(output.Stderr(), "Backend initialization") {
+		t.Fatalf("expected initialization error, got:\n%s", output.Stderr())
 	}
 }
 
@@ -481,14 +480,12 @@ func TestStateRm_backendState(t *testing.T) {
 	}
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -498,8 +495,10 @@ func TestStateRm_backendState(t *testing.T) {
 		"-backup", backupPath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	// Test it is correct
@@ -552,14 +551,12 @@ func TestStateRm_checkRequiredVersion(t *testing.T) {
 	statePath := testStateFile(t, state)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StateRmCommand{
 		StateMeta{
 			Meta: Meta{
 				WorkingDir:       workdir.NewDir("."),
 				testingOverrides: metaOverridesForProvider(p),
-				Ui:               ui,
 				View:             view,
 			},
 		},
@@ -569,15 +566,17 @@ func TestStateRm_checkRequiredVersion(t *testing.T) {
 		"-state", statePath,
 		"test_instance.foo",
 	}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// State is unchanged
 	testStateOutput(t, statePath, testStateRmOutputOriginal)
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}
