@@ -6,13 +6,19 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
+	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type State interface {
@@ -45,6 +51,12 @@ type State interface {
 	ResourceRemoveStatus(dryRun bool, target string)
 	DryRunRemovedStatus(removed int)
 	RemoveFinalStatus(count int)
+
+	// `tofu state show` specific
+	UnsupportedLocalOp()
+	AddressParsingError(resAddr string)
+	NoInstanceFoundError()
+	ShowResourceState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -171,6 +183,32 @@ func (m StateMulti) RemoveFinalStatus(count int) {
 	}
 }
 
+func (m StateMulti) UnsupportedLocalOp() {
+	for _, o := range m {
+		o.UnsupportedLocalOp()
+	}
+}
+
+func (m StateMulti) AddressParsingError(resAddr string) {
+	for _, o := range m {
+		o.AddressParsingError(resAddr)
+	}
+}
+
+func (m StateMulti) NoInstanceFoundError() {
+	for _, o := range m {
+		o.NoInstanceFoundError()
+	}
+}
+
+func (m StateMulti) ShowResourceState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	var ret int
+	for _, o := range m {
+		ret = max(ret, o.ShowResourceState(ctx, stateFile, schemas))
+	}
+	return ret
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -273,6 +311,53 @@ func (v *StateHuman) RemoveFinalStatus(count int) {
 		return
 	}
 	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully removed %d resource instance(s).", count))
+}
+
+func (v *StateHuman) UnsupportedLocalOp() {
+	v.view.errorln(errUnsupportedLocalOp)
+}
+
+func (v *StateHuman) AddressParsingError(resAddr string) {
+	v.view.errorln(fmt.Sprintf(errParsingAddress, resAddr))
+}
+
+func (v *StateHuman) NoInstanceFoundError() {
+	v.view.errorln(errNoInstanceFound)
+}
+
+func (v *StateHuman) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	renderer := jsonformat.Renderer{
+		Colorize:            v.view.colorize,
+		Streams:             v.view.streams,
+		RunningInAutomation: v.view.runningInAutomation,
+		ShowSensitive:       v.view.showSensitive,
+	}
+
+	if stateFile == nil {
+		_, _ = v.view.streams.Println("No state.")
+		return 0
+	}
+
+	root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
+	if err != nil {
+		v.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to marshal state to json",
+			fmt.Sprintf("Error while marshalling state to json: %s", err),
+		)))
+		return 1
+	}
+
+	jstate := jsonformat.State{
+		StateFormatVersion:    jsonstate.FormatVersion,
+		ProviderFormatVersion: jsonprovider.FormatVersion,
+		RootModule:            root,
+		RootModuleOutputs:     outputs,
+		ProviderSchemas:       jsonprovider.MarshalForRenderer(schemas),
+	}
+
+	renderer.RenderHumanState(jstate)
+	return 0
 }
 
 type StateJSON struct {
@@ -398,6 +483,48 @@ func (v *StateJSON) RemoveFinalStatus(count int) {
 	v.view.Info(fmt.Sprintf("Successfully removed %d resource instance(s)", count))
 }
 
+func (v *StateJSON) UnsupportedLocalOp() {
+	v.view.Error("The configured backend doesn't support this operation. The 'backend' in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation")
+}
+
+func (v *StateJSON) AddressParsingError(resAddr string) {
+	cleanedUp := strings.ReplaceAll(
+		strings.ReplaceAll(errParsingAddress, "\n", " "),
+		"  ", " ",
+	)
+	if resAddr != "" && !strings.HasSuffix(resAddr, ".") {
+		resAddr += "."
+	}
+	msg := fmt.Sprintf(cleanedUp, resAddr)
+	v.view.Error(msg)
+}
+
+func (v *StateJSON) NoInstanceFoundError() {
+	cleanedUp := strings.ReplaceAll(
+		strings.ReplaceAll(errNoInstanceFound, "\n", " "),
+		"  ", " ",
+	)
+	v.view.Error(cleanedUp)
+}
+
+func (v *StateJSON) ShowResourceState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+	if stateFile == nil {
+		v.view.Info("no state")
+		return 0
+	}
+	state, err := jsonstate.MarshalForLog(stateFile, schemas)
+	if err != nil {
+		v.Diagnostics(tfdiags.Diagnostics{}.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to marshal state to json",
+			fmt.Sprintf("Error while marshalling state to json: %s", err),
+		)))
+		return 1
+	}
+	v.view.log.Info("resource state", "state", state)
+	return 0
+}
+
 const errStateLoadingState = `Error loading the state: %[1]s
 
 Please ensure that your OpenTofu state exists and that you've
@@ -420,3 +547,15 @@ const errStateRmPersist = `Error saving the state: %s
 The state was not saved. No items were removed from the persisted
 state. No backup was created since no modification occurred. Please
 resolve the issue above and try again.`
+
+const errParsingAddress = `Error parsing instance address: %s
+
+This command requires that the address references one specific instance.
+To view the available instances, use "tofu state list". Please modify 
+the address to reference a specific instance.`
+
+const errNoInstanceFound = `No instance found for the given address!
+
+This command requires that the address references one specific instance.
+To view the available instances, use "tofu state list". Please modify 
+the address to reference a specific instance.`

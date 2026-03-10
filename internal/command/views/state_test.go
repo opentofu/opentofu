@@ -6,15 +6,21 @@
 package views
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestStateViews(t *testing.T) {
@@ -327,6 +333,140 @@ Changing 1 resources:
 				},
 			},
 			wantStdout: withNewline("Successfully removed 2 resource instance(s)."),
+		},
+		"unsupportedLocalOp": {
+			viewCall: func(state State) {
+				state.UnsupportedLocalOp()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "The configured backend doesn't support this operation. The 'backend' in OpenTofu defines how OpenTofu operates. The default backend performs all operations locally on your machine. Your configuration is configured to use a non-local backend. This backend doesn't support this operation",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStderr: withNewline(errUnsupportedLocalOp),
+		},
+		"addressParsingError": {
+			viewCall: func(state State) {
+				state.AddressParsingError("aws_instance.example")
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "Error parsing instance address: aws_instance.example. This command requires that the address references one specific instance. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStderr: withNewline("Error parsing instance address: aws_instance.example\n\nThis command requires that the address references one specific instance.\nTo view the available instances, use \"tofu state list\". Please modify \nthe address to reference a specific instance."),
+		},
+		"noInstanceFoundError": {
+			viewCall: func(state State) {
+				state.NoInstanceFoundError()
+			},
+			wantJson: []map[string]any{
+				{
+					"@level":   "error",
+					"@message": "No instance found for the given address! This command requires that the address references one specific instance. To view the available instances, use \"tofu state list\". Please modify the address to reference a specific instance.",
+					"@module":  "tofu.ui",
+				},
+			},
+			wantStderr: withNewline("No instance found for the given address!\n\nThis command requires that the address references one specific instance.\nTo view the available instances, use \"tofu state list\". Please modify \nthe address to reference a specific instance."),
+		},
+		"showResourceState with nil state": {
+			viewCall: func(state State) {
+				state.ShowResourceState(context.Background(), nil, nil)
+			},
+			wantStdout: withNewline("No state."),
+			wantStderr: "",
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "no state",
+					"@module":  "tofu.ui",
+				},
+			},
+		},
+		"showResourceState with proper state": {
+			viewCall: func(state State) {
+				stateFile := states.BuildState(func(s *states.SyncState) {
+					s.SetResourceInstanceCurrent(
+						addrs.Resource{
+							Mode: addrs.ManagedResourceMode,
+							Type: "test_resource",
+							Name: "foo",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						&states.ResourceInstanceObjectSrc{
+							AttrsJSON: []byte(`{"id":"bar","foo":"value"}`),
+							Status:    states.ObjectReady,
+						},
+						addrs.AbsProviderConfig{
+							Provider: addrs.NewDefaultProvider("test"),
+							Module:   addrs.RootModule,
+						},
+						addrs.NoKey,
+					)
+				})
+				resState := statefile.New(stateFile, "", 0)
+				schema := tofu.Schemas{
+					Providers: map[addrs.Provider]providers.ProviderSchema{
+						addrs.NewDefaultProvider("test"): {
+							ResourceTypes: map[string]providers.Schema{
+								"test_resource": {
+									Block: &configschema.Block{
+										Attributes: map[string]*configschema.Attribute{
+											"id": {
+												Type:     cty.String,
+												Computed: true,
+											},
+											"foo": {
+												Type: cty.String,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				state.ShowResourceState(context.Background(), resState, &schema)
+			},
+			wantStdout: withNewline(`# test_resource.foo:
+resource "test_resource" "foo" {
+    foo = "value"
+    id  = "bar"
+}`),
+			wantStderr: "",
+			wantJson: []map[string]any{
+				{
+					"@level":   "info",
+					"@message": "resource state",
+					"@module":  "tofu.ui",
+					"state": map[string]any{
+						"format_version":    "1.0",
+						"terraform_version": "1.12.0",
+						"values": map[string]any{
+							"root_module": map[string]any{
+								"resources": []any{
+									map[string]any{
+										"address":        "test_resource.foo",
+										"mode":           "managed",
+										"type":           "test_resource",
+										"name":           "foo",
+										"provider_name":  "registry.opentofu.org/hashicorp/test",
+										"schema_version": float64(0),
+										"values": map[string]any{
+											"foo": "value",
+											"id":  "bar",
+										},
+										"sensitive_values": map[string]any{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		// Diagnostics
 		"warning": {
