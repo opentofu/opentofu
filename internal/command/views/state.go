@@ -320,7 +320,7 @@ func (v *StateJSON) ReplaceProviderOverview(from, to addrs.Provider, willReplace
 		replacedResources[i] = resource.Addr.String()
 	}
 	msg := fmt.Sprintf("OpenTofu will replace provider from %s to %s for %d resources", from, to, len(willReplace))
-	v.view.log.Info(msg, "resources", replacedResources, "type", "replace_provider")
+	v.view.log.Info(msg, "resources", replacedResources, "type", "replace_provider", "from", from.String(), "to", to.String())
 }
 
 func (v *StateJSON) ReplaceProviderCancelled() {

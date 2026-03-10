@@ -217,6 +217,8 @@ func TestStateViews(t *testing.T) {
 					"resources": []any{"res.foo"},
 					"@module":   "tofu.ui",
 					"type":      "replace_provider",
+					"from":      "registry1.org/ns/prov",
+					"to":        "registry2.org/ns/prov",
 				},
 			},
 			wantStdout: `OpenTofu will perform the following actions:
