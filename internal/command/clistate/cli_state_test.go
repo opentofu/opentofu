@@ -71,7 +71,7 @@ func TestReadState_MissingVersion(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing version, got nil")
 	}
-	if !strings.Contains(err.Error(), "does not support state version 0") {
+	if !strings.Contains(err.Error(), "does not support CLI state version 0") {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -94,7 +94,7 @@ func TestReadState_UnsupportedVersion(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error for version %d, got nil", tt.version)
 			}
-			want := fmt.Sprintf("does not support state version %d", tt.version)
+			want := fmt.Sprintf("does not support CLI state version %d", tt.version)
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("got error %q, want substring %q", err.Error(), want)
 			}
