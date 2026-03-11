@@ -99,7 +99,7 @@ func TestOverrideTrie(t *testing.T) {
 				trie.Set(override.Address, override.Values)
 			}
 
-			got, isNotDefault := trie.Get(test.Query)
+			got, isNotDefault, _ := trie.Get(test.Query)
 			if isNotDefault == test.WantDefault {
 				if test.WantDefault {
 					t.Error("expected to get default, but didn't")
