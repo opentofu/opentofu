@@ -3225,7 +3225,12 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 				trie.Set(res.TargetParsed, res.Values)
 			}
 		}
-		overrideValues, providerOverrideIsNotDefault = trie.Get(&n.Addr)
+
+		var providerOverrideDiags tfdiags.Diagnostics
+		overrideValues, providerOverrideIsNotDefault, providerOverrideDiags = trie.Get(&n.Addr)
+		if providerOverrideDiags.HasErrors() {
+			return nil, providers.ProviderSchema{}, providerOverrideDiags.Err()
+		}
 	}
 
 	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
@@ -3235,8 +3240,11 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		// if it is, we only set overrideValues if the retrieved value
 		// is not default, i.e. it was actually overridden in the trie.
 		isOverridden = n.Config.IsOverridden
-		if newOverrideValues, ok := n.Config.Overrides.Get(&n.Addr); !providerOverrideIsNotDefault || ok {
+		if newOverrideValues, ok, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr); !providerOverrideIsNotDefault || ok {
 			overrideValues = newOverrideValues
+			if resourceOverrideDiags.HasErrors() {
+				return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
+			}
 		}
 		// TODO: should this be collapsed into one if-statement? The logic is a bit hairy...
 	}

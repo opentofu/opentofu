@@ -1657,8 +1657,9 @@ func TestTest_DeprecatedOutputs(t *testing.T) {
 
 func TestTest_InstanceOverride(t *testing.T) {
 	tcs := map[string]struct {
-		expected string
-		code     int
+		expected    string
+		expectedErr string
+		code        int
 	}{
 		"default": {
 			expected: "2 passed, 0 failed.",
@@ -1703,6 +1704,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 		"module_2": {
 			expected: "3 passed, 0 failed.",
 			code:     0,
+		},
+		"mixed_syntax": {
+			expectedErr: "override address cannot contain unkeyed for-each resources if it is also using the wildcard syntax",
+			code:        1,
 		},
 	}
 
@@ -1761,6 +1766,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 
 			if !strings.Contains(output.Stdout(), tc.expected) {
 				t.Errorf("output didn't contain expected string \"%s\":\n\n%s\n", tc.expected, output.All())
+			}
+
+			if !strings.Contains(output.Stderr(), tc.expectedErr) {
+				t.Errorf("errors didn't contain expected string \"%s\":\n\n%s\n", tc.expectedErr, output.All())
 			}
 
 			if provider.ResourceCount() > 0 {
