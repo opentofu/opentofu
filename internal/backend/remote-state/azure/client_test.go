@@ -281,3 +281,59 @@ Please set TF_AZURE_TEST_CLIENT_ID and TF_AZURE_TEST_CLIENT_SECRET, either manua
 
 	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
 }
+
+func TestAccRemoteClientCPK(t *testing.T) {
+	testAccAzureBackend(t)
+	rs := acctest.RandString(4)
+	res := testResourceNames(rs, "testState")
+	cpkKey := testCPKKey(t)
+
+	authMethod, err := auth.GetAuthMethod(t.Context(), testAuthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	authCred, err := authMethod.Construct(t.Context(), testAuthConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resourceGroupClient, _, err := createTestResources(t, &res, authCred)
+
+	t.Cleanup(func() {
+		destroyTestResources(t, resourceGroupClient, res)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"storage_account_name":  res.storageAccountName,
+		"container_name":        res.storageContainerName,
+		"key":                   res.storageKeyName,
+		"resource_group_name":   res.resourceGroup,
+		"customer_provided_key": cpkKey,
+	})).(*Backend)
+
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestClient(t, s1.(*remote.State).Client)
+
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"storage_account_name":  res.storageAccountName,
+		"container_name":        res.storageContainerName,
+		"key":                   res.storageKeyName,
+		"resource_group_name":   res.resourceGroup,
+		"customer_provided_key": cpkKey,
+	})).(*Backend)
+
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+
+}

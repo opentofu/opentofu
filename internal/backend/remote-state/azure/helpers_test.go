@@ -7,6 +7,8 @@ package azure
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -227,4 +229,13 @@ func testAuthConfig() *auth.Config {
 		},
 		WorkloadIdentityAuthConfig: auth.WorkloadIdentityAuthConfig{},
 	}
+}
+
+func testCPKKey(t *testing.T) string {
+	if key := os.Getenv("ARM_CUSTOMER_PROVIDED_KEY"); key != "" {
+		return key
+	}
+	raw := make([]byte, 32)
+	rand.Read(raw)
+	return base64.StdEncoding.EncodeToString(raw)
 }
