@@ -375,29 +375,39 @@ type RegistryPlatformData struct {
 }
 
 type registryPackageAuthentication struct {
-	platform    Platform
-	sha256sum   string
-	packageData map[Platform]RegistryPlatformData
+	Platform    Platform
+	SHA245Sum   string
+	PackageData map[Platform]RegistryPlatformData
 }
 
+// NewRegistryPackageAuthentication returns a PackageAuthentication
+// implementation that ensures the SHA256SUM (verified elsewhere) is
+// matches the respective registry package data entry. We assume
+//
+// This authentication returns a result where all of the entries are
+// ReportedByRegistry. It should be combined with other authentications
+// to be useful.
+//
+// See the corresponding [RFC](rfc/20251027-provider-registry-hashes.md) for
+// more information.
 func NewRegistryPackageAuthentication(platform Platform, sha256sum string, packageData map[Platform]RegistryPlatformData) PackageAuthentication {
 	return &registryPackageAuthentication{
-		platform:    platform,
-		sha256sum:   sha256sum,
-		packageData: packageData,
+		Platform:    platform,
+		SHA245Sum:   sha256sum,
+		PackageData: packageData,
 	}
 }
 
 func (a *registryPackageAuthentication) AuthenticatePackage(localLocation PackageLocation) (*PackageAuthenticationResult, error) {
-	if len(a.packageData) == 0 {
+	if len(a.PackageData) == 0 {
 		log.Printf("[WARN] Package information missing in registry response for %s", localLocation)
 		return nil, nil
 	}
 
 	log.Printf("[DEBUG] Package information present in registry response for %s", localLocation)
-	platformData, ok := a.packageData[a.platform]
+	platformData, ok := a.PackageData[a.Platform]
 	if !ok {
-		return nil, fmt.Errorf("registry response missing package with platform %q", a.platform)
+		return nil, fmt.Errorf("registry response missing package with platform %q", a.Platform)
 	}
 	// Validatepackage size
 	if platformData.PackageSize <= 0 {
@@ -422,8 +432,8 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 		// This is especially important as the reported checksum is checked agains the real
 		// zip below
 		if hash.HasScheme(HashSchemeZip) {
-			if hash.Value() != a.sha256sum {
-				return nil, fmt.Errorf("registry response expected sha256sum is %q, which does not match the platform's value of %q", a.sha256sum, hash.Value())
+			if hash.Value() != a.SHA245Sum {
+				return nil, fmt.Errorf("registry response expected sha256sum is %q, which does not match the platform's value of %q", a.SHA245Sum, hash.Value())
 			}
 			foundReportedMatch = true
 		}
@@ -434,7 +444,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 
 	// Parse and record all applicable package hashes
 	hashes := HashDispositions{}
-	for _, meta := range a.packageData {
+	for _, meta := range a.PackageData {
 		for _, hash := range meta.Hashes {
 			hashes[hash] = &HashDisposition{
 				ReportedByRegistry: true,
