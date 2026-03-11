@@ -52,6 +52,7 @@ func TestOverrideTrie(t *testing.T) {
 		Overrides   []override
 		Query       *AbsResourceInstance
 		WantDefault bool
+		WantError   bool
 		Want        string
 	}{
 		{
@@ -91,6 +92,18 @@ func TestOverrideTrie(t *testing.T) {
 			WantDefault: true,
 			Want:        "somewhere",
 		},
+		{
+			TestName: "error on wildcard",
+			Default:  "somewhere",
+			Overrides: []override{
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps["apac"].tofu_network.spiderweb`)),
+					Values:  "australia",
+				},
+			},
+			Query:     new(getAbsResourceRangeOrPanic(`module.vps[*].tofu_network.spiderweb`)),
+			WantError: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
@@ -99,7 +112,19 @@ func TestOverrideTrie(t *testing.T) {
 				trie.Set(override.Address, override.Values)
 			}
 
-			got, isNotDefault, _ := trie.Get(test.Query)
+			got, isNotDefault, diags := trie.Get(test.Query)
+			if diags.HasErrors() {
+				if !test.WantError {
+					// unexpectedly encountered an error
+					t.Errorf("got an error from trie override retrieval: %s", diags.Err().Error())
+				}
+				return
+			} else {
+				if test.WantError {
+					t.Fatal("expected an error, but did not get one")
+				}
+			}
+
 			if isNotDefault == test.WantDefault {
 				if test.WantDefault {
 					t.Error("expected to get default, but didn't")

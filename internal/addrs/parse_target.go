@@ -112,7 +112,6 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 			return moduleAddr.ResourceInstance(mode, typeName, name, key), diags
 
 		} else if _, ok := remain[0].(hcl.TraverseSplat); allowRanges && ok {
-			// TODO should we attempt to figure out the key type here?
 			return moduleAddr.ResourceInstance(mode, typeName, name, WildcardKey{UnknownKeyType}), diags
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
