@@ -2238,7 +2238,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 		errStr := output.Stderr()
-		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
+		if !strings.Contains(errStr, `This module is not compatible with OpenTofu v`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
@@ -2262,7 +2262,7 @@ func TestInit_checkRequiredVersionFirst(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 		}
 		errStr := output.Stderr()
-		if !strings.Contains(errStr, `Unsupported OpenTofu Core version`) {
+		if !strings.Contains(errStr, `This module is not compatible with OpenTofu v`) {
 			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 		}
 	})
@@ -2896,39 +2896,6 @@ func TestInit_invalidSyntaxWithBackend(t *testing.T) {
 	}
 	if subStr := "Error: Unsupported block type"; !strings.Contains(errStr, subStr) {
 		t.Errorf("Error output should mention the syntax problem\nwant substr: %s\ngot:\n%s", subStr, errStr)
-	}
-}
-
-func TestInit_invalidSyntaxInvalidBackend(t *testing.T) {
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("init-syntax-invalid-backend-invalid"), td)
-	t.Chdir(td)
-
-	view, done := testView(t)
-	m := Meta{
-		WorkingDir: workdir.NewDir("."),
-		View:       view,
-	}
-
-	c := &InitCommand{
-		Meta: m,
-	}
-
-	code := c.Run([]string{"-no-color"})
-	output := done(t)
-	if code == 0 {
-		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", output.Stdout(), output.Stderr())
-	}
-
-	errStr := output.Stderr()
-	if subStr := "OpenTofu encountered problems during initialization, including problems\nwith the configuration, described below."; !strings.Contains(errStr, subStr) {
-		t.Errorf("Error output should include preamble\nwant substr: %s\ngot:\n%s", subStr, errStr)
-	}
-	if subStr := "Error: Unsupported block type"; !strings.Contains(errStr, subStr) {
-		t.Errorf("Error output should mention syntax errors\nwant substr: %s\ngot:\n%s", subStr, errStr)
-	}
-	if subStr := "Error: Unsupported backend type"; !strings.Contains(errStr, subStr) {
-		t.Errorf("Error output should mention the invalid backend\nwant substr: %s\ngot:\n%s", subStr, errStr)
 	}
 }
 

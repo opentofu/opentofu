@@ -905,18 +905,14 @@ func (m *Meta) checkRequiredVersion(ctx context.Context) tfdiags.Diagnostics {
 		return diags
 	}
 
-	config, configDiags := loader.LoadConfig(ctx, pwd, call)
+	_, configDiags := loader.LoadConfig(ctx, pwd, call)
 	if configDiags.HasErrors() {
 		diags = diags.Append(configDiags)
 		return diags
 	}
 
-	versionDiags := tofu.CheckCoreVersionRequirements(config)
-	if versionDiags.HasErrors() {
-		diags = diags.Append(versionDiags)
-		return diags
-	}
-
+	// If there were any OpenTofu-version-related errors then they would've
+	// already been detected by loader.LoadConfig above.
 	return nil
 }
 
