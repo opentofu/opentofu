@@ -15,8 +15,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/command/workdir"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -690,6 +691,105 @@ func TestShow_json_output(t *testing.T) {
 	}
 }
 
+func TestShow_json_output_identity(t *testing.T) {
+	fixtureDir := "testdata/show-json-identity"
+	testDirs, err := os.ReadDir(fixtureDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, entry := range testDirs {
+		if !entry.IsDir() {
+			continue
+		}
+
+		t.Run(entry.Name(), func(t *testing.T) {
+			td := t.TempDir()
+			inputDir := filepath.Join(fixtureDir, entry.Name())
+			testCopyDir(t, inputDir, td)
+			t.Chdir(td)
+
+			providerSource, close := newMockProviderSource(t, map[string][]string{
+				"test": {"1.2.3"},
+			})
+			defer close()
+
+			p := showFixtureIdentityProvider()
+
+			// init
+			view, done := testView(t)
+			ic := &InitCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
+					ProviderSource:   providerSource,
+				},
+			}
+			code := ic.Run([]string{})
+			output := done(t)
+			if code != 0 {
+				t.Fatalf("init failed\n%s", output.Stderr())
+			}
+
+			// plan
+			planView, planDone := testView(t)
+			pc := &PlanCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             planView,
+					ProviderSource:   providerSource,
+				},
+			}
+			code = pc.Run([]string{"-out=tofu.plan"})
+			planOutput := planDone(t)
+			if code != 0 {
+				t.Fatalf("plan failed\n%s", planOutput.Stderr())
+			}
+
+			// show
+			showView, showDone := testView(t)
+			sc := &ShowCommand{
+				Meta: Meta{
+					WorkingDir:       workdir.NewDir("."),
+					testingOverrides: metaOverridesForProvider(p),
+					View:             showView,
+					ProviderSource:   providerSource,
+				},
+			}
+			code = sc.Run([]string{"-json", "tofu.plan"})
+			showOutput := showDone(t)
+			if code != 0 {
+				t.Fatalf("show failed\n%s", showOutput.Stderr())
+			}
+
+			// validate plan
+			var got plan
+			gotString := showOutput.Stdout()
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
+
+			// against our expected output
+			byteValue, err := os.ReadFile("output.json")
+			if err != nil {
+				t.Fatalf("unexpected err: %s", err)
+			}
+			var want plan
+			if err := json.Unmarshal(byteValue, &want); err != nil {
+				t.Fatal(err, "failed to unmarshal expected output")
+			}
+
+			want.FormatVersion = got.FormatVersion
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatal("wrong result:\n" + diff)
+			}
+		})
+	}
+}
+
 func TestShow_json_output_sensitive(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-json-sensitive"
@@ -1292,6 +1392,51 @@ func showFixtureSensitiveProvider() *tofu.MockProvider {
 			}),
 		}
 	}
+	return p
+}
+
+// showFixtureIdentityProvider returns a mock provider that includes resource identity information.
+// This is built on top of [showFixtureProvider] to reuse the same configuration and basic plan/apply behavior, with
+// additional wrapping to include identity information in the provider schema and plan/read responses.
+func showFixtureIdentityProvider() *tofu.MockProvider {
+	p := showFixtureProvider()
+
+	// Add identity schema to existing resource type
+	schema := p.GetProviderSchemaResponse.ResourceTypes["test_instance"]
+	schema.IdentitySchema = &configschema.Object{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {Type: cty.String, Required: true},
+		},
+		Nesting: configschema.NestingSingle,
+	}
+	p.GetProviderSchemaResponse.ResourceTypes["test_instance"] = schema
+
+	// Wrap existing PlanResourceChangeFn to also return identity
+	origPlan := p.PlanResourceChangeFn
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		resp := origPlan(req)
+		if resp.PlannedState.IsNull() {
+			return resp
+		}
+		idVal := resp.PlannedState.GetAttr("id")
+		if idVal.IsKnown() {
+			resp.PlannedIdentity = cty.ObjectVal(map[string]cty.Value{
+				"id": idVal,
+			})
+		}
+		return resp
+	}
+
+	// Wrap ReadResourceFn to also return identity
+	origRead := p.ReadResourceFn
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		resp := origRead(req)
+		resp.NewIdentity = cty.ObjectVal(map[string]cty.Value{
+			"id": resp.NewState.GetAttr("id"),
+		})
+		return resp
+	}
+
 	return p
 }
 
