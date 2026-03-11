@@ -73,3 +73,12 @@ output "astro_concrete_greeting" {
 output "scoob_concrete_greeting" {
     value = "Hello, ${module.concrete_dog_house.shaggy}"
 }
+
+output "scoob_a_bowl" {
+    value = module.dog_houses["a"].spooky_bowl
+}
+
+output "astro_c_bowl" {
+    value = module.dog_houses["c"].space_bowl
+}
+
