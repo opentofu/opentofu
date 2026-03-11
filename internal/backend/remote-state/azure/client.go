@@ -7,6 +7,7 @@ package azure
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -34,6 +35,27 @@ type RemoteClient struct {
 	leaseID    *string
 	snapshot   bool
 	timeout    time.Duration
+	cpkInfo    *blob.CPKInfo
+}
+
+func NewCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
+	raw, err := base64.StdEncoding.DecodeString(keyB64)
+	if err != nil {
+		return nil, fmt.Errorf("customer_provided_key: failed to decode base64 key %w", err)
+	}
+	if len(raw) != 32 {
+		return nil, fmt.Errorf("customer_provided_key: Key must be 32 bytes (AES-256), got %d bytes", len(raw))
+	}
+
+	sum := sha256.Sum256(raw)
+	sha256B64 := base64.StdEncoding.EncodeToString(sum[:])
+
+	encryptAlgorithm := blob.EncryptionAlgorithmTypeAES256
+	return &blob.CPKInfo{
+		EncryptionKey:       &keyB64,
+		EncryptionKeySHA256: &sha256B64,
+		EncryptionAlgorithm: &encryptAlgorithm,
+	}, nil
 }
 
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
@@ -42,6 +64,7 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	defer ctxCancel()
 	resp, err := c.blobClient.DownloadStream(ctx, &blob.DownloadStreamOptions{
 		AccessConditions: c.leaseAccessCondition(),
+		CPKInfo:          c.cpkInfo,
 	})
 	if err != nil {
 		if notFoundError(err) {
@@ -72,7 +95,10 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	ctx, ctxCancel := c.getContextWithTimeout(ctx)
 	defer ctxCancel()
 	if c.snapshot {
-		snapshotInput := &blob.CreateSnapshotOptions{AccessConditions: c.leaseAccessCondition()}
+		snapshotInput := &blob.CreateSnapshotOptions{
+			AccessConditions: c.leaseAccessCondition(),
+			CPKInfo:          c.cpkInfo,
+		}
 		log.Printf("[DEBUG] Snapshotting existing Blob %s", c.blobClient.URL())
 		if _, err := c.blobClient.CreateSnapshot(ctx, snapshotInput); err != nil {
 			return fmt.Errorf("error snapshotting Blob %s: %w", c.blobClient.URL(), err)
@@ -90,6 +116,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 		Metadata:         properties.Metadata,
 		AccessConditions: c.leaseAccessCondition(),
 		HTTPHeaders:      httpHeaders(),
+		CPKInfo:          c.cpkInfo,
 	}
 	_, err = c.blobClient.UploadBuffer(ctx, data, putOptions)
 	if err != nil {
@@ -146,6 +173,7 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		// if we don't find the blob, we need to build it
 		_, err = c.blobClient.UploadBuffer(ctx, []byte{}, &blockblob.UploadBufferOptions{
 			HTTPHeaders: httpHeaders(),
+			CPKInfo:     c.cpkInfo,
 		})
 
 		if err != nil {
@@ -225,6 +253,7 @@ func (c *RemoteClient) writeLockInfo(ctx context.Context, info *statemgr.LockInf
 
 	_, err = c.blobClient.SetMetadata(ctx, properties.Metadata, &blob.SetMetadataOptions{
 		AccessConditions: c.leaseAccessCondition(),
+		CPKInfo:          c.cpkInfo,
 	})
 
 	return err
@@ -279,7 +308,9 @@ func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 func (c *RemoteClient) getBlobProperties(ctx context.Context) (blob.GetPropertiesResponse, error) {
 	ctx, ctxCancel := c.getContextWithTimeout(ctx)
 	defer ctxCancel()
-	resp, err := c.blobClient.GetProperties(ctx, &blob.GetPropertiesOptions{AccessConditions: c.leaseAccessCondition()})
+	resp, err := c.blobClient.GetProperties(ctx, &blob.GetPropertiesOptions{
+		AccessConditions: c.leaseAccessCondition(),
+		CPKInfo:          c.cpkInfo})
 	if err == nil {
 		resp.Metadata = fixMetadata(resp.Metadata)
 	}

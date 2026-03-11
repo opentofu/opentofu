@@ -69,6 +69,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		blobClient: blobClient,
 		snapshot:   b.snapshot,
 		timeout:    b.timeout,
+		cpkInfo:    b.cpkInfo,
 	}
 
 	stateMgr := remote.NewState(client, b.encryption)
