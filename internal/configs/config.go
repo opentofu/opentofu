@@ -861,19 +861,6 @@ func (c *Config) ProviderForConfigAddr(addr addrs.LocalProviderConfig) addrs.Pro
 	return c.ResolveAbsProviderAddr(addr, addrs.RootModule).Provider
 }
 
-func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
-	var diags hcl.Diagnostics
-
-	diags = diags.Extend(c.Module.CheckCoreVersionRequirements(c.Path, c.SourceAddr))
-
-	for _, c := range c.Children {
-		childDiags := c.CheckCoreVersionRequirements()
-		diags = diags.Extend(childDiags)
-	}
-
-	return diags
-}
-
 type testConfigTransformFunc func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
 
 // TransformForTest prepares the config to execute the given test.

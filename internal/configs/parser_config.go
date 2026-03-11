@@ -7,7 +7,9 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/version"
 )
 
 // LoadConfigFile reads the file at the given path and parses it as a config
@@ -56,24 +58,29 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 	if body == nil {
 		return nil, diags
 	}
-	ret, moreDiags := loadConfigFileBody(body, path, override, p.allowExperiments)
+	ret, moreDiags := loadConfigFileBody(body, path, override)
 	diags = append(diags, moreDiags...)
 	return ret, diags
 }
 
-func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExperiments bool) (*File, hcl.Diagnostics) {
+func loadConfigFileBody(body hcl.Body, _ string, override bool) (*File, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	file := &File{}
 
-	var reqDiags hcl.Diagnostics
-	file.CoreVersionConstraints, reqDiags = sniffCoreVersionRequirements(body)
+	// We check for version compatibility constraints in the module first, using
+	// some code designed to be as resilient as possible to unpredictable
+	// future extensions to the language, so that we have the best possible
+	// chance of returning a version compatibility error if someone intentionally
+	// excluded the current version due to the module using newer features.
+	reqDiags := checkVersionRequirements(body, version.SemVer)
 	diags = append(diags, reqDiags...)
 
-	// We'll load the experiments first because other decoding logic in the
-	// loop below might depend on these experiments.
-	var expDiags hcl.Diagnostics
-	file.ActiveExperiments, expDiags = sniffActiveExperiments(body, allowExperiments)
-	diags = append(diags, expDiags...)
+	// We still continue here even if there was a version compatibility problem
+	// because we want to gather as complete as possible a map of the content
+	// of the valid parts of the module in case a caller wants to use that
+	// for careful partial analysis. Note though that if we have at least one
+	// version compatibility diagnostic in diags then any other diagnostics
+	// added later will eventually be discarded by [finalizeModuleLoadDiagnostics].
 
 	content, contentDiags := body.Content(configFileSchema)
 	diags = append(diags, contentDiags...)
@@ -81,13 +88,18 @@ func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExpe
 	for _, block := range content.Blocks {
 		switch block.Type {
 
+		case "language":
+			cfgDiags := validateLanguageBlock(block, override)
+			diags = append(diags, cfgDiags...)
+
 		case "terraform":
 			content, contentDiags := block.Body.Content(terraformBlockSchema)
 			diags = append(diags, contentDiags...)
 
-			// We ignore the "terraform_version", "language" and "experiments"
-			// attributes here because sniffCoreVersionRequirements and
-			// sniffActiveExperiments already dealt with those above.
+			// We ignore the "required_version", "language" and "experiments"
+			// attributes here because checkVersionRequirements above deals
+			// with "required_version" and the other two are not relevant
+			// to OpenTofu. ("language" blocks contain OpenTofu's equivalents.)
 
 			for _, innerBlock := range content.Blocks {
 				switch innerBlock.Type {
@@ -126,8 +138,8 @@ func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExpe
 					}
 
 				default:
-					// Should never happen because the above cases should be exhaustive
-					// for all block type names in our schema.
+					// Should never happen because the above cases should be
+					// exhaustive for all block type names in our schema.
 					continue
 
 				}
@@ -235,48 +247,13 @@ func loadConfigFileBody(body hcl.Body, filename string, override bool, allowExpe
 	return file, diags
 }
 
-// sniffCoreVersionRequirements does minimal parsing of the given body for
-// "terraform" blocks with "required_version" attributes, returning the
-// requirements found.
-//
-// This is intended to maximize the chance that we'll be able to read the
-// requirements (syntax errors notwithstanding) even if the config file contains
-// constructs that might've been added in future OpenTofu versions
-//
-// This is a "best effort" sort of method which will return constraints it is
-// able to find, but may return no constraints at all if the given body is
-// so invalid that it cannot be decoded at all.
-func sniffCoreVersionRequirements(body hcl.Body) ([]VersionConstraint, hcl.Diagnostics) {
-	rootContent, _, diags := body.PartialContent(configFileTerraformBlockSniffRootSchema)
-
-	var constraints []VersionConstraint
-
-	for _, block := range rootContent.Blocks {
-		content, _, blockDiags := block.Body.PartialContent(configFileVersionSniffBlockSchema)
-		diags = append(diags, blockDiags...)
-
-		attr, exists := content.Attributes["required_version"]
-		if !exists {
-			continue
-		}
-
-		constraint, constraintDiags := decodeVersionConstraint(attr)
-		diags = append(diags, constraintDiags...)
-		if !constraintDiags.HasErrors() {
-			constraints = append(constraints, constraint)
-		}
-	}
-
-	return constraints, diags
-}
-
 // configFileSchema is the schema for the top-level of a config file. We use
 // the low-level HCL API for this level so we can easily deal with each
 // block type separately with its own decoding logic.
 var configFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
-			Type: "terraform",
+			Type: "language",
 		},
 		{
 			// This one is not really valid, but we include it here so we
@@ -328,6 +305,9 @@ var configFileSchema = &hcl.BodySchema{
 		{
 			Type: "removed",
 		},
+		{
+			Type: "terraform",
+		},
 	},
 }
 
@@ -335,7 +315,18 @@ var configFileSchema = &hcl.BodySchema{
 // a configuration file.
 var terraformBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// This argument is accepted in any file, but ignored unless it appears
+		// in a file named with a ".tofu" or similar suffix that indicates
+		// it's intended for OpenTofu rather than its predecessor.
 		{Name: "required_version"},
+
+		// The following two are included for compatibility with modules
+		// written by OpenTofu's predecessor, but are ignored when present
+		// because we cannot predict what any future experiment or language
+		// edition keywords in our predecessor might represent.
+		//
+		// The equivalents of these arguments for OpenTofu are inside top-level
+		// "language" blocks, which are handled elsewhere in this package.
 		{Name: "experiments"},
 		{Name: "language"},
 	},
@@ -357,33 +348,5 @@ var terraformBlockSchema = &hcl.BodySchema{
 		{
 			Type: "encryption",
 		},
-	},
-}
-
-// configFileTerraformBlockSniffRootSchema is a schema for
-// sniffCoreVersionRequirements and sniffActiveExperiments.
-var configFileTerraformBlockSniffRootSchema = &hcl.BodySchema{
-	Blocks: []hcl.BlockHeaderSchema{
-		{
-			Type: "terraform",
-		},
-	},
-}
-
-// configFileVersionSniffBlockSchema is a schema for sniffCoreVersionRequirements
-var configFileVersionSniffBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "required_version",
-		},
-	},
-}
-
-// configFileExperimentsSniffBlockSchema is a schema for sniffActiveExperiments,
-// to decode a single attribute from inside a "terraform" block.
-var configFileExperimentsSniffBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{Name: "experiments"},
-		{Name: "language"},
 	},
 }
