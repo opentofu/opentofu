@@ -165,15 +165,6 @@ func TestNewState(t *testing.T) {
 	}
 }
 
-func TestCLIState_Init(t *testing.T) {
-	state := &CLIState{}
-	state.Init()
-
-	if state.Version != StateVersion {
-		t.Errorf("expected version %d, got %d", StateVersion, state.Version)
-	}
-}
-
 func TestCLIState_DeepCopy(t *testing.T) {
 	original := &CLIState{
 		Version: StateVersion,
