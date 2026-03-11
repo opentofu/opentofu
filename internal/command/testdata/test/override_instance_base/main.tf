@@ -22,6 +22,10 @@ module dog_houses {
     for_each = local.universes
 }
 
+module concrete_dog_house {
+    source = "./dog_house"
+}
+
 output "dino_a_greeting" {
     value = "Hey there, ${module.dog_houses["a"].flintstones}"
 }
@@ -56,4 +60,16 @@ output "scoob_b_greeting" {
 
 output "scoob_c_greeting" {
     value = "Jinkies, ${module.dog_houses["c"].shaggy}"
+}
+
+output "dino_concrete_greeting" {
+    value = "Hello, ${module.concrete_dog_house.flintstones}"
+}
+
+output "astro_concrete_greeting" {
+    value = "Hello, ${module.concrete_dog_house.jetsons}"
+}
+
+output "scoob_concrete_greeting" {
+    value = "Hello, ${module.concrete_dog_house.shaggy}"
 }

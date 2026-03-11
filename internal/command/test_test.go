@@ -1718,6 +1718,10 @@ func TestTest_InstanceOverride(t *testing.T) {
 			expectedErr: "override address cannot contain unkeyed for-each resources if it is also using the wildcard syntax",
 			code:        1,
 		},
+		"uninstanced_module": {
+			expected: "1 passed, 1 failed.",
+			code:     1,
+		},
 	}
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
