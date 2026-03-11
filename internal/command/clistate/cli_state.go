@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/mitchellh/copystructure"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -34,24 +33,12 @@ type CLIState struct {
 	// this state. This is used to track any changes in the backend
 	// configuration.
 	Backend *BackendState `json:"backend,omitempty"`
-
-	mu sync.Mutex
 }
 
 func NewState() *CLIState {
-	s := &CLIState{}
-	s.init()
-	return s
-}
-
-func (s *CLIState) Init() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.init()
-}
-
-func (s *CLIState) init() {
-	s.Version = StateVersion
+	return &CLIState{
+		Version: StateVersion,
+	}
 }
 
 // DeepCopy performs a deep copy of the CLI state structure and returns
@@ -61,7 +48,7 @@ func (s *CLIState) DeepCopy() *CLIState {
 		return nil
 	}
 
-	cpy, err := copystructure.Config{Lock: true}.Copy(s)
+	cpy, err := copystructure.Copy(s)
 	if err != nil {
 		panic(err)
 	}
@@ -143,7 +130,7 @@ func ReadState(src io.Reader) (*CLIState, error) {
 
 	if ver.Version != StateVersion {
 		return nil, fmt.Errorf(
-			"OpenTofu %s does not support state version %d, please update.",
+			"opentofu %s does not support CLI state version %d, please update",
 			tfversion.SemVer.String(),
 			ver.Version,
 		)
