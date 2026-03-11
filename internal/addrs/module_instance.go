@@ -153,7 +153,6 @@ func parseModuleInstancePrefixWithOptionalRanges(traversal hcl.Traversal, allowR
 				}
 			} else if _, ok := remain[0].(hcl.TraverseSplat); allowRanges && ok {
 				remain = remain[1:]
-				// TODO should we attempt to figure out the key type here?
 				step.InstanceKey = WildcardKey{UnknownKeyType}
 			}
 		}

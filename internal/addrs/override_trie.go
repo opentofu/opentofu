@@ -118,16 +118,16 @@ func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) (*O
 // If it could not be found in the OverrideTrie as an override, the default is used and
 // the boolean is set to false to indicate it was not found
 //
-// A wildcard instance key is not expected anywhere in the provided address, nor does it
-// make sense to use this to obtain a single value when referencing a wildcard.
-// ^^^ TODO write a test where a wildcard address REFERENCES one of the overridden instances values
-// ^^^ TODO in an output, for example, value = pets.cat[*].name or something
+// A wildcard instance key anywhere in the provided address will produce an error; it
+// make sense to use this to obtain a single value when referencing a wildcard. Additionally,
+// if the override addresses had no key in a module or resource where a key was expected,
+// this method will also produce an error for that.
 func (ot *OverrideTrie[T]) Get(addr *AbsResourceInstance) (T, bool, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	current := ot
 	for i, mod := range addr.Module {
 		next, ok := ot.subGet(current, mod.InstanceKey)
-		modDiags := ot.checkNoKey(i, addr.Resource.Key, addr)
+		modDiags := ot.checkKey(i, mod.InstanceKey, addr)
 		diags = diags.Append(modDiags)
 		if !ok {
 			return ot.defaultVal, false, diags
@@ -135,7 +135,7 @@ func (ot *OverrideTrie[T]) Get(addr *AbsResourceInstance) (T, bool, tfdiags.Diag
 		current = next
 	}
 	last, ok := ot.subGet(current, addr.Resource.Key)
-	resDiags := ot.checkNoKey(-1, addr.Resource.Key, addr)
+	resDiags := ot.checkKey(-1, addr.Resource.Key, addr)
 	diags = diags.Append(resDiags)
 	if !ok || last.value == nil {
 		return ot.defaultVal, false, diags
@@ -154,7 +154,16 @@ func (ot *OverrideTrie[T]) subGet(current *OverrideTrie[T], key InstanceKey) (*O
 	return next, true
 }
 
-func (ot *OverrideTrie[T]) checkNoKey(i int, key InstanceKey, addr *AbsResourceInstance) tfdiags.Diagnostics {
+func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addr *AbsResourceInstance) tfdiags.Diagnostics {
+	if _, usesWildcard := key.(WildcardKey); usesWildcard {
+		return tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Wildcard key not expected in when retrieving override values",
+				fmt.Sprintf("In the provided resource address \"%s\", a wildcard accessor is used for the instance key. A specific key should always be used, where applicable.", addr.String()),
+			),
+		}
+	}
 	if ot.noKeyEvidenceMap == nil || !ot.usesModernAddresses {
 		return nil
 	}
