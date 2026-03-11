@@ -305,7 +305,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		// "Authentication" is populated below
 	}
 
-	packageData := make(map[Platform]additionalRegistryPlatformData)
+	packageData := make(map[Platform]RegistryPlatformData)
 	for platformStr, packageMeta := range body.Packages {
 		platform, err := ParsePlatform(platformStr)
 		if err != nil {
@@ -315,7 +315,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 			)
 		}
 
-		platformData := additionalRegistryPlatformData{
+		platformData := RegistryPlatformData{
 			PackageSize: packageMeta.PackageSize,
 		}
 		for _, raw := range packageMeta.Hashes {
@@ -385,7 +385,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 
 	ret.Authentication = PackageAuthenticationAll(
-		NewAdditionalRegistryAuthentication(ret.TargetPlatform, body.SHA256Sum, packageData),
+		NewRegistryPackageAuthentication(ret.TargetPlatform, body.SHA256Sum, packageData),
 		NewMatchingChecksumAuthentication(document, body.Filename, checksum),
 		NewArchiveChecksumAuthentication(ret.TargetPlatform, checksum),
 		NewSignatureAuthentication(ret, document, signature, keys, provider),

@@ -369,26 +369,26 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 	return nil, nil
 }
 
-type additionalRegistryPlatformData struct {
+type RegistryPlatformData struct {
 	Hashes      []Hash
 	PackageSize int
 }
 
-type additionalRegistryAuthentication struct {
+type registryPackageAuthentication struct {
 	platform    Platform
 	sha256sum   string
-	packageData map[Platform]additionalRegistryPlatformData
+	packageData map[Platform]RegistryPlatformData
 }
 
-func NewAdditionalRegistryAuthentication(platform Platform, sha256sum string, packageData map[Platform]additionalRegistryPlatformData) PackageAuthentication {
-	return &additionalRegistryAuthentication{
+func NewRegistryPackageAuthentication(platform Platform, sha256sum string, packageData map[Platform]RegistryPlatformData) PackageAuthentication {
+	return &registryPackageAuthentication{
 		platform:    platform,
 		sha256sum:   sha256sum,
 		packageData: packageData,
 	}
 }
 
-func (a *additionalRegistryAuthentication) AuthenticatePackage(localLocation PackageLocation) (*PackageAuthenticationResult, error) {
+func (a *registryPackageAuthentication) AuthenticatePackage(localLocation PackageLocation) (*PackageAuthenticationResult, error) {
 	if len(a.packageData) == 0 {
 		log.Printf("[WARN] Package information missing in registry response for %s", localLocation)
 		return nil, nil
