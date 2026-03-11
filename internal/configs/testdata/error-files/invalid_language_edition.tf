@@ -1,4 +1,4 @@
-terraform {
-  # The language argument expects a bare keyword, not a string.
-  language = "TF2021" # ERROR: Invalid language edition
+language {
+  # The edition argument expects a bare keyword, not a string.
+  edition = "tofu2024" # ERROR: Invalid language edition
 }

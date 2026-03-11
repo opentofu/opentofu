@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -492,6 +494,31 @@ func TestModule_cloud_duplicate_overrides(t *testing.T) {
 	want := `Duplicate cloud configurations`
 	if got := diags.Error(); !strings.Contains(got, want) {
 		t.Fatalf("expected module error to contain %q\nerror was:\n%s", want, got)
+	}
+}
+
+func TestModuleFromTheFuture(t *testing.T) {
+	_, diags := testModuleFromDir("testdata/invalid-modules/unsupported-version-and-other-error")
+	if !diags.HasErrors() {
+		t.Fatal("unexpected success; want 'incompatible module' error")
+	}
+
+	var gotSummaries []string
+	for _, diag := range diags {
+		if diag.Severity == hcl.DiagError {
+			gotSummaries = append(gotSummaries, diag.Summary)
+		}
+	}
+	wantSummaries := []string{
+		// The configuration fixture used here includes both a mismatching version
+		// constraint _and_ an unrecognized block type, but we should've reported
+		// only the mismatching version constraint because we assume the
+		// unrecognized block type became valid in a future version of OpenTofu.
+		"Incompatible module",
+	}
+
+	if diff := cmp.Diff(wantSummaries, gotSummaries); diff != "" {
+		t.Error("wrong error diagnostics\n" + diff)
 	}
 }
 
