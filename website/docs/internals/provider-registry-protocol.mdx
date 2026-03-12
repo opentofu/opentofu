@@ -345,6 +345,8 @@ A successful result is a JSON object with the following properties:
   * `hashes` (required): List of valid hashes for the specific provider package.
   * `package_size` (required): Size in bytes of the specific provider package.
     Used to help prevent hash collision attacks.
+    
+    If `packages` is included then the information for all platforms must be included regardless of which platform was requested, because the included checksums will typically be copied into a dependency lock file for verifying packages installed on other platforms in future. The entry for each platform must include at least a `zh:` hash matching the value that would be returned in the top-level `shasum` property when requesting that platform.
 
 Return `404 Not Found` to signal that the given provider version isn't
 available for the requested operating system and/or architecture. OpenTofu
