@@ -9,6 +9,13 @@ override_resource {
 }
 
 override_resource {
+    target = module.dog_houses["c"].test_resource.dogs["astro"]
+    values = {
+        id = "Krypto"
+    }
+}
+
+override_resource {
     target = module.dog_houses["b"].test_resource.dogs[*]
     values = {
         id = "Snoopy"
