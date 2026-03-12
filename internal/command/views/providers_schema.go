@@ -48,5 +48,5 @@ func (v *ProvidersSchemaMixed) UnsupportedLocalOp() {
 
 func (v *ProvidersSchemaMixed) Output(json string) {
 	// The provider schema output is expected to just be the raw JSON
-	v.view.streams.Print(json)
+	v.view.streams.Println(json)
 }
