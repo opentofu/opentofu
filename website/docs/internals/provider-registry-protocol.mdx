@@ -265,6 +265,22 @@ curl 'https://registry.opentofu.org/v1/providers/examplecorp/random/2.0.0/downlo
         "source_url": "https://www.examplecorp.com/security.html"
       }
     ]
+  },
+  "packages": {
+    "darwin_amd64": {
+      "hashes": [
+        "zh:fa36a9bfe2f1532af36af30ab607f2858aef6ae73754349123fe140f9bef0701",
+        "h1:yZ6W9xVRg/J+CsYC5zefHGnaygOxVVCk34uidFslHV4="
+      ],
+      "package_size": 6555985
+    },
+    "darwin_arm64": {
+      "hashes": [
+        "zh:b4798fb4b1171ee66435212dc633c1836ed38314566c67a2a29d2d426b020a77",
+        "h1:Q1NTszPWmiltpevj7SqfEL3GnYby/13i4oKGEWkJCKM="
+      ],
+      "package_size": 6184593
+    }
   }
 }
 ```
@@ -324,6 +340,11 @@ A successful result is a JSON object with the following properties:
 
     * `ascii_armor` (required): an "ascii-armor" encoding of the **public key**
       associated with this GPG key.
+* `packages` (recommended): platform specific package metadata to assist in
+  provider locking.
+  * `hashes` (required): List of valid hashes for the specific provider package.
+  * `package_size` (required): Size in bytes of the specific provider package.
+    Used to help prevent hash collision attacks.
 
 Return `404 Not Found` to signal that the given provider version isn't
 available for the requested operating system and/or architecture. OpenTofu

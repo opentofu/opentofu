@@ -112,15 +112,17 @@ provider version.
 
 There are two special considerations with the "trust on first use" model:
 
-- If you install a provider from an origin registry which provides checksums
-  that are signed with a cryptographic signature, OpenTofu will treat all
-  of the signed checksums as valid as long as one checksum matches. The lock
-  file will therefore include checksums for both the package you installed for
-  your current platform _and_ any other packages that might be available for
-  other platforms.
+- If you install a provider from an origin registry which provides checksums,
+  OpenTofu will treat all of the checksums as valid as long as one checksum matches
+  the installed package. The lock file will therefore include checksums for both
+  the package you installed for your current platform _and_ any other packages
+  that might be available for other platforms. If you wish to restrict this
+  behavior to only providers that are signed with a cryptographic signature,
+  you can set [OPENTOFU_ENFORCE_GPG_VALIDATION](../../cli/plugins/signing.mdx)
+  to `true`.
 
-  In this case, the `tofu init` output will include the fingerprint of
-  the key that signed the checksums, with a message like
+  If a cryptographic signature is present, the `tofu init` output will include
+  the fingerprint of the key that signed the checksums, with a message like
   `(signed, key ID 0C0AF313E5FD9F80)`. You may wish to
   confirm that you trust the holder of the given key before committing the
   lock file containing the signed checksums, or to retrieve and verify the
@@ -329,18 +331,15 @@ to the new scheme.
 
 When installing a particular provider for the first time (where there is no
 existing `provider` block for it), OpenTofu will pre-populate the `hashes`
-value with any checksums that are covered by the provider developer's
-cryptographic signature, which usually covers all of the available packages
-for that provider version across all supported platforms. However, because
-the provider registry protocol still uses the `zh:` scheme, the initial set
-will consist primarily of hashes using that scheme, which OpenTofu will then
-upgrade opportunistically as you install the packages on different platforms.
+value with all checksums reported by the registry, which usually covers
+all of the available packages for that provider version across all supported
+platforms. The OpenTofu Registry (as of OpenTofu v1.12) provides a comprehensive
+set of `zh` (Zip Hash) and `h1` (Hash Scheme 1) hashes.
 
-If you wish to avoid ongoing additions of new `h1:` hashes as you work with
-your configuration on new target platforms, or if you are installing providers
-from a mirror that therefore can't provide official signed checksums, you
-can ask OpenTofu to pre-populate hashes for a chosen set of platforms
-using
+If you wish to avoid ongoing additions of new `h1:` hashes if you are
+installing providers from a mirror that therefore can't provide official
+signed checksums, you can ask OpenTofu to pre-populate hashes for a chosen
+set of platforms using
 [the `tofu providers lock` command](../../cli/commands/providers/lock.mdx):
 
 ```
