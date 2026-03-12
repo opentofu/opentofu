@@ -38,26 +38,6 @@ type RemoteClient struct {
 	cpkInfo    *blob.CPKInfo
 }
 
-func NewCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
-	raw, err := base64.StdEncoding.DecodeString(keyB64)
-	if err != nil {
-		return nil, fmt.Errorf("customer_provided_key: failed to decode base64 key %w", err)
-	}
-	if len(raw) != 32 {
-		return nil, fmt.Errorf("customer_provided_key: Key must be 32 bytes (AES-256), got %d bytes", len(raw))
-	}
-
-	sum := sha256.Sum256(raw)
-	sha256B64 := base64.StdEncoding.EncodeToString(sum[:])
-
-	encryptAlgorithm := blob.EncryptionAlgorithmTypeAES256
-	return &blob.CPKInfo{
-		EncryptionKey:       &keyB64,
-		EncryptionKeySHA256: &sha256B64,
-		EncryptionAlgorithm: &encryptAlgorithm,
-	}, nil
-}
-
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	// Get should time out after the timeoutSeconds
 	ctx, ctxCancel := c.getContextWithTimeout(ctx)
@@ -364,4 +344,24 @@ func httpHeaders() *blob.HTTPHeaders {
 	return &blob.HTTPHeaders{
 		BlobContentType: &contentType,
 	}
+}
+
+func NewCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
+	raw, err := base64.StdEncoding.DecodeString(keyB64)
+	if err != nil {
+		return nil, fmt.Errorf("CPK: failed to decode base64 key %w", err)
+	}
+	if len(raw) != 32 {
+		return nil, fmt.Errorf("CPK: Key must be 32 bytes (AES-256), got %d bytes", len(raw))
+	}
+
+	sum := sha256.Sum256(raw)
+	sha256B64 := base64.StdEncoding.EncodeToString(sum[:])
+
+	encryptAlgorithm := blob.EncryptionAlgorithmTypeAES256
+	return &blob.CPKInfo{
+		EncryptionKey:       &keyB64,
+		EncryptionKeySHA256: &sha256B64,
+		EncryptionAlgorithm: &encryptAlgorithm,
+	}, nil
 }
