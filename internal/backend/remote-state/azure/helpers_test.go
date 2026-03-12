@@ -236,6 +236,6 @@ func testCPKKey(t *testing.T) string {
 		return key
 	}
 	raw := make([]byte, 32)
-	rand.Read(raw)
+	_, _ = rand.Read(raw)
 	return base64.StdEncoding.EncodeToString(raw)
 }
