@@ -382,7 +382,7 @@ type registryPackageAuthentication struct {
 
 // NewRegistryPackageAuthentication returns a PackageAuthentication
 // implementation that ensures the SHA256SUM (verified elsewhere) is
-// matches the respective registry package data entry. We assume
+// matches the respective registry package data entry.
 //
 // This authentication returns a result where all of the entries are
 // ReportedByRegistry. It should be combined with other authentications
