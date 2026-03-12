@@ -30,7 +30,7 @@ func ParseProvidersSchema(args []string) (*ProvidersSchema, func(), tfdiags.Diag
 
 	cmdFlags := extendedFlagSet("providers schema", nil, nil, schema.Vars)
 
-	schema.ViewOptions.AddFlags(cmdFlags, false)
+	schema.ViewOptions.AddGranularFlags(cmdFlags, false, false)
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
