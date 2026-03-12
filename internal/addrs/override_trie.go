@@ -31,6 +31,8 @@ type OverrideTrie[T any] struct {
 	// where, at that step of the process, the instance key was NoKey. This is used
 	// for error handling to provide user feedback on which addresses to fix.
 	noKeyEvidenceMap [][]*AbsResourceInstance
+
+	root *OverrideTrie[T]
 }
 
 // NewOverrideTrie creates a new trie for mapping override values to addresses.
@@ -109,6 +111,7 @@ func (ot *OverrideTrie[T]) subSet(current *OverrideTrie[T], key InstanceKey) (*O
 	if !ok {
 		current.trie[key] = NewOverrideTrie(ot.defaultVal)
 		next = current.trie[key]
+		next.root = ot
 	}
 	return next, usesNoKey
 }
@@ -162,6 +165,9 @@ func (ot *OverrideTrie[T]) recursiveGet(i, n int, keyList []InstanceKey, addrStr
 }
 
 func (ot *OverrideTrie[T]) checkKey(i int, key InstanceKey, addrString string) tfdiags.Diagnostics {
+	if ot.root != nil && ot.root != ot {
+		return ot.root.checkKey(i, key, addrString)
+	}
 	if _, usesWildcard := key.(WildcardKey); usesWildcard {
 		return tfdiags.Diagnostics{
 			tfdiags.Sourceless(
