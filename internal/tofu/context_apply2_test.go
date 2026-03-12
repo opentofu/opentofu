@@ -1243,6 +1243,193 @@ resource "test_resource" "c" {
 	})
 }
 
+func TestContext2Apply_ephemeralResourceLifecycleConditions(t *testing.T) {
+	const cfgTpl = `
+variable "boop" {
+  type = string
+}
+
+resource "test_resource" "a" {
+	value = var.boop
+}
+
+ephemeral "test_resource" "b" {
+  value = test_resource.a.output
+  lifecycle {
+    %s {
+      condition     = test_resource.a.output != ""
+      error_message = "Output must not be blank."
+    }
+  }
+}
+
+resource "test_resource" "c" {
+  value_wo = ephemeral.test_resource.b.output
+}`
+	postconditionConfig := map[string]string{
+		"main.tf": fmt.Sprintf(cfgTpl, "postcondition"),
+	}
+	preconditionConfig := map[string]string{
+		"main.tf": fmt.Sprintf(cfgTpl, "precondition"),
+	}
+
+	tests := map[string]struct {
+		moduleConfig     map[string]string
+		inputValue       string
+		expectError      bool
+		expectedErrorMsg string
+		expectedStatus   checks.Status
+	}{
+		"postcondition pass": {
+			moduleConfig:   postconditionConfig,
+			inputValue:     "boop",
+			expectError:    false,
+			expectedStatus: checks.StatusPass,
+		},
+		"postcondition fail": {
+			moduleConfig:     postconditionConfig,
+			inputValue:       "boop-new",
+			expectError:      true,
+			expectedErrorMsg: "Resource postcondition failed: Output must not be blank.",
+			expectedStatus:   checks.StatusFail,
+		},
+		"precondition pass": {
+			moduleConfig:   preconditionConfig,
+			inputValue:     "boop",
+			expectError:    false,
+			expectedStatus: checks.StatusPass,
+		},
+		"precondition fail": {
+			moduleConfig:     preconditionConfig,
+			inputValue:       "boop-new",
+			expectError:      true,
+			expectedErrorMsg: "Resource precondition failed: Output must not be blank.",
+			expectedStatus:   checks.StatusFail,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			m := testModuleInline(t, tc.moduleConfig)
+
+			p := testProvider("test")
+			p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+				ResourceTypes: map[string]*configschema.Block{
+					"test_resource": {
+						Attributes: map[string]*configschema.Attribute{
+							"value": {
+								Type:     cty.String,
+								Optional: true,
+							},
+							"value_wo": {
+								Type:      cty.String,
+								WriteOnly: true,
+								Optional:  true,
+							},
+							"output": {
+								Type:     cty.String,
+								Computed: true,
+							},
+						},
+					},
+				},
+				EphemeralTypes: map[string]*configschema.Block{
+					"test_resource": {
+						Attributes: map[string]*configschema.Attribute{
+							"value": {
+								Type:     cty.String,
+								Required: true,
+							},
+							"output": {
+								Type:     cty.String,
+								Computed: true,
+							},
+						},
+					},
+				},
+			})
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+				m := req.ProposedNewState.AsValueMap()
+				m["output"] = cty.UnknownVal(cty.String)
+
+				resp.PlannedState = cty.ObjectVal(m)
+				resp.LegacyTypeSystem = true
+				return resp
+			}
+			p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+				m := req.PlannedState.AsValueMap()
+				v, ok := m["value"]
+				if !ok || v.IsNull() {
+					v = m["value_wo"]
+				}
+				outputVal := fmt.Sprintf("new-%s", v.AsString())
+				if v.AsString() == "boop-new" {
+					outputVal = ""
+				}
+				m["output"] = cty.StringVal(outputVal)
+
+				resp.NewState = cty.ObjectVal(m)
+				return resp
+			}
+			p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+				m := req.Config.AsValueMap()
+				m["output"] = cty.StringVal("generated-" + m["value"].AsString())
+
+				resp.Result = cty.ObjectVal(m)
+				return resp
+			}
+			ctx := testContext2(t, &ContextOpts{
+				Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				}, nil),
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+				Mode: plans.NormalMode,
+				SetVariables: InputValues{
+					"boop": &InputValue{
+						Value:      cty.StringVal(tc.inputValue),
+						SourceType: ValueFromCLIArg,
+					},
+				},
+			})
+			assertNoErrors(t, diags)
+			if len(plan.Changes.Resources) != 3 {
+				t.Fatalf("unexpected plan changes: %#v", plan.Changes)
+			}
+
+			state, diags := ctx.Apply(context.Background(), plan, m, nil)
+			if tc.expectError {
+				if !diags.HasErrors() {
+					t.Fatal("succeeded; want errors")
+				}
+				if got, want := diags.Err().Error(), tc.expectedErrorMsg; got != want {
+					t.Fatalf("wrong error:\ngot:  %s\nwant: %q", got, want)
+				}
+			} else {
+				assertNoErrors(t, diags)
+			}
+
+			wantChecks := []struct {
+				addr   addrs.ConfigResource
+				status checks.Status
+			}{
+				{
+					addr:   mustAbsResourceAddr("ephemeral.test_resource.b").Config(),
+					status: tc.expectedStatus,
+				},
+			}
+
+			for _, tc := range wantChecks {
+				got := state.CheckResults.ConfigResults.Get(tc.addr)
+				if got.Status != tc.status {
+					t.Errorf("for %s expected status %s but got %s", tc.addr, tc.status, got.Status)
+				}
+			}
+		})
+	}
+}
+
 func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
