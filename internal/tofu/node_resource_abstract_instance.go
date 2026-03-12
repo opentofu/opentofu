@@ -3238,17 +3238,17 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 
 	keyData = evalCtx.InstanceExpander().GetResourceInstanceRepetitionData(n.ResourceInstanceAddr())
 
-	// checkDiags := evalCheckRules(
-	// 	ctx,
-	// 	addrs.ResourcePrecondition,
-	// 	n.Config.Preconditions,
-	// 	evalCtx, n.Addr, keyData,
-	// 	tfdiags.Error,
-	// )
-	// diags = diags.Append(checkDiags)
-	// if diags.HasErrors() {
-	// 	return nil, keyData, diags // failed preconditions prevent further evaluation
-	// }
+	checkDiags := evalCheckRules(
+		ctx,
+		addrs.ResourcePrecondition,
+		n.Config.Preconditions,
+		evalCtx, n.Addr, keyData,
+		tfdiags.Error,
+	)
+	diags = diags.Append(checkDiags)
+	if diags.HasErrors() {
+		return nil, keyData, diags // failed preconditions prevent further evaluation
+	}
 
 	var configDiags tfdiags.Diagnostics
 	configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
