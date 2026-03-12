@@ -95,19 +95,15 @@ type NodeAbstractResourceInstance struct {
 	ResolvedProviderKey addrs.InstanceKey
 
 	// These are the fields that should be strictly used when this node is acting upon an ephemeral resource.
-	// The ephemeralDiags and closeCh are initialized right before scheduling the renewal process.
+	// The ephemeralCloseFn is initialized right before scheduling the renewal process.
 	//
-	// closeCh is the channel that will be close to stop the renewal goroutine.
+	// ephemeralCloseFn is the function that when called will shutdown the renewal process (if started) and will
+	// call CloseEphemeralResource on the provider.
 	// This is closed when the NodeAbstractResourceInstance.Close is called. NodeAbstractResourceInstance.Close will
 	// return immediately if renewStarted.Load() == false, meaning that the goroutine for ephemeral resource
 	// renewal never started.
 	//
-	// ephemeralDiags is used by the renewal goroutine to return whatever issues it encountered during the process.
-	// This is the channel that NodeAbstractResourceInstance.Close is blocking on, so be sure that when the goroutine
-	// is getting closed, there is something written into ephemeralDiags. Otherwise, NodeAbstractResourceInstance.Close
-	// will wait for a specific timeout before returning only a timeout diagnostic.
-	// The same channel is also used by the NodeAbstractResourceInstance.closeEphemeralResource to add the diagnostics
-	// that it encountered, if any.
+	// Diagnostics returned by ephemeralCloseFn will contain whatever issues it encountered during the process.
 	//
 	// renewStarted is just used as a semaphore to be able to detect when an ephemeral resource renewal process didn't
 	// start so calls to NodeAbstractResourceInstance.Close can return no diagnostics whatsoever.
@@ -2126,12 +2122,8 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		// We use the same context for close here, not sure if we want to consider using the context for the close node instead
 		return closeFn(ctx).InConfigBody(config.Config, n.Addr.String())
 	}
-
-	// Due to the go scheduler inner works, the goroutine spawned below can be actually scheduled
-	// later than the execution of the nodeCloseableResource graph node.
-	// Therefore, we want to mark the renewal process as started before the goroutine spawning to be sure
-	// that the execution of nodeCloseableResource will block on the diagnostics reported by the
-	// goroutine below.
+	// Mark the renewal process started so that the Close() call can actually call the ephemeralCloseFn.
+	// This is to guard against possible race conditions.
 	n.renewStarted.Store(true)
 
 	return newVal, diags
