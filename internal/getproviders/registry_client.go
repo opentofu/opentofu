@@ -385,7 +385,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	}
 
 	ret.Authentication = PackageAuthenticationAll(
-		NewRegistryPackageAuthentication(ret.TargetPlatform, body.SHA256Sum, packageData),
+		NewRegistryPackageAuthentication(ret, body.SHA256Sum, packageData),
 		NewMatchingChecksumAuthentication(document, body.Filename, checksum),
 		NewArchiveChecksumAuthentication(ret.TargetPlatform, checksum),
 		NewSignatureAuthentication(ret, document, signature, keys, provider),

@@ -132,7 +132,7 @@ func TestSourcePackageMeta(t *testing.T) {
 	}
 	validMeta.Authentication = PackageAuthenticationAll(
 		NewRegistryPackageAuthentication(
-			Platform{"linux", "amd64"},
+			validMeta,
 			"000000000000000000000000000000000000000000000000000000000000f00d",
 			map[Platform]RegistryPlatformData{},
 		),

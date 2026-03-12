@@ -439,6 +439,11 @@ func TestMatchingChecksumAuthentication_failure(t *testing.T) {
 func TestRegistryPackageAuthentication(t *testing.T) {
 	location := PackageLocalArchive("testdata/filesystem-mirror/registry.opentofu.org/hashicorp/null/terraform-provider-null_2.1.0_linux_amd64.zip")
 	platform := Platform{"linux", "amd64"}
+	meta := PackageMeta{
+		Provider:       addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null"),
+		Version:        MustParseVersion("2.1.0"),
+		TargetPlatform: platform,
+	}
 	validSha := "086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b"
 	validH1 := "tru5tm3br0"
 	zh := Hash("zh:" + validSha)
@@ -522,7 +527,7 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 	}}
 
 	for _, tc := range tests {
-		auth := NewRegistryPackageAuthentication(platform, tc.sha, tc.packageData)
+		auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
 		result, err := auth.AuthenticatePackage(tc.location)
 
 		if tc.err != "" {
