@@ -108,6 +108,23 @@ func TestOverrideTrie(t *testing.T) {
 			Query:     new(getAbsResourceRangeOrPanic(`module.vps[*].tofu_network.spiderweb`)),
 			WantError: true,
 		},
+		{
+			TestName: "wildcard fallback",
+			Default:  "somewhere",
+			Overrides: []override{
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps[*].module.subnet[*].tofu_network.spiderweb["a"]`)),
+					Values:  "australia",
+				},
+				{
+					Address: new(getAbsResourceRangeOrPanic(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["b"]`)),
+					Values:  "burkina faso",
+				},
+			},
+			Query:       new(getAbsResourceRangeOrPanic(`module.vps["a"].module.subnet["a"].tofu_network.spiderweb["a"]`)),
+			WantDefault: false,
+			Want:        "australia",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.TestName, func(t *testing.T) {
