@@ -22,7 +22,7 @@ import (
 	// because we also use some semconv symbols indirectly through that
 	// package, and so we need to update this each time we upgrade the module
 	// "go.opentelemetry.io/otel/sdk".
-	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 
 	"github.com/opentofu/opentofu/version"
 )
