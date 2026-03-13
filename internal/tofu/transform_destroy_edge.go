@@ -341,7 +341,8 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 				case graphNodeRetainedByPruneUnusedNodesTransformer:
 					// Any nodes that expand instances are kept when their
 					// instances may need to be evaluated.
-					for _, v := range g.UpEdges(n) {
+					up := g.UpEdges(n)
+					for _, v := range up {
 						switch v.(type) {
 						case graphNodeRetainedByPruneUnusedNodesTransformer, GraphNodeDynamicExpandable:
 							// Root module output values or checks (which the following
@@ -371,6 +372,15 @@ func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) err
 							return
 						}
 					}
+					// TODO ephemeral - cleanup this after review
+					// if c, ok := n.(*nodeExpandApplyableResource); ok && len(up) == 0 {
+					// 	if c.Addr.Resource.Mode == addrs.EphemeralResourceMode {
+					// 		// TODO ephemeral - do we really want to have the ephemeral nodes executed during apply if they are not referenced?
+					// 		//   or should we just allow this since are referenced?
+					// 		log.Printf("[TRACE] pruneUnusedNodes: expand node for ephemeral not pruned")
+					// 		return
+					// 	}
+					// }
 
 				case GraphNodeProvider:
 					// Only keep providers for evaluation if they have
