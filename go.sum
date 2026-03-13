@@ -679,8 +679,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828 h1:r2WiJxljn/Cxwpq9zMZ5HomJcNwmGNjKmeZnFsxkpBg=
-github.com/opentofu/hcl/v2 v2.20.2-0.20251021132045-587d123c2828/go.mod h1:k+HgkLpoWu9OS81sy4j1XKDXaWm/rLysG33v5ibdDnc=
+github.com/opentofu/hcl/v2 v2.20.2-0.20260210234527-0ac0e222b702 h1:tdGkPuAQ8QHY5TbI20UXODObHrPpAkQNssa5YdxwYnM=
+github.com/opentofu/hcl/v2 v2.20.2-0.20260210234527-0ac0e222b702/go.mod h1:WS1ymNdBhhwYKDVlGnUb9fmqB2hw1djJva6S8Bj/WfI=
 github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4 h1:k5ODrqBcfHzccrsiiKKRcqvtMgDw1yo1W53K7LYFBlA=
 github.com/opentofu/registry-address/v2 v2.0.0-20260307135325-45f3562374e4/go.mod h1:7M92SvuJm1WBriIpa4j0XmruU9pxkgPXmRdc6FfAvAk=
 github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8 h1:J3pmsVB+nGdfNp5HWdEAC96asYgc7S6J724ICrYDCTk=

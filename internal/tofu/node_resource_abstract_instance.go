@@ -3182,7 +3182,7 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", n.ResolvedProvider.ProviderConfig, schemaDiags.Err())
 	}
 
-	var isOverridden bool
+	var isOverridden, providerOverrideIsNotDefault bool
 	var overrideValues map[string]cty.Value
 
 	if n.ResolvedProvider.IsMocked {
@@ -3196,19 +3196,35 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 			}
 		}
 
+		trie := addrs.NewOverrideTrie(overrideValues)
 		// Overridden by the provider (overrides mocks)
 		for _, res := range n.ResolvedProvider.OverrideResources {
-			if res.TargetParsed.Equal(n.Addr.ConfigResource()) && res.Mode == n.Addr.Resource.Resource.Mode {
-				overrideValues = res.Values
-				break
+			if res.TargetParsed.AffectedAbsResource().Equal(n.Addr.AffectedAbsResource()) {
+				trie.Set(res.TargetParsed, res.Values)
 			}
+		}
+
+		var providerOverrideDiags tfdiags.Diagnostics
+		overrideValues, providerOverrideIsNotDefault, providerOverrideDiags = trie.Get(&n.Addr)
+		if providerOverrideDiags.HasErrors() {
+			return nil, providers.ProviderSchema{}, providerOverrideDiags.Err()
 		}
 	}
 
-	if n.Config != nil && n.Config.IsOverridden {
+	if n.Config != nil && n.Config.IsOverridden && n.Config.Overrides != nil {
 		// Overridden in the currently running test (overrides any provider settings)
+
+		// We check if the provider's override is non-default;
+		// if it is, we only set overrideValues if the retrieved value
+		// is not default, i.e. it was actually overridden in the trie.
 		isOverridden = n.Config.IsOverridden
-		overrideValues = n.Config.OverrideValues
+		if newOverrideValues, ok, resourceOverrideDiags := n.Config.Overrides.Get(&n.Addr); !providerOverrideIsNotDefault || ok {
+			overrideValues = newOverrideValues
+			if resourceOverrideDiags.HasErrors() {
+				return nil, providers.ProviderSchema{}, resourceOverrideDiags.Err()
+			}
+		}
+		// TODO: should this be collapsed into one if-statement? The logic is a bit hairy...
 	}
 
 	if isOverridden {
