@@ -228,8 +228,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 
 		Packages map[string]struct {
 			Hashes      []string `json:"hashes"`
-			PackageSize int      `json:"package_size"`
-		}
+			PackageSize int64    `json:"package_size"`
+		} `json:"packages"`
 	}
 	var body ResponseBody
 

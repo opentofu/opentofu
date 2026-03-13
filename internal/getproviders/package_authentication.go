@@ -371,7 +371,7 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 
 type RegistryPlatformData struct {
 	Hashes      []Hash
-	PackageSize int
+	PackageSize int64
 }
 
 type registryPackageAuthentication struct {
@@ -423,7 +423,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 	if err != nil {
 		return nil, err
 	}
-	if stat.Size() != int64(platformData.PackageSize) {
+	if stat.Size() != platformData.PackageSize {
 		return nil, fmt.Errorf("registry response indicates a package of size %v, but recieved a package of size %v", platformData.PackageSize, stat.Size())
 	}
 
