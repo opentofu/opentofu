@@ -261,7 +261,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						TargetPlatform: fakePlatform,
 						Location:       beepProviderZip,
 						Authentication: getproviders.NewPackageHashAuthentication(
-							fakePlatform, []getproviders.Hash{beepProviderZipHash},
+							fakePlatform, []getproviders.Hash{beepProviderZipHash}, false,
 						),
 					},
 				},

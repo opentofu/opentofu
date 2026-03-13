@@ -218,19 +218,26 @@ func (s *HTTPMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provi
 	}
 	// A network mirror might not provide any hashes at all, in which case
 	// the package has no source-defined authentication whatsoever.
-	if len(archiveMeta.Hashes) > 0 {
-		hashes := make([]Hash, 0, len(archiveMeta.Hashes))
-		for _, hashStr := range archiveMeta.Hashes {
-			hash, err := ParseHash(hashStr)
-			if err != nil {
-				return PackageMeta{}, s.errQueryFailed(
-					provider,
-					fmt.Errorf("provider mirror returned invalid provider hash %q: %w", hashStr, err),
-				)
+	var hashes []Hash
+	for platform, meta := range bodyContent.Archives {
+		if s.locationConfig.TrustedSource || platform == target.String() {
+			if len(meta.Hashes) > 0 {
+				for _, hashStr := range meta.Hashes {
+					hash, err := ParseHash(hashStr)
+					if err != nil {
+						return PackageMeta{}, s.errQueryFailed(
+							provider,
+							fmt.Errorf("provider mirror returned invalid provider hash %q: %w", hashStr, err),
+						)
+					}
+					hashes = append(hashes, hash)
+				}
 			}
-			hashes = append(hashes, hash)
+
 		}
-		ret.Authentication = NewPackageHashAuthentication(target, hashes)
+	}
+	if len(hashes) > 0 {
+		ret.Authentication = NewPackageHashAuthentication(target, hashes, s.locationConfig.TrustedSource)
 	}
 
 	return ret, nil

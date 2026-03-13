@@ -526,6 +526,11 @@ type HashDisposition struct {
 	// unless the provider developer's signing key also appears in
 	// SignedByGPGKeyIDs.
 	VerifiedLocally bool
+
+	ReportedByTrustedMirror bool
+
+	// Optional, used for filtering
+	Platform *Platform
 }
 
 // SignedByAnyGPGKeys returns true if the reciever has at least one GPG key
@@ -574,7 +579,17 @@ func MergeHashDisposition(a, b *HashDisposition) *HashDisposition {
 		}
 	}
 	ret.ReportedByRegistry = a.ReportedByRegistry || b.ReportedByRegistry
+	ret.ReportedByTrustedMirror = a.ReportedByTrustedMirror || b.ReportedByTrustedMirror
 	ret.VerifiedLocally = a.VerifiedLocally || b.VerifiedLocally
+	if a.Platform != nil {
+		ret.Platform = a.Platform
+	}
+	if b.Platform != nil {
+		if ret.Platform != nil && ret.Platform != b.Platform {
+			panic("BUG: conflicting platforms")
+		}
+		ret.Platform = b.Platform
+	}
 	return ret
 }
 

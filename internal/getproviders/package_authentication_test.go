@@ -222,7 +222,7 @@ func TestPackageHashAuthentication_success(t *testing.T) {
 		Hash("h1:qjsREM4DqEWECD43FcPqddZ9oxCG+IaMTxvWPciS05g="),
 	}
 
-	auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes)
+	auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes, false)
 	result, err := auth.AuthenticatePackage(location)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -257,7 +257,7 @@ func TestPackageHashAuthentication_failure(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Invalid expected hash, either because we'll error before we
 			// reach it, or we want to force a checksum mismatch.
-			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"})
+			auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, []Hash{"h1:invalid"}, false)
 			result, err := auth.AuthenticatePackage(test.location)
 
 			if result != nil {

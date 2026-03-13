@@ -343,7 +343,7 @@ func (o *OCIRegistryMirrorSource) PackageMeta(ctx context.Context, provider addr
 	if err != nil {
 		return PackageMeta{}, err
 	}
-	authentication := NewPackageHashAuthentication(target, []Hash{expectedHash})
+	authentication := NewPackageHashAuthentication(target, []Hash{expectedHash}, false)
 
 	// If we got through all of the above then we seem to have found a suitable
 	// package to install, but our job is only to describe its metadata.
