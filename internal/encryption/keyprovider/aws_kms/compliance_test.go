@@ -83,6 +83,98 @@ func TestKeyProvider(t *testing.T) {
 					ValidBuild: false,
 				},
 			},
+			JSONParseTestCases: map[string]compliancetest.JSONParseTestCase[*Config, *keyProvider]{
+				"success": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+				"kms_key_id": "%s",
+				"key_spec": "AES_256",
+				"skip_credentials_validation": true
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *keyProvider) error {
+						if config.KMSKeyID != testKeyId {
+							return fmt.Errorf("incorrect key ID returned")
+						}
+						return nil
+					},
+				},
+				"empty": {
+					JSON: `{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+			}
+		}
+	}
+}`,
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+				"invalid-key-spec": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+				"kms_key_id": "%s",
+				"key_spec": "BROKEN STUFF"
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"empty-key-id": {
+					JSON: `{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+				"kms_key_id": "",
+				"key_spec": "AES_256"
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"empty-key-spec": {
+					JSON: `{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+				"kms_key_id": "alias/temp",
+				"key_spec": ""
+			}
+		}
+	}
+}`,
+					ValidJSON:  true,
+					ValidBuild: false,
+				},
+				"unknown-property": {
+					JSON: fmt.Sprintf(`{
+	"key_provider": {
+		"aws_kms": {
+			"foo": {
+				"kms_key_id": "%s",
+				"key_spec": "AES_256",
+				"unknown_property": "foo"
+			}
+		}
+	}
+}`, testKeyId),
+					ValidJSON:  false,
+					ValidBuild: false,
+				},
+			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{
 				"success": {
 					Config: &Config{
