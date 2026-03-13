@@ -15,6 +15,7 @@ import (
 	"iter"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -366,6 +367,100 @@ func (m matchingChecksumAuthentication) AuthenticatePackage(location PackageLoca
 	// Success! But this doesn't result in any real authentication, only a
 	// lack of authentication errors, so we return a nil result.
 	return nil, nil
+}
+
+type RegistryPlatformData struct {
+	Hashes      []Hash
+	PackageSize int64
+}
+
+type registryPackageAuthentication struct {
+	Meta        PackageMeta
+	SHA256Sum   string
+	PackageData map[Platform]RegistryPlatformData
+}
+
+// NewRegistryPackageAuthentication returns a PackageAuthentication
+// implementation that ensures the SHA256SUM (verified elsewhere) is
+// matches the respective registry package data entry.
+//
+// This authentication returns a result where all of the entries are
+// ReportedByRegistry. It should be combined with other authentications
+// to be useful.
+//
+// See the corresponding [RFC](rfc/20251027-provider-registry-hashes.md) for
+// more information.
+func NewRegistryPackageAuthentication(meta PackageMeta, sha256sum string, packageData map[Platform]RegistryPlatformData) PackageAuthentication {
+	return &registryPackageAuthentication{
+		Meta:        meta,
+		SHA256Sum:   sha256sum,
+		PackageData: packageData,
+	}
+}
+
+func (a *registryPackageAuthentication) AuthenticatePackage(localLocation PackageLocation) (*PackageAuthenticationResult, error) {
+	ident := fmt.Sprintf("%s %s (for %s)", a.Meta.Provider, a.Meta.Version, a.Meta.TargetPlatform)
+
+	if len(a.PackageData) == 0 {
+		log.Printf("[WARN] Package information missing in registry response for %s", ident)
+		return nil, nil
+	}
+
+	log.Printf("[DEBUG] Package information present in registry response for %s", ident)
+	platformData, ok := a.PackageData[a.Meta.TargetPlatform]
+	if !ok {
+		return nil, fmt.Errorf("registry response missing package with platform %q", a.Meta.TargetPlatform)
+	}
+	// Validatepackage size
+	if platformData.PackageSize <= 0 {
+		return nil, fmt.Errorf("registry response has invalid package size %v", platformData.PackageSize)
+	}
+	archivePath, err := filepath.EvalSymlinks(localLocation.String())
+	if err != nil {
+		return nil, err
+	}
+	stat, err := os.Stat(archivePath)
+	if err != nil {
+		return nil, err
+	}
+	if stat.Size() != platformData.PackageSize {
+		return nil, fmt.Errorf("registry response indicates a package of size %v, but recieved a package of size %v", platformData.PackageSize, stat.Size())
+	}
+
+	// Validate platform specific hash data
+	foundReportedMatch := false
+	for _, hash := range platformData.Hashes {
+		// Check that we have a valid zip hash that corresponds to the reported checksum
+		// This is especially important as the reported checksum is checked agains the real
+		// zip below
+		if hash.HasScheme(HashSchemeZip) {
+			if hash.Value() != a.SHA256Sum {
+				return nil, fmt.Errorf("registry response expected sha256sum is %q, which does not match the platform's value of %q", a.SHA256Sum, hash.Value())
+			}
+			foundReportedMatch = true
+		}
+	}
+	if !foundReportedMatch {
+		return nil, fmt.Errorf("registry response does not contain matching sha256sum package entry and is invalid")
+	}
+
+	// Parse and record all applicable package hashes
+	hashes := HashDispositions{}
+	for _, meta := range a.PackageData {
+		for _, hash := range meta.Hashes {
+			// Some of these will overlap with entries from the other Authenticators.
+			// The dispositions will be merged. In practice the zh's will be merged
+			// with SignedByGPGKeyIDs (if provided) and one of the h1's will be
+			// VerifiedLocally.
+			hashes[hash] = &HashDisposition{
+				ReportedByRegistry: true,
+			}
+		}
+	}
+
+	return &PackageAuthenticationResult{
+		hashes: hashes,
+	}, nil
 }
 
 type signatureAuthentication struct {
