@@ -9,6 +9,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -83,6 +85,25 @@ func compileInstanceSelectorCount(_ context.Context, countValuer exprs.Valuer) c
 				err = errors.New("must not be null")
 			}
 			if err == nil {
+				// We'll do a few range checks explicitly here just because
+				// cty's own error messages for numeric range are quite general
+				// and overpromise what is actually allowed here.
+				bf := countVal.AsBigFloat()
+				if !bf.IsInt() {
+					err = errors.New("must be a whole number")
+				} else if bf.Cmp(big.NewFloat(0)) < 0 {
+					err = errors.New("must not be a negative number")
+				} else if v, acc := bf.Int64(); acc != big.Exact || v > math.MaxInt {
+					// This will eventually result in a Go slice of the
+					// requested length, so we are constrained by Go's maximum
+					// slice length on the current platform.
+					err = fmt.Errorf("must be between 0 and %d, inclusive", math.MaxInt)
+				}
+			}
+			if err == nil {
+				// If all of the checks above failed then the following should
+				// always succeed, but we check and handle the error anyway for
+				// robustness.
 				err = gocty.FromCtyValue(countVal, &count)
 			}
 			if err != nil {
@@ -171,12 +192,6 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				return nil, nil, diags
 			}
 			rawVal, marks := rawVal.Unmark()
-			if !rawVal.IsKnown() {
-				// We represent "unknown" by returning a nil configgraph.Maybe
-				// without any error diagnostics, but we will still report
-				// what marks we found on the unknown value.
-				return nil, marks, diags
-			}
 			if rawVal.IsNull() {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -214,6 +229,25 @@ func compileInstanceSelectorForEach(_ context.Context, forEachValuer exprs.Value
 				// An object type is always acceptable, because in that case
 				// the attribute names are part of the type and so available
 				// even if the value isn't known yet.
+				//
+				// If the value is unknown though, then we need to produce the
+				// result differently by iterating the attributes from the
+				// type instead of from the value.
+				if !rawVal.IsKnown() {
+					seq := func(yield func(addrs.InstanceKey, instances.RepetitionData) bool) {
+						for name, ty := range typ.AttributeTypes() {
+							more := yield(addrs.StringKey(name), instances.RepetitionData{
+								EachKey:   cty.StringVal(name),
+								EachValue: cty.UnknownVal(ty),
+							})
+							if !more {
+								break
+							}
+						}
+					}
+					return configgraph.Known(seq), marks, nil
+
+				}
 			} else if typ.Equals(cty.DynamicPseudoType) {
 				// If we don't even know the type then we have to just assume
 				// it'll become something valid in a later phase.
