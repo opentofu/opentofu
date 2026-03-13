@@ -213,6 +213,7 @@ type packageHashAuthentication struct {
 	RequiredHashes []Hash
 	AllHashes      []Hash
 	Platform       Platform
+	TrustedSource  bool
 }
 
 // NewPackageHashAuthentication returns a PackageAuthentication implementation
@@ -223,12 +224,13 @@ type packageHashAuthentication struct {
 // MatchesHash. The PreferredHashes function will select which of the given
 // hashes are considered by OpenTofu to be the strongest verification, and
 // authentication succeeds as long as one of those matches.
-func NewPackageHashAuthentication(platform Platform, validHashes []Hash) PackageAuthentication {
+func NewPackageHashAuthentication(platform Platform, validHashes []Hash, trustedSource bool) PackageAuthentication {
 	requiredHashes := PreferredHashes(validHashes)
 	return packageHashAuthentication{
 		RequiredHashes: requiredHashes,
 		AllHashes:      validHashes,
 		Platform:       platform,
+		TrustedSource:  trustedSource,
 	}
 }
 
@@ -251,6 +253,18 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 	}
 
 	if len(hashes) > 0 {
+		if a.TrustedSource {
+			// The user has explicitly marked this source as trusted. We will add
+			// all of the reported hashes.
+			//
+			// We use RequiredHashes here as we know they are compatible with this version
+			// of OpenTofu. If PreferredHashes ever changes, we may need to change this loop.
+			for _, hash := range a.RequiredHashes {
+				if _, ok := hashes[hash]; !ok {
+					hashes[hash] = &HashDisposition{ReportedByTrustedMirror: true}
+				}
+			}
+		}
 		return &PackageAuthenticationResult{hashes: hashes}, nil
 	}
 	if len(a.RequiredHashes) == 1 {
@@ -446,7 +460,9 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 
 	// Parse and record all applicable package hashes
 	hashes := HashDispositions{}
-	for _, meta := range a.PackageData {
+	for platform, meta := range a.PackageData {
+		// Needed because we are taking the reference below
+		platform := platform
 		for _, hash := range meta.Hashes {
 			// Some of these will overlap with entries from the other Authenticators.
 			// The dispositions will be merged. In practice the zh's will be merged
@@ -454,6 +470,7 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 			// VerifiedLocally.
 			hashes[hash] = &HashDisposition{
 				ReportedByRegistry: true,
+				Platform:           &platform,
 			}
 		}
 	}

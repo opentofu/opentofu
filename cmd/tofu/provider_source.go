@@ -60,7 +60,7 @@ func explicitProviderSource(
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, methodConfig.Retries, registryClientConfig, services, getOCICredsPolicy)
+		source, moreDiags := providerSourceForCLIConfigLocation(ctx, methodConfig.Location, methodConfig.Retries, methodConfig.Trusted, registryClientConfig, services, getOCICredsPolicy)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -219,13 +219,14 @@ func providerSourceForCLIConfigLocation(
 	ctx context.Context,
 	loc cliconfig.ProviderInstallationLocation,
 	locationRetries cliconfig.ProviderInstallationMethodRetries,
+	trustedSource cliconfig.ProviderInstallationMethodTrusted,
 	registryClientConfig *cliconfig.RegistryProtocolsConfig,
 	services *disco.Disco,
 	makeOCICredsPolicy ociCredsPolicyBuilder,
 ) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig(locationRetries)),
+			getproviders.NewRegistrySource(ctx, services, newRegistryHTTPClient(ctx, registryClientConfig), providerSourceLocationConfig(locationRetries, trustedSource)),
 		), nil
 	}
 
@@ -259,7 +260,7 @@ func providerSourceForCLIConfigLocation(
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
 		httpTimeout := newRegistryHTTPClient(ctx, registryClientConfig).HTTPClient.Timeout
-		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout, providerSourceLocationConfig(locationRetries)), nil
+		return getproviders.NewHTTPMirrorSource(ctx, url, services.CredentialsSource(), httpTimeout, providerSourceLocationConfig(locationRetries, trustedSource)), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
 		mappingFunc := loc.RepositoryMapping
@@ -305,7 +306,7 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 // TF_PROVIDER_DOWNLOAD_RETRY env variable and is meant to be passed through
 // [getproviders.Source] all the way down to the [getproviders.PackageLocation]
 // to be able to tweak the configurations of the http clients used there.
-func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries) getproviders.LocationConfig {
+func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallationMethodRetries, trustedSource cliconfig.ProviderInstallationMethodTrusted) getproviders.LocationConfig {
 	// If there is no configuration for the retries in .tofurc, get the one from env variable
 	retries, configured := locationRetries()
 	if !configured {
@@ -313,6 +314,7 @@ func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallation
 	}
 	return getproviders.LocationConfig{
 		ProviderDownloadRetries: retries,
+		TrustedSource:           trustedSource(),
 	}
 }
 

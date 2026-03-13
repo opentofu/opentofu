@@ -743,7 +743,7 @@ func (i *Installer) ensureProviderVersionInDirectory(
 			// Note that the "tofu init" UI relies on us pretending
 			// that these are "signed" to avoid generating its warning
 			// that the dependency lock file might be incomplete.
-			return hd.ReportedByRegistry
+			return hd.ReportedByRegistry || hd.ReportedByTrustedMirror
 		}
 		return hd.SignedByAnyGPGKeys()
 	}))
