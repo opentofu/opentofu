@@ -155,5 +155,7 @@ func (l *Loader) ImportSourcesFromSnapshot(snap *Snapshot) {
 // is responsible for deciding for itself whether and how to call this
 // method.
 func (l *Loader) AllowLanguageExperiments(allowed bool) {
-	l.parser.AllowLanguageExperiments(allowed)
+	// We don't currently have any support for language experiments. We'll
+	// add support here later if we decide to make use of language experiments
+	// in future versions of OpenTofu.
 }
