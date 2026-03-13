@@ -346,7 +346,7 @@ func httpHeaders() *blob.HTTPHeaders {
 	}
 }
 
-func NewCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
+func newCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
 	raw, err := base64.StdEncoding.DecodeString(keyB64)
 	if err != nil {
 		return nil, fmt.Errorf("CPK: failed to decode base64 key %w", err)

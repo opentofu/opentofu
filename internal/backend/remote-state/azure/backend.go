@@ -251,7 +251,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Description: "Base64 encoded AES-256 key for Customer Provided encryption.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CUSTOMER_PROVIDED_KEY", nil),
 				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
-					_, err := NewCPKInfo(v.(string))
+					_, err := newCPKInfo(v.(string))
 					if err != nil {
 						return nil, []error{err}
 					}
@@ -293,7 +293,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	b.keyName = data.Get("key").(string)
 	b.snapshot = data.Get("snapshot").(bool)
 	b.timeout = time.Duration(data.Get("timeout_seconds").(int)) * time.Second
-	b.cpkInfo, _ = NewCPKInfo(data.Get("customer_provided_key").(string))
+	b.cpkInfo, _ = newCPKInfo(data.Get("customer_provided_key").(string))
 
 	accessKey := data.Get("access_key").(string)
 	sasToken := data.Get("sas_token").(string)
