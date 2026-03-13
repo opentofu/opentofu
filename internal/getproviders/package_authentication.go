@@ -448,6 +448,12 @@ func (a *registryPackageAuthentication) AuthenticatePackage(localLocation Packag
 	hashes := HashDispositions{}
 	for _, meta := range a.PackageData {
 		for _, hash := range meta.Hashes {
+			switch hash.Scheme() {
+			case HashScheme1, HashSchemeZip:
+				// Valid for this version of OpenTofu
+			default:
+				continue
+			}
 			// Some of these will overlap with entries from the other Authenticators.
 			// The dispositions will be merged. In practice the zh's will be merged
 			// with SignedByGPGKeyIDs (if provided) and one of the h1's will be
