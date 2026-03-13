@@ -8,6 +8,7 @@ package tofu
 import (
 	"context"
 	"fmt"
+	"iter"
 	"sync"
 
 	"github.com/zclconf/go-cty/cty"
@@ -757,6 +758,38 @@ func (p *MockProvider) CallFunction(ctx context.Context, r providers.CallFunctio
 		resp = *p.CallFunctionResponse
 	}
 	return resp
+}
+
+func (m *MockProvider) ValidateStateStoreConfig(_ context.Context, _ providers.ValidateStateStoreConfigRequest) providers.ValidateStateStoreConfigResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) ConfigureStateStore(_ context.Context, _ providers.ConfigureStateStoreRequest) providers.ConfigureStateStoreResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) ReadStateBytes(_ context.Context, _ providers.ReadStateBytesRequest) iter.Seq[providers.ReadStateBytesResponse] {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) WriteStateBytes(_ context.Context, _ iter.Seq[providers.WriteStateBytesRequest]) providers.WriteStateBytesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) LockState(_ context.Context, _ providers.LockStateRequest) providers.LockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) UnlockState(_ context.Context, _ providers.UnlockStateRequest) providers.UnlockStateResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) GetStates(_ context.Context, _ providers.GetStatesRequest) providers.GetStatesResponse {
+	panic("not implemented") // TODO: Implement
+}
+
+func (m *MockProvider) DeleteState(_ context.Context, _ providers.DeleteStateRequest) providers.DeleteStateResponse {
+	panic("not implemented") // TODO: Implement
 }
 
 func (p *MockProvider) Close(ctx context.Context) error {

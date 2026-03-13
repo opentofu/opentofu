@@ -1,16 +1,15 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-// Terraform Plugin RPC protocol version 5.9
+// Terraform Plugin RPC protocol version 5.10
 //
-// This file defines version 5.9 of the RPC protocol. To implement a plugin
+// This file defines version 5.10 of the RPC protocol. To implement a plugin
 // against this protocol, copy this definition into your own codebase and
 // use protoc to generate stubs for your target language.
 //
-// This file will not be updated. Any minor versions of protocol 5 to follow
-// should copy this file and modify the copy while maintaing backwards
-// compatibility. Breaking changes, if any are required, will come
-// in a subsequent major version with its own separate proto definition.
+// Any minor versions of protocol 5 to follow should modify this file while
+// maintaining backwards compatibility. Breaking changes, if any are required,
+// will come in a subsequent major version with its own separate proto definition.
 //
 // Note that only the proto files included in a release tag of Terraform are
 // official protocol releases. Proto files taken from other commits may include
@@ -43,11 +42,11 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	Provider_GetMetadata_FullMethodName                     = "/tfplugin5.Provider/GetMetadata"
 	Provider_GetSchema_FullMethodName                       = "/tfplugin5.Provider/GetSchema"
-	Provider_GetResourceIdentitySchemas_FullMethodName      = "/tfplugin5.Provider/GetResourceIdentitySchemas"
 	Provider_PrepareProviderConfig_FullMethodName           = "/tfplugin5.Provider/PrepareProviderConfig"
 	Provider_ValidateResourceTypeConfig_FullMethodName      = "/tfplugin5.Provider/ValidateResourceTypeConfig"
 	Provider_ValidateDataSourceConfig_FullMethodName        = "/tfplugin5.Provider/ValidateDataSourceConfig"
 	Provider_UpgradeResourceState_FullMethodName            = "/tfplugin5.Provider/UpgradeResourceState"
+	Provider_GetResourceIdentitySchemas_FullMethodName      = "/tfplugin5.Provider/GetResourceIdentitySchemas"
 	Provider_UpgradeResourceIdentity_FullMethodName         = "/tfplugin5.Provider/UpgradeResourceIdentity"
 	Provider_Configure_FullMethodName                       = "/tfplugin5.Provider/Configure"
 	Provider_ReadResource_FullMethodName                    = "/tfplugin5.Provider/ReadResource"
@@ -56,12 +55,18 @@ const (
 	Provider_ImportResourceState_FullMethodName             = "/tfplugin5.Provider/ImportResourceState"
 	Provider_MoveResourceState_FullMethodName               = "/tfplugin5.Provider/MoveResourceState"
 	Provider_ReadDataSource_FullMethodName                  = "/tfplugin5.Provider/ReadDataSource"
+	Provider_GenerateResourceConfig_FullMethodName          = "/tfplugin5.Provider/GenerateResourceConfig"
 	Provider_ValidateEphemeralResourceConfig_FullMethodName = "/tfplugin5.Provider/ValidateEphemeralResourceConfig"
 	Provider_OpenEphemeralResource_FullMethodName           = "/tfplugin5.Provider/OpenEphemeralResource"
 	Provider_RenewEphemeralResource_FullMethodName          = "/tfplugin5.Provider/RenewEphemeralResource"
 	Provider_CloseEphemeralResource_FullMethodName          = "/tfplugin5.Provider/CloseEphemeralResource"
+	Provider_ListResource_FullMethodName                    = "/tfplugin5.Provider/ListResource"
+	Provider_ValidateListResourceConfig_FullMethodName      = "/tfplugin5.Provider/ValidateListResourceConfig"
 	Provider_GetFunctions_FullMethodName                    = "/tfplugin5.Provider/GetFunctions"
 	Provider_CallFunction_FullMethodName                    = "/tfplugin5.Provider/CallFunction"
+	Provider_PlanAction_FullMethodName                      = "/tfplugin5.Provider/PlanAction"
+	Provider_InvokeAction_FullMethodName                    = "/tfplugin5.Provider/InvokeAction"
+	Provider_ValidateActionConfig_FullMethodName            = "/tfplugin5.Provider/ValidateActionConfig"
 	Provider_Stop_FullMethodName                            = "/tfplugin5.Provider/Stop"
 )
 
@@ -71,20 +76,20 @@ const (
 type ProviderClient interface {
 	// GetMetadata returns upfront information about server capabilities and
 	// supported resource types without requiring the server to instantiate all
-	// schema information, which may be memory intensive. This RPC is optional,
-	// where clients may receive an unimplemented RPC error. Clients should
-	// ignore the error and call the GetSchema RPC as a fallback.
+	// schema information, which may be memory intensive.
+	// This method is CURRENTLY UNUSED and it serves mostly for convenience
+	// of code generation inside of terraform-plugin-mux.
 	GetMetadata(ctx context.Context, in *GetMetadata_Request, opts ...grpc.CallOption) (*GetMetadata_Response, error)
 	// GetSchema returns schema information for the provider, data resources,
 	// and managed resources.
 	GetSchema(ctx context.Context, in *GetProviderSchema_Request, opts ...grpc.CallOption) (*GetProviderSchema_Response, error)
-	// GetResourceIdentitySchemas returns the identity schemas for all managed
-	// resources.
-	GetResourceIdentitySchemas(ctx context.Context, in *GetResourceIdentitySchemas_Request, opts ...grpc.CallOption) (*GetResourceIdentitySchemas_Response, error)
 	PrepareProviderConfig(ctx context.Context, in *PrepareProviderConfig_Request, opts ...grpc.CallOption) (*PrepareProviderConfig_Response, error)
 	ValidateResourceTypeConfig(ctx context.Context, in *ValidateResourceTypeConfig_Request, opts ...grpc.CallOption) (*ValidateResourceTypeConfig_Response, error)
 	ValidateDataSourceConfig(ctx context.Context, in *ValidateDataSourceConfig_Request, opts ...grpc.CallOption) (*ValidateDataSourceConfig_Response, error)
 	UpgradeResourceState(ctx context.Context, in *UpgradeResourceState_Request, opts ...grpc.CallOption) (*UpgradeResourceState_Response, error)
+	// GetResourceIdentitySchemas returns the identity schemas for all managed
+	// resources.
+	GetResourceIdentitySchemas(ctx context.Context, in *GetResourceIdentitySchemas_Request, opts ...grpc.CallOption) (*GetResourceIdentitySchemas_Response, error)
 	// UpgradeResourceIdentityData should return the upgraded resource identity
 	// data for a managed resource type.
 	UpgradeResourceIdentity(ctx context.Context, in *UpgradeResourceIdentity_Request, opts ...grpc.CallOption) (*UpgradeResourceIdentity_Response, error)
@@ -97,16 +102,23 @@ type ProviderClient interface {
 	ImportResourceState(ctx context.Context, in *ImportResourceState_Request, opts ...grpc.CallOption) (*ImportResourceState_Response, error)
 	MoveResourceState(ctx context.Context, in *MoveResourceState_Request, opts ...grpc.CallOption) (*MoveResourceState_Response, error)
 	ReadDataSource(ctx context.Context, in *ReadDataSource_Request, opts ...grpc.CallOption) (*ReadDataSource_Response, error)
+	GenerateResourceConfig(ctx context.Context, in *GenerateResourceConfig_Request, opts ...grpc.CallOption) (*GenerateResourceConfig_Response, error)
 	// ////// Ephemeral Resource Lifecycle
 	ValidateEphemeralResourceConfig(ctx context.Context, in *ValidateEphemeralResourceConfig_Request, opts ...grpc.CallOption) (*ValidateEphemeralResourceConfig_Response, error)
 	OpenEphemeralResource(ctx context.Context, in *OpenEphemeralResource_Request, opts ...grpc.CallOption) (*OpenEphemeralResource_Response, error)
 	RenewEphemeralResource(ctx context.Context, in *RenewEphemeralResource_Request, opts ...grpc.CallOption) (*RenewEphemeralResource_Response, error)
 	CloseEphemeralResource(ctx context.Context, in *CloseEphemeralResource_Request, opts ...grpc.CallOption) (*CloseEphemeralResource_Response, error)
+	// ///// List
+	ListResource(ctx context.Context, in *ListResource_Request, opts ...grpc.CallOption) (Provider_ListResourceClient, error)
+	ValidateListResourceConfig(ctx context.Context, in *ValidateListResourceConfig_Request, opts ...grpc.CallOption) (*ValidateListResourceConfig_Response, error)
 	// GetFunctions returns the definitions of all functions.
 	GetFunctions(ctx context.Context, in *GetFunctions_Request, opts ...grpc.CallOption) (*GetFunctions_Response, error)
-	// CallFunction runs the provider-defined function logic and returns
-	// the result with any diagnostics.
+	// ////// Provider-contributed Functions
 	CallFunction(ctx context.Context, in *CallFunction_Request, opts ...grpc.CallOption) (*CallFunction_Response, error)
+	// ////// Actions
+	PlanAction(ctx context.Context, in *PlanAction_Request, opts ...grpc.CallOption) (*PlanAction_Response, error)
+	InvokeAction(ctx context.Context, in *InvokeAction_Request, opts ...grpc.CallOption) (Provider_InvokeActionClient, error)
+	ValidateActionConfig(ctx context.Context, in *ValidateActionConfig_Request, opts ...grpc.CallOption) (*ValidateActionConfig_Response, error)
 	// ////// Graceful Shutdown
 	Stop(ctx context.Context, in *Stop_Request, opts ...grpc.CallOption) (*Stop_Response, error)
 }
@@ -131,15 +143,6 @@ func (c *providerClient) GetMetadata(ctx context.Context, in *GetMetadata_Reques
 func (c *providerClient) GetSchema(ctx context.Context, in *GetProviderSchema_Request, opts ...grpc.CallOption) (*GetProviderSchema_Response, error) {
 	out := new(GetProviderSchema_Response)
 	err := c.cc.Invoke(ctx, Provider_GetSchema_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *providerClient) GetResourceIdentitySchemas(ctx context.Context, in *GetResourceIdentitySchemas_Request, opts ...grpc.CallOption) (*GetResourceIdentitySchemas_Response, error) {
-	out := new(GetResourceIdentitySchemas_Response)
-	err := c.cc.Invoke(ctx, Provider_GetResourceIdentitySchemas_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -176,6 +179,15 @@ func (c *providerClient) ValidateDataSourceConfig(ctx context.Context, in *Valid
 func (c *providerClient) UpgradeResourceState(ctx context.Context, in *UpgradeResourceState_Request, opts ...grpc.CallOption) (*UpgradeResourceState_Response, error) {
 	out := new(UpgradeResourceState_Response)
 	err := c.cc.Invoke(ctx, Provider_UpgradeResourceState_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) GetResourceIdentitySchemas(ctx context.Context, in *GetResourceIdentitySchemas_Request, opts ...grpc.CallOption) (*GetResourceIdentitySchemas_Response, error) {
+	out := new(GetResourceIdentitySchemas_Response)
+	err := c.cc.Invoke(ctx, Provider_GetResourceIdentitySchemas_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -254,6 +266,15 @@ func (c *providerClient) ReadDataSource(ctx context.Context, in *ReadDataSource_
 	return out, nil
 }
 
+func (c *providerClient) GenerateResourceConfig(ctx context.Context, in *GenerateResourceConfig_Request, opts ...grpc.CallOption) (*GenerateResourceConfig_Response, error) {
+	out := new(GenerateResourceConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_GenerateResourceConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *providerClient) ValidateEphemeralResourceConfig(ctx context.Context, in *ValidateEphemeralResourceConfig_Request, opts ...grpc.CallOption) (*ValidateEphemeralResourceConfig_Response, error) {
 	out := new(ValidateEphemeralResourceConfig_Response)
 	err := c.cc.Invoke(ctx, Provider_ValidateEphemeralResourceConfig_FullMethodName, in, out, opts...)
@@ -290,6 +311,47 @@ func (c *providerClient) CloseEphemeralResource(ctx context.Context, in *CloseEp
 	return out, nil
 }
 
+func (c *providerClient) ListResource(ctx context.Context, in *ListResource_Request, opts ...grpc.CallOption) (Provider_ListResourceClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[0], Provider_ListResource_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerListResourceClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Provider_ListResourceClient interface {
+	Recv() (*ListResource_Event, error)
+	grpc.ClientStream
+}
+
+type providerListResourceClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerListResourceClient) Recv() (*ListResource_Event, error) {
+	m := new(ListResource_Event)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) ValidateListResourceConfig(ctx context.Context, in *ValidateListResourceConfig_Request, opts ...grpc.CallOption) (*ValidateListResourceConfig_Response, error) {
+	out := new(ValidateListResourceConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_ValidateListResourceConfig_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *providerClient) GetFunctions(ctx context.Context, in *GetFunctions_Request, opts ...grpc.CallOption) (*GetFunctions_Response, error) {
 	out := new(GetFunctions_Response)
 	err := c.cc.Invoke(ctx, Provider_GetFunctions_FullMethodName, in, out, opts...)
@@ -302,6 +364,56 @@ func (c *providerClient) GetFunctions(ctx context.Context, in *GetFunctions_Requ
 func (c *providerClient) CallFunction(ctx context.Context, in *CallFunction_Request, opts ...grpc.CallOption) (*CallFunction_Response, error) {
 	out := new(CallFunction_Response)
 	err := c.cc.Invoke(ctx, Provider_CallFunction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) PlanAction(ctx context.Context, in *PlanAction_Request, opts ...grpc.CallOption) (*PlanAction_Response, error) {
+	out := new(PlanAction_Response)
+	err := c.cc.Invoke(ctx, Provider_PlanAction_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *providerClient) InvokeAction(ctx context.Context, in *InvokeAction_Request, opts ...grpc.CallOption) (Provider_InvokeActionClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Provider_ServiceDesc.Streams[1], Provider_InvokeAction_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &providerInvokeActionClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Provider_InvokeActionClient interface {
+	Recv() (*InvokeAction_Event, error)
+	grpc.ClientStream
+}
+
+type providerInvokeActionClient struct {
+	grpc.ClientStream
+}
+
+func (x *providerInvokeActionClient) Recv() (*InvokeAction_Event, error) {
+	m := new(InvokeAction_Event)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *providerClient) ValidateActionConfig(ctx context.Context, in *ValidateActionConfig_Request, opts ...grpc.CallOption) (*ValidateActionConfig_Response, error) {
+	out := new(ValidateActionConfig_Response)
+	err := c.cc.Invoke(ctx, Provider_ValidateActionConfig_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -323,20 +435,20 @@ func (c *providerClient) Stop(ctx context.Context, in *Stop_Request, opts ...grp
 type ProviderServer interface {
 	// GetMetadata returns upfront information about server capabilities and
 	// supported resource types without requiring the server to instantiate all
-	// schema information, which may be memory intensive. This RPC is optional,
-	// where clients may receive an unimplemented RPC error. Clients should
-	// ignore the error and call the GetSchema RPC as a fallback.
+	// schema information, which may be memory intensive.
+	// This method is CURRENTLY UNUSED and it serves mostly for convenience
+	// of code generation inside of terraform-plugin-mux.
 	GetMetadata(context.Context, *GetMetadata_Request) (*GetMetadata_Response, error)
 	// GetSchema returns schema information for the provider, data resources,
 	// and managed resources.
 	GetSchema(context.Context, *GetProviderSchema_Request) (*GetProviderSchema_Response, error)
-	// GetResourceIdentitySchemas returns the identity schemas for all managed
-	// resources.
-	GetResourceIdentitySchemas(context.Context, *GetResourceIdentitySchemas_Request) (*GetResourceIdentitySchemas_Response, error)
 	PrepareProviderConfig(context.Context, *PrepareProviderConfig_Request) (*PrepareProviderConfig_Response, error)
 	ValidateResourceTypeConfig(context.Context, *ValidateResourceTypeConfig_Request) (*ValidateResourceTypeConfig_Response, error)
 	ValidateDataSourceConfig(context.Context, *ValidateDataSourceConfig_Request) (*ValidateDataSourceConfig_Response, error)
 	UpgradeResourceState(context.Context, *UpgradeResourceState_Request) (*UpgradeResourceState_Response, error)
+	// GetResourceIdentitySchemas returns the identity schemas for all managed
+	// resources.
+	GetResourceIdentitySchemas(context.Context, *GetResourceIdentitySchemas_Request) (*GetResourceIdentitySchemas_Response, error)
 	// UpgradeResourceIdentityData should return the upgraded resource identity
 	// data for a managed resource type.
 	UpgradeResourceIdentity(context.Context, *UpgradeResourceIdentity_Request) (*UpgradeResourceIdentity_Response, error)
@@ -349,16 +461,23 @@ type ProviderServer interface {
 	ImportResourceState(context.Context, *ImportResourceState_Request) (*ImportResourceState_Response, error)
 	MoveResourceState(context.Context, *MoveResourceState_Request) (*MoveResourceState_Response, error)
 	ReadDataSource(context.Context, *ReadDataSource_Request) (*ReadDataSource_Response, error)
+	GenerateResourceConfig(context.Context, *GenerateResourceConfig_Request) (*GenerateResourceConfig_Response, error)
 	// ////// Ephemeral Resource Lifecycle
 	ValidateEphemeralResourceConfig(context.Context, *ValidateEphemeralResourceConfig_Request) (*ValidateEphemeralResourceConfig_Response, error)
 	OpenEphemeralResource(context.Context, *OpenEphemeralResource_Request) (*OpenEphemeralResource_Response, error)
 	RenewEphemeralResource(context.Context, *RenewEphemeralResource_Request) (*RenewEphemeralResource_Response, error)
 	CloseEphemeralResource(context.Context, *CloseEphemeralResource_Request) (*CloseEphemeralResource_Response, error)
+	// ///// List
+	ListResource(*ListResource_Request, Provider_ListResourceServer) error
+	ValidateListResourceConfig(context.Context, *ValidateListResourceConfig_Request) (*ValidateListResourceConfig_Response, error)
 	// GetFunctions returns the definitions of all functions.
 	GetFunctions(context.Context, *GetFunctions_Request) (*GetFunctions_Response, error)
-	// CallFunction runs the provider-defined function logic and returns
-	// the result with any diagnostics.
+	// ////// Provider-contributed Functions
 	CallFunction(context.Context, *CallFunction_Request) (*CallFunction_Response, error)
+	// ////// Actions
+	PlanAction(context.Context, *PlanAction_Request) (*PlanAction_Response, error)
+	InvokeAction(*InvokeAction_Request, Provider_InvokeActionServer) error
+	ValidateActionConfig(context.Context, *ValidateActionConfig_Request) (*ValidateActionConfig_Response, error)
 	// ////// Graceful Shutdown
 	Stop(context.Context, *Stop_Request) (*Stop_Response, error)
 	mustEmbedUnimplementedProviderServer()
@@ -374,9 +493,6 @@ func (UnimplementedProviderServer) GetMetadata(context.Context, *GetMetadata_Req
 func (UnimplementedProviderServer) GetSchema(context.Context, *GetProviderSchema_Request) (*GetProviderSchema_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSchema not implemented")
 }
-func (UnimplementedProviderServer) GetResourceIdentitySchemas(context.Context, *GetResourceIdentitySchemas_Request) (*GetResourceIdentitySchemas_Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetResourceIdentitySchemas not implemented")
-}
 func (UnimplementedProviderServer) PrepareProviderConfig(context.Context, *PrepareProviderConfig_Request) (*PrepareProviderConfig_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PrepareProviderConfig not implemented")
 }
@@ -388,6 +504,9 @@ func (UnimplementedProviderServer) ValidateDataSourceConfig(context.Context, *Va
 }
 func (UnimplementedProviderServer) UpgradeResourceState(context.Context, *UpgradeResourceState_Request) (*UpgradeResourceState_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeResourceState not implemented")
+}
+func (UnimplementedProviderServer) GetResourceIdentitySchemas(context.Context, *GetResourceIdentitySchemas_Request) (*GetResourceIdentitySchemas_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetResourceIdentitySchemas not implemented")
 }
 func (UnimplementedProviderServer) UpgradeResourceIdentity(context.Context, *UpgradeResourceIdentity_Request) (*UpgradeResourceIdentity_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpgradeResourceIdentity not implemented")
@@ -413,6 +532,9 @@ func (UnimplementedProviderServer) MoveResourceState(context.Context, *MoveResou
 func (UnimplementedProviderServer) ReadDataSource(context.Context, *ReadDataSource_Request) (*ReadDataSource_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadDataSource not implemented")
 }
+func (UnimplementedProviderServer) GenerateResourceConfig(context.Context, *GenerateResourceConfig_Request) (*GenerateResourceConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GenerateResourceConfig not implemented")
+}
 func (UnimplementedProviderServer) ValidateEphemeralResourceConfig(context.Context, *ValidateEphemeralResourceConfig_Request) (*ValidateEphemeralResourceConfig_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ValidateEphemeralResourceConfig not implemented")
 }
@@ -425,11 +547,26 @@ func (UnimplementedProviderServer) RenewEphemeralResource(context.Context, *Rene
 func (UnimplementedProviderServer) CloseEphemeralResource(context.Context, *CloseEphemeralResource_Request) (*CloseEphemeralResource_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CloseEphemeralResource not implemented")
 }
+func (UnimplementedProviderServer) ListResource(*ListResource_Request, Provider_ListResourceServer) error {
+	return status.Errorf(codes.Unimplemented, "method ListResource not implemented")
+}
+func (UnimplementedProviderServer) ValidateListResourceConfig(context.Context, *ValidateListResourceConfig_Request) (*ValidateListResourceConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateListResourceConfig not implemented")
+}
 func (UnimplementedProviderServer) GetFunctions(context.Context, *GetFunctions_Request) (*GetFunctions_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFunctions not implemented")
 }
 func (UnimplementedProviderServer) CallFunction(context.Context, *CallFunction_Request) (*CallFunction_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CallFunction not implemented")
+}
+func (UnimplementedProviderServer) PlanAction(context.Context, *PlanAction_Request) (*PlanAction_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PlanAction not implemented")
+}
+func (UnimplementedProviderServer) InvokeAction(*InvokeAction_Request, Provider_InvokeActionServer) error {
+	return status.Errorf(codes.Unimplemented, "method InvokeAction not implemented")
+}
+func (UnimplementedProviderServer) ValidateActionConfig(context.Context, *ValidateActionConfig_Request) (*ValidateActionConfig_Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateActionConfig not implemented")
 }
 func (UnimplementedProviderServer) Stop(context.Context, *Stop_Request) (*Stop_Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
@@ -479,24 +616,6 @@ func _Provider_GetSchema_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProviderServer).GetSchema(ctx, req.(*GetProviderSchema_Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Provider_GetResourceIdentitySchemas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetResourceIdentitySchemas_Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProviderServer).GetResourceIdentitySchemas(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Provider_GetResourceIdentitySchemas_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProviderServer).GetResourceIdentitySchemas(ctx, req.(*GetResourceIdentitySchemas_Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -569,6 +688,24 @@ func _Provider_UpgradeResourceState_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProviderServer).UpgradeResourceState(ctx, req.(*UpgradeResourceState_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_GetResourceIdentitySchemas_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetResourceIdentitySchemas_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).GetResourceIdentitySchemas(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_GetResourceIdentitySchemas_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).GetResourceIdentitySchemas(ctx, req.(*GetResourceIdentitySchemas_Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -717,6 +854,24 @@ func _Provider_ReadDataSource_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Provider_GenerateResourceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GenerateResourceConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).GenerateResourceConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_GenerateResourceConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).GenerateResourceConfig(ctx, req.(*GenerateResourceConfig_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Provider_ValidateEphemeralResourceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ValidateEphemeralResourceConfig_Request)
 	if err := dec(in); err != nil {
@@ -789,6 +944,45 @@ func _Provider_CloseEphemeralResource_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Provider_ListResource_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ListResource_Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProviderServer).ListResource(m, &providerListResourceServer{stream})
+}
+
+type Provider_ListResourceServer interface {
+	Send(*ListResource_Event) error
+	grpc.ServerStream
+}
+
+type providerListResourceServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerListResourceServer) Send(m *ListResource_Event) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Provider_ValidateListResourceConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateListResourceConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ValidateListResourceConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ValidateListResourceConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ValidateListResourceConfig(ctx, req.(*ValidateListResourceConfig_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Provider_GetFunctions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetFunctions_Request)
 	if err := dec(in); err != nil {
@@ -821,6 +1015,63 @@ func _Provider_CallFunction_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProviderServer).CallFunction(ctx, req.(*CallFunction_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_PlanAction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PlanAction_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).PlanAction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_PlanAction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).PlanAction(ctx, req.(*PlanAction_Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Provider_InvokeAction_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(InvokeAction_Request)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProviderServer).InvokeAction(m, &providerInvokeActionServer{stream})
+}
+
+type Provider_InvokeActionServer interface {
+	Send(*InvokeAction_Event) error
+	grpc.ServerStream
+}
+
+type providerInvokeActionServer struct {
+	grpc.ServerStream
+}
+
+func (x *providerInvokeActionServer) Send(m *InvokeAction_Event) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Provider_ValidateActionConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateActionConfig_Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProviderServer).ValidateActionConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Provider_ValidateActionConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProviderServer).ValidateActionConfig(ctx, req.(*ValidateActionConfig_Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -859,10 +1110,6 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_GetSchema_Handler,
 		},
 		{
-			MethodName: "GetResourceIdentitySchemas",
-			Handler:    _Provider_GetResourceIdentitySchemas_Handler,
-		},
-		{
 			MethodName: "PrepareProviderConfig",
 			Handler:    _Provider_PrepareProviderConfig_Handler,
 		},
@@ -877,6 +1124,10 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpgradeResourceState",
 			Handler:    _Provider_UpgradeResourceState_Handler,
+		},
+		{
+			MethodName: "GetResourceIdentitySchemas",
+			Handler:    _Provider_GetResourceIdentitySchemas_Handler,
 		},
 		{
 			MethodName: "UpgradeResourceIdentity",
@@ -911,6 +1162,10 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_ReadDataSource_Handler,
 		},
 		{
+			MethodName: "GenerateResourceConfig",
+			Handler:    _Provider_GenerateResourceConfig_Handler,
+		},
+		{
 			MethodName: "ValidateEphemeralResourceConfig",
 			Handler:    _Provider_ValidateEphemeralResourceConfig_Handler,
 		},
@@ -927,6 +1182,10 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_CloseEphemeralResource_Handler,
 		},
 		{
+			MethodName: "ValidateListResourceConfig",
+			Handler:    _Provider_ValidateListResourceConfig_Handler,
+		},
+		{
 			MethodName: "GetFunctions",
 			Handler:    _Provider_GetFunctions_Handler,
 		},
@@ -935,11 +1194,30 @@ var Provider_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Provider_CallFunction_Handler,
 		},
 		{
+			MethodName: "PlanAction",
+			Handler:    _Provider_PlanAction_Handler,
+		},
+		{
+			MethodName: "ValidateActionConfig",
+			Handler:    _Provider_ValidateActionConfig_Handler,
+		},
+		{
 			MethodName: "Stop",
 			Handler:    _Provider_Stop_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ListResource",
+			Handler:       _Provider_ListResource_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "InvokeAction",
+			Handler:       _Provider_InvokeAction_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "tfplugin5.proto",
 }
 

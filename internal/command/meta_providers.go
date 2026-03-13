@@ -27,6 +27,8 @@ import (
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+
+	pluginHack "github.com/opentofu/opentofu/internal/backend/remote-state/plugin"
 )
 
 var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")
@@ -327,6 +329,16 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	}
 	for provider, reattach := range unmanagedProviders {
 		factories[provider] = unmanagedProviderFactory(provider, reattach)
+	}
+
+	pluginHack.ProviderSupplier = func(addr addrs.LocalProviderConfig) (providers.Interface, error) {
+		// TODO pre-configure the provider in a *much* smarter / static way
+		for pa, factory := range factories {
+			if pa.Type == addr.LocalName {
+				return factory()
+			}
+		}
+		return nil, fmt.Errorf("provider not found %s", addr.LocalName)
 	}
 
 	var err error

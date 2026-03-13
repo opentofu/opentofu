@@ -7,6 +7,7 @@ package providers
 
 import (
 	"context"
+	"iter"
 	"time"
 
 	"github.com/zclconf/go-cty/cty"
@@ -44,6 +45,9 @@ type Unconfigured interface {
 	// ValidateEphemeralConfig allows the provider to validate the ephemeral resource
 	// configuration values.
 	ValidateEphemeralConfig(context.Context, ValidateEphemeralConfigRequest) ValidateEphemeralConfigResponse
+
+	// ValidateStateStoreConfig performs configuration validation
+	ValidateStateStoreConfig(context.Context, ValidateStateStoreConfigRequest) ValidateStateStoreConfigResponse
 
 	// MoveResourceState requests that the given resource data be moved from one
 	// type to another, potentially between providers as well.
@@ -148,6 +152,24 @@ type Configured interface {
 	// GetFunctions returns a full list of functions defined in this provider. It should be a super
 	// set of the functions returned in GetProviderSchema()
 	GetFunctions(context.Context) GetFunctionsResponse
+
+	// ConfigureStateStore configures the state store, such as S3 connection in the context of already configured provider
+	ConfigureStateStore(context.Context, ConfigureStateStoreRequest) ConfigureStateStoreResponse
+
+	// ReadStateBytes streams byte chunks of a given state file from a state store
+	ReadStateBytes(context.Context, ReadStateBytesRequest) iter.Seq[ReadStateBytesResponse]
+	// WriteStateBytes streams byte chunks of a given state file into a state store
+	WriteStateBytes(context.Context, iter.Seq[WriteStateBytesRequest]) WriteStateBytesResponse
+
+	// LockState locks a given state (ie CE workspace)
+	LockState(context.Context, LockStateRequest) LockStateResponse
+	// UnlockState unlocks a given state (ie CE workspace)
+	UnlockState(context.Context, UnlockStateRequest) UnlockStateResponse
+
+	// GetStates a list of all states (ie CE workspaces) managed by a given state store
+	GetStates(context.Context, GetStatesRequest) GetStatesResponse
+	// DeleteState instructs a given state store to delete a specific state (ie a CE workspace)
+	DeleteState(context.Context, DeleteStateRequest) DeleteStateResponse
 }
 
 // Interface represents the set of methods required for a complete resource
@@ -186,6 +208,8 @@ type GetProviderSchemaResponse struct {
 
 	// EphemeralResources maps the ephemeral type name to that type's schema.
 	EphemeralResources map[string]Schema
+
+	StateStores map[string]Schema
 }
 
 // Schema pairs a provider or resource schema with that schema's version.
@@ -309,6 +333,14 @@ type ValidateEphemeralConfigRequest struct {
 
 type ValidateEphemeralConfigResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type ValidateStateStoreConfigRequest struct {
+	TypeName string
+	Config   cty.Value
+}
+type ValidateStateStoreConfigResponse struct {
 	Diagnostics tfdiags.Diagnostics
 }
 
@@ -669,4 +701,95 @@ type CallFunctionArgumentError struct {
 
 func (err *CallFunctionArgumentError) Error() string {
 	return err.Text
+}
+
+type StateStoreClientCapabilities struct {
+	ChunkSize int64 // suggested chunk size by Core
+}
+
+type StateStoreServerCapabilities struct {
+	ChunkSize int64 // chosen chunk size by plugin
+}
+
+type ConfigureStateStoreRequest struct {
+	TypeName     string
+	Config       cty.Value
+	Capabilities StateStoreClientCapabilities
+}
+type ConfigureStateStoreResponse struct {
+	Capabilities StateStoreServerCapabilities
+	Diagnostics  tfdiags.Diagnostics
+}
+
+// Inspired by MPL2.0 terraform-pluging-go
+type StateByteRange struct {
+	Start int64
+	End   int64
+}
+type StateByteChunk struct {
+	Bytes       []byte
+	TotalLength int64
+	Range       StateByteRange
+}
+
+type ReadStateBytesRequest struct {
+	TypeName string
+	StateId  string
+}
+type ReadStateBytesResponse struct {
+	StateByteChunk
+
+	Diagnostics tfdiags.Diagnostics
+}
+
+type WriteStateRequestChunkMeta struct {
+	TypeName string
+	StateId  string
+}
+
+type WriteStateBytesRequest struct {
+	// meta is sent with the first chunk only
+	Meta *WriteStateRequestChunkMeta
+
+	StateByteChunk
+}
+type WriteStateBytesResponse struct {
+	Diagnostics tfdiags.Diagnostics
+}
+
+type LockStateRequest struct {
+	TypeName string
+	StateId  string
+	// operation represents an ongoing operation due to which lock is held (e.g. refresh, plan, apply)
+	Operation string
+}
+type LockStateResponse struct {
+	LockId string
+
+	Diagnostics tfdiags.Diagnostics
+}
+
+type UnlockStateRequest struct {
+	TypeName string
+	StateId  string
+	LockId   string
+}
+type UnlockStateResponse struct {
+	Diagnostics tfdiags.Diagnostics
+}
+
+type GetStatesRequest struct {
+	TypeName string
+}
+type GetStatesResponse struct {
+	StateId     []string
+	Diagnostics tfdiags.Diagnostics
+}
+
+type DeleteStateRequest struct {
+	TypeName string
+	StateId  string
+}
+type DeleteStateResponse struct {
+	Diagnostics tfdiags.Diagnostics
 }
