@@ -281,9 +281,8 @@ OpenTofu will perform the following actions:
   # data.simple_resource.test_data2 will be read during apply
   # (depends on a resource or a module with changes pending)
  <= data "simple_resource" "test_data2" {
-      + id       = (known after apply)
-      + value    = "test"
-      + value_wo = (write-only attribute)
+      + id    = (known after apply)
+      + value = "test"
     }
 
   # simple_resource.test_res will be created
