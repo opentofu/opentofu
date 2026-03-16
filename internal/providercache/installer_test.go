@@ -318,6 +318,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.NewPackageAuthenticationResult(getproviders.HashDispositions{
 									beepProviderZipHash: {
 										VerifiedLocally: true,
+										Platform:        &fakePlatform,
 									},
 								}),
 							},
