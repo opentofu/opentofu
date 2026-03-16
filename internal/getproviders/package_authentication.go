@@ -66,6 +66,7 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 	}
 	signedCount := 0
 	registryReportCount := 0
+	trustedMirrorReportCount := 0
 	locallyVerifiedCount := 0
 	for _, disp := range t.hashes {
 		if disp.SignedByAnyGPGKeys() {
@@ -73,6 +74,9 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 		}
 		if disp.ReportedByRegistry {
 			registryReportCount++
+		}
+		if disp.ReportedByTrustedMirror {
+			trustedMirrorReportCount++
 		}
 		if disp.VerifiedLocally {
 			locallyVerifiedCount++
@@ -83,6 +87,8 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 		return signed
 	case registryReportCount > 0:
 		return signingSkipped
+	case trustedMirrorReportCount > 0:
+		return signingSkipped // Do we want to report this differently?
 	case locallyVerifiedCount > 0:
 		return verifiedChecksum
 	default:
@@ -148,7 +154,7 @@ func (t *PackageAuthenticationResult) SigningSkipped() bool {
 	if t == nil || t.Signed() {
 		return false
 	}
-	return t.hashes.HasAnyReportedByRegistry()
+	return t.hashes.HasAnyReportedByRegistry() || t.hashes.HasAnyReportedByTrustedMirror()
 }
 
 // SigningKey represents a key used to sign packages from a registry. These are

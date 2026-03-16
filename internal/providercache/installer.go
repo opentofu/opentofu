@@ -733,7 +733,9 @@ func (i *Installer) ensureProviderVersionInDirectory(
 			// that was reported by the origin registry was "signed",
 			// just for the purposes of updating the lock file and
 			// reporting that lock file update to the UI layer through
-			// the evts object.
+			// the evts object. We also allow trusted mirror hashes
+			// here and treat those equivalent to ones reported by the
+			// registry.
 			// Note that the "tofu init" UI relies on us pretending
 			// that these are "signed" to avoid generating its warning
 			// that the dependency lock file might be incomplete.

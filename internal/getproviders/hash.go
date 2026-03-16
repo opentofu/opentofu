@@ -635,6 +635,15 @@ func (ds HashDispositions) HasAnyReportedByRegistry() bool {
 	return false
 }
 
+func (ds HashDispositions) HasAnyReportedByTrustedMirror() bool {
+	for _, disp := range ds {
+		if disp.ReportedByTrustedMirror {
+			return true
+		}
+	}
+	return false
+}
+
 func (ds HashDispositions) HasAnySignedByGPGKeys() bool {
 	for _, disp := range ds {
 		if disp.SignedByAnyGPGKeys() {
