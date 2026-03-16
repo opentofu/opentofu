@@ -5,6 +5,7 @@ output "environment" {
             export TF_AZURE_TEST_CERT_PATH=${local_file.cert.filename}
             export TF_AZURE_TEST_CERT_PASSWORD=${random_string.password.result}
             ${local.msi_extra_env_vars}
+            ${local.cmk_extra_env_vars}
             EOT
   sensitive = true
 }
@@ -72,6 +73,22 @@ output "aks_env_vars" {
             export TF_AZURE_TEST_STORAGE_ACCOUNT_NAME=${module.aks[0].storage_account_name}
             export TF_AZURE_TEST_RESOURCE_GROUP_NAME=${module.aks[0].resource_group_name}
             export TF_AZURE_TEST_CONTAINER_NAME=${module.aks[0].container_name}
+  EOT
+  sensitive = true
+}
+
+output "cmk_env_vars" {
+  value     = !var.use_cmk ? "Set use_cmk=true to get environment variable set" : <<-EOT
+            Please set the following environment variables:
+            export TF_AZURE_TEST=1
+            export TF_ACC=1
+            export ARM_LOCATION=${var.location}
+            export ARM_SUBSCRIPTION_ID='${data.azurerm_client_config.current.subscription_id}'
+            export ARM_TENANT_ID='${data.azurerm_client_config.current.tenant_id}'
+            export TF_AZURE_TEST_STORAGE_ACCOUNT_NAME=${module.cmk[0].storage_account_name}
+            export TF_AZURE_TEST_RESOURCE_GROUP_NAME=${module.cmk[0].resource_group_name}
+            export TF_AZURE_TEST_CONTAINER_NAME=${module.cmk[0].container_name}
+            export TF_AZURE_TEST_ENCRYPTION_SCOPE=${module.cmk[0].encryption_scope_name}
   EOT
   sensitive = true
 }

@@ -337,3 +337,55 @@ func TestAccRemoteClientCPK(t *testing.T) {
 	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
 
 }
+
+func TestAccRemoteClientCMK(t *testing.T) {
+	testAccAzureBackend(t)
+
+	storageAccountName := os.Getenv("TF_AZURE_TEST_STORAGE_ACCOUNT_NAME")
+	resourceGroupName := os.Getenv("TF_AZURE_TEST_RESOURCE_GROUP_NAME")
+	containerName := os.Getenv("TF_AZURE_TEST_CONTAINER_NAME")
+	encryptionScope := os.Getenv("TF_AZURE_TEST_ENCRYPTION_SCOPE")
+
+	if storageAccountName == "" || resourceGroupName == "" || containerName == "" {
+		t.Skip(`
+CMK testing requires pre-provisioned infrastructure.
+Please set TF_AZURE_TEST_STORAGE_ACCOUNT_NAME, TF_AZURE_TEST_RESOURCE_GROUP_NAME,
+and TF_AZURE_TEST_CONTAINER_NAME using the meta-test/cmk folder.`)
+	}
+
+	if encryptionScope == "" {
+		t.Skip(`
+An encryption scope was not provided.
+Please set TF_AZURE_TEST_ENCRYPTION_SCOPE using the meta-test/cmk folder.`)
+	}
+
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"storage_account_name": storageAccountName,
+		"container_name":       containerName,
+		"key":                  "testState",
+		"resource_group_name":  resourceGroupName,
+		"encryption_scope":     encryptionScope,
+	})).(*Backend)
+
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestClient(t, s1.(*remote.State).Client)
+
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"storage_account_name": storageAccountName,
+		"container_name":       containerName,
+		"key":                  "testState",
+		"resource_group_name":  resourceGroupName,
+		"encryption_scope":     encryptionScope,
+	})).(*Backend)
+
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+}

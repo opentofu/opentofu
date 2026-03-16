@@ -31,11 +31,12 @@ const (
 )
 
 type RemoteClient struct {
-	blobClient *blockblob.Client
-	leaseID    *string
-	snapshot   bool
-	timeout    time.Duration
-	cpkInfo    *blob.CPKInfo
+	blobClient   *blockblob.Client
+	leaseID      *string
+	snapshot     bool
+	timeout      time.Duration
+	cpkInfo      *blob.CPKInfo
+	cpkScopeInfo *blob.CPKScopeInfo
 }
 
 func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
@@ -45,6 +46,7 @@ func (c *RemoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	resp, err := c.blobClient.DownloadStream(ctx, &blob.DownloadStreamOptions{
 		AccessConditions: c.leaseAccessCondition(),
 		CPKInfo:          c.cpkInfo,
+		CPKScopeInfo:     c.cpkScopeInfo,
 	})
 	if err != nil {
 		if notFoundError(err) {
@@ -78,6 +80,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 		snapshotInput := &blob.CreateSnapshotOptions{
 			AccessConditions: c.leaseAccessCondition(),
 			CPKInfo:          c.cpkInfo,
+			CPKScopeInfo:     c.cpkScopeInfo,
 		}
 		log.Printf("[DEBUG] Snapshotting existing Blob %s", c.blobClient.URL())
 		if _, err := c.blobClient.CreateSnapshot(ctx, snapshotInput); err != nil {
@@ -97,6 +100,7 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 		AccessConditions: c.leaseAccessCondition(),
 		HTTPHeaders:      httpHeaders(),
 		CPKInfo:          c.cpkInfo,
+		CPKScopeInfo:     c.cpkScopeInfo,
 	}
 	_, err = c.blobClient.UploadBuffer(ctx, data, putOptions)
 	if err != nil {
@@ -152,8 +156,9 @@ func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (strin
 		}
 		// if we don't find the blob, we need to build it
 		_, err = c.blobClient.UploadBuffer(ctx, []byte{}, &blockblob.UploadBufferOptions{
-			HTTPHeaders: httpHeaders(),
-			CPKInfo:     c.cpkInfo,
+			HTTPHeaders:  httpHeaders(),
+			CPKInfo:      c.cpkInfo,
+			CPKScopeInfo: c.cpkScopeInfo,
 		})
 
 		if err != nil {
@@ -234,6 +239,7 @@ func (c *RemoteClient) writeLockInfo(ctx context.Context, info *statemgr.LockInf
 	_, err = c.blobClient.SetMetadata(ctx, properties.Metadata, &blob.SetMetadataOptions{
 		AccessConditions: c.leaseAccessCondition(),
 		CPKInfo:          c.cpkInfo,
+		CPKScopeInfo:     c.cpkScopeInfo,
 	})
 
 	return err
@@ -364,4 +370,13 @@ func newCPKInfo(keyB64 string) (*blob.CPKInfo, error) {
 		EncryptionKeySHA256: &sha256B64,
 		EncryptionAlgorithm: &encryptAlgorithm,
 	}, nil
+}
+
+func newCPKScopeInfo(scopeName string) *blob.CPKScopeInfo {
+	if scopeName == "" {
+		return nil
+	}
+	return &blob.CPKScopeInfo{
+		EncryptionScope: &scopeName,
+	}
 }
