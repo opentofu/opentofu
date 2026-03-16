@@ -381,7 +381,6 @@ func newDiagnosticDifference(diag tfdiags.Diagnostic) *jsonplan.Change {
 	}
 
 	return change
-
 }
 
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {

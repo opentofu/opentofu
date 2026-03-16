@@ -11,10 +11,11 @@ import (
 	"log"
 	"strings"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // Provider is an implementation of providers.Interface
@@ -37,7 +38,7 @@ func (p *Provider) getFunctionSpecs() map[string]providers.FunctionSpec {
 	return funcSpecs
 }
 
-// GetSchema returns the complete schema for the provider.
+// GetProviderSchema returns the complete schema for the provider.
 func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	return providers.GetProviderSchemaResponse{
 		DataSources: map[string]providers.Schema{
@@ -48,6 +49,11 @@ func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSch
 		},
 		Functions: p.getFunctionSpecs(),
 	}
+}
+
+// GetResourceIdentitySchemas fetches the identity schemas for terraform_data
+func (p *Provider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	return providers.GetResourceIdentitySchemasResponse{}
 }
 
 // ValidateProviderConfig is used to validate the configuration values.
@@ -160,6 +166,10 @@ func (p *Provider) Stop(_ context.Context) error {
 // result is used for any further processing.
 func (p *Provider) UpgradeResourceState(_ context.Context, req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return upgradeDataStoreResourceState(req)
+}
+
+func (p *Provider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {
+	return providers.UpgradeResourceIdentityResponse{}
 }
 
 // ReadResource refreshes a resource and returns its current state.
