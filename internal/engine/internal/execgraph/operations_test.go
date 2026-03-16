@@ -325,6 +325,10 @@ func (m *managedResourceInstanceMockProvider) UpgradeResourceState(context.Conte
 	panic("unimplemented")
 }
 
+// GetResourceIdentitySchemas implements providers.Configured.
+func (m *managedResourceInstanceMockProvider) GetResourceIdentitySchemas(context.Context) providers.GetResourceIdentitySchemasResponse {
+	return providers.GetResourceIdentitySchemasResponse{}
+}
 
 // UpgradeResourceIdentity implements providers.Configured.
 func (m *managedResourceInstanceMockProvider) UpgradeResourceIdentity(context.Context, providers.UpgradeResourceIdentityRequest) providers.UpgradeResourceIdentityResponse {

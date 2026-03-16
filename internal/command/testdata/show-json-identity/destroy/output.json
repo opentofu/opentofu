@@ -1,0 +1,62 @@
+{
+  "format_version": "1.2",
+  "planned_values": {
+    "root_module": {}
+  },
+  "resource_changes": [
+    {
+      "address": "test_instance.test",
+      "mode": "managed",
+      "type": "test_instance",
+      "name": "test",
+      "provider_name": "registry.opentofu.org/hashicorp/test",
+      "action_reason": "delete_because_no_resource_config",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "old-ami",
+          "id": "myid"
+        },
+        "after": null,
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": false,
+        "before_identity": {
+          "id": "myid"
+        }
+      }
+    }
+  ],
+  "prior_state": {
+    "format_version": "1.0",
+    "terraform_version": "1.12.0",
+    "values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "test_instance.test",
+            "mode": "managed",
+            "type": "test_instance",
+            "name": "test",
+            "provider_name": "registry.opentofu.org/hashicorp/test",
+            "schema_version": 0,
+            "values": {
+              "ami": "old-ami",
+              "id": "myid"
+            },
+            "sensitive_values": {},
+            "identity": {
+              "id": "myid"
+            },
+            "identity_schema_version": 0
+          }
+        ]
+      }
+    }
+  },
+  "configuration": {
+    "root_module": {}
+  }
+}
