@@ -338,6 +338,7 @@ func TestAccRemoteClientCPK(t *testing.T) {
 
 }
 
+// Note: This test does NOT create it's own infrastructure. Please refer to the meta-test folder for resource creation.
 func TestAccRemoteClientCMK(t *testing.T) {
 	testAccAzureBackend(t)
 
@@ -346,17 +347,14 @@ func TestAccRemoteClientCMK(t *testing.T) {
 	containerName := os.Getenv("TF_AZURE_TEST_CONTAINER_NAME")
 	encryptionScope := os.Getenv("TF_AZURE_TEST_ENCRYPTION_SCOPE")
 
-	if storageAccountName == "" || resourceGroupName == "" || containerName == "" {
+	if storageAccountName == "" || resourceGroupName == "" || containerName == "" || encryptionScope == "" {
 		t.Skip(`
 CMK testing requires pre-provisioned infrastructure.
-Please set TF_AZURE_TEST_STORAGE_ACCOUNT_NAME, TF_AZURE_TEST_RESOURCE_GROUP_NAME,
-and TF_AZURE_TEST_CONTAINER_NAME using the meta-test/cmk folder.`)
-	}
-
-	if encryptionScope == "" {
-		t.Skip(`
-An encryption scope was not provided.
-Please set TF_AZURE_TEST_ENCRYPTION_SCOPE using the meta-test/cmk folder.`)
+Please set the following environment variables using the meta-test/cmk folder:
+  TF_AZURE_TEST_STORAGE_ACCOUNT_NAME
+  TF_AZURE_TEST_RESOURCE_GROUP_NAME
+  TF_AZURE_TEST_CONTAINER_NAME
+  TF_AZURE_TEST_ENCRYPTION_SCOPE`)
 	}
 
 	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{

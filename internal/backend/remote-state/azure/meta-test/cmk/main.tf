@@ -1,8 +1,3 @@
-// Copyright (c) The OpenTofu Authors
-// SPDX-License-Identifier: MPL-2.0
-// Copyright (c) 2023 HashiCorp, Inc.
-// SPDX-License-Identifier: MPL-2.0
-
 resource "time_static" "rg_timestamp" {}
 
 resource "random_string" "resource_suffix" {
@@ -13,7 +8,7 @@ resource "random_string" "resource_suffix" {
 
 locals {
   storage_account_name  = "acctestsa${random_string.resource_suffix.result}"
-  resource_group_name   = "acctestRG-backend-cmk-${time_static.rg_timestamp.unix}-${random_string.resource_suffix.result}"
+  resource_group_name   = "acctestRG-backend-${time_static.rg_timestamp.unix}-${random_string.resource_suffix.result}"
   container_name        = "acctestcont"
   key_vault_name        = "acctestkv${random_string.resource_suffix.result}"
   key_name              = "acctestkvkey${random_string.resource_suffix.result}"
@@ -78,7 +73,6 @@ resource "azurerm_key_vault" "cmk" {
   soft_delete_retention_days = 7
 }
 
-# Allow the user-assigned identity to use the key for storage encryption
 resource "azurerm_key_vault_access_policy" "storage_identity" {
   key_vault_id = azurerm_key_vault.cmk.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
@@ -89,7 +83,6 @@ resource "azurerm_key_vault_access_policy" "storage_identity" {
   ]
 }
 
-# Allow the current user/SP running OpenTofu to manage keys
 resource "azurerm_key_vault_access_policy" "current_user" {
   key_vault_id = azurerm_key_vault.cmk.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
@@ -110,7 +103,6 @@ resource "azurerm_key_vault_key" "cmk" {
   depends_on = [azurerm_key_vault_access_policy.current_user]
 }
 
-# Link the Key Vault key to the storage account via the user-assigned identity
 resource "azurerm_storage_account_customer_managed_key" "cmk" {
   storage_account_id        = azurerm_storage_account.cmk.id
   key_vault_id              = azurerm_key_vault.cmk.id
@@ -120,12 +112,11 @@ resource "azurerm_storage_account_customer_managed_key" "cmk" {
   depends_on = [azurerm_key_vault_access_policy.storage_identity]
 }
 
-# Encryption scope backed by the Key Vault key
 resource "azurerm_storage_encryption_scope" "cmk" {
   name               = local.encryption_scope_name
   storage_account_id = azurerm_storage_account.cmk.id
   source             = "Microsoft.KeyVault"
-  key_vault_key_id   = azurerm_key_vault_key.cmk.id
+  key_vault_key_id   = azurerm_key_vault_key.cmk.versionless_id
 
   depends_on = [azurerm_storage_account_customer_managed_key.cmk]
 }
