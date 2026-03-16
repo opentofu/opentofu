@@ -585,7 +585,7 @@ func MergeHashDisposition(a, b *HashDisposition) *HashDisposition {
 		ret.Platform = a.Platform
 	}
 	if b.Platform != nil {
-		if ret.Platform != nil && ret.Platform != b.Platform {
+		if ret.Platform != nil && *ret.Platform != *b.Platform {
 			panic("BUG: conflicting platforms")
 		}
 		ret.Platform = b.Platform

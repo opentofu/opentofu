@@ -249,6 +249,7 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		}
 		hashes[verifiedHash] = &HashDisposition{
 			VerifiedLocally: true,
+			Platform:        &a.Platform,
 		}
 	}
 
@@ -261,7 +262,10 @@ func (a packageHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 			// of OpenTofu. If PreferredHashes ever changes, we may need to change this loop.
 			for _, hash := range a.RequiredHashes {
 				if _, ok := hashes[hash]; !ok {
-					hashes[hash] = &HashDisposition{ReportedByTrustedMirror: true}
+					hashes[hash] = &HashDisposition{
+						ReportedByTrustedMirror: true,
+						Platform:                &a.Platform,
+					}
 				}
 			}
 		}
@@ -322,6 +326,7 @@ func (a archiveHashAuthentication) AuthenticatePackage(localLocation PackageLoca
 		hashes: HashDispositions{
 			gotHash: &HashDisposition{
 				VerifiedLocally: true,
+				Platform:        &a.Platform,
 			},
 		},
 	}, nil

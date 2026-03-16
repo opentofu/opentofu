@@ -471,8 +471,8 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 			},
 		},
 		result: &PackageAuthenticationResult{hashes: HashDispositions{
-			h1: &HashDisposition{ReportedByRegistry: true},
-			zh: &HashDisposition{ReportedByRegistry: true},
+			h1: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
+			zh: &HashDisposition{ReportedByRegistry: true, Platform: &platform},
 		}},
 	}, {
 		name:        "missing_platform",
@@ -527,32 +527,34 @@ func TestRegistryPackageAuthentication(t *testing.T) {
 	}}
 
 	for _, tc := range tests {
-		auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
-		result, err := auth.AuthenticatePackage(tc.location)
+		t.Run(tc.name, func(t *testing.T) {
+			auth := NewRegistryPackageAuthentication(meta, tc.sha, tc.packageData)
+			result, err := auth.AuthenticatePackage(tc.location)
 
-		if tc.err != "" {
-			if err == nil {
-				t.Errorf("wrong err: got nil, wanted %q", tc.err)
-			} else if err.Error() != tc.err {
-				t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+			if tc.err != "" {
+				if err == nil {
+					t.Errorf("wrong err: got nil, wanted %q", tc.err)
+				} else if err.Error() != tc.err {
+					t.Errorf("wrong err: got %q, wanted %q", err.Error(), tc.err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("wrong err: got %q, wanted nil", err.Error())
+				}
 			}
-		} else {
-			if err != nil {
-				t.Errorf("wrong err: got %q, wanted nil", err.Error())
-			}
-		}
 
-		if tc.result != nil {
-			if result == nil {
-				t.Errorf("wrong result: got nil, wanted %#v", tc.result)
-			} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
-				t.Errorf("wrong results: %s", diff)
+			if tc.result != nil {
+				if result == nil {
+					t.Errorf("wrong result: got nil, wanted %#v", tc.result)
+				} else if diff := cmp.Diff(result.hashes, tc.result.hashes); diff != "" {
+					t.Errorf("wrong results: %s", diff)
+				}
+			} else {
+				if result != nil {
+					t.Errorf("wrong result: got %#v, wanted nil", result)
+				}
 			}
-		} else {
-			if result != nil {
-				t.Errorf("wrong result: got %#v, wanted nil", result)
-			}
-		}
+		})
 	}
 }
 
