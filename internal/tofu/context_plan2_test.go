@@ -369,7 +369,8 @@ data "test_data_source" "d" {
 resource "test_resource" "b" {
   value = data.test_data_source.d.id
 }
-`})
+`,
+	})
 
 	oldDataAddr := mustResourceInstanceAddr(`module.mod["old"].data.test_data_source.d`)
 
@@ -657,7 +658,8 @@ data "test_data_source" "a" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddr := mustResourceInstanceAddr(`test_resource.a`)
 	dataAddr := mustResourceInstanceAddr(`data.test_data_source.a`)
@@ -742,7 +744,6 @@ data "test_data_source" "a" {
 	if got, want := validVal, cty.True; got != want {
 		t.Errorf("wrong final valid value\ngot:  %#v\nwant: %#v", got, want)
 	}
-
 }
 
 func TestContext2Plan_managedResourceChecksOtherManagedResourceChange(t *testing.T) {
@@ -870,7 +871,8 @@ resource "test_resource" "b" {
 		}
 	}
 }
-`})
+`,
+	})
 
 	managedAddrA := mustResourceInstanceAddr(`test_resource.a`)
 	managedAddrB := mustResourceInstanceAddr(`test_resource.b`)
@@ -3367,7 +3369,7 @@ func TestContext2Plan_moduleImplicitMove(t *testing.T) {
 	// Modules are being moved implicitly to use the `enabled` field when nothing
 	// is declared on the block. Alternatively, they are implicitly being moved from
 	// using `enabled` as true or without declaring `enabled` to use count.
-	var tests = map[string]struct {
+	tests := map[string]struct {
 		name         string
 		expectedAddr addrs.AbsResourceInstance
 		prevAddr     addrs.AbsResourceInstance
@@ -4889,7 +4891,8 @@ resource "test_object" "b" {
   provider = test.other
   in = "a"
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -4904,7 +4907,7 @@ resource "test_object" "b" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"in": {
@@ -5009,7 +5012,8 @@ output "out" {
     error_message = "should not block destroy"
   }
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5077,7 +5081,8 @@ resource "test_object" "a" {
 output "out" {
   value = test_object.a.test_string
 }
-`})
+`,
+	})
 
 	p := simpleMockProvider()
 
@@ -5140,12 +5145,13 @@ resource "test_object" "a" {
     new   = sensitive("ignored")
   }
 }
-`})
+`,
+	})
 
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"map": {
@@ -5543,7 +5549,6 @@ import {
 
 	for _, configuration := range configurations {
 		t.Run(configuration.Description, func(t *testing.T) {
-
 			// Format the configuration with the import ID
 			formattedConfiguration := make(map[string]string)
 			for configFileName, configFileContent := range configuration.inlineConfiguration {
@@ -5558,10 +5563,10 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: simpleTestSchema()},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: simpleTestSchema()},
+						"test_object": {Block: simpleTestSchema()},
 					},
 					DataSources: map[string]providers.Schema{
-						"test_object": providers.Schema{
+						"test_object": {
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"test_string": {
@@ -5763,7 +5768,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6250,7 +6255,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -6658,9 +6663,9 @@ import {
 	})
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		},
+		}, nil),
 	})
 
 	identitySchema := providers.ResourceIdentitySchema{

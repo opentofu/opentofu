@@ -137,37 +137,15 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			providerAddr.Alias = importTarget.Config.ProviderConfigRef.Alias
 		}
 
-		var resolvedProviderKey addrs.InstanceKey
-		if importTarget.Config.ProviderConfigRef != nil && importTarget.Config.ProviderConfigRef.KeyExpression != nil {
-			keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
-			var keyDiags tfdiags.Diagnostics
-			resolvedProviderKey, keyDiags = resolveProviderInstance(ctx, importTarget.Config.ProviderConfigRef.KeyExpression, keyScope, importTarget.Config.StaticTo.String())
-			diags = diags.Append(keyDiags)
-			if keyDiags.HasErrors() {
-				return diags, cty.DynamicPseudoType
-			}
-		}
-
-		provider := evalCtx.Provider(ctx, providerAddr, resolvedProviderKey)
-		if provider == nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to determine provider for import identity",
-				Detail:   fmt.Sprintf("The provider %q could not be found when trying to validate the import of resource %q. Please ensure the provider is declared and configured properly.", providerAddr, importTarget.Config.StaticTo),
-				Subject:  importTarget.Config.Identity.Range().Ptr(),
-			})
-			return diags, cty.DynamicPseudoType
-		}
-
-		identitySchemasResponse := provider.GetResourceIdentitySchemas(ctx)
-		if identitySchemasResponse.Diagnostics.HasErrors() {
-			diags = diags.Append(identitySchemasResponse.Diagnostics)
+		providerSchema, schemaDiags := evalCtx.Providers().GetProviderSchema(ctx, providerAddr.Provider)
+		diags = diags.Append(schemaDiags)
+		if diags.HasErrors() {
 			return diags, cty.DynamicPseudoType
 		}
 
 		resourceType := importTarget.Config.StaticTo.Resource.Type
-		identitySchema, exists := identitySchemasResponse.IdentitySchemas[resourceType]
-		if !exists {
+		resourceSchema, exists := providerSchema.ResourceTypes[resourceType]
+		if !exists || resourceSchema.IdentitySchema == nil {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unable to determine identity schema for import identity",
@@ -177,7 +155,7 @@ func (ri *ImportResolver) ValidateImportIDs(ctx context.Context, importTarget *I
 			return diags, cty.DynamicPseudoType
 		}
 
-		return diags, identitySchema.Body.SpecType()
+		return diags, resourceSchema.IdentitySchema.SpecType()
 	}
 
 	// The import block expressions are declared within the root module.
@@ -332,33 +310,14 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 			providerAddr.Alias = importTarget.Config.ProviderConfigRef.Alias
 		}
 
-		var resolvedProviderKey addrs.InstanceKey
-		if importTarget.Config.ProviderConfigRef != nil && importTarget.Config.ProviderConfigRef.KeyExpression != nil {
-			keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
-			resolvedProviderKey, diags = resolveProviderInstance(ctx, importTarget.Config.ProviderConfigRef.KeyExpression, keyScope, importAddress.String())
-			if diags.HasErrors() {
-				return diags
-			}
-		}
-
-		provider := evalCtx.Provider(ctx, providerAddr, resolvedProviderKey)
-		if provider == nil {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unable to determine provider for import identity",
-				Detail:   fmt.Sprintf("The provider %q could not be found when trying to import the resource %q. Please ensure the provider is declared and configured properly.", providerAddr, importAddress),
-				Subject:  importTarget.Config.Identity.Range().Ptr(),
-			})
-		}
-
-		identitySchemasResponse := provider.GetResourceIdentitySchemas(ctx)
-		diags = diags.Append(identitySchemasResponse.Diagnostics)
+		providerSchema, shcemaDiags := evalCtx.Providers().GetProviderSchema(ctx, providerAddr.Provider)
+		diags = diags.Append(shcemaDiags)
 		if diags.HasErrors() {
 			return diags
 		}
 
-		identitySchema, exists := identitySchemasResponse.IdentitySchemas[resourceType]
-		if !exists {
+		resourceSchema, exists := providerSchema.ResourceTypes[resourceType]
+		if !exists || resourceSchema.IdentitySchema == nil {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unable to determine identity schema for import identity",
@@ -367,8 +326,7 @@ func (ri *ImportResolver) resolveImport(ctx context.Context, importTarget *Impor
 			})
 		}
 
-		resourceIdentityType := identitySchema.Body.SpecType()
-
+		resourceIdentityType := resourceSchema.IdentitySchema.SpecType()
 		importIdentity, evalDiags = evaluateImportIdentityExpression(ctx, importTarget.Config.Identity, evalCtx, keyData, resourceIdentityType)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {

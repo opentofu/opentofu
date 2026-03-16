@@ -1435,7 +1435,7 @@ func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
 			resource "test_thing" "test" {
 				for_each = { "foo" = "a" }
 				provider = test.multi[each.value]
-			//}
+			}
 
 			import {
 				to       = test_thing.test["foo"]
@@ -1544,9 +1544,9 @@ func TestContextImport_multiInstanceProviderIdentity(t *testing.T) {
 	}
 
 	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
 			addrs.NewBuiltInProvider("test"): providerFactory,
-		},
+		}, nil),
 	})
 
 	plan, diags := ctx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
