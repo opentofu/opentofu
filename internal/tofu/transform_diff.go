@@ -112,8 +112,6 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			update = true
 			delete = true
 			createBeforeDestroy = (rc.Action == plans.CreateThenDelete)
-		case plans.Open:
-			continue
 		default:
 			update = true
 		}

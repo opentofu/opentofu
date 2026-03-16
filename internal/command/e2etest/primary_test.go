@@ -342,9 +342,6 @@ Changes to Outputs:
 			if res.After != nil {
 				t.Errorf("ephemeral resource %q from plan contains after value but it shouldn't: %s", res.Addr.String(), res.After)
 			}
-			if got, want := res.Action, plans.Open; got != want {
-				t.Errorf("ephemeral resource %q from plan contains wrong actions. want %q; got %q", res.Addr.String(), want, got)
-			}
 			// variables check
 			varDynVal, ok := plan.VariableValues["simple_input"]
 			if !ok {

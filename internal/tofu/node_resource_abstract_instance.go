@@ -3337,7 +3337,6 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 		// We can't plan any changes if we're only refreshing, so the only
 		// value we can set here is whatever was in state previously.
 		if skipPlanChanges {
-			// TODO ephemeral - not sure about this - something with defer???
 			plannedNewState := &states.ResourceInstanceObject{
 				Value:  priorVal,
 				Status: states.ObjectReady,

@@ -44,7 +44,7 @@ func (plan Plan) getSchema(change jsonplan.ResourceChange) *jsonprovider.Schema 
 	case jsonstate.DataResourceMode:
 		return plan.ProviderSchemas[change.ProviderName].DataSourceSchemas[change.Type]
 	case jsonstate.EphemeralResourceMode:
-		return plan.ProviderSchemas[change.ProviderName].EphemeralResourceSchemas[change.Type]
+		panic(fmt.Errorf("ephemeral resources are not meant to be stored in the plan file but schema for ephemeral %s.%s has been requested", change.Type, change.Name))
 	default:
 		panic("found unrecognized resource mode: " + change.Mode)
 	}
@@ -626,8 +626,6 @@ func actionDescription(action plans.Action) string {
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
 		return "  [red].[reset] forget"
-	case plans.Open:
-		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))

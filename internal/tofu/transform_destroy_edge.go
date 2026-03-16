@@ -183,14 +183,8 @@ func (t *DestroyEdgeTransformer) Transform(_ context.Context, g *Graph) error {
 			}
 
 			// NoOp and Open changes should not participate in the destroy dependencies.
-			//
-			// The Open changes have been added later, with the introduction of ephemeral resources.
-			// The idea is that ephemeral resources cannot be dependent on destroying resources since
-			// the best case scenario, the ephemeral resource can only provide some information to
-			// another dependency of the resource that it's going to be destroyed, but that is done
-			// through other transformers, as ReferenceTransformer.
 			rc := t.Changes.ResourceInstance(*addr)
-			if rc != nil && rc.Action != plans.NoOp && rc.Action != plans.Open {
+			if rc != nil && rc.Action != plans.NoOp {
 				creators[cfgAddr] = append(creators[cfgAddr], n)
 			}
 		}

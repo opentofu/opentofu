@@ -2685,87 +2685,6 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 	}
 }
 
-// This test has been added during https://github.com/opentofu/opentofu/pull/3776 but
-// during the rework of ephemerals during apply, in https://github.com/opentofu/opentofu/issues/3799,
-// this test changed it's purpose.
-// Previously it validated that there are changes in the plan that are not reported by
-// plan.Changes.ActionableResources(), but now it validates that the changes
-// contain no ephemeral resources whatsoever (due to the changes in #3799).
-func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
-	// The configuration, the prior state, and the refresh result intentionally
-	// have different values for "test_string" so we can observe that the
-	// refresh took effect but the configuration change wasn't considered.
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			ephemeral "test_object" "a" {
-				arg = "after"
-			}
-		`,
-	})
-	state := states.NewState()
-
-	p := simpleMockProvider()
-	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
-		Provider: providers.Schema{Block: simpleTestSchema()},
-		EphemeralResources: map[string]providers.Schema{
-			"test_object": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"arg": {Type: cty.String, Optional: true},
-					},
-				},
-			},
-		},
-	}
-	p.OpenEphemeralResourceFn = func(req providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
-		newVal, err := cty.Transform(req.Config, func(path cty.Path, v cty.Value) (cty.Value, error) {
-			if len(path) == 1 && path[0] == (cty.GetAttrStep{Name: "arg"}) {
-				return cty.StringVal("current"), nil
-			}
-			return v, nil
-		})
-		if err != nil {
-			// shouldn't get here
-			t.Fatalf("OpenResourceFn transform failed")
-			return providers.OpenEphemeralResourceResponse{}
-		}
-		return providers.OpenEphemeralResourceResponse{
-			Result: newVal,
-		}
-	}
-
-	ctx := testContext2(t, &ContextOpts{
-		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
-		}, nil),
-	})
-
-	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
-		Mode: plans.RefreshOnlyMode,
-	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
-	}
-
-	if !p.OpenEphemeralResourceCalled {
-		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
-	}
-
-	if changes := len(plan.Changes.Resources); changes > 0 {
-		t.Fatalf("expected to have no changes because ephemeral resources are not stored in the plan. got %d", changes)
-	}
-	// TODO ephemeral - remove this once the changes from https://github.com/opentofu/opentofu/pull/3776
-	//  are reverted because of the changes in https://github.com/opentofu/opentofu/issues/3799
-	if got, want := len(plan.Changes.ActionableResources()), 0; got != want {
-		t.Errorf(
-			"changes.ActionableResources() returned more than %d resources, meaning that didn't exclude ephemeral resources. Instead returned %d\nChanges:\n%s",
-			want,
-			got,
-			spew.Sdump(plan.Changes.Resources),
-		)
-	}
-}
-
 func TestContext2Plan_refreshOnlyMode_deposed(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	deposedKey := states.DeposedKey("byebye")
@@ -8865,18 +8784,17 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 }
 
 // Ensure that running plan on a configuration with ephemeral resources,
-// the plan now contains no changes for the ephemerals.
+// the plan contains no changes for the ephemerals.
 // This test has been repurposed during #3799.
-// TODO ephemeral - merge this test with TestContext2Plan_refreshOnlyMode_ephemeral
-func TestContext2Plan_ephemeralResourceChangesGenerated(t *testing.T) {
+func TestContext2Plan_noEphemeralResourceChangesGenerated(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 ephemeral "test_ephemeral_resource" "a" {
 }
 `,
 	})
-	testProvider := testProvider("test")
-	testProvider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+	p := testProvider("test")
+	p.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
 		Result: cty.ObjectVal(map[string]cty.Value{
 			"id":     cty.StringVal("id val"),
 			"secret": cty.StringVal("val"),
@@ -8888,16 +8806,24 @@ ephemeral "test_ephemeral_resource" "a" {
 
 	ctx := testContext2(t, &ContextOpts{
 		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(testProvider),
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		}, nil),
 	})
 
-	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected plan error: %s", diags)
-	}
-	if got, want := len(plan.Changes.Resources), 0; got != want {
-		t.Fatalf("expected to have %d changes but got %d", want, got)
+	for _, mode := range []plans.Mode{plans.NormalMode, plans.RefreshOnlyMode} {
+		t.Run(mode.String(), func(t *testing.T) {
+			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: mode})
+			if diags.HasErrors() {
+				t.Fatalf("unexpected plan error: %s", diags)
+			}
+			if !p.OpenEphemeralResourceCalled {
+				t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
+			}
+			defer func() { p.OpenEphemeralResourceCalled = false }()
+			if got, want := len(plan.Changes.Resources), 0; got != want {
+				t.Fatalf("expected to have %d changes but got %d", want, got)
+			}
+		})
 	}
 }
 

@@ -167,7 +167,6 @@ func (n *nodeExpandApplyableResource) expandEphemeralInstances(ctx context.Conte
 	instanceAddrs := expander.ExpandResource(resAddr)
 
 	for _, addr := range instanceAddrs {
-		// TODO ephemeral - test this
 		// If this resource is participating in the "checks" mechanism then our
 		// caller will need to know all of our expanded instance addresses as
 		// checkable object instances.

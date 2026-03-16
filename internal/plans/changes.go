@@ -48,13 +48,6 @@ func BuildChanges(cb func(sync *ChangesSync)) *Changes {
 
 func (c *Changes) Empty() bool {
 	for _, res := range c.Resources {
-		// We ignore Open actions which are specific to ephemeral resources.
-		// A configuration containing ephemeral resources will always have changes planned,
-		// but if there is no other change recorded, there is no need for a prompt
-		// on the user.
-		if res.Action == Open {
-			continue
-		}
 		if res.Action != NoOp || res.Moved() {
 			return false
 		}
@@ -71,23 +64,6 @@ func (c *Changes) Empty() bool {
 	}
 
 	return true
-}
-
-// ActionableResources returns all the [Changes.Resources] that are changes that would actually
-// update the resources.
-// This method's main purpose is to exclude from [Changes.Resources] the changes that are
-// in the plan strictly for building the graph and are not going to change the resource state.
-// In case of [Open] actions, these are needed to build the required ephemeral nodes
-// in [DiffTransformer].
-func (c *Changes) ActionableResources() []*ResourceInstanceChangeSrc {
-	var ret []*ResourceInstanceChangeSrc
-	for _, r := range c.Resources {
-		if r.Action == Open {
-			continue
-		}
-		ret = append(ret, r)
-	}
-	return ret
 }
 
 // ResourceInstance returns the planned change for the current object of the
