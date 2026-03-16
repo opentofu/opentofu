@@ -73,6 +73,9 @@ type ResourceInstanceObjectSrc struct {
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
 	SkipDestroy         bool
+	// Deferred is meant for the ephemeral resources state information.
+	// When this is "true", the evaluator will return an unknown value.
+	Deferred bool
 }
 
 // Compare two lists using an given element equal function, ignoring order and duplicates
@@ -217,6 +220,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		Private:             os.Private,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
 		SkipDestroy:         os.SkipDestroy,
+		Deferred:            os.Deferred,
 	}, nil
 }
 

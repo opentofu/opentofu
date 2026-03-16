@@ -1394,7 +1394,7 @@ resource "test_resource" "c" {
 				},
 			})
 			assertNoErrors(t, diags)
-			if len(plan.Changes.Resources) != 3 {
+			if len(plan.Changes.Resources) != 2 {
 				t.Fatalf("unexpected plan changes: %#v", plan.Changes)
 			}
 

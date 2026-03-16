@@ -52,6 +52,10 @@ type ResourceInstanceObject struct {
 	CreateBeforeDestroy bool
 
 	SkipDestroy bool
+
+	// Deferred is meant for the ephemeral resources state information.
+	// When this is "true", the evaluator will return an unknown value.
+	Deferred bool
 }
 
 // ObjectStatus represents the status of a RemoteObject.
@@ -151,6 +155,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,
 		SkipDestroy:             o.SkipDestroy,
+		Deferred:                o.Deferred,
 	}, nil
 }
 

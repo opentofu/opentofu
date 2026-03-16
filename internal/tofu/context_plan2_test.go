@@ -2685,9 +2685,13 @@ func TestContext2Plan_refreshOnlyMode(t *testing.T) {
 	}
 }
 
+// This test has been added during https://github.com/opentofu/opentofu/pull/3776 but
+// during the rework of ephemerals during apply, in https://github.com/opentofu/opentofu/issues/3799,
+// this test changed it's purpose.
+// Previously it validated that there are changes in the plan that are not reported by
+// plan.Changes.ActionableResources(), but now it validates that the changes
+// contain no ephemeral resources whatsoever (due to the changes in #3799).
 func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
-	addr := mustResourceInstanceAddr("ephemeral.test_object.a")
-
 	// The configuration, the prior state, and the refresh result intentionally
 	// have different values for "test_string" so we can observe that the
 	// refresh took effect but the configuration change wasn't considered.
@@ -2747,12 +2751,11 @@ func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
 		t.Errorf("Provider's OpenEphemeralResource wasn't called; should've been")
 	}
 
-	if got, want := len(plan.Changes.Resources), 1; got != want {
-		t.Fatalf("expected to have exactly %d resource but got %d", want, got)
+	if changes := len(plan.Changes.Resources); changes > 0 {
+		t.Fatalf("expected to have no changes because ephemeral resources are not stored in the plan. got %d", changes)
 	}
-	if gotResAddr := plan.Changes.Resources[0].Addr; !gotResAddr.Equal(addr) {
-		t.Errorf("plan contains one resource and that's NOT an ephemeral as expected; instead, got %s", gotResAddr)
-	}
+	// TODO ephemeral - remove this once the changes from https://github.com/opentofu/opentofu/pull/3776
+	//  are reverted because of the changes in https://github.com/opentofu/opentofu/issues/3799
 	if got, want := len(plan.Changes.ActionableResources()), 0; got != want {
 		t.Errorf(
 			"changes.ActionableResources() returned more than %d resources, meaning that didn't exclude ephemeral resources. Instead returned %d\nChanges:\n%s",
@@ -2760,16 +2763,6 @@ func TestContext2Plan_refreshOnlyMode_ephemeral(t *testing.T) {
 			got,
 			spew.Sdump(plan.Changes.Resources),
 		)
-	}
-
-	if instState := plan.PlannedState.ResourceInstance(addr); instState == nil {
-		t.Errorf("%s has no planned state, but it should have since it's needed to build the apply graph correctly", addr)
-	} else {
-		want := `{"arg":"current"}`
-		got := string(instState.Current.AttrsJSON)
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Fatalf("unexpected attributes for the planned ephemeral:\n%s", diff)
-		}
 	}
 }
 
@@ -8872,7 +8865,9 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 }
 
 // Ensure that running plan on a configuration with ephemeral resources,
-// the generated plan contains the expected changes
+// the plan now contains no changes for the ephemerals.
+// This test has been repurposed during #3799.
+// TODO ephemeral - merge this test with TestContext2Plan_refreshOnlyMode_ephemeral
 func TestContext2Plan_ephemeralResourceChangesGenerated(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -8901,41 +8896,8 @@ ephemeral "test_ephemeral_resource" "a" {
 	if diags.HasErrors() {
 		t.Fatalf("unexpected plan error: %s", diags)
 	}
-	if plan.Changes == nil {
-		t.Fatalf("expected to have some changes but got none")
-	}
-	if got, want := len(plan.Changes.Resources), 1; got != want {
+	if got, want := len(plan.Changes.Resources), 0; got != want {
 		t.Fatalf("expected to have %d changes but got %d", want, got)
-	}
-	got := plan.Changes.Resources[0]
-	addr := mustResourceInstanceAddr("ephemeral.test_ephemeral_resource.a")
-	schema := testProvider.ProviderSchema().EphemeralTypes[addr.Resource.Resource.Type]
-	objTy := schema.ImpliedType()
-	priorVal := cty.NullVal(objTy)
-	beforeVal, err := plans.NewDynamicValue(priorVal, objTy)
-	if err != nil {
-		t.Fatalf("unexpected error creating before val: %s", err)
-	}
-	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
-		"id":     cty.StringVal("id val"),
-		"secret": cty.StringVal("val"),
-		"input":  cty.NullVal(cty.String),
-	}), objTy)
-	if err != nil {
-		t.Fatalf("unexpected error creating after val: %s", err)
-	}
-	want := &plans.ResourceInstanceChangeSrc{
-		Addr:         addr,
-		PrevRunAddr:  addr,
-		ProviderAddr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		ChangeSrc: plans.ChangeSrc{
-			Action: plans.Open,
-			Before: beforeVal,
-			After:  afterVal,
-		},
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Fatalf("unexpected diff in the ephemeral resource recorded change:\n%s", diff)
 	}
 }
 
