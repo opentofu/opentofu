@@ -87,10 +87,10 @@ func (t *PackageAuthenticationResult) summaryResult() packageAuthenticationResul
 		return signed
 	case registryReportCount > 0:
 		return signingSkipped
-	case trustedMirrorReportCount > 0:
-		return signingSkipped // Do we want to report this differently?
 	case locallyVerifiedCount > 0:
 		return verifiedChecksum
+	case trustedMirrorReportCount > 0:
+		return signingSkipped
 	default:
 		return unauthenticated
 	}
