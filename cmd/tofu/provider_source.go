@@ -314,7 +314,7 @@ func providerSourceLocationConfig(locationRetries cliconfig.ProviderInstallation
 	}
 	return getproviders.LocationConfig{
 		ProviderDownloadRetries: retries,
-		TrustedSource:           trustedSource(),
+		TrustedSource:           trustedSource != nil && trustedSource(),
 	}
 }
 
