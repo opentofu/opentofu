@@ -41,6 +41,7 @@ BUG FIXES:
 - Fixed `tofu init` crashing when a module `version` uses a variable and the module is referenced from a test file. ([#3686](https://github.com/opentofu/opentofu/issues/3686))
 - Fixed `local-exec` and `file` provisioners crashing when a required attribute (`command` or `destination`) is set to `null`. ([#3783](https://github.com/opentofu/opentofu/issues/3783))
 - Fixed provider-defined functions in `import` block `id` expressions causing "BUG: Uninitialized function provider" error. ([#3803](https://github.com/opentofu/opentofu/issues/3803))
+- In JSON syntax, key_provider expressions now can be written in raw string syntax or using template interpolation syntax. Previously only the template interpolation syntax was allowed, which was inconsistent with other parts of the encryption configuration. ([#3794](https://github.com/opentofu/opentofu/issues/3794))
 
 ## Previous Releases
 
