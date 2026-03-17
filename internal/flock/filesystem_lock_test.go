@@ -314,15 +314,12 @@ func TestConcurrentLocking(t *testing.T) {
 
 	// Launch multiple goroutines trying to acquire locks
 	for i := range numGoroutines {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			successes := 0
 			for range iterations {
 				f, err := os.OpenFile(lockFile, os.O_RDWR, 0644)
 				if err != nil {
-					t.Errorf("Goroutine %d: Failed to open file: %v", id, err)
+					t.Errorf("Goroutine %d: Failed to open file: %v", i, err)
 					continue
 				}
 
@@ -339,7 +336,7 @@ func TestConcurrentLocking(t *testing.T) {
 				time.Sleep(1 * time.Millisecond)
 			}
 			successCount <- successes
-		}(i)
+		})
 	}
 
 	wg.Wait()
