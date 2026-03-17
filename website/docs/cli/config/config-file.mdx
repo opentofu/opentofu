@@ -394,9 +394,14 @@ under your current working directory. When possible OpenTofu will use
 symbolic links to avoid storing a separate copy of a cached plugin in multiple
 directories.
 
-The plugin cache directory _must not_ also be one of the configured or implied
-filesystem mirror directories, since the cache management logic conflicts with
-the filesystem mirror logic when operating on the same directory.
+:::warning
+The plugin cache directory must not be one of the configured or implied
+[filesystem mirror directories](#explicit-installation-method-configuration).
+Setting `TF_PLUGIN_CACHE_DIR` or `plugin_cache_dir` to one of the
+[implied local mirror directories](#implied-local-mirror-directories)
+will cause conflicts between the cache management logic and the filesystem
+mirror logic when operating on the same directory.
+:::
 
 OpenTofu will never itself delete a plugin from the plugin cache once it has
 been placed there. Over time, as plugins are upgraded, the cache directory may
