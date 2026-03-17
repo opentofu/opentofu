@@ -311,7 +311,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 	generateDataKeyPath := fmt.Sprintf("/transit/datakey/plaintext/%s", escapedTestKeyName)
 	decryptPath := fmt.Sprintf("/transit/decrypt/%s", escapedTestKeyName)
 
-	return func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error) {
+	return func(ctx context.Context, path string, data map[string]any) (*openbao.Secret, error) {
 		switch path {
 		case generateDataKeyPath:
 			bits, ok := data["bits"].(int)
@@ -325,7 +325,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			}
 
 			s := &openbao.Secret{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"plaintext":  base64.StdEncoding.EncodeToString(plaintext),
 					"ciphertext": string(append([]byte(testKeyName), plaintext...)),
 				},
@@ -342,7 +342,7 @@ func prepareClientMockForKeyProviderTest(t *testing.T, testKeyName string) mockC
 			plaintext := []byte(ciphertext[len(testKeyName):])
 
 			s := &openbao.Secret{
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"plaintext": base64.StdEncoding.EncodeToString(plaintext),
 				},
 			}

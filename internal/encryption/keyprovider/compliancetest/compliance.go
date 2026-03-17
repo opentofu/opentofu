@@ -24,14 +24,14 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 ) {
 	var cfg TConfig
 	cfgType := reflect.TypeOf(cfg)
-	if cfgType.Kind() != reflect.Ptr || cfgType.Elem().Kind() != reflect.Struct {
+	if cfgType.Kind() != reflect.Pointer || cfgType.Elem().Kind() != reflect.Struct {
 		compliancetest.Fail(t, "You declared the config type to be %T, but it should be a pointer to a struct. Please fix your call to ComplianceTest().", cfg)
 	}
 
 	var meta TMeta
 	metaType := reflect.TypeOf(cfg)
 	if metaType.Kind() != reflect.Interface {
-		if metaType.Kind() != reflect.Ptr || metaType.Elem().Kind() != reflect.Struct {
+		if metaType.Kind() != reflect.Pointer || metaType.Elem().Kind() != reflect.Struct {
 			compliancetest.Log(t, "You declared a metadata type as %T, but it should be a pointer to a struct. Please fix your call to ComplianceTest().", meta)
 		}
 	} else {
@@ -83,7 +83,6 @@ func ComplianceTest[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Conf
 			compliancetest.Fail(t, "Please provide a map in MetadataStructTestCases.")
 		}
 		for name, tc := range config.MetadataStructTestCases {
-			tc := tc
 			t.Run(name, func(t *testing.T) {
 				complianceTestMetadataTestCase[TConfig, TKeyProvider, TMeta](t, tc)
 			})
