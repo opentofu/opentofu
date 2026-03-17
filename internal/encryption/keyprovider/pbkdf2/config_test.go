@@ -6,6 +6,7 @@
 package pbkdf2_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -49,11 +50,11 @@ func TestHashFunctionName_Validate(t *testing.T) {
 }
 
 func generateFixedStringHelper(length int) string {
-	result := ""
-	for i := 0; i < length; i++ {
-		result += "a"
+	var result strings.Builder
+	for range length {
+		result.WriteString("a")
 	}
-	return result
+	return result.String()
 }
 
 func TestConfig_Build(t *testing.T) {
