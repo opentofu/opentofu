@@ -232,7 +232,7 @@ func testAuthConfig() *auth.Config {
 }
 
 func testCPKKey(t *testing.T) string {
-	if key := os.Getenv("ARM_CUSTOMER_PROVIDED_KEY"); key != "" {
+	if key := os.Getenv("TF_AZURE_TEST_CUSTOMER_PROVIDED_KEY"); key != "" {
 		return key
 	}
 	raw := make([]byte, 32)
