@@ -42,7 +42,7 @@ func DiagnosticOriginatesFromCheckRule(diag tfdiags.Diagnostic) (CheckRule, bool
 type CheckRuleDiagnosticExtra struct {
 	CheckRule CheckRule
 
-	wrapped interface{}
+	wrapped any
 }
 
 var (
@@ -52,11 +52,11 @@ var (
 	_ tfdiags.DiagnosticExtraWrapper          = (*CheckRuleDiagnosticExtra)(nil)
 )
 
-func (c *CheckRuleDiagnosticExtra) UnwrapDiagnosticExtra() interface{} {
+func (c *CheckRuleDiagnosticExtra) UnwrapDiagnosticExtra() any {
 	return c.wrapped
 }
 
-func (c *CheckRuleDiagnosticExtra) WrapDiagnosticExtra(inner interface{}) {
+func (c *CheckRuleDiagnosticExtra) WrapDiagnosticExtra(inner any) {
 	if c.wrapped != nil {
 		// This is a logical inconsistency, the caller should know whether they
 		// have already wrapped an extra or not.

@@ -143,7 +143,6 @@ func TestParseModule(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 
 		t.Run(test.Input, func(t *testing.T) {
 			t.Parallel()
