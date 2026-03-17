@@ -24,7 +24,6 @@ ENHANCEMENTS:
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `tofu console` command now supports two new flags: `-lock` and `-lock-timeout`. Having these, the interactive mode can be used without locking the state. ([#3800](https://github.com/opentofu/opentofu/pull/3800))
 - The `azurerm` backend now supports authentication using Azure DevOps / Azure Pipelines workload identity federation ([#3820](https://github.com/opentofu/opentofu/pull/3820))
-- Documentation: added warning callout for `TF_PLUGIN_CACHE_DIR` conflict with plugin mirror directories. ([#3881](https://github.com/opentofu/opentofu/pull/3881))
 
 BUG FIXES:
 
