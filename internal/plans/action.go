@@ -31,3 +31,12 @@ const (
 func (a Action) IsReplace() bool {
 	return a == DeleteThenCreate || a == CreateThenDelete
 }
+
+// CanTriggerDownstreamReplace reports whether this action represents a change
+// significant enough to trigger replacement of resources that reference this
+// one via replace_triggered_by. This covers any action that produces a new or
+// meaningfully changed object: fresh creation, update, any replace variant
+// (including ForgetThenCreate for resources with lifecycle.destroy = false).
+func (a Action) CanTriggerDownstreamReplace() bool {
+	return a == Create || a == Update || a.IsReplace() || a == ForgetThenCreate
+}
