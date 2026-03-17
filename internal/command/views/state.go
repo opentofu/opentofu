@@ -11,6 +11,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -30,6 +31,20 @@ type State interface {
 	ResourceMoveStatus(dryRun bool, src, dest string)
 	DryRunMovedStatus(moved int)
 	MoveFinalStatus(moved int)
+
+	// `tofu state pull` specific
+	PrintPulledState(state string)
+
+	// `tofu state replace-provider` specific
+	NoMatchingResourcesForProviderReplacement()
+	ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource)
+	ReplaceProviderCancelled()
+	ProviderReplaced(forResources int)
+
+	// `tofu state rm` specific
+	ResourceRemoveStatus(dryRun bool, target string)
+	DryRunRemovedStatus(removed int)
+	RemoveFinalStatus(count int)
 }
 
 // NewState returns an initialized State implementation for the given ViewType.
@@ -108,6 +123,54 @@ func (m StateMulti) MoveFinalStatus(moved int) {
 	}
 }
 
+func (m StateMulti) PrintPulledState(state string) {
+	for _, o := range m {
+		o.PrintPulledState(state)
+	}
+}
+
+func (m StateMulti) NoMatchingResourcesForProviderReplacement() {
+	for _, o := range m {
+		o.NoMatchingResourcesForProviderReplacement()
+	}
+}
+
+func (m StateMulti) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
+	for _, o := range m {
+		o.ReplaceProviderOverview(from, to, willReplace)
+	}
+}
+
+func (m StateMulti) ReplaceProviderCancelled() {
+	for _, o := range m {
+		o.ReplaceProviderCancelled()
+	}
+}
+
+func (m StateMulti) ProviderReplaced(forResources int) {
+	for _, o := range m {
+		o.ProviderReplaced(forResources)
+	}
+}
+
+func (m StateMulti) ResourceRemoveStatus(dryRun bool, target string) {
+	for _, o := range m {
+		o.ResourceRemoveStatus(dryRun, target)
+	}
+}
+
+func (m StateMulti) DryRunRemovedStatus(removed int) {
+	for _, o := range m {
+		o.DryRunRemovedStatus(removed)
+	}
+}
+
+func (m StateMulti) RemoveFinalStatus(count int) {
+	for _, o := range m {
+		o.RemoveFinalStatus(count)
+	}
+}
+
 type StateHuman struct {
 	view *View
 }
@@ -158,6 +221,58 @@ func (v *StateHuman) MoveFinalStatus(moved int) {
 		return
 	}
 	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully moved %d object(s).", moved))
+}
+
+func (v *StateHuman) PrintPulledState(state string) {
+	_, _ = v.view.streams.Println(state)
+}
+
+func (v *StateHuman) NoMatchingResourcesForProviderReplacement() {
+	_, _ = v.view.streams.Println("No matching resources found.")
+}
+
+func (v *StateHuman) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
+	colorize := v.view.colorize.Color
+	printer := func(args ...any) { _, _ = v.view.streams.Println(args...) }
+	printer("OpenTofu will perform the following actions:\n")
+	printer(colorize("  [yellow]~[reset] Updating provider:"))
+	printer(colorize(fmt.Sprintf("    [red]-[reset] %s", from)))
+	printer(colorize(fmt.Sprintf("    [green]+[reset] %s\n", to)))
+
+	printer(colorize(fmt.Sprintf("[bold]Changing[reset] %d resources:\n", len(willReplace))))
+	for _, resource := range willReplace {
+		printer(colorize(fmt.Sprintf("  %s", resource.Addr)))
+	}
+}
+
+func (v *StateHuman) ReplaceProviderCancelled() {
+	_, _ = v.view.streams.Println("Cancelled replacing providers.")
+}
+
+func (v *StateHuman) ProviderReplaced(forResources int) {
+	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully replaced provider for %d resources.", forResources))
+}
+
+func (v *StateHuman) ResourceRemoveStatus(dryRun bool, target string) {
+	if dryRun {
+		_, _ = v.view.streams.Println(fmt.Sprintf("Would remove %s", target))
+		return
+	}
+	_, _ = v.view.streams.Println(fmt.Sprintf("Removed %s", target))
+}
+
+func (v *StateHuman) DryRunRemovedStatus(removed int) {
+	if removed == 0 {
+		_, _ = v.view.streams.Println("Would have removed nothing.")
+	}
+}
+
+func (v *StateHuman) RemoveFinalStatus(count int) {
+	if count == 0 {
+		// NOTE: printing nothing here since this case needs to be handled by the caller
+		return
+	}
+	_, _ = v.view.streams.Println(fmt.Sprintf("Successfully removed %d resource instance(s).", count))
 }
 
 type StateJSON struct {
@@ -234,6 +349,53 @@ func (v *StateJSON) MoveFinalStatus(moved int) {
 		return
 	}
 	v.view.Info(fmt.Sprintf("Successfully moved %d object(s)", moved))
+}
+
+func (v *StateJSON) PrintPulledState(_ string) {
+	v.view.Error("printing the pulled state is not available in the JSON view. The `tofu state pull` should not be configured with the `-json` flag")
+}
+
+func (v *StateJSON) NoMatchingResourcesForProviderReplacement() {
+	v.view.log.Info("No matching resources found")
+}
+
+func (v *StateJSON) ReplaceProviderOverview(from, to addrs.Provider, willReplace []*states.Resource) {
+	replacedResources := make([]string, len(willReplace))
+	for i, resource := range willReplace {
+		replacedResources[i] = resource.Addr.String()
+	}
+	msg := fmt.Sprintf("OpenTofu will replace provider from %s to %s for %d resources", from, to, len(willReplace))
+	v.view.log.Info(msg, "resources", replacedResources, "type", "replace_provider", "from", from.String(), "to", to.String())
+}
+
+func (v *StateJSON) ReplaceProviderCancelled() {
+	v.view.Info("Cancelled replacing providers")
+}
+
+func (v *StateJSON) ProviderReplaced(forResources int) {
+	v.view.Info(fmt.Sprintf("Successfully replaced provider for %d resources", forResources))
+}
+
+func (v *StateJSON) ResourceRemoveStatus(dryRun bool, target string) {
+	if dryRun {
+		v.view.Info(fmt.Sprintf("Would remove %s", target))
+		return
+	}
+	v.view.Info(fmt.Sprintf("Removed %s", target))
+}
+
+func (v *StateJSON) DryRunRemovedStatus(removed int) {
+	if removed == 0 {
+		v.view.Info("Would have removed nothing")
+	}
+}
+
+func (v *StateJSON) RemoveFinalStatus(count int) {
+	if count == 0 {
+		// NOTE: printing nothing here since this case needs to be handled by the caller
+		return
+	}
+	v.view.Info(fmt.Sprintf("Successfully removed %d resource instance(s)", count))
 }
 
 const errStateLoadingState = `Error loading the state: %[1]s

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	"github.com/opentofu/opentofu/internal/command/workdir"
@@ -27,20 +26,20 @@ func TestStatePush_empty(t *testing.T) {
 	expected := testStateRead(t, "replace.tfstate")
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	actual := testStateRead(t, "local-state.tfstate")
@@ -56,13 +55,11 @@ func TestStatePush_lockedState(t *testing.T) {
 	t.Chdir(td)
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
@@ -74,11 +71,14 @@ func TestStatePush_lockedState(t *testing.T) {
 	defer unlock()
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad code: %d, expected 1\n:%s", code, ui.OutputWriter)
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad code: %d, expected 1\n:%s", code, output.Stdout())
 	}
-	if !strings.Contains(ui.ErrorWriter.String(), "Error acquiring the state lock") {
-		t.Fatalf("expected a lock error, got: %s", ui.ErrorWriter)
+	stderr := output.Stderr()
+	if !strings.Contains(stderr, "Error acquiring the state lock") {
+		t.Fatalf("expected a lock error, got: %s", stderr)
 	}
 }
 
@@ -91,20 +91,20 @@ func TestStatePush_replaceMatch(t *testing.T) {
 	expected := testStateRead(t, "replace.tfstate")
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	actual := testStateRead(t, "local-state.tfstate")
@@ -129,20 +129,20 @@ func TestStatePush_replaceMatchStdin(t *testing.T) {
 	defer testStdinPipe(t, &buf)()
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"-force", "-"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	actual := testStateRead(t, "local-state.tfstate")
@@ -160,20 +160,20 @@ func TestStatePush_lineageMismatch(t *testing.T) {
 	expected := testStateRead(t, "local-state.tfstate")
 
 	p := testProvider()
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	actual := testStateRead(t, "local-state.tfstate")
@@ -191,19 +191,19 @@ func TestStatePush_serialNewer(t *testing.T) {
 	expected := testStateRead(t, "local-state.tfstate")
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 1 {
+	code := c.Run(args)
+	_ = done(t)
+	if code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
 
@@ -222,20 +222,20 @@ func TestStatePush_serialOlder(t *testing.T) {
 	expected := testStateRead(t, "replace.tfstate")
 
 	p := testProvider()
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
 	actual := testStateRead(t, "local-state.tfstate")
@@ -254,30 +254,31 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	statePath := testStateFile(t, s)
 
 	// init the backend
-	ui := new(cli.MockUi)
-	view, _ := testView(t)
+	initView, initDone := testView(t)
 	initCmd := &InitCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
-			View:       view,
+			View:       initView,
 		},
 	}
-	if code := initCmd.Run([]string{}); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+	code := initCmd.Run([]string{})
+	initOutput := initDone(t)
+	if code != 0 {
+		t.Fatalf("bad exit code: %d\n output:\n%s", code, initOutput.All())
 	}
 
 	// create a new workspace
-	ui = new(cli.MockUi)
+	wsView, wsDone := testView(t)
 	newCmd := &WorkspaceNewCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
-			View:       view,
+			View:       wsView,
 		},
 	}
-	if code := newCmd.Run([]string{"test"}); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
+	wsCode := newCmd.Run([]string{"test"})
+	wsOutput := wsDone(t)
+	if wsCode != 0 {
+		t.Fatalf("bad exit code: %d\n\n%s", wsCode, wsOutput.All())
 	}
 
 	// put a dummy state in place, so we have something to force
@@ -294,18 +295,19 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 	}
 
 	// push our local state to that new workspace
-	ui = new(cli.MockUi)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir: workdir.NewDir("."),
-			Ui:         ui,
 			View:       view,
 		},
 	}
 
 	args := []string{"-force", statePath}
-	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+	pushCode := c.Run(args)
+	output := done(t)
+	if pushCode != 0 {
+		t.Fatalf("bad code: %d\noutput:\n%s", pushCode, output.All())
 	}
 }
 
@@ -316,24 +318,24 @@ func TestStatePush_checkRequiredVersion(t *testing.T) {
 	t.Chdir(td)
 
 	p := testProvider()
-	ui := cli.NewMockUi()
-	view, _ := testView(t)
+	view, done := testView(t)
 	c := &StatePushCommand{
 		Meta: Meta{
 			WorkingDir:       workdir.NewDir("."),
 			testingOverrides: metaOverridesForProvider(p),
-			Ui:               ui,
 			View:             view,
 		},
 	}
 
 	args := []string{"replace.tfstate"}
-	if code := c.Run(args); code != 1 {
-		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+	code := c.Run(args)
+	output := done(t)
+	if code != 1 {
+		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, output.Stderr(), output.Stdout())
 	}
 
 	// Required version diags are correct
-	errStr := ui.ErrorWriter.String()
+	errStr := output.Stderr()
 	if !strings.Contains(errStr, `required_version = "~> 0.9.0"`) {
 		t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
 	}

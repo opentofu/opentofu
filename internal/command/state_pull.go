@@ -11,6 +11,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/flags"
+	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
@@ -22,33 +26,55 @@ type StatePullCommand struct {
 	StateMeta
 }
 
-func (c *StatePullCommand) Run(args []string) int {
+func (c *StatePullCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
 
-	args = c.Meta.process(args)
-	cmdFlags := c.Meta.defaultFlagSet("state pull")
-	c.Meta.varFlagSet(cmdFlags)
-	if err := cmdFlags.Parse(args); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
-		return 1
+	common, rawArgs := arguments.ParseView(rawArgs)
+	c.View.Configure(common)
+	// Because the legacy UI was using println to show diagnostics and the new view is using, by default, print,
+	// in order to keep functional parity, we setup the view to add a new line after each diagnostic.
+	c.View.DiagsWithNewline()
+
+	// Propagate -no-color for legacy use of Ui. The remote backend and
+	// cloud package use this; it should be removed when/if they are
+	// migrated to views.
+	c.Meta.color = !common.NoColor
+	c.Meta.Color = c.Meta.color
+
+	// Parse and validate flags
+	args, closer, diags := arguments.ParseStatePull(rawArgs)
+	defer closer()
+
+	// Instantiate the view, even if there are flag errors, so that we render
+	// diagnostics according to the desired view
+	view := views.NewState(args.ViewOptions, c.View)
+	// ... and initialise the Meta.Ui to wrap Meta.View into a new implementation
+	// that is able to print by using View abstraction and use the Meta.Ui
+	// to ask for the user input.
+	c.Meta.configureUiFromView(args.ViewOptions)
+	if diags.HasErrors() {
+		view.Diagnostics(diags)
+		return cli.RunResultHelp
 	}
 
+	c.GatherVariables(args.Vars)
+
 	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
-		c.showDiagnostics(diags)
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
-		c.showDiagnostics(encDiags)
+		view.Diagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
-		c.showDiagnostics(backendDiags)
+		view.Diagnostics(backendDiags)
 		return 1
 	}
 
@@ -58,16 +84,16 @@ func (c *StatePullCommand) Run(args []string) int {
 	// Get the state manager for the current workspace
 	env, err := c.Workspace(ctx)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Error selecting workspace: %s", err)))
 		return 1
 	}
 	stateMgr, err := b.StateMgr(ctx, env)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
+		view.StateLoadingFailure(err.Error())
 		return 1
 	}
 	if err := stateMgr.RefreshState(context.TODO()); err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
+		view.Diagnostics(diags.Append(fmt.Errorf("Failed to refresh state: %s", err)))
 		return 1
 	}
 
@@ -78,11 +104,11 @@ func (c *StatePullCommand) Run(args []string) int {
 		var buf bytes.Buffer
 		err = statefile.Write(stateFile, &buf, encryption.StateEncryptionDisabled()) // Don't encrypt to stdout
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Failed to write state: %s", err))
+			view.Diagnostics(diags.Append(fmt.Errorf("Failed to write state: %s", err)))
 			return 1
 		}
 
-		c.Ui.Output(buf.String())
+		view.PrintPulledState(buf.String())
 	}
 
 	return 0
@@ -114,6 +140,24 @@ Options:
                      variables file.
 `
 	return strings.TrimSpace(helpText)
+}
+
+// TODO meta-refactor: move this to arguments once all commands are using the same shim logic
+func (c *StatePullCommand) GatherVariables(args *arguments.Vars) {
+	// FIXME the arguments package currently trivially gathers variable related
+	// arguments in a heterogeneous slice, in order to minimize the number of
+	// code paths gathering variables during the transition to this structure.
+	// Once all commands that gather variables have been converted to this
+	// structure, we could move the variable gathering code to the arguments
+	// package directly, removing this shim layer.
+
+	varArgs := args.All()
+	items := make([]flags.RawFlag, len(varArgs))
+	for i := range varArgs {
+		items[i].Name = varArgs[i].Name
+		items[i].Value = varArgs[i].Value
+	}
+	c.Meta.variableArgs = flags.RawFlags{Items: &items}
 }
 
 func (c *StatePullCommand) Synopsis() string {

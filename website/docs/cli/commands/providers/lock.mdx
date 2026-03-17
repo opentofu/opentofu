@@ -12,29 +12,20 @@ order to write provider dependency information into
 
 The common way to update the dependency lock file is as a side-effect of normal
 provider installation during
-[`tofu init`](../../../cli/commands/init.mdx), but there are several situations where that
-automatic approach may not be sufficient:
+[`tofu init`](../../../cli/commands/init.mdx).
 
-* If you are running OpenTofu in an environment that uses
-  [alternative provider installation methods](../../../cli/config/config-file.mdx#provider-installation),
-  such as filesystem or network mirrors, normal provider installation will not
-  access the origin registry for a provider and therefore OpenTofu will not
-  be able to populate all of the possible package checksums for the selected
-  provider versions.
+If you are running OpenTofu in an environment that uses
+[alternative provider installation methods](../../../cli/config/config-file.mdx#provider-installation),
+such as filesystem or network mirrors, normal provider installation will not
+access the origin registry for a provider and therefore OpenTofu will not
+be able to populate all of the possible package checksums for the selected
+provider versions.
 
-  If you use `tofu lock` to write the official release checksums for a
-  provider into the dependency lock file then future `tofu init` runs
-  will verify the packages available in your selected mirror against the
-  official checksums previously recorded, giving additional certainty that
-  the mirror is serving the provider packages it is claiming to.
-
-* If your team runs OpenTofu across a number of different platforms (e.g.
-  on both Windows and Linux) and the upstream registry for a provider is unable
-  to provide signed checksums using the latest hashing scheme, subsequent runs
-  of OpenTofu on other platforms may
-  [add additional checksums to the lock file](../../../language/files/dependency-lock.mdx#new-provider-package-checksums).
-  You can avoid that by pre-populating hashes for all of the platforms you
-  intend to use, using the `tofu providers lock` command.
+If you use `tofu providers lock` to write the official release checksums for a
+provider into the dependency lock file then future `tofu init` runs
+will verify the packages available in your selected mirror against the
+official checksums previously recorded, giving additional certainty that
+the mirror is serving the provider packages it is claiming to.
 
 ## Usage
 

@@ -131,6 +131,11 @@ func TestSourcePackageMeta(t *testing.T) {
 		}},
 	}
 	validMeta.Authentication = PackageAuthenticationAll(
+		NewRegistryPackageAuthentication(
+			validMeta,
+			"000000000000000000000000000000000000000000000000000000000000f00d",
+			map[Platform]RegistryPlatformData{},
+		),
 		NewMatchingChecksumAuthentication(
 			[]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"),
 			"happycloud_1.2.0.zip",

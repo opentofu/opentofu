@@ -98,6 +98,13 @@ module "aks" {
 module "cmk" {
   source = "./cmk"
   count  = var.use_cmk ? 1 : 0
+  
+  location = var.location
+}
+  
+module "ado" {
+  source = "./ado"
+  count  = var.use_ado ? 1 : 0
 
   location = var.location
 }

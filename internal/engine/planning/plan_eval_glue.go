@@ -329,7 +329,7 @@ func resourceInstancesFilter(state *states.State, want func(addrs.AbsResourceIns
 					// a temporary situation while we're operating in a mixed
 					// world where most of the system doesn't know about the
 					// new runtime yet.
-					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr, states.NotDeposed)
+					objState := state.SyncWrapper().ResourceInstanceObjectFull(instAddr.CurrentObject())
 					if objState == nil {
 						// If we get here then there's a bug in the
 						// ResourceInstanceObjectFull function, because we

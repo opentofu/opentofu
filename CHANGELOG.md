@@ -23,6 +23,8 @@ ENHANCEMENTS:
 - New CLI argument `-json-into=<outfile>` has been added to support emitting both human readable and machine readable logs ([#3606](https://github.com/opentofu/opentofu/pull/3606))
 - The `s3` backend now automatically discovers and uses AWS credentials issued using [the `aws login` command](https://docs.aws.amazon.com/cli/latest/reference/login/) in AWS CLI. ([#3767](https://github.com/opentofu/opentofu/pull/3767))
 - The `tofu console` command now supports two new flags: `-lock` and `-lock-timeout`. Having these, the interactive mode can be used without locking the state. ([#3800](https://github.com/opentofu/opentofu/pull/3800))
+- The `azurerm` backend now supports authentication using Azure DevOps / Azure Pipelines workload identity federation ([#3820](https://github.com/opentofu/opentofu/pull/3820))
+- Resources using `replace_triggered_by` in their `lifecycle` block will now be replaced when a resource they reference is itself being replaced, not only when it is being updated. ([#3714](https://github.com/opentofu/opentofu/issues/3714))
 
 BUG FIXES:
 
