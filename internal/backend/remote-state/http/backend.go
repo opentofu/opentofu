@@ -275,7 +275,11 @@ func (b *Backend) configure(ctx context.Context) error {
 		}
 	}
 
+	// Ensures we send an OpenTofu User-Agent string and propagate traceparent if set
+	baseClient := httpclient.New(ctx)
+
 	rClient := retryablehttp.NewClient()
+	rClient.HTTPClient = baseClient
 	rClient.RetryMax = data.Get("retry_max").(int)
 	rClient.RetryWaitMin = time.Duration(data.Get("retry_wait_min").(int)) * time.Second
 	rClient.RetryWaitMax = time.Duration(data.Get("retry_wait_max").(int)) * time.Second
