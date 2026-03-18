@@ -188,7 +188,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
 			Summary:  "WinRM connection type is deprecated",
-			Detail:   "The winrm connection type is deprecated and will be removed in a future version of OpenTofu.\n\nModern Windows systems support SSH natively. Migrate your provisioners to use SSH instead.\n\nTo get started with OpenSSH on Windows, see https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse",
+			Detail:   "The winrm connection type is deprecated and will be removed in a future version of OpenTofu.\n\nModern Windows systems support SSH natively. Migrate your provisioners to use SSH instead.\n\nTo get started with OpenSSH on Windows, refer to https://learn.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse",
 			Subject:  subject,
 			Context:  hcl.RangeBetween(p.Connection.DeclRange, p.Connection.Config.MissingItemRange()).Ptr(),
 		})
