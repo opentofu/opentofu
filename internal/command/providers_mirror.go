@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
@@ -260,7 +261,12 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 					))
 					continue
 				}
-				computedHashes[provider][platform] = result.HashesWithDisposition(func(d *getproviders.HashDisposition) bool { return d.Platform != nil && *d.Platform == platform })
+				computedHashes[provider][platform] = result.HashesWithDisposition(func(d *getproviders.HashDisposition) bool {
+					// We include ReportedByTrustedMirror in the slim chance
+					// that someone has a multi stage mirror chain.
+					isTrusted := d.VerifiedLocally || d.ReportedByRegistry || d.ReportedByTrustedMirror
+					return isTrusted && d.Platform != nil && *d.Platform == platform
+				})
 				view.PackageAuthenticated(provider.ForDisplay(), selected.String(), platform.String(), result.String())
 			}
 			os.Remove(targetPath) // okay if it fails because we're going to try to rename over it next anyway
@@ -333,6 +339,7 @@ func (c *ProvidersMirrorCommand) Run(rawArgs []string) int {
 				}
 				hashes = append(hashes, hash.String())
 			}
+			slices.Sort(hashes)
 			indexVersions[meta.Version.String()] = map[string]interface{}{}
 			if _, ok := indexArchives[version]; !ok {
 				indexArchives[version] = map[string]interface{}{}
