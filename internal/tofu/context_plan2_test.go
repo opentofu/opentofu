@@ -2005,6 +2005,36 @@ OpenTofu has planned to destroy these objects. If OpenTofu's proposed changes ar
 	})
 }
 
+func TestContext2Plan_targetNonExistentResource(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "real" {
+			}
+		`,
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Plugins: plugins.NewLibrary(map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		}, nil),
+	})
+
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Targets: []addrs.Targetable{
+			mustResourceInstanceAddr("test_object.does_not_exist").ContainingResource(),
+		},
+	})
+
+	if !diags.HasErrors() {
+		t.Fatal("expected error when targeting a non-existent resource, got none")
+	}
+	if got, want := diags.Err().Error(), "test_object.does_not_exist"; !strings.Contains(got, want) {
+		t.Fatalf("expected error to mention %q, got: %s", want, got)
+	}
+}
+
 func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 	addrA := mustResourceInstanceAddr("test_object.a")
 	addrB := mustResourceInstanceAddr("test_object.b")
