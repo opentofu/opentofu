@@ -225,7 +225,7 @@ func (c *InitCommand) Run(rawArgs []string) int {
 			return 1
 		}
 
-		if err := sMgr.RefreshState(context.TODO()); err != nil {
+		if err := sMgr.RefreshState(ctx); err != nil {
 			view.Diagnostics(diags.Append(fmt.Errorf("Error refreshing state: %s", err)))
 			return 1
 		}
