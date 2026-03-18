@@ -172,7 +172,7 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 
 	if b.ConfigureFunc != nil {
 		err = b.ConfigureFunc(context.WithValue(
-			context.Background(), backendConfigKey, data))
+			ctx, backendConfigKey, data))
 		if err != nil {
 			diags = diags.Append(err)
 			return diags
