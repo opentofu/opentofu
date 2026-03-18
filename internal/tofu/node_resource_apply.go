@@ -98,7 +98,7 @@ func (n *nodeExpandApplyableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	return g, diags.ErrWithWarnings()
 }
 
-// expandEphemeralResource logic is mostly got from nodeExpandPlannableResource.DynamicExpand.
+// expandEphemeralResource logic is mostly identical with the nodeExpandPlannableResource.DynamicExpand one.
 func (n *nodeExpandApplyableResource) expandEphemeralResource(ctx context.Context, evalCtx EvalContext) (*Graph, tfdiags.Diagnostics) {
 	var (
 		diags tfdiags.Diagnostics
