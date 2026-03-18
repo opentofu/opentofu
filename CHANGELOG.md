@@ -25,6 +25,7 @@ ENHANCEMENTS:
 - The `tofu console` command now supports two new flags: `-lock` and `-lock-timeout`. Having these, the interactive mode can be used without locking the state. ([#3800](https://github.com/opentofu/opentofu/pull/3800))
 - The `azurerm` backend now supports authentication using Azure DevOps / Azure Pipelines workload identity federation ([#3820](https://github.com/opentofu/opentofu/pull/3820))
 - Resources using `replace_triggered_by` in their `lifecycle` block will now be replaced when a resource they reference is itself being replaced, not only when it is being updated. ([#3714](https://github.com/opentofu/opentofu/issues/3714))
+- The `azurerm` backend now supports Customer-Provided Keys(CPK) as well as Customer-Managed Keys(CMK) to enable server-side encryption. ([#3886](https://github.com/opentofu/opentofu/pull/3886))
 
 BUG FIXES:
 

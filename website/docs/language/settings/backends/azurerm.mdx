@@ -308,6 +308,20 @@ The following configuration options are supported:
   Rather than using snapshots, we recommend enabling versioning and soft deletion on your Azure storage container.
   :::
 
+* `customer_provided_key` - (Optional) An Base64 encoded AES-256 key used for server-side encryption/decryption of the Blob used to store the OpenTofu statefile. 
+This value can also be sourced from the `ARM_CUSTOMER_PROVIDED_KEY` environment variable.
+
+* `encryption_scope` - (Optional) The encryption scope which must be used for the encryption/decryption of the Blob used to store the OpenTofu statefile.
+This value can also be sourced from the `ARM_ENCRYPTION_SCOPE` environment variable.
+
+  :::note
+  `customer_provided_key` and `encryption_scope` are mutually exclusive. You can use one of these two for encrypting the Blob server-side.
+  :::
+
+  :::warning Note
+  A Blob encrypted with `customer_provided_key` cannot be recovered if the key is lost.
+  :::
+
 ***
 
 When authenticating using the Managed Service Identity (MSI) - the following fields are also supported:
