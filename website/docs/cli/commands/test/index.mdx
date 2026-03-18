@@ -536,7 +536,27 @@ In the example below, we test if the bucket name is correctly passed to the reso
     </TabItem>
 </Tabs>
 
-TODO add a bunch of documentation here!!!
+As of OpenTofu 1.12, you can also specify instances of a resource or data source which use a `for_each` or `count`. You can even specify all of them, using a wildcard instance key. In the example below, we specify a series of tests; the comments above the tests explain whether or not they actually pass and why.
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        TODO MAKE TEST
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        TODO MAKE BASE
+    </TabItem>
+</Tabs>
+
+As mentioned before, you can specify an override in either the `mock_provider` block or at the root level of a test file. Root-level overrides always take precedence over anything specified in the `mock_provider`, as you can see in this example.
+
+<Tabs>
+    <TabItem value={"test"} label={"main.tftest.hcl"} default>
+        TODO MAKE TEST
+    </TabItem>
+    <TabItem value={"main"} label={"main.tf"}>
+        TODO MAKE BASE
+    </TabItem>
+</Tabs>
 
 ### Automatically generated values
 
