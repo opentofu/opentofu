@@ -16,7 +16,7 @@ ephemeral "simple_resource" "deferred_ephemeral" {
 
 data "simple_resource" "deferred_data" {
   // NOTE: "hardcoded" value here because we want this data source to be deferred for the apply phase but through
-  // indirect dependencies: data -(precondition)-> ephemeral -> managed resource
+  // indirect dependencies: data -(precondition)-> ephemeral -> variable -> managed resource
   value    = "hardcoded"
   lifecycle {
     precondition {
