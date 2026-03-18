@@ -312,6 +312,34 @@ func TestMarshalPlanResources(t *testing.T) {
 			}
 		})
 	}
+	// Ephemeral resources are not allowed in the plan
+	t.Run("ephemeral denied", func(t *testing.T) {
+		resAddr := mustAddr("ephemeral.foo_res.bar_name")
+		changeMap := map[string]*plans.ResourceInstanceChangeSrc{
+			"ephemeral.foo_res.bar_name": {
+				Addr:        resAddr,
+				PrevRunAddr: resAddr,
+				ProviderAddr: addrs.AbsProviderConfig{
+					Provider: addrs.Provider{
+						Type:      "foo",
+						Namespace: "bar",
+					},
+				},
+			},
+		}
+		r, err := marshalPlanResources(changeMap, []addrs.AbsResourceInstance{resAddr}, nil)
+		if len(r) != 0 {
+			t.Errorf("expected to have no resources generated but got %d: %+v", len(r), r)
+		}
+		if err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+		gotErr := err.Error()
+		const wantErr = `ephemeral resource "ephemeral.foo_res.bar_name" detected in the plan. This is an error in OpenTofu`
+		if wantErr != gotErr {
+			t.Errorf("invalid error received. wanted:\n\t%s\ngot:\n\t%s", wantErr, gotErr)
+		}
+	})
 }
 
 func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
