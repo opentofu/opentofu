@@ -365,7 +365,7 @@ func (b *Local) opWait(
 
 		// try to force a PersistState just in case the process is terminated
 		// before we can complete.
-		if err := opStateMgr.PersistState(ctx, nil); err != nil {
+		if err := opStateMgr.PersistState(context.TODO(), nil); err != nil {
 			// We can't error out from here, but warn the user if there was an error.
 			// If this isn't transient, we will catch it again below, and
 			// attempt to save the state another way.
@@ -447,7 +447,7 @@ func (b *Local) StatePaths(name string) (stateIn, stateOut, backupOut string) {
 // in the same files as the "new" state snapshots.
 func (b *Local) PathsConflictWith(other *Local) bool {
 	otherPaths := map[string]struct{}{}
-	otherWorkspaces, err := other.Workspaces(ctx)
+	otherWorkspaces, err := other.Workspaces(context.TODO())
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.
@@ -458,7 +458,7 @@ func (b *Local) PathsConflictWith(other *Local) bool {
 		otherPaths[p] = struct{}{}
 	}
 
-	ourWorkspaces, err := other.Workspaces(ctx)
+	ourWorkspaces, err := other.Workspaces(context.TODO())
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.
