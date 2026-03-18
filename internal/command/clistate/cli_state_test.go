@@ -157,9 +157,6 @@ func TestWriteState_SetsVersion(t *testing.T) {
 
 func TestNewState(t *testing.T) {
 	state := NewState()
-	if state == nil {
-		t.Fatal("NewState returned nil")
-	}
 	if state.Version != StateVersion {
 		t.Errorf("expected version %d, got %d", StateVersion, state.Version)
 	}
@@ -171,10 +168,6 @@ func TestCLIState_DeepCopy(t *testing.T) {
 	}
 
 	copied := original.DeepCopy()
-	if copied == nil {
-		t.Fatal("DeepCopy returned nil")
-	}
-
 	if copied.Version != original.Version {
 		t.Errorf("version mismatch: %d != %d", copied.Version, original.Version)
 	}
