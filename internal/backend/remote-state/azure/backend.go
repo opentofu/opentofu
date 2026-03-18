@@ -259,7 +259,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Sensitive:   true,
 				Description: "Base64 encoded AES-256 key for Customer Provided encryption.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_CUSTOMER_PROVIDED_KEY", nil),
-				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
+				ValidateFunc: func(v any, _ string) ([]string, []error) {
 					_, err := newCPKInfo(v.(string))
 					if err != nil {
 						return nil, []error{err}

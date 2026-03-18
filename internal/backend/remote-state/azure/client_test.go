@@ -306,7 +306,7 @@ func TestAccRemoteClientCPK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name":  res.storageAccountName,
 		"container_name":        res.storageContainerName,
 		"key":                   res.storageKeyName,
@@ -321,7 +321,7 @@ func TestAccRemoteClientCPK(t *testing.T) {
 
 	remote.TestClient(t, s1.(*remote.State).Client)
 
-	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name":  res.storageAccountName,
 		"container_name":        res.storageContainerName,
 		"key":                   res.storageKeyName,
@@ -357,7 +357,7 @@ Please set the following environment variables using the meta-test/cmk folder:
   TF_AZURE_TEST_ENCRYPTION_SCOPE`)
 	}
 
-	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": storageAccountName,
 		"container_name":       containerName,
 		"key":                  "testState",
@@ -372,7 +372,7 @@ Please set the following environment variables using the meta-test/cmk folder:
 
 	remote.TestClient(t, s1.(*remote.State).Client)
 
-	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]any{
 		"storage_account_name": storageAccountName,
 		"container_name":       containerName,
 		"key":                  "testState",
