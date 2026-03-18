@@ -254,9 +254,6 @@ func TestPrimaryChdirOption(t *testing.T) {
 func TestEphemeralWorkflowAndOutput(t *testing.T) {
 	t.Parallel()
 
-	// TODO ephemeral - why is this skipped for access network? Needs no access because it uses simple-provider
-	//  that is built during the test run
-	skipIfCannotAccessNetwork(t)
 	pluginVersionRunner := func(t *testing.T, testdataPath string, providerBuilderFunc func(*testing.T, string)) {
 		tf := e2e.NewBinary(t, tofuBin, testdataPath)
 		providerBuilderFunc(t, tf.WorkDir())
