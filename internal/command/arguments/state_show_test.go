@@ -63,6 +63,11 @@ func TestParseStateShow_basicValidation(t *testing.T) {
 			want:        stateShowArgsWithDefaults(nil),
 			wantErrText: "Invalid number of arguments",
 		},
+		"unknown flag": {
+			args:        []string{"-unknown-flag"},
+			want:        stateShowArgsWithDefaults(func(v *StateShow) {}),
+			wantErrText: "Failed to parse command-line flags: flag provided but not defined: -unknown-flag",
+		},
 	}
 
 	cmpOpts := cmp.Options{
