@@ -260,11 +260,9 @@ func (n *nodeExpandApplyableResource) Close() (diags tfdiags.Diagnostics) {
 	diagsCh := make(chan tfdiags.Diagnostics, len(n.closers))
 	log.Printf("[TRACE] nodeExpandApplyableResource - scheduling %d closing operations for of ephemeral resource %s", len(n.closers), n.Addr.String())
 	for _, cb := range n.closers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			diagsCh <- cb()
-		}()
+		})
 	}
 	wg.Wait()
 	close(diagsCh)
