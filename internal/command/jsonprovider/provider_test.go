@@ -30,11 +30,23 @@ func TestMarshalProvider(t *testing.T) {
 				DataSourceSchemas:        map[string]*Schema{},
 				EphemeralResourceSchemas: map[string]*Schema{},
 				Functions:                map[string]*Function{},
+				ResourceIdentitySchemas:  nil,
 			},
 		},
 		{
 			testProvider(),
 			&Provider{
+				ResourceIdentitySchemas: map[string]*ResourceIdentitySchema{
+					"test_instance": {
+						Version: 1,
+						Attributes: map[string]*IdentityAttribute{
+							"id": {
+								IdentityType:      json.RawMessage(`"string"`),
+								RequiredForImport: true,
+							},
+						},
+					},
+				},
 				Provider: &Schema{
 					Block: &Block{
 						Attributes: map[string]*Attribute{
@@ -216,6 +228,13 @@ func testProvider() providers.ProviderSchema {
 		ResourceTypes: map[string]providers.Schema{
 			"test_instance": {
 				Version: 42,
+				IdentitySchemaVersion: 1,
+				IdentitySchema: &configschema.Object{
+					Nesting: configschema.NestingSingle,
+					Attributes: map[string]*configschema.Attribute{
+						"id": {Type: cty.String, Required: true},
+					},
+				},
 				Block: &configschema.Block{
 					Attributes: map[string]*configschema.Attribute{
 						"id":  {Type: cty.String, Optional: true, Computed: true},
