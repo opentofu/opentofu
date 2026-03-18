@@ -339,6 +339,7 @@ func TestReadWriteRoundTrip(t *testing.T) {
 	if result.Backend == nil {
 		t.Fatal("expected backend to be non-nil")
 	}
+
 	if result.Backend.Type != "s3" {
 		t.Errorf("backend type: got %q, want %q", result.Backend.Type, "s3")
 	}
