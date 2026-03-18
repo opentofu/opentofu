@@ -9,6 +9,11 @@ UPGRADE NOTES:
 
     If you run OpenTofu in a context where an environment variable of that name is already set, it may cause OpenTofu to now open a web browser in a different way than previous versions would have. Unsetting that environment variable will restore the previous platform-specific behavior.
 
+- If you are installing providers from the registry (most users), you should expect to see additional `h1:value` provider hashes in your `.terraform.lock.hcl` file.
+
+    We have improved the OpenTofu registry to serve both `zh:value` and `h1:value` hashes, as well as instructing OpenTofu in how to integrate this data into it's existing provider trust chain. Including these additional hashes will reduce friction in cross-platform environments. These and other related changes below should subsume the need to use `tofu providers lock` in most scenarios, simplifying many existing cross-platform workflows. For more information, see the [corresponding RFC](rfc/20251027-provider-registry-hashes.md) and [discussion](https://github.com/opentofu/opentofu/pull/3434)
+
+
 ENHANCEMENTS:
 
 - A `prevent_destroy` argument in the `lifecycle` block for managed resources can now refer to other symbols in the same module, such as to the module's input variables. ([#3474](https://github.com/opentofu/opentofu/issues/3474), [#3507](https://github.com/opentofu/opentofu/issues/3507))
@@ -25,6 +30,9 @@ ENHANCEMENTS:
 - Module registries can now specify that package downloads should use the same credentials as the registry's API calls, without needing to configure credentials separately in a `.netrc` file. This approach is helpful when the module packages are served by the registry itself, rather than when the registry just links to an external location such as a GitHub repository. ([#3313](https://github.com/opentofu/opentofu/issues/3313))
 - Provider installation now makes concurrent requests to download provider packages, which may allow `tofu init` to complete faster. ([#2729](https://github.com/opentofu/opentofu/pull/2729))
 - Provider checksum verification and schema loading are now better optimized, including no longer verifying checksums for providers that are present in the local cache but will not be used by a particular command. ([#2730](https://github.com/opentofu/opentofu/pull/2730))
+- `tofu init` now accepts additional provider platform hash data from the registry, which should simplify managing lockfiles in cross-platform environments. ([3868](https://github.com/opentofu/opentofu/pull/3868))
+- The `network_mirror` configuration now includes an option to trust all hashes reported by the mirror. This also simplifies managing lockfiles in cross-platform environments. ([3885](https://github.com/opentofu/opentofu/pull/3885))
+
 
 BUG FIXES:
 
